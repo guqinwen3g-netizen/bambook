@@ -1,0 +1,19 @@
+{
+  "name": "Bambook OS",
+  "short_name": "Bambook",
+  "description": "Bambook Neural mobile workspace",
+  "scope": "/bambookos/",
+  "start_url": "/bambookos/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F6FA",
+  "theme_color": "#0A2746",
+  "icons": [
+    {
+      "src": "/bambookos/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

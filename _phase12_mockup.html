@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bambook 中栏 — Phase 12 目标形态</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'SF Pro Text', 'PingFang SC', system-ui, sans-serif; background: #f7f7f5; color: #1a1a1a; display: flex; justify-content: center; padding: 40px 20px; }
+  .chat-column { width: 100%; max-width: 680px; }
+
+  /* user message */
+  .user-msg { display: flex; justify-content: flex-end; padding: 16px 0; }
+  .user-bubble { background: #fff; border: 1px solid #e2e2e0; border-radius: 16px; padding: 10px 16px; font-size: 14px; font-weight: 300; line-height: 1.6; color: #334155; max-width: 85%; }
+
+  /* model message */
+  .model-msg { padding: 24px 0; }
+  .model-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .avatar { width: 28px; height: 28px; border-radius: 8px; background: #eef2ff; display: flex; align-items: center; justify-content: center; }
+  .avatar svg { color: #4f46e5; }
+  .model-name { font-size: 13px; font-weight: 500; color: #1e293b; }
+  .model-time { font-size: 11px; color: #94a3b8; }
+
+  /* process annotation group */
+  .process-group { margin: 8px 0; }
+  .process-summary { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 6px; transition: background 0.15s; }
+  .process-summary:hover { background: #f1f5f9; }
+  .process-summary .chevron { color: #94a3b8; transition: transform 0.15s; }
+  .process-summary .chevron.open { transform: rotate(90deg); }
+  .process-summary .wrench { color: #94a3b8; }
+  .process-summary .label { font-size: 12.5px; font-weight: 500; color: #334155; }
+  .process-summary .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; animation: pulse 1.5s ease-in-out infinite; }
+  .process-summary .live-text { font-size: 10px; color: #94a3b8; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* expanded process */
+  .process-expanded { margin-left: 8px; padding-left: 12px; border-left: 1px solid #e2e8f0; margin-top: 4px; }
+  .annotation-row { display: flex; align-items: flex-start; gap: 10px; padding: 4px 0; }
+  .annotation-row .icon { margin-top: 2px; flex-shrink: 0; }
+  .annotation-row .content { min-width: 0; flex: 1; }
+  .annotation-row .title { font-size: 13px; font-weight: 500; color: #1e293b; }
+  .annotation-row .status { font-size: 11px; color: #94a3b8; margin-left: 6px; }
+  .annotation-row .detail { font-size: 12px; color: #64748b; margin-top: 2px; line-height: 1.5; }
+  .annotation-row .risk-pill { font-size: 9px; font-weight: 500; padding: 1px 6px; border-radius: 9999px; margin-left: 6px; }
+  .risk-critical { background: #fef2f2; color: #b91c1c; }
+  .risk-high { background: #fff7ed; color: #c2410c; }
+  .risk-medium { background: #fffbeb; color: #b45309; }
+
+  /* approval annotation */
+  .approval-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border-radius: 12px; border: 1px solid #fbbf24; background: #fffbeb; margin-top: 4px; }
+  .approval-row .content { min-width: 0; flex: 1; }
+  .approval-row .title { font-size: 13px; font-weight: 500; color: #1e293b; }
+  .approval-row .detail { font-size: 12px; color: #64748b; margin-top: 2px; line-height: 1.5; }
+  .approval-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .approval-btns button { border-radius: 8px; border: 1px solid; padding: 4px 12px; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-approve { border-color: #86efac; color: #166534; background: transparent; }
+  .btn-approve:hover { background: #dcfce7; }
+  .btn-reject { border-color: #fca5a5; color: #991b1b; background: transparent; }
+  .btn-reject:hover { background: #fee2e2; }
+  .btn-modify { border-color: #fcd34d; color: #92400e; background: transparent; }
+  .btn-modify:hover { background: #fef3c7; }
+
+  /* markdown answer (no container!) */
+  .markdown-answer { font-size: 14px; font-weight: 300; line-height: 1.7; color: #334155; }
+  .markdown-answer strong { font-weight: 500; }
+  .markdown-answer code { background: #f1f5f9; border-radius: 4px; padding: 1px 5px; font-size: 12.5px; font-family: 'SF Mono', 'Fira Code', monospace; color: #0f766e; }
+  .markdown-answer ul { margin: 8px 0 0 20px; }
+  .markdown-answer li { margin-bottom: 4px; }
+
+  /* bottom action bar */
+  .action-bar { display: flex; align-items: center; gap: 12px; margin-top: 8px; color: #94a3b8; }
+  .action-bar button { display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 6px; border: none; background: none; font-size: 11px; color: #94a3b8; cursor: pointer; transition: all 0.15s; }
+  .action-bar button:hover { background: #f1f5f9; color: #475569; }
+  .action-bar button svg { width: 12px; height: 12px; }
+
+  /* comparison label */
+  .comparison-label { text-align: center; padding: 20px 0 8px; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="chat-column">
+
+  <!-- 用户消息 -->
+  <div class="user-msg">
+    <div class="user-bubble">这周订单怎么样？面料库存够吗？</div>
+  </div>
+
+  <!-- Agent 消息：streaming 状态 -->
+  <div class="model-msg">
+    <div class="model-header">
+      <div class="avatar">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1L1 5v6l7 4 7-4V5L8 1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M1 5l7 4m0 0l7-4m-7 4v6" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+      </div>
+      <span class="model-name">Bambook</span>
+      <span class="live-dot"></span>
+      <span class="live-text">思考中</span>
+    </div>
+
+    <!-- 过程注解组（streaming 时自动展开） -->
+    <div class="process-group">
+      <div class="process-summary">
+        <svg class="chevron open" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        <svg class="wrench" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        <span class="label">执行中 · 2/4 步 · orders.query</span>
+        <span class="live-dot"></span>
+        <span class="live-text">live</span>
+      </div>
+
+      <div class="process-expanded">
+        <div class="annotation-row">
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></span>
+          <div class="content">
+            <span class="title">products.query</span>
+            <span class="status">完成</span>
+          </div>
+        </div>
+        <div class="annotation-row">
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="4 2"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="2s" repeatCount="indefinite"/></circle></svg></span>
+          <div class="content">
+            <span class="title">orders.query</span>
+            <span class="status">执行中</span>
+          </div>
+        </div>
+        <div class="annotation-row">
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+          <div class="content">
+            <span class="title">证据</span>
+            <span class="status">3 条</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- markdown 流式输出中 -->
+    <div class="markdown-answer" style="margin-top: 12px;">
+      正在查询订单数据<span style="display: inline-block; width: 2px; height: 1em; background: #334155; margin-left: 1px; animation: pulse 0.8s ease-in-out infinite; vertical-align: -0.12em;"></span>
+    </div>
+  </div>
+
+  <!-- ============= 分割线 ============= -->
+  <div class="comparison-label">↑ streaming 状态 &nbsp;|&nbsp; ↓ 完成状态</div>
+
+  <!-- Agent 消息：完成态 -->
+  <div class="model-msg">
+    <div class="model-header">
+      <div class="avatar">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1L1 5v6l7 4 7-4V5L8 1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M1 5l7 4m0 0l7-4m-7 4v6" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+      </div>
+      <span class="model-name">Bambook</span>
+      <span class="model-time">14:23</span>
+    </div>
+
+    <!-- 完成态：答案前置，过程在后 -->
+    <div class="markdown-answer">
+      本周订单情况汇总：<strong>共 12 笔订单</strong>，涉及 3 家供应商。面料库存整体充足，但 <code>WJ-2024-A003</code> 羊毛精纺面料库存偏低，建议关注。
+      <ul>
+        <li>已完成订单：<strong>8 笔</strong></li>
+        <li>进行中订单：<strong>3 笔</strong></li>
+        <li>待确认订单：<strong>1 笔</strong>（需审批）</li>
+      </ul>
+    </div>
+
+    <!-- 完成态过程注解组（默认收起） -->
+    <div class="process-group" style="margin-top: 16px;">
+      <div class="process-summary">
+        <svg class="chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        <svg class="wrench" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        <span class="label">已完成 4 步 · 2 条证据</span>
+      </div>
+    </div>
+
+    <!-- 审批注解（行内） -->
+    <div class="approval-row" style="margin-top: 8px;">
+      <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      <div class="content">
+        <span class="title">订单写入需确认</span>
+        <span class="status" style="color: #92400e;">等待审批</span>
+        <div class="detail">写入 orders 表 1 条新记录 (risk: high)</div>
+        <div class="approval-btns">
+          <button class="btn-approve">批准</button>
+          <button class="btn-reject">拒绝</button>
+          <button class="btn-modify">修改参数</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="action-bar">
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> 复制</button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H10z"/><path d="M17 22h3a2 2 0 002-2v-7a2 2 0 00-2-2h-3"/></svg></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

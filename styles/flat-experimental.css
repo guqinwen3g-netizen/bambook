@@ -1,0 +1,1813 @@
+/* ═══ BAMBOOK FLAT DESIGN — 正式 flat 设计覆盖层（实际渲染准源） ═══
+ * 定位：Bambook Flat Design 的实际生效载体，由 index.tsx 在 index.css 之后加载，
+ *       用 !important 覆盖 legacy 玻璃质感规则，确保 flat 风格统一生效。
+ * 设计准源：本文件 + os-vnext.css（token 基础）共同构成实际渲染的 100% 正确设计。
+ * 正式 token：flat 规则的语义化 token 已在 os-vnext.css 中以 --bambook-flat-* 前缀正式定义。
+ * 保留：backdrop-filter / blur / 半透明膜色（flat 设计的视觉特征之一）
+ * 归零：容器 box-shadow、drop-shadow、inset rim、高光描边、hover/press 位移立体感
+ * 范围：Bambook OS 根、UI Lab 根、共享容器、OS material、edge mask caster、常用 Tailwind shadow utility
+ * 演进：新组件应直接引用 --bambook-flat-* token；本覆盖层持续作为渲染保障存在。
+ */
+
+/* 1. Shadow / rim 变量归零（os-vnext + legacy design-system + ui-lab-2）*/
+:root {
+  --glass-border: transparent !important;
+  --glass-shadow: none !important;
+  --border-glow-blue: transparent !important;
+  --shadow-sm: none !important;
+  --shadow-md: none !important;
+  --shadow-lg: none !important;
+  --shadow-xl: none !important;
+  --shadow-glow-blue: none !important;
+  --shadow-glow-cyan: none !important;
+  --shadow-glow-purple: none !important;
+
+  --bambook-selected-light-depth-shadow: none !important;
+  --bambook-selected-light-top-highlight: none !important;
+  --bambook-selected-light-bottom-shade: none !important;
+  --bambook-selected-light-shadow: none !important;
+  --bambook-selected-dark-shadow: none !important;
+
+  --ui27-inner-shadow: none !important;
+  --ui27-drop-shadow: none !important;
+  --ui27-rim-light: none !important;
+  --ui27-shadow-regular: none !important;
+  --ui27-shadow-clear: none !important;
+  --ui27-shadow-active: none !important;
+
+  --ui-lab-panel-frame-depth-shadow: none !important;
+  --ui-lab-panel-frame-inset-shadow: none !important;
+  --ui-lab-panel-frame-shadow: none !important;
+  --ui-lab-panel-sidebar-depth-shadow: none !important;
+  --ui-lab-panel-sidebar-shadow: none !important;
+  --ui-lab-panel-surface-depth-shadow: none !important;
+  --ui-lab-panel-surface-inset-shadow: none !important;
+  --ui-lab-panel-surface-shadow: none !important;
+  --ui-lab-panel-secondary-depth-shadow: none !important;
+  --ui-lab-panel-secondary-inset-shadow: none !important;
+  --ui-lab-panel-secondary-shadow: none !important;
+  --ui-lab-panel-raised-depth-shadow: none !important;
+  --ui-lab-panel-raised-inset-shadow: none !important;
+  --ui-lab-panel-raised-shadow: none !important;
+  --ui-lab-panel-floating-depth-shadow: none !important;
+  --ui-lab-panel-floating-shadow: none !important;
+  --ui-lab-scroll-edge-proxy-shadow: none !important;
+  --bambook-sibling-shadow: none !important;
+}
+
+/* 2. 容器族 box-shadow 清零，覆盖显式声明与 token 声明。*/
+:where(
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .app-main-cover,
+  .app-main-viewport,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  [data-glass-edge-mask],
+  [data-glass-edge-mask-shadow-caster],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-spotlight-scope],
+  [data-ui-lab-2-root] *
+) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* 3. Tailwind shadow utilities 和任意值 shadow class 统一失效。*/
+:where(
+  .shadow-sm,
+  .shadow,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl,
+  .shadow-inner,
+  .hover\:shadow-sm:hover,
+  .hover\:shadow:hover,
+  .hover\:shadow-md:hover,
+  .hover\:shadow-lg:hover,
+  .hover\:shadow-xl:hover,
+  .hover\:shadow-2xl:hover,
+  [class*="shadow-"],
+  [class*="shadow_"]
+) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* 4. 容器 rim / 高光伪元素归零。保留容器背景膜和 backdrop blur。*/
+:where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role]
+) {
+  border-color: transparent !important;
+  outline-color: transparent !important;
+}
+
+:where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role]
+)::before {
+  box-shadow: none !important;
+  background-image: none !important;
+  opacity: 0 !important;
+}
+
+:where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role]
+)::after {
+  box-shadow: none !important;
+}
+
+/* 5. Ghost shadow caster 不再投影，也不再保留 shadow bleed 空间。*/
+.bambook-shadow-sibling-stack,
+.bambook-panel-shadow-viewport,
+.bambook-detail-panel-shadow-viewport {
+  --bambook-sibling-shadow: none !important;
+  --bambook-sibling-shadow-bleed: 0px !important;
+  --bambook-panel-shadow-bleed-x: 0px !important;
+  --bambook-panel-shadow-bleed-y: 0px !important;
+  --bambook-detail-panel-shadow-bleed-y: 0px !important;
+}
+
+.bambook-sibling-shadow-caster,
+[data-glass-edge-mask-shadow-caster],
+.bambook-sibling-shadow-caster::before,
+[data-glass-edge-mask-shadow-caster]::before {
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+
+.bambook-sibling-shadow-caster,
+[data-glass-edge-mask-shadow-caster] {
+  display: none !important;
+  inset: 0 !important;
+}
+
+/* 6. drop-shadow 和容器 hover/press 位移立体感归零；不清空 blur/backdrop-filter。*/
+:where(
+  [class*="drop-shadow"],
+  [class*="filter:drop-shadow"],
+  [style*="drop-shadow"],
+  .bambook-agent-pet-orb,
+  .logo-breathing,
+  .dashboard-live-scan-light,
+  .ui-lab-os-sidebar__brand-icon,
+  .bambook-brand-icon
+) {
+  filter: none !important;
+}
+
+:where(
+  .glass-card,
+  .ios-glass-card,
+  .btn-glow,
+  .bambook-card-glass,
+  .liquid-glass-card,
+  .os-material-raised-card,
+  [data-glass-edge-mask],
+  [class*="hover:scale"],
+  [class*="hover:-translate"],
+  [class*="hover:translate"],
+  [class*="active:scale"]
+):hover,
+:where([class*="active:scale"]):active {
+  transform: none !important;
+}
+
+/* 7. dark mode shadow 变量同样清零。*/
+.dark, [data-theme="dark"], .theme-dark {
+  --shadow-sm: none !important;
+  --shadow-md: none !important;
+  --shadow-lg: none !important;
+  --shadow-xl: none !important;
+  --shadow-glow-blue: none !important;
+  --shadow-glow-cyan: none !important;
+  --shadow-glow-purple: none !important;
+  --bambook-selected-light-depth-shadow: none !important;
+  --bambook-selected-light-top-highlight: none !important;
+  --bambook-selected-light-bottom-shade: none !important;
+  --bambook-selected-light-shadow: none !important;
+  --bambook-selected-dark-shadow: none !important;
+  --ui-lab-panel-frame-depth-shadow: none !important;
+  --ui-lab-panel-frame-inset-shadow: none !important;
+  --ui-lab-panel-frame-shadow: none !important;
+  --ui-lab-panel-sidebar-depth-shadow: none !important;
+  --ui-lab-panel-sidebar-shadow: none !important;
+  --ui-lab-panel-surface-depth-shadow: none !important;
+  --ui-lab-panel-surface-inset-shadow: none !important;
+  --ui-lab-panel-surface-shadow: none !important;
+  --ui-lab-panel-secondary-depth-shadow: none !important;
+  --ui-lab-panel-secondary-inset-shadow: none !important;
+  --ui-lab-panel-secondary-shadow: none !important;
+  --ui-lab-panel-raised-depth-shadow: none !important;
+  --ui-lab-panel-raised-inset-shadow: none !important;
+  --ui-lab-panel-raised-shadow: none !important;
+  --ui-lab-panel-floating-depth-shadow: none !important;
+  --ui-lab-panel-floating-shadow: none !important;
+}
+
+/* 注意：backdrop-filter / blur 保留（磨砂质感不压）。*/
+
+/* 8. Final app-scope guard.
+ * 这层必须作为独立 CSS 入口在 index.css 之后加载。它只把真正的材质层保留下来：
+ * background/backdrop-filter 可以存在；border/rim/pseudo-highlight/shadow-caster 不再是材质层。
+ */
+.bambook-os-root,
+.ui-lab-real-os-root,
+[data-ui-lab-2-root] {
+  --glass-border: transparent !important;
+  --glass-shadow: none !important;
+  --bambook-sibling-shadow: none !important;
+  --bambook-sibling-shadow-bleed: 0px !important;
+  --bambook-panel-shadow-bleed-x: 0px !important;
+  --bambook-panel-shadow-bleed-y: 0px !important;
+  --bambook-detail-panel-shadow-bleed-y: 0px !important;
+  --ui-lab-panel-frame-depth-shadow: none !important;
+  --ui-lab-panel-frame-inset-shadow: none !important;
+  --ui-lab-panel-frame-shadow: none !important;
+  --ui-lab-panel-raised-depth-shadow: none !important;
+  --ui-lab-panel-raised-inset-shadow: none !important;
+  --ui-lab-panel-raised-shadow: none !important;
+  --ui-lab-panel-secondary-depth-shadow: none !important;
+  --ui-lab-panel-secondary-inset-shadow: none !important;
+  --ui-lab-panel-secondary-shadow: none !important;
+  --ui-lab-panel-floating-depth-shadow: none !important;
+  --ui-lab-panel-floating-shadow: none !important;
+  --ui-lab-panel-highlight-background: none !important;
+  --ui-lab-panel-highlight-opacity: 0 !important;
+  --ui-lab-panel-seam-interference-background: none !important;
+  --ui-lab-panel-seam-interference-opacity: 0 !important;
+}
+
+.bambook-os-root :where(
+  .holographic-card,
+  .holographic-panel,
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .app-main-cover,
+  .app-main-viewport,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container]
+),
+.ui-lab-real-os-root :where(
+  .holographic-card,
+  .holographic-panel,
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .app-main-cover,
+  .app-main-viewport,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container]
+),
+[data-ui-lab-2-root] :where(
+  .holographic-card,
+  .holographic-panel,
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container]
+) {
+  border-width: 0 !important;
+  border-style: solid !important;
+  border-color: transparent !important;
+  outline-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  background-clip: border-box !important;
+}
+
+.bambook-os-root :where(.app-main-cover, .app-main-viewport),
+.ui-lab-real-os-root :where(.app-main-cover, .app-main-viewport) {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.bambook-os-root :where(.app-main-cover, .app-main-viewport)::before,
+.bambook-os-root :where(.app-main-cover, .app-main-viewport)::after,
+.ui-lab-real-os-root :where(.app-main-cover, .app-main-viewport)::before,
+.ui-lab-real-os-root :where(.app-main-cover, .app-main-viewport)::after {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 0 !important;
+}
+
+.bambook-os-root .app-main-cover,
+.ui-lab-real-os-root .app-main-cover {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container]
+)::before,
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container]
+)::after,
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container]
+)::before,
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container]
+)::after {
+  background: none !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+
+/* Final import-order bridge:
+ * flat-experimental.css is still loaded after os-vnext.css, so legacy container
+ * classes must be mapped back onto the RDL surface tokens here. This layer is a
+ * compatibility bridge only; os-vnext.css remains the token authority.
+ */
+.bambook-os-root :where(
+  .glass-panel,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-outer-panel,
+  .os-vnext-panel,
+  .os-material-frame-panel
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-outer-panel,
+  .os-vnext-panel,
+  .os-material-frame-panel
+),
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-outer-panel,
+  .os-vnext-panel,
+  .os-material-frame-panel
+) {
+  border: 0 !important;
+  border-radius: var(--bambook-rdl-radius-panel) !important;
+  background-color: var(--bambook-rdl-panel-fill) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root :where(
+  .glass-card,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-vnext-card,
+  .os-material-raised-card
+),
+.ui-lab-real-os-root :where(
+  .glass-card,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-vnext-card,
+  .os-material-raised-card
+),
+[data-ui-lab-2-root] :where(
+  .glass-card,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-vnext-card,
+  .os-material-raised-card
+) {
+  border: 0 !important;
+  border-radius: var(--bambook-rdl-radius-card) !important;
+  background-color: var(--bambook-rdl-card-fill) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root :where(
+  .bambook-selected-surface,
+  .bambook-selected-surface--light,
+  .bambook-selected-surface--dark,
+  .bambook-state-switch-track--checked-light,
+  .bambook-state-switch-track--checked-dark,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .os-vnext-toolbar,
+  .os-material-inset-surface
+),
+.ui-lab-real-os-root :where(
+  .bambook-selected-surface,
+  .bambook-selected-surface--light,
+  .bambook-selected-surface--dark,
+  .bambook-state-switch-track--checked-light,
+  .bambook-state-switch-track--checked-dark,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .os-vnext-toolbar,
+  .os-material-inset-surface
+),
+[data-ui-lab-2-root] :where(
+  .bambook-selected-surface,
+  .bambook-selected-surface--light,
+  .bambook-selected-surface--dark,
+  .bambook-state-switch-track--checked-light,
+  .bambook-state-switch-track--checked-dark,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .os-vnext-toolbar,
+  .os-material-inset-surface
+) {
+  border: 0 !important;
+  border-radius: var(--bambook-rdl-radius-inset) !important;
+  background-color: var(--bambook-rdl-inset-fill) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root :where(
+  .glass-pill,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-floating-overlay
+),
+.ui-lab-real-os-root :where(
+  .glass-pill,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-floating-overlay
+),
+[data-ui-lab-2-root] :where(
+  .glass-pill,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-floating-overlay
+) {
+  border: 0 !important;
+  border-radius: var(--bambook-rdl-radius-floating) !important;
+  background-color: var(--bambook-rdl-floating-fill) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-floating-filter) !important;
+  backdrop-filter: var(--bambook-rdl-floating-filter) !important;
+}
+
+.bambook-os-root .app-main-cover.app-main-cover-flush,
+.ui-lab-real-os-root .app-main-cover.app-main-cover-flush {
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  border-radius: var(--app-main-cover-radius) 0 0 var(--app-main-cover-radius) !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* 9. Generic Tailwind container guard.
+ * 登录页、临时页、旧桥接页常用 rounded + border + bg + shadow 组合，不一定挂 OS material class。
+ * 这些也是容器 rim 的来源：透明 border 如果裁掉背景，会露出一圈“尺寸差”。
+ */
+:where(
+  [class*="shadow-"][class*="rounded"],
+  [class*="drop-shadow"][class*="rounded"],
+  [class*="backdrop-blur"][class*="rounded"],
+  [class*="bg-white/"][class*="rounded"],
+  [class*="bg-slate"][class*="rounded"],
+  [class*="bg-black/"][class*="rounded"],
+  [class*="border-white/"][class*="rounded"],
+  [class*="border-slate"][class*="rounded"],
+  [class*="border-zinc"][class*="rounded"]
+) {
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  background-clip: border-box !important;
+}
+
+:where(
+  [class*="shadow-"][class*="rounded"],
+  [class*="drop-shadow"][class*="rounded"],
+  [class*="backdrop-blur"][class*="rounded"],
+  [class*="bg-white/"][class*="rounded"],
+  [class*="bg-slate"][class*="rounded"],
+  [class*="bg-black/"][class*="rounded"],
+  [class*="border-white/"][class*="rounded"],
+  [class*="border-slate"][class*="rounded"],
+  [class*="border-zinc"][class*="rounded"]
+)::before,
+:where(
+  [class*="shadow-"][class*="rounded"],
+  [class*="drop-shadow"][class*="rounded"],
+  [class*="backdrop-blur"][class*="rounded"],
+  [class*="bg-white/"][class*="rounded"],
+  [class*="bg-slate"][class*="rounded"],
+  [class*="bg-black/"][class*="rounded"],
+  [class*="border-white/"][class*="rounded"],
+  [class*="border-slate"][class*="rounded"],
+  [class*="border-zinc"][class*="rounded"]
+)::after {
+  background: none !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+
+/* 10. Container rim hard kill.
+ * 透明 border 仍会产生抗锯齿尺寸差；容器本体必须无边框。
+ * 输入框、表格线、文本分隔线不在这个容器族范围内。
+ */
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-vnext-dialog,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container],
+  [class*="border-white/"][class*="rounded"],
+  [class*="border-slate"][class*="rounded"],
+  [class*="border-zinc"][class*="rounded"],
+  [class*="bg-white/"][class*="rounded"],
+  [class*="bg-slate"][class*="rounded"],
+  [class*="bg-black/"][class*="rounded"],
+  [class*="backdrop-blur"][class*="rounded"]
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-vnext-dialog,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel,
+  [data-glass-edge-mask],
+  [data-os-shadow-mode],
+  [data-os-shadow-role],
+  [data-ui27-glass-container],
+  [class*="border-white/"][class*="rounded"],
+  [class*="border-slate"][class*="rounded"],
+  [class*="border-zinc"][class*="rounded"],
+  [class*="bg-white/"][class*="rounded"],
+  [class*="bg-slate"][class*="rounded"],
+  [class*="bg-black/"][class*="rounded"],
+  [class*="backdrop-blur"][class*="rounded"]
+) {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* 11. RonDesignLab-style matte frosted material.
+ * 普通容器不再靠 rim、伪高光、渐变或阴影成立；只保留一层均匀半透明膜 + 中等 backdrop blur。
+ * 语义线条（表格线、输入框 focus、分隔线）不在这个容器族里处理。
+ */
+.bambook-os-root,
+.ui-lab-real-os-root,
+[data-ui-lab-2-root] {
+  --bambook-rdl-theme-rgb: 255 255 255;
+  --bambook-rdl-theme-strong-rgb: 10 10 10;
+  --bambook-rdl-panel-fill-light: rgb(255 255 255 / 0.50);
+  --bambook-rdl-card-fill-light: rgb(255 255 255 / 0.44);
+  --bambook-rdl-inset-fill-light: rgb(255 255 255 / 0.30);
+  --bambook-rdl-floating-fill-light: rgb(255 255 255 / 0.70);
+  --bambook-rdl-panel-fill-dark: rgb(24 31 42 / 0.58);
+  --bambook-rdl-card-fill-dark: rgb(30 38 51 / 0.52);
+  --bambook-rdl-inset-fill-dark: rgb(255 255 255 / 0.055);
+  --bambook-rdl-floating-fill-dark: rgb(36 45 59 / 0.62);
+  --bambook-rdl-panel-fill: var(--bambook-rdl-panel-fill-light);
+  --bambook-rdl-card-fill: var(--bambook-rdl-card-fill-light);
+  --bambook-rdl-inset-fill: var(--bambook-rdl-inset-fill-light);
+  --bambook-rdl-floating-fill: var(--bambook-rdl-floating-fill-light);
+  --bambook-rdl-primary-text: rgb(7 10 14);
+  --bambook-rdl-secondary-text: rgb(52 58 65);
+  --bambook-rdl-muted-text: rgb(82 90 100);
+  --bambook-rdl-brand-text: var(--os-vnext-brand-blue);
+  --bambook-rdl-sidebar-fill-light: rgb(9 31 58 / 0.18);
+  --bambook-rdl-sidebar-active-fill-light: rgb(255 255 255 / 0.62);
+  --bambook-rdl-sidebar-hover-fill-light: rgb(255 255 255 / 0.14);
+  --bambook-rdl-sidebar-primary-text-light: rgb(9 31 58);
+  --bambook-rdl-sidebar-secondary-text-light: rgb(9 31 58 / 0.80);
+  --bambook-rdl-sidebar-muted-text-light: rgb(23 54 93 / 0.66);
+  --bambook-rdl-panel-filter: saturate(124%) blur(15px);
+  --bambook-rdl-floating-filter: saturate(128%) blur(20px);
+  --ui-lab-panel-frame-depth-shadow: none !important;
+  --ui-lab-panel-frame-inset-shadow: none !important;
+  --ui-lab-panel-frame-shadow: var(--ui-lab-panel-frame-depth-shadow) !important;
+  --ui-lab-panel-sidebar-depth-shadow: none !important;
+  --ui-lab-panel-sidebar-shadow: var(--ui-lab-panel-sidebar-depth-shadow) !important;
+  --ui-lab-panel-surface-depth-shadow: none !important;
+  --ui-lab-panel-surface-inset-shadow: none !important;
+  --ui-lab-panel-surface-shadow: var(--ui-lab-panel-surface-depth-shadow) !important;
+  --ui-lab-panel-secondary-depth-shadow: none !important;
+  --ui-lab-panel-secondary-inset-shadow: none !important;
+  --ui-lab-panel-secondary-shadow: var(--ui-lab-panel-secondary-depth-shadow) !important;
+  --ui-lab-panel-raised-depth-shadow: none !important;
+  --ui-lab-panel-raised-inset-shadow: none !important;
+  --ui-lab-panel-raised-shadow: var(--ui-lab-panel-raised-depth-shadow) !important;
+
+  --ui-lab-panel-glass-film-color: var(--bambook-rdl-panel-fill) !important;
+  --ui-lab-panel-raised-film-color: var(--bambook-rdl-card-fill) !important;
+  --ui-lab-panel-inset-film-color: var(--bambook-rdl-inset-fill) !important;
+  --ui-lab-panel-shared-glass-background: none !important;
+  --ui-lab-panel-raised-glass-background: none !important;
+  --ui-lab-panel-nested-glass-background: none !important;
+  --ui-lab-panel-surface-filter: var(--bambook-rdl-panel-filter) !important;
+  --ui-lab-panel-surface-border: transparent !important;
+  --ui-lab-panel-highlight-background: none !important;
+  --ui-lab-panel-highlight-opacity: 0 !important;
+  --ui-lab-panel-noise-background: none !important;
+  --ui-lab-panel-noise-opacity: 0 !important;
+  --bambook-selected-light-background: var(--bambook-rdl-inset-fill) !important;
+}
+
+.dark .bambook-os-root,
+.dark .ui-lab-real-os-root,
+.dark [data-ui-lab-2-root],
+.bambook-os-root--dark,
+.ui-lab-real-os-root--dark,
+[data-ui-lab-2-root].dark {
+  --bambook-rdl-panel-fill: var(--bambook-rdl-panel-fill-dark);
+  --bambook-rdl-card-fill: var(--bambook-rdl-card-fill-dark);
+  --bambook-rdl-inset-fill: var(--bambook-rdl-inset-fill-dark);
+  --bambook-rdl-floating-fill: var(--bambook-rdl-floating-fill-dark);
+  --bambook-rdl-primary-text: rgb(248 250 252);
+  --bambook-rdl-secondary-text: rgb(202 211 222);
+  --bambook-rdl-muted-text: rgb(156 168 182);
+}
+
+.bambook-os-root[data-wallpaper-mode="on"],
+.ui-lab-real-os-root[data-wallpaper-mode="on"],
+[data-ui-lab-2-root][data-wallpaper-mode="on"] {
+  --bambook-rdl-theme-rgb: 82 99 110;
+  --bambook-rdl-theme-strong-rgb: 38 52 62;
+  --bambook-rdl-panel-fill-light: rgb(255 255 255 / 0.34);
+  --bambook-rdl-card-fill-light: rgb(255 255 255 / 0.28);
+  --bambook-rdl-inset-fill-light: rgb(255 255 255 / 0.16);
+  --bambook-rdl-floating-fill-light: rgb(255 255 255 / 0.54);
+  --bambook-rdl-panel-fill-dark: rgb(38 52 62 / 0.44);
+  --bambook-rdl-card-fill-dark: rgb(32 48 60 / 0.38);
+  --bambook-rdl-inset-fill-dark: rgb(102 118 128 / 0.14);
+  --bambook-rdl-floating-fill-dark: rgb(36 52 64 / 0.46);
+  --bambook-rdl-panel-fill: var(--bambook-rdl-panel-fill-light);
+  --bambook-rdl-card-fill: var(--bambook-rdl-card-fill-light);
+  --bambook-rdl-inset-fill: var(--bambook-rdl-inset-fill-light);
+  --bambook-rdl-floating-fill: var(--bambook-rdl-floating-fill-light);
+  --bambook-rdl-primary-text: rgb(255 255 255);
+  --bambook-rdl-secondary-text: rgb(226 234 240);
+  --bambook-rdl-muted-text: rgb(188 202 212);
+  --bambook-rdl-brand-text: rgb(255 255 255);
+}
+
+.bambook-os-root--dark[data-wallpaper-mode="on"],
+.ui-lab-real-os-root--dark[data-wallpaper-mode="on"],
+[data-ui-lab-2-root].dark[data-wallpaper-mode="on"] {
+  --bambook-rdl-panel-fill: var(--bambook-rdl-panel-fill-dark);
+  --bambook-rdl-card-fill: var(--bambook-rdl-card-fill-dark);
+  --bambook-rdl-inset-fill: var(--bambook-rdl-inset-fill-dark);
+  --bambook-rdl-floating-fill: var(--bambook-rdl-floating-fill-dark);
+}
+
+.bambook-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="primary"],
+.ui-lab-real-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="primary"],
+[data-ui-lab-2-root][data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="primary"],
+.bambook-os-root[data-wallpaper-mode="on"] :where(.text-os-adaptive-title, .text-os-adaptive-primary),
+.ui-lab-real-os-root[data-wallpaper-mode="on"] :where(.text-os-adaptive-title, .text-os-adaptive-primary),
+[data-ui-lab-2-root][data-wallpaper-mode="on"] :where(.text-os-adaptive-title, .text-os-adaptive-primary) {
+  color: var(--bambook-rdl-primary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="secondary"],
+.bambook-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="muted"],
+.ui-lab-real-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="secondary"],
+.ui-lab-real-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="muted"],
+[data-ui-lab-2-root][data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="secondary"],
+[data-ui-lab-2-root][data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="muted"],
+.bambook-os-root[data-wallpaper-mode="on"] :where(.text-os-adaptive-subtitle),
+.ui-lab-real-os-root[data-wallpaper-mode="on"] :where(.text-os-adaptive-subtitle),
+[data-ui-lab-2-root][data-wallpaper-mode="on"] :where(.text-os-adaptive-subtitle) {
+  color: var(--bambook-rdl-secondary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="brand"],
+.ui-lab-real-os-root[data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="brand"],
+[data-ui-lab-2-root][data-wallpaper-mode="on"] [data-ui-lab-wallpaper-contrast="brand"],
+.bambook-os-root[data-wallpaper-mode="on"] :where(.text-os-adaptive-brand),
+.ui-lab-real-os-root[data-wallpaper-mode="on"] :where(.text-os-adaptive-brand),
+[data-ui-lab-2-root][data-wallpaper-mode="on"] :where(.text-os-adaptive-brand) {
+  color: var(--bambook-rdl-brand-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root[data-wallpaper-mode="on"] .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"],
+.ui-lab-real-os-root[data-wallpaper-mode="on"] .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"],
+[data-ui-lab-2-root][data-wallpaper-mode="on"] .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] {
+  color: var(--bambook-rdl-secondary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root[data-wallpaper-mode="on"] .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"],
+.ui-lab-real-os-root[data-wallpaper-mode="on"] .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"],
+[data-ui-lab-2-root][data-wallpaper-mode="on"] .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"] {
+  color: var(--bambook-rdl-primary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="primary"],
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="primary"],
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="primary"] {
+  color: var(--bambook-rdl-primary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="secondary"],
+.bambook-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="muted"],
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="secondary"],
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="muted"],
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="secondary"],
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="muted"] {
+  color: var(--bambook-rdl-secondary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="brand"],
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="brand"],
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) [data-ui-lab-wallpaper-contrast="brand"],
+.bambook-os-root:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-brand),
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-brand),
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-brand) {
+  color: var(--bambook-rdl-brand-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-title, .text-os-adaptive-primary),
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-title, .text-os-adaptive-primary),
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-title, .text-os-adaptive-primary) {
+  color: var(--bambook-rdl-primary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-subtitle),
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-subtitle),
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) :where(.text-os-adaptive-subtitle) {
+  color: var(--bambook-rdl-secondary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"],
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"],
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] {
+  color: var(--bambook-rdl-secondary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"],
+.ui-lab-real-os-root:not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"],
+[data-ui-lab-2-root]:not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"] {
+  color: var(--bambook-rdl-primary-text) !important;
+  text-shadow: none !important;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-reveal-underlay-material,
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-reveal-underlay-material,
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-reveal-underlay-material {
+  background: var(--bambook-rdl-sidebar-fill-light) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"],
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"],
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] {
+  color: var(--bambook-rdl-sidebar-secondary-text-light) !important;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] [data-sidebar-nav-icon],
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] [data-sidebar-nav-icon],
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="false"] [data-sidebar-nav-icon] {
+  color: var(--bambook-rdl-sidebar-muted-text-light) !important;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"],
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"],
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-nav-item][data-sidebar-nav-active="true"] {
+  color: var(--bambook-rdl-sidebar-primary-text-light) !important;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface--light,
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface--light,
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface--light {
+  background-color: var(--bambook-rdl-sidebar-active-fill-light) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: var(--bambook-rdl-floating-filter) !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-floating-filter) !important;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-account-bar],
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-account-bar],
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-account-bar] {
+  --os-adaptive-primary: var(--bambook-rdl-sidebar-primary-text-light);
+  --os-adaptive-subtitle: var(--bambook-rdl-sidebar-muted-text-light);
+}
+
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-expanded-collapse-button]:hover,
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-expanded-collapse-button]:hover,
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar [data-sidebar-expanded-collapse-button]:hover {
+  background: var(--bambook-rdl-sidebar-hover-fill-light) !important;
+}
+
+.bambook-os-root :where(
+  [data-ui-lab-wallpaper-contrast],
+  .text-os-adaptive-title,
+  .text-os-adaptive-primary,
+  .text-os-adaptive-subtitle,
+  .text-os-adaptive-brand
+) :where(svg),
+.ui-lab-real-os-root :where(
+  [data-ui-lab-wallpaper-contrast],
+  .text-os-adaptive-title,
+  .text-os-adaptive-primary,
+  .text-os-adaptive-subtitle,
+  .text-os-adaptive-brand
+) :where(svg),
+[data-ui-lab-2-root] :where(
+  [data-ui-lab-wallpaper-contrast],
+  .text-os-adaptive-title,
+  .text-os-adaptive-primary,
+  .text-os-adaptive-subtitle,
+  .text-os-adaptive-brand
+) :where(svg) {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.bambook-os-root :where(
+  [data-ui-lab-wallpaper-contrast],
+  .text-os-adaptive-title,
+  .text-os-adaptive-primary,
+  .text-os-adaptive-subtitle,
+  .text-os-adaptive-brand
+),
+.ui-lab-real-os-root :where(
+  [data-ui-lab-wallpaper-contrast],
+  .text-os-adaptive-title,
+  .text-os-adaptive-primary,
+  .text-os-adaptive-subtitle,
+  .text-os-adaptive-brand
+),
+[data-ui-lab-2-root] :where(
+  [data-ui-lab-wallpaper-contrast],
+  .text-os-adaptive-title,
+  .text-os-adaptive-primary,
+  .text-os-adaptive-subtitle,
+  .text-os-adaptive-brand
+) {
+  opacity: 1 !important;
+}
+
+.bambook-os-root :where(
+  [class*="text-white/"],
+  [class*="text-black/"]
+),
+.ui-lab-real-os-root :where(
+  [class*="text-white/"],
+  [class*="text-black/"]
+),
+[data-ui-lab-2-root] :where(
+  [class*="text-white/"],
+  [class*="text-black/"]
+) {
+  color: var(--bambook-rdl-secondary-text) !important;
+}
+
+.bambook-os-root :where(
+  [class*="text-white/8"],
+  [class*="text-white/9"],
+  [class*="text-white/[0.8"],
+  [class*="text-white/[0.9"],
+  [class*="text-black/8"],
+  [class*="text-black/9"],
+  [class*="text-black/[0.8"],
+  [class*="text-black/[0.9"]
+),
+.ui-lab-real-os-root :where(
+  [class*="text-white/8"],
+  [class*="text-white/9"],
+  [class*="text-white/[0.8"],
+  [class*="text-white/[0.9"],
+  [class*="text-black/8"],
+  [class*="text-black/9"],
+  [class*="text-black/[0.8"],
+  [class*="text-black/[0.9"]
+),
+[data-ui-lab-2-root] :where(
+  [class*="text-white/8"],
+  [class*="text-white/9"],
+  [class*="text-white/[0.8"],
+  [class*="text-white/[0.9"],
+  [class*="text-black/8"],
+  [class*="text-black/9"],
+  [class*="text-black/[0.8"],
+  [class*="text-black/[0.9"]
+) {
+  color: var(--bambook-rdl-primary-text) !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+),
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) {
+  color: var(--bambook-rdl-primary-text) !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(span, p, h1, h2, h3, h4, h5, h6, label, button, a, small, strong, svg)[class*="opacity-"],
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(span, p, h1, h2, h3, h4, h5, h6, label, button, a, small, strong, svg)[class*="opacity-"],
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(span, p, h1, h2, h3, h4, h5, h6, label, button, a, small, strong, svg)[class*="opacity-"] {
+  opacity: 1 !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-700"],
+  [class*="text-slate-800"],
+  [class*="text-slate-900"],
+  [class*="text-gray-700"],
+  [class*="text-gray-800"],
+  [class*="text-gray-900"],
+  [class*="text-zinc-700"],
+  [class*="text-zinc-800"],
+  [class*="text-zinc-900"],
+  [class*="text-neutral-700"],
+  [class*="text-neutral-800"],
+  [class*="text-neutral-900"],
+  [class~="text-white"],
+  [class~="text-black"]
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-700"],
+  [class*="text-slate-800"],
+  [class*="text-slate-900"],
+  [class*="text-gray-700"],
+  [class*="text-gray-800"],
+  [class*="text-gray-900"],
+  [class*="text-zinc-700"],
+  [class*="text-zinc-800"],
+  [class*="text-zinc-900"],
+  [class*="text-neutral-700"],
+  [class*="text-neutral-800"],
+  [class*="text-neutral-900"],
+  [class~="text-white"],
+  [class~="text-black"]
+),
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-700"],
+  [class*="text-slate-800"],
+  [class*="text-slate-900"],
+  [class*="text-gray-700"],
+  [class*="text-gray-800"],
+  [class*="text-gray-900"],
+  [class*="text-zinc-700"],
+  [class*="text-zinc-800"],
+  [class*="text-zinc-900"],
+  [class*="text-neutral-700"],
+  [class*="text-neutral-800"],
+  [class*="text-neutral-900"],
+  [class~="text-white"],
+  [class~="text-black"]
+) {
+  color: var(--bambook-rdl-primary-text) !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  .text-slate-300,
+  .text-slate-400,
+  .text-slate-500,
+  .text-slate-600,
+  .text-white\/60,
+  .text-white\/70,
+  .text-black\/50,
+  .text-black\/60
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  .text-slate-300,
+  .text-slate-400,
+  .text-slate-500,
+  .text-slate-600,
+  .text-white\/60,
+  .text-white\/70,
+  .text-black\/50,
+  .text-black\/60
+),
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  .text-slate-300,
+  .text-slate-400,
+  .text-slate-500,
+  .text-slate-600,
+  .text-white\/60,
+  .text-white\/70,
+  .text-black\/50,
+  .text-black\/60
+) {
+  color: var(--bambook-rdl-secondary-text) !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-"],
+  [class*="text-gray-"],
+  [class*="text-zinc-"],
+  [class*="text-neutral-"],
+  [class*="text-white/"],
+  [class*="text-black/"]
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-"],
+  [class*="text-gray-"],
+  [class*="text-zinc-"],
+  [class*="text-neutral-"],
+  [class*="text-white/"],
+  [class*="text-black/"]
+),
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-"],
+  [class*="text-gray-"],
+  [class*="text-zinc-"],
+  [class*="text-neutral-"],
+  [class*="text-white/"],
+  [class*="text-black/"]
+) {
+  color: var(--bambook-rdl-secondary-text) !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-700"],
+  [class*="text-slate-800"],
+  [class*="text-slate-900"],
+  [class*="text-gray-700"],
+  [class*="text-gray-800"],
+  [class*="text-gray-900"],
+  [class*="text-zinc-700"],
+  [class*="text-zinc-800"],
+  [class*="text-zinc-900"],
+  [class*="text-neutral-700"],
+  [class*="text-neutral-800"],
+  [class*="text-neutral-900"],
+  [class~="text-white"],
+  [class~="text-black"]
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-700"],
+  [class*="text-slate-800"],
+  [class*="text-slate-900"],
+  [class*="text-gray-700"],
+  [class*="text-gray-800"],
+  [class*="text-gray-900"],
+  [class*="text-zinc-700"],
+  [class*="text-zinc-800"],
+  [class*="text-zinc-900"],
+  [class*="text-neutral-700"],
+  [class*="text-neutral-800"],
+  [class*="text-neutral-900"],
+  [class~="text-white"],
+  [class~="text-black"]
+),
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-panel-glass,
+  .bambook-card-glass,
+  .bambook-blue-white-surface,
+  .os-material-raised-card,
+  .os-vnext-panel,
+  .os-vnext-card
+) :where(
+  [class*="text-slate-700"],
+  [class*="text-slate-800"],
+  [class*="text-slate-900"],
+  [class*="text-gray-700"],
+  [class*="text-gray-800"],
+  [class*="text-gray-900"],
+  [class*="text-zinc-700"],
+  [class*="text-zinc-800"],
+  [class*="text-zinc-900"],
+  [class*="text-neutral-700"],
+  [class*="text-neutral-800"],
+  [class*="text-neutral-900"],
+  [class~="text-white"],
+  [class~="text-black"]
+) {
+  color: var(--bambook-rdl-primary-text) !important;
+}
+
+.bambook-os-root :where(.glass-panel, .glass-card, .bambook-blue-white-surface, .os-material-raised-card) [class*="text-[var(--os-vnext-brand-blue"],
+.ui-lab-real-os-root :where(.glass-panel, .glass-card, .bambook-blue-white-surface, .os-material-raised-card) [class*="text-[var(--os-vnext-brand-blue"],
+[data-ui-lab-2-root] :where(.glass-panel, .glass-card, .bambook-blue-white-surface, .os-material-raised-card) [class*="text-[var(--os-vnext-brand-blue"] {
+  color: var(--bambook-rdl-brand-text) !important;
+}
+
+.dashboard-hud-root :where(
+  .glass-panel,
+  .glass-card,
+  .bambook-blue-white-surface,
+  .os-material-raised-card
+) {
+  border-radius: 34px !important;
+}
+
+.dashboard-hud-root :where(.os-material-inset-surface, .bambook-nested-surface, .bambook-tertiary-surface) {
+  border-radius: 999px !important;
+}
+
+/* Bridge legacy OS vNext and "blue-white" material classes into the same
+ * three-state material system. This prevents older page-local classes from
+ * reintroducing theme-color gradients, rims, or depth over the global film.
+ */
+.bambook-os-root :where(
+  .bambook-blue-white-light,
+  .bambook-blue-white-surface,
+  .bambook-selected-surface,
+  .bambook-selected-surface--light,
+  .bambook-selected-surface--dark,
+  .bambook-state-switch-track--checked-light,
+  .bambook-state-switch-track--checked-dark,
+  .os-vnext-panel,
+  .os-vnext-card,
+  .os-vnext-toolbar,
+  .os-vnext-dialog
+),
+.ui-lab-real-os-root :where(
+  .bambook-blue-white-light,
+  .bambook-blue-white-surface,
+  .bambook-selected-surface,
+  .bambook-selected-surface--light,
+  .bambook-selected-surface--dark,
+  .bambook-state-switch-track--checked-light,
+  .bambook-state-switch-track--checked-dark,
+  .os-vnext-panel,
+  .os-vnext-card,
+  .os-vnext-toolbar,
+  .os-vnext-dialog
+),
+[data-ui-lab-2-root] :where(
+  .bambook-blue-white-light,
+  .bambook-blue-white-surface,
+  .bambook-selected-surface,
+  .bambook-selected-surface--light,
+  .bambook-selected-surface--dark,
+  .bambook-state-switch-track--checked-light,
+  .bambook-state-switch-track--checked-dark,
+  .os-vnext-panel,
+  .os-vnext-card,
+  .os-vnext-toolbar,
+  .os-vnext-dialog
+) {
+  background-color: var(--bambook-rdl-panel-fill) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.dashboard-hud-root :where(.bambook-dashboard-accent-card) {
+  background-color: color-mix(
+    in srgb,
+    rgb(var(--bambook-rdl-theme-rgb)) 28%,
+    var(--bambook-rdl-panel-fill) 72%
+  ) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.bambook-os-root :where(
+  .os-vnext-field,
+  .os-vnext-button--state[data-os-vnext-active="true"],
+  .os-material-inset-surface,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface
+),
+.ui-lab-real-os-root :where(
+  .os-vnext-field,
+  .os-vnext-button--state[data-os-vnext-active="true"],
+  .os-material-inset-surface,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface
+),
+[data-ui-lab-2-root] :where(
+  .os-vnext-field,
+  .os-vnext-button--state[data-os-vnext-active="true"],
+  .os-material-inset-surface,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface
+) {
+  background-color: var(--bambook-rdl-inset-fill) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root[data-wallpaper-mode="on"] :where(.os-vnext-field, .os-vnext-button),
+.ui-lab-real-os-root[data-wallpaper-mode="on"] :where(.os-vnext-field, .os-vnext-button),
+[data-ui-lab-2-root][data-wallpaper-mode="on"] :where(.os-vnext-field, .os-vnext-button) {
+  color: var(--bambook-rdl-primary-text) !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-outer-panel,
+  .os-material-frame-panel,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel
+),
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-outer-panel,
+  .os-material-frame-panel,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel
+),
+[data-ui-lab-2-root] :where(
+  .glass-panel,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-outer-panel,
+  .os-material-frame-panel,
+  .bambook-relations-form-panel,
+  .bambook-relations-form-map-panel
+) {
+  background-color: var(--bambook-rdl-panel-fill) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root :where(
+  .glass-card,
+  .bambook-card-glass,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-raised-card
+),
+.ui-lab-real-os-root :where(
+  .glass-card,
+  .bambook-card-glass,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-raised-card
+),
+[data-ui-lab-2-root] :where(
+  .glass-card,
+  .bambook-card-glass,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .os-material-raised-card
+) {
+  background-color: var(--bambook-rdl-card-fill) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root :where(
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .os-material-inset-surface
+),
+.ui-lab-real-os-root :where(
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .os-material-inset-surface
+),
+[data-ui-lab-2-root] :where(
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .os-material-inset-surface
+) {
+  background-color: var(--bambook-rdl-inset-fill) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+  backdrop-filter: var(--bambook-rdl-panel-filter) !important;
+}
+
+.bambook-os-root :where(
+  .glass-pill,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-floating-overlay
+),
+.ui-lab-real-os-root :where(
+  .glass-pill,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-floating-overlay
+),
+[data-ui-lab-2-root] :where(
+  .glass-pill,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-floating-overlay
+) {
+  background-color: var(--bambook-rdl-floating-fill) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: var(--bambook-rdl-floating-filter) !important;
+  backdrop-filter: var(--bambook-rdl-floating-filter) !important;
+}
+
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay
+)::before,
+.bambook-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay
+)::after,
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay
+)::before,
+.ui-lab-real-os-root :where(
+  .glass-panel,
+  .glass-card,
+  .glass-pill,
+  .bambook-panel-glass,
+  .bambook-dashboard-glass-color,
+  .bambook-card-glass,
+  .bambook-outer-panel,
+  .bambook-nested-surface,
+  .bambook-tertiary-surface,
+  .liquid-glass-card,
+  .ios-glass-card,
+  .ios-glass-btn,
+  .ios-dark-glass-btn,
+  .os-vnext-dialog,
+  .os-material-frame-panel,
+  .os-material-raised-card,
+  .os-material-inset-surface,
+  .os-material-floating-overlay
+)::after {
+  background: none !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}

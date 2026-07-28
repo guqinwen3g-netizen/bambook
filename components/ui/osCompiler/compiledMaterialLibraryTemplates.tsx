@@ -1,0 +1,165 @@
+import React, { useMemo, useRef } from 'react';
+import { BookOpenText } from 'lucide-react';
+import {
+  BAMBOOK_DESIGN_SYSTEM_CONTRACT,
+  BAMBOOK_MATERIAL_LIBRARY_CATEGORIES,
+  BAMBOOK_MATERIAL_LIBRARY_ITEMS,
+} from '../bambookDesignSystem';
+import { BAMBOOK_OS } from '../bambookOsTokens';
+import ScrollEdgeFades from '../ScrollEdgeFades';
+import SidePanelContainer from '../SidePanelContainer';
+
+type CompiledMaterialLibraryPageBlueprint = {
+  template: 'CompiledMaterialLibraryReferencePage';
+  source: 'UiLabMaterialLibraryReferencePage.ui-lab-1.0.contract';
+  provenance: 'accepted';
+  title: string;
+  version: string;
+  categories: typeof BAMBOOK_MATERIAL_LIBRARY_CATEGORIES;
+  shellClassName: string;
+  titleBarClassName: string;
+};
+
+export const compileMaterialLibraryReferencePage = (): CompiledMaterialLibraryPageBlueprint => ({
+  template: 'CompiledMaterialLibraryReferencePage',
+  source: 'UiLabMaterialLibraryReferencePage.ui-lab-1.0.contract',
+  provenance: 'accepted',
+  title: 'Bambook OS Material Library',
+  version: BAMBOOK_DESIGN_SYSTEM_CONTRACT.version,
+  categories: BAMBOOK_MATERIAL_LIBRARY_CATEGORIES,
+  shellClassName: `${BAMBOOK_OS.layout.desktopPageFrameClass} ${BAMBOOK_OS.layout.desktopPageXClass}`,
+  titleBarClassName: `${BAMBOOK_OS.layout.desktopTitleBarClass} flex`,
+});
+
+export const CompiledMaterialLibraryReferencePage = ({ isDarkMode }: { isDarkMode: boolean }) => {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const blueprint = useMemo(() => compileMaterialLibraryReferencePage(), []);
+  const itemByCategory = useMemo(() => BAMBOOK_MATERIAL_LIBRARY_CATEGORIES.map(category => ({
+    ...category,
+    entries: BAMBOOK_MATERIAL_LIBRARY_ITEMS.filter(item => item.category === category.id),
+  })), []);
+
+  return (
+    <div
+      data-os-compiler-template={blueprint.template}
+      data-os-compiler-source={blueprint.source}
+      data-os-compiler-provenance={blueprint.provenance}
+      data-ui-lab-material-library-reference-page
+      className={blueprint.shellClassName}
+      aria-label="Bambook OS 内部材料库参考页"
+    >
+      <div className={blueprint.titleBarClassName}>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${isDarkMode ? 'border-white/[0.08] bg-white/[0.025] text-white/66' : 'border-white/45 bg-white/18 text-slate-600'}`}>
+            <BookOpenText size={17} strokeWidth={1.7} />
+          </span>
+          <div className="min-w-0">
+            <p className={`text-[10px] font-light uppercase ${BAMBOOK_OS.typography.tracking.overline} ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+              {blueprint.version}
+            </p>
+            <h2 className={`mt-1 truncate text-xl font-light tracking-tight ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>
+              {blueprint.title}
+            </h2>
+          </div>
+        </div>
+        <span className={`${BAMBOOK_OS.controls.title.pageLabel} ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+          Dev-only reference, not product chrome
+        </span>
+      </div>
+
+      <SidePanelContainer
+        isDarkMode={isDarkMode}
+        materialRole="framePanel"
+        className="ui-lab-material-library-shell h-full min-h-0 overflow-hidden p-0"
+        contentClassName="relative z-10 flex h-full min-h-0 flex-col"
+        edgeFadeItem
+      >
+        <header className={`shrink-0 border-b px-6 py-5 ${isDarkMode ? 'border-white/[0.07]' : 'border-white/45'}`}>
+          <p className={`max-w-3xl text-xs font-light leading-relaxed ${isDarkMode ? 'text-white/48' : 'text-slate-600'}`}>
+            所有样张来自代码 contract。它只作为 UI Lab 内部参考内容存在，不挂载到 Dashboard、关系智库、数字档案或设置这些真实页面的前端 chrome。
+          </p>
+        </header>
+
+        <div className={`grid shrink-0 grid-cols-4 gap-2 border-b px-6 py-3 ${isDarkMode ? 'border-white/[0.055]' : 'border-white/40'}`}>
+          {blueprint.categories.map(category => (
+            <div
+              key={category.id}
+              data-ui-lab-material-library-category={category.id}
+              className={`rounded-inset border px-3 py-2 ${isDarkMode ? 'border-white/[0.065] bg-white/[0.025]' : 'border-white/45 bg-white/20'}`}
+            >
+              <div className={`ui-lab-material-library-eyebrow text-[10px] font-light uppercase ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>{category.id}</div>
+              <div className={`mt-1 text-xs font-light ${isDarkMode ? 'text-white/72' : 'text-slate-800'}`}>{category.title}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="relative min-h-0 flex-1">
+          <div ref={scrollRef} className={`h-full min-h-0 overflow-y-auto px-6 py-5 ${BAMBOOK_OS.layout.panelShadowViewportClass}`}>
+            <div className="space-y-5">
+              <section data-ui-lab-material-library-sample="materials" className="grid gap-3">
+                <div className="flex items-center justify-between gap-4">
+                  <h4 className={`text-sm font-light ${isDarkMode ? 'text-white/78' : 'text-slate-900'}`}>Material Levels</h4>
+                  <span className={`ui-lab-material-library-eyebrow text-[10px] font-light uppercase ${isDarkMode ? 'text-white/36' : 'text-slate-500'}`}>1 / 2 / 3 / derived 4</span>
+                </div>
+                <SidePanelContainer isDarkMode={isDarkMode} materialRole="framePanel" className="p-4">
+                  <div className="grid gap-3">
+                    <div className={`text-xs font-light ${isDarkMode ? 'text-white/72' : 'text-slate-800'}`}>Level 1 Frame Panel</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <SidePanelContainer isDarkMode={isDarkMode} materialRole="raisedCard" materialTone="nested" className="ui-lab-material-library-radius p-3">
+                        <div className={`text-xs font-light ${isDarkMode ? 'text-white/68' : 'text-slate-700'}`}>Level 2 Raised</div>
+                        <div className={`mt-1 text-[10px] font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>nested glass</div>
+                      </SidePanelContainer>
+                      <SidePanelContainer isDarkMode={isDarkMode} materialRole="insetSurface" materialTone="nested" className="ui-lab-material-library-radius p-3">
+                        <div className={`text-xs font-light ${isDarkMode ? 'text-white/68' : 'text-slate-700'}`}>Level 2 Inset</div>
+                        <div className={`mt-1 text-[10px] font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>secondary shadow</div>
+                      </SidePanelContainer>
+                    </div>
+                    <div className={`${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-outer-panel bambook-tertiary-surface ui-lab-material-library-radius p-3`}>
+                      <div className={`text-xs font-light ${isDarkMode ? 'text-white/68' : 'text-slate-700'}`}>Level 3 Tertiary</div>
+                      <div className={`mt-1 text-[10px] font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>selected-light rim logic in light mode</div>
+                    </div>
+                    <div className={`rounded-inset border border-dashed px-3 py-2 text-xs font-light ${isDarkMode ? 'border-white/[0.10] text-white/46' : 'border-slate-300/60 text-slate-500'}`}>
+                      Level 4 Derived: spec-only, generated from level 3 when content grouping cannot solve hierarchy.
+                    </div>
+                  </div>
+                </SidePanelContainer>
+              </section>
+
+              {itemByCategory.map(category => (
+                <section key={category.id} data-ui-lab-material-library-sample={category.id} className="grid gap-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <h4 className={`text-sm font-light ${isDarkMode ? 'text-white/78' : 'text-slate-900'}`}>{category.title}</h4>
+                    <span className={`ui-lab-material-library-eyebrow text-[10px] font-light uppercase ${isDarkMode ? 'text-white/36' : 'text-slate-500'}`}>{category.entries.length} entries</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {category.entries.map(item => (
+                      <article
+                        key={item.id}
+                        data-ui-lab-material-library-item={item.id}
+                        className={`ui-lab-material-library-radius border p-3 ${isDarkMode ? 'border-white/[0.065] bg-white/[0.025]' : 'border-white/45 bg-white/20'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className={`ui-lab-material-library-role text-[10px] font-light uppercase ${isDarkMode ? 'text-white/36' : 'text-slate-500'}`}>{item.role}</p>
+                            <h5 className={`mt-1 text-xs font-light ${isDarkMode ? 'text-white/76' : 'text-slate-900'}`}>{item.title}</h5>
+                          </div>
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-light ${item.status === 'derived' ? (isDarkMode ? 'border-white/[0.08] text-white/44' : 'border-slate-200/80 text-slate-500') : (isDarkMode ? 'border-white/[0.08] text-white/44' : 'border-slate-200/80 text-slate-500')}`}>
+                            {item.status}
+                          </span>
+                        </div>
+                        <p className={`mt-2 text-[10px] font-light leading-relaxed ${isDarkMode ? 'text-white/44' : 'text-slate-600'}`}>{item.token}</p>
+                        <p className={`mt-2 text-xs font-light leading-relaxed ${isDarkMode ? 'text-white/58' : 'text-slate-700'}`}>{item.usage}</p>
+                        <p className={`mt-2 text-[10px] font-light leading-relaxed ${isDarkMode ? 'text-white/34' : 'text-slate-500'}`}>Forbidden: {item.forbidden}</p>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+          <ScrollEdgeFades scrollRef={scrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} />
+        </div>
+      </SidePanelContainer>
+    </div>
+  );
+};

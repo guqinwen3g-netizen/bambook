@@ -1,0 +1,205 @@
+# Bambook CI — Phase 0 W4 建立
+#
+# 设计原则（务实、防退化、不引入新工具链负担）：
+#   1. typecheck：根 tsc + server tsc（防止 strictNullChecks 错误再次累积）
+#   2. prisma-check：schema validate + migrations 与 schema 漂移检测（防止 P3006 重现）
+#   3. build：vite build（web）+ electron-vite build（desktop）+ server tsc emit（防止构建损坏）
+#   4. test：postgres service + server vitest run（防止测试退化）
+#
+# 不引入 ESLint/Prettier（项目无配置，避免大改）；用 tsc 作为 lint 门禁。
+# 触发：push 到 main / 任何 PR。允许手动触发。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一分支新 push 时取消正在跑的旧 run（节省额度）
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 1: TypeScript 类型检查（根 + server）
+  # 防止 strictNullChecks 88→0 错误清零后再次累积
+  # ─────────────────────────────────────────────────────────────────────────
+  typecheck:
+    name: TypeCheck (root + server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy?schema=public
+
+      - name: TypeCheck (root — frontend + shared)
+        run: npx tsc --noEmit --skipLibCheck
+
+      - name: TypeCheck (server)
+        run: npx tsc --noEmit
+        working-directory: server
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2: Prisma schema 静态校验
+  # 防止 schema.prisma 语法错误（migrations 漂移检测在 test job 用 postgres service 跑）
+  # ─────────────────────────────────────────────────────────────────────────
+  prisma-check:
+    name: Prisma validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Prisma validate
+        run: npx prisma validate
+        working-directory: server
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3: Build（web + desktop + server）
+  # 防止 vite/electron-vite/tsc emit 损坏
+  # ─────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build (web + desktop + server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy?schema=public
+
+      - name: Build web (vite build)
+        run: npm run build
+
+      - name: Build desktop (electron-vite build)
+        run: npm run electron:build
+
+      - name: Build server (tsc emit)
+        run: npm run build
+        working-directory: server
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 4: 测试（server vitest + PostgreSQL service）
+  # server/vitest.config.ts 注释：DB-touching tests 串行执行
+  # ─────────────────────────────────────────────────────────────────────────
+  test:
+    name: Test (server vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: typecheck
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bambook
+          POSTGRES_PASSWORD: bambook
+          POSTGRES_DB: panda_hub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bambook"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://bambook:bambook@localhost:5432/panda_hub_test?schema=public
+      JWT_SECRET: ci-jwt-secret-for-tests-only
+      BAMBOOK_API_KEY: ci-test-api-key
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: server
+
+      - name: Apply migrations to test DB
+        run: npx prisma migrate deploy
+        working-directory: server
+
+      - name: Detect schema/migrations drift
+        # migrations apply 后用 prisma migrate diff 检测 schema 与 DB 状态是否一致
+        # exit code = 0 一致；非 0 表示 schema.prisma 有未提交为 migration 的变更
+        run: |
+          npx prisma migrate diff \
+            --from-schema-datamodel prisma/schema.prisma \
+            --to-url "$DATABASE_URL" \
+            --exit-code
+        working-directory: server
+        continue-on-error: true  # 警告级别，不阻断 CI（开发中常有 schema 领先 migration）
+
+      - name: Run vitest
+        run: npm test
+        working-directory: server
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-failure-logs
+          path: server/coverage/**
+          retention-days: 7

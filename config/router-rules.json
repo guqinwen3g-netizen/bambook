@@ -1,0 +1,28 @@
+{
+    "$schema": "./router-rules.schema.json",
+    "version": "1.0.0",
+    "description": "Bambook AI Agent 模型路由规则配置",
+    "lastUpdated": "2026-01-27",
+    "active_provider_strategy": "VOLCENGINE_ARK_CODING",
+    "roles": {
+        "FAST": "ark-code-latest",
+        "SMART": "ark-code-latest",
+        "VISION": "ark-code-latest",
+        "THINKING": "ark-code-latest",
+        "CREATIVE": "ark-code-latest"
+    },
+    "model_registry": {
+        "ark-code-latest": {
+            "id": "ark-code-latest",
+            "provider": "volcengine-ark",
+            "cost": 0,
+            "desc": "火山引擎 Ark Coding Plan"
+        }
+    },
+    "featureFlags": {
+        "enableCostTracking": true,
+        "enableAutoFallback": true,
+        "enableIntentRouting": true,
+        "logAllDecisions": true
+    }
+}

@@ -1,0 +1,196 @@
+import express from 'express';
+import request from 'supertest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { Prisma } from '@prisma/client';
+import { createFinanceRouter } from '../route';
+import { authHeader } from '../../__tests__/authTestHelper';
+
+function makeApp(opts: { existing?: any; invoice?: any; voucher?: any; syncFail?: boolean; auditFail?: boolean; onDataChange?: any } = {}) {
+  const existing = opts.hasOwnProperty('existing') ? opts.existing : { id: 'ALLOC__I1__V1', invoiceId: 'I1', voucherId: 'V1', appliedAmount: new Prisma.Decimal('100'), appliedDate: '2026-07-02', createdAt: BigInt(1), updatedAt: BigInt(1) };
+  const invoice = opts.hasOwnProperty('invoice') ? opts.invoice : { id: 'I1', status: 'Issued', amount: new Prisma.Decimal('1000'), deletedAt: null };
+  const voucher = opts.hasOwnProperty('voucher') ? opts.voucher : { id: 'V1', status: 'unreconciled', amount: new Prisma.Decimal('1000'), appliedAmount: new Prisma.Decimal('0'), deletedAt: null };
+  const invoiceAllocationUpsert = vi.fn().mockImplementation(async ({ create }: any) => ({ ...create }));
+  const invoiceAllocationUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ ...existing, ...data, id: where.id }));
+  const invoiceAllocationFindUnique = vi.fn().mockResolvedValue(existing);
+  const invoiceAllocationDelete = vi.fn().mockResolvedValue({ id: 'ALLOC__I1__V1' });
+  const invoiceAllocationFindMany = vi.fn().mockResolvedValue([{ appliedAmount: new Prisma.Decimal('100') }]);
+  const invoiceFindUnique = vi.fn().mockResolvedValue(invoice);
+  const invoiceUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ ...invoice, ...data, id: where.id }));
+  const voucherFindUnique = vi.fn().mockResolvedValue(voucher);
+  const voucherUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ ...voucher, ...data, id: where.id }));
+  const entityReferenceUpsert = opts.syncFail ? vi.fn().mockRejectedValue(new Error('SYNC_REJECT')) : vi.fn().mockResolvedValue({});
+  const entityLinkUpsert = vi.fn().mockResolvedValue({});
+  const entityLinkFindMany = vi.fn().mockResolvedValue([]);
+  const entityLinkUpdate = vi.fn().mockResolvedValue({});
+  const entityRefFindMany = vi.fn().mockResolvedValue([]);
+  const entityRefUpdate = vi.fn().mockResolvedValue({});
+  const auditCreate = opts.auditFail ? vi.fn().mockRejectedValue(new Error('AUDIT_REJECT')) : vi.fn().mockResolvedValue({ id: 'AL-1' });
+  const tx = {
+    invoice: { findUnique: invoiceFindUnique, update: invoiceUpdate },
+    paymentVoucher: { findUnique: voucherFindUnique, update: voucherUpdate },
+    invoiceAllocation: { findUnique: invoiceAllocationFindUnique, upsert: invoiceAllocationUpsert, update: invoiceAllocationUpdate, delete: invoiceAllocationDelete, findMany: invoiceAllocationFindMany },
+    auditLog: { create: auditCreate },
+    entityReference: { upsert: entityReferenceUpsert, findMany: entityRefFindMany, update: entityRefUpdate },
+    entityLink: { upsert: entityLinkUpsert, findMany: entityLinkFindMany, update: entityLinkUpdate },
+  } as any;
+  const prisma = {
+    invoice: { findUnique: invoiceFindUnique, findMany: vi.fn().mockResolvedValue([]) },
+    paymentVoucher: { findUnique: voucherFindUnique, findMany: vi.fn().mockResolvedValue([]) },
+    invoiceAllocation: { findMany: vi.fn().mockResolvedValue([]) },
+    $transaction: vi.fn(async (fn: any) => fn(tx)),
+  } as any;
+  const onDataChange = opts.onDataChange || vi.fn();
+  const app = express();
+  app.use(express.json());
+  app.use('/api/v1/finance', createFinanceRouter({ prisma, requireAuth: false, apiKeys: new Set(), onDataChange }));
+  return { app, prisma, tx, invoiceAllocationUpsert, invoiceAllocationUpdate, invoiceAllocationDelete, invoiceAllocationFindUnique, invoiceUpdate, voucherUpdate, auditCreate, entityReferenceUpsert, entityLinkUpsert, onDataChange };
+}
+
+describe('allocationMutationService route POST /allocations', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('create success → allocation upsert + recalc/sync/audit + onDataChange + real auditId', async () => {
+    const { app, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 100 });
+    expect(res.status).toBe(201);
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(onDataChange).toHaveBeenCalledTimes(1);
+    const auditData = auditCreate.mock.calls[0][0].data;
+    expect(res.body.auditId).toBe(auditData.id);
+    expect(auditData.id).toMatch(/^alog_/);
+  });
+
+  it('create high-precision decimal string not truncated', async () => {
+    const { app } = makeApp();
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: '123456789012345.1234' });
+    expect(res.status).toBe(201);
+    expect(res.body.allocation.appliedAmount).toBe('123456789012345.1234');
+  });
+  it('missing invoice → 400 MISSING_INPUT before tx', async () => {
+    const { app, prisma, onDataChange } = makeApp();
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ voucherId: 'V1', appliedAmount: 100 });
+    expect(res.status).toBe(400);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+  it('invalid amount → 400 INVALID_AMOUNT before tx', async () => {
+    const { app, prisma } = makeApp();
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 0 });
+    expect(res.status).toBe(400);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+  it('missing invoice entity → 404 INVOICE_NOT_FOUND', async () => {
+    const { app } = makeApp({ invoice: null });
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 100 });
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('INVOICE_NOT_FOUND');
+  });
+  it('sync reject → 500 CREATE_FAILED，onDataChange 不触发', async () => {
+    const { app, onDataChange } = makeApp({ syncFail: true });
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 100 });
+    expect(res.status).toBe(500);
+    expect(res.body.error.code).toBe('CREATE_FAILED');
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('allocationMutationService route PATCH /allocations/:id', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('update success → allocation update + invoice/voucher recalc + sync + audit', async () => {
+    const { app, invoiceAllocationUpdate, invoiceUpdate, voucherUpdate, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).patch('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader()).send({ appliedAmount: 250 });
+    expect(res.status).toBe(200);
+    expect(invoiceAllocationUpdate).toHaveBeenCalledTimes(1);
+    expect(invoiceUpdate).toHaveBeenCalled();
+    expect(voucherUpdate).toHaveBeenCalled();
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(onDataChange).toHaveBeenCalledTimes(1);
+    const auditData = auditCreate.mock.calls[0][0].data;
+    expect(res.body.auditId).toBe(auditData.id);
+    expect(auditData.id).toMatch(/^alog_/);
+  });
+
+  it('update high-precision decimal string written as Prisma.Decimal', async () => {
+    const { app, invoiceAllocationUpdate } = makeApp();
+    const res = await request(app).patch('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader()).send({ appliedAmount: '99999999.9999' });
+    expect(res.status).toBe(200);
+    expect(invoiceAllocationUpdate.mock.calls[0][0].data.appliedAmount).toBeInstanceOf(Prisma.Decimal);
+    expect(res.body.allocation.appliedAmount).toBe('99999999.9999');
+  });
+  it('invalid amount → 400 INVALID_AMOUNT before tx', async () => {
+    const { app, prisma } = makeApp();
+    const res = await request(app).patch('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader()).send({ appliedAmount: -5 });
+    expect(res.status).toBe(400);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+  it('not found → 404 NOT_FOUND', async () => {
+    const { app, auditCreate, onDataChange } = makeApp({ existing: null });
+    const res = await request(app).patch('/api/v1/finance/allocations/NOPE').set(authHeader()).send({ appliedAmount: 50 });
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+  it('sync reject → 500 UPDATE_FAILED，onDataChange 不触发', async () => {
+    const { app, onDataChange } = makeApp({ syncFail: true });
+    const res = await request(app).patch('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader()).send({ appliedAmount: 50 });
+    expect(res.status).toBe(500);
+    expect(res.body.error.code).toBe('UPDATE_FAILED');
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('allocationMutationService route DELETE /allocations/:id', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('delete success → hard delete + recalc + sync + audit + onDataChange', async () => {
+    const { app, invoiceAllocationDelete, auditCreate, onDataChange } = makeApp();
+    const res = await request(app).delete('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader());
+    expect(res.status).toBe(200);
+    expect(invoiceAllocationDelete).toHaveBeenCalledTimes(1);
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(onDataChange).toHaveBeenCalledTimes(1);
+  });
+  it('not found → 404 NOT_FOUND', async () => {
+    const { app, auditCreate, onDataChange } = makeApp({ existing: null });
+    const res = await request(app).delete('/api/v1/finance/allocations/NOPE').set(authHeader());
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+  it('audit reject → 500 DELETE_FAILED，onDataChange 不触发', async () => {
+    const { app, onDataChange } = makeApp({ auditFail: true });
+    const res = await request(app).delete('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader());
+    expect(res.status).toBe(500);
+    expect(res.body.error.code).toBe('DELETE_FAILED');
+    expect(onDataChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('allocationMutationService route→service 契约', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('POST/PATCH/DELETE 各触发 service 内 transaction 一次', async () => {
+    const { app, prisma } = makeApp();
+    await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 100 });
+    await request(app).patch('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader()).send({ appliedAmount: 50 });
+    await request(app).delete('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader());
+    expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('syncAllocationVoucherLinks Decimal-safe snapshot', () => {
+  it('high-precision allocation snapshot.appliedAmount not Number-truncated', async () => {
+    const { syncAllocationVoucherLinks } = await import('../../finance/allocationService');
+    const entityReferenceUpsert = vi.fn().mockResolvedValue({});
+    const entityLinkUpsert = vi.fn().mockResolvedValue({});
+    const entityLinkFindMany = vi.fn().mockResolvedValue([]);
+    const entityLinkUpdate = vi.fn().mockResolvedValue({});
+    const tx = {
+      invoiceAllocation: { findMany: vi.fn().mockResolvedValue([{ invoiceId: 'I1', appliedAmount: new Prisma.Decimal('123456789012345.1234') }]) },
+      entityReference: { upsert: entityReferenceUpsert },
+      entityLink: { upsert: entityLinkUpsert, findMany: entityLinkFindMany, update: entityLinkUpdate },
+    } as any;
+    await syncAllocationVoucherLinks(tx, 'V1', { source: 'test' });
+    const createData = entityReferenceUpsert.mock.calls[0][0].create;
+    expect(createData.snapshot.appliedAmount).toBe('123456789012345.1234');
+  });
+});

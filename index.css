@@ -1,0 +1,2210 @@
+/* HarmonyOS Sans SC — primary CJK font (designer-chosen, must be preserved).
+   Bundled locally via the harmonyos-sans-sc-webfont-splitted npm package.
+   Each weight ships as ~82 unicode-range woff2 subsets (cn-font-split),
+   so the browser only downloads/decodes the glyph subsets actually used by
+   visible text — perfect fit for an Electron app where all subsets sit on
+   disk anyway. The package's "exports" field restricts to the all-weights
+   index.css entry (~35 MB total, 7 weights). We tolerate the extra ~5 MB for
+   weight 100 (Thin, currently unused) to avoid hand-rolled subpath copies;
+   if dmg size becomes a constraint later, mirror only the needed weight CSS
+   files into public/fonts/harmonyos/ and reference them directly.
+   This @import MUST stay at the very top of the file — the CSS spec requires
+   @import before any other rule, otherwise browsers drop them. */
+@import 'harmonyos-sans-sc-webfont-splitted';
+@import '@fontsource/urbanist/300.css';
+@import '@fontsource/urbanist/400.css';
+@import '@fontsource/urbanist/500.css';
+@import '@fontsource/urbanist/600.css';
+@import '@fontsource/urbanist/700.css';
+
+/* Design system tokens — os-vnext.css 为权威 token 源 + flat-experimental.css 为正式 flat 覆盖层.
+   design-system.css 已退役（legacy，类名/变量在 tsx 中零引用）.
+   ui-lab-2-experimental.css 已删除（死代码，从未被 import）. */
+@import './styles/os-vnext.css';
+@import './styles/flat-experimental.css';
+
+/* Tailwind CSS v3 — local PostCSS pipeline.
+   Replaces the legacy cdn.tailwindcss.com Play CDN that prevented
+   offline operation in the packaged Electron app. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🧪 DIAG_FREEZE_DASHBOARD — global kill switch for CSS keyframe animations
+   and transitions. Used by Dashboard.tsx (DIAG_FREEZE_DASHBOARD flag) to
+   isolate whether the globe stutters when nothing else on the page is
+   moving. When the flag is `false`, this class is never applied so it has
+   zero runtime cost. */
+body.diag-freeze-animations *,
+body.diag-freeze-animations *::before,
+body.diag-freeze-animations *::after {
+    animation: none !important;
+    transition: none !important;
+    -webkit-animation: none !important;
+    -webkit-transition: none !important;
+}
+
+/* 🧪 ALSO disable backdrop-filter while diagnosing. The Dashboard has 8+
+   glass-panel / liquid-glass-card elements stacked on top of the globe.
+   Each one re-runs a GPU gaussian blur every time the globe re-renders
+   (60 Hz from autoRotate). 8 panels × 60 fps = 480 blur passes per second
+   stacked on top of the WebGL canvas — this is the prime suspect for the
+   "Dashboard stutters but Orders doesn't" pattern (Orders has far fewer
+   stacked glass panels). */
+body.diag-freeze-animations *,
+body.diag-freeze-animations *::before,
+body.diag-freeze-animations *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Frameless Electron window — make the window draggable.
+
+   Electron's main process opts into `titleBarStyle: 'hiddenInset'` (Mac) /
+   `titleBarStyle: 'hidden'` + titleBarOverlay (Windows) / `frame: false`
+   (Linux), which removes the OS-provided drag bar. Without -webkit-app-region
+   the window cannot be moved at all — so we mark the entire body as a drag
+   region and exempt every interactive element back to default behaviour.
+
+   Notes on -webkit-app-region:
+   • drag        — mouse-down on this element moves the window. Click events
+                   on the element itself are SUPPRESSED, so it must never sit
+                   on top of an interactive control without a no-drag opt-out.
+   • no-drag     — restore normal click / hover / pointer behaviour.
+   • Text selection and scrolling still work in `drag` regions; only mouse-
+     drag is intercepted.
+   • These rules apply in browser dev too (no-op for non-Electron browsers).
+
+   The selector list below covers everything that needs to receive clicks:
+     - native form / link / interactive elements
+     - WebGL / video / canvas
+     - elements with role="…" (Tailwind/headless components)
+     - the WebGL globe canvas wrapper (so OrbitControls drag works)
+     - `.no-drag` escape hatch for any custom region
+   ──────────────────────────────────────────────────────────────────── */
+body {
+    -webkit-app-region: drag;
+}
+
+button,
+a,
+input,
+textarea,
+select,
+label,
+[contenteditable],
+[role="button"],
+[role="link"],
+[role="menuitem"],
+[role="menuitemcheckbox"],
+[role="menuitemradio"],
+[role="tab"],
+[role="checkbox"],
+[role="radio"],
+[role="switch"],
+[role="combobox"],
+[role="listbox"],
+[role="option"],
+[role="slider"],
+[role="textbox"],
+[role="searchbox"],
+canvas,
+video,
+audio,
+svg,
+.no-drag,
+[data-no-drag] {
+    -webkit-app-region: no-drag;
+}
+
+/* Scrollable containers must never be captured by the drag region,
+   otherwise wheel / trackpad scroll events are silently swallowed.
+   This covers all overflow-y:auto / overflow-y:scroll divs, modals,
+   list panels, detail views, etc. across the entire app.
+   We target Tailwind's generated utility classes directly.          */
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-auto,
+.overflow-scroll {
+    -webkit-app-region: no-drag;
+}
+
+.bambook-agent-edge-aura {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    border-radius: 0;
+    overflow: hidden;
+    mix-blend-mode: screen;
+    --bambook-agent-edge-fade: 30px;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark) .bambook-agent-edge-aura {
+    mix-blend-mode: normal;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark) .bambook-agent-edge-aura::before {
+    animation: 
+        bambook-agent-edge-breathe-light 3.6s ease-in-out infinite,
+        bambook-agent-edge-flow 12s linear infinite;
+}
+
+.bambook-os-root:not(.bambook-os-root--dark) .bambook-agent-edge-aura::after {
+    box-shadow:
+        inset 0 0 0 1.5px rgba(14, 165, 233, 0.45),
+        inset 0 0 12px rgba(14, 165, 233, 0.35),
+        inset 0 0 24px rgba(94, 234, 212, 0.30),
+        inset 0 0 44px rgba(99, 179, 255, 0.25),
+        inset 0 0 78px rgba(176, 132, 255, 0.20);
+    animation: bambook-agent-edge-soft-pulse-light 2.4s ease-in-out infinite;
+}
+
+@keyframes bambook-agent-edge-breathe-light {
+    0%, 100% {
+        opacity: 0.85;
+        filter: blur(2px) saturate(1.80) brightness(0.95);
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        filter: blur(0px) saturate(2.4) brightness(1.05);
+        transform: scale(1.012);
+    }
+}
+
+@keyframes bambook-agent-edge-soft-pulse-light {
+    0%, 100% {
+        opacity: 0.85;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.bambook-agent-edge-aura::before,
+.bambook-agent-edge-aura::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 0;
+    pointer-events: none;
+}
+
+.bambook-agent-edge-aura::before {
+    background:
+        radial-gradient(42% 18% at 8% 0%, rgba(94, 234, 212, 0.92), transparent 72%),
+        radial-gradient(42% 18% at 86% 0%, rgba(99, 179, 255, 0.90), transparent 72%),
+        radial-gradient(26% 42% at 100% 18%, rgba(176, 132, 255, 0.82), transparent 72%),
+        radial-gradient(28% 42% at 100% 86%, rgba(244, 114, 182, 0.72), transparent 72%),
+        radial-gradient(42% 18% at 82% 100%, rgba(180, 118, 255, 0.78), transparent 72%),
+        radial-gradient(42% 18% at 12% 100%, rgba(255, 165, 72, 0.76), transparent 72%),
+        radial-gradient(26% 42% at 0% 72%, rgba(94, 234, 212, 0.74), transparent 72%),
+        linear-gradient(90deg, rgba(94, 234, 212, 0.72), rgba(99, 179, 255, 0.80), rgba(176, 132, 255, 0.62), rgba(244, 114, 182, 0.66), rgba(255, 165, 72, 0.54), rgba(94, 234, 212, 0.66));
+    -webkit-mask:
+        radial-gradient(34px 34px at 0 0, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) top left / 42px 42px no-repeat,
+        radial-gradient(34px 34px at 100% 0, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) top right / 42px 42px no-repeat,
+        radial-gradient(34px 34px at 100% 100%, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) bottom right / 42px 42px no-repeat,
+        radial-gradient(34px 34px at 0 100%, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) bottom left / 42px 42px no-repeat,
+        linear-gradient(to bottom, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) top / 100% var(--bambook-agent-edge-fade) no-repeat,
+        linear-gradient(to top, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) bottom / 100% var(--bambook-agent-edge-fade) no-repeat,
+        linear-gradient(to right, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) left / var(--bambook-agent-edge-fade) 100% no-repeat,
+        linear-gradient(to left, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) right / var(--bambook-agent-edge-fade) 100% no-repeat;
+    mask:
+        radial-gradient(34px 34px at 0 0, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) top left / 42px 42px no-repeat,
+        radial-gradient(34px 34px at 100% 0, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) top right / 42px 42px no-repeat,
+        radial-gradient(34px 34px at 100% 100%, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) bottom right / 42px 42px no-repeat,
+        radial-gradient(34px 34px at 0 100%, #000 0 40%, rgba(0, 0, 0, 0.65) 58%, transparent 86%) bottom left / 42px 42px no-repeat,
+        linear-gradient(to bottom, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) top / 100% var(--bambook-agent-edge-fade) no-repeat,
+        linear-gradient(to top, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) bottom / 100% var(--bambook-agent-edge-fade) no-repeat,
+        linear-gradient(to right, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) left / var(--bambook-agent-edge-fade) 100% no-repeat,
+        linear-gradient(to left, #000 0, rgba(0, 0, 0, 0.86) 22%, rgba(0, 0, 0, 0.30) 62%, transparent 100%) right / var(--bambook-agent-edge-fade) 100% no-repeat;
+    filter: blur(2.2px) saturate(1.55) brightness(1.08);
+    opacity: 0.94;
+    background-size: 200% 200%;
+    /* Faster, more dynamic 3.6s breathe cycle + 12s flowing colors */
+    animation: 
+        bambook-agent-edge-breathe 3.6s ease-in-out infinite,
+        bambook-agent-edge-flow 12s linear infinite;
+}
+
+.bambook-agent-edge-aura::after {
+    inset: 0;
+    box-shadow:
+        inset 0 0 0 1px rgba(184, 241, 255, 0.78),
+        inset 0 0 6px rgba(255, 255, 255, 0.34),
+        inset 0 0 10px rgba(220, 244, 255, 0.40),
+        inset 0 0 24px rgba(94, 234, 212, 0.30),
+        inset 0 0 50px rgba(99, 179, 255, 0.22),
+        inset 0 0 88px rgba(176, 132, 255, 0.13);
+    opacity: 0.92;
+    filter: blur(2.2px) saturate(1.22);
+    /* Safe 0-50-100 loop */
+    animation: bambook-agent-edge-soft-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes bambook-agent-edge-breathe {
+    0%, 100% {
+        opacity: 0.45;
+        filter: blur(3.2px) saturate(1.10) brightness(0.85);
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        filter: blur(0.5px) saturate(1.80) brightness(1.35);
+        transform: scale(1.012);
+    }
+}
+
+@keyframes bambook-agent-edge-soft-pulse {
+    0%, 100% {
+        opacity: 0.35;
+    }
+    50% {
+        opacity: 0.98;
+    }
+}
+
+@keyframes bambook-agent-edge-flow {
+    0% { background-position: 0% 0%; }
+    25% { background-position: 100% 0%; }
+    50% { background-position: 100% 100%; }
+    75% { background-position: 0% 100%; }
+    100% { background-position: 0% 0%; }
+}
+
+html.bambook-agent-pet-host,
+body.bambook-agent-pet-host {
+    width: 100%;
+    height: 100%;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0;
+    overflow: hidden;
+    background: transparent !important;
+    -webkit-app-region: no-drag;
+}
+
+body.bambook-agent-pet-host #root {
+    width: 100vw;
+    height: 100vh;
+    min-width: 0 !important;
+    min-height: 0 !important;
+}
+
+.bambook-agent-pet-window {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: visible;
+    color: rgba(226, 239, 255, 0.94);
+    pointer-events: none;
+    cursor: default;
+    -webkit-app-region: no-drag;
+    user-select: none;
+}
+
+.bambook-agent-pet-window--menu-open {
+    box-sizing: border-box;
+}
+
+.bambook-agent-pet-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 4;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    color: rgba(226, 239, 255, 0.68);
+    cursor: default;
+    opacity: 0;
+    transition: opacity 160ms ease, background-color 160ms ease;
+}
+
+.bambook-agent-pet-window:hover .bambook-agent-pet-close {
+    opacity: 1;
+}
+
+.bambook-agent-pet-close:hover {
+    background: rgba(15, 23, 42, 0.36);
+}
+
+.bambook-agent-pet-orb {
+    position: absolute;
+    z-index: 2;
+    width: 160px;
+    height: 160px;
+    border: 0;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    transition: transform 180ms ease, filter 180ms ease;
+    pointer-events: auto;
+    cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-app-region: no-drag;
+}
+
+.bambook-agent-pet-orb:active {
+    cursor: grabbing;
+}
+
+.bambook-agent-pet-visual {
+    display: grid;
+    place-items: center;
+    transform-origin: 50% 78%;
+    transition: transform 140ms cubic-bezier(0.2, 0.85, 0.2, 1);
+    will-change: transform;
+}
+
+.bambook-agent-pet-window--hovered .bambook-agent-pet-visual {
+    transition-duration: 90ms;
+}
+
+.bambook-agent-pet-window--hovered .bambook-agent-pet-orb {
+    transform: translateY(-4px) scale(1.035);
+    filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.24));
+}
+
+.bambook-agent-pet-window--menu-open .bambook-agent-pet-orb {
+    transform: none;
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.18));
+}
+
+.bambook-agent-pet-orb *,
+.bambook-agent-pet-orb svg {
+    pointer-events: none;
+}
+
+.bambook-agent-pet-hint {
+    position: absolute;
+    z-index: 3;
+    max-width: 232px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(6, 12, 22, 0.48);
+    color: rgba(226, 239, 255, 0.82);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    backdrop-filter: blur(12px) saturate(1.1);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.bambook-agent-pet-task-popup {
+    position: absolute;
+    z-index: 4;
+    max-width: 272px;
+    transform: translateX(-50%);
+    border-radius: 12px;
+    padding: 8px 12px;
+    background: rgba(12, 18, 30, 0.86);
+    color: rgba(226, 239, 255, 0.95);
+    font-size: 11px;
+    line-height: 1.3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    animation: pet-task-popup-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: none;
+}
+
+.bambook-agent-pet-task-popup span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes pet-task-popup-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+.bambook-agent-pet-menu {
+    position: absolute;
+    z-index: 6;
+    width: 196px;
+    border-radius: 18px;
+    padding: 8px;
+    background: rgba(8, 15, 27, 0.76);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: rgba(226, 239, 255, 0.90);
+    backdrop-filter: blur(18px) saturate(1.18);
+    -webkit-backdrop-filter: blur(18px) saturate(1.18);
+    box-shadow:
+        0 18px 36px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    pointer-events: auto;
+}
+
+.bambook-agent-pet-menu button {
+    width: 100%;
+    min-height: 34px;
+    border: 0;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    background: transparent;
+    color: inherit;
+    font-size: 11.5px;
+    text-align: left;
+}
+
+.bambook-agent-pet-menu button span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bambook-agent-pet-menu button[data-active="true"] {
+    background: rgba(74, 144, 226, 0.18);
+    color: rgba(248, 251, 255, 0.96);
+}
+
+.bambook-agent-pet-menu button:hover {
+    background: rgba(255, 255, 255, 0.10);
+}
+
+@keyframes bambook-agent-pet-runner-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Fixed / absolute overlay containers (modals, bottom sheets, full-
+   screen takeovers) also need no-drag so wheel events reach their
+   children regardless of where the cursor sits on the overlay.      */
+.fixed.inset-0,
+.absolute.inset-0 {
+    -webkit-app-region: no-drag;
+}
+
+/* (No macOS traffic-light layout shift needed — the buttons are now
+   completely hidden via `setWindowButtonVisibility(false)` in the
+   Electron main process. See electron/main.ts.)
+   `.electron-top-drag-strip` (~14px tall, portaled to document.body with a
+   very high z-index) is rendered in WindowControls.tsx so drags are not
+   buried by #root stacking contexts; the traffic-light hot zone sits above
+   it so the corner still works. */
+
+/* Dashboard HUD content starts below the fixed title. Keep Electron from
+   overriding the Tailwind top buffer too small, otherwise the first cards sit
+   under the header and cannot be fully inspected at scroll top. */
+.is-electron .dashboard-hud-root {
+    padding-top: 7.75rem;
+}
+
+/* ========================================
+   TYPOGRAPHY SYSTEM - 极致简约现代体系
+   Urbanist (Latin UI/display) + Inter / Acherus fallback
+   + HarmonyOS Sans SC (CJK, bundled locally — see top of file)
+   ======================================== */
+
+/* Inter — primary UI font.
+   Local woff2 (latin subset, ~24KB / weight) replaces the
+   fonts.googleapis.com link that broke offline first paint. */
+@font-face {
+    font-family: 'Inter';
+    src: url('/fonts/Inter-300.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Inter';
+    src: url('/fonts/Inter-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Inter';
+    src: url('/fonts/Inter-500.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Inter';
+    src: url('/fonts/Inter-600.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Inter';
+    src: url('/fonts/Inter-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Acherus Grotesque - 极致简约几何字体库
+   本地化于 /public/fonts/ — 此前从 raw.githubusercontent.com 拉取，
+   在中国大陆经常被墙或加载缓慢，会让首屏文字闪烁回退字体。 */
+@font-face {
+    font-family: 'Acherus Grotesque';
+    src: url('/fonts/AcherusGrotesque-Light.otf') format('opentype');
+    font-weight: 300;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Acherus Grotesque';
+    src: url('/fonts/AcherusGrotesque-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Acherus Grotesque';
+    src: url('/fonts/AcherusGrotesque-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-display: swap;
+}
+
+:root {
+    --dna-radius: 18px;
+    --hologram-blue: #4A90E2;
+    --hologram-emerald: #34C759;
+    --hologram-slate: #1C1C1E;
+    --hologram-glow: rgba(74, 144, 226, 0.3);
+
+    /* iOS 26 Glass System */
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+
+    /* confirmed Ethereal Horizon Palette */
+    --horizon-sky: #4A90E2;
+    /* Horizon Sky (Branding / Strong Headings) */
+    --horizon-mist: #BCE6F8;
+    /* Ethereal Mist (Decorative symbols / Subtle Bars) */
+    --horizon-midnight: #050B14;
+    /* Deep Midnight (The new black / Dark mode base) */
+    --horizon-slate: #94A3B8;
+    /* Neural Slate (Soft multi-text grey) */
+
+    /* Typography - Urbanist first across the app.
+       Urbanist (Latin UI/display) → HarmonyOS Sans SC (designer-chosen CJK,
+       bundled locally via webfont-splitted) → Inter / Acherus fallback →
+       PingFang SC / Microsoft YaHei (system CJK fallback if webfont fails). */
+    --font-primary: 'Urbanist', 'HarmonyOS Sans SC', 'Inter', 'Acherus Grotesque', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+    --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+}
+
+body {
+    background-color: #F2F2F7;
+    color: #1C1C1E;
+    font-family: var(--font-primary);
+    font-weight: 300;
+    /* 配合 Acherus Light，呈现极致轻盈锐利的基调 */
+    letter-spacing: 0.02em;
+    /* 几何字体的开阔字间距，增加通透感 */
+    line-height: 1.55;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Mobile Global Defaults */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    /* Prevent UI collapse on ultra-narrow screens */
+    min-width: 729px;
+    min-height: 479px;
+}
+
+#root {
+    min-width: 729px;
+    height: 100%;
+}
+
+/* Mobile-Specific Global Resets */
+@media (max-width: 768px) {
+    * {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /* Allow selection on inputs and textareas */
+    input,
+    textarea,
+    [contenteditable] {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+}
+
+/* ========================================
+   DARK MODE OVERRIDES
+   ======================================== */
+.dark body,
+.dark {
+    background-color: #0D0D11;
+    color: #E5E5EA;
+}
+
+.dark .holographic-card {
+    background: rgba(30, 30, 35, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.dark .holographic-panel {
+    background: rgba(25, 25, 30, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dark .ios-glass-card {
+    background: rgba(25, 25, 30, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+        0 8px 32px -8px rgba(0, 0, 0, 0.5);
+}
+
+.dark .ios-glass-card:hover {
+    background: rgba(30, 30, 35, 0.6);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+        0 16px 48px -12px rgba(0, 0, 0, 0.6);
+}
+
+.dark .ios-glass-btn {
+    background: rgba(40, 40, 50, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass-pill {
+    background: rgba(40, 40, 50, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass-panel,
+.dark .liquid-glass-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.holographic-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: saturate(180%) blur(25px);
+    -webkit-backdrop-filter: saturate(180%) blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: var(--dna-radius);
+    box-shadow: var(--glass-shadow);
+}
+
+.holographic-panel {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--dna-radius);
+}
+
+.dna-button {
+    border-radius: 14px;
+    /* Tighter button radius */
+    transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.dna-button:active {
+    transform: scale(0.96);
+    opacity: 0.8;
+}
+
+.glass-pill {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 9999px;
+    padding: 6px 18px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+/* iOS 26 Glass Card with Luminous Edge */
+.ios-glass-card {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 24px;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.2),
+        0 8px 32px -8px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+}
+
+.ios-glass-card:hover {
+    background: rgba(255, 255, 255, 0.5);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.3),
+        0 16px 48px -12px rgba(0, 0, 0, 0.12);
+}
+
+/* iOS 26 Glass Button with Luminous Edge */
+.ios-glass-btn {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.2),
+        0 2px 8px -2px rgba(0, 0, 0, 0.08);
+    transition: all 0.15s ease;
+}
+
+.ios-glass-btn:hover {
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.3),
+        0 4px 12px -2px rgba(0, 0, 0, 0.12);
+}
+
+/* iOS 26 Dark Glass Button */
+.ios-dark-glass-btn {
+    background: rgba(30, 30, 30, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+        0 2px 8px -2px rgba(0, 0, 0, 0.3);
+    transition: all 0.15s ease;
+}
+
+.ios-dark-glass-btn:hover {
+    background: rgba(20, 20, 20, 0.9);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+        0 4px 16px -4px rgba(0, 0, 0, 0.4);
+}
+
+/* ========================================
+   LIQUID GLASS SYSTEM - Brand 2026
+   ======================================== */
+
+@keyframes liquid-mesh {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* ==========================================
+   Bambook OS v3.1 Unified Material System
+   ========================================== */
+
+/* 1. Card Glass - 轻量级数据卡片材质 */
+.bambook-card-glass,
+.liquid-glass-card {
+    position: relative;
+    overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.44);
+    background-image: none;
+    backdrop-filter: saturate(130%) blur(14px);
+    -webkit-backdrop-filter: saturate(130%) blur(14px);
+    border-radius: 24px;
+    border: 0;
+    box-shadow: 0 10px 30px -28px rgba(24, 24, 27, 0.12);
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        box-shadow 220ms ease,
+        transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dark .bambook-card-glass,
+.dark .liquid-glass-card {
+    background-color: rgba(8, 16, 28, 0.16);
+    background-image: none;
+    backdrop-filter: saturate(130%) blur(16px);
+    -webkit-backdrop-filter: saturate(130%) blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+        0 8px 24px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* 2. Panel Glass - 页面级内容面板材质 */
+.glass-panel,
+.bambook-panel-glass,
+.bambook-dashboard-glass-color {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.glass-panel,
+.bambook-panel-glass,
+.bambook-dashboard-glass-color {
+    background-color: rgba(255, 255, 255, 0.50);
+    background-image: none;
+    backdrop-filter: saturate(130%) blur(18px);
+    -webkit-backdrop-filter: saturate(130%) blur(18px);
+    border-radius: 24px;
+    border: 0;
+    box-shadow: 0 10px 30px -28px rgba(24, 24, 27, 0.14);
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        box-shadow 220ms ease,
+        transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* === Ghost shadow 分离规范 ============================================
+ * 项目规范：带 data-glass-edge-mask 的玻璃面板已由独立的 sibling caster 节点
+ * 投射外阴影（避免相邻 backdrop-filter 元素的合成层 squashing 引发幽灵光）。
+ * 在这种 panel 上，玻璃壳本身只保留 inset 描边，外阴影飞地由 caster 提供。
+ * 此规则适用于 .glass-panel / .bambook-panel-glass / .bambook-dashboard-glass-color
+ * 三大玻璃 surface family。
+ * ====================================================================== */
+.glass-panel[data-glass-edge-mask],
+.bambook-panel-glass[data-glass-edge-mask],
+.bambook-dashboard-glass-color[data-glass-edge-mask] {
+    box-shadow: none !important;
+}
+.dark .glass-panel[data-glass-edge-mask],
+.dark .bambook-panel-glass[data-glass-edge-mask],
+.dark .bambook-dashboard-glass-color[data-glass-edge-mask] {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.10),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+}
+
+.glass-panel::before,
+.bambook-panel-glass::before,
+.bambook-dashboard-glass-color::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image: none;
+    opacity: 0;
+}
+
+.glass-panel::after,
+.bambook-panel-glass::after,
+.bambook-dashboard-glass-color::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.16'/%3E%3C/svg%3E");
+    opacity: 0.018;
+    mix-blend-mode: overlay;
+}
+
+.dark .glass-panel,
+.dark .bambook-panel-glass,
+.dark .bambook-dashboard-glass-color {
+    background-color: rgba(8, 16, 28, 0.28);
+    background-image: none;
+    backdrop-filter: saturate(140%) blur(22px);
+    -webkit-backdrop-filter: saturate(140%) blur(22px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+        0 16px 40px -20px rgba(0, 0, 0, 0.40);
+}
+
+.dark .glass-panel::before,
+.dark .bambook-panel-glass::before,
+.dark .bambook-dashboard-glass-color::before {
+    background-image: none;
+    opacity: 0;
+}
+
+.dark .glass-panel::after,
+.dark .bambook-panel-glass::after,
+.dark .bambook-dashboard-glass-color::after {
+    opacity: 0.026;
+}
+
+html:not(.dark) .glass-panel .text-slate-300,
+html:not(.dark) .bambook-panel-glass .text-slate-300,
+html:not(.dark) .glass-panel .text-slate-400,
+html:not(.dark) .bambook-panel-glass .text-slate-400 {
+    color: rgb(71, 85, 105);
+}
+
+html:not(.dark) .glass-panel .text-slate-500,
+html:not(.dark) .bambook-panel-glass .text-slate-500 {
+    color: rgb(71, 85, 105);
+}
+
+.bambook-outer-panel {
+    box-shadow: 0 10px 30px -28px rgba(24, 24, 27, 0.16) !important;
+}
+.dark .bambook-outer-panel {
+    border-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+/* 💠 SPECULAR EDGE MASK SHADOW SEPARATION FOR GLASS PANELS */
+.bambook-edge-mask-parent-shadow {
+    box-shadow: 0 10px 30px -28px rgba(24, 24, 27, 0.16) !important;
+}
+.dark .bambook-edge-mask-parent-shadow {
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.15),
+        0 24px 60px -24px rgba(0, 0, 0, 0.38),
+        0 48px 100px -30px rgba(0, 0, 0, 0.45) !important;
+}
+
+.bambook-panel-shadow-viewport {
+    --bambook-panel-shadow-bleed-x: 14px;
+    --bambook-panel-shadow-bleed-y: 14px;
+    scroll-padding-block: var(--bambook-panel-shadow-bleed-y);
+    scrollbar-gutter: stable;
+}
+
+.bambook-panel-shadow-viewport > :where(
+    [data-glass-edge-mask],
+    .bambook-outer-panel,
+    .os-material-raised-card,
+    [role="button"],
+    button
+),
+.bambook-panel-shadow-viewport > :where(div, section) > :where(
+    [data-glass-edge-mask],
+    .bambook-outer-panel,
+    .os-material-raised-card,
+    [role="button"],
+    button
+) {
+    margin-inline: var(--bambook-panel-shadow-bleed-x);
+}
+
+.bambook-panel-shadow-viewport.bambook-full-bleed-row-viewport > :where(
+    [data-glass-edge-mask],
+    [role="button"],
+    button
+) {
+    margin-inline: 0;
+}
+
+.bambook-sidebar-nav-scroll-viewport {
+    --bambook-panel-shadow-bleed-x: 0px;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+}
+
+.bambook-contact-list-shadow-viewport,
+.bambook-product-detail-sidebar-scroll-viewport {
+    --bambook-panel-shadow-bleed-x: 0px;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+}
+
+.bambook-detail-panel-shadow-viewport {
+    --bambook-detail-panel-shadow-bleed-y: 14px;
+    padding-top: calc(1.25rem + var(--bambook-detail-panel-shadow-bleed-y));
+    padding-bottom: calc(1.25rem + var(--bambook-detail-panel-shadow-bleed-y));
+    scroll-padding-block: var(--bambook-detail-panel-shadow-bleed-y);
+}
+
+html:not(.dark) .bambook-settings-frame .bambook-settings-nav-panel {
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.032),
+        0 10px 22px -22px rgba(43, 115, 210, 0.07),
+        inset 0 1px 0 rgba(255, 255, 255, 0.30),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+html:not(.dark) .bambook-settings-frame .bambook-settings-nav-panel.bambook-outer-panel {
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.045),
+        0 18px 42px -30px rgba(15, 23, 42, 0.18),
+        0 28px 58px -38px rgba(43, 115, 210, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.42),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .bambook-settings-frame .bambook-settings-nav-panel.bambook-outer-panel {
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.18),
+        0 22px 54px -30px rgba(0, 0, 0, 0.56),
+        0 30px 72px -42px rgba(74, 144, 226, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+}
+
+.bambook-settings-frame .bambook-settings-nav-panel.bambook-outer-panel,
+.bambook-settings-frame .bambook-settings-nav-panel.bambook-outer-panel > .relative {
+    pointer-events: auto;
+}
+
+.bambook-settings-frame .bambook-settings-nav-panel.bambook-outer-panel::before,
+.bambook-settings-frame .bambook-settings-nav-panel.bambook-outer-panel::after {
+    pointer-events: none !important;
+}
+
+html:not(.dark) .bambook-settings-frame .bambook-settings-nav-panel::before {
+    opacity: 0.24 !important;
+}
+
+html:not(.dark) .bambook-settings-frame .bambook-settings-nav-panel::after {
+    opacity: 0.01 !important;
+}
+
+[data-glass-edge-mask].bambook-outer-panel:not(.os-material-raised-card),
+[data-glass-edge-mask] .bambook-outer-panel:not(.os-material-raised-card) {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.45),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+}
+.dark [data-glass-edge-mask].bambook-outer-panel:not(.os-material-raised-card),
+.dark [data-glass-edge-mask] .bambook-outer-panel:not(.os-material-raised-card) {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.03) !important;
+}
+
+.dark [data-glass-edge-mask].bambook-relations-form-panel:not(.os-material-raised-card) {
+    box-shadow:
+        var(--ui-lab-panel-frame-inset-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.03)) !important;
+}
+
+.bambook-blue-white-light,
+.bambook-blue-white-surface {
+    background-image: none;
+}
+
+.dark .bambook-blue-white-light,
+.dark .bambook-blue-white-surface {
+    background-image: none;
+}
+
+.bambook-nested-surface {
+    background-color: rgba(255, 255, 255, 0.30);
+    background-image: none;
+    border-color: rgba(203, 213, 225, 0.40) !important;
+    box-shadow: var(--ui-lab-panel-secondary-shadow) !important;
+}
+
+.dark .bambook-nested-surface {
+    background-color: rgba(13, 27, 42, 0.42);
+    background-image: none;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    box-shadow: var(--ui-lab-panel-secondary-shadow) !important;
+}
+
+html:not(.dark) :where(.ui-lab-real-os-root, .bambook-os-root) .bambook-tertiary-surface {
+    border-color: var(--bambook-selected-light-border-color) !important;
+    background: var(--bambook-selected-light-background) !important;
+    box-shadow: var(--bambook-selected-light-shadow) !important;
+}
+
+.dark .bambook-tertiary-surface {
+    background-image: none !important;
+}
+
+.relations-toolbar-search-dark {
+    appearance: none;
+    -webkit-appearance: none;
+    color-scheme: dark;
+}
+
+.relations-toolbar-search-dark:focus {
+    background-color: transparent !important;
+}
+
+@keyframes relations-toolbar-rail-flow {
+    0% {
+        transform: translateX(0) skewX(-18deg);
+        opacity: 0;
+    }
+
+    18% {
+        opacity: 0.34;
+    }
+
+    56% {
+        transform: translateX(310%) skewX(-18deg);
+        opacity: 0.18;
+    }
+
+    100% {
+        transform: translateX(310%) skewX(-18deg);
+        opacity: 0;
+    }
+}
+
+.dashboard-hud-root [data-os-dashboard-adaptive-card],
+.dashboard-hud-root .liquid-glass-card {
+    pointer-events: auto;
+    overflow: visible;
+}
+
+/* Dark Mode overrides if needed, but the base border is fixed white/0.3 in the reference.
+   However, MarketIntelligence.tsx has `bg-slate-900/60`. 
+   The Border in reference was hardcoded: `border: '1px solid rgba(255, 255, 255, 0.3)'` regardless of mode?
+   Let's check MarketIntelligence again. Yes, it takes `isDarkMode` prop but the style prop was constant in the JSX I saw.
+   Wait, let me double check line 68 in MarketIntelligence.tsx.
+   Yes: `style={{ border: '1px solid rgba(255, 255, 255, 0.3)', ... }}` is applied Unconditionally. 
+   So I will adhere to that. 
+*/
+
+/* We rely on utility classes for background color (bg-slate-900/60 etc) */
+
+/* Specular Reflection Effect */
+/* Specular Reflection Effect - Removed for cleaner transparency */
+/* .liquid-glass-card::before { ... } */
+
+/* Micro-texture Grain */
+/* Micro-texture Grain - Removed for cleaner transparency */
+/* .liquid-glass-card::after { ... } */
+
+/* Enhanced Animations */
+@keyframes pulse-hologram {
+
+    0%,
+    100% {
+        opacity: 0.3;
+        filter: blur(25px);
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        filter: blur(45px);
+        transform: scale(1.05);
+    }
+}
+
+.animate-hologram {
+    animation: pulse-hologram 8s infinite ease-in-out;
+}
+
+/* Background Color Breathing Effect */
+@keyframes breathe-colors {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+        filter: hue-rotate(0deg) brightness(1);
+        box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.3);
+        border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    50% {
+        background-position: 100% 50%;
+        filter: hue-rotate(5deg) brightness(1.02);
+        box-shadow: 0 20px 70px -10px rgba(100, 150, 255, 0.15);
+        /* Keep shadow static but glowy */
+        border-color: rgba(255, 255, 255, 0.9);
+    }
+}
+
+.animate-breathe-subtle {
+    background-size: 200% 200%;
+    /* Important for gradient movement */
+    animation: breathe-colors 8s ease-in-out infinite;
+}
+
+/* 
+   True Edge Runner Effect 
+   Uses a mask to limit visibility strictly to the border area 
+*/
+.active-edge-light {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    /* Follows parent rounded corners exactly */
+    padding: 2px;
+    /* This defines the WIDTH of the running light border */
+
+    /* The magic mask: clips everything EXCEPT the padding area (the border) */
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+
+    pointer-events: none;
+    z-index: 50;
+    /* Sits on top of glass to be very visible */
+    
+    /* Apple Intelligence smooth activation transition */
+    opacity: 0;
+    transform: scale(0.995);
+    animation: ai-edge-activate 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes ai-edge-activate {
+    0% { opacity: 0; transform: scale(0.985); filter: blur(4px); }
+    100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+}
+
+.active-edge-light::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200%;
+    height: 200%;
+    /* Oversize to ensure coverage during rotation */
+    transform: translate(-50%, -50%);
+
+    /* The Beam: Apple Intelligence inspired richer palette (Blue -> Purple -> Orange -> Green) */
+    background: conic-gradient(from 0deg, transparent 40%, rgba(0, 122, 255, 0.1) 60%, rgba(168, 85, 247, 0.6) 80%, #ff9500 90%, #34C759 100%);
+
+    /* Infinite smooth rotation */
+    animation: rotate-edge 4s linear infinite;
+}
+
+@keyframes rotate-edge {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+.neural-grid-bg {
+    background-image: radial-gradient(#d1d1d6 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* ==========================================
+   CUSTOM UTILITIES - 字体工具类
+   ========================================== */
+
+/* 等宽字体类 - 用于代码、控制台、时间戳 */
+.font-mono {
+    font-family: var(--font-mono) !important;
+    font-feature-settings: "liga" 0;
+    /* 禁用连字以保持代码清晰 */
+}
+
+/* 数字等宽类 - 用于数据展示 */
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ========================================
+   ANIMATION SYSTEM - 动态神经美学
+   ======================================== */
+
+@keyframes logo-pulse {
+
+    0%,
+    100% {
+        filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.7));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 40px rgba(59, 130, 246, 1)) drop-shadow(0 0 15px rgba(59, 130, 246, 0.8));
+    }
+}
+
+.logo-breathing {
+    animation: logo-pulse 12s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+/* ========================================
+   LOGO SHIMMER - 蓝色流动光效
+   ======================================== */
+
+@keyframes shimmer-sweep {
+    0% {
+        background-position: -250% 0;
+    }
+
+    100% {
+        background-position: 250% 0;
+    }
+}
+
+.logo-shimmer {
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(59, 130, 246, 0.4) 45%,
+            rgba(59, 130, 246, 0.8) 50%,
+            rgba(59, 130, 246, 0.4) 55%,
+            rgba(255, 255, 255, 0) 100%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    background-clip: padding-box;
+    -webkit-background-clip: padding-box;
+    position: relative;
+}
+
+.logo-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: -20%;
+    background: linear-gradient(110deg,
+            transparent 30%,
+            rgba(59, 130, 246, 0.2) 45%,
+            rgba(59, 130, 246, 0.6) 50%,
+            rgba(59, 130, 246, 0.2) 55%,
+            transparent 70%);
+    background-size: 200% 100%;
+    animation: shimmer-sweep 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    mask-image: inherit;
+    /* This will inherit from the parent logo shape if we're careful */
+    pointer-events: none;
+    mix-blend-mode: color-dodge;
+}
+
+/* ========================================
+   SURFACE SWEEP - 表面流动光效增强
+   ======================================== */
+
+@keyframes surface-sweep {
+    0% {
+        transform: translateX(-150%) skewX(-15deg);
+        opacity: 0;
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    50% {
+        transform: translateX(150%) skewX(-15deg);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateX(150%) skewX(-15deg);
+        opacity: 0;
+    }
+}
+
+.animate-surface-sweep {
+    animation: surface-sweep 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* ========================================
+   RESPONSIVE SYSTEM
+   Desktop: Fluid scaling from 1024px+ (no mobile mode)
+   Mobile: Touch-optimized below 768px
+   ======================================== */
+
+/* Desktop Responsive Design - Allows scaling but maintains desktop layout */
+:root {
+    --desktop-min-width: 1080px;
+    --desktop-min-height: 760px;
+    --desktop-optimal-width: 1440px;
+}
+
+/* Browser windows cannot be physically constrained; keep the desktop OS canvas
+   fixed once the viewport gets smaller than the supported contract. */
+body:not(.bambook-device-phone) {
+    min-width: var(--desktop-min-width);
+    min-height: var(--desktop-min-height);
+}
+
+body:not(.bambook-device-phone) #root {
+    min-width: var(--desktop-min-width);
+    min-height: var(--desktop-min-height);
+}
+
+body:not(.bambook-device-phone) #root > .h-screen {
+    min-width: var(--desktop-min-width);
+    min-height: var(--desktop-min-height);
+    height: max(100vh, var(--desktop-min-height));
+}
+
+/* Desktop Medium Screens (1024px - 1366px) */
+@media (min-width: 769px) and (max-width: 1366px) {
+
+    /* Allow HUD panels to scale down */
+    .desktop-panel-sm {
+        width: clamp(200px, 20vw, 320px) !important;
+    }
+
+    .desktop-panel-md {
+        width: clamp(280px, 28vw, 384px) !important;
+    }
+
+    /* Reduce padding in tight spaces */
+    .desktop-spacing-sm {
+        padding: 1.5rem !important;
+    }
+
+    /* Scale down font sizes slightly */
+    .desktop-title-responsive {
+        font-size: clamp(1.875rem, 3vw, 2.25rem) !important;
+    }
+}
+
+/* Desktop Small Screens (1024px - 1280px) */
+@media (min-width: 769px) and (max-width: 1280px) {
+    .desktop-compact {
+        gap: 1rem !important;
+    }
+
+    .desktop-card-compact {
+        padding: 1rem !important;
+    }
+}
+
+/* ========================================
+   MOBILE RESPONSIVE SYSTEM
+   ======================================== */
+
+/* Safe Area Variables for Notched Devices */
+:root {
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Visibility Utilities */
+.mobile-only {
+    display: none;
+}
+
+.desktop-only {
+    display: block;
+}
+
+/* Mobile overrides removed for Pure Desktop Mode */
+
+/* Mobile Tab Bar Fixed Layout */
+.mobile-tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(56px + var(--safe-area-bottom));
+    padding-bottom: var(--safe-area-bottom);
+    z-index: 100;
+    backdrop-filter: saturate(180%) blur(25px);
+    -webkit-backdrop-filter: saturate(180%) blur(25px);
+}
+
+/* Mobile Drawer Overlay */
+.mobile-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.mobile-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 85%;
+    max-width: 320px;
+    z-index: 201;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.mobile-drawer.open {
+    transform: translateX(0);
+}
+
+/* Active touch feedback */
+.touch-active:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+}
+
+
+/* ========================================
+   SCROLLBAR VISIBILITY
+   Keep content scrollable without showing native scrollbars.
+   Edge fades now provide the scroll affordance across the OS surface.
+   ======================================== */
+
+*::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: transparent;
+}
+
+/* Dark mode scrollbar */
+.dark *::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+    background: transparent;
+}
+
+/* Firefox scrollbar */
+* {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    scrollbar-color: transparent transparent;
+}
+
+.dark * {
+    scrollbar-color: transparent transparent;
+}
+
+/* Utilities */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Prevent auto-zoom on iOS inputs */
+@media screen and (max-width: 768px) {
+
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* ========================================
+   RESPONSIVE GRID UTILITIES
+   Proper responsive behavior for dashboard grids
+   ======================================== */
+
+/* Desktop grid - 3 columns on large screens */
+.responsive-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 1.5rem;
+}
+
+/* Ensure proper card behavior - never stretch horizontally */
+.responsive-card {
+    max-width: 100%;
+    width: 100%;
+}
+
+/* Dashboard panoramic stage layout.
+   Cluster groups move as coordinated regions; individual cards no longer own
+   independent fixed/stretch behavior in the globe dashboard mode. */
+.dashboard-stage-layout {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: clamp(438px, 58vh, 612px);
+    min-width: 0;
+    padding-top: clamp(10px, 1.2vh, 18px);
+}
+
+.dashboard-stage-panorama-anchor {
+    position: absolute;
+    z-index: 0;
+    top: clamp(24px, 5vh, 48px);
+    bottom: clamp(18px, 4vh, 40px);
+    left: clamp(244px, 24%, 328px);
+    right: clamp(286px, 25%, 360px);
+    min-height: clamp(300px, 42vh, 620px);
+    pointer-events: none;
+}
+
+.dashboard-stage-left-cluster {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: clamp(222px, 19vw, 286px);
+    display: grid;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: clamp(8px, 0.6vw, 12px);
+    min-height: 0;
+}
+
+.dashboard-stage-right-cluster {
+    position: absolute;
+    z-index: 2;
+    top: clamp(20px, 4vh, 38px);
+    bottom: clamp(12px, 4vh, 34px);
+    right: 0;
+    width: clamp(268px, 21vw, 336px);
+    display: grid;
+    grid-template-rows: minmax(280px, 1.55fr) minmax(160px, 0.9fr);
+    gap: clamp(8px, 0.7vw, 12px);
+    min-height: 0;
+}
+
+.dashboard-stage-bottom-strip {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 0.58fr)
+        minmax(300px, 0.95fr)
+        minmax(420px, 1.55fr);
+    gap: clamp(8px, 0.8vw, 12px);
+    align-items: stretch;
+    width: 100%;
+    min-height: clamp(132px, 16vh, 168px);
+}
+
+@media (max-width: 1180px) {
+    .dashboard-stage-layout {
+        display: grid;
+        grid-template-columns: minmax(210px, 0.76fr) minmax(0, 1.7fr);
+        grid-template-areas:
+            "left panorama"
+            "right right";
+        gap: 14px;
+        min-height: 560px;
+        padding-top: 0;
+    }
+
+    .dashboard-stage-panorama-anchor,
+    .dashboard-stage-left-cluster,
+    .dashboard-stage-right-cluster {
+        position: relative;
+        inset: auto;
+        width: auto;
+        height: auto;
+    }
+
+    .dashboard-stage-panorama-anchor {
+        grid-area: panorama;
+        min-height: 360px;
+    }
+
+    .dashboard-stage-left-cluster {
+        grid-area: left;
+    }
+
+    .dashboard-stage-right-cluster {
+        grid-area: right;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: minmax(176px, 1fr);
+    }
+
+    .dashboard-stage-bottom-strip {
+        grid-template-columns: minmax(170px, 0.66fr) minmax(0, 1fr);
+    }
+
+    .dashboard-stage-bottom-strip > :last-child {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 820px) {
+    .dashboard-stage-layout {
+        display: flex;
+        flex-direction: column;
+        min-height: auto;
+    }
+
+    .dashboard-stage-panorama-anchor,
+    .dashboard-stage-left-cluster,
+    .dashboard-stage-right-cluster {
+        position: relative;
+        inset: auto;
+        width: auto;
+    }
+
+    .dashboard-stage-panorama-anchor {
+        min-height: 260px;
+    }
+
+    .dashboard-stage-left-cluster {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: none;
+        min-height: 160px;
+    }
+
+    .dashboard-stage-right-cluster,
+    .dashboard-stage-bottom-strip {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
+    }
+
+    .dashboard-stage-bottom-strip > :last-child {
+        grid-column: auto;
+    }
+}
+
+/* Desktop layout with sidebar - main content should scroll */
+.desktop-layout-with-sidebar {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.desktop-sidebar-container {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.desktop-main-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
+    /* Prevent flex item from overflowing */
+}
+
+/* Sidebar scrollable area */
+.sidebar-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-bottom: 120px;
+    /* Space for bottom controls */
+}
+
+/* Sidebar bottom controls - always visible */
+.sidebar-bottom-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: inherit;
+    backdrop-filter: inherit;
+    -webkit-backdrop-filter: inherit;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 10;
+}
+
+/* Animation Utilities */
+.cubic-out {
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Missing Animations Polyfill for tailwindcss-animate compatibility */
+.animate-in {
+    animation-duration: 0.5s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-fill-mode: both;
+}
+
+.fade-in {
+    animation-name: keyframe-fade-in;
+}
+
+.zoom-in {
+    animation-name: keyframe-zoom-in;
+}
+
+.slide-in-from-bottom-4 {
+    animation-name: keyframe-slide-in-bottom-4;
+}
+
+.slide-in-from-right {
+    animation-name: keyframe-slide-in-right;
+}
+
+@keyframes keyframe-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes keyframe-zoom-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes keyframe-slide-in-bottom-4 {
+    from {
+        opacity: 0;
+        transform: translateY(1rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes keyframe-slide-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes dashboard-live-scan {
+    0% {
+        transform: translateX(0) skewX(-18deg);
+        opacity: 0;
+    }
+
+    18% {
+        opacity: 0.75;
+    }
+
+    52% {
+        opacity: 0.38;
+    }
+
+    100% {
+        transform: translateX(96px) skewX(-18deg);
+        opacity: 0;
+    }
+}
+
+.dashboard-live-scan {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -2rem;
+    width: 2rem;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    animation: dashboard-live-scan 2.8s linear infinite;
+}
+
+.dashboard-live-scan-light {
+    background: linear-gradient(90deg, transparent, rgb(var(--os-vnext-brand-blue-rgb) / 0.46), transparent);
+    filter: drop-shadow(0 0 4px rgb(var(--os-vnext-brand-blue-rgb) / 0.12));
+}
+
+/* DESIGN SYSTEM IMPORT — moved to top of file (Command Center 统一视觉语言). */
+
+/* Edge-faded glass panels keep the mask on the glass node; a transparent
+   sibling owns the outbound shadow so the mask cannot clip it. */
+.bambook-shadow-sibling-stack {
+    --bambook-sibling-shadow-bleed: 40px;
+    --bambook-sibling-shadow-radius: 24px;
+    --bambook-sibling-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.05),
+        0 16px 36px -28px rgba(0, 0, 0, 0.12),
+        0 36px 80px -24px rgba(0, 0, 0, 0.15);
+    position: relative;
+    /* 不再使用 isolation: isolate：在 Blink (Chrome / Electron) 中，stack 作为合成根
+       会让其内部 caster 的 -40px 飞地被合成进 stack 的 GPU 纹理；当相邻 panel
+       的 backdrop-filter 在 zoom 上下文中采样这片飞地，会形成"幽灵光"渲染错误。
+       去掉 isolation 让 caster 自身合成、stack 不再扩张合成边界。 */
+}
+
+.bambook-shadow-sibling-stack > [data-glass-edge-mask]:not(.bambook-sibling-shadow-caster) {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+}
+
+.bambook-panel-shadow-viewport > .bambook-shadow-sibling-stack {
+    margin-inline: var(--bambook-panel-shadow-bleed-x);
+}
+
+.bambook-relation-form-scroll-viewport,
+.bambook-product-form-scroll-viewport {
+    margin-inline: -40px;
+    padding-inline: 40px;
+    overflow-x: hidden;
+}
+
+.bambook-product-detail-sidebar-scroll-viewport {
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    touch-action: pan-y;
+}
+
+@supports (overflow: clip) {
+    .bambook-relation-form-scroll-viewport,
+    .bambook-product-form-scroll-viewport {
+        overflow-x: clip;
+    }
+
+    .bambook-product-detail-sidebar-scroll-viewport {
+        overflow-x: clip;
+    }
+}
+
+.bambook-panel-shadow-viewport > .bambook-shadow-sibling-stack > :where(
+    [data-glass-edge-mask],
+    .bambook-outer-panel,
+    .os-material-raised-card
+) {
+    margin-inline: 0;
+}
+
+.bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-outer-panel:not(.bambook-sibling-shadow-caster) {
+    position: relative;
+    z-index: 1;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.45),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-outer-panel:not(.bambook-sibling-shadow-caster) {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.03) !important;
+}
+
+.ui-lab-real-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-frame-panel:not(.bambook-sibling-shadow-caster),
+.bambook-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-frame-panel:not(.bambook-sibling-shadow-caster) {
+    box-shadow: var(--ui-lab-panel-frame-inset-shadow) !important;
+}
+
+.ui-lab-real-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-raised-card:not(.bambook-sibling-shadow-caster),
+.bambook-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-raised-card:not(.bambook-sibling-shadow-caster) {
+    box-shadow: var(--ui-lab-panel-raised-inset-shadow) !important;
+}
+
+.ui-lab-real-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-inset-surface:not(.bambook-sibling-shadow-caster),
+.bambook-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-inset-surface:not(.bambook-sibling-shadow-caster) {
+    box-shadow: var(--ui-lab-panel-secondary-inset-shadow) !important;
+}
+
+.ui-lab-real-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-floating-overlay:not(.bambook-sibling-shadow-caster),
+.bambook-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].os-material-floating-overlay:not(.bambook-sibling-shadow-caster) {
+    box-shadow: var(--ui-lab-panel-floating-shadow) !important;
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster,
+.bambook-os-root .bambook-sibling-shadow-caster,
+.ui-lab-real-os-root [data-glass-edge-mask-shadow-caster],
+.bambook-os-root [data-glass-edge-mask-shadow-caster],
+.bambook-sibling-shadow-caster {
+    position: absolute !important;
+    inset: calc(var(--bambook-sibling-shadow-bleed) * -1) !important;
+    z-index: 0;
+    pointer-events: none;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: calc(var(--bambook-sibling-shadow-radius) + var(--bambook-sibling-shadow-bleed)) !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+.bambook-sibling-shadow-caster::before,
+[data-glass-edge-mask-shadow-caster]::before {
+    content: "";
+    position: absolute;
+    inset: var(--bambook-sibling-shadow-bleed);
+    border-radius: var(--bambook-sibling-shadow-radius);
+    background: transparent !important;
+    box-shadow: var(--bambook-sibling-shadow) !important;
+    opacity: 1 !important;
+    pointer-events: none;
+}
+
+.bambook-sibling-shadow-caster::after,
+[data-glass-edge-mask-shadow-caster]::after {
+    content: none !important;
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster.os-material-frame-panel,
+.bambook-os-root .bambook-sibling-shadow-caster.os-material-frame-panel {
+    --bambook-sibling-shadow: var(--ui-lab-panel-frame-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster.os-material-raised-card,
+.bambook-os-root .bambook-sibling-shadow-caster.os-material-raised-card {
+    --bambook-sibling-shadow: var(--ui-lab-panel-raised-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster.os-material-inset-surface,
+.bambook-os-root .bambook-sibling-shadow-caster.os-material-inset-surface {
+    --bambook-sibling-shadow: var(--ui-lab-panel-secondary-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster.os-material-floating-overlay,
+.bambook-os-root .bambook-sibling-shadow-caster.os-material-floating-overlay {
+    --bambook-sibling-shadow: var(--ui-lab-panel-floating-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="frame"],
+.bambook-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="frame"] {
+    --bambook-sibling-shadow: var(--ui-lab-panel-frame-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="sidebar-shell"],
+.bambook-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="sidebar-shell"] {
+    --bambook-sibling-shadow: var(--ui-lab-panel-sidebar-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="raised"],
+.bambook-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="raised"] {
+    --bambook-sibling-shadow: var(--ui-lab-panel-raised-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="secondary"],
+.bambook-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="secondary"] {
+    --bambook-sibling-shadow: var(--ui-lab-panel-secondary-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="floating"],
+.bambook-os-root .bambook-sibling-shadow-caster[data-os-shadow-role="floating"] {
+    --bambook-sibling-shadow: var(--ui-lab-panel-floating-depth-shadow);
+}
+
+.ui-lab-real-os-root .bambook-sibling-panel-no-bleed,
+.bambook-os-root .bambook-sibling-panel-no-bleed {
+    box-shadow: var(--ui-lab-panel-frame-inset-shadow) !important;
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster.bambook-outer-panel,
+.bambook-os-root .bambook-sibling-shadow-caster.bambook-outer-panel {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.ui-lab-real-os-root .bambook-sibling-shadow-caster.bambook-outer-panel::before,
+.bambook-os-root .bambook-sibling-shadow-caster.bambook-outer-panel::before {
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: var(--bambook-sibling-shadow) !important;
+    opacity: 1 !important;
+}
+
+.ui-lab-real-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-relations-form-panel:not(.bambook-sibling-shadow-caster),
+.bambook-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-relations-form-panel:not(.bambook-sibling-shadow-caster) {
+    background-color: var(--ui-lab-panel-glass-film-color) !important;
+    background-image: var(--ui-lab-panel-shared-glass-background) !important;
+    box-shadow: var(--ui-lab-panel-frame-inset-shadow) !important;
+}
+
+.ui-lab-real-os-root .bambook-relations-form-map-panel,
+.bambook-os-root .bambook-relations-form-map-panel {
+    background-color: var(--ui-lab-panel-glass-film-color) !important;
+    background-image: var(--ui-lab-panel-shared-glass-background) !important;
+}
+
+.ui-lab-real-os-root .bambook-relations-form-panel .os-material-inset-surface,
+.bambook-os-root .bambook-relations-form-panel .os-material-inset-surface {
+    background-color: var(--ui-lab-form-panel-inset-film-color) !important;
+}
+
+.ui-lab-real-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-relations-form-panel:not(.bambook-sibling-shadow-caster)::before,
+.bambook-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-relations-form-panel:not(.bambook-sibling-shadow-caster)::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background-image: var(--ui-lab-panel-highlight-background) !important;
+    box-shadow: none !important;
+    opacity: var(--ui-lab-panel-highlight-opacity) !important;
+}
+
+.ui-lab-real-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-relations-form-panel:not(.bambook-sibling-shadow-caster)::after,
+.bambook-os-root .bambook-shadow-sibling-stack > [data-glass-edge-mask].bambook-relations-form-panel:not(.bambook-sibling-shadow-caster)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background-image: var(--ui-lab-panel-seam-interference-background) !important;
+    mix-blend-mode: normal !important;
+    box-shadow: none !important;
+    opacity: var(--ui-lab-panel-seam-interference-opacity) !important;
+}
+
+/* Account dropdown 玻璃面板：覆盖 bambook-dashboard-glass-color 的外 box-shadow，
+   阴影飞地由独立的 sibling shadow div 承担（见 compiledSidebarTemplates.tsx），
+   避免 backdrop-filter + box-shadow 飞地与 main panel 合成层 squashing 触发幽灵光。 */
+.ui-lab-real-os-root [data-sidebar-account-menu].bambook-dashboard-glass-color,
+.bambook-os-root [data-sidebar-account-menu].bambook-dashboard-glass-color {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.42),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important;
+}
+
+/* ═══ RDL Font Alignment: 强制 Urbanist 全局生效 ═══
+   HarmonyOS 的 :lang(zh-CN) 直接匹配每个元素，覆盖 body 继承。
+   必须用同等范围 + !important 才能把 Urbanist 加到第一位。
+   拉丁字符用 Urbanist，CJK 回退到 HarmonyOS Sans SC。 */
+html:lang(zh-CN) *,
+html:lang(zh) *,
+html:lang(Hans) *,
+html[lang="zh-CN"] * {
+    font-family: 'Urbanist', 'HarmonyOS Sans SC', 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif !important;
+}

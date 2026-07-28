@@ -1,0 +1,29 @@
+- `[/]` **Bambook 全栈及 Agent OS 架构优化与版图规划 (Roadmap)**
+  - `[x]` **支柱 1：全局技术债清洗（金额精度债）**
+    - `[x]` 确认 `schema.prisma` 中需要从 `Float` 重构为 `Decimal` 的所有核心金额字段（`Order`, `OrderLine`, `DevelopmentCase` 等）。
+    - `[x]` 编写并执行迁移，将 Float 类型全部替换为 `Decimal @db.Decimal(18, 4)`（用户已在主项目中完成重新优化并已落盘）。
+    - `[x]` 处理 `route.ts` 等前后台接口的类型对齐，消除编译报错。
+  - `[x]` **支柱 2：命名债务重构（Samples ➜ Development）**
+    - `[x]` 重命名 `components/SampleManager.tsx` ➜ `components/DevelopmentManager.tsx`。
+    - `[x]` 将 `moduleRegistry.ts` 中 `View.Samples` 及其组件引用进行全栈重构对齐。
+  - `[ ]` **支柱 3：前端 UX 交互重构与验证（当前重点）**
+    - `[ ]` 验证 Electron 加载的是 dev server (3000端口) 最新代码，确保 Vite 热更新生效（P0）。
+    - `[x]` 优化审批拦截链路：在 `components/Assistant.tsx` 中验证或重构 `resolveAgentApproval`，实现批准后自动续跑 `handleSend`，保持 SSE 会话不断联（P1）。
+    - `[ ]` 优化流式思考展现：确认流式过程中思考文本以纯灰色斜体文字实时渲染展示，完成后将工具折叠为链接（P2）。
+    - `[ ]` 优化状态栏文案：缩小顶部状态圆点、去彩色，使用 `agentEventPresentation` 映射人性化自然语言状态文案（P3）。
+    - `[ ]` 优化侧边栏：清理重命名/删除按钮与对话标题的重叠，去圆角容器背景（P3）。
+  - `[ ]` **支柱 4：架构智库同步与 Agent 元认知**
+    - `[ ]` 改造 `KnowledgeService`，将其从纯内存数组版本（`chunks[]`）重构为基于 Prisma 的持久化检索版本。
+    - `[ ]` 编写文档备份同步工具 `scripts/sync-docs.ts`，定义文件白名单与相对路径 `sourceUri` 的唯一键（`upsert`）机制，支持孤儿清理。
+    - `[ ]` 在 `package.json` 中配置 `npm run docs:sync` 并在服务启动时非阻塞异步触发。
+    - `[ ]` 引入 Postgres 全文索引检索模式（首期采用 PG 关键词检索做精准查找）。
+    - `[ ]` 注册 MCP 元认知工具 `agent.search_self_architecture` 并添加到 `coreIdentity.ts` 身份声明中。
+  - `[ ]` **支柱 5：新业务板块（货运管理 Shipping）**
+    - `[ ]` 草拟 `Shipment` 及装箱单 Prisma 模型并同步至数据库。
+    - `[ ]` 使用 `scaffold-module.ts` 生成 `shipping` 模块，包括路由、前端与 E2E 骨架。
+    - `[ ]` 完善货运业务逻辑，编写 `sync` 处理器与 `toolRuntime` 工具实现。
+  - `[ ]` **支柱 6：AI 智能邮箱与 Agent 级深度代管**
+    - `[ ]` 在 `EmailManager` 中注入 PDF 解析服务，支持提取 PDF 附件结构。
+    - `[ ]` 编写 Agent 自动化流水线：解析 PDF ➜ 自动发起创建 Invoice/Order ➜ 触发审批流。
+  - `[ ]` **支柱 7：全模块 Compiled 静态编译**
+    - `[ ]` 将 `Orders`、`Samples` 和 `Finance` 模块的前端组件通过编译生成高效静态模板。

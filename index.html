@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0A2746">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bambook">
+  <link rel="manifest" href="%BASE_URL%manifest.webmanifest">
+  <link rel="apple-touch-icon" href="%BASE_URL%pwa-icon.svg">
+  <title>Bambook 竹衍 | Digital Strategy Hub</title>
+  <!--
+    Offline-first asset policy (B0): all runtime deps are local.
+      Tailwind: built locally via PostCSS (tailwind.config.js + postcss.config.js).
+                Replaced the cdn.tailwindcss.com Play CDN.
+      Urbanist font: bundled through @fontsource/urbanist and imported from
+                  index.css. Inter remains a local fallback.
+      Module imports (react, lucide-react, recharts): resolved by Vite at build
+                  time from node_modules. The legacy esm.sh importmap was dead
+                  config and has been removed.
+    All :root variables, font-faces and base styles now live in index.css.
+    NOTE: avoid writing the literal characters &lt;script ...&gt; in HTML comments —
+    Vite's HTML parser misinterprets it as a real tag and shatters the document.
+  -->
+  <style>
+    html.bambook-agent-pet-host vite-error-overlay {
+      display: none !important;
+    }
+    body { font-family: 'Urbanist', 'HarmonyOS Sans SC', 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #ffffff; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #0f172a; }
+    .glass-effect { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); }
+  </style>
+  <link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-white text-slate-900">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

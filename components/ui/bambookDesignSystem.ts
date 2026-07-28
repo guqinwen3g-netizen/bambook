@@ -1,0 +1,763 @@
+import { BAMBOOK_OS } from './bambookOsTokens';
+import { OS_MATERIAL, OS_SHADOW } from './osMaterial';
+import { OS_VNEXT_ALLOWED_TOKEN_FILES } from './osVNext';
+
+export const BAMBOOK_DESIGN_SYSTEM_VERSION = 'bambook-os-design-system-v1';
+
+export const BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES = [
+  {
+    path: 'styles/os-vnext.css',
+    owns: [
+      'exact CSS custom properties',
+      'material role rendering',
+      'selected surface tokens',
+      'UI Lab and app material scope',
+    ],
+  },
+  {
+    path: 'components/ui/bambookOsTokens.ts',
+    owns: [
+      'semantic recipes',
+      'component role names',
+      'layout and motion constants',
+      'allowed composition language',
+    ],
+  },
+  {
+    path: 'components/ui/osMaterial.ts',
+    owns: [
+      'material role enum',
+      'shadow role enum',
+      'shadow attachment mode enum',
+      'role-to-class mapping',
+    ],
+  },
+  {
+    path: 'components/ui/SidePanelContainer.tsx',
+    owns: [
+      'panel primitive composition',
+      'surface and shadow role binding',
+      'spotlight binding',
+      'edge-fade shadow splitting',
+    ],
+  },
+  {
+    path: 'components/ui/GlassEdgeFadeShadow.tsx',
+    owns: [
+      'ghost shadow caster DOM contract',
+      'depth-only shadow caster separation',
+      'forbidden material-class boundary for shadow casters',
+    ],
+  },
+  {
+    path: 'components/ui/ScrollEdgeFades.tsx',
+    owns: [
+      'scroll boundary fade behavior',
+      'top and bottom content fade timing',
+    ],
+  },
+  {
+    path: 'components/ui/osCompiler/osCompiler.ts',
+    owns: [
+      'semantic input to visual blueprint compilation',
+      'compiler fidelity gate',
+      'visual provenance states',
+      'forbidden page-local escape hatches',
+    ],
+  },
+  {
+    path: 'components/ui/osCompiler/compiledPrimitives.tsx',
+    owns: [
+      'compiler-only reusable layout primitives',
+      'compiler-only panel and slot rendering',
+      'data-os-compiler trace markers',
+    ],
+  },
+  {
+    path: 'components/ui/RDLPrimitives.tsx',
+    owns: [
+      'RDL shared surface primitive',
+      'RDL shared pill and search primitive',
+      'RDL shared toolbar, data-row, metric-card, and overlay icon button primitive',
+      'data-rdl-component trace markers for page migration',
+    ],
+  },
+  {
+    path: 'docs/design-system/rdl-component-authority.md',
+    owns: [
+      'RonDesignLab official-site component evidence boundary',
+      'Bambook RDL pill, search, filter, card, row, and overlay-control dialect',
+      'shared component transfer rules before page migration',
+    ],
+  },
+] as const;
+
+export const BAMBOOK_DESIGN_SYSTEM_LEGACY_SOURCES = [
+  {
+    path: 'styles/design-system.css',
+    status: 'legacy-command-center',
+    rule: 'Do not add new Bambook OS material values here. Migrate repeated values into os-vnext or bambookOsTokens first.',
+  },
+] as const;
+
+export const BAMBOOK_DESIGN_SYSTEM_RETIRED_DOCS = [
+  {
+    path: 'docs/design-system/material-levels.md',
+    replacement: 'docs/design-system/material-grammar.md',
+    status: 'merged-and-removed',
+  },
+  {
+    path: 'docs/design-system/component-rules.md',
+    replacement: 'docs/design-system/component-grammar.md',
+    status: 'merged-and-removed',
+  },
+  {
+    path: 'docs/design-system/migration.md',
+    replacement: 'docs/design-system/governance.md',
+    status: 'replaced-and-removed',
+  },
+  {
+    path: 'bambook-ui-spec.md',
+    replacement: 'docs/archive/design-history/bambook-ui-spec.md',
+    status: 'archived-history',
+  },
+  {
+    path: 'docs/Bambook-OS-UI-Guidelines.md',
+    replacement: 'docs/archive/design-history/Bambook-OS-UI-Guidelines.md',
+    status: 'archived-history',
+  },
+  {
+    path: 'docs/UI_AUDIT_REPORT.md',
+    replacement: 'docs/archive/design-history/UI_AUDIT_REPORT.md',
+    status: 'archived-history',
+  },
+] as const;
+
+export const BAMBOOK_CONTAINER_LEVELS = [
+  {
+    id: 'shell-sidebar-underlay',
+    name: '底层导航 / Sidebar Underlay',
+    materialRole: 'none',
+    shadowRole: 'none',
+    shadowMode: 'none',
+    primitive: 'plain div',
+    source: 'Sidebar app-sidebar-underlay-content',
+    backgroundToken: 'transparent',
+    shadowToken: 'none',
+    usage: 'Global navigation underlay revealed by the main app cover.',
+    rule: 'Sidebar is not a container surface. It must not use SidePanelContainer, outer-panel material, or a raised overlay shadow.',
+  },
+	  {
+	    id: 'level-1-frame',
+	    name: '一级容器 / Frame Panel',
+	    materialRole: 'framePanel',
+	    shadowRole: 'none',
+	    shadowMode: 'none',
+	    primitive: OS_MATERIAL.framePanel,
+	    source: 'SidePanelContainer materialRole="framePanel" materialTone="panel"',
+	    backgroundToken: '--ui-lab-panel-shared-glass-background',
+	    shadowToken: 'none',
+	    usage: 'Main app panels, detail shells, settings main surfaces, fullscreen add/edit form panels, and Form Map panels.',
+	    rule: 'Level 1 may carry shared glass film and blur, but must not carry rim, inset highlight, or outward depth shadow.',
+	  },
+	  {
+	    id: 'level-2-raised-or-inset',
+	    name: '二级容器 / Nested Raised Or Inset Surface',
+	    materialRole: 'raisedCard | insetSurface',
+	    shadowRole: 'none',
+	    shadowMode: 'none',
+	    primitive: `${OS_MATERIAL.raisedCard} | ${OS_MATERIAL.insetSurface}`,
+	    source: 'SidePanelContainer materialRole="raisedCard|insetSurface" materialTone="nested"',
+	    backgroundToken: '--ui-lab-panel-nested-glass-background',
+	    shadowToken: 'none',
+	    usage: 'Sections inside a level-1 panel, grouped content, secondary detail blocks, and repeatable child rows inside form panels.',
+	    rule: 'Nested surfaces separate by fill, spacing, and typography only; do not reintroduce rim or depth.',
+	  },
+	  {
+	    id: 'level-3-tertiary',
+	    name: '三级容器 / Tertiary Inline Surface',
+	    materialRole: 'tertiarySurface',
+	    shadowRole: 'none',
+	    shadowMode: 'none',
+	    primitive: 'bambook-tertiary-surface',
+	    source: 'detail inline panels plus selected-light token family in light mode',
+		    backgroundToken: '--bambook-rdl-inset-fill via --bambook-selected-light-background',
+	    shadowToken: 'none',
+	    usage: 'Small inline status groups, chips, and compact metadata rows that must read quieter than a nested panel.',
+	    rule: 'Use quiet fill only. No selected-button rim, inset highlight, or depth shadow.',
+	  },
+	  {
+	    id: 'level-4-derived',
+	    name: '四级容器 / Derived Micro Surface',
+	    materialRole: 'derivedOnly',
+	    shadowRole: 'none',
+	    shadowMode: 'none by default',
+	    primitive: 'not implemented',
+	    source: 'derive from level 3, do not invent a new independent surface',
+	    backgroundToken: 'derived from level 3 by reducing fill strength',
+	    shadowToken: 'none',
+	    usage: 'Future tiny grouped controls or metadata chips inside a tertiary surface.',
+	    rule: 'If a fourth level is needed, prove the hierarchy first. Prefer content-only grouping; use a visible surface only when separation cannot be solved by spacing or typography.',
+	  },
+] as const;
+
+export const BAMBOOK_MATERIAL_LIBRARY_CATEGORIES = [
+	  {
+	    id: 'materials',
+	    title: 'Materials',
+	    items: ['shell-sidebar-underlay', 'level-1-frame', 'level-2-raised-or-inset', 'level-3-tertiary', 'level-4-derived'],
+	  },
+	  {
+	    id: 'flatness',
+	    title: 'Flatness',
+	    items: [
+	      'shadow-none',
+	      'rim-none',
+		      'depth-none',
+		      'drop-shadow-none',
+		      'container-border-zero',
+		      'rdl-matte-frosted-container',
+	    ],
+	  },
+  {
+    id: 'controls',
+    title: 'Controls',
+    items: [
+      'actionControl',
+      'stateControl',
+      'selectedSurface',
+      'navigationRow',
+      'recessedField',
+      'select.toolbar',
+      'floatingToolCluster',
+    ],
+  },
+  {
+    id: 'content',
+    title: 'Content Patterns',
+    items: [
+      'table',
+      'chip',
+      'badge',
+      'status',
+      'divider',
+      'scrollEdgeFade',
+      'adaptiveContrast',
+    ],
+  },
+] as const;
+
+export const BAMBOOK_LAYOUT_GRAMMAR = {
+  pageShell: {
+    role: 'app-page-shell',
+    source: 'BAMBOOK_OS.layout.desktopPageFrameClass',
+    canvas: `${BAMBOOK_OS.layout.desktopMainMaxWidth}px desktop canvas`,
+    rule: 'A desktop page starts from the shared canvas and title/content split. Do not invent a wider page unless a new global canvas token is approved.',
+  },
+	  sidebarShell: {
+	    role: 'global-sidebar-shell',
+	    source: 'BAMBOOK_OS.layout.desktopSidebarShellClass',
+	    geometry: 'left 0, top 0, bottom 0, width 270px; rendered below the main cover',
+	    usage: 'Global app navigation only.',
+	    rule: 'Sidebar is an underlay revealed by the app main cover. Do not give it the front-edge radius or raised overlay shadow; the main cover owns the left radius.',
+	  },
+  backstageShell: {
+    role: 'module-backstage-shell',
+    source: 'BAMBOOK_OS.layout.desktopWorkspaceFrameClass + BAMBOOK_OS.layout.desktopBackstagePanelRowClass',
+    canvas: `${BAMBOOK_OS.layout.desktopMainMaxWidth}px desktop panel row inside a full-width workspace frame`,
+    rule: 'A module backstage page uses the same title bar as navigation pages, then constrains the work panel row to the desktop canvas.',
+  },
+  titleBar: {
+    role: 'title-bar',
+    source: 'BAMBOOK_OS.layout.desktopTitleBarWithInsetClass',
+    height: 'h-14',
+    safeLeft: 'BAMBOOK_OS.layout.desktopTitleSafeLeftStyle shared by every page title',
+    usage: 'Navigation hierarchy, page identity, compact view switches, and global page actions.',
+    rule: 'Title chrome stays visually lighter than content panels and must not become a second toolbar row. Sidebar expanded/collapsed state must not create page-specific title origins.',
+  },
+  mainPanel: {
+    role: 'main-panel',
+    source: 'SidePanelContainer materialRole="framePanel"',
+    topInset: '64px from viewport top: 64px title bar plus 0px title-to-panel gap',
+    bottomInset: '26px, which is 10px farther from viewport bottom than the sidebar shell',
+    usage: 'Primary work surface inside the page canvas.',
+    rule: 'Main panels start immediately after the title bar and end farther from the viewport bottom than Sidebar. Do not copy Sidebar top/bottom inset.',
+  },
+  panelRows: {
+    role: 'panel-row',
+    standard: 'BAMBOOK_OS.layout.desktopPanelRowClass + BAMBOOK_OS.layout.desktopPageCanvasClass',
+    backstage: 'BAMBOOK_OS.layout.desktopBackstagePanelRowClass',
+    geometry: 'page x inset 16/32px, top 0 after 64px title bar, bottom 26px, gap 16px, centered 1130px canvas',
+    rule: 'Panel rows own page-level horizontal padding, bottom lift, and sibling gap. Child panels do not add outer page margins.',
+  },
+  splitWorkspace: {
+    role: 'split-workspace',
+    source: 'BAMBOOK_OS.layout.desktopSplitNavPanelClass + desktopSplitMainPanelClass',
+    nav: 'w-52 md:w-56 shrink-0 with desktopSplitNavContentClass',
+    main: 'flex-1 min-h-0 with desktopSplitMainContentClass',
+    usage: 'Settings, module backstage configuration, and any page with stable left category navigation plus one right work surface.',
+    rule: 'Split pages render nav and main as sibling level-1 panels. Do not put both inside one larger frame panel.',
+  },
+  scrollViewport: {
+    role: 'scroll-viewport',
+    source: 'ScrollEdgeFades + BAMBOOK_OS.layout.desktopMainScrollViewportClass + panelShadowViewportClass',
+    usage: 'Any clipped detail, table, card grid, or form body.',
+    rule: 'Scroll fades and shadow bleed are viewport responsibilities. Header chrome does not own content fade.',
+  },
+  toolbarRow: {
+    role: 'toolbar-row',
+    source: 'BAMBOOK_OS.layout.desktopToolbarRowClass + BAMBOOK_OS.controls.toolbar',
+    order: 'search first, then sort/select, view toggle, and compact actions',
+    usage: 'List, grid, and table pages that need repeated filtering or switching.',
+    rule: 'Toolbar lives in the content chrome directly above the viewport or list body. It is one compact glass bar, not a row of independent cards.',
+  },
+  cardGrid: {
+    role: 'card-grid',
+    source: 'BAMBOOK_OS.layout.desktopCardGridClass + relationsCardColumnWidth + relationsCardColumnGap',
+    usage: 'Relation organization cards, product category cards, dashboard summary cards when the content model is repeated cards.',
+    rule: 'Card grid gap and shadow bleed are grid responsibilities. Tables and form rows must not borrow card-grid shadow bleed.',
+  },
+  detailStack: {
+    role: 'detail-stack',
+    source: 'BAMBOOK_OS.layout.desktopDetailStackClass',
+    usage: 'Detail pages, stacked info sections, drill-in configuration groups.',
+    rule: 'Detail content stacks level-2 sections with stable vertical rhythm. Do not use extra page margins to fake hierarchy.',
+  },
+  relationsDetailWorkspace: {
+    role: 'relations-detail-workspace',
+    source: 'BAMBOOK_OS.layout.desktopPageCanvasClass + relationsDetailListPanelClass + relationsDetailMainShellClass',
+    canvas: `${BAMBOOK_OS.layout.desktopMainMaxWidth}px`,
+    contactList: `${BAMBOOK_OS.layout.relationsDetailListWidth}px fixed list panel`,
+    detailPanel: 'remaining width inside the 1130px page canvas',
+    usage: 'Relations organization detail: contact list plus detail panel, or one organization-chart work panel.',
+    rule: 'Relations detail width is a page-canvas split. Do not create local list widths, local max-widths, or a second page canvas.',
+  },
+  relationsTableWorkspace: {
+    role: 'relations-table-workspace',
+    source: 'BAMBOOK_OS.layout.relationsTableViewportClass + relationsTablePanelClass + relationsTableColumnTemplateClass',
+    canvas: `${BAMBOOK_OS.layout.desktopMainMaxWidth}px page canvas with ${BAMBOOK_OS.layout.desktopPageXClass} horizontal inset`,
+    columns: BAMBOOK_OS.layout.relationsTableColumnWidthClasses.join(' / '),
+    usage: 'Relations organization list in table mode: fixed header, scroll body, and matching row grid.',
+    rule: 'The Relations table header and rows share one column contract. Rows are transparent table rows with separators, not material cards. Do not add local col widths, row grid templates, min-widths, or table-specific page padding.',
+  },
+  formStack: {
+    role: 'form-stack',
+    source: 'BAMBOOK_OS.layout.desktopFormStackClass + desktopFormGridClass',
+    usage: 'Create/edit forms and settings sections with fields.',
+    rule: 'Forms use field and section gaps from layout grammar. Button placement follows title/bottom action grammar, not local spacing.',
+  },
+  tableViewport: {
+    role: 'table-viewport',
+    source: 'BAMBOOK_OS.layout.desktopTableViewportClass + BAMBOOK_OS.controls.table',
+    usage: 'Dense operational tables.',
+    rule: 'Tables own a fixed header and scroll body. Table rows stay transparent and table-like, with inner masked separators and hover state only; they must not become cards or material cards.',
+  },
+  density: {
+    compact: 'toolbar, title, small metadata, utility controls',
+    standard: 'forms, relation details, settings sections',
+    spacious: 'dashboard cards, primary navigation cards, empty states',
+    rule: 'Density is selected by task cadence: repeated operational work is compact; exploratory content is standard; dashboard summary is spacious.',
+  },
+  spacing: {
+    pageX: 'BAMBOOK_OS.layout.desktopPageXClass',
+    titleBarHeight: '64px',
+    titleToPanelGap: '0px',
+    mainPanelTopInset: '64px from viewport top',
+    mainPanelBottomInset: '26px',
+    mainPanelBottomLift: '10px beyond Sidebar bottom inset',
+    panelRow: 'BAMBOOK_OS.layout.desktopPanelRowClass',
+    backstagePanelRow: 'BAMBOOK_OS.layout.desktopBackstagePanelRowClass',
+    singlePanelBody: 'BAMBOOK_OS.layout.desktopSinglePanelBodyClass',
+    splitNav: 'BAMBOOK_OS.layout.desktopSplitNavPanelClass',
+    splitMain: 'BAMBOOK_OS.layout.desktopSplitMainPanelClass',
+    scrollViewport: 'BAMBOOK_OS.layout.desktopMainScrollViewportClass',
+    toolbarRow: 'BAMBOOK_OS.layout.desktopToolbarRowClass',
+    grids: 'BAMBOOK_OS.layout.desktopCardGridClass | desktopTwoColumnGridClass',
+    sectionGap: 'space-y-3 or space-y-4 depending on content density',
+    fieldGap: 'gap-4 for forms; gap-2 for inline controls',
+    rule: 'Padding and gap are layout grammar. Do not use spacing to fake a new material level.',
+  },
+} as const;
+
+export const BAMBOOK_ADAPTIVE_COLOR_GRAMMAR = {
+  roles: ['primary', 'secondary', 'muted', 'brand', 'danger'] as const,
+  source: 'components/ui/osAdaptiveContrast.ts',
+  dataAttribute: 'data-ui-lab-wallpaper-contrast',
+  adaptiveAllowedOn: [
+    'title text over wallpaper',
+    'sidebar idle labels and icons',
+    'dashboard metrics over ambient backgrounds',
+    'page breadcrumb labels',
+  ],
+  adaptiveForbiddenOn: [
+    'selected controls',
+    'pressed controls',
+    'recessed fields',
+    'floating overlays',
+    'semantic status colors',
+  ],
+  rule: 'Adaptive color solves wallpaper contrast only. It does not replace component state tokens or semantic status colors.',
+} as const;
+
+export const BAMBOOK_STATE_GRAMMAR = [
+  {
+    id: 'action-control',
+    states: ['idle', 'hover', 'press'] as const,
+    source: 'BAMBOOK_OS.controls.actionControl',
+    rule: 'Action controls react and return to idle. They never keep selected styling.',
+  },
+  {
+    id: 'state-control',
+    states: ['idle', 'hover', 'press', 'selected'] as const,
+    source: 'BAMBOOK_OS.controls.stateControl + bambook-selected-surface',
+    rule: 'Selected state is persistent and uses the selected-surface primitive.',
+  },
+  {
+    id: 'field',
+    states: ['idle', 'focus', 'disabled', 'error'] as const,
+    source: 'BAMBOOK_OS.controls.recessedField',
+    rule: 'Focus is recessed pressure. Error adds semantic feedback without changing field material family.',
+  },
+  {
+    id: 'async-content',
+    states: ['loading', 'empty', 'error', 'ready'] as const,
+    source: 'content grammar',
+    rule: 'Loading, empty, and error are content states inside an existing surface, not new surfaces.',
+  },
+] as const;
+
+export const BAMBOOK_COMPONENT_GRAMMAR = [
+  {
+    id: 'button',
+    primitive: 'actionControl | stateControl | bambook-selected-surface',
+    requiredRoles: ['state model', 'icon policy', 'label verb'],
+    forbidden: ['page-local hover fills', 'selected-looking hover', 'new shadows'],
+  },
+  {
+    id: 'input',
+    primitive: 'recessedField',
+    requiredRoles: ['field label', 'placeholder', 'focus state', 'disabled state'],
+    forbidden: ['floating card fields', 'bright blue focus outline', 'thick white border'],
+  },
+  {
+    id: 'switch',
+    primitive: 'settings switch geometry',
+    requiredRoles: ['off', 'on', 'thumb', 'track', 'press'],
+    forbidden: ['circular thumb smaller than half track height', 'segmented-control replacement'],
+  },
+  {
+    id: 'chip-badge',
+    primitive: 'BAMBOOK_OS.tone.chip | BAMBOOK_OS.tone.status',
+    requiredRoles: ['metadata or semantic status'],
+    forbidden: ['decorative color', 'button-level shadow', 'unexplained accent color'],
+  },
+  {
+    id: 'table',
+    primitive: 'BAMBOOK_OS.controls.table',
+    requiredRoles: ['header', 'row', 'cell', 'row hover', 'empty row'],
+    forbidden: ['card hover shadow on rows', 'material class on table rows', 'shadow bleed gutter', 'independent table blue'],
+  },
+  {
+    id: 'overlay',
+    primitive: 'OS_MATERIAL.floatingOverlay',
+    requiredRoles: ['scrim', 'surface', 'dismiss', 'focus return'],
+    forbidden: ['full new panel system', 'unscoped backdrop blur', 'decorative glow'],
+  },
+] as const;
+
+export const BAMBOOK_CONTENT_GRAMMAR = {
+  voice: {
+    personality: 'quiet, precise, operational, materially aware',
+    rule: 'Copy should sound like a professional workbench, not marketing or tutorial text.',
+  },
+  labels: {
+    title: 'short noun phrase; page identity first, descriptor second',
+    section: '2 to 6 Chinese characters or a short noun phrase',
+    field: 'stable business term, no sentence punctuation',
+    button: 'verb + object when destructive or irreversible; icon-only only for familiar tools with title/aria-label',
+  },
+  missingData: {
+    emptyValue: '未填',
+    unavailable: '暂无数据',
+    loading: '正在读取...',
+    error: '读取失败',
+    rule: 'Missing values must be explicit. Do not leave visual gaps that look like rendering bugs.',
+  },
+  bilingual: {
+    rule: 'Use Chinese for interface structure and English for domain identifiers, codes, model names, and source data. Do not translate product codes or business IDs.',
+  },
+  emptyStates: {
+    rule: 'Empty states live inside the current content surface, include one cause, and expose at most one primary next action.',
+  },
+} as const;
+
+export const BAMBOOK_PAGE_GENERATION_GRAMMAR = {
+  requiredInputs: [
+    'page type',
+    'primary task',
+    'information density',
+    'navigation depth',
+    'dominant content model',
+    'mutation model',
+    'empty and error states',
+  ],
+  derivationOrder: [
+    'choose page shell and canvas',
+    'choose title bar hierarchy',
+    'choose level-1 frame surface',
+    'map content groups to level-2 surfaces',
+    'map inline records to level-3 or derived level-4 surfaces',
+    'assign component state models',
+    'assign adaptive color roles only where background contrast requires it',
+    'write content labels and empty states from content grammar',
+  ],
+  uniquenessRule: 'If two visual outcomes are possible, the missing input must be named. Do not resolve ambiguity by page-local styling.',
+  approvalRule: 'A new page is accepted only when every visible element has a material role, state model, layout role, and content role.',
+} as const;
+
+export const BAMBOOK_COMPILER_UNIFORMITY_CONTRACTS = {
+  semanticInputSchema: {
+    requiredKeys: [
+      'pageType',
+      'primaryTask',
+      'density',
+      'navigationDepth',
+      'contentModel',
+      'mutationModel',
+      'stateModel',
+      'entityKind',
+      'referenceSurface',
+    ],
+    forbiddenKeys: ['color', 'shadow', 'radius', 'maxWidth', 'titlePosition', 'toolbarLayout', 'animationClass'],
+    rule: 'Compiler input describes business semantics only. Visual intent is derived by the compiler, never supplied by a page.',
+  },
+  variantGrammar: {
+    rule: 'Every reusable primitive declares its allowed variants before use. Pages cannot invent ad-hoc variants such as softBluePanel, wideTitle, or customToolbar.',
+    examples: [
+      'CompiledPanel level: shell | 1 | 2 | 3 | derived',
+      'CompiledPanel tone: default | selected | semanticStatus | dangerSemantic',
+      'CompiledControl role: primaryAction | secondaryAction | destructiveAction | inlineAction | rowAction | iconTool | stateToggle',
+      'CompiledDensity: compact | standard | spacious',
+    ],
+  },
+  slotGrammar: {
+    ownedByTemplate: [
+      'title.leading',
+      'title.identity',
+      'title.breadcrumb',
+      'title.actions',
+      'toolbar.search',
+      'toolbar.filters',
+      'toolbar.viewSwitch',
+      'toolbar.actions',
+      'panel.header',
+      'panel.body',
+      'panel.footer',
+      'content.empty',
+      'content.error',
+      'floatingAction',
+      'contextualAction',
+    ],
+    rule: 'Templates own slot structure, position, spacing, and state treatment. Pages may fill slot content but cannot move or restyle the slot.',
+  },
+  layerStack: {
+    order: [
+      'wallpaper',
+      'ambient-light',
+      'app-shell',
+      'sidebar-shell',
+      'page-title',
+      'page-panel',
+      'panel-content',
+      'floating-toolbar',
+      'popover',
+      'modal',
+      'toast',
+    ],
+    rule: 'Z-index is a compiler-owned layer contract. Portals, ghost shadows, spotlights, and overlays must not create local stacking systems.',
+  },
+	  ownership: {
+	    radius: 'container owns radius; spotlight and mask inherit it',
+    spotlight: 'spotlight belongs to the container border box; the single tracking light may remain on the top z-plane but must not render a visible rim or depth effect',
+	    overflow: 'scroll viewport owns clipping and fade bounds; panel shell does not reserve shadow bleed',
+	    material: 'glass node owns backdrop sampling and mask fidelity',
+	    shadow: 'disabled globally; separation comes from fill, blur, spacing, and hierarchy, not rim or depth',
+	    table: 'table viewport owns header/body geometry; rows own separators and hover only, not material depth',
+	    rule: 'Visual bugs are resolved by ownership first, then tokens. Do not move masks or overflow to a convenient ancestor without changing the contract.',
+	  },
+  actionHierarchy: {
+    roles: ['primaryAction', 'secondaryAction', 'destructiveAction', 'inlineAction', 'rowAction', 'bulkAction', 'iconTool', 'stateToggle'],
+    rule: 'Action role determines slot, size, label policy, icon policy, and state model. A page cannot promote a row action into page chrome with local styling.',
+  },
+  dataFormatting: {
+    missing: '未填',
+    unavailable: '暂无数据',
+    loading: '正在读取...',
+    error: '读取失败',
+    rule: 'Numbers, dates, currency, percentages, status text, empty values, and source identifiers use content grammar. Do not mix --, N/A, blank gaps, and translated business IDs.',
+  },
+	  portalOverlay: {
+	    surfaces: ['select-menu', 'popover', 'tooltip', 'modal', 'toast'],
+	    rule: 'Overlay root, placement, dismissal, focus return, backdrop, and motion are compiler-owned. Overlays do not introduce shadowed panel systems.',
+	  },
+  focusAndAccessibility: {
+    states: ['focus-visible', 'keyboard-active', 'disabled', 'readonly', 'aria-expanded', 'aria-selected', 'aria-invalid'],
+    rule: 'Keyboard and accessibility states use the same component state matrix as pointer states. A later accessibility pass must not need page-local visual patches.',
+  },
+  responsiveProfiles: {
+    profiles: ['desktop', 'desktop-ultrawide', 'desktop-short-height', 'electron', 'mobile-pwa'],
+    rule: 'Viewport profile selects canvas, scale, title origin, bottom inset, sidebar behavior, and mobile compiler profile. Browser zoom is not a layout profile.',
+  },
+  provenance: {
+    states: ['accepted', 'provisional', 'experimental', 'retired'],
+    bridgeState: 'provisionalBridge',
+    rule: 'Legacy or partially migrated UI can render only as provisionalBridge. It cannot define standards or be reused as accepted output until reviewed.',
+  },
+  referenceSnapshot: {
+    requiredFields: ['route', 'viewport', 'theme', 'wallpaper', 'scale', 'referenceSurface', 'pixelTolerance'],
+    rule: 'Reusable visual output needs a reference snapshot contract, not only token names. Compiler fidelity is reviewed against the accepted reference surface.',
+  },
+  ciGate: {
+    checks: [
+      'no page-local material values',
+      'no page-local layout shell',
+      'no page-local title geometry',
+      'no page-local toolbar structure',
+      'no page-local hover selected focus motion',
+      'no product-mounted dev reference panels',
+    ],
+    rule: 'New UI must fail CI when it bypasses compiler-owned visual contracts. Historical violations must be tracked by baseline or migration notes.',
+  },
+} as const;
+
+export const BAMBOOK_MATERIAL_LIBRARY_ITEMS = [
+  ...BAMBOOK_CONTAINER_LEVELS.map(level => ({
+    id: level.id,
+    category: 'materials',
+    title: level.name,
+    role: level.materialRole,
+    token: level.backgroundToken,
+    usage: level.usage,
+    forbidden: level.rule,
+    status: level.id === 'level-4-derived' ? 'derived' : 'implemented',
+  })),
+	  {
+	    id: 'shadow-frame',
+	    category: 'flatness',
+	    title: 'Flat Frame Surface',
+	    role: 'level-1 flat material',
+	    token: '--ui-lab-panel-frame-shadow = none',
+	    usage: 'Primary panels and main app surfaces without rim or depth.',
+	    forbidden: 'Do not reintroduce shadow, rim, or inset highlight.',
+	    status: 'implemented',
+	  },
+	  {
+	    id: 'shadow-secondary',
+	    category: 'flatness',
+	    title: 'Flat Secondary Surface',
+	    role: 'level-2 flat material',
+	    token: '--ui-lab-panel-secondary-shadow = none',
+	    usage: 'Inset or secondary sections stacked inside frame panels without depth.',
+	    forbidden: 'Do not use shadow to separate following siblings.',
+	    status: 'implemented',
+	  },
+	  {
+	    id: 'rdl-matte-frosted-container',
+	    category: 'flatness',
+	    title: 'RonDesignLab Matte Frosted Container',
+	    role: 'ordinary container material',
+	    token: '--bambook-rdl-panel-fill + --bambook-rdl-panel-filter',
+	    usage: 'Global frame, card, inset, and floating surfaces share one matte frosted material language.',
+	    forbidden: 'Do not use transparent borders, gradients, pseudo highlights, noise, rim, or shadow to create the container edge.',
+	    status: 'implemented',
+	  },
+  {
+    id: 'control-selected',
+    category: 'controls',
+    title: 'Selected Surface',
+    role: 'persistent selected state',
+		    token: '--bambook-rdl-inset-fill + shadow none',
+	    usage: 'Sidebar active item, selected toolbar state, tertiary light surface reference.',
+	    forbidden: 'Do not use rim or depth for hover-only controls.',
+	    status: 'implemented',
+	  },
+  {
+    id: 'control-navigation-row',
+    category: 'controls',
+    title: 'Navigation Row Button',
+    role: 'module category or drill-in row',
+    token: 'BAMBOOK_OS.controls.navigationRow + actionControl|selectedSurface',
+    usage: 'Backstage category lists and compact drill-in buttons inside a module workspace.',
+    forbidden: 'Do not create page-local button height, radius, fill, or selected effect.',
+    status: 'implemented',
+  },
+  {
+    id: 'control-field',
+    category: 'controls',
+    title: 'Recessed Field',
+    role: 'input focus family',
+    token: 'BAMBOOK_OS.controls.recessedField',
+    usage: 'Text input, textarea, date input, select trigger family.',
+    forbidden: 'Do not style fields as floating cards.',
+    status: 'implemented',
+  },
+  {
+    id: 'content-scroll-fade',
+    category: 'content',
+    title: 'Scroll Edge Fade',
+    role: 'scroll boundary',
+    token: 'ScrollEdgeFades + GlassEdgeFadeShadow',
+    usage: 'Scrollable details, forms, and stacked glass panels.',
+    forbidden: 'Do not mask wrappers when the glass node must own backdrop sampling.',
+    status: 'implemented',
+  },
+  {
+    id: 'content-language',
+    category: 'content',
+    title: 'Content Language',
+    role: 'system copy',
+    token: 'BAMBOOK_CONTENT_GRAMMAR',
+    usage: 'Labels, empty states, buttons, missing values, bilingual domain text.',
+    forbidden: 'Do not add explanatory tutorial text inside operational UI.',
+    status: 'implemented',
+  },
+] as const;
+
+export const BAMBOOK_DESIGN_SYSTEM_RULES = [
+	  'New visible UI must start from a material role, a state model, and a layout role.',
+	  'Page files may compose recipes, but must not create independent glass, shadow, selected, hover, or focus materials.',
+		  'Flat surface mode is global: containers may use uniform alpha fill, blur, spacing, and hierarchy, but no shadow, rim, inset highlight, gradient edge, or depth caster.',
+		  'RonDesignLab-style matte frosted containers use zero border, no pseudo highlight, no noise, no container gradient, and moderate backdrop blur.',
+	  'Ghost shadow casters are disabled in flat mode. Scroll masks may remain, but depth-only shadow layers must render as none.',
+	  'Spotlight tracking layers inherit the host radius, but must not create rim, border glow, or raised depth.',
+	  'Level 1 surfaces may use shared blue-white glass; nested level 2 and level 3 surfaces must not reintroduce that film.',
+	  'Selected state uses the selected surface primitive. Hover and press are separate states and must not be simulated with selected styling.',
+	  'Fields are recessed, not floating cards. Select triggers and text inputs must share the recessed field family unless a new field role is approved.',
+	  'RDL-shaped pills, search lenses, filters, data rows, metric cards, and overlay icon buttons must be shared component dialects, not page-local shapes.',
+	  'Scroll fade bounds come from the actual scroll viewport. Masked glass surfaces keep masks, but shadow casters stay visually disabled.',
+	  'Fourth-level containers are derived from the level system. They are not allowed to introduce new color families, glow colors, rims, or shadows.',
+  'Pages declare semantic input only. Layout, material, shadow, typography, state, motion, slot structure, overlay behavior, and responsive profile are compiler-owned.',
+  'Legacy or partially migrated surfaces must be marked provisionalBridge and cannot define accepted output.',
+] as const;
+
+export const BAMBOOK_DESIGN_SYSTEM_CONTRACT = {
+  version: BAMBOOK_DESIGN_SYSTEM_VERSION,
+  authoritativeSources: BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES,
+  legacySources: BAMBOOK_DESIGN_SYSTEM_LEGACY_SOURCES,
+  retiredDocs: BAMBOOK_DESIGN_SYSTEM_RETIRED_DOCS,
+  allowedTokenFiles: OS_VNEXT_ALLOWED_TOKEN_FILES,
+  materialRoles: OS_MATERIAL,
+  shadowRoles: OS_SHADOW,
+  semanticTokens: BAMBOOK_OS.patterns,
+  containerLevels: BAMBOOK_CONTAINER_LEVELS,
+  layoutGrammar: BAMBOOK_LAYOUT_GRAMMAR,
+  adaptiveColorGrammar: BAMBOOK_ADAPTIVE_COLOR_GRAMMAR,
+  stateGrammar: BAMBOOK_STATE_GRAMMAR,
+  componentGrammar: BAMBOOK_COMPONENT_GRAMMAR,
+  contentGrammar: BAMBOOK_CONTENT_GRAMMAR,
+  pageGenerationGrammar: BAMBOOK_PAGE_GENERATION_GRAMMAR,
+  compilerUniformityContracts: BAMBOOK_COMPILER_UNIFORMITY_CONTRACTS,
+  materialLibraryCategories: BAMBOOK_MATERIAL_LIBRARY_CATEGORIES,
+  materialLibraryItems: BAMBOOK_MATERIAL_LIBRARY_ITEMS,
+  rules: BAMBOOK_DESIGN_SYSTEM_RULES,
+} as const;

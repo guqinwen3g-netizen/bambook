@@ -1,0 +1,1908 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ProjectMemory {
+  id          String   @id
+  type        String
+  layer       String
+  content     String
+  description String?
+  timestamp   BigInt
+  deletedAt   BigInt?
+  source      String?  @default("ARCHITECT")
+  status      String?  @default("STABLE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([layer])
+  @@index([type])
+}
+
+model BusinessProfile {
+  id        String  @id
+  kind      String
+  name      String
+  payload   Json
+  assets    Json?
+  isActive  Boolean @default(true)
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([kind])
+  @@index([isActive])
+}
+
+model KnowledgeItem {
+  id        String  @id
+  title     String
+  content   String
+  category  String
+  sourceUrl String?
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([category])
+}
+
+model Order {
+  id          String  @id
+  customer    String
+  product     String
+  type        String
+  quantity    Int
+  status      String
+  dueDate     String
+  quoteAmount Decimal @db.Decimal(18, 4)
+  updatedAt   BigInt?
+  deletedAt   BigInt?
+
+  // --- Imported PO header (nullable for legacy rows) ---
+  poNumber       String?  @unique
+  customerCode   String?
+  season         String?
+  poDate         String?
+  contactPerson  String?
+  contactPhone   String?
+  currency       String?
+  deliveryTerms  String?
+  paymentTerms   String?
+  shipToName     String?
+  shipToAddress1 String?
+  shipToAddress2 String?
+  shipToCountry  String?
+  shipToPhone    String?
+  deliverTo      String?
+  totalNet       Decimal? @db.Decimal(18, 4)
+  totalActual    Decimal? @db.Decimal(18, 4)
+  source         String? // e.g. "pdf-import", "manual"
+  importedAt     BigInt?
+
+  // ============ Phase 2: per-field provenance + currency split ============
+  /// JSONB map: { [fieldKey]: 'pdf' | 'manual' | 'imported-then-edited' }.
+  /// PDF re-import uses this to skip fields the user has manually edited.
+  fieldSources     Json?
+  purchaseCurrency String? // default 'CNY' for purchase-side amounts
+  salesCurrency    String? // default 'USD' for sales-side amounts
+
+  // ============ Phase 2: Role snapshots + Relation FKs ============
+  // FKs are *snapshot* references — we do NOT enforce a foreign-key constraint
+  // because Relation rows can be archived independently of orders.
+  customerAddress    String?
+  customerRelationId String?
+
+  // Mill / 面料工厂 / supplier (应付侧)
+  millName       String?
+  millAddress    String?
+  millContact    String?
+  millPhone      String?
+  millRelationId String?
+
+  // Consignee / 服装厂收货方 (物流目的地)
+  consigneeName       String?
+  consigneeAddress    String?
+  consigneeContact    String?
+  consigneeRelationId String?
+
+  // Bill-to / 结款方 (服装厂或其代理)
+  billToName       String?
+  billToAddress    String?
+  billToContact    String?
+  billToIsAgent    Boolean?
+  billToRelationId String?
+
+  // ============ Internal Team ============
+  salesPerson            String?
+  salesPersonRelationId  String?
+  merchandiser           String?
+  merchandiserRelationId String?
+  supervisor             String?
+  supervisorRelationId   String?
+
+  // ============ Phase 2: Contracts ============
+  salesContractNumber String? // 早期销售合同号 (出给客户)
+  finalContractNumber String? // 最终销售合同号 (出给 Bill-to)
+
+  // ============ Phase 2: Detail-card rich fields (lifted from localStorage) ============
+  // Production / OTS basic
+  productionBatch  String?
+  productColorCode String?
+  clientCode       String? // ZROH 客户编码 (sticky overlay on top of firstLine.materialCode)
+  referenceBatch   String?
+  productionDate   String? // 生产交期
+  clientDate       String? // 出厂交期 (Exmill)
+
+  // Fabric specs (sticky overlay on top of firstLine; PDF supplies fallback)
+  fabricCode    String?
+  fabricContent String?
+  width         String?
+  gsm           String?
+
+  // A/S contact (跟单/售后)
+  asPerson String?
+
+  // Sales / collection
+  salesPrice          Decimal? @db.Decimal(18, 4)
+  contractAmount      Decimal? @db.Decimal(18, 4)
+  paymentInstrument   String? // T/T, L/C, O/A, D/P, D/A
+  expectedPaymentDate String?
+  actualPaymentDate   String?
+  actualPaymentAmount Decimal? @db.Decimal(18, 4)
+
+  // Shipment & invoice (我方开给 Bill-to)
+  invoiceNumber    String?
+  invoiceDate      String?
+  shipmentDate     String?
+  shipmentMethod   String?
+  shipmentQuantity Float?
+  shipmentAmount   Decimal? @db.Decimal(18, 4)
+
+  // Shipment sample (大货船样)
+  sampleSentDate         String?
+  sampleConfirmedDate    String?
+  sampleTrackingNumber   String?
+  shipmentSampleComments String?
+
+  // Fabric sample (匹头样)
+  fabricSampleSentDate       String?
+  fabricSampleConfirmedDate  String?
+  fabricSampleTrackingNumber String?
+  paidSampleQuantity         Float?
+
+  // Purchase / supplier invoice (我方付给 Mill)
+  purchasePrice         Decimal? @db.Decimal(18, 4)
+  purchasePaymentDate   String?
+  supplierInvoiceNumber String?
+  supplierInvoiceDate   String?
+  supplierInvoiceAmount Decimal? @db.Decimal(18, 4)
+
+  // Misc
+  specialInstructions   String?
+  ocDays                Int?
+
+  // ============ Production pipeline deadlines (业务十条规则) ============
+  productionPlanDeadline String? // 下单后7天内需出生产计划（createdAt + 7d），超时触发预警
+  delayNoticeDeadline   String? // 交货期前15天需发延期通知（dueDate - 15d），超时升级
+
+  lines             OrderLine[]
+  statusTransitions OrderStatusTransition[]
+
+  @@index([status])
+  @@index([customerCode])
+  @@index([millName])
+  @@index([consigneeName])
+  @@index([billToName])
+}
+
+model OrderLine {
+  id                  String   @id
+  orderId             String
+  lineNumber          Int
+  itemNo              String?
+  materialCode        String?
+  millQuality         String?
+  description         String?
+  width               String?
+  exMillDate          String?
+  deliveryDate        String?
+  quantity            Decimal  @db.Decimal(18, 4)
+  unit                String?
+  unitPrice           Decimal? @db.Decimal(18, 4)
+  netValue            Decimal? @db.Decimal(18, 4)
+  via                 String?
+  cloth               String?
+  weight              String?
+  category            String?
+  notes               String?
+  status              String?  @default("Pending")
+  productionBatch     String?
+  shippingDate        String?
+  shippingMethod      String?
+  invoiceNumber       String?
+  invoiceDate         String?
+  shipmentQuantity    Float?
+  shipmentAmount      Decimal? @db.Decimal(18, 4)
+  actualPaymentDate   String?
+  actualPaymentAmount Decimal? @db.Decimal(18, 4)
+  specialInstructions String?
+  fieldSources        Json?
+
+  // Garment-specific extension fields
+  sizeBreakdown   Json? // { S: 100, M: 200, L: 200, XL: 100, XXL: 50 }
+  productionSteps Json? // [ { step: "cutting", status: "done", date: "..." }, ... ]
+  styleNo         String? // 款式号 → links to ProductAsset/GarmentProfile
+  colorName       String? // 色号名称
+  bomItems        Json? // [ { type: "fabric", name: "...", qty: 1.5, unit: "meter" }, ... ]
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, itemNo])
+  @@index([orderId])
+  @@index([status])
+}
+
+model OrderStatusTransition {
+  id         String  @id
+  orderId    String
+  fromStatus String
+  toStatus   String
+  note       String?
+  operator   String?
+  lineId     String?
+  createdAt  BigInt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([toStatus])
+  @@index([createdAt])
+}
+
+model Relation {
+  id              String   @id
+  name            String
+  category        String
+  type            String
+  isOrganization  Boolean
+  parentId        String?
+  reportsToId     String?
+  role            String?
+  department      String?
+  tags            String[]
+  contactInfo     String
+  rating          Float    @default(0)
+  lastInteraction BigInt
+  preferences     String?
+  deletedAt       BigInt?
+
+  // Organization fields mirrored by the Relations UI.
+  chineseName         String?
+  englishName         String?
+  creditLevel         String?
+  summary             String?
+  primaryContactName  String?
+  primaryContactEmail String?
+  primaryContactPhone String?
+  backupContacts      Json?
+  shipToAddresses     Json?
+  financialNotes      String?
+  website             String?
+  paymentTerms        String?
+  paymentPreference   String?
+  currency            String?
+  taxId               String?
+  creditLimit         Decimal? @db.Decimal(18, 4)
+  officialAddress     String?
+  factoryAddresses    String[]
+  warehouseAddress    String?
+  billingAddress      String?
+  shippingAddress     String?
+  coordinatesLat      Float?
+  coordinatesLng      Float?
+
+  // Contact fields mirrored by the Relations UI.
+  email         String?
+  phone         String?
+  mobile        String?
+  wechat        String?
+  whatsapp      String?
+  otherContacts Json?
+  birthday      String?
+  language      String?
+  timezone      String?
+  personalNote  String?
+
+  @@index([category])
+  @@index([isOrganization])
+  @@index([parentId])
+}
+
+model ProductAsset {
+  id            String  @id
+  sku           String  @unique
+  name          String
+  mainCategory  String
+  subCategoryId String
+  season        String
+  techPackUrl   String?
+  imageUrl      String?
+  cost          Decimal @db.Decimal(18, 4)
+  status        String
+  updatedAt     BigInt
+  deletedAt     BigInt?
+
+  fabricProfile        FabricProfile?
+  garmentProfile       GarmentProfile?
+  trimmingProfile      TrimmingProfile?
+  classificationLinks  ProductClassificationLink[]
+  fabricCustomerCodes  FabricCustomerCode[]
+  fabricPrices         FabricPriceHistory[]
+  fabricCertifications FabricCertification[]
+  compositionLines     FabricCompositionLine[]
+  images               ProductImage[]
+
+  @@index([sku])
+  @@index([season])
+}
+
+model ProductSubCategory {
+  id           String  @id
+  mainCategory String
+  name         String
+  description  String?
+  updatedAt    BigInt
+  deletedAt    BigInt?
+}
+
+model FabricProfile {
+  id                 String  @id
+  productAssetId     String  @unique
+  articleNo          String?
+  millOrganizationId String?
+  millQuality        String?
+  millColorCode      String?
+  colorDescription   String?
+  construction       String?
+  yarnCount          String?
+  pattern            String?
+  weightValue        Float?
+  weightUnit         String?
+  widthValue         Float?
+  widthUnit          String?
+  widthText          String?
+  productionLeadDays Int?
+  referenceBatch     String?
+  stockStatus        String?
+  stockQuantity      Float?
+  stockUnit          String?
+  moqValue           Float?
+  factoryMoqValue    Float?
+  sampleMoqValue     Float?
+  riskNote           String?
+  specialNote        String?
+  updatedAt          BigInt
+  deletedAt          BigInt?
+
+  productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+
+  @@index([millOrganizationId])
+  @@index([millQuality])
+  @@index([articleNo])
+}
+
+model GarmentProfile {
+  id                  String  @id
+  productAssetId      String  @unique
+  styleNo             String?
+  productName         String?
+  garmentCategory     String?
+  collection          String?
+  customer            String?
+  brand               String?
+  project             String?
+  gender              String?
+  ageGroup            String?
+  tags                String?
+  silhouette          String?
+  fit                 String?
+  collarType          String?
+  sleeveType          String?
+  closureType         String?
+  pocketDetails       String?
+  hemDetails          String?
+  waistbandDetails    String?
+  liningStructure     String?
+  interlining         String?
+  shoulderPad         String?
+  stitchDetails       String?
+  constructionNote    String?
+  mainFabric          String?
+  contrastFabric      String?
+  liningFabric        String?
+  ribFabric           String?
+  pocketingFabric     String?
+  button              String?
+  zipper              String?
+  snapsEyelets        String?
+  thread              String?
+  labelTrims          String?
+  packaging           String?
+  materialUsage       String?
+  substituteMaterials String?
+  sizeRange           String?
+  baseSize            String?
+  measurementPoints   String?
+  sizeSpec            String?
+  tolerance           String?
+  gradingRule         String?
+  shrinkageAllowance  String?
+  garmentWeight       String?
+  colorways           String?
+  customerColorCodes  String?
+  fabricColorCodes    String?
+  garmentSku          String?
+  barcode             String?
+  availableSizes      String?
+  colorImageNotes     String?
+  moq                 String?
+  sampleVersion       String?
+  patternMaker        String?
+  merchandiser        String?
+  owner               String?
+  revisionHistory     String?
+  fittingComments     String?
+  customerComments    String?
+  confirmedDate       String?
+  techPackVersion     String?
+  factory             String?
+  orderQuantity       String?
+  deliveryDate        String?
+  targetCost          String?
+  fobPrice            String?
+  exwPrice            String?
+  retailPrice         String?
+  inspectionStandard  String?
+  commonDefects       String?
+  washFinishing       String?
+  careLabel           String?
+  complianceTests     String?
+  packingMethod       String?
+  cartonSpec          String?
+  countryOfOrigin     String?
+  qualityNote         String?
+  updatedAt           BigInt
+  deletedAt           BigInt?
+
+  productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+
+  @@index([styleNo])
+  @@index([garmentCategory])
+  @@index([customer])
+  @@index([factory])
+}
+
+model TrimmingProfile {
+  id                 String  @id
+  productAssetId     String  @unique
+  trimmingCode       String?
+  trimmingName       String?
+  trimmingCategory   String?
+  material           String?
+  specification      String?
+  size               String?
+  color              String?
+  colorCode          String?
+  finish             String?
+  supplier           String?
+  factory            String?
+  brand              String?
+  customer           String?
+  applicableProducts String?
+  usagePosition      String?
+  unit               String?
+  unitConsumption    String?
+  moq                String?
+  leadTime           String?
+  stockStatus        String?
+  stockQuantity      Float?
+  stockUnit          String?
+  price              String?
+  currency           String?
+  complianceTests    String?
+  qualityStandard    String?
+  riskNote           String?
+  packaging          String?
+  careRequirement    String?
+  notes              String?
+  updatedAt          BigInt
+  deletedAt          BigInt?
+
+  productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+
+  @@index([trimmingCode])
+  @@index([trimmingCategory])
+  @@index([supplier])
+  @@index([customer])
+}
+
+model ProductClassification {
+  id           String  @id
+  mainCategory String
+  dimension    String
+  name         String
+  description  String?
+  sortOrder    Int?
+  updatedAt    BigInt
+  deletedAt    BigInt?
+
+  links ProductClassificationLink[]
+
+  @@index([mainCategory])
+  @@index([dimension])
+}
+
+model ProductClassificationLink {
+  id               String  @id
+  productAssetId   String
+  classificationId String
+  updatedAt        BigInt
+  deletedAt        BigInt?
+
+  productAsset   ProductAsset          @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+  classification ProductClassification @relation(fields: [classificationId], references: [id], onDelete: Cascade)
+
+  @@unique([productAssetId, classificationId])
+  @@index([classificationId])
+}
+
+model MaterialCompositionTerm {
+  id           String  @id
+  abbreviation String?
+  chineseName  String
+  englishName  String?
+  updatedAt    BigInt
+  deletedAt    BigInt?
+
+  lines FabricCompositionLine[]
+
+  @@index([chineseName])
+  @@index([englishName])
+  @@index([abbreviation])
+}
+
+model FabricCompositionLine {
+  id             String  @id
+  productAssetId String
+  termId         String
+  percentage     Decimal @db.Decimal(18, 4)
+  sortOrder      Int
+  updatedAt      BigInt
+  deletedAt      BigInt?
+
+  productAsset ProductAsset            @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+  term         MaterialCompositionTerm @relation(fields: [termId], references: [id])
+
+  @@index([productAssetId])
+  @@index([termId])
+}
+
+model FabricCustomerCode {
+  id                     String  @id
+  productAssetId         String
+  customerOrganizationId String?
+  customerNameSnapshot   String?
+  clientCode             String
+  note                   String?
+  updatedAt              BigInt
+  deletedAt              BigInt?
+
+  productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+
+  @@index([productAssetId])
+  @@index([customerOrganizationId])
+  @@index([clientCode])
+}
+
+model FabricPriceHistory {
+  id                     String  @id
+  productAssetId         String
+  priceType              String
+  amount                 Decimal @db.Decimal(18, 4)
+  currency               String
+  unit                   String?
+  customerOrganizationId String?
+  sourceType             String?
+  sourceId               String?
+  effectiveDate          String?
+  note                   String?
+  updatedAt              BigInt
+  deletedAt              BigInt?
+
+  productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+
+  @@index([productAssetId])
+  @@index([priceType])
+  @@index([customerOrganizationId])
+  @@index([sourceType, sourceId])
+}
+
+model FabricCertification {
+  id             String  @id
+  productAssetId String
+  certification  String
+  certificateNo  String?
+  validUntil     String?
+  note           String?
+  updatedAt      BigInt
+  deletedAt      BigInt?
+
+  productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+
+  @@index([productAssetId])
+  @@index([certification])
+}
+
+model PdmlRawFabric {
+  id               String  @id
+  gsid             String
+  sourceId         String
+  rawData          Json
+  sourceHash       String
+  articleNo        String?
+  factoryArticleNo String?
+  colorCode        String?
+  factoryColorCode String?
+  supplierName     String?
+  productLine      String?
+  registeredDate   String?
+  imageUrl         String?
+  sourceStatus     String?
+  firstSeenAt      BigInt
+  lastSeenAt       BigInt
+  syncedAt         BigInt
+  deletedAt        BigInt?
+
+  @@unique([gsid, sourceId])
+  @@index([sourceId])
+  @@index([gsid])
+  @@index([articleNo])
+  @@index([factoryArticleNo])
+  @@index([supplierName])
+  @@index([productLine])
+  @@index([registeredDate])
+  @@index([sourceStatus])
+}
+
+model Insight {
+  id         String  @id
+  fact       String
+  importance String
+  timestamp  BigInt
+  isPinned   Boolean @default(false)
+  deletedAt  BigInt?
+}
+
+model ProductImage {
+  id             String  @id
+  productAssetId String
+  filePath       String
+  fileName       String
+  mimeType       String
+  fileSize       Int
+  sortOrder      Int     @default(0)
+  isPrimary      Boolean @default(false)
+  uploadedAt     BigInt
+  deletedAt      BigInt?
+
+  productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
+
+  @@index([productAssetId])
+  @@index([isPrimary])
+}
+
+model SystemAsset {
+  id        String  @id
+  kind      String
+  title     String
+  group     String
+  filePath  String?
+  fileName  String?
+  mimeType  String?
+  fileSize  Int?
+  sortOrder Int     @default(0)
+  hidden    Boolean @default(false)
+  metadata  Json?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([kind])
+  @@index([hidden])
+  @@index([sortOrder])
+}
+
+// ------------------------------------------------------------------
+// Enterprise Agent OS
+// ------------------------------------------------------------------
+
+model UserAccount {
+  id            String    @id
+  displayName   String
+  email         String?   @unique
+  avatarUrl     String?
+  passwordHash  String    @default("")
+  status        String    @default("active")
+  primaryDeptId String?
+  metadata      Json?
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     BigInt?
+
+  primaryDepartment Department?       @relation(fields: [primaryDeptId], references: [id])
+  roles             UserRole[]
+  sessions          AgentSession[]
+  messages          AgentMessage[]
+  memories          AgentMemory[]
+  approvals         ApprovalRequest[] @relation("ApprovalRequester")
+  approvalsReviewed ApprovalRequest[] @relation("ApprovalReviewer")
+  toolRuns          AgentToolRun[]
+  auditLogs         AuditLog[]
+
+  @@index([status])
+  @@index([primaryDeptId])
+}
+
+model Department {
+  id        String   @id
+  name      String
+  parentId  String?
+  status    String   @default("active")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent       Department?    @relation("DepartmentTree", fields: [parentId], references: [id])
+  children     Department[]   @relation("DepartmentTree")
+  users        UserAccount[]
+  roles        UserRole[]
+  sessions     AgentSession[]
+  memories     AgentMemory[]
+  documentAcls KnowledgeAcl[]
+  jobPositions JobPosition[]
+  teams        Team[]
+
+  @@index([parentId])
+  @@index([status])
+}
+
+model Role {
+  id          String   @id
+  name        String
+  description String?
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        UserRole[]
+  permissions  RolePermission[]
+  toolPerms    AgentToolPermission[]
+  policies     AgentPolicy[]
+  documentAcls KnowledgeAcl[]
+
+  @@index([isSystem])
+}
+
+model UserRole {
+  id           String   @id
+  userId       String
+  roleId       String
+  departmentId String?
+  createdAt    DateTime @default(now())
+
+  user       UserAccount @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@unique([userId, roleId, departmentId])
+  @@index([roleId])
+  @@index([departmentId])
+}
+
+model Permission {
+  id          String   @id
+  scope       String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  id           String @id
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model AgentPolicy {
+  id         String   @id
+  name       String
+  roleId     String?
+  scope      String
+  action     String
+  effect     String
+  risk       String   @default("low")
+  conditions Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  role Role? @relation(fields: [roleId], references: [id])
+
+  @@index([roleId])
+  @@index([scope, action])
+}
+
+// ─────────────────────────────────────────────
+// HR Management Models
+// ─────────────────────────────────────────────
+
+/// 岗位/职位（如：跟单员、面料采购员、生产主管）
+model JobPosition {
+  id          String   @id
+  title       String
+  departmentId String?
+  description String?
+  headcount   Int      @default(1)
+  status      String   @default("active")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   BigInt?
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@index([departmentId])
+  @@index([status])
+}
+
+/// 团队（可跨部门，按项目/职能临时组建）
+model Team {
+  id          String   @id
+  name        String
+  description String?
+  leaderId    String?
+  departmentId String?
+  status      String   @default("active")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   BigInt?
+
+  department Department? @relation(fields: [departmentId], references: [id])
+  members    TeamMember[]
+  projects   Project[]
+
+  @@index([departmentId])
+  @@index([status])
+}
+
+/// 团队成员关联表
+model TeamMember {
+  id        String   @id
+  teamId    String
+  userId    String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+  leftAt    DateTime?
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+/// 项目（可关联订单/开发案，也可独立）
+model Project {
+  id          String   @id
+  name        String
+  code        String?
+  description String?
+  teamId      String?
+  status      String   @default("planning")
+  priority    String   @default("normal")
+  startDate   String?
+  endDate     String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   BigInt?
+
+  team       Team?          @relation(fields: [teamId], references: [id])
+  members    ProjectMember[]
+  assignments WorkAssignment[]
+
+  @@index([teamId])
+  @@index([status])
+}
+
+/// 项目成员关联表
+model ProjectMember {
+  id        String   @id
+  projectId String
+  userId    String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+/// 工作分配/任务（将人分配到具体工作项）
+model WorkAssignment {
+  id          String   @id
+  title       String
+  description String?
+  projectId   String?
+  userId      String
+  assignerId  String?
+  status      String   @default("assigned")
+  priority    String   @default("normal")
+  dueDate     String?
+  completedAt DateTime?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   BigInt?
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model AgentSession {
+  id           String   @id
+  userId       String
+  departmentId String?
+  title        String?
+  status       String   @default("active")
+  memoryScopes String[]
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    BigInt?
+
+  user       UserAccount    @relation(fields: [userId], references: [id])
+  department Department?    @relation(fields: [departmentId], references: [id])
+  messages   AgentMessage[]
+
+  @@index([userId])
+  @@index([departmentId])
+  @@index([status])
+}
+
+model AgentMessage {
+  id        String   @id
+  sessionId String
+  userId    String
+  role      String
+  content   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  deletedAt BigInt?
+
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    UserAccount  @relation(fields: [userId], references: [id])
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model AgentMemory {
+  id              String   @id
+  userId          String?
+  departmentId    String?
+  scope           String
+  memoryType      String
+  content         String
+  summary         String?
+  confidence      Float    @default(0.7)
+  sourceType      String?
+  sourceId        String?
+  relatedEntity   String?
+  relatedEntityId String?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       BigInt?
+
+  user       UserAccount? @relation(fields: [userId], references: [id])
+  department Department?  @relation(fields: [departmentId], references: [id])
+
+  @@index([scope])
+  @@index([memoryType])
+  @@index([userId])
+  @@index([departmentId])
+  @@index([relatedEntity, relatedEntityId])
+}
+
+model KnowledgeDocument {
+  id         String   @id
+  title      String
+  sourceType String
+  sourceUri  String?
+  mimeType   String?
+  checksum   String?
+  version    Int      @default(1)
+  status     String   @default("active")
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  BigInt?
+
+  chunks    KnowledgeChunk[]
+  relations KnowledgeRelation[]
+  acls      KnowledgeAcl[]
+
+  @@index([sourceType])
+  @@index([status])
+  @@index([checksum])
+}
+
+model KnowledgeChunk {
+  id          String   @id
+  documentId  String
+  chunkIndex  Int
+  content     String
+  summary     String?
+  tags        String[]
+  sourceRange Json?
+  embedding   Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   BigInt?
+
+  document  KnowledgeDocument   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  relations KnowledgeRelation[]
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+}
+
+model KnowledgeRelation {
+  id           String   @id
+  documentId   String?
+  chunkId      String?
+  relationType String
+  targetType   String
+  targetId     String
+  confidence   Float    @default(0.7)
+  createdAt    DateTime @default(now())
+
+  document KnowledgeDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunk    KnowledgeChunk?    @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([chunkId])
+  @@index([targetType, targetId])
+  @@index([relationType])
+}
+
+model EntityReference {
+  id         String  @id
+  ownerType  String
+  ownerId    String
+  fieldKey   String
+  targetType String
+  targetId   String
+  targetPath String?
+  snapshot   Json?
+  confidence Float?
+  source     String?
+  status     String  @default("active")
+  createdAt  BigInt
+  updatedAt  BigInt
+  deletedAt  BigInt?
+
+  @@unique([ownerType, ownerId, fieldKey, targetType, targetId, targetPath])
+  @@index([ownerType, ownerId])
+  @@index([fieldKey])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([source])
+}
+
+model EntityAlias {
+  id         String  @id
+  targetType String
+  targetId   String
+  targetPath String?
+  alias      String
+  normalized String
+  source     String?
+  confidence Float?
+  createdAt  BigInt
+  updatedAt  BigInt
+  deletedAt  BigInt?
+
+  @@index([targetType, targetId])
+  @@index([targetPath])
+  @@index([normalized])
+  @@index([source])
+}
+
+model EntityLink {
+  id         String  @id
+  fromType   String
+  fromId     String
+  fromPath   String?
+  toType     String
+  toId       String
+  toPath     String?
+  linkKind   String
+  confidence Float?
+  metadata   Json?
+  source     String?
+  status     String  @default("active")
+  createdAt  BigInt
+  updatedAt  BigInt
+  deletedAt  BigInt?
+
+  @@index([fromType, fromId])
+  @@index([toType, toId])
+  @@index([linkKind])
+  @@index([status])
+  @@index([source])
+}
+
+model KnowledgeAcl {
+  id           String  @id
+  documentId   String
+  roleId       String?
+  departmentId String?
+  scope        String
+  access       String  @default("read")
+
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  role       Role?             @relation(fields: [roleId], references: [id])
+  department Department?       @relation(fields: [departmentId], references: [id])
+
+  @@index([documentId])
+  @@index([roleId])
+  @@index([departmentId])
+  @@index([scope])
+}
+
+model AgentTool {
+  id          String   @id
+  name        String
+  description String?
+  scope       String
+  risk        String   @default("low")
+  inputSchema Json
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions AgentToolPermission[]
+  runs        AgentToolRun[]
+
+  @@index([scope])
+  @@index([risk])
+  @@index([status])
+}
+
+model AgentToolPermission {
+  id       String @id
+  toolId   String
+  roleId   String
+  access   String @default("execute")
+  riskMode String @default("direct")
+
+  tool AgentTool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  role Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, roleId])
+  @@index([roleId])
+}
+
+model AgentToolRun {
+  id               String    @id
+  toolId           String
+  userId           String?
+  actorId          String?
+  actorDisplayName String?
+  actorRoles       Json?
+  sessionId        String?
+  requestSource    String?
+  approvalId       String?
+  status           String
+  input            Json
+  output           Json?
+  error            String?
+  risk             String    @default("low")
+  idempotencyKey   String?
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  tool AgentTool    @relation(fields: [toolId], references: [id])
+  user UserAccount? @relation(fields: [userId], references: [id])
+
+  @@index([toolId])
+  @@index([userId])
+  @@index([actorId])
+  @@index([sessionId])
+  @@index([requestSource])
+  @@index([approvalId])
+  @@index([status])
+  @@index([idempotencyKey])
+}
+
+/// Durable receipt for an approved Agent commit. A unique key makes retry/replay safe.
+model AgentCommitReceipt {
+  id             String   @id
+  idempotencyKey String   @unique
+  toolId         String
+  approvalId     String
+  status         String
+  result         Json?
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  @@index([toolId])
+  @@index([approvalId])
+  @@index([status])
+}
+
+model AgentJob {
+  id          String    @id
+  jobType     String
+  status      String    @default("queued")
+  priority    Int       @default(5)
+  payload     Json
+  result      Json?
+  error       String?
+  scheduledAt DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([jobType])
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledAt])
+}
+
+model AgentSuggestion {
+  id             String    @id
+  suggestionType String
+  status         String    @default("pending")
+  scope          String
+  content        Json
+  sourceType     String?
+  sourceId       String?
+  confidence     Float     @default(0.7)
+  createdAt      DateTime  @default(now())
+  decidedAt      DateTime?
+  decidedBy      String?
+
+  @@index([suggestionType])
+  @@index([status])
+  @@index([scope])
+}
+
+model ApprovalRequest {
+  id           String    @id
+  requesterId  String
+  reviewerId   String?
+  actionType   String
+  targetType   String
+  targetId     String?
+  status       String    @default("pending")
+  risk         String    @default("high")
+  payload      Json
+  decisionNote String?
+  createdAt    DateTime  @default(now())
+  decidedAt    DateTime?
+
+  requester UserAccount  @relation("ApprovalRequester", fields: [requesterId], references: [id])
+  reviewer  UserAccount? @relation("ApprovalReviewer", fields: [reviewerId], references: [id])
+
+  @@index([requesterId])
+  @@index([reviewerId])
+  @@index([status])
+  @@index([actionType])
+}
+
+model DevelopmentCase {
+  id       String @id
+  code     String @unique
+  name     String
+  type     String // fabric | garment | pp | trim
+  stage    String // developing | shipping | feedback | revision | approved | cancelled
+  priority String @default("normal") // urgent | high | normal | low
+
+  // Owner / responsible person
+  owner String?
+
+  // Linked entities (soft references, no FK constraint)
+  customerRelationId String?
+  customerName       String?
+  supplierRelationId String?
+  supplierName       String?
+  productAssetId     String?
+  productName        String?
+
+  // Process tracking
+  currentRound  Int     @default(1)
+  nextAction    String?
+  targetDate    String?
+  completedDate String?
+
+  // Sample category + review (业务规定: 5A 样衣需生产部评审)
+  sampleCategory       String? @default("normal") // normal(普通) | 5a(5A重点)
+  reviewStatus         String? // null(无需评审) | pending(待评审) | passed(通过) | failed(不通过)
+  reviewerId           String?
+  reviewDate           String?
+  reviewNote           String?
+
+  // Sample details
+  sampleType           String? // lab-dip | handloom | yardage | fit-sample | pp-sample | size-set
+  sampleQuantity       Float?
+  sampleUnit           String? @default("meter")
+  sampleSentDate       String?
+  sampleTrackingNumber String?
+  sampleCourier        String?
+  sampleFeedback       String?
+  sampleFeedbackDate   String?
+
+  // Conversion to bulk order
+  linkedOrderId String?
+  linkedOrderPo String?
+  convertedAt   BigInt?
+
+  // Additional info
+  notes       String?
+  tags        String[]
+  attachments Json?
+
+  // Timestamps & soft delete
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([type])
+  @@index([stage])
+  @@index([customerRelationId])
+  @@index([supplierRelationId])
+  @@index([productAssetId])
+  @@index([owner])
+  @@index([targetDate])
+  @@index([code])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Finance Module — 财务发票管理 + 收/付款凭证核销
+// Added: 2026-06-15
+// Contract: docs/MODULE_CONTRACT.md (linkKind: billTo / aboutOrder / settlesInvoice)
+//
+// 设计取舍：
+//  - 金额字段已迁移至 Decimal @db.Decimal(18,4)（Phase 3 完成）；
+//    全库 Float→Decimal 迁移已完成（Phase 3）。
+//    待统一 PR 迁移，不在本模块单独破例。
+//  - 业务日期（issueDate/dueDate/paymentDate）用 String YYYY-MM-DD —— 与 Order.dueDate / DevelopmentCase.targetDate 一致。
+//  - 时间戳（createdAt/updatedAt/deletedAt）用 BigInt epoch ms —— 与 Order/DevelopmentCase 一致。
+//  - exchangeRate 已迁移至 Decimal @db.Decimal(18,4)；外贸 USD→CNY 汇率存"开票/收款当日"快照。
+//  - PaymentVoucher.appliedAmount 表达"本笔凭证核销发票多少钱"，支持部分销账；
+//    1:N 销账数据模型已通过 InvoiceAllocation 中间表提供地基（task_mqxwgafj），为后续 payment.receive_and_reconcile flow 做准备。
+//  - Relation 关联用 *Snapshot* FK 风格（不加 @relation），与 Order 的 customerRelationId
+//    一致——避免 Relation 归档时级联删除。
+// ════════════════════════════════════════════════════════════════════
+
+model Invoice {
+  id            String @id // 格式：INV__${shortId}
+  invoiceNumber String @unique // 业务发票号（如 INV-20260615-001）
+
+  // ─── 业务字段 ───
+  type      String // Receivable(应收-客户账单) | Payable(应付-工厂账单)
+  status    String // Draft(草稿) | Issued(已开票) | PartiallyPaid(部分销账) | Paid(已结清) | Cancelled(已作废)
+  amount    Decimal @db.Decimal(18, 4) // 发票金额（含税）
+  currency  String // USD | CNY | EUR | HKD ...
+  issueDate     String // 开票日期 YYYY-MM-DD
+  dueDate       String? // 应收/应付到期日 YYYY-MM-DD（部分场景可空）
+  settlementDate String? // 实际结算日期 YYYY-MM-DD（全额收/付款完成日，由 allocation 自动写入）
+
+  // ─── 汇率快照（外贸场景必填，本币发票可空） ───
+  exchangeRate Decimal? @db.Decimal(18, 4) // 开票当日 currency → baseCurrency 汇率
+  baseCurrency String   @default("CNY") // 本位币
+
+  // ─── 关联（snapshot FK） ───
+  orderId            String? // 关联订单（aboutOrder linkKind）
+  customerRelationId String? // 结算单位 / 开票对象（billTo linkKind）
+  customerName       String? // 冗余快照：避免 Relation 改名后历史发票显示错乱
+
+  // ─── 备注 / 附件 ───
+  notes       String?
+  attachments Json?
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([type])
+  @@index([status])
+  @@index([orderId])
+  @@index([customerRelationId])
+  @@index([invoiceNumber])
+  @@index([issueDate])
+  @@index([dueDate])
+}
+
+model PaymentVoucher {
+  id            String @id // 格式：PAY__${shortId}
+  voucherNumber String @unique // 业务凭证号（如 PAY-20260615-001）
+
+  // ─── 业务字段 ───
+  type          String // Receipt(收款) | Disbursement(付款)
+  amount        Decimal @db.Decimal(18, 4) // 凭证金额（实际入/出账金额，已扣手续费前）
+  currency      String // USD | CNY | EUR | HKD ...
+  paymentDate   String // 实际收/付款日 YYYY-MM-DD
+  paymentMethod String // TT | LC | OA | DP | DA | Cash | Other
+  status        String @default("unreconciled") // unreconciled(未核销) | partially_reconciled(部分核销) | reconciled(已核销)
+  bankFee       Decimal @default(0) @db.Decimal(18, 4) // 银行手续费（与 amount 同币种）
+
+  // ─── 汇率快照 ───
+  exchangeRate Decimal? @db.Decimal(18, 4) // 实际收/付款日 currency → baseCurrency 汇率
+  baseCurrency String   @default("CNY")
+
+  // ─── 核销信息 ───
+  invoiceId     String? // 核销的发票（settlesInvoice linkKind）；为空表示"未核销/暂挂账"
+  appliedAmount Decimal? @db.Decimal(18, 4) // 本笔凭证实际核销发票多少钱（可能 < amount，余款挂账）
+
+  // ─── 关联（snapshot FK） ───
+  orderId            String? // 冗余：直接关联订单（aboutOrder linkKind），便于按订单聚合资金流
+  customerRelationId String? // 交易对象（billTo linkKind）
+  customerName       String? // 冗余快照
+
+  // ─── 备注 / 附件 ───
+  notes       String?
+  attachments Json?
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([type])
+  @@index([status])
+  @@index([invoiceId])
+  @@index([orderId])
+  @@index([customerRelationId])
+  @@index([voucherNumber])
+  @@index([paymentDate])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// InvoiceAllocation — 发票核销明细（1:N 销账中间表）
+// ════════════════════════════════════════════════════════════════════
+// 支持一笔 PaymentVoucher 核销多张 Invoice，或一张 Invoice 被多笔 Voucher 核销。
+// 替代 PaymentVoucher.appliedAmount 的单 1:1 表达（后者保留作为"主核销"快照，向后兼容）。
+// 语义：硬删除（无 deletedAt）——核销调整时先 delete 旧明细再 insert 新明细，避免软删+unique 冲突。
+// ════════════════════════════════════════════════════════════════════
+model InvoiceAllocation {
+  id              String @id // 格式：ALLOC__${shortId}
+  invoiceId       String // 核销的发票
+  voucherId       String // 核销的凭证
+  appliedAmount   Decimal @db.Decimal(18, 4) // 本笔核销金额
+  appliedDate     String // 核销日期 YYYY-MM-DD
+  createdAt       BigInt
+  updatedAt       BigInt
+
+  @@unique([invoiceId, voucherId]) // 一对 invoice-voucher 只能有一条明细（硬删除，调整=delete+insert）
+  @@index([invoiceId])
+  @@index([voucherId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Shipping Module — 货运与报关
+// ════════════════════════════════════════════════════════════════════
+// 设计决策：
+//   - 金额字段统一 Decimal(18,4) — 第一个 Decimal-first 新模型，
+//     旧模块金额字段已同步迁移至 Decimal（Phase 3 完成）。
+//   - 重量/体积用 Decimal(12,3)，精度到克/cm³。
+//   - 业务日期用 String YYYY-MM-DD，时间戳用 BigInt epoch ms —— 与 Finance 一致。
+//   - Relation 关联用 snapshot FK 风格，不加 @relation。
+//   - ShipmentLine 代表运单下的装箱明细行（1运单:N行），
+//     每行关连 OrderLine（loadedWith linkKind）。
+// ════════════════════════════════════════════════════════════════════
+
+model Shipment {
+  id             String @id // 格式：SHP__${shortId}
+  shipmentNumber String @unique // 运单号（如 SHP-20260615-001）
+
+  // ─── 业务字段 ───
+  type           String // Export(出口) | Import(进口) | Domestic(内贸)
+  status         String // Draft(草稿) | Booked(已订舱) | Loading(装货中) | Shipped(已发运) | Arrived(已到港) | Cleared(已清关) | Delivered(已交付) | Cancelled(已取消)
+  shippingMethod String // Sea(海运) | Air(空运) | Land(陆运) | Rail(铁运) | Courier(快递)
+
+  // ─── 日期 ───
+  bookingDate String? // 订舱日期 YYYY-MM-DD
+  etd         String? // 预计离港日 Estimated Time of Departure
+  atd         String? // 实际离港日 Actual Time of Departure
+  eta         String? // 预计到港日 Estimated Time of Arrival
+  ata         String? // 实际到港日 Actual Time of Arrival
+
+  // ─── 运输信息 ───
+  vesselOrFlight  String? // 船名/航班号
+  voyageNumber    String? // 航次号
+  portOfLoading   String? // 装货港
+  portOfDischarge String? // 卸货港
+  containerNumber String? // 集装箱号
+  sealNumber      String? // 封条号
+
+  // ─── 重量/体积 ───
+  totalPackages Int? // 总件数
+  grossWeight   Decimal? @db.Decimal(12, 3) // 毛重(kg)
+  netWeight     Decimal? @db.Decimal(12, 3) // 净重(kg)
+  volume        Decimal? @db.Decimal(12, 3) // 体积(CBM)
+
+  // ─── 费用（Decimal-first） ───
+  freightAmount        Decimal? @db.Decimal(18, 4) // 运费
+  freightCurrency      String? // 运费币种
+  insuranceAmount      Decimal? @db.Decimal(18, 4) // 保险费
+  insuranceCurrency    String? // 保险费币种
+  customsAmount        Decimal? @db.Decimal(18, 4) // 报关费
+  customsCurrency      String? // 报关费币种
+  otherCharges         Decimal? @db.Decimal(18, 4) // 其他费用
+  otherChargesCurrency String? // 其他费用币种
+
+  // ─── 关联（snapshot FK） ───
+  orderId            String? // 关联订单（aboutOrder linkKind）
+  customerRelationId String? // 客户（billTo linkKind）
+  customerName       String? // 冗余快照
+  carrierRelationId  String? // 货代/船公司（shipsVia linkKind）
+  carrierName        String? // 冗余快照
+
+  // ─── 报关 ───
+  hsCode                   String? // 海关HS编码（统一编码，行级在 ShipmentLine）
+  customsBroker            String? // 报关行
+  customsDeclarationNumber String? // 报关单号
+  customsClearanceDate     String? // 清关日期
+
+  // ─── 备注 / 附件 ───
+  notes       String?
+  attachments Json?
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([type])
+  @@index([status])
+  @@index([orderId])
+  @@index([customerRelationId])
+  @@index([carrierRelationId])
+  @@index([shipmentNumber])
+  @@index([etd])
+}
+
+model ShipmentLine {
+  id         String @id // 格式：SHPL__${shortId}
+  shipmentId String // 所属运单
+
+  // ─── 行号 ───
+  lineNumber Int
+
+  // ─── 关联订单明细行 ───
+  orderLineId String? // 关联 OrderLine（loadedWith linkKind）
+
+  // ─── 产品信息（冗余快照，从 OrderLine 带出） ───
+  productCode String?
+  productName String?
+  colorCode   String?
+  quantity    Int?
+  unit        String? // e.g. "m", "yd", "kg", "pcs"
+
+  // ─── 箱规/包装 ───
+  cartons     Int? // 箱数
+  grossWeight Decimal? @db.Decimal(12, 3) // 毛重(kg)
+  netWeight   Decimal? @db.Decimal(12, 3) // 净重(kg)
+  volume      Decimal? @db.Decimal(12, 3) // 体积(CBM)
+
+  // ─── 海关 ───
+  hsCode          String? // 行级HS编码（可能与运单级不同）
+  countryOfOrigin String? // 原产地
+
+  // ─── 时间戳 ───
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@index([shipmentId])
+  @@index([orderLineId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// End of Shipping Module
+// ════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════
+// Production Pipeline Module — 大货十阶段生产管线 (Phase 1-2)
+// ════════════════════════════════════════════════════════════════════
+// 业务规定: 10 阶段门禁式推进
+//   ① order_placed → ② materials_confirmed → ③ production_planned
+//   → ④ in_production → ⑤ materials_arrived → ⑥ pre_cut_checked
+//   → ⑦ pp_sample_approved → ⑧ manufacturing → ⑨ final_review
+//   → ⑩ qc_shipped
+// 门禁: ⑥ 需 PreCutChecklist 四项全 true; ⑦ 需双签;
+//       ⑩ 需验货 passRate≥90% + defectRate≤3% + 业务部批准
+// ════════════════════════════════════════════════════════════════════
+
+model ProductionStage {
+  id        String @id // 格式: PST__${orderId}__${stageKey}
+  orderId   String
+  stageKey  String // order_placed | materials_confirmed | ...
+  stageSeq  Int    // 1-10 序号
+  status    String @default("pending") // pending | in_progress | done | blocked
+  note      String?
+  operator  String?
+  startedAt BigInt?
+  doneAt    BigInt?
+
+  // 双签审批（用于 pp_sample_approved 阶段：生产部+业务部双签）
+  signedByProduction String?
+  signedByBusiness   String?
+  signedAtProduction BigInt?
+  signedAtBusiness   BigInt?
+
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@unique([orderId, stageKey])
+  @@index([orderId])
+  @@index([status])
+}
+
+model PreCutChecklist {
+  id                    String  @id // 格式: PCL__${orderId}
+  orderId               String  @unique
+  gradingConfirmed      Boolean @default(false) // 推码确认
+  consumptionConfirmed  Boolean @default(false) // 耗料确认
+  patternConfirmed      Boolean @default(false) // 样板确认
+  preProductionMeeting  Boolean @default(false) // 产前会议
+  meetingNote           String?
+  confirmedBy           String?
+  confirmedAt           BigInt?
+
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@index([orderId])
+}
+
+model InspectionReport {
+  id                  String  @id // 格式: INR__${orderId}
+  orderId             String  @unique
+  totalUnits          Int     @default(0)
+  passedUnits         Int     @default(0)
+  reportFile          String?
+  inspectedBy         String?
+  approvedByBusiness  Boolean @default(false)
+  businessApprover    String?
+  approvedAt          BigInt?
+
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@index([orderId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Email Module — 邮件接收与附件存储 (Phase 4a)
+// ════════════════════════════════════════════════════════════════════
+// 设计决策：
+//   - 邮件从 IMAP 实时获取 → 改为 IMAP→DB 后台同步 + API 读 DB，
+//     大幅减少 IMAP 连接频率，支持离线查阅和 Agent 引用。
+//   - 附件下载到本地 uploads/ 目录，路径存 EmailAttachment.filePath。
+//   - 业务日期用 String YYYY-MM-DD，时间戳用 BigInt epoch ms —— 与其他模块一致。
+//   - Relation 关联用 snapshot FK 风格，不加 @relation。
+//   - EntityLink: email→order(aboutOrder), email→contact(sentBy/receivedFrom),
+//     email→invoice(aboutInvoice) — 供 Agent 跨模块查询。
+// ════════════════════════════════════════════════════════════════════
+
+model Email {
+  id        String  @id // 格式：EML__${shortId}
+  messageId String? @unique // RFC 2822 Message-ID header (e.g. "<abc@mail.com>")
+
+  // ─── 方向与状态 ───
+  direction String // inbound(收到) | outbound(发出) | draft(草稿)
+  status    String // new(未读) | read(已读) | starred(星标) | important(重要) | archived(归档) | deleted(已删)
+
+  // ─── 发件/收件 ───
+  fromAddress    String // 发件人邮箱
+  fromName       String? // 发件人显示名
+  toAddresses    String // 收件人 (JSON array: ["a@b.com","c@d.com"])
+  ccAddresses    String? // 抄送 (JSON array)
+  bccAddresses   String? // 密送 (JSON array)
+  replyToAddress String? // 回复地址
+
+  // ─── 邮件内容 ───
+  subject  String
+  bodyText String? // 纯文本正文
+  bodyHtml String? // HTML 正文
+  snippet  String? // 预览片段 (自动从 bodyText 截取前 200 字)
+
+  // ─── IMAP 元数据 ───
+  mailbox     String // IMAP 邮箱名 (INBOX, Sent Messages, Drafts, etc.)
+  uid         Int? // IMAP UID (同一 mailbox 内唯一)
+  uidValidity String? // IMAP UIDVALIDITY (用于跨会话 UID 稳定性)
+  threadId    String? // 邮件线索 ID (基于 References/In-Reply-To)
+
+  // ─── 日期 ───
+  sentAt     String? // 邮件 Date header (YYYY-MM-DD HH:mm:ss)
+  receivedAt String? // 实际收到时间 (YYYY-MM-DD HH:mm:ss)
+
+  // ─── 关联（snapshot FK） ───
+  relationId    String? // 关联联系人/组织 (sentBy/receivedFrom linkKind)
+  relationName  String? // 冗余快照
+  orderId       String? // 关联订单 (aboutOrder linkKind)
+  orderPo       String? // 冗余快照：订单 PO 号
+  invoiceId     String? // 关联发票 (aboutInvoice linkKind)
+  invoiceNumber String? // 冗余快照
+
+  // ─── 分类/标签 ───
+  labels          String[] // Gmail-style 标签 (如 ["urgent","peerless","quote"])
+  aiSummary       String? // AI 生成的邮件摘要 (Phase 4b)
+  aiExtractedJson Json? // AI 抽取的结构化数据 (intent/products/quantities/prices/deadlines/customerSignal/language/summary) - Phase 4b
+  aiExtractedAt   BigInt? // AI 抽取时间 epoch ms - Phase 4b
+  aiModel         String? // 用于抽取的模型名 (如 ark-code-latest) - Phase 4b
+  aiExtractError  String? // 上次抽取失败的错误信息（成功后清零）- Phase 4b
+
+  // ─── 附件统计 ───
+  hasAttachments  Boolean @default(false)
+  attachmentCount Int     @default(0)
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+  syncedAt  BigInt? // 最后一次 IMAP 同步时间
+
+  attachments EmailAttachment[]
+
+  @@index([direction])
+  @@index([status])
+  @@index([fromAddress])
+  @@index([mailbox])
+  @@index([uid, uidValidity])
+  @@index([threadId])
+  @@index([relationId])
+  @@index([orderId])
+  @@index([invoiceId])
+  @@index([sentAt])
+  @@index([hasAttachments])
+}
+
+model EmailAttachment {
+  id      String @id // 格式：EMLATT__${shortId}
+  emailId String // 所属邮件
+
+  // ─── 附件元数据 ───
+  filename    String // 原始文件名
+  contentType String // MIME 类型 (e.g. "application/pdf")
+  fileSize    Int // 文件大小 (bytes)
+  contentId   String? // CID (inline 图片引用)
+
+  // ─── 存储 ───
+  filePath String? // 本地存储路径 (uploads/email-attachments/...)
+  fileUrl  String? // 可访问 URL (/api/v1/email/attachments/:id/download)
+  isInline Boolean @default(false) // 是否内嵌图片
+
+  // ─── 解析后信息 (Phase 4b AI) ───
+  extractedText String? // PDF/图片 OCR 提取文本
+  aiAnalysis    Json? // AI 分析结果
+
+  // ─── 时间戳 ───
+  createdAt BigInt
+  updatedAt BigInt
+
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  @@index([emailId])
+  @@index([contentType])
+  @@index([filename])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// End of Email Module
+// ════════════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id         String   @id
+  actorId    String
+  action     String
+  targetType String?
+  targetId   String?
+  detail     Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  actor UserAccount @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([targetType, targetId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Compiled Templates Module (Phase 6)
+// ════════════════════════════════════════════════════════════════════
+// 模板渲染产物存档：用于 audit + 幂等去重 + 给客户复发同一份发票。
+// 不强制每次 render 都写一条；调用方按需选择是否落库。
+
+model RenderedDoc {
+  id                 String   @id
+  templateId         String // 例如 'invoice.sample.pdas'
+  schemaVersion      Int // 模板版本，破坏性变更时 +1
+  inputJson          Json // 渲染时传入的 data，用于复现
+  htmlSha            String // sha256(html)[:16]
+  htmlBytes          Int
+  pdfSha             String? // 如生成了 PDF
+  pdfBytes           Int?
+  pdfPath            String? // 落到 storage/rendered/<id>.pdf
+  format             String? // 'A4' | 'A5' | 'Letter'
+  landscape          Boolean? @default(false)
+  // 业务关联（可空）
+  invoiceId          String?
+  orderRelationId    String?
+  customerRelationId String?
+  // 操作者（可空，HTTP 路由 / agent 工具均可写）
+  actorId            String?
+  actorRoles         Json?
+  source             String   @default("api") // 'api' | 'agent' | 'frontend'
+  notes              String?
+  createdAt          BigInt
+  updatedAt          BigInt
+
+  @@index([templateId])
+  @@index([htmlSha])
+  @@index([invoiceId])
+  @@index([orderRelationId])
+  @@index([customerRelationId])
+  @@index([createdAt])
+}
+
+/// Agent checkpoint for crash recovery (checkpoint/resume capability)
+model AgentCheckpoint {
+  id             String   @id
+  conversationId String   @unique
+  step           Int
+  message        String
+  scratchpad     Json     // { thoughts: [], toolCalls: [] }
+  iterations     Json     // IterationTrace[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
