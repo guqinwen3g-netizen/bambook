@@ -5,7 +5,7 @@
 #
 # 前置条件（一次性）：在 Cloudflare Tunnel 加 ingress 规则
 #   jiangsupanda.com  /bambookos  →  http://127.0.0.1:8081
-# 必须放在 /bambook → 8090 之前。
+# 必须放在 /bambook → 8091 之前。
 #
 # Token 处理与 ops-upload-package.sh 一致：先从 keychain 读，没有就弹窗。
 set -euo pipefail

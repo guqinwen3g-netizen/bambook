@@ -69,7 +69,7 @@ echo "==> 包大小: ${SIZE_MB} MB"
 echo "==> 上传到 $OPS_URL/api/admin/deploy-package ..."
 
 HTTP_RESP=$(mktemp)
-HTTP_CODE=$(curl -sS -m 360 -o "$HTTP_RESP" -w '%{http_code}' \
+HTTP_CODE=$(curl -sS --http1.1 -m 360 -o "$HTTP_RESP" -w '%{http_code}' \
   -X POST "$OPS_URL/api/admin/deploy-package" \
   -H 'Content-Type: application/gzip' \
   -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
