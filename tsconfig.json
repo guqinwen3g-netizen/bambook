@@ -28,6 +28,6 @@
     "noEmit": true
   },
   "exclude": [
-    "server/scripts"
+    "server"
   ]
 }

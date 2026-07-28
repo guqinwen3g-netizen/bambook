@@ -11,10 +11,10 @@ describe('ops panel Cloudflare status', () => {
     expect(source).toContain('userHasCloudflareWatchdog');
   });
 
-  it('tracks the 8090 origin used by the public Bambook Cloudflare route', () => {
+  it('tracks the 8091 origin used by the public Bambook Cloudflare route', () => {
     expect(source).toContain('BAMBOOK_OPS_LOCAL_PUBLIC_API_URL');
-    expect(source).toContain('Cloudflare Origin 8090');
+    expect(source).toContain('Cloudflare Origin 8091');
     expect(source).toContain('countCloudflareOriginErrors');
-    expect(source).toContain("origin = '127.0.0.1:8090'");
+    expect(source).toContain("origin = '127.0.0.1:8091'");
   });
 });

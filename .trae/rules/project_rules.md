@@ -6,10 +6,48 @@
 - 等待 10 秒后检查 `tail /tmp/bambook-dev.log` 确认启动
 
 ## Lint/Typecheck 命令
-- TypeScript: `npx tsc --noEmit --skipLibCheck`
+- 前端 TypeScript: `npx tsc --noEmit --skipLibCheck`（根 tsconfig 已排除 `server/`，仅检查 Electron/React 客户端）
+- 后端 TypeScript: `cd server && npx tsc --noEmit --skipLibCheck`（独立 tsconfig）
+- OPS Panel TypeScript: `cd server/ops-panel && npx tsc --noEmit --skipLibCheck`（独立 tsconfig + 独立 node_modules）
 - Build: `npx electron-vite build`
+- Design token 防回退: `npm run check:tokens`
 
 ## 渲染路径铁律
 - Relations/Products/Settings 有 compiled 双路径: 改 UI 只改 compiled 版本
 - 其他页面 Manager 文件即实际渲染源
 - `CompiledMainModuleSlot` className="contents" 是透明包裹器
+
+## 设计系统
+- **权威 token 源**：`styles/os-vnext.css`（320 个 CSS 变量）
+- **实际渲染准源**：`styles/flat-experimental.css`（最新 flat 设计载体，无阴影/无 rim/大圆角）
+- **flat 设计特征**：完全无阴影、无 rim、大圆角（22-34px）、保留半透明膜色（blur + saturate）
+- **Tailwind 语义类**（tailwind.config.js）：
+  - borderRadius: `rounded-panel/card/card-lg/inset/floating/control/field/compact`
+  - colors: `bg-deep/text-link/border-action` 等（支持 alpha 修饰符）
+- **禁止**：tsx 中硬编码 `rounded-[Npx]`、hex 颜色（`#xxx`）、`box-shadow` 硬编码
+- **防回退**：`scripts/check-design-tokens.sh` 基线模式检查新增硬编码
+- **可豁免**：吉祥物 SVG/Canvas 颜色、3D 地图 WebGL 颜色、邮件/发票模板（CSS 变量在邮件客户端不可靠）
+
+## Git 工作流
+- main 分支：单 commit 基线 `dafd300 Bambook v4.0: 项目基线快照`（2026-07-28 清理）
+- 备份分支：`backup/pre-cleanup-20260728`（保留 339 个旧 commit 历史）
+- 远程：`git@github.com:guqinwen3g-netizen/bambook.git`
+- 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过
+
+## Mac Mini 部署
+- **不要用 SSH**，用 OPS Panel（ops.jiangsupanda.com）更稳定
+- **部署方式**：push-based — 开发机打包 tarball → 上传 OPS Panel → Mac Mini 本地解压部署
+- **一键部署**：`npm run deploy:web`（Ops Token 从 macOS Keychain 自动读取）
+- Mac Mini 不从 GitHub 拉取代码
+- 后续可打通 GitHub 自动更新（com.bambook.ops-panel-auto 每分钟轮询）
+
+## 审计报告
+- 位置：`.trae/documents/bambook-comprehensive-project-scan.md`
+- 版本：v19.0，12912 行，157 章，~241 项技术债务
+- 包含：前端/后端/Agent/数据库/设计系统/安全/可观测性/架构全维度扫描
+
+## 项目架构
+- **两端分离**：桌面客户端（Electron + React）+ Mac Mini 数据中心
+- 客户端：UI 展示/交互/本地 STT（sherpa-onnx）/本地缓存（IndexedDB），不持业务真源
+- Mac Mini：Express + Prisma + PostgreSQL + Agent Runtime + LLM 网关 + TTS + OPS Panel
+- 离线 fallback：客户端探活失败时启动本地 Express（只读模式，非日常运行）

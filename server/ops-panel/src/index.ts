@@ -22,8 +22,8 @@ const PORT = Number(process.env.BAMBOOK_OPS_PORT || 8088);
 const ADMIN_TOKEN = String(process.env.BAMBOOK_OPS_ADMIN_TOKEN || '').trim();
 const ACTION_LOG = process.env.BAMBOOK_OPS_ACTION_LOG || '/tmp/bambook-ops-actions.log';
 const MAIN_API_URL = process.env.BAMBOOK_OPS_MAIN_API_URL || 'http://127.0.0.1:8081/api/health';
-const KNOWLEDGE_API_URL = process.env.BAMBOOK_OPS_KNOWLEDGE_API_URL || 'http://127.0.0.1:8090/bambook/health';
-const LOCAL_PUBLIC_API_URL = process.env.BAMBOOK_OPS_LOCAL_PUBLIC_API_URL || 'http://127.0.0.1:8090/bambook/api/health';
+const KNOWLEDGE_API_URL = process.env.BAMBOOK_OPS_KNOWLEDGE_API_URL || 'http://127.0.0.1:8091/bambook/kb/health';
+const LOCAL_PUBLIC_API_URL = process.env.BAMBOOK_OPS_LOCAL_PUBLIC_API_URL || 'http://127.0.0.1:8091/bambook/kb/health';
 const PUBLIC_API_URL = process.env.BAMBOOK_OPS_PUBLIC_API_URL || 'https://jiangsupanda.com/bambook/api/health';
 const AI_RUNTIME_METRICS_URL = process.env.BAMBOOK_OPS_AI_RUNTIME_METRICS_URL || 'http://127.0.0.1:8081/api/ai/metrics';
 const AGENT_STATUS_URL = process.env.BAMBOOK_OPS_AGENT_STATUS_URL || 'http://127.0.0.1:8081/api/agent/status';
@@ -1370,7 +1370,7 @@ async function shellText(command: string, args: string[] = [], timeout = 5000) {
   }
 }
 
-function countCloudflareOriginErrors(logFile = '/tmp/cloudflared-bambook.log', origin = '127.0.0.1:8090') {
+function countCloudflareOriginErrors(logFile = '/tmp/cloudflared-bambook.log', origin = '127.0.0.1:8091') {
   if (!fs.existsSync(logFile)) return { count: 0, latest: '', origin };
   const lines = readTail(logFile, 400).split('\n').filter(Boolean);
   const matches = lines.filter(line => line.includes('ERR') && line.includes(origin));
@@ -1417,13 +1417,13 @@ async function getStatus() {
   const originDetail = [
     `local ${LOCAL_PUBLIC_API_URL} => ${localPublicApi.status} in ${localPublicApi.ms}ms`,
     cloudflareOriginErrors.count
-      ? `最近 cloudflared 日志中有 ${cloudflareOriginErrors.count} 条 8090 origin 错误；最新：${cloudflareOriginErrors.latest}`
-      : '最近 cloudflared 日志未发现 8090 origin 错误',
+      ? `最近 cloudflared 日志中有 ${cloudflareOriginErrors.count} 条 8091 origin 错误；最新：${cloudflareOriginErrors.latest}`
+      : '最近 cloudflared 日志未发现 8091 origin 错误',
   ].join('\n');
 
   const services = [
     service('公网 API', publicApi.ok, publicApi.body, publicApi.ms),
-    serviceWithStatus('Cloudflare Origin 8090', originStatus, originDetail, localPublicApi.ms),
+    serviceWithStatus('Cloudflare Origin 8091', originStatus, originDetail, localPublicApi.ms),
     service('主数据 API', mainApi.ok, mainApi.body, mainApi.ms),
     service('知识库 API', knowledgeApi.ok, knowledgeApi.body, knowledgeApi.ms),
     service('Melo TTS', meloTts.ok, meloTts.body, meloTts.ms),

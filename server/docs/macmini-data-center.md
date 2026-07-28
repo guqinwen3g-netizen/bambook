@@ -7,7 +7,7 @@ This document describes the main Bambook data service on the Mac mini. Secrets, 
 | Service | Local Port | Public Route | Purpose |
 |:---|:---|:---|:---|
 | Main data API | `8081` | `https://jiangsupanda.com/bambook/api/*` | Orders, relations, products, product categories, insights, legacy knowledge sync, SSE |
-| Knowledge API | `8090` | `https://jiangsupanda.com/bambook/*` | Vector ingest/search, RAG debug context, optional chat |
+| Knowledge API | `8091` | `https://jiangsupanda.com/bambook/kb/*` | Vector ingest/search, RAG debug context, optional chat (mount path `/bambook/kb`) |
 
 Cloudflare should match `/bambook/api` before `/bambook`. The knowledge API also includes a fallback proxy for `/bambook/api/*` to `http://127.0.0.1:8081/api/*`, so the current single `/bambook` Cloudflare route can serve both APIs.
 
@@ -53,7 +53,7 @@ Public:
 
 ```sh
 curl -sS https://jiangsupanda.com/bambook/api/health
-curl -sS https://jiangsupanda.com/bambook/health
+curl -sS https://jiangsupanda.com/bambook/kb/health
 ```
 
 ## Client Settings

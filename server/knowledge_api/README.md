@@ -6,11 +6,11 @@ FastAPI 服务：向量入库、检索、（可选）DeepSeek 对话。可部署
 
 | 项 | 值 |
 |:---|:---|
-| 公网根路径 | `https://jiangsupanda.com/bambook` |
-| 健康检查 | `GET https://jiangsupanda.com/bambook/health` → `{"status":"ok"}` |
-| 本机（Mac mini） | `http://127.0.0.1:8090`；路由前缀由 `URL_MOUNT_PATH` 决定，默认 **`/bambook`**，即本机为 `http://127.0.0.1:8090/bambook/...` |
+| 公网根路径 | `https://jiangsupanda.com/bambook/kb` |
+| 健康检查 | `GET https://jiangsupanda.com/bambook/kb/health` → `{"status":"ok"}` |
+| 本机（Mac mini） | `http://127.0.0.1:8091`；路由前缀由 `URL_MOUNT_PATH` 决定，默认 **`/bambook/kb`**，即本机为 `http://127.0.0.1:8091/bambook/kb/...` |
 | 认证 | 请求头 `Authorization: Bearer <API_KEY>`（密钥只在服务器 `.env` 中，**勿提交仓库**） |
-| Cloudflare 隧道 | Zero Trust 中名称 **Bambook**；知识库路由为 `jiangsupanda.com` + **`/bambook`** → `http://127.0.0.1:8090`（与 `URL_MOUNT_PATH` 一致）；主数据 API 另见下方 `/bambook/api` 路由 |
+| Cloudflare 隧道 | Zero Trust 中名称 **Bambook**；Cloudflare 路由 `/bambook/*` → `http://127.0.0.1:8091`，知识库应用挂载在 `URL_MOUNT_PATH=/bambook/kb`；主数据 API 另见 `/bambook/api` 路由（→ 8081，优先级高于 `/bambook`） |
 | 代码在 Mac mini 上路径 | `~/bambook-knowledge-api`（与仓库本目录对应，可 `rsync` 部署） |
 | 系统用户 | `panda1`；隧道用 LaunchAgent `com.cloudflare.bambook.api`（见 `scripts/`） |
 
@@ -26,11 +26,11 @@ FastAPI 服务：向量入库、检索、（可选）DeepSeek 对话。可部署
 | **SSH（局域网）** | `ssh panda1@<当前局域网IP>` 或 `ssh panda1@PANDAdeMac-mini.local`（mDNS 不稳定时优先用 IP） |
 | **代码目录** | `/Users/panda1/bambook-knowledge-api`（即 `~/bambook-knowledge-api`） |
 | **环境变量** | `~/bambook-knowledge-api/.env`（**勿提交、勿贴聊天**） |
-| **知识库 API（本机）** | `http://127.0.0.1:8090/bambook`（健康检查：`.../bambook/health`） |
+| **知识库 API（本机）** | `http://127.0.0.1:8091/bambook/kb`（健康检查：`.../bambook/kb/health`） |
 | **隧道 token 文件** | `~/.cloudflared/bambook.tunnel.token` |
 | **cloudflared 日志** | `/tmp/cloudflared-bambook.log` |
 | **API 日志（若用 nohup）** | `/tmp/bambook-api.log`（以实际启动方式为准） |
-| **公网（客户端用）** | `https://jiangsupanda.com/bambook` — 与局域网 IP **无关** |
+| **公网（客户端用）** | `https://jiangsupanda.com/bambook/kb` — 与局域网 IP **无关** |
 
 ## SSH 登录 Mac mini（开发与运维）
 
@@ -90,7 +90,7 @@ ssh-copy-id panda1@<Mac_mini_局域网IP>
 
 ```bash
 # 知识库 API 健康检查（本机）
-curl -sS http://127.0.0.1:8090/bambook/health
+curl -sS http://127.0.0.1:8091/bambook/kb/health
 
 # 隧道日志
 tail -f /tmp/cloudflared-bambook.log
@@ -102,7 +102,7 @@ pgrep -lf uvicorn
 从**开发机一条命令**在 mini 上执行（无需交互脚本时）：
 
 ```bash
-ssh panda1@<Mac_mini_IP> 'curl -sS http://127.0.0.1:8090/bambook/health'
+ssh panda1@<Mac_mini_IP> 'curl -sS http://127.0.0.1:8091/bambook/kb/health'
 ```
 
 ### 同步代码（开发机执行）
@@ -123,7 +123,7 @@ rsync -az --delete ./apps/Bambook/server/knowledge_api/ panda1@<Mac_mini_IP>:~/b
 
 - **PostgreSQL 17** + **pgvector**，库名 `bambook`
 - **Ollama**，模型 `nomic-embed-text`（embedding）
-- **uvicorn**：`app.main:app`，`--host 0.0.0.0 --port 8090`
+- **uvicorn**：`app.main:app`，`--host 127.0.0.1 --port 8091`（由 `com.bambook.knowledge-api` LaunchAgent 常驻；脚本见 `scripts/run-knowledge-api.sh`）
 - **cloudflared**：token 放 `~/.cloudflared/bambook.tunnel.token`；LaunchAgent 使用 `--protocol http2`
 
 ## 仓库路径与配置
@@ -146,11 +146,11 @@ rsync -az --delete ./apps/Bambook/server/knowledge_api/ panda1@<Mac_mini_IP>:~/b
 Bambook 网络客户端使用同一个公网前缀 `https://jiangsupanda.com/bambook`：
 
 - 主数据 API：`/bambook/api/*` → Mac mini `http://127.0.0.1:8081`
-- 知识库 API：`/bambook/*` → Mac mini `http://127.0.0.1:8090`
+- 知识库 API：`/bambook/kb/*` → Mac mini `http://127.0.0.1:8091`（应用挂载路径 `URL_MOUNT_PATH=/bambook/kb`）
 
 Cloudflare 中 `/bambook/api` 必须比 `/bambook` 更优先匹配。若 `/bambook/api/health` 返回知识库的 `{"detail":"Not Found"}`，说明主数据路由没有命中 8081。
 
-当前知识库 API 也内置了 `/api/*` fallback proxy：当 Cloudflare 只把 `/bambook/*` 指向 8090 时，`/bambook/api/*` 会由 8090 转发到本机 8081 的 `/api/*`。这用于避免 Cloudflare path 规则尚未拆分时主数据 API 不可用。
+当前知识库 API 挂载在 `/bambook/kb`，并内置 `/bambook/kb/api/*` fallback proxy 到本机 8081。Cloudflare 应显式配置 `/bambook/api` → 8081（优先级高于 `/bambook`），避免主数据请求落到知识库服务。
 
 ## 后续 Agent 接手建议
 
