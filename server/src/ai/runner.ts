@@ -138,7 +138,7 @@ const DEFAULT_VISION_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3';
  *   - 维度筛选（客户、供应商、状态、日期、缺失字段等）一律走 `filters`，每个字段的形状写在 inputHint 里。
  *   - 既能用 filters 又能用 query 时，**优先 filters**——它是结构化精确匹配，全句 query 等同于全文检索失败。
  */
-const AGENT_LOOP_TOOL_DESCRIPTORS: ToolDescriptor[] = [
+export const AGENT_LOOP_TOOL_DESCRIPTORS: ToolDescriptor[] = [
   { id: 'products.query', name: 'Query Product Assets', scope: 'products', risk: 'low',
     description: '按条件检索数字档案候选或返回统计；不唯一时只返回候选不要猜测。query 用于实体名/SKU 等短字面匹配，维度筛选走 filters。',
     inputHint: '{ query?: string /* 短实体文本，例如 SKU/品名；不要塞整句话 */, mainCategory?: string, filters?: { certifications?: string[], composition?: string, supplier?: string }, sort?: { field: string, direction: "asc"|"desc" }, limit?: number, offset?: number }' },

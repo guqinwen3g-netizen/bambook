@@ -7,7 +7,7 @@ vi.mock('../../finance/paymentVoucherMutationService', () => ({
   updatePaymentVoucher: vi.fn(),
   VALID_PAYMENT_VOUCHER_STATUS: ['unreconciled', 'partially_reconciled', 'reconciled'],
   PAYMENT_VOUCHER_CREATE_FIELDS: ['voucherNumber','type','amount','currency','paymentDate','paymentMethod','status','bankFee','exchangeRate','baseCurrency','invoiceId','appliedAmount','orderId','customerRelationId','customerName','notes','attachments'],
-  PAYMENT_VOUCHER_PATCH_FIELDS: ['type','amount','currency','paymentDate','paymentMethod','status','bankFee','exchangeRate','baseCurrency','invoiceId','appliedAmount','orderId','customerRelationId','customerName','notes','attachments'],
+  PAYMENT_VOUCHER_PATCH_FIELDS: ['type','amount','currency','paymentDate','paymentMethod','bankFee','exchangeRate','baseCurrency','invoiceId','appliedAmount','orderId','customerRelationId','customerName','notes','attachments'],
 }));
 import { createPaymentVoucher, updatePaymentVoucher } from '../../finance/paymentVoucherMutationService';
 
@@ -52,14 +52,14 @@ describe('payment_voucher create/update executeTool commit', () => {
     expect(updatePaymentVoucher).not.toHaveBeenCalled();
   });
 
-  it('pending approval → APPROVAL_NOT_FOUND，create/update service 不调用', async () => {
+  it('pending approval → APPROVAL_PENDING，create/update service 不调用', async () => {
     const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'pending', payload: {} }) } } as any;
     const createResult: any = await executeTool(prisma, { toolId: 'payment_voucher.create', input: {}, approvalId: 'AP-1' } as any);
     const updateResult: any = await executeTool(prisma, { toolId: 'payment_voucher.update', input: {}, approvalId: 'AP-1' } as any);
     expect(createResult.ok).toBe(false);
     expect(updateResult.ok).toBe(false);
-    expect(createResult.errorFeedback.code).toBe('APPROVAL_NOT_FOUND');
-    expect(updateResult.errorFeedback.code).toBe('APPROVAL_NOT_FOUND');
+    expect(createResult.errorFeedback.code).toBe('APPROVAL_PENDING');
+    expect(updateResult.errorFeedback.code).toBe('APPROVAL_PENDING');
     expect(createPaymentVoucher).not.toHaveBeenCalled();
     expect(updatePaymentVoucher).not.toHaveBeenCalled();
   });

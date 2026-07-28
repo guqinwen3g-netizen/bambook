@@ -232,7 +232,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       ip: req.ip || null,
     });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { INVALID_STATUS: 400, INVALID_AMOUNT: 400, NOT_FOUND: 404, UPDATE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { INVALID_STATUS: 400, INVALID_AMOUNT: 400, NOT_FOUND: 404, STATUS_NOT_MANUAL_SETTABLE: 400, UPDATE_FAILED: 500 };
       const error = result.error;
       res.status(statusCodeMap[error.code] || 500).json({ error });
       return;
@@ -398,7 +398,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       ip: req.ip || null,
     });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, INVALID_STATUS: 400, INVALID_TRANSITION: 400, INVALID_CURRENT_STATUS: 400, INVALID_AMOUNT: 400, UPDATE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, INVALID_STATUS: 400, INVALID_TRANSITION: 400, INVALID_CURRENT_STATUS: 400, INVALID_AMOUNT: 400, STATUS_NOT_MANUAL_SETTABLE: 400, UPDATE_FAILED: 500 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
       return;
     }

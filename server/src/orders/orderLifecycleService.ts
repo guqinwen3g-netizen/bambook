@@ -27,6 +27,7 @@ export type OrderLifecycleErrorCode =
   | 'ORDER_NOT_FOUND'
   | 'ORDER_ALREADY_DELETED'
   | 'INVALID_STATUS'
+  | 'INVALID_TRANSITION'
   | 'NO_CHANGE'
   | 'DELETE_FAILED'
   | 'TRANSITION_FAILED';

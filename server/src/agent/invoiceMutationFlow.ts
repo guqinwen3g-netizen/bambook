@@ -8,7 +8,7 @@ export interface InvoiceMutationCommitted { status: 'committed'; invoiceId: stri
 
 export function buildInvoiceMutationError(code: InvoiceMutationFlowErrorCode, message: string): InvoiceMutationFlowError {
   const map: Record<InvoiceMutationFlowErrorCode, string> = {
-    APPROVAL_ID_MISSING: '审批恢复执行必须携带 approvalId，请重新发起审批流程', APPROVAL_NOT_FOUND: '审批记录不存在或未通过，请重新审批', APPROVAL_MODIFIED_UNSUPPORTED: '审批内容被修改，不支持直接 commit，请重新生成 draft 并重新审批', PROCESS_DRAFT_MISSING: '请重新发起流程，确保 draft payload 完整', PROCESS_DRAFT_HASH_MISMATCH: '审批内容与 draft 不一致，请重新发起', SEMANTIC_VALIDATION_FAILED: '发票 draft 语义校验失败，请检查输入', INVALID_STATUS: '发票状态非法', INVALID_TRANSITION: '发票状态流转非法', INVALID_CURRENT_STATUS: '发票当前状态非法', INVALID_AMOUNT: '金额/汇率格式非法', NOT_FOUND: '发票不存在或已删除', CREATE_FAILED: '创建事务失败已回滚，请重试', UPDATE_FAILED: '更新事务失败已回滚，请重试',
+    APPROVAL_ID_MISSING: '审批恢复执行必须携带 approvalId，请重新发起审批流程', APPROVAL_NOT_FOUND: '审批记录不存在或未通过，请重新审批', APPROVAL_MODIFIED_UNSUPPORTED: '审批内容被修改，不支持直接 commit，请重新生成 draft 并重新审批', PROCESS_DRAFT_MISSING: '请重新发起流程，确保 draft payload 完整', PROCESS_DRAFT_HASH_MISMATCH: '审批内容与 draft 不一致，请重新发起', SEMANTIC_VALIDATION_FAILED: '发票 draft 语义校验失败，请检查输入', INVALID_STATUS: '发票状态非法', INVALID_TRANSITION: '发票状态流转非法', INVALID_CURRENT_STATUS: '发票当前状态非法', INVALID_AMOUNT: '金额/汇率格式非法', NOT_FOUND: '发票不存在或已删除', STATUS_NOT_MANUAL_SETTABLE: '该状态只能由核销/分配操作设置，不可手动修改', CREATE_FAILED: '创建事务失败已回滚，请重试', UPDATE_FAILED: '更新事务失败已回滚，请重试',
   };
   return { code, message, userAction: map[code] };
 }

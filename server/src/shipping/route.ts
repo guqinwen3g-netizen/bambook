@@ -169,6 +169,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = {
         INVALID_STATUS: 400,
+        INVALID_INITIAL_STATUS: 400,
         ORDER_NOT_FOUND: 404,
         ORDER_TERMINAL: 400,
         INVALID_CURRENT_ORDER_STATUS: 400,

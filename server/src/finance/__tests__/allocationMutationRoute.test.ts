@@ -13,7 +13,7 @@ function makeApp(opts: { existing?: any; invoice?: any; voucher?: any; syncFail?
   const invoiceAllocationUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ ...existing, ...data, id: where.id }));
   const invoiceAllocationFindUnique = vi.fn().mockResolvedValue(existing);
   const invoiceAllocationDelete = vi.fn().mockResolvedValue({ id: 'ALLOC__I1__V1' });
-  const invoiceAllocationFindMany = vi.fn().mockResolvedValue([{ appliedAmount: new Prisma.Decimal('100') }]);
+  const invoiceAllocationFindMany = vi.fn().mockResolvedValue([{ invoiceId: 'I1', voucherId: 'V1', appliedAmount: new Prisma.Decimal('100') }]);
   const invoiceFindUnique = vi.fn().mockResolvedValue(invoice);
   const invoiceUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ ...invoice, ...data, id: where.id }));
   const voucherFindUnique = vi.fn().mockResolvedValue(voucher);
@@ -60,7 +60,10 @@ describe('allocationMutationService route POST /allocations', () => {
   });
 
   it('create high-precision decimal string not truncated', async () => {
-    const { app } = makeApp();
+    const { app } = makeApp({
+      invoice: { id: 'I1', status: 'Issued', amount: new Prisma.Decimal('999999999999999.9999'), deletedAt: null },
+      voucher: { id: 'V1', status: 'unreconciled', amount: new Prisma.Decimal('999999999999999.9999'), appliedAmount: new Prisma.Decimal('0'), deletedAt: null },
+    });
     const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: '123456789012345.1234' });
     expect(res.status).toBe(201);
     expect(res.body.allocation.appliedAmount).toBe('123456789012345.1234');

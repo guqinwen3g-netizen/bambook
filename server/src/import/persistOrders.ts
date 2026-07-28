@@ -169,6 +169,15 @@ export async function persistOrders(
           },
         });
       }
+
+      // PDF is the source of truth for the line set: delete old lines that are
+      // no longer present in the re-imported PDF (e.g. source PDF has fewer lines).
+      const newItemNos = lineRows.map((l) => l.itemNo ?? String(l.lineNumber * 10).padStart(4, '0'));
+      if (newItemNos.length > 0) {
+        await tx.orderLine.deleteMany({
+          where: { orderId, NOT: { itemNo: { in: newItemNos } } },
+        });
+      }
     });
 
     results.push({

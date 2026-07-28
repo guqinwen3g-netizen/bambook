@@ -2,27 +2,22 @@
  * knowledge.search gold/eval baseline (task_mr3c6jpa)
  *
  * 覆盖三类事实：
- *   A. manifest 注册（manifest.ts 含 id:'knowledge.search'）
- *   B. planner 规划（planner.ts 在知识库类问题时规划 knowledge.search）
+ *   A. manifest 注册（manifest.ts 含 id:'knowledge.search'，inputHint 含 query）
+ *   B. LLM runner 注册（runner.ts AGENT_LOOP_TOOL_DESCRIPTORS 含 knowledge.search 描述符）
  *   C. toolRuntime 执行（executeAgentTool → searchKnowledge 用 mock prisma 返回）
  *
  * 不依赖真实外部服务：searchKnowledge 是纯 Prisma contains 查询，
  * 用对象字面量 mock prisma.knowledgeChunk/knowledgeDocument/knowledgeItem 即可。
+ *
+ * 历史演进：原 B 节基于已删除的 mcp/planner.ts 源码扫描（commit 0b19f77 dead code 清理）。
+ * 规划路径已迁移至 LLM-driven runner.ts，B 节改用导入的 AGENT_LOOP_TOOL_DESCRIPTORS
+ * 做结构化断言，避免源码字符串匹配的脆弱性。
  */
 import { describe, it, expect, vi } from 'vitest';
 import { executeAgentTool } from '../toolRuntime';
+import { getMcpManifest } from '../mcp/manifest';
+import { AGENT_LOOP_TOOL_DESCRIPTORS } from '../../ai/runner';
 import type { ActorContext } from '../types';
-
-// ── manifest 注册事实 ──────────────────────────────────────────
-// 直接从 toolRegistry 导出的 TOOL_DEFINITIONS（由 manifest 编译生成）验证。
-
-// ── planner 注册事实 ───────────────────────────────────────────
-// planner.ts 内联了 knowledge.search 的规划逻辑（toolId: 'knowledge.search'）。
-// 这里用静态字符串校验，避免把整个 planner 拉进来（它需要更多 mock）。
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-const PLANNER_SRC = readFileSync(join(__dirname, '..', 'mcp', 'planner.ts'), 'utf-8');
-const MANIFEST_SRC = readFileSync(join(__dirname, '..', 'mcp', 'manifest.ts'), 'utf-8');
 
 // ── toolRuntime 执行事实 ───────────────────────────────────────
 // 用 mock prisma 验证 searchKnowledge 的查询路径与返回结构。
@@ -92,28 +87,32 @@ const GOLD_QUERIES = [
 describe('knowledge.search gold/eval baseline', () => {
 
   // ═══ A. manifest 注册事实 ═══
-  describe('A. manifest 注册（manifest.ts 源码事实）', () => {
-    it('manifest.ts 含 id knowledge.search', () => {
-      expect(MANIFEST_SRC).toContain("id: 'knowledge.search'");
+  describe('A. manifest 注册（结构化断言）', () => {
+    it('getMcpManifest() 含 id knowledge.search', () => {
+      const manifest = getMcpManifest();
+      const entry = manifest.find(m => m.id === 'knowledge.search');
+      expect(entry).toBeTruthy();
     });
 
-    it('manifest.ts knowledge.search inputHint 含 query', () => {
-      // 截取 knowledge.search 段落，断言 inputHint 含 query
-      const idx = MANIFEST_SRC.indexOf("id: 'knowledge.search'");
-      expect(idx).toBeGreaterThan(-1);
-      const section = MANIFEST_SRC.slice(idx, idx + 600);
-      expect(section).toMatch(/inputHint[\s\S]*query/i);
+    it('knowledge.search manifest inputHint 含 query', () => {
+      const manifest = getMcpManifest();
+      const entry = manifest.find(m => m.id === 'knowledge.search');
+      expect(entry?.inputHint).toMatch(/query/i);
     });
   });
 
-  // ═══ B. planner 规划事实 ═══
-  describe('B. planner 规划', () => {
-    it('planner.ts 源码含 knowledge.search toolId', () => {
-      expect(PLANNER_SRC).toContain("toolId: 'knowledge.search'");
+  // ═══ B. LLM runner 注册事实 ═══
+  // 规划路径已从规则化 planner.ts 迁移至 LLM-driven runner.ts。
+  // 验证 AGENT_LOOP_TOOL_DESCRIPTORS 含 knowledge.search 描述符，确保 LLM 可见该工具。
+  describe('B. LLM runner 注册（AGENT_LOOP_TOOL_DESCRIPTORS 结构化断言）', () => {
+    it('AGENT_LOOP_TOOL_DESCRIPTORS 含 knowledge.search toolId', () => {
+      const desc = AGENT_LOOP_TOOL_DESCRIPTORS.find(d => d.id === 'knowledge.search');
+      expect(desc).toBeTruthy();
     });
 
-    it('planner.ts 源码含知识库规划 reason', () => {
-      expect(PLANNER_SRC).toMatch(/知识库|knowledge/i);
+    it('knowledge.search 描述符含知识库语义描述', () => {
+      const desc = AGENT_LOOP_TOOL_DESCRIPTORS.find(d => d.id === 'knowledge.search');
+      expect(desc?.description).toMatch(/知识库|knowledge/i);
     });
   });
 

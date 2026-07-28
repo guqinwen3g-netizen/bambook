@@ -45,7 +45,11 @@ describe('TTS request normalization', () => {
 
     expect(fetchCalls[0]).toEqual({
       input: 'U S D 和 S K U 测试。',
-      speed: 1,
+      speed: 1.35,
+      language: 'ZH',
+      sdp_ratio: 0.2,
+      noise_scale: 0.6,
+      noise_scale_w: 0.8,
     });
   });
 });

@@ -123,9 +123,11 @@ function makeCommitTx(opts: {
   allocs?: any[]; // recalc findMany 返回
   txFail?: boolean;
 } = {}) {
-  const voucher = opts.voucher === undefined ? { id: 'V1', amount: new Prisma.Decimal(1000), deletedAt: null } : opts.voucher;
-  const invoices = opts.invoices ?? { I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null } };
-  const allocsForRecalc = opts.allocs ?? [{ appliedAmount: new Prisma.Decimal(600) }];
+  const voucher = opts.voucher === undefined ? { id: 'V1', amount: new Prisma.Decimal(1000), deletedAt: null, status: 'active', currency: 'USD' } : opts.voucher;
+  const invoices = opts.invoices ?? { I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null, status: 'Issued', currency: 'USD' } };
+  // applyAllocation 的 select 子句包含 voucherId + invoiceId，用于排除当前 voucher/invoice 的已存在 allocation（幂等再申请）
+  // mock 数据必须匹配该 DB 契约，否则排除过滤器会将 undefined !== voucherId 误判为「其他 voucher 的 allocation」导致金额超限
+  const allocsForRecalc = opts.allocs ?? [{ appliedAmount: new Prisma.Decimal(600), voucherId: 'V1', invoiceId: 'I1' }];
 
   const invoiceAllocationUpsert = vi.fn().mockResolvedValue({});
   const invoiceUpdate = vi.fn().mockResolvedValue({});
@@ -223,6 +225,7 @@ describe('task reconcile-flow: commitPaymentReceiveAndReconcile', () => {
     const { tx, invoiceAllocationUpsert, auditCreate } = makeCommitTx();
     const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;
     const r = await commitPaymentReceiveAndReconcile({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
+    if (!r.ok) console.log('DEBUG reconcileFlow error:', JSON.stringify(r.feedback));
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.feedback.status).toBe('committed');
@@ -246,8 +249,9 @@ describe('task reconcile-flow: commitPaymentReceiveAndReconcile', () => {
       allocations: [{ invoiceId: 'I1', appliedAmount: '123456789.1234' }],
     });
     const { tx, invoiceAllocationUpsert } = makeCommitTx({
-      invoices: { I1: { id: 'I1', amount: new Prisma.Decimal('999999999'), deletedAt: null } },
-      allocs: [{ appliedAmount: new Prisma.Decimal('123456789.1234') }],
+      voucher: { id: 'V1', amount: new Prisma.Decimal('999999999'), deletedAt: null, status: 'active', currency: 'USD' },
+      invoices: { I1: { id: 'I1', amount: new Prisma.Decimal('999999999'), deletedAt: null, status: 'Issued', currency: 'USD' } },
+      allocs: [{ appliedAmount: new Prisma.Decimal('123456789.1234'), voucherId: 'V1', invoiceId: 'I1' }],
     });
     const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;
     const r = await commitPaymentReceiveAndReconcile({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
@@ -267,8 +271,8 @@ describe('task reconcile-flow: commitPaymentReceiveAndReconcile', () => {
     });
     const { tx, invoiceAllocationUpsert } = makeCommitTx({
       invoices: {
-        I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null },
-        I2: { id: 'I2', amount: new Prisma.Decimal(400), deletedAt: null },
+        I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null, status: 'Issued', currency: 'USD' },
+        I2: { id: 'I2', amount: new Prisma.Decimal(400), deletedAt: null, status: 'Issued', currency: 'USD' },
       },
     });
     const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;
@@ -339,8 +343,8 @@ describe('task review-fix: Agent commit 复用 applyAllocation 同步 EntityRefe
     });
     const { tx, invoiceAllocationUpsert, entityRefUpsert } = makeCommitTx({
       invoices: {
-        I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null },
-        I2: { id: 'I2', amount: new Prisma.Decimal(400), deletedAt: null },
+        I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null, status: 'Issued', currency: 'USD' },
+        I2: { id: 'I2', amount: new Prisma.Decimal(400), deletedAt: null, status: 'Issued', currency: 'USD' },
       },
     });
     const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;

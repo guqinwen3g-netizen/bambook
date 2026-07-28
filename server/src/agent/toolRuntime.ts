@@ -2483,7 +2483,12 @@ _rct('invoice.delete', async (ctx) => {
   const _r = result as any; return _r.ok ? { ok: true, ..._r.feedback } : { ok: false, errorFeedback: { ...(buildFinanceSoftDeleteError as any)('UNKNOWN_ERROR', _r.feedback?.error?.message || 'delete failed'), retryable: false } };
 });
 _rct('email.send', async (ctx) => {
-  const result = await commitEmailSendOutbox({ prisma: ctx.prisma, approvalId: ctx.approvalId, approvalPayload: ctx.approvalPayload });
+  // credentialRef 恢复：从短期 secret context 取 SMTP pass（one-shot，不落 payload 明文）
+  // 镜像 email.sync commit handler——draft 阶段 pass 存 emailCredentialStore，payload 只存 credentialRef
+  const payloadInput = (ctx.approvalPayload as any)?.input || {};
+  const credentialRef = payloadInput.credentials?.credentialRef;
+  const recoveredPass = credentialRef ? takeEmailCredential(credentialRef) : '';
+  const result = await commitEmailSendOutbox({ prisma: ctx.prisma, approvalId: ctx.approvalId, approvalPayload: ctx.approvalPayload, credentialsPassword: recoveredPass || '' });
   const _r = result as any; return _r.ok ? { ok: true, ..._r.feedback } : { ok: false, errorFeedback: { code: _r.feedback?.error?.code || 'COMMIT_FAILED', message: _r.feedback?.error?.message || 'commit failed', retryable: false } };
 });
 _rct('development.convert_to_order', async (ctx) => {

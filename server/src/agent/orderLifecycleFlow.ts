@@ -58,6 +58,7 @@ export function buildOrderLifecycleError(code: OrderLifecycleFlowErrorCode, mess
     ORDER_NOT_FOUND: '订单不存在或已删除',
     ORDER_ALREADY_DELETED: '订单已删除，无需重复删除',
     INVALID_STATUS: '目标状态非法（只允许 Pending/Confirmed/Production/Shipping/Delivered/Alert）',
+    INVALID_TRANSITION: '当前状态不允许流转到目标状态，请检查状态转换矩阵',
     NO_CHANGE: '订单已在目标状态，无需流转',
     DELETE_FAILED: '删除事务失败已回滚，请重试',
     TRANSITION_FAILED: '状态流转事务失败已回滚，请重试',

@@ -9,6 +9,7 @@ export type InvoiceMutationErrorCode =
   | 'INVALID_CURRENT_STATUS'
   | 'INVALID_AMOUNT'
   | 'NOT_FOUND'
+  | 'STATUS_NOT_MANUAL_SETTABLE'
   | 'CREATE_FAILED'
   | 'UPDATE_FAILED';
 
@@ -81,7 +82,7 @@ function normalizeUpdateInput(input: InvoiceMutationInput): { ok: true; data: Re
 }
 
 function toError(e: any, fallback: InvoiceMutationErrorCode): InvoiceMutationError {
-  if (['INVALID_STATUS', 'INVALID_TRANSITION', 'INVALID_CURRENT_STATUS', 'INVALID_AMOUNT', 'NOT_FOUND'].includes(e?.code)) return { code: e.code, message: String(e.message ?? e) };
+  if (['INVALID_STATUS', 'INVALID_TRANSITION', 'INVALID_CURRENT_STATUS', 'INVALID_AMOUNT', 'NOT_FOUND', 'STATUS_NOT_MANUAL_SETTABLE'].includes(e?.code)) return { code: e.code, message: String(e.message ?? e) };
   return { code: fallback, message: String(e?.message ?? e) };
 }
 

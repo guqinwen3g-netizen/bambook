@@ -129,18 +129,19 @@ function makeInvoiceApp(existingStatus: string, txFail = false) {
 }
 
 describe('task_mqy459c6: invoice route PATCH 状态转移集成', () => {
-  it('合法转移 Issued → PartiallyPaid → 200', async () => {
+  it('PartiallyPaid 不可手动 PATCH → 400 STATUS_NOT_MANUAL_SETTABLE（仅 allocation 可设）', async () => {
     const { app, invoiceUpdate } = makeInvoiceApp('Issued');
     const res = await request(app).patch('/api/v1/finance/I1').set(authHeader()).send({ status: 'PartiallyPaid' });
-    expect(res.status).toBe(200);
-    expect(invoiceUpdate).toHaveBeenCalled();
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('STATUS_NOT_MANUAL_SETTABLE');
+    expect(invoiceUpdate).not.toHaveBeenCalled();
   });
 
-  it('非法转移 Draft → Paid → 400 INVALID_TRANSITION，不写 DB', async () => {
+  it('Paid 不可手动 PATCH → 400 STATUS_NOT_MANUAL_SETTABLE（仅 allocation 可设），不写 DB', async () => {
     const { app, invoiceUpdate } = makeInvoiceApp('Draft');
     const res = await request(app).patch('/api/v1/finance/I1').set(authHeader()).send({ status: 'Paid' });
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('INVALID_TRANSITION');
+    expect(res.body.error.code).toBe('STATUS_NOT_MANUAL_SETTABLE');
     expect(invoiceUpdate).not.toHaveBeenCalled();
   });
 

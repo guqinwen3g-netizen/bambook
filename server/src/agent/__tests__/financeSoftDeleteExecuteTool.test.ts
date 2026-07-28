@@ -34,11 +34,11 @@ describe('task finance-soft-delete-flow: executeTool invoice.delete commit', () 
     expect(result.errorFeedback.code).toBe('APPROVAL_MODIFIED_UNSUPPORTED');
   });
 
-  it('approval pending → APPROVAL_NOT_FOUND', async () => {
+  it('approval pending → APPROVAL_PENDING', async () => {
     const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'pending', payload: {} }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'invoice.delete', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
-    expect(result.errorFeedback.code).toBe('APPROVAL_NOT_FOUND');
+    expect(result.errorFeedback.code).toBe('APPROVAL_PENDING');
   });
 
   it('service 失败（HAS_ALLOCATIONS）→ failed', async () => {

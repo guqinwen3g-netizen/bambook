@@ -35,11 +35,11 @@ describe('task order-lifecycle-flow: executeTool commit', () => {
     expect(result.errorFeedback.code).toBe('APPROVAL_MODIFIED_UNSUPPORTED');
   });
 
-  it('order.status_transition approval pending → APPROVAL_NOT_FOUND', async () => {
+  it('order.status_transition approval pending → APPROVAL_PENDING', async () => {
     const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'pending', payload: {} }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order.status_transition', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
-    expect(result.errorFeedback.code).toBe('APPROVAL_NOT_FOUND');
+    expect(result.errorFeedback.code).toBe('APPROVAL_PENDING');
   });
 
   it('order.delete approved → committed', async () => {

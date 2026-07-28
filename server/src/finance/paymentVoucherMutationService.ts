@@ -15,7 +15,8 @@ export type PaymentVoucherMutationErrorCode =
   | 'INVALID_AMOUNT'
   | 'NOT_FOUND'
   | 'CREATE_FAILED'
-  | 'UPDATE_FAILED';
+  | 'UPDATE_FAILED'
+  | 'STATUS_NOT_MANUAL_SETTABLE';
 
 export interface PaymentVoucherMutationError {
   code: PaymentVoucherMutationErrorCode;
@@ -35,7 +36,7 @@ export const PAYMENT_VOUCHER_CREATE_FIELDS = [
 ] as const;
 
 export const PAYMENT_VOUCHER_PATCH_FIELDS = [
-  'type', 'amount', 'currency', 'paymentDate', 'paymentMethod', 'status', 'bankFee',
+  'type', 'amount', 'currency', 'paymentDate', 'paymentMethod', 'bankFee',
   'exchangeRate', 'baseCurrency', 'invoiceId', 'appliedAmount', 'orderId', 'customerRelationId',
   'customerName', 'notes', 'attachments',
 ] as const;
@@ -102,9 +103,12 @@ function normalizeCreateInput(input: PaymentVoucherMutationInput): { ok: true; d
 }
 
 function normalizeUpdateInput(input: PaymentVoucherMutationInput): { ok: true; data: Record<string, any> } | { ok: false; error: PaymentVoucherMutationError } {
+  // status 由 allocation 操作自动重算，禁止手动 PATCH 篡改（显式拒绝，不静默删除）
+  // 与 invoiceMutationService STATUS_NOT_MANUAL_SETTABLE 模式对齐
+  if (input?.status !== undefined) {
+    return { ok: false, error: { code: 'STATUS_NOT_MANUAL_SETTABLE', message: 'status can only be set by allocation operations, not manual PATCH' } };
+  }
   const data = pickVoucherFields(input || {}, PAYMENT_VOUCHER_PATCH_FIELDS as any);
-  // status 由 allocation 操作自动重算，禁止手动 PATCH 篡改
-  delete data.status;
   const normalized = normalizeDecimalFields(data);
   if (!normalized.ok) {
     const failedField = 'field' in normalized ? normalized.field : 'amount';

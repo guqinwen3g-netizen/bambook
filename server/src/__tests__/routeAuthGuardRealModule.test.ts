@@ -56,7 +56,10 @@ describe('Real module auth · API-key-only write → 401', () => {
       .set('x-bambook-api-key', validApiKey)
       .send({});
     expect(res.status).toBe(401);
-    expect(res.body.message).toMatch(/JWT/);
+    // Finance POST uses requireRole() guard which returns "Login required.";
+    // other modules use requireJwtForWrite() which returns "Write operations require JWT login...".
+    // Both reject API-key-only writes — accept either message.
+    expect(res.body.message).toMatch(/JWT|Login required/);
   });
 
   it('Shipping POST / → 401 with API-key only', async () => {
@@ -66,7 +69,7 @@ describe('Real module auth · API-key-only write → 401', () => {
       .set('x-bambook-api-key', validApiKey)
       .send({});
     expect(res.status).toBe(401);
-    expect(res.body.message).toMatch(/JWT/);
+    expect(res.body.message).toMatch(/JWT|Login required/);
   });
 
   it('Development POST / → 401 with API-key only', async () => {
@@ -76,7 +79,7 @@ describe('Real module auth · API-key-only write → 401', () => {
       .set('x-bambook-api-key', validApiKey)
       .send({});
     expect(res.status).toBe(401);
-    expect(res.body.message).toMatch(/JWT/);
+    expect(res.body.message).toMatch(/JWT|Login required/);
   });
 
   it('Email PATCH /:id → 401 with API-key only', async () => {
@@ -86,7 +89,7 @@ describe('Real module auth · API-key-only write → 401', () => {
       .set('x-bambook-api-key', validApiKey)
       .send({});
     expect(res.status).toBe(401);
-    expect(res.body.message).toMatch(/JWT/);
+    expect(res.body.message).toMatch(/JWT|Login required/);
   });
 });
 

@@ -57,7 +57,7 @@ function makeApp(opts: {
 
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(order) },
-    orderLine: { findUnique: vi.fn().mockResolvedValue(line) },
+    orderLine: { findUnique: vi.fn().mockResolvedValue(line), findMany: vi.fn().mockResolvedValue([]) },
     $transaction: opts.txFail ? vi.fn().mockRejectedValue(new Error('TX_BOOM')) : vi.fn(async (fn: any) => fn(tx)),
   } as any;
 

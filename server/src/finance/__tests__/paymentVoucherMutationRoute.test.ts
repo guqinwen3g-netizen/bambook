@@ -116,13 +116,13 @@ describe('paymentVoucherMutationService route PATCH /vouchers/:id', () => {
 
   it('update success → find + update + sync + audit 同事务，onDataChange 成功后触发', async () => {
     const { app, paymentVoucherUpdate, auditCreate, onDataChange } = makeApp();
-    const res = await request(app).patch('/api/v1/finance/vouchers/PAY__1').set(authHeader()).send({ amount: '99.9900', bankFee: '2.5000', status: 'partially_reconciled' });
+    const res = await request(app).patch('/api/v1/finance/vouchers/PAY__1').set(authHeader()).send({ amount: '99.9900', bankFee: '2.5000' });
     expect(res.status).toBe(200);
     expect(paymentVoucherUpdate).toHaveBeenCalledTimes(1);
     const data = paymentVoucherUpdate.mock.calls[0][0].data;
     expect(data.amount).toBeInstanceOf(Prisma.Decimal);
     expect(data.bankFee).toBeInstanceOf(Prisma.Decimal);
-    expect(data.status).toBe('partially_reconciled');
+    expect(data.status).toBeUndefined(); // status 不在 PATCH 字段白名单内
     expect(auditCreate).toHaveBeenCalledTimes(1);
     expect(onDataChange).toHaveBeenCalledTimes(1);
   });
@@ -136,11 +136,11 @@ describe('paymentVoucherMutationService route PATCH /vouchers/:id', () => {
     expect(onDataChange).not.toHaveBeenCalled();
   });
 
-  it('非法 status → 400 INVALID_STATUS，不进 transaction', async () => {
+  it('status 不可手动 PATCH → 400 STATUS_NOT_MANUAL_SETTABLE（仅 allocation 可设），不进 transaction', async () => {
     const { app, prisma, onDataChange } = makeApp();
-    const res = await request(app).patch('/api/v1/finance/vouchers/PAY__1').set(authHeader()).send({ status: 'paid' });
+    const res = await request(app).patch('/api/v1/finance/vouchers/PAY__1').set(authHeader()).send({ status: 'partially_reconciled' });
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('INVALID_STATUS');
+    expect(res.body.error.code).toBe('STATUS_NOT_MANUAL_SETTABLE');
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(onDataChange).not.toHaveBeenCalled();
   });

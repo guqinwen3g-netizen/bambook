@@ -92,7 +92,8 @@ describe('persistOrders — Peerless 5 fixtures end-to-end', () => {
     // 业务要求：订单主交期显示 Exmill（出厂日期），不是 delivery date。
     expect(sample.dueDate).toBe('2026/07/01');
     expect(sample.currency).toBeTruthy();
-    expect(sample.totalActual).toBeGreaterThan(0);
+    // totalActual is stored as Decimal(18,4) — convert to Number for comparison.
+    expect(Number(sample.totalActual)).toBeGreaterThan(0);
     expect(sample.source).toBe('pdf-import');
     expect(sample.id).toBe('PO-4500159423');
   });

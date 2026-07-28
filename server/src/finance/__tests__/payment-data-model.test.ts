@@ -146,12 +146,12 @@ describe('task_mqxwgafj: paymentVoucherMutationService voucher status 不从 app
     expect(postBody).toContain('return;');
   });
 
-  it('PATCH /vouchers/:id 显式 status 校验枚举在 service 内完成', () => {
+  it('PATCH /vouchers/:id status 不可手动修改（STATUS_NOT_MANUAL_SETTABLE，由 allocation 重算）', () => {
     const updateStart = PAYMENT_VOUCHER_SERVICE.indexOf('function normalizeUpdateInput');
     const updateEnd = PAYMENT_VOUCHER_SERVICE.indexOf('export async function createPaymentVoucher', updateStart);
     const updateBody = PAYMENT_VOUCHER_SERVICE.slice(updateStart, updateEnd);
     expect(updateBody).toContain('status');
-    expect(updateBody).toContain('INVALID_STATUS');
-    expect(updateBody).toContain('isValidPaymentVoucherStatus');
+    expect(updateBody).toContain('STATUS_NOT_MANUAL_SETTABLE');
+    expect(updateBody).not.toContain('delete data.status'); // 不再静默删除
   });
 });

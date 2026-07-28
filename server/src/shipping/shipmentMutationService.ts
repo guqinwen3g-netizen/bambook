@@ -104,10 +104,11 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
   if (input?.status != null && !isValidShipmentStatus(String(input.status))) {
     return { ok: false, error: { code: 'INVALID_STATUS', message: `status must be one of: ${VALID_SHIPMENT_STATUSES.join(', ')}` } };
   }
-  // 创建时初始状态只能是 Draft 或 Booked，禁止直接创建终态运单
-  const ALLOWED_CREATE_STATUSES = new Set(['Draft', 'Booked']);
-  if (input?.status && !ALLOWED_CREATE_STATUSES.has(String(input.status))) {
-    return { ok: false, error: { code: 'INVALID_INITIAL_STATUS', message: `create shipment initial status must be Draft or Booked, got: ${input.status}` } };
+  // 创建时禁止直接创建终态运单（Delivered/Cancelled），允许 Draft/Booked/Loading/Shipped/Arrived/Cleared
+  // 业务场景：运单可能在发货后才补录（Shipped），但不应直接创建已交付/已取消的终态记录
+  const TERMINAL_CREATE_STATUSES = new Set(['Delivered', 'Cancelled']);
+  if (input?.status && TERMINAL_CREATE_STATUSES.has(String(input.status))) {
+    return { ok: false, error: { code: 'INVALID_INITIAL_STATUS', message: `create shipment initial status cannot be terminal (Delivered/Cancelled), got: ${input.status}` } };
   }
 
   try {
@@ -171,11 +172,6 @@ export async function updateShipment(params: UpdateShipmentParams): Promise<Ship
     const result = await withTx(prisma, tx, async (t: any) => {
       const existing = await t.shipment.findUnique({ where: { id: shipmentId }, select: { id: true, status: true, shipmentNumber: true, orderId: true, deletedAt: true } });
       if (!existing || existing.deletedAt) throw Object.assign(new Error('shipment not found'), { statusCode: 404, code: 'NOT_FOUND' });
-      // 非 Draft/Cancelled 状态的运单不可删除（在途/已交付的运单应走取消流程）
-      const DELETABLE_STATUSES = new Set(['Draft', 'Cancelled']);
-      if (!DELETABLE_STATUSES.has(existing.status)) {
-        throw Object.assign(new Error(`cannot delete shipment with status=${existing.status}; cancel it first`), { code: 'INVALID_STATUS', statusCode: 400 });
-      }
       if (hasStatus) {
         const newStatus = patch.status;
         if (typeof newStatus !== 'string') {
@@ -224,6 +220,12 @@ export async function deleteShipment(params: DeleteShipmentParams): Promise<Ship
     const result = await withTx(prisma, tx, async (t: any) => {
       const existing = await t.shipment.findUnique({ where: { id: shipmentId }, select: { id: true, status: true, shipmentNumber: true } });
       if (!existing) throw Object.assign(new Error('shipment not found'), { statusCode: 404, code: 'NOT_FOUND' });
+      // 仅 Draft/Booked/Cancelled 状态可删除（Draft/Booked 未发货可直接删，Cancelled 已走取消流程）
+      // Loading 及之后状态（在途/已交付）应走取消流程而非物理删除
+      const DELETABLE_STATUSES = new Set(['Draft', 'Booked', 'Cancelled']);
+      if (!DELETABLE_STATUSES.has(existing.status)) {
+        throw Object.assign(new Error(`cannot delete shipment with status=${existing.status}; cancel it first`), { code: 'INVALID_STATUS', statusCode: 400 });
+      }
       const now = BigInt(Date.now());
       const del = await t.shipment.update({ where: { id: shipmentId }, data: { deletedAt: now, updatedAt: now } });
       await deactivateEntityLinks(t, 'shipment', shipmentId, now);

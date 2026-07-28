@@ -36,11 +36,11 @@ describe('task dev-convert-flow: executeTool commit 路径', () => {
     expect(result.errorFeedback.code).toBe('APPROVAL_MODIFIED_UNSUPPORTED');
   });
 
-  it('approval pending → APPROVAL_NOT_FOUND', async () => {
+  it('approval pending → APPROVAL_PENDING', async () => {
     const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'pending', payload: {} }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'development.convert_to_order', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
-    expect(result.errorFeedback.code).toBe('APPROVAL_NOT_FOUND');
+    expect(result.errorFeedback.code).toBe('APPROVAL_PENDING');
   });
 
   it('service 失败（CONVERT_FAILED）→ failed（不伪 committed）', async () => {

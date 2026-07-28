@@ -39,6 +39,10 @@ function makeLifecycleApp(opts: {
     auditLog: { create: auditCreate },
     entityLink: { upsert: entityLinkUpsert, findMany: entityLinkFindMany, update: entityLinkUpdate },
     entityReference: { upsert: entityRefUpsert, findMany: entityRefFindMany, update: entityRefUpdate },
+    // deleteOrder checks for dependent invoices/shipments/vouchers before soft-deleting
+    invoice: { count: vi.fn().mockResolvedValue(0) },
+    shipment: { count: vi.fn().mockResolvedValue(0) },
+    paymentVoucher: { count: vi.fn().mockResolvedValue(0) },
   };
 
   const prisma = {
@@ -183,7 +187,8 @@ describe('task ERP-P1 order-lifecycle: POST /:id/status-transition', () => {
   });
 
   it('status-transition lineId 透传 → response transition.lineId 非空', async () => {
-    const { app } = makeLifecycleApp();
+    // Pending → Production 不是合法转移；用 Confirmed → Production 测试 lineId 透传
+    const { app } = makeLifecycleApp({ order: { id: 'ORD__1', status: 'Confirmed', deletedAt: null, createdAt: BigInt(0), updatedAt: BigInt(0) } });
     const res = await request(app).post('/api/v1/orders/ORD__1/status-transition').set(auth()).send({ toStatus: 'Production', lineId: 'OL__1' });
     expect(res.status).toBe(200);
     expect(res.body.transition.lineId).toBe('OL__1');

@@ -110,8 +110,8 @@ describe('invoiceMutationService route PATCH /finance/:id', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('update success → status transition + Decimal-safe + sync + audit', async () => {
-    const { app, invoiceUpdate, auditCreate, onDataChange } = makeApp({ invoice: { id: 'INV__1', status: 'Issued', amount: new Prisma.Decimal('100'), deletedAt: null } });
-    const res = await request(app).patch('/api/v1/finance/INV__1').set(authHeader()).send({ status: 'PartiallyPaid', amount: '50.5000' });
+    const { app, invoiceUpdate, auditCreate, onDataChange } = makeApp({ invoice: { id: 'INV__1', status: 'Draft', amount: new Prisma.Decimal('100'), deletedAt: null } });
+    const res = await request(app).patch('/api/v1/finance/INV__1').set(authHeader()).send({ status: 'Issued', amount: '50.5000' });
     expect(res.status).toBe(200);
     expect(invoiceUpdate.mock.calls[0][0].data.amount).toBeInstanceOf(Prisma.Decimal);
     expect(auditCreate).toHaveBeenCalledTimes(1);
@@ -134,8 +134,15 @@ describe('invoiceMutationService route PATCH /finance/:id', () => {
     expect(r1.body.error.code).toBe('INVALID_STATUS');
     expect(badStatus.prisma.$transaction).not.toHaveBeenCalled();
 
-    const badTransition = makeApp({ invoice: { id: 'INV__1', status: 'Draft', amount: new Prisma.Decimal('100'), deletedAt: null } });
-    const r2 = await request(badTransition.app).patch('/api/v1/finance/INV__1').set(authHeader()).send({ status: 'Paid' });
+    // PartiallyPaid/Paid 是 allocation-managed 状态，不可手动 PATCH → STATUS_NOT_MANUAL_SETTABLE
+    const allocationManaged = makeApp({ invoice: { id: 'INV__1', status: 'Issued', amount: new Prisma.Decimal('100'), deletedAt: null } });
+    const rAlloc = await request(allocationManaged.app).patch('/api/v1/finance/INV__1').set(authHeader()).send({ status: 'PartiallyPaid' });
+    expect(rAlloc.status).toBe(400);
+    expect(rAlloc.body.error.code).toBe('STATUS_NOT_MANUAL_SETTABLE');
+
+    // 终态 → 无效流转（Cancelled 是终态，不可再转移）
+    const badTransition = makeApp({ invoice: { id: 'INV__1', status: 'Cancelled', amount: new Prisma.Decimal('100'), deletedAt: null } });
+    const r2 = await request(badTransition.app).patch('/api/v1/finance/INV__1').set(authHeader()).send({ status: 'Issued' });
     expect(r2.status).toBe(400);
     expect(r2.body.error.code).toBe('INVALID_TRANSITION');
 

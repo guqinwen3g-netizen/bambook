@@ -168,7 +168,7 @@ function makeAllocApp(opts: { invoice?: any; voucher?: any; existingAlloc?: any;
   const invoiceUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data, invoiceNumber: 'INV001' }));
   const voucherUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data, voucherNumber: 'V001' }));
   const auditCreate = vi.fn().mockResolvedValue({});
-  const allocFindMany = vi.fn().mockResolvedValue(opts.allocsForRecalc ?? [{ appliedAmount: new Prisma.Decimal(100) }]);
+  const allocFindMany = vi.fn().mockResolvedValue(opts.allocsForRecalc ?? [{ invoiceId: 'I1', voucherId: 'V1', appliedAmount: new Prisma.Decimal(100) }]);
 
   const tx = {
     invoice: { findUnique: invoiceFind, update: invoiceUpdate },
@@ -327,12 +327,12 @@ describe('task allocation-foundation 阻断修复: 删除最后一条 invoice st
 
 describe('task allocation-foundation 阻断修复: voucher appliedAmount 汇总（非单笔）', () => {
   it('POST 后 voucher.appliedAmount = 该 voucher 所有 allocation 汇总', async () => {
-    // mock: findMany 返回 2 笔 allocation（100+150=250），voucher amount=300
-    const invoiceFind = vi.fn().mockResolvedValue({ id: 'I1', amount: new Prisma.Decimal(100), status: 'Issued', deletedAt: null, invoiceNumber: 'INV001' });
+    // mock: findMany 返回 2 笔 allocation（100+150=250，均属于 V1），voucher amount=300, invoice amount=300
+    const invoiceFind = vi.fn().mockResolvedValue({ id: 'I1', amount: new Prisma.Decimal(300), status: 'Issued', deletedAt: null, invoiceNumber: 'INV001' });
     const voucherFind = vi.fn().mockResolvedValue({ id: 'V1', amount: new Prisma.Decimal(300), status: 'unreconciled', deletedAt: null, voucherNumber: 'V001', invoiceId: null });
     const allocFindMany = vi.fn().mockResolvedValue([
-      { appliedAmount: new Prisma.Decimal(100) },
-      { appliedAmount: new Prisma.Decimal(150) },
+      { invoiceId: 'I1', voucherId: 'V1', appliedAmount: new Prisma.Decimal(100) },
+      { invoiceId: 'I1', voucherId: 'V1', appliedAmount: new Prisma.Decimal(150) },
     ]);
     let voucherUpdateData: any = null;
     const voucherUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => { voucherUpdateData = data; return { id: where.id, ...data, voucherNumber: 'V001' }; });
@@ -368,7 +368,7 @@ describe('task allocation-foundation 阻断修复: allocation create/update/dele
     const tx = {
       invoice: { findUnique: invoiceFind, update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data, invoiceNumber: 'INV001', orderId: 'O1' })) },
       paymentVoucher: { findUnique: voucherFind, update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data, voucherNumber: 'V001', invoiceId: 'I1' })) },
-      invoiceAllocation: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockImplementation(async ({ create }: any) => create), findMany: vi.fn().mockResolvedValue([{ appliedAmount: new Prisma.Decimal(100) }]) },
+      invoiceAllocation: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn().mockImplementation(async ({ create }: any) => create), findMany: vi.fn().mockResolvedValue([{ invoiceId: 'I1', voucherId: 'V1', appliedAmount: new Prisma.Decimal(100) }]) },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
       entityReference: { upsert: entityRefUpsert },
       entityLink: { upsert: entityLinkUpsert, findMany: vi.fn().mockResolvedValue([]), update: vi.fn().mockResolvedValue({}) },

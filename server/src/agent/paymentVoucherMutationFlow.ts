@@ -47,6 +47,7 @@ export function buildPaymentVoucherFlowError(code: PaymentVoucherFlowErrorCode, 
     NOT_FOUND: '目标收付款凭证不存在或已删除',
     CREATE_FAILED: '创建事务失败已回滚，请重试',
     UPDATE_FAILED: '更新事务失败已回滚，请重试',
+    STATUS_NOT_MANUAL_SETTABLE: '凭证状态只能由核销/分配操作设置，不可手动修改',
   };
   return { code, message, userAction: userActionMap[code] };
 }

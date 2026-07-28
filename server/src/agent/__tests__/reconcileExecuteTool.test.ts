@@ -11,9 +11,10 @@ import { buildPaymentReconcileDraft } from '../reconcileFlow';
 // ============================================================================
 
 function makeCommitTx() {
-  const voucher = { id: 'V1', amount: new Prisma.Decimal(1000), deletedAt: null };
-  const invoices = { I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null } };
-  const allocsForRecalc = [{ appliedAmount: new Prisma.Decimal(600) }];
+  const voucher = { id: 'V1', amount: new Prisma.Decimal(1000), deletedAt: null, status: 'active', currency: 'USD' };
+  const invoices = { I1: { id: 'I1', amount: new Prisma.Decimal(600), deletedAt: null, status: 'Issued', currency: 'USD' } };
+  // applyAllocation 的 select 子句包含 voucherId + invoiceId（用于幂等再申请的排除过滤器）
+  const allocsForRecalc = [{ appliedAmount: new Prisma.Decimal(600), voucherId: 'V1', invoiceId: 'I1' }];
   return {
     paymentVoucher: {
       findUnique: vi.fn().mockResolvedValue(voucher),
@@ -101,7 +102,7 @@ describe('task Agent-P1: executeTool payment.receive_and_reconcile commit 路径
     expect(result.errorFeedback.code).toBe('APPROVAL_MODIFIED_UNSUPPORTED');
   });
 
-  it('approval status=pending（未审批）→ fail closed（APPROVAL_NOT_FOUND）', async () => {
+  it('approval status=pending（未审批）→ fail closed（APPROVAL_PENDING）', async () => {
     const prisma = {
       approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'pending', payload: {} }) },
     } as any;
@@ -112,19 +113,24 @@ describe('task Agent-P1: executeTool payment.receive_and_reconcile commit 路径
     } as any);
 
     expect(result.ok).toBe(false);
-    expect(result.errorFeedback.code).toBe('APPROVAL_NOT_FOUND');
+    expect(result.errorFeedback.code).toBe('APPROVAL_PENDING');
   });
 
-  it('approval payload 无 processDraft → throw COMMIT_FAILED（不伪成功）', async () => {
+  it('approval payload 无 processDraft → fail closed（PROCESS_DRAFT_MISSING，不伪成功）', async () => {
     const prisma = {
       approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: {} }) },
       $transaction: vi.fn(),
     } as any;
-    await expect(executeTool(prisma, {
+    const result: any = await executeTool(prisma, {
       toolId: 'payment.receive_and_reconcile',
       input: {},
       approvalId: 'AP1',
-    } as any)).rejects.toThrow(/COMMIT_FAILED/);
+    } as any);
+    // fail-closed：返回结构化错误（不 throw），不伪成功
+    expect(result.ok).toBe(false);
+    expect(result.errorFeedback.code).toBe('PROCESS_DRAFT_MISSING');
+    // $transaction 不调用（no service bypass）
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
 
