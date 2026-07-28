@@ -46,6 +46,7 @@
 - 位置：`.trae/documents/bambook-comprehensive-project-scan.md`
 - 版本：v21.0，~13,200 行，158 章 + 第一百五十九章增补，~235 项技术债务（D512-D517 全部已解决）
 - 包含：前端/后端/Agent/数据库/设计系统/安全/可观测性/架构全维度扫描 + Mac Mini 生产环境修复记录 + 中期验收测试回归修复记录
+- 中期验收交付文档：`.trae/documents/mid-project-acceptance-delivery.md`（独立交付凭证，含环境搭建 / 验证命令 / 部署流程 / 交接清单）
 
 ## 项目架构
 - **两端分离**：桌面客户端（Electron + React）+ Mac Mini 数据中心
