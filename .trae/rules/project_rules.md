@@ -29,10 +29,11 @@
 - **可豁免**：吉祥物 SVG/Canvas 颜色、3D 地图 WebGL 颜色、邮件/发票模板（CSS 变量在邮件客户端不可靠）
 
 ## Git 工作流
-- main 分支：基线 `dafd300` + 4 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`f2ef300`），HEAD=`f2ef300`
+- main 分支：基线 `dafd300` + 6 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`f2ef300`/`1d3af4c`/`98cdf9a`），HEAD=`98cdf9a`
 - 备份分支：`backup/pre-cleanup-20260728`（保留 339 个旧 commit 历史）
 - 远程：`git@github.com:guqinwen3g-netizen/bambook.git`
 - 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过
+- 测试套件：`cd server && npx vitest run`（1352/1352 全通过）
 
 ## Mac Mini 部署
 - **不要用 SSH**，用 OPS Panel（ops.jiangsupanda.com）更稳定
@@ -43,8 +44,8 @@
 
 ## 审计报告
 - 位置：`.trae/documents/bambook-comprehensive-project-scan.md`
-- 版本：v20.0，~13,600 行，157 章 + 第一百五十八章增补，~239 项技术债务（D512-D517 新增）
-- 包含：前端/后端/Agent/数据库/设计系统/安全/可观测性/架构全维度扫描 + Mac Mini 生产环境修复记录
+- 版本：v21.0，~13,200 行，158 章 + 第一百五十九章增补，~235 项技术债务（D512-D517 全部已解决）
+- 包含：前端/后端/Agent/数据库/设计系统/安全/可观测性/架构全维度扫描 + Mac Mini 生产环境修复记录 + 中期验收测试回归修复记录
 
 ## 项目架构
 - **两端分离**：桌面客户端（Electron + React）+ Mac Mini 数据中心
