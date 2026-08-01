@@ -1,10 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireRole } from '../auth/middleware';
+import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 
 type HRRouterOptions = {
   prisma: PrismaClient;
+  /** 是否启用认证（默认 true，与历史行为一致：HR 路由始终要求 owner/admin JWT）。 */
+  requireAuth?: boolean;
+  /** 允许的 API-Key 集合（默认空集——HR 不接受 API-Key，仅 JWT）。 */
+  apiKeys?: Set<string>;
 };
 
 function genId(prefix: string): string {
@@ -19,8 +24,17 @@ export function createHRRouter(options: HRRouterOptions) {
   const router = Router();
   const { prisma } = options;
 
-  // All HR routes require owner or admin role
-  router.use(requireRole('owner', 'admin'));
+  const requireAuth = options.requireAuth ?? true;
+  const apiKeys = options.apiKeys ?? new Set<string>();
+
+  // 统一认证守卫：JWT（走 jwt.verify 验签）优先，API-Key 次之
+  router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
+
+  // 所有 HR 路由要求 owner/admin 角色（requireRole 走 jwt.verify 验签，比 requireJwtForWrite 更严格；
+  // API-Key 即使通过 moduleGuard 也会因无 actor 在此处被挡 → 401）
+  if (requireAuth) {
+    router.use(requireRole('owner', 'admin'));
+  }
 
   // ════════════════════════════════════════════
   // Personnel Overview (aggregated from UserAccount)

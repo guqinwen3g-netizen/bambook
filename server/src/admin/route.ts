@@ -2,12 +2,17 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createAuthService } from '../auth/service';
 import { requireRole } from '../auth/middleware';
+import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { AgentRole } from '../agent/types';
 import { EmailService, buildApprovalApprovedEmail, createEmailService } from '../auth/email';
 
 type AdminRouterOptions = {
   prisma: PrismaClient;
   email?: EmailService;
+  /** 是否启用认证（默认 true，与历史行为一致：admin 路由始终要求 owner/admin JWT）。 */
+  requireAuth?: boolean;
+  /** 允许的 API-Key 集合（默认空集——admin 不接受 API-Key，仅 JWT）。 */
+  apiKeys?: Set<string>;
 };
 
 function auditId(): string {
@@ -38,8 +43,17 @@ export function createAdminRouter(options: AdminRouterOptions) {
   const auth = createAuthService();
   const email = options.email || createEmailService();
 
-  // All admin routes require owner or admin role
-  router.use(requireRole('owner', 'admin'));
+  const requireAuth = options.requireAuth ?? true;
+  const apiKeys = options.apiKeys ?? new Set<string>();
+
+  // 统一认证守卫：JWT（走 jwt.verify 验签）优先，API-Key 次之
+  router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
+
+  // 所有 admin 路由要求 owner/admin 角色（requireRole 走 jwt.verify 验签，比 requireJwtForWrite 更严格；
+  // API-Key 即使通过 moduleGuard 也会因无 actor 在此处被挡 → 401）
+  if (requireAuth) {
+    router.use(requireRole('owner', 'admin'));
+  }
 
   // ---- Users ----
   router.get('/users', async (req: Request, res: Response) => {

@@ -1,5 +1,6 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 
 export interface BusinessProfilesRouterOptions {
   prisma: PrismaClient;
@@ -17,13 +18,11 @@ const serializeProfile = (row: any) => ({
 export function createBusinessProfilesRouter(opts: BusinessProfilesRouterOptions): Router {
   const router = Router();
 
-  router.use((req: Request, res: Response, next: NextFunction) => {
-    if (!opts.requireAuth) return next();
-    const key = req.headers['x-bambook-api-key'] as string | undefined;
-    if (!key) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'X-Bambook-API-Key header required' });
-    if (!opts.apiKeys.has(key)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API key' });
-    return next();
-  });
+  // 统一认证守卫：JWT（走 jwt.verify 验签）优先，API-Key 次之；API-Key 限只读
+  router.use(createModuleAuthGuard({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys }));
+
+  // 写操作必须 JWT（API-Key 不可写）
+  const requireWrite = requireJwtForWrite({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys });
 
   router.get('/', async (req, res) => {
     try {
@@ -42,7 +41,7 @@ export function createBusinessProfilesRouter(opts: BusinessProfilesRouterOptions
     }
   });
 
-  router.post('/', async (req, res) => {
+  router.post('/', requireWrite, async (req, res) => {
     try {
       const body = req.body || {};
       const now = BigInt(Date.now());
@@ -85,7 +84,7 @@ export function createBusinessProfilesRouter(opts: BusinessProfilesRouterOptions
     }
   });
 
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requireWrite, async (req, res) => {
     try {
       const id = String(req.params.id || '').trim();
       if (!id) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'id is required' });

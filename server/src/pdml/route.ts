@@ -1,7 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { createHash, randomUUID } from 'crypto';
 import type { PrismaClient } from '@prisma/client';
 import { fetchPdmlRawRows, PdmlFetchResult } from './source';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 
 export interface PdmlRouterOptions {
   prisma: PrismaClient;
@@ -539,13 +540,11 @@ const parsePositiveNumber = (value: unknown, label: string) => {
 export function createPdmlRouter(opts: PdmlRouterOptions): Router {
   const router = Router();
 
-  router.use((req: Request, res: Response, next: NextFunction) => {
-    if (!opts.requireAuth) return next();
-    const key = req.headers['x-bambook-api-key'] as string | undefined;
-    if (!key) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'X-Bambook-API-Key header required' });
-    if (!opts.apiKeys.has(key)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API key' });
-    return next();
-  });
+  // 统一认证守卫：JWT（走 jwt.verify 验签）优先，API-Key 次之；API-Key 限只读
+  router.use(createModuleAuthGuard({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys }));
+
+  // 写操作必须 JWT（API-Key 不可写）
+  const requireWrite = requireJwtForWrite({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys });
 
   router.get('/raw', async (req, res) => {
     try {
@@ -604,7 +603,7 @@ export function createPdmlRouter(opts: PdmlRouterOptions): Router {
     return res.json(job);
   });
 
-  router.post('/sync', async (req, res) => {
+  router.post('/sync', requireWrite, async (req, res) => {
     try {
       const body = req.body || {};
       const gsid = clean(body.gsid) || process.env.PDML_GSID || '6';
@@ -643,7 +642,7 @@ export function createPdmlRouter(opts: PdmlRouterOptions): Router {
     }
   });
 
-  router.post('/map-products', async (req, res) => {
+  router.post('/map-products', requireWrite, async (req, res) => {
     try {
       const body = req.body || {};
       const limit = body.limit == null ? undefined : Number(body.limit);

@@ -14,7 +14,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
-import { requireRole } from '../auth/middleware';
+import { requireRole, extractActorFromRequest } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import type { AgentRole } from '../agent/types';
 import { PrismaClient } from '@prisma/client';
@@ -116,6 +116,17 @@ export function createEmailRouter(options: EmailRouterOptions) {
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
 
+  // IMAP GET 端点（/attachment、/image）涉及邮箱凭证查询，必须 JWT 强制（API-Key 不足）
+  const requireJwt = (req: Request, res: Response, next: NextFunction) => {
+    if (!requireAuth) return next();
+    const actor = extractActorFromRequest(req);
+    if (actor) {
+      (req as any).actor = actor;
+      return next();
+    }
+    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'IMAP endpoints require JWT login (API key insufficient).' });
+  };
+
 
   // ══════════════════════════════════════════════════════════════
   // DB-backed endpoints (/api/v1/email)
@@ -166,23 +177,6 @@ export function createEmailRouter(options: EmailRouterOptions) {
       res.json({ ok: true, items, total });
     } catch (e: any) {
       console.error('[email] list error:', e);
-      res.status(500).json({ ok: false, error: e.message });
-    }
-  });
-
-  /**
-   * GET /api/v1/email/:id — 查询单封邮件详情
-   */
-  router.get('/:id', async (req: Request, res: Response) => {
-    try {
-      const email = await prisma.email.findFirst({
-        where: { id: req.params.id, deletedAt: null },
-        include: { attachments: true },
-      });
-      if (!email) return res.status(404).json({ ok: false, error: 'Email not found' });
-      res.json({ ok: true, data: email });
-    } catch (e: any) {
-      console.error('[email] get error:', e);
       res.status(500).json({ ok: false, error: e.message });
     }
   });
@@ -527,7 +521,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
   /**
    * GET /api/email/attachment — 下载附件（IMAP 实时代理）
    */
-  router.get('/attachment', async (req: Request, res: Response) => {
+  router.get('/attachment', requireJwt, async (req: Request, res: Response) => {
     const { email, password, host, port = 993, box = 'INBOX', uid, filename } = req.query as Record<string, string>;
     if (!email || !password || !uid || !filename) return res.status(400).send('Missing parameters');
 
@@ -557,7 +551,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
   /**
    * GET /api/email/image — 获取邮件内嵌图片
    */
-  router.get('/image', async (req: Request, res: Response) => {
+  router.get('/image', requireJwt, async (req: Request, res: Response) => {
     const { email, password, host, port, box, uid, cid } = req.query as Record<string, string>;
     if (!email || !password || !uid || !cid) return res.status(400).send('Missing parameters');
 
@@ -652,6 +646,26 @@ export function createEmailRouter(options: EmailRouterOptions) {
       res.json({ status: 'success', data: fullEmail });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  /**
+   * GET /api/v1/email/:id — 查询单封邮件详情
+   *
+   * 注意：此通配路由必须放在所有具名 GET 路由（/attachment、/image 等）之后，
+   * 否则动态参数 /:id 会遮蔽具名路由（task A2 安全修复：IMAP 端点 requireJwt 才能生效）。
+   */
+  router.get('/:id', async (req: Request, res: Response) => {
+    try {
+      const email = await prisma.email.findFirst({
+        where: { id: req.params.id, deletedAt: null },
+        include: { attachments: true },
+      });
+      if (!email) return res.status(404).json({ ok: false, error: 'Email not found' });
+      res.json({ ok: true, data: email });
+    } catch (e: any) {
+      console.error('[email] get error:', e);
+      res.status(500).json({ ok: false, error: e.message });
     }
   });
 

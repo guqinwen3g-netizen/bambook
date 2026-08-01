@@ -1,6 +1,7 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import path from 'path';
 import fs from 'fs';
 
@@ -35,13 +36,11 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
     }
   });
 
-  router.use((req: Request, res: Response, next: NextFunction) => {
-    if (!opts.requireAuth) return next();
-    const key = req.headers['x-bambook-api-key'] as string | undefined;
-    if (!key) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'X-Bambook-API-Key header required' });
-    if (!opts.apiKeys.has(key)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API key' });
-    return next();
-  });
+  // 统一认证守卫：JWT（走 jwt.verify 验签）优先，API-Key 次之；API-Key 限只读
+  router.use(createModuleAuthGuard({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys }));
+
+  // 写操作必须 JWT（API-Key 不可写）
+  const requireWrite = requireJwtForWrite({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys });
 
   const upload = multer({
     storage: multer.diskStorage({
@@ -85,7 +84,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
     }
   });
 
-  router.post('/wallpapers', upload.single('file'), async (req, res) => {
+  router.post('/wallpapers', requireWrite, upload.single('file'), async (req, res) => {
     try {
       const now = Date.now();
       const file = req.file;
@@ -141,7 +140,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
     }
   });
 
-  router.patch('/:id', async (req, res) => {
+  router.patch('/:id', requireWrite, async (req, res) => {
     try {
       const id = req.params.id;
       const body = req.body || {};
@@ -161,7 +160,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
     }
   });
 
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', requireWrite, async (req, res) => {
     try {
       const id = req.params.id;
       await (opts.prisma as any).systemAsset.update({

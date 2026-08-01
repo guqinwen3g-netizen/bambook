@@ -1,7 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { createProductAsset, updateProductAsset, deleteProductAsset } from './productAssetMutationService';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 
 // task ERP-P1: Decimal 输入校验（非法 cost/amount fail closed，不进 $transaction）
 function isValidDecimal(v: any): boolean {
@@ -197,24 +198,11 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
     }
   };
 
-  router.use((req: Request, res: Response, next: NextFunction) => {
-    if (!opts.requireAuth) return next();
-    const key = req.headers['x-bambook-api-key'] as string | undefined;
-    if (!key) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'X-Bambook-API-Key header required' });
-    if (!opts.apiKeys.has(key)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API key' });
-    return next();
-  });
+  // 统一认证守卫：JWT（cookie/Bearer，走 jwt.verify 验签）优先，API-Key 次之
+  router.use(createModuleAuthGuard({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys }));
 
-  // 写操作需要 JWT 认证
-  const requireWrite = (req: Request, res: Response, next: NextFunction) => {
-    if (!opts.requireAuth) return next();
-    const token = (req.headers.authorization || '').replace('Bearer ', '');
-    const sessionToken = req.headers['x-bambook-session-token'] as string | undefined;
-    if (!token && !sessionToken) {
-      return res.status(401).json({ error: 'UNAUTHORIZED', message: 'JWT authentication required for write operations' });
-    }
-    return next();
-  };
+  // 写操作必须 JWT（API-Key 不可写）—— 修复原 requireWrite 仅检查 token 是否存在、不验签的漏洞
+  const requireWrite = requireJwtForWrite({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys });
 
   router.get('/assets', async (req, res) => {
     try {

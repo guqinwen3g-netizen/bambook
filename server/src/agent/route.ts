@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { DEFAULT_AGENT_ROLES, DEFAULT_AGENT_TOOLS } from './defaults';
 import { extractActorFromRequest, requireRole } from '../auth/middleware';
+import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { RuntimeDataSource } from '../dataSource';
 import { createIdentityService } from './identity';
 import { AgentRole, ActorContext } from './types';
@@ -23,8 +24,10 @@ type AgentStatusOptions = AuthOptions & {
 export function createAgentRouter(options: AgentStatusOptions) {
   const router = Router();
   const requireAgentActor = requireActor(options.prisma);
+  // 统一认证守卫：JWT（走 jwt.verify 验签）优先，API-Key 次之（替代原内联 auth/authActorOrApiKey）
+  const guard = createModuleAuthGuard({ requireAuth: options.requireAuth, apiKeys: options.apiKeys });
 
-  router.get('/status', auth(options), asyncHandler(async (_req, res) => {
+  router.get('/status', guard, asyncHandler(async (_req, res) => {
     const [userTotal, activeUsers] = await Promise.all([
       options.prisma.userAccount.count().catch(() => 0),
       options.prisma.userAccount.count({ where: { deletedAt: null, status: 'active' } }).catch(() => 0),
@@ -290,7 +293,7 @@ export function createAgentRouter(options: AgentStatusOptions) {
     res.json({ ok: true });
   }));
 
-  router.get('/tool-runs/:id', authActorOrApiKey(options), asyncHandler(async (req, res) => {
+  router.get('/tool-runs/:id', guard, asyncHandler(async (req, res) => {
     const toolRun = await options.prisma.agentToolRun.findUnique({
       where: { id: req.params.id },
       select: {
@@ -344,7 +347,7 @@ export function createAgentRouter(options: AgentStatusOptions) {
     });
   }));
 
-  router.post('/approvals/:id/resolve', authActorOrApiKey(options), requireRole('owner', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  router.post('/approvals/:id/resolve', guard, requireRole('owner', 'admin', 'manager'), asyncHandler(async (req, res) => {
     const actor = await resolveMcpActor(req);
     const decision = normalizeApprovalDecision(req.body?.decision);
     if (!decision) {
@@ -423,7 +426,7 @@ export function createAgentRouter(options: AgentStatusOptions) {
     res.json({ ok: true, approval: serializeApprovalRequest(updated) });
   }));
 
-  router.post('/forms/:id/submit', authActorOrApiKey(options), asyncHandler(async (req, res) => {
+  router.post('/forms/:id/submit', guard, asyncHandler(async (req, res) => {
     const formId = req.params.id;
     const values = req.body?.values && typeof req.body.values === 'object'
       ? req.body.values as Record<string, unknown>
@@ -433,7 +436,7 @@ export function createAgentRouter(options: AgentStatusOptions) {
     res.json({ ok: true, formId, values });
   }));
 
-  router.get('/mcp/manifest', authActorOrApiKey(options), asyncHandler(async (_req, res) => {
+  router.get('/mcp/manifest', guard, asyncHandler(async (_req, res) => {
     const tools = getMcpManifest();
     res.json({
       ok: true,
@@ -455,7 +458,7 @@ export function createAgentRouter(options: AgentStatusOptions) {
     });
   }));
 
-  router.post('/mcp/run', authActorOrApiKey(options), asyncHandler(async (req, res) => {
+  router.post('/mcp/run', guard, asyncHandler(async (req, res) => {
     const actor = await resolveMcpActor(req);
     const query = String(req.body?.query || req.body?.message || '').trim();
     if (!req.body?.plan || !Array.isArray(req.body.plan.steps)) {
@@ -503,27 +506,6 @@ function requireActor(prisma: PrismaClient) {
     (req as any).actor = actor;
     next?.();
   });
-}
-
-function auth(options: AuthOptions) {
-  return (req: Request, res: Response, next: () => void) => {
-    if (!options.requireAuth) return next();
-    const apiKey = (req.headers['x-bambook-api-key'] || req.query.apiKey) as string | undefined;
-    if (!apiKey) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'API Key is required.' });
-    if (!options.apiKeys.has(apiKey)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API Key.' });
-    return next();
-  };
-}
-
-function authActorOrApiKey(options: AuthOptions) {
-  return (req: Request, res: Response, next: () => void) => {
-    if (!options.requireAuth) return next();
-    if (extractActorFromRequest(req)) return next();
-    const apiKey = (req.headers['x-bambook-api-key'] || req.query.apiKey) as string | undefined;
-    if (!apiKey) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Login or API key is required.' });
-    if (!options.apiKeys.has(apiKey)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API Key.' });
-    return next();
-  };
 }
 
 function cleanTitle(value: unknown) {
