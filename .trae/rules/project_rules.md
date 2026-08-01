@@ -29,11 +29,11 @@
 - **可豁免**：吉祥物 SVG/Canvas 颜色、3D 地图 WebGL 颜色、邮件/发票模板（CSS 变量在邮件客户端不可靠）
 
 ## Git 工作流
-- main 分支：基线 `dafd300` + 6 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`f2ef300`/`1d3af4c`/`98cdf9a`），HEAD=`98cdf9a`
+- main 分支：基线 `dafd300` + 4 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`98cdf9a`）+ 4 个 docs commit（`f2ef300`/`1d3af4c`/`6c8a15b`/`b6dbd9f`）+ 阶段 0 Track A/B（`2cfff97` fix(security) / `3c4f342` feat(observability)），HEAD=`3c4f342`
 - 备份分支：`backup/pre-cleanup-20260728`（保留 339 个旧 commit 历史）
 - 远程：`git@github.com:guqinwen3g-netizen/bambook.git`
 - 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过
-- 测试套件：`cd server && npx vitest run`（1352/1352 全通过）
+- 测试套件：`cd server && npx vitest run`（1379/1379 全通过，含 Track A 新增 27 个安全回归测试）
 
 ## Mac Mini 部署
 - **不要用 SSH**，用 OPS Panel（ops.jiangsupanda.com）更稳定

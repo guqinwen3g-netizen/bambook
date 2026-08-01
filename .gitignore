@@ -15,6 +15,7 @@ venv
 # Build
 dist
 dist-ssr
+*.tsbuildinfo
 
 # Local env files
 *.local
@@ -25,6 +26,7 @@ dist-ssr
 data/*.db
 data/pdml-fabric-import/
 .vite
+coverage/
 
 # Uploaded files
 uploads/
