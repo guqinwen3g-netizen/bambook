@@ -32,7 +32,8 @@
         "nodemailer": "^7.0.12",
         "pdf-parse": "^2.4.5",
         "resend": "^6.12.3",
-        "xlsx": "^0.18.5"
+        "xlsx": "^0.18.5",
+        "winston-daily-rotate-file": "^5.0.0"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",

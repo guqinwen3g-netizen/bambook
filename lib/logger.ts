@@ -1,10 +1,12 @@
 import { createLogger, format, transports, Logger } from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
 /**
  * Bambook Agent 结构化日志系统
  * - JSON 格式输出
  * - 支持 Trace ID 追踪
  * - 分离 Console 和 File 输出
+ * - 按天轮转，保留 14 天，单文件 20MB 上限后切割
  */
 
 // 自定义格式：添加 traceId 和 component 字段
@@ -45,13 +47,19 @@ const logger: Logger = createLogger({
             format: consoleFormat,
             level: 'debug'
         }),
-        // 文件输出（结构化 JSON）
-        new transports.File({
-            filename: 'logs/bambook-error.log',
+        // 文件输出（结构化 JSON，按天轮转，保留 14 天，单文件 20MB 上限）
+        new DailyRotateFile({
+            filename: 'logs/bambook-error-%DATE%.log',
+            datePattern: 'YYYY-MM-DD',
+            maxSize: '20m',
+            maxFiles: '14d',
             level: 'error'
         }),
-        new transports.File({
-            filename: 'logs/bambook-combined.log'
+        new DailyRotateFile({
+            filename: 'logs/bambook-combined-%DATE%.log',
+            datePattern: 'YYYY-MM-DD',
+            maxSize: '20m',
+            maxFiles: '14d'
         })
     ]
 });
