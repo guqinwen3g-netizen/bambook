@@ -376,9 +376,9 @@ app.use('/api/auth', createAuthRouter({
   requireEmailVerification,
 }));
 
-app.use('/api/admin', createAdminRouter({ prisma, email: emailService }));
+app.use('/api/admin', createAdminRouter({ prisma, email: emailService, requireAuth: SDK_CONFIG.requireAuth, apiKeys: SDK_CONFIG.apiKeys }));
 
-app.use('/api/hr', createHRRouter({ prisma }));
+app.use('/api/hr', createHRRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth, apiKeys: SDK_CONFIG.apiKeys }));
 
 app.use('/api/agent', createAgentRouter({
     prisma,
