@@ -22,6 +22,8 @@ import { createBusinessProfilesRouter } from '../business-profiles/route';
 import { createPdmlRouter } from '../pdml/route';
 import { createSystemAssetsRouter } from '../system-assets/route';
 import { createEmailRouter } from '../email/route';
+import { createAiRouter } from '../ai/route';
+import { createAiRuntime } from '../ai/runtime';
 
 const validApiKey = 'test-api-key-secure';
 const apiKeys = new Set([validApiKey]);
@@ -371,5 +373,87 @@ describe('Security · 正向回归（有效凭证通过守卫）', () => {
       .set('x-bambook-api-key', validApiKey);
     expect(res.status).not.toBe(401);
     expect(res.status).not.toBe(403);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// Phase 1 收尾：ai 模块统一到 createModuleAuthGuard（严格主体映射模式）
+// ai 与其他模块不同：API-Key 仅是传输凭证，必须显式绑定 Agent 服务主体，
+// 否则 403 AGENT_PRINCIPAL_REQUIRED。其他模块 API-Key 即可读。
+// ══════════════════════════════════════════════════════════════
+describe('Security · ai 模块严格主体映射（Phase 1 守卫统一）', () => {
+  function mountAi(opts: { requireAuth: boolean; apiKeys: Set<string>; apiKeyActors?: Map<string, any> }) {
+    const app = express();
+    app.use(express.json());
+    const runtime = createAiRuntime({
+      chatRunner: async ({ emit }: any) => {
+        emit('delta', { text: 'ok' });
+        return { text: 'ok', sources: [] };
+      },
+    });
+    app.use('/api/ai', createAiRouter({
+      runtime,
+      requireAuth: opts.requireAuth,
+      apiKeys: opts.apiKeys,
+      apiKeyActors: opts.apiKeyActors,
+    } as any));
+    return app;
+  }
+
+  it('伪造 token POST /chat → 401', async () => {
+    const app = mountAi({ requireAuth: true, apiKeys });
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${FORGED_TOKEN}`)
+      .send({ message: 'hi' });
+    expect(res.status).toBe(401);
+  });
+
+  it('无 token 且无 API-Key POST /chat → 401', async () => {
+    const app = mountAi({ requireAuth: true, apiKeys });
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .send({ message: 'hi' });
+    expect(res.status).toBe(401);
+  });
+
+  it('有效 API-Key 但无主体映射 POST /chat → 403 AGENT_PRINCIPAL_REQUIRED（严格模式：Key 是凭证不是身份）', async () => {
+    const app = mountAi({ requireAuth: true, apiKeys }); // 不传 apiKeyActors → 空映射
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('x-bambook-api-key', validApiKey)
+      .send({ message: 'hi' });
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'AGENT_PRINCIPAL_REQUIRED' });
+  });
+
+  it('有效 API-Key + 主体映射 POST /chat → 通过守卫（非 401/403）', async () => {
+    const actor = { userId: 'agent-svc', displayName: 'Agent Service', roles: ['agent_operator'], permissions: [], departmentIds: ['company'] };
+    const app = mountAi({ requireAuth: true, apiKeys, apiKeyActors: new Map([[validApiKey, actor]]) });
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('x-bambook-api-key', validApiKey)
+      .send({ message: 'hi' });
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
+
+  it('有效 JWT POST /chat → 通过守卫（非 401/403）', async () => {
+    const app = mountAi({ requireAuth: true, apiKeys });
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${makeValidToken()}`)
+      .send({ message: 'hi' });
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
+
+  it('无效 API-Key POST /chat → 403（严格模式：未映射主体）', async () => {
+    const app = mountAi({ requireAuth: true, apiKeys });
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('x-bambook-api-key', 'totally-invalid-key')
+      .send({ message: 'hi' });
+    expect(res.status).toBe(403);
   });
 });

@@ -3,16 +3,12 @@ import { PrismaClient } from '@prisma/client';
 import { AiChatRequest, AiEmit, AiEventType, createAiRuntime } from './runtime';
 import { normalizeTtsRequest, streamTtsSpeech, synthesizeTtsSpeech, TtsSpeechRequest, validateTtsRequest } from './tts';
 import { extractActorFromRequest } from '../auth/middleware';
+import { createModuleAuthGuard, ModuleAuthGuardOptions } from '../auth/moduleGuard';
 import { TokenPayload } from '../auth/service';
 import { createAgentRuntimeService } from '../agent/runtime';
 import { normalizeTextForTts } from './ttsTextNormalizer';
 
-type AuthOptions = {
-  requireAuth: boolean;
-  apiKeys: Set<string>;
-  /** API keys are transport credentials, not identities. Agent access needs an explicit principal. */
-  apiKeyActors?: ReadonlyMap<string, TokenPayload>;
-};
+type AuthOptions = ModuleAuthGuardOptions;
 
 type AiRouterOptions = AuthOptions & {
   runtime: ReturnType<typeof createAiRuntime>;
@@ -417,34 +413,19 @@ function speedToRate(speed?: number) {
 }
 
 function auth(options: AuthOptions) {
-  return (req: Request, res: Response, next: () => void) => {
-    const actor = extractActorFromRequest(req);
-    if (actor) {
-      (req as any).actor = actor;
-      (req as any).authSource = 'user-session';
-      return next();
-    }
-    if (!options.requireAuth) {
-      // Scoped local-development compatibility: production always enables requireAuth.
-      // This is deliberately explicit so the Agent identity service never invents owner access.
-      (req as any).actor = buildDevelopmentActor(req);
-      (req as any).authSource = 'dev';
-      return next();
-    }
-    const apiKey = (req.headers['x-bambook-api-key'] || req.query.apiKey) as string | undefined;
-    if (!apiKey) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'API Key is required.' });
-    if (!options.apiKeys.has(apiKey)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API Key.' });
-    const apiKeyActor = options.apiKeyActors?.get(apiKey);
-    if (!apiKeyActor) {
-      return res.status(403).json({
-        error: 'AGENT_PRINCIPAL_REQUIRED',
-        message: 'This API key is not mapped to an Agent service principal.',
-      });
-    }
-    (req as any).actor = apiKeyActor;
-    (req as any).authSource = 'api-key';
-    return next();
-  };
+  // Delegate to the shared module guard (enhanced to support Agent strict-principal
+  // mapping via apiKeyActors and explicit dev-actor construction via devActorFactory).
+  // This unifies ai module auth with the other 12 modules without weakening the
+  // "API key is a transport credential, not an identity" model.
+  //
+  // Strict mode is always enforced for ai: an absent apiKeyActors map is treated as
+  // an empty map (no key is ever mapped to a principal), preserving the original
+  // behavior where an unmapped key is rejected with AGENT_PRINCIPAL_REQUIRED.
+  return createModuleAuthGuard({
+    ...options,
+    apiKeyActors: options.apiKeyActors ?? new Map<string, TokenPayload>(),
+    devActorFactory: buildDevelopmentActor,
+  });
 }
 
 function buildDevelopmentActor(req: Request): TokenPayload {
