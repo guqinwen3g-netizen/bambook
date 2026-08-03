@@ -2441,7 +2441,7 @@ _rct('order.confirm', async (ctx) => {
 });
 _rct('payment.receive_and_reconcile', async (ctx) => {
   const result = await commitPaymentReceiveAndReconcile({ prisma: ctx.prisma, approvalId: ctx.approvalId, approvalPayload: ctx.approvalPayload });
-  const _r = result as any; return _r.ok ? { ok: true, ..._r.feedback } : { ok: false, errorFeedback: { code: _r.feedback?.error?.code || 'COMMIT_FAILED', message: _r.feedback?.error?.message || 'commit failed', retryable: false } };
+  const _r = result as any; return _r.ok ? { ok: true, ..._r.feedback } : { ok: false, errorFeedback: { code: _r.feedback?.error?.code || 'COMMIT_FAILED', message: _r.feedback?.error?.message || 'commit failed', retryable: _r.feedback?.error?.retryable === true } };
 });
 _rct('order.ship', async (ctx) => {
   const result = await commitOrderShip({ prisma: ctx.prisma, approvalId: ctx.approvalId, approvalPayload: ctx.approvalPayload });

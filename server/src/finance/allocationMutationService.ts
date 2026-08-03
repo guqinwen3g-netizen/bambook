@@ -6,14 +6,21 @@ import { recalcInvoiceStatus, recalcVoucherStatus, validateAllocationInput, sync
 export type AllocationMutationErrorCode =
   | 'MISSING_INVOICE' | 'MISSING_VOUCHER' | 'MISSING_AMOUNT' | 'INVALID_AMOUNT'
   | 'INVOICE_NOT_FOUND' | 'VOUCHER_NOT_FOUND' | 'NOT_FOUND'
+  | 'CONFLICT' // 并发核销冲突（Serializable 隔离中止，P2034）——route 映射 409，可安全重试
   | 'CREATE_FAILED' | 'UPDATE_FAILED' | 'DELETE_FAILED';
 export interface AllocationMutationError { code: AllocationMutationErrorCode; message: string; }
 export interface AllocationMutationResult<T = any> { ok: boolean; data?: T; error?: AllocationMutationError; }
 
 function toAllocationError(e: any, fallback: AllocationMutationErrorCode): AllocationMutationError {
+  if (e?.code === 'P2034') return { code: 'CONFLICT', message: `concurrent allocation conflict, safely rolled back — retry the operation (${String(e?.message ?? e)})` };
   if (e?.code && ['MISSING_INVOICE','MISSING_VOUCHER','MISSING_AMOUNT','INVALID_AMOUNT','INVOICE_NOT_FOUND','VOUCHER_NOT_FOUND','NOT_FOUND'].includes(e.code)) return { code: e.code, message: String(e.message ?? e) };
   return { code: fallback, message: String(e?.message ?? e) };
 }
+
+// Phase 2 · 2.2 并发根因修复：allocation check-then-act 必须 Serializable，
+// 否则 READ COMMITTED 下两事务并发核销同一发票可双双通过剩余校验 → 超核销。
+// SSI 中止其中一方（P2034 → CONFLICT/409），调用方重试即可。
+const SERIALIZABLE_TX = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } as const;
 
 export interface CreateAllocationData {
   allocation: { id: string; invoiceId: string; voucherId: string; appliedAmount: string; appliedDate: string };
@@ -40,7 +47,7 @@ export async function createAllocation(params: {
         newInvoiceStatus: r.newInvoiceStatus, newVoucherStatus: r.newVoucherStatus,
         voucherAppliedAmount: r.voucherAppliedAmount.toString(), auditId: r.auditId,
       };
-    });
+    }, SERIALIZABLE_TX);
     return { ok: true, data };
   } catch (e: any) {
     return { ok: false, error: toAllocationError(e, 'CREATE_FAILED') };
@@ -85,7 +92,7 @@ export async function updateAllocation(params: {
         ip: ip || null,
       });
       return { allocation: { id: allocationId, appliedAmount: new Prisma.Decimal(updated.appliedAmount).toString(), appliedDate: updated.appliedDate }, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
-    });
+    }, SERIALIZABLE_TX);
     return { ok: true, data };
   } catch (e: any) {
     return { ok: false, error: toAllocationError(e, 'UPDATE_FAILED') };
@@ -121,7 +128,7 @@ export async function deleteAllocation(params: {
         ip: ip || null,
       });
       return { deleted: true as const, id: allocationId, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
-    });
+    }, SERIALIZABLE_TX);
     return { ok: true, data };
   } catch (e: any) {
     return { ok: false, error: toAllocationError(e, 'DELETE_FAILED') };

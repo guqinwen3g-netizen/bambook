@@ -36,6 +36,7 @@ export type PaymentReconcileErrorCode =
   | 'INVOICE_NOT_FOUND'
   | 'ALLOCATION_INVALID'
   | 'OVER_APPLY'              // 核销超额（appliedAmount > invoice.amount 或 voucher.amount）
+  | 'ALLOCATION_CONFLICT'     // 并发核销冲突（Serializable 隔离中止，P2034）——可安全重试
   | 'COMMIT_TRANSACTION_FAILED'
   | 'UNKNOWN_ERROR';
 
@@ -44,6 +45,8 @@ export interface PaymentReconcileError {
   message: string;
   userAction: string;
   details?: string[];
+  /** true = 瞬态冲突（如并发序列化中止），调用方可安全重试 */
+  retryable?: boolean;
 }
 
 /** commit 成功结构化字段 */
@@ -79,10 +82,11 @@ export function buildPaymentReconcileError(
     INVOICE_NOT_FOUND: '检查发票 ID 是否存在',
     ALLOCATION_INVALID: '检查核销金额是否为正数、必填字段是否完整',
     OVER_APPLY: '核销总额不得超过发票/凭证金额',
+    ALLOCATION_CONFLICT: '检测到并发核销冲突，本次操作已安全回滚，请重试',
     COMMIT_TRANSACTION_FAILED: '事务失败已回滚，请重试',
     UNKNOWN_ERROR: '未知错误，请联系管理员',
   };
-  return { code, message, userAction: userActionMap[code], details };
+  return { code, message, userAction: userActionMap[code], details, retryable: code === 'ALLOCATION_CONFLICT' };
 }
 
 // ── Draft 构建 ──
@@ -243,6 +247,11 @@ export async function commitPaymentReceiveAndReconcile(
       auditId = aId;
       allocationsResult = allocResults;
       return { voucherId };
+    }, {
+      // Phase 2 · 2.2 并发根因修复：check-then-act（读已核销→校验剩余→upsert）在
+      // READ COMMITTED 下存在并发超核销窗口（两审批并发核销同一发票可双双通过校验）。
+      // Serializable 让 PostgreSQL SSI 中止其中一个事务（P2034），由下方映射为可重试冲突。
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     return {
@@ -260,6 +269,7 @@ export async function commitPaymentReceiveAndReconcile(
     const code = e?.code === 'VOUCHER_NOT_FOUND' ? 'VOUCHER_NOT_FOUND'
       : e?.code === 'INVOICE_NOT_FOUND' ? 'INVOICE_NOT_FOUND'
       : e?.code === 'ALLOCATION_INVALID' ? 'ALLOCATION_INVALID'
+      : e?.code === 'P2034' ? 'ALLOCATION_CONFLICT' // Prisma 序列化冲突/死锁中止——SSI 兜底并发超核销
       : 'COMMIT_TRANSACTION_FAILED';
     return {
       ok: false,

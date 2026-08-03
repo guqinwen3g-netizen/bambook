@@ -197,3 +197,51 @@ describe('syncAllocationVoucherLinks Decimal-safe snapshot', () => {
     expect(createData.snapshot.appliedAmount).toBe('123456789012345.1234');
   });
 });
+
+// ============================================================================
+// Phase 2 · 2.2: route allocation 事务并发一致性——Serializable 隔离 + P2034 → 409 CONFLICT
+// ============================================================================
+
+describe('task 2.2: route allocation 并发一致性（Serializable + P2034 → 409）', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('POST /allocations $transaction 以 Serializable 隔离级执行', async () => {
+    const { app, prisma } = makeApp();
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 100 });
+    expect(res.status).toBe(201);
+    expect(prisma.$transaction.mock.calls[0][1]).toMatchObject({ isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  });
+
+  it('POST /allocations P2034 序列化冲突 → 409 CONFLICT（可安全重试，不泛化 500）', async () => {
+    const { app, prisma } = makeApp();
+    (prisma.$transaction as any).mockRejectedValueOnce(Object.assign(new Error('Transaction failed due to a write conflict or a deadlock'), { code: 'P2034' }));
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 100 });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+    expect(res.body.error.message).toContain('retry');
+  });
+
+  it('PATCH /allocations/:id P2034 → 409 CONFLICT', async () => {
+    const { app, prisma } = makeApp();
+    (prisma.$transaction as any).mockRejectedValueOnce(Object.assign(new Error('write conflict'), { code: 'P2034' }));
+    const res = await request(app).patch('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader()).send({ appliedAmount: 200 });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+  });
+
+  it('DELETE /allocations/:id P2034 → 409 CONFLICT', async () => {
+    const { app, prisma } = makeApp();
+    (prisma.$transaction as any).mockRejectedValueOnce(Object.assign(new Error('write conflict'), { code: 'P2034' }));
+    const res = await request(app).delete('/api/v1/finance/allocations/ALLOC__I1__V1').set(authHeader());
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+  });
+
+  it('非 P2034 事务失败仍归 500 CREATE_FAILED（不错误鼓励重试）', async () => {
+    const { app, prisma } = makeApp();
+    (prisma.$transaction as any).mockRejectedValueOnce(new Error('DB_CONNECTION_LOST'));
+    const res = await request(app).post('/api/v1/finance/allocations').set(authHeader()).send({ invoiceId: 'I1', voucherId: 'V1', appliedAmount: 100 });
+    expect(res.status).toBe(500);
+    expect(res.body.error.code).toBe('CREATE_FAILED');
+  });
+});

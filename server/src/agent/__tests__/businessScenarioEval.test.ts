@@ -213,3 +213,95 @@ describe('[execution] preconditions failed（精确）', () => {
     expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
   });
 });
+
+// ============================================================================
+// Phase 2 · 2.3: 多场景评估补强——幻觉工具 fail-closed / 跨 scope RBAC / 拒绝可审计
+// 评估原则：跨工具路径、边界情况、失败状态、权限上下文，不以单个成功示例评判
+// ============================================================================
+
+describe('[execution] LLM 幻觉 toolId fail-closed（TOOL_NOT_REGISTERED）', () => {
+  it('未注册 toolId → throw TOOL_NOT_REGISTERED，不创建 approval、不写 tool run', async () => {
+    const prisma = makeApprovalPrisma();
+    await expect(
+      executeAgentTool({
+        prisma, actor: fullScopeActor,
+        toolId: 'finance.delete_all_invoices', // LLM 幻觉出的危险工具——必须 fail closed
+        toolInput: {},
+        sessionId: 'sess_halluc',
+      })
+    ).rejects.toThrow(/TOOL_NOT_REGISTERED/);
+    // 幻觉工具不得产生任何副作用
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
+    expect(prisma.agentToolRun.create).not.toHaveBeenCalled();
+  });
+
+  it('空 toolId / 畸形 toolId → TOOL_NOT_REGISTERED（不 fallback 到任何 handler）', async () => {
+    const prisma = makeApprovalPrisma();
+    await expect(
+      executeAgentTool({ prisma, actor: fullScopeActor, toolId: '', toolInput: {}, sessionId: 's' })
+    ).rejects.toThrow(/TOOL_NOT_REGISTERED/);
+    await expect(
+      executeAgentTool({ prisma, actor: fullScopeActor, toolId: 'orders.query; DROP TABLE orders;--', toolInput: {}, sessionId: 's' })
+    ).rejects.toThrow(/TOOL_NOT_REGISTERED/);
+  });
+});
+
+describe('[execution] 跨 scope RBAC 矩阵（非 viewer 的细粒度权限上下文）', () => {
+  const financeActor = { userId: 'f1', role: 'operator', id: 'f1', roles: ['operator'], toolScopes: ['finance'], knowledgeScopes: ['company'], departmentIds: [] } as any;
+  const ordersActor = { userId: 'o1', role: 'operator', id: 'o1', roles: ['operator'], toolScopes: ['orders'], knowledgeScopes: ['company'], departmentIds: [] } as any;
+  const knowledgeActor = { userId: 'k1', role: 'operator', id: 'k1', roles: ['operator'], toolScopes: ['knowledge'], knowledgeScopes: ['company'], departmentIds: [] } as any;
+
+  it('finance scope actor 调 order.confirm（scope=orders）→ TOOL_NOT_ALLOWED', async () => {
+    const prisma = makeApprovalPrisma();
+    await expect(
+      executeAgentTool({ prisma, actor: financeActor, toolId: 'order.confirm', toolInput: { poNumber: 'PO-1' }, sessionId: 's' })
+    ).rejects.toThrow(/TOOL_NOT_ALLOWED|ROLE_NOT_ALLOWED/);
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('orders scope actor 调 invoice.create（scope=finance）→ TOOL_NOT_ALLOWED', async () => {
+    const prisma = makeApprovalPrisma();
+    await expect(
+      executeAgentTool({ prisma, actor: ordersActor, toolId: 'invoice.create', toolInput: { orderId: 'PO-1' }, sessionId: 's' })
+    ).rejects.toThrow(/TOOL_NOT_ALLOWED|ROLE_NOT_ALLOWED/);
+  });
+
+  it('knowledge scope actor 调 payment.receive_and_reconcile（scope=finance 高危）→ TOOL_NOT_ALLOWED', async () => {
+    const prisma = makeApprovalPrisma();
+    await expect(
+      executeAgentTool({
+        prisma, actor: knowledgeActor,
+        toolId: 'payment.receive_and_reconcile',
+        toolInput: { voucherId: 'V1', voucherAmount: 100, currency: 'USD', allocations: [{ invoiceId: 'I1', appliedAmount: 100 }] },
+        sessionId: 's',
+      })
+    ).rejects.toThrow(/TOOL_NOT_ALLOWED|ROLE_NOT_ALLOWED/);
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('[execution] RBAC 拒绝可审计（权限链留痕）', () => {
+  it('policy 拒绝时写 agentToolRun(status=failed, error=TOOL_NOT_ALLOWED)', async () => {
+    const prisma = makeApprovalPrisma();
+    await expect(
+      executeAgentTool({ prisma, actor: viewerActor, toolId: 'invoice.create', toolInput: { orderId: 'PO-1' }, sessionId: 'sess_audit' })
+    ).rejects.toThrow(/TOOL_NOT_ALLOWED|ROLE_NOT_ALLOWED/);
+    // 拒绝必须留痕：权限链可审计（谁、何时、哪个工具、为何被拒）
+    expect(prisma.agentToolRun.create).toHaveBeenCalledTimes(1);
+    const runData = prisma.agentToolRun.create.mock.calls[0][0].data;
+    expect(runData.status).toBe('failed');
+    expect(String(runData.error)).toMatch(/TOOL_NOT_ALLOWED|role_not_allowed/i);
+  });
+
+  it('policy 放行但 preconditions 失败 → 不产生 approval（权限正确≠业务可执行）', async () => {
+    const prisma = makeApprovalPrisma();
+    const result: any = await executeAgentTool({
+      prisma, actor: fullScopeActor,
+      toolId: 'order.confirm',
+      toolInput: { poNumber: 'PO-NONEXISTENT' },
+      sessionId: 'sess_pre',
+    });
+    expect(result.status).toBe('preconditions_failed');
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
+  });
+});

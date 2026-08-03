@@ -372,6 +372,64 @@ describe('task review-fix: Agent commit 复用 applyAllocation 同步 EntityRefe
   });
 });
 
+// ============================================================================
+// Phase 2 · 2.2: 并发核销根因修复——Serializable 隔离 + P2034 → ALLOCATION_CONFLICT
+// ============================================================================
+
+describe('task 2.2: commit 并发一致性（Serializable 隔离 + P2034 稳定码）', () => {
+  it('$transaction 以 Serializable 隔离级执行（check-then-act 防并发超核销）', async () => {
+    const draft = buildPaymentReconcileDraft({
+      voucherId: 'V1', voucherAmount: 1000, currency: 'USD',
+      allocations: [{ invoiceId: 'I1', appliedAmount: 600 }],
+    });
+    const { tx } = makeCommitTx();
+    const txFn = vi.fn(async (fn: any, _opts?: any) => fn(tx));
+    const prisma = { $transaction: txFn } as any;
+    const r = await commitPaymentReceiveAndReconcile({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
+    expect(r.ok).toBe(true);
+    expect(txFn).toHaveBeenCalledTimes(1);
+    // 第二参必须声明 Serializable——否则并发核销同一发票可双双通过剩余校验
+    expect(txFn.mock.calls[0][1]).toMatchObject({ isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  });
+
+  it('P2034 序列化冲突 → ALLOCATION_CONFLICT + retryable（不伪成功、不泛化 500）', async () => {
+    const draft = buildPaymentReconcileDraft({
+      voucherId: 'V1', voucherAmount: 1000, currency: 'USD',
+      allocations: [{ invoiceId: 'I1', appliedAmount: 600 }],
+    });
+    const prisma = {
+      $transaction: vi.fn(async () => {
+        throw Object.assign(new Error('Transaction failed due to a write conflict or a deadlock'), { code: 'P2034' });
+      }),
+    } as any;
+    const r = await commitPaymentReceiveAndReconcile({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const err = (r.feedback as any).error;
+      expect(err.code).toBe('ALLOCATION_CONFLICT');
+      expect(err.retryable).toBe(true);
+      expect(err.userAction).toContain('重试');
+    }
+  });
+
+  it('非 P2034 事务失败仍归 COMMIT_TRANSACTION_FAILED 且不可重试（不错误鼓励重试）', async () => {
+    const draft = buildPaymentReconcileDraft({
+      voucherId: 'V1', voucherAmount: 1000, currency: 'USD',
+      allocations: [{ invoiceId: 'I1', appliedAmount: 600 }],
+    });
+    const prisma = {
+      $transaction: vi.fn(async () => { throw new Error('DB_CONNECTION_LOST'); }),
+    } as any;
+    const r = await commitPaymentReceiveAndReconcile({ prisma, approvalId: 'AP1', approvalPayload: { processDraft: draft } });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const err = (r.feedback as any).error;
+      expect(err.code).toBe('COMMIT_TRANSACTION_FAILED');
+      expect(err.retryable).toBe(false);
+    }
+  });
+});
+
 describe('task review-fix: route POST 与 Agent commit 共用 applyAllocation（单一事实源）', () => {
   it('route POST 通过 allocationMutationService 复用 applyAllocation', () => {
     const fs = require('fs');

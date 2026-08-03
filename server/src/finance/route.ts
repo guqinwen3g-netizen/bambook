@@ -306,7 +306,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   router.post('/allocations', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
     const result = await createAllocation({ prisma, input: req.body, actorId: actorIdFromRequest(req), ip: req.ip || null });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { MISSING_INVOICE: 400, MISSING_VOUCHER: 400, MISSING_AMOUNT: 400, INVALID_AMOUNT: 400, INVOICE_NOT_FOUND: 404, VOUCHER_NOT_FOUND: 404, NOT_FOUND: 404, CREATE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { MISSING_INVOICE: 400, MISSING_VOUCHER: 400, MISSING_AMOUNT: 400, INVALID_AMOUNT: 400, INVOICE_NOT_FOUND: 404, VOUCHER_NOT_FOUND: 404, NOT_FOUND: 404, CONFLICT: 409, CREATE_FAILED: 500 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
       return;
     }
@@ -319,7 +319,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   router.patch('/allocations/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
     const result = await updateAllocation({ prisma, allocationId: req.params.id, input: req.body, actorId: actorIdFromRequest(req), ip: req.ip || null });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { INVALID_AMOUNT: 400, NOT_FOUND: 404, UPDATE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { INVALID_AMOUNT: 400, NOT_FOUND: 404, CONFLICT: 409, UPDATE_FAILED: 500 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
       return;
     }
@@ -331,7 +331,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   router.delete('/allocations/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
     const result = await deleteAllocation({ prisma, allocationId: req.params.id, actorId: actorIdFromRequest(req), ip: req.ip || null });
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, DELETE_FAILED: 500 };
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, CONFLICT: 409, DELETE_FAILED: 500 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
       return;
     }

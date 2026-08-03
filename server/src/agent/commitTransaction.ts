@@ -400,6 +400,11 @@ export async function commitOrderConfirm(params: {
         data: { status: 'committed', result: result as any, completedAt: new Date() },
       });
       return result;
+    }, {
+      // Phase 2 · 2.2 并发根因修复：STATUS_DRIFT check-then-act 在 READ COMMITTED 下
+      // 存在并发双确认窗口（两审批并发确认同一订单可双双看到 previousStatus → 双发票）。
+      // Serializable 让 SSI 中止其中一方（P2034），下方映射为可重试冲突。
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
     return committedResult;
   } catch (error: any) {
@@ -410,6 +415,22 @@ export async function commitOrderConfirm(params: {
       if (receipt?.status === 'committed' && receipt.result && typeof receipt.result === 'object') {
         return receipt.result as CommitResult;
       }
+    }
+    // P2034 序列化冲突/死锁中止：瞬态并发冲突，已安全回滚，调用方可重试
+    if (error?.code === 'P2034') {
+      return {
+        ok: false,
+        committed: false,
+        poNumber,
+        error: `COMMIT_CONFLICT: concurrent commit conflict, safely rolled back — retry (${String(error?.message || error)})`,
+        errorFeedback: { ...buildOrderConfirmError(`COMMIT_CONFLICT: concurrent commit conflict, safely rolled back — retry`), retryable: true },
+        audit: {
+          approvalId,
+          idempotencyKey: draft.idempotencyKey,
+          subOperationsSummary: draft.subOperations.map(s => `${s.toolId}:${s.action}`),
+          impactScope: draft.impactScope,
+        },
+      };
     }
     // fail-closed：事务失败已自动回滚，不留部分主数据
     return {

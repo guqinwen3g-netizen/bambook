@@ -134,6 +134,115 @@ describe('task Agent-P1: executeTool payment.receive_and_reconcile commit 路径
   });
 });
 
+// ============================================================================
+// Phase 2 · 2.2: executeTool 全链路重放幂等 E2E（经 registerCommitTool 收口层 receipt）
+// 证明：同一 approvalId 重放不会重复执行 commit 核心（$transaction 仅一次），
+//       第二次返回 receipt 缓存结果（replayed 标记），不产生重复核销/重复 audit。
+// ============================================================================
+
+describe('task 2.2: executeTool payment.receive_and_reconcile 全链路重放幂等', () => {
+  function makeReceiptAwarePrisma(draft: any) {
+    const tx = makeCommitTx();
+    const receipts = new Map<string, any>();
+    const txFn = vi.fn(async (fn: any, _opts?: any) => fn(tx));
+    const prisma = {
+      $transaction: txFn,
+      approvalRequest: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }),
+      },
+      agentCommitReceipt: {
+        create: vi.fn(async ({ data }: any) => {
+          if (receipts.has(data.idempotencyKey)) {
+            throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+          }
+          receipts.set(data.idempotencyKey, { ...data });
+          return data;
+        }),
+        findUnique: vi.fn(async ({ where }: any) => receipts.get(where.idempotencyKey) ?? null),
+        update: vi.fn(async ({ where, data }: any) => {
+          const updated = { ...receipts.get(where.idempotencyKey), ...data };
+          receipts.set(where.idempotencyKey, updated);
+          return updated;
+        }),
+        delete: vi.fn(async ({ where }: any) => { receipts.delete(where.idempotencyKey); return {}; }),
+      },
+    } as any;
+    return { prisma, txFn, receipts, tx };
+  }
+
+  it('同一 approvalId 重放 → commit 核心仅执行一次，第二次返回缓存结果（replayed）', async () => {
+    const draft = buildPaymentReconcileDraft({
+      voucherId: 'V1', voucherAmount: 1000, currency: 'USD',
+      allocations: [{ invoiceId: 'I1', appliedAmount: 600 }],
+    });
+    const { prisma, txFn, receipts } = makeReceiptAwarePrisma(draft);
+    const call = {
+      toolId: 'payment.receive_and_reconcile',
+      input: { voucherId: 'V1', voucherAmount: 1000, currency: 'USD', allocations: [{ invoiceId: 'I1', appliedAmount: 600 }] },
+      approvalId: 'AP1',
+    } as any;
+
+    const first: any = await executeTool(prisma, call);
+    expect(first.ok).toBe(true);
+    expect(first.status).toBe('committed');
+    expect(txFn).toHaveBeenCalledTimes(1);
+    // receipt 落库：收口层唯一键 commit:{toolId}:{approvalId}
+    expect(receipts.get('commit:payment.receive_and_reconcile:AP1')?.status).toBe('committed');
+
+    const second: any = await executeTool(prisma, call);
+    expect(second.ok).toBe(true);
+    expect(second.replayed).toBe(true);
+    // 核心断言：commit 事务没有第二次执行（无重复核销/重复 audit）
+    expect(txFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('commit 失败 → receipt 删除允许修复后重试（不留永久阻塞）', async () => {
+    const draft = buildPaymentReconcileDraft({
+      voucherId: 'V1', voucherAmount: 1000, currency: 'USD',
+      allocations: [{ invoiceId: 'I1', appliedAmount: 600 }],
+    });
+    const { prisma, receipts, tx } = makeReceiptAwarePrisma(draft);
+    // 第一次：事务内 audit 失败 → commit 失败
+    tx.auditLog.create.mockRejectedValueOnce(new Error('AUDIT_FAIL'));
+    const call = {
+      toolId: 'payment.receive_and_reconcile',
+      input: {},
+      approvalId: 'AP1',
+    } as any;
+
+    const first: any = await executeTool(prisma, call);
+    expect(first.ok).toBe(false);
+    // 失败后 receipt 已删除（允许重试）
+    expect(receipts.has('commit:payment.receive_and_reconcile:AP1')).toBe(false);
+
+    // 第二次（修复后重试）→ 成功
+    const second: any = await executeTool(prisma, call);
+    expect(second.ok).toBe(true);
+    expect(second.status).toBe('committed');
+  });
+
+  it('并发重放崩溃窗口（receipt=committing 未完成）→ COMMIT_REPLAY_BLOCKED fail-closed', async () => {
+    const draft = buildPaymentReconcileDraft({
+      voucherId: 'V1', voucherAmount: 1000, currency: 'USD',
+      allocations: [{ invoiceId: 'I1', appliedAmount: 600 }],
+    });
+    const { prisma, receipts } = makeReceiptAwarePrisma(draft);
+    // 预置未完成 receipt（模拟上次 commit 崩溃在 committing 状态）
+    receipts.set('commit:payment.receive_and_reconcile:AP1', {
+      idempotencyKey: 'commit:payment.receive_and_reconcile:AP1',
+      status: 'committing',
+    });
+    const result: any = await executeTool(prisma, {
+      toolId: 'payment.receive_and_reconcile',
+      input: {},
+      approvalId: 'AP1',
+    } as any);
+    expect(result.ok).toBe(false);
+    expect(result.errorFeedback.code).toBe('COMMIT_REPLAY_BLOCKED');
+    expect(result.errorFeedback.retryable).toBe(false);
+  });
+});
+
 
 // ============================================================================
 // task Agent-P1: executeAgentTool 首次调用 → approval_required + processDraft

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import {
   commitOrderConfirm,
   recoverProcessDraftFromPayload,
@@ -927,6 +928,50 @@ describe('P1-C: fail-closed 统一 errorFeedback envelope（code+message+userAct
 
     expect(result.ok).toBe(false);
     expect(result.errorFeedback!.code).toBe('COMMIT_TRANSACTION_FAILED');
+    expect(result.errorFeedback!.retryable).toBe(false);
+  });
+});
+
+// ============================================================================
+// Phase 2 · 2.2: order.confirm 并发一致性——Serializable 隔离 + P2034 可重试冲突
+// ============================================================================
+
+describe('task 2.2: commitOrderConfirm 并发一致性（Serializable + P2034 retryable）', () => {
+  it('$transaction 以 Serializable 隔离级执行（STATUS_DRIFT check-then-act 防并发双确认）', async () => {
+    const draft = makeValidDraft();
+    const { prisma } = makeMockPrisma2(true, true);
+    await commitOrderConfirm({ prisma, approvalId: 'ar_serializable', approvalPayload: { processDraft: draft } as any });
+    expect(prisma.$transaction.mock.calls[0][1]).toMatchObject({
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+  });
+
+  it('P2034 序列化冲突 -> COMMIT_CONFLICT + retryable=true（并发双确认被 SSI 安全中止）', async () => {
+    const draft = makeValidDraft();
+    const prisma = {
+      $transaction: vi.fn(async () => {
+        throw Object.assign(new Error('Transaction failed due to a write conflict or a deadlock'), { code: 'P2034' });
+      }),
+      approvalRequest: { findUnique: vi.fn(async () => ({ id: 'ar', requesterId: 'u', status: 'approved' })) },
+      agentCommitReceipt: { findUnique: vi.fn(async () => null) },
+    } as any;
+    const result = await commitOrderConfirm({ prisma, approvalId: 'ar', approvalPayload: { processDraft: draft } as any });
+
+    expect(result.ok).toBe(false);
+    expect(result.committed).toBe(false);
+    expect(result.error).toContain('COMMIT_CONFLICT');
+    expect(result.errorFeedback!.retryable).toBe(true);
+  });
+
+  it('非 P2034 事务失败仍不可重试（不错误鼓励重试）', async () => {
+    const draft = makeValidDraft();
+    const prisma = {
+      $transaction: vi.fn(async () => { throw new Error('DB_CONNECTION_LOST'); }),
+      approvalRequest: { findUnique: vi.fn(async () => ({ id: 'ar', requesterId: 'u', status: 'approved' })) },
+    } as any;
+    const result = await commitOrderConfirm({ prisma, approvalId: 'ar', approvalPayload: { processDraft: draft } as any });
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('COMMIT_TRANSACTION_FAILED');
     expect(result.errorFeedback!.retryable).toBe(false);
   });
 });
