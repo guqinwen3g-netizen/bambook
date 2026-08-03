@@ -6,7 +6,15 @@ const mockPrisma = {
   approvalRequest: {
     findUnique: vi.fn(),
   },
+  agentCommitReceipt: {
+    create: vi.fn(async () => ({})),
+    findUnique: vi.fn(async () => null),
+    update: vi.fn(async () => ({})),
+    delete: vi.fn(async () => ({})),
+  },
 } as unknown as PrismaClient;
+
+const receipts = (mockPrisma as any).agentCommitReceipt;
 
 describe('toolDispatchRegistry: simple tools', () => {
   beforeEach(() => {
@@ -149,6 +157,132 @@ describe('toolDispatchRegistry: commit tools (approval boilerplate)', () => {
     expect(capturedCtx.approvalId).toBe('appr_ok');
     expect(capturedCtx.approvalPayload).toEqual(mockPayload);
     expect(capturedCtx.prisma).toBe(mockPrisma);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// Phase 2 · 任务 2.1：commit 幂等去重（AgentCommitReceipt 统一收口）
+// ══════════════════════════════════════════════════════════════
+describe('toolDispatchRegistry: commit 幂等去重（Phase 2 · 2.1）', () => {
+  const approvedApproval = { id: 'appr_idem', status: 'approved', payload: {} };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    receipts.create.mockImplementation(async () => ({}));
+    receipts.findUnique.mockResolvedValue(null);
+    receipts.update.mockResolvedValue({});
+    receipts.delete.mockResolvedValue({});
+    (mockPrisma.approvalRequest.findUnique as any).mockResolvedValue(approvedApproval);
+  });
+
+  it('首次 commit 成功 → receipt 先占 committing 后置 committed，缓存结果', async () => {
+    const commitFn = vi.fn(async () => ({ ok: true, committed: true, entityId: 'E-1' }));
+    registerCommitTool('test.idem.first', commitFn);
+
+    const result = await dispatchFromRegistry(mockPrisma, {
+      toolId: 'test.idem.first',
+      input: {},
+      approvalId: 'appr_idem',
+    });
+
+    expect(result.hit && result.result.ok).toBe(true);
+    expect(commitFn).toHaveBeenCalledTimes(1);
+    // receipt 以统一 key 占位
+    expect(receipts.create).toHaveBeenCalledTimes(1);
+    expect(receipts.create.mock.calls[0][0].data).toMatchObject({
+      idempotencyKey: 'commit:test.idem.first:appr_idem',
+      toolId: 'test.idem.first',
+      approvalId: 'appr_idem',
+      status: 'committing',
+    });
+    // 成功后落 committed + 缓存结果
+    expect(receipts.update).toHaveBeenCalledTimes(1);
+    expect(receipts.update.mock.calls[0][0].data.status).toBe('committed');
+    expect(receipts.update.mock.calls[0][0].data.result).toMatchObject({ entityId: 'E-1' });
+    expect(receipts.delete).not.toHaveBeenCalled();
+  });
+
+  it('重放（P2002 + receipt 已 committed）→ 返回缓存结果，commitFn 不再执行', async () => {
+    receipts.create.mockRejectedValue({ code: 'P2002' });
+    receipts.findUnique.mockResolvedValue({
+      status: 'committed',
+      result: { ok: true, committed: true, entityId: 'E-1' },
+    });
+    const commitFn = vi.fn(async () => ({ ok: true }));
+    registerCommitTool('test.idem.replay', commitFn);
+
+    const result = await dispatchFromRegistry(mockPrisma, {
+      toolId: 'test.idem.replay',
+      input: {},
+      approvalId: 'appr_idem',
+    });
+
+    expect(result.hit).toBe(true);
+    if (result.hit) {
+      expect(result.result.ok).toBe(true);
+      expect((result.result as any).entityId).toBe('E-1');
+      expect((result.result as any).replayed).toBe(true);
+    }
+    expect(commitFn).not.toHaveBeenCalled();
+  });
+
+  it('重放（P2002 + receipt 仍 committing，崩溃窗口）→ COMMIT_REPLAY_BLOCKED fail-closed', async () => {
+    receipts.create.mockRejectedValue({ code: 'P2002' });
+    receipts.findUnique.mockResolvedValue({ status: 'committing', result: null });
+    const commitFn = vi.fn(async () => ({ ok: true }));
+    registerCommitTool('test.idem.inflight', commitFn);
+
+    const result = await dispatchFromRegistry(mockPrisma, {
+      toolId: 'test.idem.inflight',
+      input: {},
+      approvalId: 'appr_idem',
+    });
+
+    expect(result.hit).toBe(true);
+    if (result.hit) {
+      expect(result.result.ok).toBe(false);
+      expect((result.result as any).errorFeedback.code).toBe('COMMIT_REPLAY_BLOCKED');
+      expect((result.result as any).errorFeedback.retryable).toBe(false);
+    }
+    expect(commitFn).not.toHaveBeenCalled();
+  });
+
+  it('commit 失败（ok:false）→ 删除 receipt 允许重试；重试时 commitFn 再次执行', async () => {
+    const commitFn = vi.fn()
+      .mockResolvedValueOnce({ ok: false, error: 'boom' })
+      .mockResolvedValueOnce({ ok: true, committed: true });
+    registerCommitTool('test.idem.retry', commitFn);
+
+    const first = await dispatchFromRegistry(mockPrisma, {
+      toolId: 'test.idem.retry',
+      input: {},
+      approvalId: 'appr_idem',
+    });
+    expect(first.hit && first.result.ok).toBe(false);
+    expect(receipts.delete).toHaveBeenCalledTimes(1);
+
+    const second = await dispatchFromRegistry(mockPrisma, {
+      toolId: 'test.idem.retry',
+      input: {},
+      approvalId: 'appr_idem',
+    });
+    expect(second.hit && second.result.ok).toBe(true);
+    expect(commitFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('commitFn 抛异常 → 删除 receipt 并向上抛出（不吞错误）', async () => {
+    const commitFn = vi.fn(async () => { throw new Error('tx exploded'); });
+    registerCommitTool('test.idem.throw', commitFn);
+
+    await expect(
+      dispatchFromRegistry(mockPrisma, {
+        toolId: 'test.idem.throw',
+        input: {},
+        approvalId: 'appr_idem',
+      }),
+    ).rejects.toThrow('tx exploded');
+    expect(receipts.delete).toHaveBeenCalledTimes(1);
+    expect(receipts.update).not.toHaveBeenCalled();
   });
 });
 

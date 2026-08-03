@@ -102,6 +102,12 @@ export type CommitHandler = (ctx: CommitContext) => Promise<ToolHandlerResult>;
  * 注册一个复合 commit 工具。
  * 自动处理 approval 校验 boilerplate，开发者只需提供具体的 commit 逻辑。
  *
+ * 幂等去重（Phase 2 · 任务 2.1）：一个 approval 最多 commit 一次。
+ * 通过 AgentCommitReceipt（idempotencyKey=`commit:{toolId}:{approvalId}` 唯一键）在收口层统一去重：
+ *   - 首次：创建 receipt(committing) → 执行 commitFn → ok 置 committed 并缓存结果 / 失败删 receipt 允许重试
+ *   - 重放（P2002）：已有 receipt → committed 返回缓存结果（replayed 标记）；
+ *     committing（崩溃窗口，状态不可判定）→ fail-closed 报 COMMIT_REPLAY_BLOCKED，不自动重试
+ *
  * @param toolId 工具 ID（如 'order.confirm'）
  * @param commitFn 具体的 commit 函数，接收 CommitContext（含 prisma + approvalId + payload）
  */
@@ -171,7 +177,66 @@ export function registerCommitTool(toolId: string, commitFn: CommitHandler): voi
     }
 
     const payload = approval.payload as Record<string, unknown> | null;
-    return commitFn({ prisma, approvalId: targetApprovalId, approvalPayload: payload, call: call! });
+
+    // ── 幂等去重：先占 receipt 再执行（唯一键兜底并发重放）──
+    // receipts 缺失仅可能出现在不完整 mock 的单元测试；生产 PrismaClient 必有该模型。
+    const receipts = (prisma as any).agentCommitReceipt;
+    const receiptKey = `commit:${toolId}:${targetApprovalId}`;
+    if (receipts) {
+      try {
+        await receipts.create({
+          data: {
+            id: `acr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            idempotencyKey: receiptKey,
+            toolId,
+            approvalId: targetApprovalId,
+            status: 'committing',
+          },
+        });
+      } catch (createErr: any) {
+        if (createErr?.code === 'P2002') {
+          const existing = await receipts.findUnique({ where: { idempotencyKey: receiptKey } }).catch(() => null);
+          if (existing?.status === 'committed' && existing.result && typeof existing.result === 'object') {
+            return { ...(existing.result as Record<string, unknown>), replayed: true } as unknown as ToolHandlerResult;
+          }
+          const message = `COMMIT_FAILED: ${toolId} replay blocked for approval ${targetApprovalId} — receipt exists but not committed (possible crash window, manual check required)`;
+          return {
+            ok: false,
+            committed: false,
+            error: message,
+            errorFeedback: {
+              code: 'COMMIT_REPLAY_BLOCKED',
+              message,
+              retryable: false,
+            },
+          };
+        }
+        throw createErr;
+      }
+    }
+
+    try {
+      const result = await commitFn({ prisma, approvalId: targetApprovalId, approvalPayload: payload, call: call! });
+      if (receipts) {
+        if (result?.ok) {
+          await receipts
+            .update({
+              where: { idempotencyKey: receiptKey },
+              data: { status: 'committed', result: result as any, completedAt: new Date() },
+            })
+            .catch(() => undefined);
+        } else {
+          // commit 失败：删除 receipt 允许修复后重试（不留下永久阻塞）
+          await receipts.delete({ where: { idempotencyKey: receiptKey } }).catch(() => undefined);
+        }
+      }
+      return result;
+    } catch (commitErr) {
+      if (receipts) {
+        await receipts.delete({ where: { idempotencyKey: receiptKey } }).catch(() => undefined);
+      }
+      throw commitErr;
+    }
   });
 }
 
