@@ -5,7 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { addVolcKnowledgeDocument } from './volcKnowledge';
 import { PrismaClient } from '@prisma/client';
-import { ingestKnowledgeDocument } from './knowledgeIngestService';
+import { ingestKnowledgeDocument, listKnowledgeDocuments, updateKnowledgeDocument, deleteKnowledgeDocument } from './knowledgeIngestService';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
 
@@ -175,9 +175,64 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
     return res.status(201).json({ ok: true, ...outcome.result });
   });
 
-  router.get('/', (_req, res) => {
-    const records = Object.values(readIndex(storageDir)).map(({ token: _token, filePath: _filePath, ...record }) => record);
-    res.json({ ok: true, documents: records });
+  // 列表 = 文件索引（upload 通道）+ Prisma（ERP ingest 通道）双源合并，origin 字段区分来源。
+  // Prisma 查询失败时降级为仅 upload 列表并显式标记，不静默吞错。
+  router.get('/', async (_req, res) => {
+    const uploadRecords = Object.values(readIndex(storageDir)).map(({ token: _token, filePath: _filePath, ...record }) => ({
+      ...record,
+      origin: 'upload' as const,
+    }));
+    try {
+      const erpRecords = (await listKnowledgeDocuments({ prisma: options.prisma })).map(record => ({
+        ...record,
+        origin: 'erp' as const,
+      }));
+      res.json({ ok: true, documents: [...erpRecords, ...uploadRecords] });
+    } catch (e: any) {
+      res.json({ ok: true, documents: uploadRecords, erpListError: String(e?.message ?? e) });
+    }
+  });
+
+  // 编辑 ERP 知识文档（标题/正文/分类）。正文变更 = 软删旧 chunk + 重建 + 版本递增 + 审计。
+  router.patch('/:docId', async (req: Request, res: Response) => {
+    const category = req.body?.category != null ? String(req.body.category) : undefined;
+    const outcome = await updateKnowledgeDocument({
+      prisma: options.prisma,
+      documentId: String(req.params.docId || ''),
+      input: {
+        title: req.body?.title != null ? String(req.body.title) : undefined,
+        text: req.body?.text != null ? String(req.body.text) : undefined,
+        metadata: category !== undefined ? { category } : undefined,
+      },
+      actorId: actorIdFromRequest(req),
+      ip: req.ip,
+    });
+
+    if (!outcome.ok) {
+      const statusMap: Record<string, number> = { INVALID_INPUT: 400, NOT_FOUND: 404, UPDATE_FAILED: 500, AUDIT_FAILED: 500 };
+      return res.status(statusMap[outcome.error.code] || 500).json({ ok: false, error: outcome.error.code, message: outcome.error.message });
+    }
+
+    if (options.onDataChange) options.onDataChange({ entity: 'knowledge-document', action: 'update', ids: [outcome.result.documentId] });
+    return res.json({ ok: true, ...outcome.result });
+  });
+
+  // 软删除 ERP 知识文档（doc + chunks 打 deletedAt，审计留痕）。
+  router.delete('/:docId', async (req: Request, res: Response) => {
+    const outcome = await deleteKnowledgeDocument({
+      prisma: options.prisma,
+      documentId: String(req.params.docId || ''),
+      actorId: actorIdFromRequest(req),
+      ip: req.ip,
+    });
+
+    if (!outcome.ok) {
+      const statusMap: Record<string, number> = { NOT_FOUND: 404, DELETE_FAILED: 500, AUDIT_FAILED: 500 };
+      return res.status(statusMap[outcome.error.code] || 500).json({ ok: false, error: outcome.error.code, message: outcome.error.message });
+    }
+
+    if (options.onDataChange) options.onDataChange({ entity: 'knowledge-document', action: 'delete', ids: [outcome.result.documentId] });
+    return res.json({ ok: true, ...outcome.result });
   });
 
   return router;

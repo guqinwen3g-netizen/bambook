@@ -117,15 +117,29 @@ describe('runtime QA [route]: POST /ingest-text 真实 ERP contract', () => {
 
 // ═══ Part 9: KnowledgeBase 前端真实消费 ═══
 describe('runtime QA [KnowledgeBase UI]: 真实消费 + busy/error', () => {
-  it('handleAdd 调 ERP /v1/knowledge-documents/ingest-text（不走旧外部 API）', () => {
-    expect(KB_SRC).toContain('/v1/knowledge-documents/ingest-text');
+  const API_SERVICE_SRC = fs.readFileSync(path.resolve(__dirname, '../services/apiService.ts'), 'utf-8');
+  it('handleAdd 经 apiService.ingestKnowledgeText 走 ERP /v1/knowledge-documents/ingest-text（不走旧外部 API）', () => {
+    expect(KB_SRC).toContain('apiService.ingestKnowledgeText');
+    expect(API_SERVICE_SRC).toContain('/v1/knowledge-documents/ingest-text');
     expect(KB_SRC).not.toContain('knowledgeApiService.ingest');
+  });
+  it('ingest 携带 category 入 metadata（分类持久化到服务端真源）', () => {
+    expect(API_SERVICE_SRC).toContain('metadata: { category: input.category }');
   });
   it('成功消费后端 documentId/checksum/chunkCount/auditId（不 Date.now 伪造）', () => {
     expect(KB_SRC).toContain('json.documentId');
     expect(KB_SRC).toContain('json.checksum');
     expect(KB_SRC).toContain('json.chunkCount');
     expect(KB_SRC).toContain('json.auditId');
+  });
+  it('挂载时从服务端真源拉取列表并合并本地快照', () => {
+    expect(KB_SRC).toContain('apiService.listKnowledgeDocuments');
+    expect(KB_SRC).toContain('useEffect');
+  });
+  it('编辑/删除接通服务端 PATCH/DELETE，404 降级为本地遗留条目', () => {
+    expect(KB_SRC).toContain('apiService.updateKnowledgeDocument');
+    expect(KB_SRC).toContain('apiService.deleteKnowledgeDocument');
+    expect(KB_SRC).toContain('isNotFoundError');
   });
   it('failure 显示 knowledgeError（不伪成功）', () => {
     expect(KB_SRC).toContain('setKnowledgeError');

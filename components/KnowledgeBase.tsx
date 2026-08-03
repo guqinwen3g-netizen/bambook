@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { KnowledgeItem, Insight } from '../types';
 import {
@@ -9,6 +9,11 @@ import {
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { apiService } from '../services/apiService';
+
+const KB_CATEGORIES = ['Product', 'Policy', 'Customer', 'Production', 'Company', 'Supplier'] as const;
+type KbCategory = KnowledgeItem['category'];
+const toKbCategory = (value: string | null | undefined): KbCategory =>
+  (KB_CATEGORIES as readonly string[]).includes(value || '') ? (value as KbCategory) : 'Product';
 
 interface KBProps {
   knowledge: KnowledgeItem[];
@@ -28,20 +33,44 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
   const [knowledgeBusy, setKnowledgeBusy] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // 挂载时从服务端真源（Prisma KnowledgeDocument）拉取列表并与本地快照合并：
+  // 服务端条目为准，本地独有条目（未同步/离线创建）保留。离线时静默降级为本地视图。
+  const knowledgeRef = useRef(knowledge);
+  knowledgeRef.current = knowledge;
+  const serverLoadedRef = useRef(false);
+  useEffect(() => {
+    if (serverLoadedRef.current) return;
+    serverLoadedRef.current = true;
+    (async () => {
+      try {
+        const docs = await apiService.listKnowledgeDocuments();
+        const serverItems: KnowledgeItem[] = docs.map(d => ({
+          id: d.id,
+          title: d.title,
+          content: d.content,
+          category: toKbCategory(d.category),
+          updatedAt: d.updatedAt,
+          sourceUrl: `checksum:${d.checksum}|chunks:${d.chunkCount}|version:${d.version}`,
+        }));
+        const serverIds = new Set(serverItems.map(i => i.id));
+        const localOnly = knowledgeRef.current.filter(k => !serverIds.has(k.id));
+        setKnowledge([...serverItems, ...localOnly]);
+      } catch {
+        // 离线/未认证：本地 IndexedDB 快照即降级视图，不打扰用户
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isNotFoundError = (e: any) => /not_found|not found|HTTP 404/i.test(String(e?.message || e || ''));
+
   const handleAdd = async () => {
     if (!newItem.title || !newItem.content) return;
     if (knowledgeBusy) return;
     setKnowledgeBusy(true);
     setKnowledgeError(null);
     try {
-      const res = await fetch(apiService.buildApiUrl('/v1/knowledge-documents/ingest-text'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newItem.title, text: newItem.content, sourceType: 'manual', scopes: ['company'] }),
-      });
-      let json: any;
-      try { json = await res.json(); } catch { throw new Error(`知识写入失败: HTTP ${res.status} (非JSON响应)`); }
-      if (!res.ok || !json?.ok) throw new Error(json?.message || `知识写入失败: HTTP ${res.status}`);
+      const json = await apiService.ingestKnowledgeText({ title: newItem.title, text: newItem.content, category: newItem.category });
       const item: KnowledgeItem = {
         id: json.documentId,
         title: newItem.title,
@@ -50,7 +79,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         updatedAt: Date.now(),
         sourceUrl: `checksum:${json.checksum}|chunks:${json.chunkCount}|audit:${json.auditId}`,
       };
-      setKnowledge([item, ...knowledge], item);
+      setKnowledge([item, ...knowledgeRef.current], item);
       setNewItem({ title: '', content: '', category: 'Product' });
       setShowAddModal(false);
     } catch (e: any) {
@@ -60,22 +89,54 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
     }
   };
 
-  const handleEditSave = () => {
-    if (!editingItem) return;
-    const updatedKnowledge = knowledge.map(k => k.id === editingItem.id ? { ...editingItem, updatedAt: Date.now() } : k);
-    setKnowledge(updatedKnowledge, editingItem);
-    setEditingItem(null);
+  const handleEditSave = async () => {
+    if (!editingItem || knowledgeBusy) return;
+    setKnowledgeBusy(true);
+    setKnowledgeError(null);
+    const applyLocal = (updatedAt: number) => {
+      const saved = { ...editingItem, updatedAt };
+      setKnowledge(knowledgeRef.current.map(k => (k.id === saved.id ? saved : k)), saved);
+      setEditingItem(null);
+    };
+    try {
+      const result = await apiService.updateKnowledgeDocument(editingItem.id, {
+        title: editingItem.title,
+        text: editingItem.content,
+        category: editingItem.category,
+      });
+      applyLocal(result.updatedAt);
+    } catch (e: any) {
+      // 本地遗留条目（从未写入服务端真源）：降级为仅本地更新
+      if (isNotFoundError(e)) applyLocal(Date.now());
+      else setKnowledgeError(e?.message || '知识修正失败，请稍后重试');
+    } finally {
+      setKnowledgeBusy(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (!deleteConfirmId) return;
-    const target = knowledge.find(k => k.id === deleteConfirmId);
-    if (target) {
-      const tombstone = { ...target, deletedAt: Date.now() };
-      const updated = knowledge.map(k => k.id === deleteConfirmId ? tombstone : k);
-      setKnowledge(updated, tombstone);
+  const handleDelete = async () => {
+    if (!deleteConfirmId || knowledgeBusy) return;
+    const targetId = deleteConfirmId;
+    setKnowledgeBusy(true);
+    setKnowledgeError(null);
+    const applyTombstone = () => {
+      const target = knowledgeRef.current.find(k => k.id === targetId);
+      if (target) {
+        const tombstone = { ...target, deletedAt: Date.now() };
+        setKnowledge(knowledgeRef.current.map(k => (k.id === targetId ? tombstone : k)), tombstone);
+      }
+      setDeleteConfirmId(null);
+    };
+    try {
+      await apiService.deleteKnowledgeDocument(targetId);
+      applyTombstone();
+    } catch (e: any) {
+      // 本地遗留条目：降级为仅本地墓碑
+      if (isNotFoundError(e)) applyTombstone();
+      else setKnowledgeError(e?.message || '移除失败，请稍后重试');
+    } finally {
+      setKnowledgeBusy(false);
     }
-    setDeleteConfirmId(null);
   };
 
   const handleSolidifyMemory = (insight: Insight) => {
@@ -228,16 +289,16 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
             </div>
             <div className={`px-12 py-10 flex justify-end gap-6 ${isDarkMode ? 'bg-white/[0.025]' : 'bg-white/24'}`}>
-              {knowledgeError && !editingItem && (
+              {knowledgeError && (
                 <div className="mr-auto text-xs text-red-500">{knowledgeError}</div>
               )}
               <button
                 onClick={editingItem ? handleEditSave : handleAdd}
-                disabled={knowledgeBusy && !editingItem}
+                disabled={knowledgeBusy}
                 data-knowledge-busy={knowledgeBusy}
-                className={`px-10 py-4 text-[11px] font-light tracking-wide rounded-full flex items-center gap-3 border transition-all ${(knowledgeBusy && !editingItem) ? 'opacity-50 cursor-not-allowed' : isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+                className={`px-10 py-4 text-[11px] font-light tracking-wide rounded-full flex items-center gap-3 border transition-all ${knowledgeBusy ? 'opacity-50 cursor-not-allowed' : isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
               >
-                <Save size={16} strokeWidth={1} /> {editingItem ? '固化修正' : knowledgeBusy ? '同步中…' : '确认存入并即时同步'}
+                <Save size={16} strokeWidth={1} /> {knowledgeBusy ? '同步中…' : editingItem ? '固化修正' : '确认存入并即时同步'}
               </button>
             </div>
           </div>
@@ -257,11 +318,15 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 </p>
               </div>
               <div className="flex flex-col gap-3 pt-4">
+                {knowledgeError && (
+                  <div className="text-xs text-red-500">{knowledgeError}</div>
+                )}
                 <button
                   onClick={handleDelete}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all shadow-none ${isDarkMode ? 'bg-slate-500 text-white hover:bg-slate-600' : 'bg-slate-500 text-white hover:bg-slate-600'}`}
+                  disabled={knowledgeBusy}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all shadow-none ${knowledgeBusy ? 'opacity-50 cursor-not-allowed ' : ''}${isDarkMode ? 'bg-slate-500 text-white hover:bg-slate-600' : 'bg-slate-500 text-white hover:bg-slate-600'}`}
                 >
-                  确认移除
+                  {knowledgeBusy ? '同步中…' : '确认移除'}
                 </button>
                 <button
                   onClick={() => setDeleteConfirmId(null)}

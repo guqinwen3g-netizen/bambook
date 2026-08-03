@@ -40,6 +40,20 @@ export interface TestResult {
   isPhysicalDown?: boolean;
 }
 
+export interface KnowledgeDocumentRecord {
+  id: string;
+  title: string;
+  content: string;
+  category: string | null;
+  sourceType: string;
+  version: number;
+  chunkCount: number;
+  checksum: string | null;
+  createdAt: number;
+  updatedAt: number;
+  origin: 'erp' | 'upload';
+}
+
 export interface ProductAssetPage {
   assets: ProductAssetDetail[];
   total: number;
@@ -772,6 +786,49 @@ export const apiService = {
 
   async listInsights(endpoint?: string): Promise<Insight[]> {
     return ((await this.fetchCloudData('/api/insights', endpoint || '')) as Insight[] | null) || [];
+  },
+
+  // ========== ERP 知识文档（Prisma 真源） ==========
+
+  async listKnowledgeDocuments(endpoint?: string): Promise<KnowledgeDocumentRecord[]> {
+    const data = await requestJson<{ ok: boolean; documents: KnowledgeDocumentRecord[] }>('/v1/knowledge-documents', {
+      endpoint,
+      method: 'GET',
+    });
+    return Array.isArray(data.documents) ? data.documents.filter(d => d.origin === 'erp') : [];
+  },
+
+  async ingestKnowledgeText(input: { title: string; text: string; category: string }, endpoint?: string): Promise<{ documentId: string; checksum: string; chunkCount: number; auditId: string }> {
+    return requestJson('/v1/knowledge-documents/ingest-text', {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({
+        title: input.title,
+        text: input.text,
+        sourceType: 'manual',
+        scopes: ['company'],
+        metadata: { category: input.category },
+      }),
+    });
+  },
+
+  async updateKnowledgeDocument(
+    id: string,
+    input: { title?: string; text?: string; category?: string },
+    endpoint?: string,
+  ): Promise<{ documentId: string; version: number; updatedAt: number }> {
+    return requestJson(`/v1/knowledge-documents/${encodeURIComponent(id)}`, {
+      endpoint,
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteKnowledgeDocument(id: string, endpoint?: string): Promise<{ documentId: string }> {
+    return requestJson(`/v1/knowledge-documents/${encodeURIComponent(id)}`, {
+      endpoint,
+      method: 'DELETE',
+    });
   },
 
   // ========== PO 订单数据库 ==========
