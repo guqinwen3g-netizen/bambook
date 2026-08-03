@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'crypto';
 import type { PrismaClient } from '@prisma/client';
 import { fetchPdmlRawRows, PdmlFetchResult } from './source';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { logger } from '../lib/logger';
 
 export interface PdmlRouterOptions {
   prisma: PrismaClient;
@@ -521,7 +522,7 @@ const runPdmlSyncJob = async (
     job.result = result;
     job.finishedAt = Date.now();
   } catch (e: any) {
-    console.error('[pdml/sync-job] failed:', e);
+    logger.error('[pdml/sync-job] failed', { error: e?.message || String(e) });
     job.status = 'failed';
     job.error = String(e?.message ?? e);
     job.finishedAt = Date.now();
@@ -589,7 +590,7 @@ export function createPdmlRouter(opts: PdmlRouterOptions): Router {
         hasMore: offset + rows.length < total,
       });
     } catch (e: any) {
-      console.error('[pdml/raw-list] failed:', e);
+      logger.error('[pdml/raw-list] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -637,7 +638,7 @@ export function createPdmlRouter(opts: PdmlRouterOptions): Router {
       if (String(e?.message || '').includes('must be a positive number')) {
         return res.status(400).json({ error: 'VALIDATION_FAILED', message: e.message });
       }
-      console.error('[pdml/sync] failed:', e);
+      logger.error('[pdml/sync] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'SYNC_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -664,7 +665,7 @@ export function createPdmlRouter(opts: PdmlRouterOptions): Router {
 
       return res.json(result);
     } catch (e: any) {
-      console.error('[pdml/map-products] failed:', e);
+      logger.error('[pdml/map-products] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'MAP_FAILED', message: String(e?.message ?? e) });
     }
   });

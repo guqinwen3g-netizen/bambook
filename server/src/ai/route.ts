@@ -7,6 +7,7 @@ import { createModuleAuthGuard, ModuleAuthGuardOptions } from '../auth/moduleGua
 import { TokenPayload } from '../auth/service';
 import { createAgentRuntimeService } from '../agent/runtime';
 import { normalizeTextForTts } from './ttsTextNormalizer';
+import { logger } from '../lib/logger';
 
 type AuthOptions = ModuleAuthGuardOptions;
 
@@ -44,7 +45,7 @@ export function createAiRouter(options: AiRouterOptions) {
     const _diagAuthSource = ((req as any).authSource || (_diagActor ? 'user-session' : 'api-key'));
     const _diagUserId = String(req.body?.userId || req.headers['x-bambook-user-id'] || 'default-user');
     const _diagUseAgentLoop = process.env.BAMBOOK_AGENT_LOOP !== '0' && (req.body as any)?.useAgentLoop !== false;
-    console.info(`[AI Chat] authSource=${_diagAuthSource} userId=${_diagUserId} agentLoop=${_diagUseAgentLoop} msg="${message.slice(0, 80)}"`);
+    logger.debug(`[AI Chat] authSource=${_diagAuthSource} userId=${_diagUserId} agentLoop=${_diagUseAgentLoop} msg="${message.slice(0, 80)}"`);
 
     setupSse(res);
 

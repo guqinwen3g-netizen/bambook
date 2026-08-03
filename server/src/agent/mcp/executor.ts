@@ -4,6 +4,7 @@ import { AiEmit } from '../../ai/runtime';
 import { PlannedToolCall, runAgentToolCalls } from '../toolRuntime';
 import { AgentPlan, AgentPlanStep } from './types';
 import { AgentTaskFrame } from '../taskFrame';
+import { logger } from '../../lib/logger';
 
 export async function runMcpPlan(input: {
   prisma: PrismaClient;
@@ -22,7 +23,7 @@ export async function runMcpPlan(input: {
     .filter(Boolean) as PlannedToolCall[];
 
   // ── Diagnostic: log planned tool calls ──
-  console.info(`[runMcpPlan] plan.steps=${input.plan.steps.length} calls=${calls.length} toolIds=[${calls.map(c => c.toolId).join(',')}] source=${input.requestSource || '?'} userId=${input.actorUserId || '?'}`);
+  logger.debug(`[runMcpPlan] plan.steps=${input.plan.steps.length} calls=${calls.length} toolIds=[${calls.map(c => c.toolId).join(',')}] source=${input.requestSource || '?'} userId=${input.actorUserId || '?'}`);
 
   return runAgentToolCalls({
     prisma: input.prisma,

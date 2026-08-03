@@ -7,6 +7,7 @@ import { createRelation, updateRelation, deleteRelation } from './relationMutati
 import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import type { AgentRole } from '../agent/types';
+import { logger } from '../lib/logger';
 
 // task_mqy2aqkz: category 7 选 1 合法枚举（与 Agent relation.create 对齐）
 const VALID_CATEGORIES = new Set(['Customer', 'Supplier', 'Agent', 'Partner', 'Government', 'Internal', 'Other']);
@@ -107,7 +108,7 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
       });
       return res.json({ ok: true, relations: rows.map(serializeRelation) });
     } catch (e: any) {
-      console.error('[relations/list] failed:', e);
+      logger.error('[relations/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -117,7 +118,7 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
       const result = await queryRelations(opts.prisma, req.body || {});
       return res.json({ ok: true, ...result });
     } catch (e: any) {
-      console.error('[relations/query] failed:', e);
+      logger.error('[relations/query] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'QUERY_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -135,7 +136,7 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
       if (!(result as any).found) return res.status(404).json({ error: 'NOT_FOUND', message: 'Relation context not found' });
       return res.json({ ok: true, ...result });
     } catch (e: any) {
-      console.error('[relations/expand] failed:', e);
+      logger.error('[relations/expand] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'EXPAND_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -146,7 +147,7 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
       if (!(result as any).found) return res.status(404).json({ error: 'NOT_FOUND', message: 'Relation not found' });
       return res.json({ ok: true, relation: (result as any).item });
     } catch (e: any) {
-      console.error('[relations/detail] failed:', e);
+      logger.error('[relations/detail] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DETAIL_FAILED', message: String(e?.message ?? e) });
     }
   });

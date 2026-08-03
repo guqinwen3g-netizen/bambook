@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { ENTITY_REGISTRY_VERSION, ENTITY_TYPES } from './registry';
 import { countEntities, hydrateEntities, searchEntities } from './search';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
+import { logger } from '../lib/logger';
 
 export interface EntitiesRouterOptions {
   prisma: PrismaClient;
@@ -46,7 +47,7 @@ export function createEntitiesRouter(opts: EntitiesRouterOptions): Router {
         hasMore: offset + items.length < safeTotal,
       });
     } catch (e: any) {
-      console.error('[entities/search] failed:', e);
+      logger.error('[entities/search] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'ENTITY_SEARCH_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -56,7 +57,7 @@ export function createEntitiesRouter(opts: EntitiesRouterOptions): Router {
       const items = await hydrateEntities(opts.prisma, req.body || {});
       return res.json({ ok: true, items });
     } catch (e: any) {
-      console.error('[entities/hydrate] failed:', e);
+      logger.error('[entities/hydrate] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'ENTITY_HYDRATE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -71,7 +72,7 @@ export function createEntitiesRouter(opts: EntitiesRouterOptions): Router {
       }
       return res.json({ ok: true, results });
     } catch (e: any) {
-      console.error('[entities/resolve-batch] failed:', e);
+      logger.error('[entities/resolve-batch] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'ENTITY_RESOLVE_BATCH_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -172,7 +173,7 @@ export function createEntitiesRouter(opts: EntitiesRouterOptions): Router {
         total: serialized.length,
       });
     } catch (e: any) {
-      console.error('[entities/links] failed:', e);
+      logger.error('[entities/links] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'ENTITY_LINKS_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -223,7 +224,7 @@ export function createEntitiesRouter(opts: EntitiesRouterOptions): Router {
 
       return res.json({ ok: true, type, id, neighbors: groups, total: links.length });
     } catch (e: any) {
-      console.error('[entities/neighbors] failed:', e);
+      logger.error('[entities/neighbors] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'ENTITY_NEIGHBORS_FAILED', message: String(e?.message ?? e) });
     }
   });

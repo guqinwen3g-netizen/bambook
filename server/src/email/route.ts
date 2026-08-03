@@ -25,6 +25,7 @@ import { sendOutboxEmail } from './outboxSend';
 import { syncEmailsFromImap } from './emailSyncService';
 import { createOutboxEmail, createReplyOutboxEmail } from './emailOutboxMutationService';
 import { actorIdFromRequest } from '../audit/routeAudit';
+import { logger } from '../lib/logger';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -176,7 +177,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
 
       res.json({ ok: true, items, total });
     } catch (e: any) {
-      console.error('[email] list error:', e);
+      logger.error('[email] list error', { error: e?.message || String(e) });
       res.status(500).json({ ok: false, error: e.message });
     }
   });
@@ -206,7 +207,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
       });
       res.json({ ok: true, data: email });
     } catch (e: any) {
-      console.error('[email] patch error:', e);
+      logger.error('[email] patch error', { error: e?.message || String(e) });
       res.status(500).json({ ok: false, error: e.message });
     }
   });
@@ -283,7 +284,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
       }
       res.json({ ok: true, ...result.data! });
     } catch (e: any) {
-      console.error('[email] outbox send error:', e);
+      logger.error('[email] outbox send error', { error: e?.message || String(e) });
       res.status(500).json({ ok: false, error: { code: 'UNKNOWN_ERROR', message: String(e?.message ?? e), statusCode: 500 } });
     }
   });
@@ -304,7 +305,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
       res.setHeader('Content-Type', att.contentType);
       res.sendFile(fullPath);
     } catch (e: any) {
-      console.error('[email] attachment download error:', e);
+      logger.error('[email] attachment download error', { error: e?.message || String(e) });
       res.status(500).send('Download failed');
     }
   });
@@ -664,7 +665,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
       if (!email) return res.status(404).json({ ok: false, error: 'Email not found' });
       res.json({ ok: true, data: email });
     } catch (e: any) {
-      console.error('[email] get error:', e);
+      logger.error('[email] get error', { error: e?.message || String(e) });
       res.status(500).json({ ok: false, error: e.message });
     }
   });

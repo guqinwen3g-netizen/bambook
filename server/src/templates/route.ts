@@ -23,6 +23,7 @@ import { renderHtmlToPdf } from './pdf';
 import { saveRenderedDoc, savePdfFile } from './store';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
+import { logger } from '../lib/logger';
 
 export interface TemplatesRouterOptions {
   prisma: PrismaClient;
@@ -85,7 +86,7 @@ export function createTemplatesRouter(options: TemplatesRouterOptions): Router {
         htmlBytes: result.bytes,
         source: 'api',
       }).catch((err: unknown) => {
-        console.error('[templates] saveRenderedDoc error:', err);
+        logger.error('[templates] saveRenderedDoc error', { error: err instanceof Error ? err.message : String(err) });
       });
       // 审计渲染操作（fail-closed：审计失败 → 抛出 → route catch 转 500）
       await writeRouteAuditLog({
@@ -128,7 +129,7 @@ export function createTemplatesRouter(options: TemplatesRouterOptions): Router {
       if (err instanceof TemplateRenderError) {
         return res.status(422).json({ error: 'TemplateRenderFailed', message: err.message });
       }
-      console.error('[templates] render error:', err);
+      logger.error('[templates] render error', { error: err instanceof Error ? err.message : String(err) });
       return res.status(500).json({ error: 'InternalError' });
     }
   });
@@ -165,7 +166,7 @@ export function createTemplatesRouter(options: TemplatesRouterOptions): Router {
           source: 'api',
         });
       } catch (storeErr) {
-        console.error('[templates] saveRenderedDoc error:', storeErr);
+        logger.error('[templates] saveRenderedDoc error', { error: storeErr instanceof Error ? storeErr.message : String(storeErr) });
       }
       // 审计渲染操作（fail-closed：审计失败 → 抛出 → route catch 转 500）
       await writeRouteAuditLog({
@@ -216,7 +217,7 @@ export function createTemplatesRouter(options: TemplatesRouterOptions): Router {
       if (err instanceof TemplateRenderError) {
         return res.status(422).json({ error: 'TemplateRenderFailed', message: err.message });
       }
-      console.error('[templates] pdf error:', err);
+      logger.error('[templates] pdf error', { error: err instanceof Error ? err.message : String(err) });
       return res.status(500).json({ error: 'InternalError', message: err instanceof Error ? err.message : String(err) });
     }
   });

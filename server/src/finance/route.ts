@@ -13,6 +13,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import type { AgentRole } from '../agent/types';
+import { logger } from '../lib/logger';
 import { PrismaClient } from '@prisma/client';
 import { syncInvoiceReferences, syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
@@ -279,7 +280,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       onDataChange?.({ entity: 'finance', action: 'delete_voucher', ids: [req.params.id] });
       res.json({ ok: true });
     } catch (err: any) {
-      console.error('[finance] DELETE /vouchers/:id failed:', err);
+      logger.error('[finance] DELETE /vouchers/:id failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: { code: 'DELETE_FAILED', message: err.message } });
     }
   });
@@ -353,7 +354,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       onDataChange?.({ entity: 'finance', action: 'cancel', ids: [req.params.id] });
       res.json({ ok: true, invoice: result.data!.invoice });
     } catch (err: any) {
-      console.error('[finance] POST /:id/cancel failed:', err);
+      logger.error('[finance] POST /:id/cancel failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: { code: 'CANCEL_FAILED', message: err.message } });
     }
   });
@@ -372,7 +373,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       onDataChange?.({ entity: 'finance', action: 'delete', ids: [req.params.id] });
       res.json({ ok: true });
     } catch (err: any) {
-      console.error('[finance] DELETE /:id failed:', err);
+      logger.error('[finance] DELETE /:id failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: { code: 'DELETE_FAILED', message: err.message } });
     }
   });

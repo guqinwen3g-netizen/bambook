@@ -10,6 +10,7 @@ import { persistOrders, PersistResult } from '../import/persistOrders';
 import { ParsedOrder } from '../import/types';
 import { syncOrderEntityReferences } from '../entities/sync';
 import { getOrder, queryOrders } from './query';
+import { logger } from '../lib/logger';
 
 export interface OrdersRouterOptions {
   prisma: PrismaClient;
@@ -56,8 +57,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       });
       return res.json({ ok: true, orders: rows.map(serializeOrder) });
     } catch (e: any) {
-      // eslint-disable-next-line no-console
-      console.error('[orders/list] failed:', e);
+      logger.error('[orders/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({
         error: 'LIST_FAILED',
         message: String(e?.message ?? e),
@@ -70,7 +70,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       const result = await queryOrders(opts.prisma, req.body || {});
       return res.json({ ok: true, ...result });
     } catch (e: any) {
-      console.error('[orders/query] failed:', e);
+      logger.error('[orders/query] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'QUERY_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -81,7 +81,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       if (!(result as any).found) return res.status(404).json({ error: 'NOT_FOUND', message: 'Order not found' });
       return res.json({ ok: true, order: (result as any).item });
     } catch (e: any) {
-      console.error('[orders/detail] failed:', e);
+      logger.error('[orders/detail] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DETAIL_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -134,8 +134,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
         orders: savedJson,
       });
     } catch (e: any) {
-      // eslint-disable-next-line no-console
-      console.error('[orders/import] failed:', e);
+      logger.error('[orders/import] failed', { error: e?.message || String(e) });
       return res.status(500).json({
         error: 'PERSIST_FAILED',
         message: String(e?.message ?? e),
@@ -242,8 +241,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       opts.onDataChange?.({ entity: 'orders', action: 'create', ids: [created.id] });
       return res.json({ ok: true, order: serializeOrder(created) });
     } catch (e: any) {
-      // eslint-disable-next-line no-console
-      console.error('[orders/create] failed:', e);
+      logger.error('[orders/create] failed', { error: e?.message || String(e) });
       const code = (e?.code as string | undefined) ?? '';
       if (code === 'P2002') {
         return res.status(409).json({
@@ -349,8 +347,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       opts.onDataChange?.({ entity: 'orders', action: 'update', ids: [updated.id] });
       return res.json({ ok: true, order: serializeOrder(updated) });
     } catch (e: any) {
-      // eslint-disable-next-line no-console
-      console.error('[orders/update] failed:', e);
+      logger.error('[orders/update] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -371,7 +368,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       opts.onDataChange?.({ entity: 'orders', action: 'delete', ids: [id] });
       return res.json({ ok: true, order: serializeOrder(result.data!.order) });
     } catch (e: any) {
-      console.error('[orders/delete] failed:', e);
+      logger.error('[orders/delete] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DELETE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -417,7 +414,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
         order: serializeOrder(d.order),
       });
     } catch (e: any) {
-      console.error('[orders/status-transition] failed:', e);
+      logger.error('[orders/status-transition] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'TRANSITION_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -439,7 +436,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       });
       return res.json({ ok: true, timeline: serialized });
     } catch (e: any) {
-      console.error('[orders/timeline] failed:', e);
+      logger.error('[orders/timeline] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'TIMELINE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -481,7 +478,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       opts.onDataChange?.({ entity: 'orders', action: 'batch-status', ids });
       return res.json({ ok: true, updated: results });
     } catch (e: any) {
-      console.error('[orders/batch-status] failed:', e);
+      logger.error('[orders/batch-status] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'BATCH_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -502,7 +499,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       }));
       return res.json({ ok: true, kanban });
     } catch (e: any) {
-      console.error('[orders/kanban] failed:', e);
+      logger.error('[orders/kanban] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'KANBAN_FAILED', message: String(e?.message ?? e) });
     }
   });

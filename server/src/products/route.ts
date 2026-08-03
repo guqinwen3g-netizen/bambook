@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { createProductAsset, updateProductAsset, deleteProductAsset } from './productAssetMutationService';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { logger } from '../lib/logger';
 
 // task ERP-P1: Decimal 输入校验（非法 cost/amount fail closed，不进 $transaction）
 function isValidDecimal(v: any): boolean {
@@ -256,7 +257,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
         hasMore: offset + assets.length < total,
       });
     } catch (e: any) {
-      console.error('[products/list] failed:', e);
+      logger.error('[products/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -307,7 +308,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
         sort: normalized.sort,
       });
     } catch (e: any) {
-      console.error('[products/query] failed:', e);
+      logger.error('[products/query] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'QUERY_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -350,7 +351,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
 
       return res.json({ ok: true, asset: serializeBigInts(asset), relatedOrderLines: serializeBigInts(relatedOrderLines) });
     } catch (e: any) {
-      console.error('[products/detail] failed:', e);
+      logger.error('[products/detail] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DETAIL_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -407,7 +408,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       opts.onDataChange?.({ entity: 'products', action: 'create', ids: [asset.id] });
       return res.status(201).json({ ok: true, asset: serializeBigInts(asset) });
     } catch (e: any) {
-      console.error('[products/create] failed:', e);
+      logger.error('[products/create] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'CREATE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -542,7 +543,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       opts.onDataChange?.({ entity: 'products', action: 'update', ids: [existing.id] });
       return res.json({ ok: true, asset: serializeBigInts(refreshed) });
     } catch (e: any) {
-      console.error('[products/update] failed:', e);
+      logger.error('[products/update] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -592,7 +593,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       opts.onDataChange?.({ entity: 'products', action: 'delete', ids: [existing.id] });
       return res.json({ ok: true, deleted: existing.id });
     } catch (e: any) {
-      console.error('[products/delete] failed:', e);
+      logger.error('[products/delete] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DELETE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -688,7 +689,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       } catch (txErr: any) {
         // task ERP-P1: DB/audit 失败 → best-effort 清理本次上传文件，不留下 ProductImage DB 行
         for (const f of files) { try { fs.unlinkSync(f.path); } catch { /* ignore */ } }
-        console.error('[products/upload-image] tx failed:', txErr);
+        logger.error('[products/upload-image] tx failed', { error: txErr?.message || String(txErr) });
         return res.status(500).json({ error: 'UPLOAD_FAILED', message: String(txErr?.message ?? txErr) });
       }
 
@@ -698,7 +699,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       // 外层 catch：multer 已落盘但 productId 校验等失败，清理文件
       const files = (req.files as Express.Multer.File[] | undefined) || [];
       for (const f of files) { try { fs.unlinkSync(f.path); } catch { /* ignore */ } }
-      console.error('[products/upload-image] failed:', e);
+      logger.error('[products/upload-image] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPLOAD_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -764,7 +765,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       opts.onDataChange?.({ entity: 'products', action: 'update', ids: [productId] });
       return res.json({ ok: true, deleted: imageId });
     } catch (e: any) {
-      console.error('[products/delete-image] failed:', e);
+      logger.error('[products/delete-image] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DELETE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -813,7 +814,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       opts.onDataChange?.({ entity: 'products', action: 'update', ids: [productId] });
       return res.json({ ok: true });
     } catch (e: any) {
-      console.error('[products/set-primary] failed:', e);
+      logger.error('[products/set-primary] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -848,7 +849,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       opts.onDataChange?.({ entity: 'products', action: 'update', ids: [productId] });
       return res.json({ ok: true });
     } catch (e: any) {
-      console.error('[products/reorder-images] failed:', e);
+      logger.error('[products/reorder-images] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
     }
   });

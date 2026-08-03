@@ -5,6 +5,7 @@ import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { AgentRole } from '../agent/types';
 import { EmailService, buildApprovalApprovedEmail, createEmailService } from '../auth/email';
+import { logger } from '../lib/logger';
 
 type AdminRouterOptions = {
   prisma: PrismaClient;
@@ -311,8 +312,7 @@ export function createAdminRouter(options: AdminRouterOptions) {
       } catch (err: any) {
         emailStatus = 'failed';
         emailError = err?.message || String(err);
-        // eslint-disable-next-line no-console
-        console.warn('[admin/approve] failed to send approval email:', emailError);
+        logger.warn('[admin/approve] failed to send approval email', { error: emailError });
       }
     }
 

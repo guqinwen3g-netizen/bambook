@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { normalizeTextForTts } from './ttsTextNormalizer';
+import { logger } from '../lib/logger';
 
 const DEFAULT_VOICE = 'zh-CN-XiaoxiaoNeural';
 const DEFAULT_TTS_PROVIDER = 'melo';
@@ -149,8 +150,7 @@ export async function prewarmMeloTts() {
       elapsedMs,
       at: new Date().toISOString(),
     };
-    // eslint-disable-next-line no-console
-    console.log(`[melo-tts] prewarm ok in ${elapsedMs}ms`);
+    logger.info(`[melo-tts] prewarm ok in ${elapsedMs}ms`);
     return lastPrewarmResult;
   } catch (err) {
     const elapsedMs = Date.now() - startedAt;
@@ -163,8 +163,7 @@ export async function prewarmMeloTts() {
       error: message,
       at: new Date().toISOString(),
     };
-    // eslint-disable-next-line no-console
-    console.warn(`[melo-tts] prewarm failed after ${elapsedMs}ms: ${message}`);
+    logger.warn(`[melo-tts] prewarm failed after ${elapsedMs}ms: ${message}`);
     return lastPrewarmResult;
   }
 }

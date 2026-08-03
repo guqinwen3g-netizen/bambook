@@ -11,6 +11,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { logger } from '../lib/logger';
 
 export interface PlannedToolCall {
   toolId: string;
@@ -34,7 +35,7 @@ const toolHandlers = new Map<string, ToolHandler>();
 
 export function registerTool(toolId: string, handler: ToolHandler): void {
   if (toolHandlers.has(toolId)) {
-    console.warn(`[toolDispatchRegistry] Duplicate registration for ${toolId}, overwriting`);
+    logger.warn(`[toolDispatchRegistry] Duplicate registration for ${toolId}, overwriting`);
   }
   toolHandlers.set(toolId, handler);
 }

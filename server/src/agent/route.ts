@@ -9,6 +9,7 @@ import { AgentRole, ActorContext } from './types';
 import { getMcpManifest } from './mcp/manifest';
 import { runMcpPlan } from './mcp/executor';
 import { buildAgentTaskFrame } from './taskFrame';
+import { logger } from '../lib/logger';
 
 type AuthOptions = {
   requireAuth: boolean;
@@ -485,7 +486,7 @@ function asyncHandler(
 ) {
   return (req: Request, res: Response, next?: NextFunction) => {
     handler(req, res, next).catch(error => {
-      console.error('[agent] route failed:', error);
+      logger.error('[agent] route failed', { error: error?.message || String(error) });
       if (!res.headersSent) {
         res.status(500).json({
           ok: false,

@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
+import { logger } from '../lib/logger';
 import { registerTool, dispatchFromRegistry, getRegisteredToolCount } from './toolDispatchRegistry';
 import { DEFAULT_AGENT_TOOLS } from './defaults';
 import { createPolicyService } from './policy';
@@ -1251,13 +1252,13 @@ export async function runAgentToolCalls(input: {
   const pending = [...input.calls];
   const seen = new Set<string>();
   const completedCalls: PlannedToolCall[] = [];
-  console.info(`[runAgentToolCalls] plan has ${pending.length} calls: ${pending.map(c => c.toolId).join(', ')}`);
+  logger.debug(`[runAgentToolCalls] plan has ${pending.length} calls: ${pending.map(c => c.toolId).join(', ')}`);
   for (let step = 0; step < pending.length && step < 8; step += 1) {
     const call = pending[step];
     const signature = `${call.toolId}:${JSON.stringify(call.input)}`;
     if (seen.has(signature)) continue;
     seen.add(signature);
-    console.info(`[runAgentToolCalls] step ${step}: executing ${call.toolId}`);
+    logger.debug(`[runAgentToolCalls] step ${step}: executing ${call.toolId}`);
     const startMessage = toolStartMessage(call);
     input.emitStep?.(startMessage);
     const callId = `call_${step}_${call.toolId}`;
@@ -1279,11 +1280,11 @@ export async function runAgentToolCalls(input: {
       actorUserId: input.actorUserId,
       requestSource: input.requestSource,
     });
-    console.info(`[runAgentToolCalls] step ${step}: ${call.toolId} result approvalPending=${!!result?.approvalPending} hit=${!!result?.hit}`);
+    logger.debug(`[runAgentToolCalls] step ${step}: ${call.toolId} result approvalPending=${!!result?.approvalPending} hit=${!!result?.hit}`);
     // Phase 7-58: 工具被审批拦截时，emit blocked + approval block 让前端提示用户决策。
     // 不抛错、不进入 loop assessment —— 等用户在 /approvals/:id/resolve 决策后下一轮再跑。
     if (result?.approvalPending) {
-      console.info(`[runAgentToolCalls] step ${step}: ${call.toolId} BLOCKED by approval, approvalId=${result.approvalPending.approvalId} risk=${result.approvalPending.risk}`);
+      logger.info(`[runAgentToolCalls] step ${step}: ${call.toolId} BLOCKED by approval, approvalId=${result.approvalPending.approvalId} risk=${result.approvalPending.risk}`);
       const approvalMessage = `${toolTitle(call.toolId)}需要审批后才能执行（risk=${result.approvalPending.risk}）。`;
       input.emitStep?.(approvalMessage);
       emitAgentWorkEvent(input.emit, {
@@ -2533,7 +2534,7 @@ _rct('product_asset.delete', async (ctx) => {
 });
 
 if (process.env.NODE_ENV !== 'production') {
-  console.log(`[toolDispatchRegistry] ${getRegisteredToolCount()} simple tools registered (complex commit tools remain in if-chain)`);
+  logger.info(`[toolDispatchRegistry] ${getRegisteredToolCount()} simple tools registered (complex commit tools remain in if-chain)`);
 }
 
 async function countProductAssets(prisma: PrismaClient) {
@@ -3584,7 +3585,7 @@ async function recordAgentToolRun(
     });
     return toolRunId;
   } catch (error: any) {
-    console.error(`[agent-tool-run] failed to record ${input.definition.id}:`, error?.message || error);
+    logger.error(`[agent-tool-run] failed to record ${input.definition.id}`, { error: error?.message || String(error) });
     return undefined;
   }
 }
@@ -5608,7 +5609,7 @@ async function handleTemplateRender(prisma: PrismaClient, input: any): Promise<a
       htmlBytes: result.bytes,
       source: 'agent',
     }).catch((err: unknown) => {
-      console.error('[templates] saveRenderedDoc error:', err);
+      logger.error('[templates] saveRenderedDoc error', { error: err instanceof Error ? err.message : String(err) });
     });
     return {
       ok: true,
@@ -5661,7 +5662,7 @@ async function handleTemplateRenderPdf(prisma: PrismaClient, input: any): Promis
         source: 'agent',
       });
     } catch (storeErr) {
-      console.error('[templates] saveRenderedDoc error:', storeErr);
+      logger.error('[templates] saveRenderedDoc error', { error: storeErr instanceof Error ? storeErr.message : String(storeErr) });
     }
     return {
       ok: true,

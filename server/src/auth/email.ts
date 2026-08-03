@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import { logger } from '../lib/logger';
 
 export type EmailMessage = {
   to: string;
@@ -123,8 +124,7 @@ function createConsoleService(): EmailService {
     isReal: false,
     describe: () => 'console (no RESEND_API_KEY / SMTP_* env vars)',
     async send(msg) {
-      // eslint-disable-next-line no-console
-      console.log('[email:console]', JSON.stringify({ to: msg.to, subject: msg.subject, text: msg.text }));
+      logger.info('[email:console]', { to: msg.to, subject: msg.subject, text: msg.text });
     },
   };
 }

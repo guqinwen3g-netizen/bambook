@@ -29,6 +29,8 @@ import { createFinanceRouter } from './finance/route';
 import { createShippingRouter } from './shipping/route';
 import { createProductionRouter } from './production/route';
 import { createTemplatesRouter } from './templates/route';
+import { logger } from './lib/logger';
+import { attachPrismaSlowQueryLogger, createRequestTimingMiddleware } from './lib/requestTiming';
 import { createEmailRouter } from './email/route';
 import { addRealtimeClient, publishDataChange } from './realtime';
 import { createAiRuntime } from './ai/runtime';
@@ -48,15 +50,18 @@ import { createEmailService } from './auth/email';
 import { createVerificationStore } from './auth/verification';
 import { describeRuntimeDataSource } from './dataSource';
 
-// Prisma (Bambook 数据)
-const prisma = new PrismaClient();
+// Prisma (Bambook 数据) — 开启 query 事件以支撑慢查询日志（Phase 1 · 任务 1.2）
+const prisma = new PrismaClient({
+    log: [{ emit: 'event', level: 'query' }],
+});
+attachPrismaSlowQueryLogger(prisma as unknown as Parameters<typeof attachPrismaSlowQueryLogger>[0]);
 const runtimeDataSource = describeRuntimeDataSource();
 if (runtimeDataSource.warning) {
-    console.warn(`[data-source] ${runtimeDataSource.warning}`);
+    logger.warn(`[data-source] ${runtimeDataSource.warning}`);
 }
-console.log(`[data-source] kind=${runtimeDataSource.kind} host=${runtimeDataSource.host} database=${runtimeDataSource.name} businessTruth=${runtimeDataSource.isBusinessTruth}`);
+logger.info(`[data-source] kind=${runtimeDataSource.kind} host=${runtimeDataSource.host} database=${runtimeDataSource.name} businessTruth=${runtimeDataSource.isBusinessTruth}`);
 ensureDefaultAgentTools(prisma).catch(error => {
-    console.error('[agent-tools] failed to ensure default tools:', error?.message || error);
+    logger.error('[agent-tools] failed to ensure default tools', { error: error?.message || String(error) });
 });
 startPdmlSyncScheduler({ prisma, onDataChange: publishDataChange });
 const macMiniChatRunner = createMacMiniChatRunner({
@@ -175,6 +180,8 @@ const corsWithCredentials = cors({
 app.use(corsWithCredentials);
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+// 请求耗时日志：5xx→error / 慢请求→warn / 其余→debug（Phase 1 · 任务 1.2）
+app.use(createRequestTimingMiddleware());
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     if (origin) {
@@ -227,9 +234,9 @@ if (fs.existsSync(WEBAPP_DIR)) {
         res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(indexFile);
     });
-    console.log(`[Webapp] Serving SPA from ${WEBAPP_DIR} at ${WEBAPP_MOUNT}/`);
+    logger.info(`[Webapp] Serving SPA from ${WEBAPP_DIR} at ${WEBAPP_MOUNT}/`);
 } else {
-    console.log(`[Webapp] No bundle at ${WEBAPP_DIR} — SPA disabled (deploy via ops panel).`);
+    logger.info(`[Webapp] No bundle at ${WEBAPP_DIR} — SPA disabled (deploy via ops panel).`);
 }
 
 // Serialization helper for BigInt
@@ -321,7 +328,7 @@ const handleSync = async (model: any, req: express.Request, res: express.Respons
             return res.json({ status: "success", count: items.length });
         }
     } catch (e: any) {
-        console.error("Sync Error:", e);
+        logger.error("Sync Error", { error: e?.message || String(e) });
         res.status(500).json({ status: "error", error: e.message });
     }
 };
@@ -367,7 +374,7 @@ const verificationStore = createVerificationStore();
 const requireEmailVerification = process.env.AUTH_REQUIRE_EMAIL_VERIFY
   ? !/^(0|false|no)$/i.test(process.env.AUTH_REQUIRE_EMAIL_VERIFY.trim())
   : true;
-console.log(`[auth] email transport: ${emailService.describe()}; verification ${requireEmailVerification ? 'required' : 'optional'}`);
+logger.info(`[auth] email transport: ${emailService.describe()}; verification ${requireEmailVerification ? 'required' : 'optional'}`);
 
 app.use('/api/auth', createAuthRouter({
   prisma,
@@ -546,8 +553,7 @@ app.get('/api/search', async (req, res) => {
     const query = req.query.q as string;
     if (!query) return res.status(400).json({ error: "Missing query parameter 'q'" });
 
-    console.log(`🔍 [Search Proxy] Query: "${query}"`);
-
+    logger.info(`🔍 [Search Proxy] Query: "${query}"`);
     try {
         const params = new URLSearchParams({
             q: query,
@@ -595,7 +601,7 @@ app.get('/api/search', async (req, res) => {
             }
         });
 
-        console.log(`[Search Proxy] Found ${results.length} results via scraping.`);
+        logger.info(`[Search Proxy] Found ${results.length} results via scraping.`);
 
         if (results.length === 0) {
             // Check for zero-click abstract (sometimes distinct structure)
@@ -617,7 +623,7 @@ app.get('/api/search', async (req, res) => {
         });
 
     } catch (error: any) {
-        console.error('[Search Proxy] Error:', error.message);
+        logger.error('[Search Proxy] Error', { error: error?.message || String(error) });
         res.status(500).json({ error: `Search failed: ${error.message}` });
     }
 });
@@ -627,7 +633,7 @@ app.get('/api/fetch-url', async (req, res) => {
     const url = req.query.url as string;
     if (!url) return res.status(400).json({ error: "Missing 'url' parameter" });
 
-    console.log(`📖 [URL Proxy] Fetching: ${url}`);
+    logger.info(`📖 [URL Proxy] Fetching: ${url}`);
 
     try {
         const response = await fetch(url, {
@@ -654,7 +660,7 @@ app.get('/api/fetch-url', async (req, res) => {
         });
 
     } catch (error: any) {
-        console.error('[URL Proxy] Error:', error.message);
+        logger.error('[URL Proxy] Error', { error: error?.message || String(error) });
         res.status(500).json({ error: `Fetch failed: ${error.message}` });
     }
 });
@@ -708,7 +714,7 @@ app.get('/api/market/cotton', async (req, res) => {
             throw new Error('No quote data');
         }
     } catch (e: any) {
-        console.error('Cotton API error:', e.message);
+        logger.error('Cotton API error', { error: e?.message || String(e) });
         res.status(500).json({ status: 'error', error: e.message });
     }
 });
@@ -746,7 +752,7 @@ app.get('/api/market/wool', async (req, res) => {
             });
         }
     } catch (e: any) {
-        console.error('Wool API error:', e.message);
+        logger.error('Wool API error', { error: e?.message || String(e) });
         res.json({
             status: 'estimated',
             symbol: 'EMI (Est.)',
@@ -920,7 +926,7 @@ app.post('/api/shipping-notice/generate', sdkAuth, async (req, res) => {
         // 生成 Excel 文件
         const outputPath = createShippingNoticeExcel(shippingData, filename);
 
-        console.log(`[Shipping Notice] Generated: ${outputPath}`);
+        logger.info(`[Shipping Notice] Generated: ${outputPath}`);
 
         res.json({
             success: true,
@@ -930,7 +936,7 @@ app.post('/api/shipping-notice/generate', sdkAuth, async (req, res) => {
         });
 
     } catch (error: any) {
-        console.error('[Shipping Notice Error]:', error);
+        logger.error('[Shipping Notice Error]', { error: error?.message || String(error) });
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -1039,7 +1045,7 @@ app.post('/api/orders/search', sdkAuth, async (req, res) => {
         res.json({ orders });
 
     } catch (error: any) {
-        console.error('[Order Search Error]:', error);
+        logger.error('[Order Search Error]', { error: error?.message || String(error) });
         res.status(500).json({ error: error.message });
     }
 });
@@ -1064,8 +1070,8 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
                 GBP_CNY: forexData.rates.GBP ? (1 / forexData.rates.GBP) * forexData.rates.CNY : null,
                 AUD_CNY: forexData.rates.AUD ? (1 / forexData.rates.AUD) * forexData.rates.CNY : null
             };
-        } catch (e) {
-            console.error('Forex fetch failed:', e);
+        } catch (e: any) {
+            logger.error('Forex fetch failed', { error: e?.message || String(e) });
         }
         
         // 2. 获取棉花期货
@@ -1087,8 +1093,8 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
                     usdCurrency: 'US cents/lb'
                 };
             }
-        } catch (e) {
-            console.error('Cotton fetch failed:', e);
+        } catch (e: any) {
+            logger.error('Cotton fetch failed', { error: e?.message || String(e) });
         }
         
         // 3. 亚麻价格 (基于 USD 估算，波动较小)
@@ -1108,7 +1114,7 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
         
         res.json(results);
     } catch (e: any) {
-        console.error('Market API error:', e);
+        logger.error('Market API error', { error: e?.message || String(e) });
         res.status(500).json({ status: 'error', error: e.message });
     }
 });
@@ -1119,20 +1125,20 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
 // =============================================================================
 
 app.listen(PORT, () => {
-    console.log(`🛡️  Sovereign Neural Core Online on port ${PORT}`);
-    console.log(`🔌  Database Connection: Postgres via Prisma`);
-    console.log(`🤖  SDK API: ${SDK_CONFIG.requireAuth ? 'Protected (API Key Required)' : 'Open (Local Access)'}`);
-    console.log(`📥  Import API: POST /api/v1/import/order (auth: ${SDK_CONFIG.requireAuth ? 'required' : 'open'})`);
-    console.log(`💾  Orders API: POST /api/v1/orders/import (auth: ${SDK_CONFIG.requireAuth ? 'required' : 'open'})`);
+    logger.info(`Sovereign Neural Core Online on port ${PORT}`);
+    logger.info('Database Connection: Postgres via Prisma');
+    logger.info(`SDK API: ${SDK_CONFIG.requireAuth ? 'Protected (API Key Required)' : 'Open (Local Access)'}`);
+    logger.info(`Import API: POST /api/v1/import/order (auth: ${SDK_CONFIG.requireAuth ? 'required' : 'open'})`);
+    logger.info(`Orders API: POST /api/v1/orders/import (auth: ${SDK_CONFIG.requireAuth ? 'required' : 'open'})`);
     if (process.env.BAMBOOK_MELO_PREWARM_ON_START === 'true') {
         prewarmMeloTts()
             .then(result => {
                 if (!result.skipped) {
-                    console.log(`[tts] Melo prewarmed in ${result.elapsedMs}ms`);
+                    logger.info(`[tts] Melo prewarmed in ${result.elapsedMs}ms`);
                 }
             })
             .catch(error => {
-                console.warn(`[tts] Melo prewarm failed: ${error?.message || error}`);
+                logger.warn(`[tts] Melo prewarm failed: ${error?.message || error}`);
             });
     }
 });

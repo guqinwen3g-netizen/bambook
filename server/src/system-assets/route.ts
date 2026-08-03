@@ -4,6 +4,7 @@ import multer from 'multer';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import path from 'path';
 import fs from 'fs';
+import { logger } from '../lib/logger';
 
 export interface SystemAssetsRouterOptions {
   prisma: PrismaClient;
@@ -31,7 +32,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       return res.sendFile(fullPath);
     } catch (e: any) {
-      console.error('[system-assets/file] failed:', e);
+      logger.error('[system-assets/file] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'FILE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -79,7 +80,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
       });
       return res.json({ ok: true, assets: serializeAssets(assets) });
     } catch (e: any) {
-      console.error('[system-assets/list] failed:', e);
+      logger.error('[system-assets/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -135,7 +136,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
       opts.onDataChange?.({ entity: 'system-assets', action: 'upsert', ids: [id] });
       return res.status(201).json({ ok: true, asset: serializeAsset(asset) });
     } catch (e: any) {
-      console.error('[system-assets/upload-wallpaper] failed:', e);
+      logger.error('[system-assets/upload-wallpaper] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPLOAD_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -155,7 +156,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
       opts.onDataChange?.({ entity: 'system-assets', action: 'update', ids: [id] });
       return res.json({ ok: true, asset: serializeAsset(asset) });
     } catch (e: any) {
-      console.error('[system-assets/update] failed:', e);
+      logger.error('[system-assets/update] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -170,7 +171,7 @@ export function createSystemAssetsRouter(opts: SystemAssetsRouterOptions): Route
       opts.onDataChange?.({ entity: 'system-assets', action: 'delete', ids: [id] });
       return res.json({ ok: true, deleted: id });
     } catch (e: any) {
-      console.error('[system-assets/delete] failed:', e);
+      logger.error('[system-assets/delete] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DELETE_FAILED', message: String(e?.message ?? e) });
     }
   });

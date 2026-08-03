@@ -12,6 +12,7 @@ import { syncOrderEntityReferences } from '../entities/sync';
 import { createDevelopmentCase, updateDevelopmentCase, updateDevelopmentStage, deleteDevelopmentCase } from './developmentCaseMutationService';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { convertDevCaseToOrder } from './convertService';
+import { logger } from '../lib/logger';
 
 export interface DevelopmentRouterOptions {
   prisma: PrismaClient;
@@ -125,7 +126,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
 
       res.json({ ok: true, cases: serialized, total, limit: Number(limit), offset: Number(offset) });
     } catch (err: any) {
-      console.error('[development] GET / failed:', err);
+      logger.error('[development] GET / failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: err.message });
     }
   });
@@ -150,7 +151,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
       };
       res.json({ ok: true, case: serialized });
     } catch (err: any) {
-      console.error('[development] GET /:id failed:', err);
+      logger.error('[development] GET /:id failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: err.message });
     }
   });
@@ -339,7 +340,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
           : null,
       });
     } catch (err: any) {
-      console.error('[development] POST /:id/convert failed:', err);
+      logger.error('[development] POST /:id/convert failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: { code: 'CONVERT_FAILED', message: err.message } });
     }
   });

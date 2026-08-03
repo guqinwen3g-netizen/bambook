@@ -4,6 +4,7 @@ import { createAuthService } from './service';
 import { AgentRole } from '../agent/types';
 import { EmailService, buildVerificationEmail, createEmailService } from './email';
 import { VerificationStore, createVerificationStore } from './verification';
+import { logger } from '../lib/logger';
 
 type AuthRouterOptions = {
   prisma: PrismaClient;
@@ -165,8 +166,7 @@ export function createAuthRouter(options: AuthRouterOptions) {
       try {
         await email.send(message);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[send-code] email send failed:', err);
+        logger.error('[send-code] email send failed', { error: err instanceof Error ? err.message : String(err) });
         if (email.isReal) {
           const detail = err instanceof Error ? err.message : String(err);
           return res.status(502).json({ ok: false, error: 'EMAIL_FAILED', message: `邮件发送失败：${detail}` });
@@ -181,8 +181,7 @@ export function createAuthRouter(options: AuthRouterOptions) {
         transport: email.describe(),
       });
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[send-code] unexpected failure:', err);
+      logger.error('[send-code] unexpected failure', { error: err instanceof Error ? err.message : String(err) });
       const detail = err instanceof Error ? err.message : String(err);
       return res.status(500).json({ ok: false, error: 'SEND_CODE_FAILED', message: `验证码发送服务异常：${detail}` });
     }

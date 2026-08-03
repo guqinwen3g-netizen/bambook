@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { syncPdmlRawFabricCache } from './route';
+import { logger } from '../lib/logger';
 
 interface PdmlSyncSchedulerOptions {
   prisma: PrismaClient;
@@ -18,11 +19,11 @@ const parseIntervalMs = () => {
 
 export function startPdmlSyncScheduler(opts: PdmlSyncSchedulerOptions) {
   if (process.env.PDML_SYNC_DISABLED === 'true') {
-    console.log('[pdml-sync] disabled by PDML_SYNC_DISABLED=true');
+    logger.info('[pdml-sync] disabled by PDML_SYNC_DISABLED=true');
     return;
   }
   if (process.env.NODE_ENV !== 'production' && process.env.PDML_SYNC_ENABLED !== 'true') {
-    console.log('[pdml-sync] skipped outside production; set PDML_SYNC_ENABLED=true to enable locally');
+    logger.info('[pdml-sync] skipped outside production; set PDML_SYNC_ENABLED=true to enable locally');
     return;
   }
 
@@ -31,7 +32,7 @@ export function startPdmlSyncScheduler(opts: PdmlSyncSchedulerOptions) {
 
   const run = async (reason: string) => {
     if (running) {
-      console.log(`[pdml-sync] skipped ${reason}; previous sync still running`);
+      logger.debug(`[pdml-sync] skipped ${reason}; previous sync still running`);
       return;
     }
     running = true;
@@ -42,17 +43,17 @@ export function startPdmlSyncScheduler(opts: PdmlSyncSchedulerOptions) {
         pageSize: Number(process.env.PDML_SYNC_PAGE_SIZE || 500),
         onDataChange: opts.onDataChange,
       });
-      console.log(
+      logger.info(
         `[pdml-sync] ${reason} ok: fetched=${result.fetched} created=${result.created} updated=${result.updated} unchanged=${result.unchanged} ms=${Date.now() - started}`,
       );
     } catch (error: any) {
-      console.error(`[pdml-sync] ${reason} failed:`, error?.message || error);
+      logger.error(`[pdml-sync] ${reason} failed`, { error: error?.message || String(error) });
     } finally {
       running = false;
     }
   };
 
-  console.log(`[pdml-sync] scheduler enabled; interval=${Math.round(intervalMs / 1000)}s`);
+  logger.info(`[pdml-sync] scheduler enabled; interval=${Math.round(intervalMs / 1000)}s`);
   setTimeout(() => void run('startup'), minutes(1));
   setInterval(() => void run('interval'), intervalMs);
 }

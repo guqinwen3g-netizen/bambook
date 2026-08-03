@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { logger } from '../lib/logger';
 
 export interface BusinessProfilesRouterOptions {
   prisma: PrismaClient;
@@ -36,7 +37,7 @@ export function createBusinessProfilesRouter(opts: BusinessProfilesRouterOptions
       });
       return res.json({ ok: true, profiles: rows.map(serializeProfile) });
     } catch (e: any) {
-      console.error('[business-profiles/list] failed:', e);
+      logger.error('[business-profiles/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -79,7 +80,7 @@ export function createBusinessProfilesRouter(opts: BusinessProfilesRouterOptions
       opts.onDataChange?.({ entity: 'business-profiles', action: 'upsert', ids: [saved.id] });
       return res.json({ ok: true, profile: serializeProfile(saved) });
     } catch (e: any) {
-      console.error('[business-profiles/upsert] failed:', e);
+      logger.error('[business-profiles/upsert] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'UPSERT_FAILED', message: String(e?.message ?? e) });
     }
   });
@@ -101,7 +102,7 @@ export function createBusinessProfilesRouter(opts: BusinessProfilesRouterOptions
       opts.onDataChange?.({ entity: 'business-profiles', action: 'delete', ids: [id] });
       return res.json({ ok: true, profile: serializeProfile(saved) });
     } catch (e: any) {
-      console.error('[business-profiles/delete] failed:', e);
+      logger.error('[business-profiles/delete] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'DELETE_FAILED', message: String(e?.message ?? e) });
     }
   });

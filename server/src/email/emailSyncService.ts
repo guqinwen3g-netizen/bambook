@@ -3,6 +3,7 @@ import imaps from 'imap-simple';
 import crypto from 'crypto';
 import { syncEmailReferences } from './sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
+import { logger } from '../lib/logger';
 
 export type EmailSyncErrorCode =
   | 'MISSING_CREDENTIALS'
@@ -172,7 +173,7 @@ export async function syncEmailsFromImap(params: EmailSyncParams): Promise<Email
         } catch (err: any) {
           if (err?.code === 'P2002') { skipped++; continue; }
           if (err?.code === 'SYNC_REF_FAILED' || err?.code === 'AUDIT_FAILED') throw err;
-          console.error('[email-sync] Error processing message:', sanitizeMessage(String(err?.message || err)));
+          logger.error('[email-sync] Error processing message', { error: sanitizeMessage(String(err?.message || err)) });
           errors++;
         }
       }
