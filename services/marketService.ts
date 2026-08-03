@@ -68,10 +68,48 @@ class MarketService {
             return this.tickers;
         }
         
+        // 优先走后端单一真源（汇率+大宗商品一次拉取，服务端出网更稳定）；
+        // 后端不可达时（离线模式）回退到客户端直连汇率 API。
+        let backendOk = false;
         try {
-            console.log("⚡️ [MARKET] Fetching real-time market data from backend...");
+            const res = await fetch(`${BACKEND_API}/market/all`);
+            if (res.ok) {
+                const data = await res.json();
+                this.marketCache = data;
+                this.lastMarketUpdate = now;
 
-            // 1. 获取实时汇率
+                if (data.status === 'success') {
+                    backendOk = true;
+
+                    // 汇率（后端实时源）
+                    if (typeof data.forex?.USD_CNY === 'number') {
+                        this.updateBasePrice('USD/CNY', data.forex.USD_CNY, !data.forex.isEstimate);
+                    }
+                    if (typeof data.forex?.EUR_CNY === 'number') {
+                        this.updateBasePrice('EUR/CNY', data.forex.EUR_CNY, !data.forex.isEstimate);
+                    }
+                    if (typeof data.forex?.GBP_CNY === 'number') {
+                        this.updateBasePrice('GBP/CNY', data.forex.GBP_CNY, !data.forex.isEstimate);
+                    }
+
+                    // 大宗商品：isEstimate → isReal=false（估算值不冒充实时行情）
+                    if (typeof data.commodities?.cotton?.price === 'number') {
+                        this.updateBasePrice('COTTON (CN)', data.commodities.cotton.price, !data.commodities.cotton.isEstimate);
+                    }
+                    if (typeof data.commodities?.wool?.price === 'number') {
+                        this.updateBasePrice('WOOL (CN)', data.commodities.wool.price, !data.commodities.wool.isEstimate);
+                    }
+                    if (typeof data.commodities?.linen?.price === 'number') {
+                        this.updateBasePrice('LINEN (CN)', data.commodities.linen.price, !data.commodities.linen.isEstimate);
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("Backend market API failed:", e);
+        }
+
+        // 离线回退：客户端直连汇率 API
+        if (!backendOk) {
             try {
                 const forexRes = await fetch(API_ENDPOINT);
                 const forexData = await forexRes.json();
@@ -85,41 +123,12 @@ class MarketService {
                         this.updateBasePrice('GBP/CNY', (1 / forexData.rates.GBP) * cnyRate);
                     }
                 }
-            } catch (e) { 
-                console.warn("Forex API failed:", e); 
+            } catch (e) {
+                console.warn("Forex API failed:", e);
             }
-
-            // 2. 从后端获取大宗商品数据 (真实期货数据)
-            try {
-                const res = await fetch(`${BACKEND_API}/market/all`);
-                if (res.ok) {
-                    const data = await res.json();
-                    this.marketCache = data;
-                    this.lastMarketUpdate = now;
-                    
-                    if (data.status === 'success') {
-                        // 更新棉花价格 (真实期货)
-                        if (data.commodities?.cotton?.price) {
-                            this.updateBasePrice('COTTON (CN)', data.commodities.cotton.price);
-                        }
-                        
-                        // 更新羊毛价格
-                        if (data.commodities?.wool?.price) {
-                            this.updateBasePrice('WOOL (CN)', data.commodities.wool.price);
-                        }
-                        
-                        console.log(`✅ [MARKET] Real data synchronized at ${new Date().toLocaleTimeString()}`);
-                    }
-                }
-            } catch (e) { 
-                console.warn("Backend market API failed:", e); 
-            }
-
-            return this.tickers;
-        } catch (e) {
-            console.warn("Live refresh skipped", e);
-            return this.tickers;
         }
+
+        return this.tickers;
     }
 
     // 生成微小的价格波动 (模拟真实市场的实时跳动)

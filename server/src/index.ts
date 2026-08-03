@@ -1068,7 +1068,9 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
                 USD_CNY: forexData.rates.CNY,
                 EUR_CNY: forexData.rates.EUR ? (1 / forexData.rates.EUR) * forexData.rates.CNY : null,
                 GBP_CNY: forexData.rates.GBP ? (1 / forexData.rates.GBP) * forexData.rates.CNY : null,
-                AUD_CNY: forexData.rates.AUD ? (1 / forexData.rates.AUD) * forexData.rates.CNY : null
+                AUD_CNY: forexData.rates.AUD ? (1 / forexData.rates.AUD) * forexData.rates.CNY : null,
+                source: 'real-time',
+                isEstimate: false
             };
         } catch (e: any) {
             logger.error('Forex fetch failed', { error: e?.message || String(e) });
@@ -1090,7 +1092,9 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
                     price: cnyPerTon,
                     currency: 'CNY/ton',
                     usdPrice: usdPerLb,
-                    usdCurrency: 'US cents/lb'
+                    usdCurrency: 'US cents/lb',
+                    source: 'real-time',
+                    isEstimate: false
                 };
             }
         } catch (e: any) {
@@ -1101,7 +1105,9 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
         results.commodities.linen = {
             price: 87500, // 基础价格 CNY/ton
             currency: 'CNY/ton',
-            note: 'Linen prices update weekly'
+            note: 'Linen prices update weekly',
+            source: 'estimate',
+            isEstimate: true
         };
         
         // 4. 羊毛 (估算)
@@ -1109,7 +1115,9 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
             price: 97500, // 基础价格 CNY/ton
             currency: 'CNY/ton',
             audPrice: 1450, // AUD/100kg
-            note: 'Australian Wool EMI Index'
+            note: 'Australian Wool EMI Index',
+            source: 'estimate',
+            isEstimate: true
         };
         
         res.json(results);
