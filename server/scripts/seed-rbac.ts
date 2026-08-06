@@ -1,15 +1,22 @@
 /**
  * Seed RBAC tables: Role, Permission, RolePermission, and Department.
  *
- * Usage:
- *   DATABASE_URL="<bambook-data-center-postgres-url>" \
- *     npx tsx scripts/seed-rbac.ts
+ * Usage（自动加载 server/.env.local 与 server/.env，也可显式传入 DATABASE_URL 覆盖）:
+ *   npx tsx scripts/seed-rbac.ts
  *
  * Default owner creation is intentionally opt-in:
  *   BAMBOOK_SEED_DEFAULT_OWNER=1 npx tsx scripts/seed-rbac.ts
  */
+import path from 'path';
+import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+
+// 统一 seed 脚本环境加载约定（与 seed-demo-data-v2.ts 一致）：
+// .env.local 优先，.env 兜底；显式传入的 DATABASE_URL 环境变量优先级最高（dotenv 不覆盖已有值）。
+const SERVER_ROOT = path.resolve(__dirname, '..');
+dotenv.config({ path: path.join(SERVER_ROOT, '.env.local') });
+dotenv.config({ path: path.join(SERVER_ROOT, '.env') });
 
 const prisma = new PrismaClient();
 

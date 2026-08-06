@@ -1,6 +1,14 @@
+import path from 'path';
+import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+
+// 统一 seed 脚本环境加载约定（与 seed-demo-data-v2.ts 一致）：
+// .env.local 优先，.env 兜底；显式传入的 DATABASE_URL 环境变量优先级最高（dotenv 不覆盖已有值）。
+const SERVER_ROOT = path.resolve(__dirname, '..');
+dotenv.config({ path: path.join(SERVER_ROOT, '.env.local') });
+dotenv.config({ path: path.join(SERVER_ROOT, '.env') });
 
 const prisma = new PrismaClient();
 
