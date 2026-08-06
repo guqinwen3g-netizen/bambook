@@ -756,6 +756,8 @@ model UserAccount {
   auditLogs         AuditLog[]
   notifications          Notification[]
   notificationPreferences NotificationPreference[]
+  workflowInitiated      WorkflowInstance[] @relation("WorkflowInitiator")
+  workflowDecided        WorkflowStep[]     @relation("WorkflowDecider")
 
   @@index([status])
   @@index([primaryDeptId])
@@ -1971,3 +1973,77 @@ model AgentCheckpoint {
   @@index([conversationId])
   @@index([createdAt])
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Workflow Engine (Phase 0 · Sprint 2)
+// ════════════════════════════════════════════════════════════════════
+// 多步审批 / 会签 / 条件分支的状态机引擎。
+// WorkflowDefinition = 模板（哪些步骤、每步谁审批）
+// WorkflowInstance   = 一次具体审批流程实例（绑定到某个业务实体）
+// WorkflowStep       = 实例中的每一步审批记录
+
+/// 工作流定义模板 — 可复用的审批流程蓝图
+model WorkflowDefinition {
+  id           String   @id
+  name         String
+  description  String?
+  entityType   String   // 'Order' | 'Invoice' | 'Shipment' | 'DevelopmentCase' | etc.
+  triggerEvent String?  // e.g. 'OrderConfirmed' — 事件总线收到此事件时自动创建实例
+  steps        Json     // Array<StepDef>: { name, approverRole?, approverUserId?, description? }
+  version      Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instances    WorkflowInstance[]
+
+  @@index([entityType])
+  @@index([triggerEvent])
+  @@index([isActive])
+}
+
+/// 工作流实例 — 一次具体的审批流程，绑定到某个业务实体
+model WorkflowInstance {
+  id               String    @id
+  definitionId     String
+  definition       WorkflowDefinition @relation(fields: [definitionId], references: [id])
+  entityType       String    // 'Order' | 'Invoice' | etc.（冗余存储，便于查询）
+  entityId         String    // 业务实体 ID
+  status           String    @default("running") // running | approved | rejected | cancelled
+  currentStepIndex Int       @default(0)
+  title            String?   // 实例标题（如"订单 #PO-001 审批"）
+  initiatedById    String?
+  initiator        UserAccount? @relation("WorkflowInitiator", fields: [initiatedById], references: [id])
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  steps            WorkflowStep[]
+
+  @@index([definitionId])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([initiatedById])
+}
+
+/// 工作流步骤 — 实例中每一步的审批记录
+model WorkflowStep {
+  id              String    @id
+  instanceId      String
+  instance        WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  stepIndex       Int
+  stepName        String
+  approverRole    String?   // 角色审批（如 'manager' | 'finance' | 'production_manager'）
+  approverUserId  String?   // 指定用户审批（可选，优先于角色）
+  decision        String?   // null(待审批) | approved | rejected | skipped
+  decisionNote    String?
+  decidedById     String?
+  decider         UserAccount? @relation("WorkflowDecider", fields: [decidedById], references: [id])
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([instanceId])
+  @@index([decision])
+  @@index([approverRole])
+}
+

@@ -48,6 +48,9 @@ import { createNotificationsRouter } from './notifications/route';
 import { createAutomationRouter } from './config/automationRoute';
 import { registerAllLinkages } from './events/linkages';
 import { startScheduler } from './scheduler';
+import { createWorkflowRouter } from './workflow/workflowRoute';
+import { WorkflowEngine, seedDefaultWorkflowDefinitions } from './workflow/workflowEngine';
+import { registerWorkflowEventTriggers } from './workflow/workflowEventTriggers';
 import { extractActorFromRequest } from './auth/middleware';
 import { TokenPayload } from './auth/service';
 import { AgentRole } from './agent/types';
@@ -75,6 +78,11 @@ initializeNotificationBindings(prisma);
 registerAllLinkages();
 // Phase 0 Sprint 2: 启动调度器（崩溃恢复 + 每日 briefing + 卡滞检测 + AgentJob 清理）
 startScheduler(prisma);
+// Phase 0 Sprint 2: 工作流引擎 — seed 默认定义 + 事件总线自动触发集成
+seedDefaultWorkflowDefinitions(prisma).catch(error => {
+    logger.error('[workflow] failed to seed default definitions', { error: error?.message || String(error) });
+});
+registerWorkflowEventTriggers(prisma);
 startPdmlSyncScheduler({ prisma, onDataChange: publishDataChange });
 const macMiniChatRunner = createMacMiniChatRunner({
     prisma,
@@ -539,6 +547,16 @@ app.use(
     (req, res, next) => {
         sdkAuth(req, res, () => {
             createAutomationRouter(prisma)(req, res, next);
+        });
+    },
+);
+
+// ── 工作流引擎 API（Phase 0 Sprint 2）──
+app.use(
+    '/api/v1/workflow',
+    (req, res, next) => {
+        sdkAuth(req, res, () => {
+            createWorkflowRouter(prisma)(req, res, next);
         });
     },
 );

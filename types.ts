@@ -1810,3 +1810,58 @@ export interface AutomationRule {
   eventType: string;
   enabled: boolean;
 }
+
+// ── 工作流引擎 ──
+export type WorkflowInstanceStatus = 'running' | 'approved' | 'rejected' | 'cancelled';
+export type WorkflowStepDecision = 'approved' | 'rejected' | 'skipped';
+
+export interface WorkflowDefinition {
+  id: string;
+  name: string;
+  description: string | null;
+  entityType: string;
+  triggerEvent: string | null;
+  steps: WorkflowStepDef[];
+  version: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowStepDef {
+  name: string;
+  approverRole?: string;
+  approverUserId?: string;
+  description?: string;
+}
+
+export interface WorkflowStepDetail {
+  id: string;
+  stepIndex: number;
+  stepName: string;
+  approverRole: string | null;
+  approverUserId: string | null;
+  decision: WorkflowStepDecision | null;
+  decisionNote: string | null;
+  decidedById: string | null;
+  deciderName: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+}
+
+export interface WorkflowInstance {
+  id: string;
+  definitionId: string;
+  definitionName: string;
+  entityType: string;
+  entityId: string;
+  status: WorkflowInstanceStatus;
+  currentStepIndex: number;
+  title: string | null;
+  initiatedById: string | null;
+  initiatorName: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  steps: WorkflowStepDetail[];
+}

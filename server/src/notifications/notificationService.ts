@@ -65,6 +65,26 @@ export interface NotificationService {
     link?: string;
     metadata?: Record<string, unknown>;
   }): Promise<{ count: number }>;
+  /** 发送给指定用户（创建 + SSE 实时推送） */
+  sendToUser(params: {
+    userId: string;
+    type: string;
+    title: string;
+    body: string;
+    level?: 'info' | 'warning' | 'critical';
+    link?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<Notification | null>;
+  /** 发送给指定角色的所有用户（按 UserRole 关联查找） */
+  broadcastToRole(params: {
+    role: string;
+    type: string;
+    title: string;
+    body: string;
+    level?: 'info' | 'warning' | 'critical';
+    link?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<{ count: number }>;
   /** 列出用户的通知 */
   listNotifications(params: NotificationListParams): Promise<{ items: Notification[]; total: number }>;
   /** 获取未读统计 */
@@ -185,7 +205,96 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
         })),
         skipDuplicates: true,
       });
+      // SSE 推送
+      publishNotificationEvent({
+        type: params.type,
+        title: params.title,
+        body: params.body,
+        level: params.level ?? 'info',
+        link: params.link,
+        eventId: baseId,
+        eventType: params.type,
+        recipientIds: recipients,
+      });
       return { count: created.count };
+    },
+
+    async sendToUser(params): Promise<Notification | null> {
+      try {
+        const id = `ntf_user_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const notification = await prisma.notification.create({
+          data: {
+            id,
+            userId: params.userId,
+            type: params.type,
+            title: params.title,
+            body: params.body,
+            level: params.level ?? 'info',
+            link: params.link ?? null,
+            metadata: (params.metadata as any) ?? null,
+          },
+        });
+        // SSE 推送给该用户
+        publishNotificationEvent({
+          type: params.type,
+          title: params.title,
+          body: params.body,
+          level: params.level ?? 'info',
+          link: params.link,
+          eventId: id,
+          eventType: params.type,
+          recipientIds: [params.userId],
+        });
+        return notification;
+      } catch (e: any) {
+        logger.error('[NotificationService] sendToUser failed', { error: e?.message, userId: params.userId });
+        return null;
+      }
+    },
+
+    async broadcastToRole(params): Promise<{ count: number }> {
+      try {
+        // 查找拥有该角色的所有 active 用户
+        const usersWithRole = await prisma.userRole.findMany({
+          where: { role: { name: params.role } },
+          select: { userId: true },
+        });
+        const userIds = [...new Set(usersWithRole.map(ur => ur.userId))];
+        if (userIds.length === 0) {
+          logger.warn('[NotificationService] broadcastToRole: no users with role', { role: params.role });
+          return { count: 0 };
+        }
+        const baseId = `ntf_role_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const created = await prisma.notification.createMany({
+          data: userIds.map((userId) => ({
+            id: `${baseId}_${userId}`,
+            userId,
+            type: params.type,
+            title: params.title,
+            body: params.body,
+            level: params.level ?? 'info',
+            link: params.link ?? null,
+            metadata: (params.metadata as any) ?? null,
+          })),
+          skipDuplicates: true,
+        });
+        // SSE 推送
+        publishNotificationEvent({
+          type: params.type,
+          title: params.title,
+          body: params.body,
+          level: params.level ?? 'info',
+          link: params.link,
+          eventId: baseId,
+          eventType: params.type,
+          recipientIds: userIds,
+        });
+        logger.info('[NotificationService] broadcastToRole delivered', { role: params.role, recipients: userIds.length });
+        return { count: created.count };
+      } catch (e: any) {
+        logger.error('[NotificationService] broadcastToRole failed', { error: e?.message, role: params.role });
+        return { count: 0 };
+      }
     },
 
     async listNotifications(params): Promise<{ items: Notification[]; total: number }> {

@@ -44,6 +44,10 @@ const TYPE_ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeW
   stuck_shipment: AlertTriangle,
   stuck_invoice: Clock,
   stuck_voucher: Clock,
+  // 工作流引擎审批通知
+  workflow_pending: ClipboardList,
+  workflow_approved: CheckCircle,
+  workflow_rejected: AlertTriangle,
 };
 
 // ── 通知级别 → 颜色映射 ──

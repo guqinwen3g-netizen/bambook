@@ -26,6 +26,8 @@ import {
   NotificationItem,
   NotificationStats,
   AutomationRule,
+  WorkflowDefinition,
+  WorkflowInstance,
 } from '../types';
 import { getApiBaseUrl, CORPORATE_MASTER_IP, normalizeDataCenterEndpoint } from './apiBase';
 
@@ -934,5 +936,89 @@ export const apiService = {
       method: 'PATCH',
       body: JSON.stringify({ enabled }),
     }).then(data => data.rule);
-  }
+  },
+
+  // ── 工作流引擎 ──
+  async listWorkflowDefinitions(endpoint?: string): Promise<WorkflowDefinition[]> {
+    const data = await requestJson<{ definitions: WorkflowDefinition[] }>('/v1/workflow/definitions', { endpoint, method: 'GET' });
+    return data.definitions || [];
+  },
+
+  async listWorkflowInstances(params: {
+    status?: string;
+    entityType?: string;
+    entityId?: string;
+    pendingApproverUserId?: string;
+    pendingApproverRole?: string;
+    limit?: number;
+    offset?: number;
+    endpoint?: string;
+  } = {}): Promise<{ items: WorkflowInstance[]; total: number }> {
+    const query = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    const path = query ? `/v1/workflow/instances?${query}` : '/v1/workflow/instances';
+    return requestJson<{ items: WorkflowInstance[]; total: number }>(path, {
+      endpoint: params.endpoint,
+      method: 'GET',
+    });
+  },
+
+  async getWorkflowInstance(instanceId: string, endpoint?: string): Promise<WorkflowInstance> {
+    const data = await requestJson<{ instance: WorkflowInstance }>(`/v1/workflow/instances/${encodeURIComponent(instanceId)}`, { endpoint, method: 'GET' });
+    return data.instance;
+  },
+
+  async createWorkflowInstance(params: {
+    definitionId: string;
+    entityType: string;
+    entityId: string;
+    title?: string;
+    endpoint?: string;
+  }): Promise<WorkflowInstance> {
+    const data = await requestJson<{ instance: WorkflowInstance }>('/v1/workflow/instances', {
+      endpoint: params.endpoint,
+      method: 'POST',
+      body: JSON.stringify({
+        definitionId: params.definitionId,
+        entityType: params.entityType,
+        entityId: params.entityId,
+        title: params.title,
+      }),
+    });
+    return data.instance;
+  },
+
+  async approveWorkflowStep(instanceId: string, note?: string, endpoint?: string): Promise<WorkflowInstance> {
+    const data = await requestJson<{ instance: WorkflowInstance }>(`/v1/workflow/instances/${encodeURIComponent(instanceId)}/approve`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+    return data.instance;
+  },
+
+  async rejectWorkflowStep(instanceId: string, note?: string, endpoint?: string): Promise<WorkflowInstance> {
+    const data = await requestJson<{ instance: WorkflowInstance }>(`/v1/workflow/instances/${encodeURIComponent(instanceId)}/reject`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+    return data.instance;
+  },
+
+  async cancelWorkflowInstance(instanceId: string, reason?: string, endpoint?: string): Promise<WorkflowInstance> {
+    const data = await requestJson<{ instance: WorkflowInstance }>(`/v1/workflow/instances/${encodeURIComponent(instanceId)}/cancel`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+    return data.instance;
+  },
+
+  async getEntityWorkflowHistory(entityType: string, entityId: string, endpoint?: string): Promise<WorkflowInstance[]> {
+    const data = await requestJson<{ instances: WorkflowInstance[] }>(`/v1/workflow/entity/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`, { endpoint, method: 'GET' });
+    return data.instances || [];
+  },
 };
