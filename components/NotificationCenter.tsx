@@ -92,6 +92,9 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
+  // 用 ref 跟踪抽屉开关状态，避免 SSE 订阅因 isOpen 变化而重建连接
+  const isOpenRef = useRef(false);
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
 
   const unreadCount = stats?.unread ?? 0;
 
@@ -127,6 +130,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
   }, [fetchStats]);
 
   // ── 实时 SSE 通知订阅（增量更新，无需等待轮询）──
+  // 订阅仅在 endpoint 变化时重建，不随抽屉开关 flapping
   useEffect(() => {
     const unsubscribe = apiService.subscribeToNotifications(endpoint, (sseEvent) => {
       // 增量更新未读徽章统计
@@ -141,8 +145,8 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
         },
       } : prev);
 
-      // 若抽屉已打开，将新通知增量插入列表头部
-      if (isOpen) {
+      // 若抽屉已打开，将新通知增量插入列表头部（通过 ref 读取最新值，避免闭包陈旧）
+      if (isOpenRef.current) {
         const newItem: NotificationItem = {
           id: sseEvent.eventId,
           userId: '', // SSE 推送不携带当前用户 ID，落库记录已有真实 userId
@@ -159,7 +163,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
       }
     });
     return unsubscribe;
-  }, [endpoint, isOpen]);
+  }, [endpoint]);
 
   // ── 抽屉打开时获取列表 ──
   useEffect(() => {
