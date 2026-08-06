@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// authService 模块在浏览器语义下运行（window.location 等），文件级开启 jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function createStorage() {
@@ -197,10 +199,14 @@ describe('authService checkAuth', () => {
   });
 
   it('keeps LAN phone preview login on the default cloud API when no endpoint is stored', async () => {
+    // window stub 必须保留 setTimeout/clearTimeout（authService fetchWithTimeout 依赖），
+    // 只覆盖 location.hostname 模拟 LAN 手机预览场景
     vi.stubGlobal('window', {
       location: {
         hostname: '192.168.31.46',
       },
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
     });
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
@@ -231,6 +237,8 @@ describe('authService checkAuth', () => {
       location: {
         hostname: '192.168.31.46',
       },
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
     });
     localStorage.setItem('panda_system_config', JSON.stringify({
       cloudEndpoint: 'https://jiangsupanda.com/bambook',

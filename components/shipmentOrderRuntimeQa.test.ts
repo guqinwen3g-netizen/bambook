@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const ORDER_SHIP_FLOW_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/agent/orderShipFlow.ts'), 'utf-8');
 const TOOL_RUNTIME_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/agent/toolRuntime.ts'), 'utf-8');
+const SHIPMENT_SERVICE_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/shipping/shipmentMutationService.ts'), 'utf-8');
 
 // 真实 ShipmentStatus 8 状态（types.ts，已对齐后端 schema）
 const VALID_SHIPMENT_STATUSES: ShipmentStatus[] = ['Draft', 'Booked', 'Loading', 'Shipped', 'Arrived', 'Cleared', 'Delivered', 'Cancelled'];
@@ -105,27 +106,38 @@ describe('runtime QA [Agent flow]: draft-first 防篡改 contract', () => {
 });
 
 describe('runtime QA [Agent flow]: commitOrderShip 真实链路（精确读取 orderShipFlow.ts）', () => {
-  it('commitOrderShip 调用 syncShipmentReferences（shipment references 同步）', () => {
-    // 精确匹配 commitOrderShip 函数体内（非全文件），避免假绿
+  // 架构事实（ERP-P1 shared-service-foundation）：commitOrderShip 不再手写 sync/link/audit，
+  // 委托共享 createShipment service（Agent path 与 route path 同事务契约）。
+  // 契约精确到各自函数体内：委托调用在 commitOrderShip 体内断言，sync/link/audit 在 createShipment 体内断言。
+  it('commitOrderShip 委托共享 createShipment service（Agent/route 同事务契约）', () => {
     const fnMatch = ORDER_SHIP_FLOW_SRC.match(/export async function commitOrderShip[\s\S]*?^}/m);
+    expect(fnMatch).not.toBeNull();
+    expect(fnMatch![0]).toMatch(/await createShipment\(/);
+    expect(fnMatch![0]).toMatch(/auditSource: 'agent:order\.ship:commit'/);
+    expect(fnMatch![0]).toMatch(/syncSource: 'agent:order\.ship'/);
+  });
+  it('createShipment 调用 syncShipmentReferences（shipment references 同步）', () => {
+    const fnMatch = SHIPMENT_SERVICE_SRC.match(/export async function createShipment[\s\S]*?^}/m);
     expect(fnMatch).not.toBeNull();
     expect(fnMatch![0]).toMatch(/syncShipmentReferences/);
   });
-  it('commitOrderShip 调用 linkOrderStatusFromShipment（Order 状态联动）', () => {
-    const fnMatch = ORDER_SHIP_FLOW_SRC.match(/export async function commitOrderShip[\s\S]*?^}/m);
+  it('createShipment 调用 linkOrderStatusFromShipment（Order 状态联动）', () => {
+    const fnMatch = SHIPMENT_SERVICE_SRC.match(/export async function createShipment[\s\S]*?^}/m);
     expect(fnMatch).not.toBeNull();
     expect(fnMatch![0]).toMatch(/linkOrderStatusFromShipment/);
   });
-  it('commitOrderShip 调用 writeRouteAuditLog（审计日志）', () => {
-    const fnMatch = ORDER_SHIP_FLOW_SRC.match(/export async function commitOrderShip[\s\S]*?^}/m);
+  it('createShipment 调用 writeRouteAuditLog（审计日志）', () => {
+    const fnMatch = SHIPMENT_SERVICE_SRC.match(/export async function createShipment[\s\S]*?^}/m);
     expect(fnMatch).not.toBeNull();
     expect(fnMatch![0]).toMatch(/writeRouteAuditLog/);
   });
   it('commitOrderShip 返回 committed feedback 含 orderStatus（来自 linkOrderStatusFromShipment.toStatus）', () => {
+    const svcMatch = SHIPMENT_SERVICE_SRC.match(/export async function createShipment[\s\S]*?^}/m);
+    expect(svcMatch).not.toBeNull();
+    expect(svcMatch![0]).toMatch(/orderStatus = linkResult\.toStatus/);
     const fnMatch = ORDER_SHIP_FLOW_SRC.match(/export async function commitOrderShip[\s\S]*?^}/m);
     expect(fnMatch).not.toBeNull();
-    expect(fnMatch![0]).toMatch(/orderStatus = linkResult\.toStatus/);
-    expect(fnMatch![0]).toMatch(/orderStatus: committed\.orderStatus/);
+    expect(fnMatch![0]).toMatch(/orderStatus: orderStatus \|\| null/);
   });
 });
 

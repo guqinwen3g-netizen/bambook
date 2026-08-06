@@ -76,7 +76,9 @@ describe('runtime QA [route]: onDataChange + statusCode', () => {
     expect(ROUTE_SRC).toContain('INVALID_STATUS: 400, INVALID_AMOUNT: 400, CREATE_FAILED: 500');
   });
   it('update statusCode: NOT_FOUND→404, UPDATE_FAILED→500', () => {
-    expect(ROUTE_SRC).toContain('NOT_FOUND: 404, UPDATE_FAILED: 500');
+    // 断言映射存在性而非字面相邻（statusCodeMap 后续插入新错误码不应误报）
+    expect(ROUTE_SRC).toMatch(/NOT_FOUND: 404/);
+    expect(ROUTE_SRC).toMatch(/UPDATE_FAILED: 500/);
   });
 });
 

@@ -32,8 +32,8 @@
 - main 分支：基线 `dafd300` + 4 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`98cdf9a`）+ 4 个 docs commit（`f2ef300`/`1d3af4c`/`6c8a15b`/`b6dbd9f`）+ 阶段 0 Track A/B（`2cfff97` fix(security) / `3c4f342` feat(observability)）+ 阶段 0-3 收口（`7b11cb6` chore(repo) / `a5aefdc`+`8f928ac` fix(security) / `e82ae6a` feat(observability) / `306dd7d`+`40a1076` fix(agent,finance) / `1d04647` fix(market) / `000159f` feat(knowledge)），HEAD=`000159f`
 - 备份分支：`backup/pre-cleanup-20260728`（保留 339 个旧 commit 历史）
 - 远程：`git@github.com:guqinwen3g-netizen/bambook.git`
-- 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过
-- 测试套件：`cd server && npx vitest run`（1438/1438 全通过，含安全/幂等/并发/KB CRUD 回归测试）
+- 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过 + 前端 `npm test` 全绿
+- 测试套件：后端 `cd server && npx vitest run`（1442/1442 全通过，含安全/幂等/并发/KB CRUD 回归测试）；前端 `npm test`（1985 通过 + 6 项视觉基线 quarantine 隔离，87 文件）
 
 ## Mac Mini 部署
 - **不要用 SSH**，用 OPS Panel（ops.jiangsupanda.com）更稳定

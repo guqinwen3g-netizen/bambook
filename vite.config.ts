@@ -94,11 +94,19 @@ export default defineConfig(({ mode }) => {
       // CDN cache) and was not worth the breakage. Removed.
     },
     test: {
+      // 默认 node 环境：套件以源码契约测试（readFileSync + import.meta.url 定位）为主，
+      // jsdom 会把 import.meta.url 改写为 http:// 导致 fs 读取全部失败。
+      // 个别需浏览器语义的测试文件用 `// @vitest-environment jsdom` 文件级声明开启。
       exclude: [
         '**/node_modules/**',
         '**/dist/**',
+        '**/out/**',
         '**/archive/**',
         '**/.{idea,git,cache,output,temp}**',
+        // server/ 为独立 vitest 套件（需 DATABASE_URL 等后端环境），cd server && npx vitest run
+        'server/**',
+        // 未跟踪的设计探索资产，非交付面
+        'design-lab/**',
       ]
     },
   };
