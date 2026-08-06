@@ -11,6 +11,9 @@
  *   L2_create_shipment: 生产完成→创建发货单草稿
  *   L3_issue_invoice: 发货完成→创建发票草稿
  *   L5_auto_allocate: 收款登记→自动核销
+ *   L6_create_bom_draft: 订单确认→生成 BOM 草稿（从模板复制）
+ *   L7_create_procurement: BOM 确认→生成采购需求草稿
+ *   L8_auto_stock_in: 采购来料→自动入库
  *
  * 不变量：
  *   - 配置读取永不抛错（失败时返回默认值，所有规则默认 enabled）
@@ -56,6 +59,27 @@ export const AUTOMATION_RULES: readonly AutomationRule[] = [
     name: '收款登记 → 自动核销',
     description: '收款凭证登记后自动核销到关联发票（仅 Receipt 类型，需有匹配发票）',
     eventType: 'PaymentVoucherCreated',
+    enabled: true,
+  },
+  {
+    id: 'L6_create_bom_draft',
+    name: '订单确认 → 生成 BOM 草稿',
+    description: '订单确认后从产品 BOM 模板复制生成 Draft BOM（需有已确认/归档的模板 BOM）',
+    eventType: 'OrderConfirmed',
+    enabled: true,
+  },
+  {
+    id: 'L7_create_procurement',
+    name: 'BOM 确认 → 生成采购需求',
+    description: 'BOM 确认后自动生成 Draft 采购单（含物料行，需采购员审核后发送）',
+    eventType: 'BOMConfirmed',
+    enabled: true,
+  },
+  {
+    id: 'L8_auto_stock_in',
+    name: '采购来料 → 自动入库',
+    description: '采购来料接收后自动创建入库流水（需有 active 仓库，默认入主仓）',
+    eventType: 'MaterialReceived',
     enabled: true,
   },
 ];
