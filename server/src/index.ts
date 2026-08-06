@@ -192,10 +192,12 @@ app.use((req, res, next) => {
     next();
 });
 
-// Cloudflare Tunnel uses the public /bambook path. When the same hostname
-// routes /bambook/api to this 8081 service, keep existing /api handlers intact.
+// Cloudflare Tunnel routes /bambook/* to this 8081 service (without prefix rewrite).
+// Strip the /bambook prefix for API and webapp mount paths so existing handlers
+// (/api/* and /app/*) stay intact. Public URL: https://jiangsupanda.com/bambook/app/
 app.use((req, _res, next) => {
-    if (req.url === '/bambook/api' || req.url.startsWith('/bambook/api/')) {
+    if (req.url === '/bambook/api' || req.url.startsWith('/bambook/api/')
+        || req.url === '/bambook/app' || req.url.startsWith('/bambook/app/')) {
         req.url = req.url.slice('/bambook'.length);
     }
     next();
@@ -205,13 +207,12 @@ app.use((req, _res, next) => {
 app.use('/api/uploads', express.static(UPLOAD_DIR));
 
 // Web app static hosting — Vite-built SPA bundle deployed to ~/bambook-main-api/webapp/.
-// Public URL: https://jiangsupanda.com/bambookos/
-// Requires a Cloudflare Tunnel ingress rule mapping /bambookos → http://127.0.0.1:8081
-// placed BEFORE the existing /bambook → 8090 rule. Cloudflare forwards the
-// path as-is, so this server sees /bambookos/* directly (no rewrite needed).
+// Public URL: https://jiangsupanda.com/bambook/app/
+// Mounted at /app (after the /bambook prefix is stripped by the middleware above),
+// reusing the existing /bambook Cloudflare Tunnel ingress — no extra public hostname needed.
 // SPA history routes 404-fallback to index.html so client-side routing works.
 const WEBAPP_DIR = process.env.BAMBOOK_WEBAPP_DIR || path.resolve(__dirname, '../webapp');
-const WEBAPP_MOUNT = process.env.BAMBOOK_WEBAPP_MOUNT || '/bambookos';
+const WEBAPP_MOUNT = process.env.BAMBOOK_WEBAPP_MOUNT || '/app';
 if (fs.existsSync(WEBAPP_DIR)) {
     app.use(
         WEBAPP_MOUNT,

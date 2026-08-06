@@ -36,13 +36,15 @@ export default defineConfig(({ mode }) => {
   } as const;
 
   // When building for web deployment behind the Cloudflare Tunnel
-  // (https://jiangsupanda.com/bambookos/), assets must be referenced
+  // (https://jiangsupanda.com/bambook/app/), assets must be referenced
   // relative to that mount path, not the root. Set BAMBOOK_WEB_DEPLOY=1
   // before `npm run build` to switch to the deployed base path. Electron
   // and dev mode keep the default '/'. Override with BAMBOOK_WEB_BASE if
-  // the public path ever changes (e.g. /bambook/app/).
+  // the public path ever changes.
+  // /bambook/app/ reuses the existing /bambook Cloudflare Tunnel ingress
+  // (no extra Zero Trust public hostname needed; server strips the prefix).
   const webBase = process.env.BAMBOOK_WEB_BASE
-    || (process.env.BAMBOOK_WEB_DEPLOY === '1' ? '/bambookos/' : '/');
+    || (process.env.BAMBOOK_WEB_DEPLOY === '1' ? '/bambook/app/' : '/');
 
   return {
     base: webBase,
