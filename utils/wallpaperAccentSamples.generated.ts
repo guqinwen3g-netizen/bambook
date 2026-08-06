@@ -110,10 +110,10 @@ export const BUILTIN_WALLPAPER_ACCENT_SAMPLES: Readonly<Record<string, Wallpaper
     "g": 164.7222,
     "b": 201.2222
   },
-  "/wallpapers/wallhaven-4982k0.png": {
-    "r": 37.1458,
-    "g": 94.1181,
-    "b": 111.7569
+  "/wallpapers/wallhaven-4982k0.jpg": {
+    "r": 36.8542,
+    "g": 93.4931,
+    "b": 111.4514
   },
   "/wallpapers/wallhaven-4dqgvj.jpg": {
     "r": 11.7361,
@@ -155,20 +155,20 @@ export const BUILTIN_WALLPAPER_ACCENT_SAMPLES: Readonly<Record<string, Wallpaper
     "g": 29.3819,
     "b": 31.9167
   },
-  "/wallpapers/wallhaven-m9gop9.png": {
-    "r": 69.4375,
-    "g": 54.7708,
-    "b": 70.6667
+  "/wallpapers/wallhaven-m9gop9.jpg": {
+    "r": 69.3264,
+    "g": 54.1875,
+    "b": 70.4167
   },
   "/wallpapers/wallhaven-mdmrly.jpg": {
     "r": 70.5556,
     "g": 120.2569,
     "b": 141.7014
   },
-  "/wallpapers/wallhaven-o58dm5.png": {
-    "r": 90.5208,
-    "g": 100.7639,
-    "b": 108.1181
+  "/wallpapers/wallhaven-o58dm5.jpg": {
+    "r": 90.2222,
+    "g": 100.1875,
+    "b": 108.0139
   },
   "/wallpapers/wallhaven-rqjrzq.jpg": {
     "r": 107.7292,

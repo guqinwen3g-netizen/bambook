@@ -149,7 +149,7 @@ const WALLPAPER_CURATED_GROUPS: Record<string, string> = {
   '/wallpapers/wallhaven-4dqgvj.jpg': '极简',
   '/wallpapers/wallhaven-48pwv2.jpg': '自然',
   '/wallpapers/wallhaven-1kqvwg.jpg': '极简',
-  '/wallpapers/wallhaven-4982k0.png': '极简',
+  '/wallpapers/wallhaven-4982k0.jpg': '极简',
   '/wallpapers/wallhaven-6lw5ll.jpg': '自然',
   '/wallpapers/wallhaven-966ev1.jpg': '城市',
   '/wallpapers/wallhaven-e8ejjw.jpg': '极简',

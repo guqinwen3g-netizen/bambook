@@ -36,6 +36,7 @@ fi
 if [[ -d dist/wallpapers && -x /usr/bin/sips ]]; then
   BEFORE_WALLPAPERS_KB=$(du -sk dist/wallpapers | awk '{print $1}')
   echo "==> 压缩发布包壁纸（仅 dist/wallpapers，源素材不变）..."
+  # 壁纸格式归一：照片类内容统一 JPG（PNG 无损体积过大，曾致上传包超 Cloudflare 100MB 限制）
   while IFS= read -r -d '' image; do
     lower_image="$(printf '%s' "$image" | tr '[:upper:]' '[:lower:]')"
     case "$lower_image" in
@@ -43,7 +44,13 @@ if [[ -d dist/wallpapers && -x /usr/bin/sips ]]; then
         /usr/bin/sips -Z 1920 -s formatOptions 70 "$image" >/dev/null || true
         ;;
       *.png)
-        /usr/bin/sips -Z 1920 "$image" >/dev/null || true
+        # PNG 壁纸转 JPG（体积降一个数量级）；原地替换并删原 PNG
+        base_no_ext="${image%.*}"
+        if /usr/bin/sips -s format jpeg -s formatOptions 85 -Z 1920 "$image" --out "${base_no_ext}.jpg" >/dev/null 2>&1; then
+          rm -f "$image"
+        else
+          /usr/bin/sips -Z 1920 "$image" >/dev/null || true
+        fi
         ;;
     esac
   done < <(find dist/wallpapers -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) -print0)
