@@ -3,7 +3,6 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion';
 import { Order, KnowledgeItem, ResolutionStrategy, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition } from '../types';
 import { apiService } from '../services/apiService';
-import { llmService } from '../services/llmService';
 import {
   Plus, Filter, Clock, ArrowRight, MoreHorizontal,
   Building2, X, AlertCircle, Sparkles, Loader2,

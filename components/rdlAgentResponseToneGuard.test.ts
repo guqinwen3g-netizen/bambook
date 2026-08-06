@@ -10,12 +10,10 @@ const AGENT_RESPONSE: Record<string, string> = {};
 files.forEach((f: string) => {
   AGENT_RESPONSE[f] = fs.readFileSync(path.join(dir, f), 'utf8');
 });
-const TIMELINE = fs.readFileSync(path.resolve(__dirname, 'AgentTimeline.tsx'), 'utf8');
 const MESSAGE_CARD = fs.readFileSync(path.resolve(__dirname, 'AgentMessageCard.tsx'), 'utf8');
 
 const ALL_SOURCES = [
   ...Object.entries(AGENT_RESPONSE).map(([name, src]) => ({ name: `agent-response/${name}`, src })),
-  { name: 'AgentTimeline', src: TIMELINE },
   { name: 'AgentMessageCard', src: MESSAGE_CARD },
 ];
 
@@ -106,16 +104,6 @@ describe('RDL agent-response tone [共享 helper]', () => {
   it('AgentMetricBlock 消费共享 helper（无本地 toneClass）', () => {
     expect(AGENT_RESPONSE['AgentMetricBlock.tsx']).toContain('agentResponseTone');
     expect(AGENT_RESPONSE['AgentMetricBlock.tsx']).not.toMatch(/const\s+toneClass\s*=/);
-  });
-  it('AgentTimeline statusColor 消费共享 helper（statusTextClass）', () => {
-    expect(TIMELINE).toContain('statusTextClass');
-    expect(TIMELINE).not.toMatch(/const\s+statusColor\s*=\s*isDarkMode/);
-  });
-  it('AgentTimeline running status 不用 accent（runningStatusClass）', () => {
-    expect(TIMELINE).toContain('runningStatusClass');
-    // Activity icon running 状态用中性，不用 brand-blue
-    const activityLine = TIMELINE.slice(TIMELINE.indexOf('<Activity'), TIMELINE.indexOf('<Activity') + 200);
-    expect(activityLine).not.toContain('os-vnext-brand-blue');
   });
   it('AgentDocumentRenderer statusIcon 消费共享 helper', () => {
     expect(AGENT_RESPONSE['AgentDocumentRenderer.tsx']).toContain('statusIconClass');

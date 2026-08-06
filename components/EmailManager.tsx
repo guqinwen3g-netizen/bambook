@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Email, KnowledgeItem, Order } from '../types';
-import { llmService } from '../services/llmService';
 import { EmailDB } from '../services/storageService'; // IndexedDB Import
 import {
   Mail, Trash2, Star, Archive, Flag,
