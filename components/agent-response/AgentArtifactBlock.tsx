@@ -18,7 +18,7 @@ export const AgentArtifactBlock: React.FC<AgentBlockComponentProps<AgentArtifact
       className={`${OS_MATERIAL.insetSurface} w-full rounded-inset border px-4 py-3 text-left ${borderClass} ${onArtifactClick ? 'transition-opacity hover:opacity-85' : 'cursor-default'}`}
     >
       <div className="flex items-start gap-3">
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${borderClass}`}>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border ${borderClass}`}>
           <FileText size={16} className={quietTextClass} />
         </div>
         <div className="min-w-0 flex-1">

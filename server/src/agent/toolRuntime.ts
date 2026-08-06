@@ -3409,11 +3409,51 @@ async function expandRelationWithDataCenterFallback(prisma: PrismaClient, input:
   return expandRelation(prisma, input);
 }
 
+/**
+ * 通过权威 Python RAG（pgvector 向量检索）查询企业知识库。
+ * 收口方向：Agent 的 knowledge.search 以向量检索为主，Prisma 子串为降级补充。
+ * 未配置 BAMBOOK_RAG_API_KEY 或 RAG 不可达时优雅降级（返回 ok:false），不抛错。
+ */
+async function searchRagKnowledge(query: string, limit: number): Promise<{ ok: boolean; hits: Array<Record<string, unknown>> }> {
+  const apiKey = process.env.BAMBOOK_RAG_API_KEY;
+  const baseUrl = (process.env.BAMBOOK_RAG_BASE_URL || 'http://127.0.0.1:8091/bambook/kb').replace(/\/$/, '');
+  if (!apiKey) return { ok: false, hits: [] };
+  try {
+    const res = await fetch(`${baseUrl}/v1/knowledge/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ query, top_k: Math.max(1, Math.min(limit, 20)) }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return { ok: false, hits: [] };
+    const data = (await res.json()) as { results?: Array<any> };
+    const results = Array.isArray(data.results) ? data.results : [];
+    const hits = results.map((r) => {
+      const meta = (r.metadata && typeof r.metadata === 'object' ? r.metadata : {}) as Record<string, unknown>;
+      const category = String(meta.category || 'company');
+      return {
+        source: `rag-knowledge:${category}`,
+        title: r.source_title || r.title || '',
+        category,
+        content: String(r.content || '').slice(0, 1200),
+        scopes: ['company'],
+        metadata: meta,
+        score: typeof r.score === 'number' ? Number(r.score.toFixed(3)) : undefined,
+      };
+    }).filter((h: any) => (h.content || '').length > 0);
+    return { ok: hits.length > 0, hits };
+  } catch {
+    return { ok: false, hits: [] };
+  }
+}
+
 async function searchKnowledge(prisma: PrismaClient, input: Record<string, unknown>) {
   const query = cleanIdentifier(input.query);
   const limit = numberInput(input.limit, 8);
   if (!query) return { dataSource: 'bambook-data-center', query, count: 0, items: [] };
   const words = splitQueryWords(query);
+  // 收口：优先向量检索（Python RAG/pgvector），未配置或不可达时静默降级为空。
+  const rag = await searchRagKnowledge(query, limit);
   const [chunks, documents, legacy] = await Promise.all([
     (prisma as any).knowledgeChunk?.findMany?.({
       where: {
@@ -3461,6 +3501,15 @@ async function searchKnowledge(prisma: PrismaClient, input: Record<string, unkno
     }) ?? Promise.resolve([]),
   ]);
   const items = [
+    ...rag.hits.map((hit) => ({
+      source: hit.source,
+      title: hit.title,
+      category: hit.category,
+      content: hit.content,
+      scopes: hit.scopes,
+      metadata: hit.metadata,
+      score: hit.score,
+    })),
     ...chunks.map((chunk: any) => ({
       source: 'KnowledgeChunk',
       id: chunk.id,
@@ -3486,8 +3535,18 @@ async function searchKnowledge(prisma: PrismaClient, input: Record<string, unkno
       category: item.category,
       content: String(item.content || '').slice(0, 1200),
     })),
-  ].slice(0, limit);
-  return { dataSource: 'bambook-data-center', query, count: items.length, items };
+  ];
+  // 去重（按内容摘要去重，RAG 向量命中优先）+ 截断到 limit
+  const seen = new Set<string>();
+  const deduped: Array<Record<string, unknown>> = [];
+  for (const item of items) {
+    const key = String(item.title || '') + '|' + String(item.content || '').slice(0, 80);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+    if (deduped.length >= limit) break;
+  }
+  return { dataSource: rag.ok ? 'bambook-rag' : 'bambook-data-center', query, count: deduped.length, items: deduped };
 }
 
 async function searchBusinessEntities(prisma: PrismaClient, input: Record<string, unknown>) {

@@ -1083,7 +1083,7 @@ const DataTwinCenter: React.FC<DataTwinCenterProps> = ({ isDarkMode = false, dat
       <header className="pointer-events-none absolute left-12 right-12 top-8 z-30 flex h-12 items-center justify-between gap-5">
         <div className="flex items-center gap-3">
           <h1 className="text-[30px] font-light tracking-tight">数据<span>中心</span></h1>
-          <span className={isDarkMode ? 'text-sm font-light text-slate-400' : 'text-sm font-light text-slate-500'}>公司数字孪生</span>
+          <span className={isDarkMode ? 'text-sm font-light text-slate-400' : 'text-sm font-light text-slate-500'}>公司数字孪生 · Digital Twin</span>
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
           {isEditingLayout && (
@@ -1381,7 +1381,7 @@ const DataTwinCenter: React.FC<DataTwinCenterProps> = ({ isDarkMode = false, dat
                               key={option.value}
                               type="button"
                               onClick={() => updateSelectedObject({ seat: option.value })}
-                              className={`h-7 rounded-[10px] text-[9px] font-light transition-all ${
+                              className={`h-8 rounded-full text-[9px] font-light transition-all ${
                                 (selectedObject.seat ?? 'north') === option.value
                                   ? (isDarkMode 
                                       ? 'bg-[var(--os-vnext-brand-blue-strong)]/24 text-[var(--os-vnext-brand-blue-soft)] shadow-[inset_0_0_0_1px_rgb(var(--os-vnext-brand-blue-soft-rgb)/0.25)]' 

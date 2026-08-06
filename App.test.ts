@@ -5,8 +5,10 @@ describe('App light background tone', () => {
   it('uses a lightly tinted OS background instead of a near-white base', () => {
     const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain("bg-[#DDE8F2]");
-    expect(source).toContain("bg-[#5DE0E6]/22");
+    // 根背景色已 token 化（bg-app-light/bg-app-dark 语义类，定义于 tailwind.config + os-vnext.css）
+    expect(source).toContain("bg-app-light");
+    expect(source).toContain("bg-app-dark");
+    expect(source).toContain("linear-gradient(135deg, #EEF2F6 0%, #D8DEE7 48%, #AEB9C8 100%)");
     expect(source).toContain("bg-white/20");
     expect(source).not.toContain("bg-[#EEF5FA]");
     expect(source).not.toContain("bg-[#F5F8FA]");
@@ -51,7 +53,7 @@ describe('App light background tone', () => {
     expect(source).toContain('accentPalette={wallpaperAccentPalette}');
     expect(source).toContain('onRuntimeError={() => setMapLibreGlobeUnavailable(true)}');
     expect(source).toContain('initialDelay={0}');
-    expect(source).toContain('overflow-y-hidden opacity-100');
+    expect(source).toContain('overflow-hidden opacity-100');
     expect(source).not.toContain("lazy(() => import('./components/ProductionGlobe'))");
     expect(source).not.toContain('initialDelay={2500}');
     expect(source).not.toContain('opacity-0 translate-y-12 scale-95 blur-md');

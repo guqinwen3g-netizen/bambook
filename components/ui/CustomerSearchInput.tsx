@@ -156,7 +156,7 @@ export default function CustomerSearchInput({
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className={`w-full pl-9 pr-10 py-2.5 rounded-xl border transition-all outline-none ${fieldClass}`}
+          className={`w-full pl-9 pr-10 py-2.5 rounded-control border transition-all outline-none ${fieldClass}`}
         />
         {selectedCustomer && (
           <button
@@ -186,7 +186,7 @@ export default function CustomerSearchInput({
                   onMouseEnter={() => setHighlightedIndex(idx)}
                   className={`${optionIdleClass} ${idx === highlightedIndex ? optionSelectedClass : ''}`}
                 >
-                  <div className={`p-1.5 rounded-lg mt-0.5 ${iconShellClass}`}>
+                  <div className={`p-1.5 rounded-control mt-0.5 ${iconShellClass}`}>
                     <Building2 size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -233,7 +233,7 @@ export default function CustomerSearchInput({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             className={`
-              absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-xl border
+              absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-card border
               ${isDarkMode
                 ? 'bg-deep/95 border-white/10 text-slate-500'
                 : 'bg-white border-slate-200 text-slate-400'

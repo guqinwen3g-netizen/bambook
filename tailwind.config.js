@@ -63,6 +63,8 @@ export default {
       colors: {
         'deep': 'rgb(var(--bambook-bg-deep-rgb) / <alpha-value>)',
         'deep-alt': 'rgb(var(--bambook-bg-deep-alt-rgb) / <alpha-value>)',
+        'app-dark': 'rgb(var(--os-vnext-bg-dark-rgb) / <alpha-value>)',
+        'app-light': 'rgb(var(--os-vnext-bg-light-rgb) / <alpha-value>)',
         'action': 'rgb(var(--bambook-brand-action-rgb) / <alpha-value>)',
         'link': 'rgb(var(--bambook-brand-link-rgb) / <alpha-value>)',
         'link-light': 'rgb(var(--bambook-brand-link-light-rgb) / <alpha-value>)',

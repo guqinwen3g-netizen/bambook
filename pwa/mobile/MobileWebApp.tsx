@@ -634,7 +634,7 @@ const MobileWebApp: React.FC = () => {
   // Auth gate: show Login or Register page if not authenticated
   if (authState.isLoading) {
     return (
-      <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center ${isDarkMode ? 'bg-[#0a1628]' : 'bg-gradient-to-br from-slate-50 to-blue-50'}`}>
+      <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-slate-50 to-blue-50'}`}>
         <div className={`text-xs font-medium tracking-[0.22em] uppercase ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
           Checking session...
         </div>
@@ -691,7 +691,7 @@ const MobileWebApp: React.FC = () => {
         </div>
       )}
       <div
-        className={`bambook-mobile-web-shell flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'dark' : ''} ${isGlobeUnderlay ? 'bg-transparent' : (isDarkMode ? 'bg-[#0a1628]' : 'bg-[#F1F6FA]')}`}
+        className={`bambook-mobile-web-shell flex h-screen overflow-hidden relative z-10 transition-colors duration-500 ${isDarkMode ? 'dark' : ''} ${isGlobeUnderlay ? 'bg-transparent' : (isDarkMode ? 'bg-app-dark' : 'bg-app-light')}`}
         style={{ ['--app-sidebar-w' as any]: '0px' }}
       >
       <SplashScreen isVisible={isLoading} isDarkMode={isDarkMode} />

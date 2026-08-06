@@ -42,7 +42,8 @@ import {
     XAxis
 } from 'recharts';
 
-export const DASHBOARD_MARKET_TICK_MS = 5000;
+// 行情数据节奏：真源刷新间隔（数值仅随真源更新，无随机抖动轮询）
+export const DASHBOARD_MARKET_TICK_MS = 60000;
 export const DASHBOARD_CARD_ROTATION_MS = 16000;
 export const DASHBOARD_VELOCITY_ROTATION_MS = 20000;
 export const DASHBOARD_HUD_LAYER_CLASS = 'absolute inset-0 z-10 pointer-events-none';
@@ -335,33 +336,6 @@ type VelocityWeekRow = {
     cumulative: number;
 };
 
-const VELOCITY_DEMO_SERIES: Record<'fabric' | 'garment', { weekly: number[]; prevWeekly: number[] }> = {
-    fabric: {
-        weekly: [24, 31, 28, 42, 47, 39, 54, 61, 58, 72, 69, 83, 78],
-        prevWeekly: [18, 27, 25, 35, 38, 44, 49, 52, 63, 57, 66, 74, 71],
-    },
-    garment: {
-        weekly: [36, 44, 41, 53, 49, 62, 68, 64, 77, 82, 75, 91, 96],
-        prevWeekly: [32, 38, 46, 47, 55, 58, 61, 70, 72, 79, 81, 86, 88],
-    },
-};
-
-function buildVelocityDemoRows(kind: 'fabric' | 'garment', templateRows: VelocityWeekRow[]): VelocityWeekRow[] {
-    const series = VELOCITY_DEMO_SERIES[kind];
-    let cumulative = 0;
-    return templateRows.map((row, index) => {
-        const weekly = series.weekly[index] ?? 0;
-        const prevWeekly = series.prevWeekly[index] ?? 0;
-        cumulative += weekly;
-        return {
-            ...row,
-            weekly,
-            prevWeekly,
-            cumulative,
-        };
-    });
-}
-
 function normalizeVelocityChartData(data: VelocityWeekRow[]): any[] {
     const withRawVisuals = data.map(d => {
         const rawVisual = !d.weekly || d.weekly < 1 ? 0 : Math.pow(d.weekly, 0.85);
@@ -442,7 +416,9 @@ function buildVelocityWeeks(orders: Order[], kind: 'fabric' | 'garment') {
     }
 
     const hasSignal = rows.some(row => row.weekly > 0 || row.prevWeekly > 0);
-    return normalizeVelocityChartData(hasSignal ? rows : buildVelocityDemoRows(kind, rows));
+    // 数据诚实：无真实订单信号时返回 null，由渲染层显示空态；禁止 demo 序列掉包冒充真实图表
+    if (!hasSignal) return null;
+    return normalizeVelocityChartData(rows);
 }
 
 interface DashboardProps {
@@ -479,20 +455,18 @@ const DashboardMarketHub = React.memo(function DashboardMarketHub({
     useEffect(() => {
         let cancelled = false;
         marketService.init().then(() => {
-            if (!cancelled) setMarketData(marketService.generateTick());
+            if (!cancelled) setMarketData([...marketService.getTickers()]);
         });
 
-        const tick = setInterval(() => {
-            setMarketData([...marketService.generateTick()]);
-        }, DASHBOARD_MARKET_TICK_MS);
-
+        // 数值仅随真源刷新更新（60s），展示值即后端真源值
         const liveRefresh = setInterval(() => {
-            marketService.refreshCommodities();
-        }, 60000);
+            marketService.refreshCommodities().then(tickers => {
+                if (!cancelled) setMarketData([...tickers]);
+            });
+        }, DASHBOARD_MARKET_TICK_MS);
 
         return () => {
             cancelled = true;
-            clearInterval(tick);
             clearInterval(liveRefresh);
         };
     }, []);
@@ -555,8 +529,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
 
     // [REAL-TIME ANALYTICS]
     // 1. Calculate Production Velocity (Orders updated/active per day over last 7 days)
-    const [fabricData, setFabricData] = useState<any[]>([]);
-    const [garmentData, setGarmentData] = useState<any[]>([]);
+    const [fabricData, setFabricData] = useState<any[] | null>(null);
+    const [garmentData, setGarmentData] = useState<any[] | null>(null);
     const [activeVelocity, setActiveVelocity] = useState<'fabric' | 'garment'>('fabric');
     const [pipelineView, setPipelineView] = useState<'total' | 'region'>('total');
     const [cognitionView, setCognitionView] = useState<'nodes' | 'efficiency'>('nodes');
@@ -779,6 +753,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     className="bambook-title-adaptive-ink text-3xl md:text-4xl font-light tracking-tight whitespace-nowrap text-os-adaptive-title transition-all"
                                 >
                                     Bambook Hub
+                                    <span className="ml-2.5 align-middle text-[13px] font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
                                 </h1>
                                 {!isMobileSpatial && (
                                     <label className={`pointer-events-auto flex h-14 w-[300px] max-w-[30vw] items-center gap-3 rounded-card-lg border px-5 ${dashboardHeaderPillClass} text-os-adaptive-subtitle`}>
@@ -1022,7 +997,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             onClick={onRefreshBriefing}
                                             disabled={isBriefingLoading}
                                             data-ui-lab-wallpaper-contrast="muted"
-                                            className={`p-1.5 rounded-md transition-all duration-300 ${isDarkMode ? DASHBOARD_REFRESH_ICON_DARK_CLASS : DASHBOARD_REFRESH_ICON_LIGHT_CLASS}`}
+                                            className={`p-1.5 rounded-full transition-all duration-300 ${isDarkMode ? DASHBOARD_REFRESH_ICON_DARK_CLASS : DASHBOARD_REFRESH_ICON_LIGHT_CLASS}`}
                                             title="Manual Sync"
                                         >
                                             <RefreshCw size={12} strokeWidth={1} className={isBriefingLoading ? "animate-spin" : ""} />
@@ -1172,9 +1147,10 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             className="absolute inset-0 px-0 pb-0 pt-0 flex flex-col overflow-visible"
                                         >
                                             <div className="flex-1 w-full min-h-0" style={{ minHeight: 10, minWidth: 10 }}>
+                                                {(activeVelocity === 'fabric' ? fabricData : garmentData) ? (
                                                 <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 10, height: 10 }}>
                                                     <ComposedChart
-                                                        data={activeVelocity === 'fabric' ? fabricData : garmentData}
+                                                        data={(activeVelocity === 'fabric' ? fabricData : garmentData) ?? undefined}
                                                         margin={{ top: 44, right: 6, left: 4, bottom: 22 }}
                                                         style={{ overflow: 'visible' }}
                                                         barGap={0}
@@ -1206,7 +1182,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                                             ? (((d.weekly - d.prevWeekly) / d.prevWeekly) * 100).toFixed(1)
                                                                             : null;
                                                                     return (
-                                                                        <div className={`px-3 py-2 border rounded-lg max-w-[240px] ${DASHBOARD_FLOATING_OVERLAY_CLASS} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                                                        <div className={`px-3 py-2 border rounded-control max-w-[240px] ${DASHBOARD_FLOATING_OVERLAY_CLASS} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                                                                             <div className="text-[13px] font-normal tracking-wide mb-2">{kindLabel} · {d.weekRange ?? d.name}</div>
                                                                             <div className="flex flex-col gap-1">
                                                                                 <div className="flex justify-between gap-3">
@@ -1266,6 +1242,12 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                         />
                                                     </ComposedChart>
                                                 </ResponsiveContainer>
+                                                ) : (
+                                                <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-5 pb-5 text-center">
+                                                    <span className={`${dashboardCardLabelClass} text-os-adaptive-subtitle`}>暂无近 13 周订单数据</span>
+                                                    <span className="text-[11px] font-light text-os-adaptive-subtitle">No order signal in the last 13 weeks</span>
+                                                </div>
+                                                )}
                                             </div>
                                         </motion.div>
                                     </AnimatePresence>

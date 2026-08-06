@@ -605,8 +605,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     : BAMBOOK_OS.controls.selectedSurface.light;
   const overlayToolbarClass = `${BAMBOOK_OS.controls.toolbar.base} !w-auto !min-w-0 ${toolbarSurfaceClass}`;
   const overlayToolbarContentClass = `${BAMBOOK_OS.controls.toolbar.content} !gap-2 !px-2`;
-  const overlayActionClass = `flex h-8 items-center gap-2 rounded-xl border px-3 text-[11px] font-light tracking-wide transition-all ${titleActionClass}`;
-  const overlayIconActionClass = `flex h-8 w-8 items-center justify-center rounded-xl border transition-all ${titleActionClass}`;
+  const overlayActionClass = `flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-light tracking-wide transition-all ${titleActionClass}`;
+  const overlayIconActionClass = `flex h-8 w-8 items-center justify-center rounded-control border transition-all ${titleActionClass}`;
   const overlayPrimaryActionClass = isDarkMode
     ? 'border-white/[0.08] bg-white/[0.04] text-white/65 hover:bg-white/[0.07]'
     : 'border-slate-300/40 bg-slate-100/50 text-slate-600 hover:bg-slate-100/70';
@@ -644,13 +644,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           <div className={`hidden md:block ${BAMBOOK_OS.controls.toolbar.base} max-w-[460px] ${toolbarSurfaceClass}`}>
             <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
             <div className={`${BAMBOOK_OS.controls.toolbar.content} !gap-2 !px-2`}>
-              <div className="flex h-6 min-w-0 items-center gap-0.5">
+              <div className="flex h-8 min-w-0 items-center gap-0.5">
                 {(['fabric', 'garment'] as const).map((type) => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => onOrderTypeChange?.(type)}
-                    className={`h-6 rounded-lg px-2.5 text-[10px] font-light tracking-wide transition-all ${orderType === type ? toolbarSelectedClass : toolbarControlClass}`}
+                    className={`h-8 rounded-full px-2.5 text-[10px] font-light tracking-wide transition-all ${orderType === type ? toolbarSelectedClass : toolbarControlClass}`}
                   >
                     {ORDER_TYPE_LABELS[type]}
                   </button>
@@ -662,12 +662,12 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 value={orderSearchTerm}
                 onChange={e => setOrderSearchTerm(e.target.value)}
                 placeholder="搜索订单号/客户/品号..."
-                className={`h-6 w-32 rounded-lg border-0 px-2 text-[10px] font-light outline-none placeholder:opacity-50 ${isDarkMode ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'}`}
+                className={`h-8 w-32 rounded-control border-0 px-2 text-[10px] font-light outline-none placeholder:opacity-50 ${isDarkMode ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'}`}
               />
               <select
                 value={orderFilterStatus}
                 onChange={e => setOrderFilterStatus(e.target.value)}
-                className={`h-6 rounded-lg border-0 px-1.5 text-[10px] font-light outline-none ${isDarkMode ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'}`}
+                className={`h-8 rounded-control border-0 px-1.5 text-[10px] font-light outline-none ${isDarkMode ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'}`}
               >
                 <option value="all">全部状态</option>
                 <option value="Pending">待确认</option>
@@ -678,13 +678,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 <option value="Alert">异常</option>
               </select>
               <div className={`h-3.5 w-px shrink-0 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300/40'}`} />
-              <div className="flex h-6 items-center gap-0.5">
+              <div className="flex h-8 items-center gap-0.5">
                 {allowGlobeView && (
                   <button
                     type="button"
                     title="地球视图"
                     onClick={() => onViewModeChange('globe')}
-                    className={`flex h-6 w-7 items-center justify-center rounded-lg transition-all ${effectiveViewMode === 'globe' ? toolbarSelectedClass : toolbarControlClass}`}
+                    className={`flex h-8 w-7 items-center justify-center rounded-full transition-all ${effectiveViewMode === 'globe' ? toolbarSelectedClass : toolbarControlClass}`}
                   >
                     <Globe size={14} strokeWidth={1.5} />
                   </button>
@@ -693,7 +693,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   type="button"
                   title="列表视图"
                   onClick={() => onViewModeChange('list')}
-                  className={`flex h-6 w-7 items-center justify-center rounded-lg transition-all ${effectiveViewMode === 'list' ? toolbarSelectedClass : toolbarControlClass}`}
+                  className={`flex h-8 w-7 items-center justify-center rounded-full transition-all ${effectiveViewMode === 'list' ? toolbarSelectedClass : toolbarControlClass}`}
                 >
                   <List size={14} strokeWidth={1.5} />
                 </button>
@@ -804,7 +804,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     key={t}
                     type="button"
                     onClick={() => onOrderTypeChange?.(t)}
-                    className={`h-7 flex-1 rounded-xl px-3 text-[10px] font-light tracking-wide transition-all ${orderType === t ? toolbarSelectedClass : toolbarControlClass}`}
+                    className={`h-8 flex-1 rounded-full px-3 text-[10px] font-light tracking-wide transition-all ${orderType === t ? toolbarSelectedClass : toolbarControlClass}`}
                   >
                     {ORDER_TYPE_LABELS[t]}
                   </button>
@@ -841,7 +841,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           </div>
                           <span className={`text-lg font-light font-mono tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{order.id}</span>
                         </div>
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-light uppercase tracking-widest border ${getStatusStyles(order.status)}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-light uppercase tracking-widest border ${getStatusStyles(order.status)}`}>
                           {order.status}
                         </span>
                       </div>
@@ -866,7 +866,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-[9px] font-light uppercase tracking-widest text-slate-400">
                           <span>Progress</span>
-                          <span>{order.status === 'Delivered' ? '100%' : order.status === 'Shipping' ? '85%' : order.status === 'Production' ? '60%' : order.status === 'Confirmed' ? '25%' : order.status === 'Alert' ? '⚠' : '10%'}</span>
+                          <span>{order.status === 'Delivered' ? '100%' : order.status === 'Shipping' ? '85%' : order.status === 'Production' ? '60%' : order.status === 'Confirmed' ? '25%' : order.status === 'Alert' ? '异常' : '10%'}</span>
                         </div>
                         <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
                           <div
@@ -1136,7 +1136,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               key={s}
                               onClick={() => handleStatusTransition(s)}
                               disabled={selectedOrder.status === s}
-                              className={`rounded-xl border px-2.5 py-1 text-[9px] font-light tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                              className={`rounded-full border px-2.5 py-1 text-[9px] font-light tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                                 selectedOrder.status === s
                                   ? isDarkMode ? 'border-white/[0.10] text-white/80 bg-white/[0.06]' : 'border-slate-400 text-slate-700 bg-slate-200/60'
                                   : isDarkMode ? 'border-white/[0.06] text-white/62 hover:bg-white/[0.03]' : 'border-slate-200/45 text-slate-500 hover:bg-slate-50'
@@ -1184,7 +1184,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
 
                       {/* Overdue alert */}
                       {selectedOrder.status === 'Alert' && (
-                        <div className={`mt-4 flex items-center gap-2 rounded-xl border px-3 py-2 ${
+                        <div className={`mt-4 flex items-center gap-2 rounded-control border px-3 py-2 ${
                           isDarkMode ? 'border-white/[0.08] bg-white/[0.06] text-white/65' : 'border-slate-300 bg-slate-100/60 text-slate-600'
                         }`}>
                           <AlertCircle size={14} />
@@ -1308,7 +1308,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               <div className={`pointer-events-auto ${overlayToolbarClass}`}>
                 <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
                 <div className={overlayToolbarContentClass}>
-                  <button onClick={() => setShowDeleteConfirm(true)} className={`flex h-8 w-8 items-center justify-center rounded-xl border border-transparent transition-all ${isDarkMode ? 'text-white/35 hover:bg-white/[0.05] hover:text-white/70' : 'text-slate-400 hover:bg-slate-100/70 hover:text-slate-700'}`} title="归档此单">
+                  <button onClick={() => setShowDeleteConfirm(true)} className={`flex h-8 w-8 items-center justify-center rounded-control border border-transparent transition-all ${isDarkMode ? 'text-white/35 hover:bg-white/[0.05] hover:text-white/70' : 'text-slate-400 hover:bg-slate-100/70 hover:text-slate-700'}`} title="归档此单">
                     <Trash2 size={17} strokeWidth={1.5} />
                   </button>
                 </div>
@@ -1339,7 +1339,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               }}
               className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${isDarkMode ? 'bg-slate-800/50 text-slate-200' : 'bg-slate-50 text-slate-700'}`}
             >
-              <div className="p-2 bg-white/[0.06] rounded-xl text-slate-500"><Edit2 size={18} /></div>
+              <div className="p-2 bg-white/[0.06] rounded-control text-slate-500"><Edit2 size={18} /></div>
               编辑详情
             </button>
             <div className={`p-4 rounded-inset space-y-4 ${isDarkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
@@ -1369,7 +1369,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         setShowOptionsSheet(null);
                       }
                     }}
-                    className={`px-4 py-2 rounded-xl text-[10px] uppercase font-light whitespace-nowrap border ${getStatusStyles(st as any)}`}
+                    className={`px-4 py-2 rounded-full text-[10px] uppercase font-light whitespace-nowrap border ${getStatusStyles(st as any)}`}
                   >
                     {st}
                   </button>
@@ -1386,7 +1386,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               }}
               className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light text-slate-600 ${isDarkMode ? 'bg-slate-800/40' : 'bg-slate-100/60'}`}
             >
-              <div className="p-2 bg-slate-400/10 rounded-xl"><Trash2 size={18} /></div>
+              <div className="p-2 bg-slate-400/10 rounded-control"><Trash2 size={18} /></div>
               归档订单
             </button>
           </div>

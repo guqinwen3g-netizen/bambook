@@ -117,7 +117,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
       <div className={cx('text-[10px] font-light uppercase tracking-widest', textSecondary)}>生产管线 (10 阶段门禁)</div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl bg-red-500/10 px-3 py-2 text-[11px] text-red-500">
+        <div className="flex items-center gap-2 rounded-control bg-red-500/10 px-3 py-2 text-[11px] text-red-500">
           <AlertCircle size={12} /> {error}
         </div>
       )}
@@ -158,7 +158,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                     onClick={() => handleAdvance(stage.stageKey)}
                     disabled={advancing === stage.stageKey}
                     className={cx(
-                      'flex h-6 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[10px] font-light transition-all',
+                      'flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[10px] font-light transition-all',
                       isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50',
                       advancing === stage.stageKey && 'opacity-50',
                     )}
@@ -256,7 +256,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 type="number"
                 value={inspection?.totalUnits ?? ''}
                 onChange={e => handleInspectionSave('totalUnits', Number(e.target.value) || 0)}
-                className={cx('h-8 w-full rounded-lg border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
               />
             </div>
             <div>
@@ -265,7 +265,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 type="number"
                 value={inspection?.passedUnits ?? ''}
                 onChange={e => handleInspectionSave('passedUnits', Number(e.target.value) || 0)}
-                className={cx('h-8 w-full rounded-lg border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
               />
             </div>
           </div>

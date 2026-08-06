@@ -473,20 +473,52 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     }
   };
 
+  // 生成随机强临时密码（12 位，字母+数字，crypto 随机源），禁止使用弱默认密码
+  const generateTempPassword = (): string => {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const bytes = new Uint32Array(12);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+  };
+
   const resetPassword = async (userId: string, displayName: string) => {
-    const newPassword = window.prompt(`为「${displayName || userId}」设置新临时密码`, 'bambook2026');
-    if (!newPassword) return;
-    if (newPassword.length < 6) {
-      setLoadError('新密码至少需要 6 位');
-      return;
-    }
+    if (!window.confirm(`确认为「${displayName || userId}」重置密码？系统将生成随机临时密码，仅展示一次。`)) return;
+    const newPassword = generateTempPassword();
     setActionBusyId(userId);
     setLoadError('');
     try {
       await postAdmin(`users/${userId}/reset-password`, { newPassword });
-      alert(`密码已重置为：${newPassword}`);
+      // 一次性展示：新密码仅在此刻可见，不落盘、不回显在页面状态中
+      alert(`密码已重置。请立即复制并安全传达给用户（仅展示一次）：\n\n${newPassword}`);
     } catch (e: any) {
       setLoadError(e.message || '重置密码失败');
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  // 审批决策：fail closed + busy 防重（高危操作失败必须显式呈现，禁止静默）
+  const decideApproval = async (approvalId: string, status: 'approved' | 'rejected') => {
+    setActionBusyId(`approval:${approvalId}`);
+    setLoadError('');
+    try {
+      await postAdmin(`approvals/${approvalId}`, { status }, 'PATCH');
+      await loadTab('approvals');
+    } catch (e: any) {
+      setLoadError(e.message || '审批操作失败');
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const decideSuggestion = async (suggestionId: string, status: 'accepted' | 'rejected') => {
+    setActionBusyId(`suggestion:${suggestionId}`);
+    setLoadError('');
+    try {
+      await postAdmin(`suggestions/${suggestionId}`, { status }, 'PATCH');
+      await loadTab('approvals');
+    } catch (e: any) {
+      setLoadError(e.message || '建议操作失败');
     } finally {
       setActionBusyId(null);
     }
@@ -593,8 +625,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         </div>
                         <div><label className={labelCls}>部门ID</label><input value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})} className={inputCls + ' mt-1'} placeholder="company" /></div>
                       </div>
-                      <button onClick={async () => { try { await postAdmin('users', { ...newUser, id: createAdminGeneratedUserId(newUser.email, newUser.displayName) }); setShowNewUser(false); setNewUser({ displayName: '', email: '', password: '', roles: 'viewer', departmentId: '' }); loadTab('users'); } catch(e: any) { alert(e.message); } }}
-                        className={primaryButtonCls}>创建用户</button>
+                      <button disabled={actionBusyId !== null} onClick={async () => {
+                        if (actionBusyId) return;
+                        setActionBusyId('create-user');
+                        setLoadError('');
+                        try {
+                          await postAdmin('users', { ...newUser, id: createAdminGeneratedUserId(newUser.email, newUser.displayName) });
+                          setShowNewUser(false);
+                          setNewUser({ displayName: '', email: '', password: '', roles: 'viewer', departmentId: '' });
+                          await loadTab('users');
+                        } catch(e: any) {
+                          // fail closed：创建失败显示在页面错误区，禁止 alert 弹窗
+                          setLoadError(e.message || '创建用户失败');
+                        } finally {
+                          setActionBusyId(null);
+                        }
+                      }}
+                        className={primaryButtonCls}>{actionBusyId === 'create-user' ? '创建中…' : '创建用户'}</button>
                     </div>
                   )}
 
@@ -749,7 +796,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           const requestedDept = u.metadata?.requestedDepartment || '';
                           const emailVerified = u.metadata?.emailVerified !== false;
                           return (
-                            <div key={u.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-[20px] border ${isDarkMode ? 'border-white/[0.055] bg-white/[0.025]' : 'border-white/42 bg-white/28'}`}>
+                            <div key={u.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-inset border ${isDarkMode ? 'border-white/[0.055] bg-white/[0.025]' : 'border-white/42 bg-white/28'}`}>
                               <UserAvatar name={u.displayName} email={u.email} avatarUrl={u.avatarUrl} isDarkMode={isDarkMode} sizeClassName="h-8 w-8" textClassName="text-xs" />
                               <div className="flex-1 min-w-0">
                                 <div className={`text-sm font-light truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
@@ -971,10 +1018,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             <span className={`text-[10px] ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{a.risk} risk</span>
                           </div>
                           <div className="flex gap-1">
-                            <button onClick={async () => { await postAdmin(`approvals/${a.id}`, { status: 'approved' }, 'PATCH'); loadTab('approvals'); }}
-                              className={brandActionCls}>批准</button>
-                            <button onClick={async () => { await postAdmin(`approvals/${a.id}`, { status: 'rejected' }, 'PATCH'); loadTab('approvals'); }}
-                              className={dangerActionCls}>驳回</button>
+                            <button disabled={actionBusyId !== null} onClick={() => decideApproval(a.id, 'approved')}
+                              className={brandActionCls}>{actionBusyId === `approval:${a.id}` ? '提交中…' : '批准'}</button>
+                            <button disabled={actionBusyId !== null} onClick={() => decideApproval(a.id, 'rejected')}
+                              className={dangerActionCls}>{actionBusyId === `approval:${a.id}` ? '提交中…' : '驳回'}</button>
                           </div>
                         </div>
                       </div>
@@ -990,10 +1037,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             <span className={`text-[10px] ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>confidence: {s.confidence}</span>
                           </div>
                           <div className="flex gap-1">
-                            <button onClick={async () => { await postAdmin(`suggestions/${s.id}`, { status: 'accepted' }, 'PATCH'); loadTab('approvals'); }}
-                              className={brandActionCls}>接受</button>
-                            <button onClick={async () => { await postAdmin(`suggestions/${s.id}`, { status: 'rejected' }, 'PATCH'); loadTab('approvals'); }}
-                              className={dangerActionCls}>驳回</button>
+                            <button disabled={actionBusyId !== null} onClick={() => decideSuggestion(s.id, 'accepted')}
+                              className={brandActionCls}>{actionBusyId === `suggestion:${s.id}` ? '提交中…' : '接受'}</button>
+                            <button disabled={actionBusyId !== null} onClick={() => decideSuggestion(s.id, 'rejected')}
+                              className={dangerActionCls}>{actionBusyId === `suggestion:${s.id}` ? '提交中…' : '驳回'}</button>
                           </div>
                         </div>
                       </div>
@@ -1090,7 +1137,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           </select>
                         </div>
                       </div>
-                      <button onClick={async () => {
+                      <button disabled={actionBusyId !== null} onClick={async () => {
+                        if (actionBusyId) return;
+                        setActionBusyId('acl-save');
                         setLoadError('');
                         try {
                           if (editingAclId) {
@@ -1100,10 +1149,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           }
                           setShowAclForm(false);
                           setEditingAclId(null);
-                          loadTab('knowledge-acl');
+                          await loadTab('knowledge-acl');
                         } catch (e: any) { setLoadError(e.message || '保存失败'); }
+                        finally { setActionBusyId(null); }
                       }} className={primaryButtonCls}>
-                        {editingAclId ? '更新规则' : '创建规则'}
+                        {actionBusyId === 'acl-save' ? '提交中…' : editingAclId ? '更新规则' : '创建规则'}
                       </button>
                     </div>
                   )}
@@ -1138,9 +1188,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                               setEditingAclId(acl.id);
                               setShowAclForm(true);
                             }} className={subtleButtonCls}>编辑</button>
-                            <button onClick={async () => {
+                            <button disabled={actionBusyId !== null} onClick={async () => {
+                              if (actionBusyId) return;
                               if (!window.confirm('确认删除此访问控制规则？')) return;
-                              try { await postAdmin(`knowledge-acl/${acl.id}`, {}, 'DELETE'); loadTab('knowledge-acl'); } catch (e: any) { setLoadError(e.message); }
+                              setActionBusyId(`acl:${acl.id}`);
+                              try { await postAdmin(`knowledge-acl/${acl.id}`, {}, 'DELETE'); await loadTab('knowledge-acl'); } catch (e: any) { setLoadError(e.message); }
+                              finally { setActionBusyId(null); }
                             }} className={quietDangerActionCls}>删除</button>
                           </div>
                         </div>
@@ -1196,15 +1249,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           </select>
                         </div>
                       </div>
-                      <button onClick={async () => {
+                      <button disabled={actionBusyId !== null} onClick={async () => {
                         if (!toolPermForm.toolId || !toolPermForm.roleId) { setLoadError('请选择工具和角色'); return; }
+                        if (actionBusyId) return;
+                        setActionBusyId('toolperm-create');
                         setLoadError('');
                         try {
                           await postAdmin('tool-permissions', toolPermForm);
                           setShowToolPermForm(false);
-                          loadTab('tool-perms');
+                          await loadTab('tool-perms');
                         } catch (e: any) { setLoadError(e.message || '保存失败'); }
-                      }} className={primaryButtonCls}>创建授权</button>
+                        finally { setActionBusyId(null); }
+                      }} className={primaryButtonCls}>{actionBusyId === 'toolperm-create' ? '提交中…' : '创建授权'}</button>
                     </div>
                   )}
 
@@ -1232,9 +1288,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   <span className={`font-light ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>{formatRoleLabel(p.roleName)}</span>
                                   <span className={p.access === 'admin' ? dangerChipCls : p.access === 'none' ? neutralChipCls : brandChipCls}>{formatAccessLabel(p.access)}</span>
                                   <span className={p.riskMode === 'disabled' ? dangerChipCls : p.riskMode === 'approval' ? neutralChipCls : brandChipCls}>{formatRiskModeLabel(p.riskMode)}</span>
-                                  <button onClick={async () => {
-                                    try { await postAdmin(`tool-permissions/${p.id}`, {}, 'DELETE'); loadTab('tool-perms'); } catch (e: any) { setLoadError(e.message); }
-                                  }} className={`${quietDangerActionCls} ml-auto h-7 px-2`}>移除</button>
+                                  <button disabled={actionBusyId !== null} onClick={async () => {
+                                    if (actionBusyId) return;
+                                    setActionBusyId(`toolperm:${p.id}`);
+                                    try { await postAdmin(`tool-permissions/${p.id}`, {}, 'DELETE'); await loadTab('tool-perms'); } catch (e: any) { setLoadError(e.message); }
+                                    finally { setActionBusyId(null); }
+                                  }} className={`${quietDangerActionCls} ml-auto h-8 px-2`}>移除</button>
                                 </div>
                               ))}
                             </div>

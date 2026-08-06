@@ -110,26 +110,26 @@ const OrderConfirmFeedbackView: React.FC<{
   // === 成功态：订单已确认 + 发票已开具 + 审计已记录 ===
   if (state === 'committed' && result) {
     return (
-      <div className={`mt-2 flex flex-col gap-1.5 rounded-lg border ${cardBorder} px-2.5 py-2`}>
+      <div className={`mt-2 flex flex-col gap-1.5 rounded-compact border ${cardBorder} px-2.5 py-2`}>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-light ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+          <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-light ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
             <CheckCircle2 size={10} />
             <span>订单已确认</span>
           </span>
           {result.previousStatus && result.newStatus && (
-            <span className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
               <FileText size={10} />
               <span>{result.previousStatus} → {result.newStatus}</span>
             </span>
           )}
           {result.invoiceId && (
-            <span className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
               <Receipt size={10} />
               <span>发票已开具</span>
             </span>
           )}
           {result.auditId && (
-            <span className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/55' : 'bg-slate-100 text-slate-500'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/55' : 'bg-slate-100 text-slate-500'}`}>
               <ShieldCheck size={10} />
               <span>审计已记录</span>
             </span>
@@ -170,7 +170,7 @@ const OrderConfirmFeedbackView: React.FC<{
   // === rejected：用户主动拒绝，中性 reassuring（P1-D §3.3）
   if (state === 'rejected') {
     return (
-      <div className={`mt-2 rounded-lg border ${isDarkMode ? 'border-slate-400/20 bg-slate-700/20' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
+      <div className={`mt-2 rounded-compact border ${isDarkMode ? 'border-slate-400/20 bg-slate-700/20' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
         <div className={`flex items-center gap-1.5 text-[11.5px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
           <XCircle size={12} />
           <span>订单确认已取消</span>
@@ -185,7 +185,7 @@ const OrderConfirmFeedbackView: React.FC<{
   // === approval_required：需要审批后才能执行 ===
   if (state === 'approval_required') {
     return (
-      <div className={`mt-2 rounded-lg border ${isDarkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
+      <div className={`mt-2 rounded-compact border ${isDarkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
         <div className={`flex items-center gap-1.5 text-[11.5px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
           <ShieldAlert size={12} />
           <span>该操作需要审批后才能执行</span>
@@ -201,7 +201,7 @@ const OrderConfirmFeedbackView: React.FC<{
   const userAction = errorFeedback?.userAction ?? '请联系管理员查看日志。';
   const details = errorFeedback?.details;
   return (
-    <div className={`mt-2 flex flex-col gap-1.5 rounded-lg border ${isDarkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
+    <div className={`mt-2 flex flex-col gap-1.5 rounded-compact border ${isDarkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
       <div className="flex flex-wrap items-center gap-1.5">
         <span className={`flex items-center gap-1 text-[11.5px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
           <XCircle size={12} />
@@ -266,7 +266,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
           </button>
         </div>
         {expanded && (
-          <div className={`mt-1.5 rounded-lg ${detailBg} px-3 py-2`}>
+          <div className={`mt-1.5 rounded-compact ${detailBg} px-3 py-2`}>
             {block.reason && <div className={`text-[12px] leading-[1.5] ${quietText}`}>{block.reason}</div>}
             {block.error && <div className={`mt-1 text-[12px] leading-[1.5] ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>{block.error}</div>}
             {block.toolId === 'order.confirm' ? (
@@ -389,7 +389,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
   const rowBorder = isDarkMode ? 'border-white/[0.05]' : 'border-slate-200/50';
 
   return (
-    <div className={`mt-2 flex flex-col gap-2 rounded-lg border ${rowBorder} px-2.5 py-2`}>
+    <div className={`mt-2 flex flex-col gap-2 rounded-compact border ${rowBorder} px-2.5 py-2`}>
       {draft.beforeAfterDiff.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
@@ -436,7 +436,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           </div>
           <div className="flex flex-wrap gap-1">
             {draft.impactScope.map((scope, idx) => (
-              <span key={idx} className={`rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
+              <span key={idx} className={`rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
                 {scope}
               </span>
             ))}
@@ -446,13 +446,13 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {(draft.irreversible || draft.postCommitHooks.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {draft.irreversible && (
-            <span className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
               <AlertTriangle size={10} />
               <span>不可逆操作</span>
             </span>
           )}
           {draft.postCommitHooks.map((hook: AgentProcessDraftPostCommitHook, idx) => (
-            <span key={idx} className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
               <Mail size={10} />
               <span>提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
             </span>
@@ -483,7 +483,7 @@ const ApprovalAnnotation: React.FC<ApprovalAnnotationProps> = ({ block, isDarkMo
   };
 
   return (
-    <div className={`flex items-start gap-2.5 py-2 px-3 rounded-xl border ${isPending ? (isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-slate-50 border-slate-200') : ''} ${!isPending ? borderCls : ''}`}>
+    <div className={`flex items-start gap-2.5 py-2 px-3 rounded-inset border ${isPending ? (isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-slate-50 border-slate-200') : ''} ${!isPending ? borderCls : ''}`}>
       <span className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
         <ShieldCheck size={14} className={isPending ? (isDarkMode ? 'text-white/70' : 'text-slate-600') : (isDarkMode ? 'text-white/70' : 'text-slate-600')} />
       </span>
@@ -499,21 +499,21 @@ const ApprovalAnnotation: React.FC<ApprovalAnnotationProps> = ({ block, isDarkMo
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'approved', toolId: block.toolId, input: block.input }, risk: block.risk, label: '批准' })}
-              className={`rounded-lg border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
             >
               批准
             </button>
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'rejected', toolId: block.toolId }, risk: block.risk, label: '拒绝' })}
-              className={`rounded-lg border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
             >
               拒绝
             </button>
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'modified', toolId: block.toolId, input: block.input, editableFields: block.editableFields }, risk: block.risk, label: '修改参数' })}
-              className={`rounded-lg border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
             >
               修改参数
             </button>

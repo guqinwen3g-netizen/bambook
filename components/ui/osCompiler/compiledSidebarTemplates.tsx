@@ -150,7 +150,7 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
           onClick={() => setIsCollapsed(false)}
           aria-label="展开侧边栏"
           data-sidebar-collapsed-expand-button
-          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-[20px] bg-[rgb(255_255_255/0.68)] text-[#0B1F3A] transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[rgb(255_255_255/0.84)]"
+          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[rgb(255_255_255/0.68)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[rgb(255_255_255/0.84)]"
         >
           <ChevronRight size={18} strokeWidth={1.35} />
         </button>
@@ -163,7 +163,7 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
                 onClick={() => triggerViewChange(item.id)}
                 aria-label={item.label}
                 data-sidebar-collapsed-nav-button
-                className={`relative group flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl p-0 transition-all duration-300
+                className={`relative group flex h-10 w-10 items-center justify-center overflow-hidden rounded-control p-0 transition-all duration-300
                   text-[var(--os-adaptive-primary)]`}
                 data-sidebar-adaptive-icon
               >

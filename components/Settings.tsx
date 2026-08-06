@@ -1101,7 +1101,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     />
                   </div>
 
-                  <div className={`p-3 rounded-xl border font-mono text-[10px] h-36 overflow-y-auto custom-scrollbar ${isDarkMode ? 'bg-black/40 border-white/10 text-slate-300' : 'bg-slate-900 text-slate-300 border-slate-800'}`}>
+                  <div className={`p-3 rounded-control border font-mono text-[10px] h-36 overflow-y-auto custom-scrollbar ${isDarkMode ? 'bg-black/40 border-white/10 text-slate-300' : 'bg-slate-900 text-slate-300 border-slate-800'}`}>
                     {testLogs.map((log, i) => (
                       <div key={i} className={`mb-1 ${log.type === 'error' ? 'text-white/55' : log.type === 'success' ? 'text-white/70' : ''}`}>
                         {log.msg}
@@ -1252,7 +1252,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       ))}
                     </div>
                     {storageMsg && (
-                      <div className={`text-xs rounded-xl px-3 py-2 border ${storageMsg.ok ? 'text-white/70 bg-white/[0.06] border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border-white/[0.08]'}`}>
+                      <div className={`text-xs rounded-control px-3 py-2 border ${storageMsg.ok ? 'text-white/70 bg-white/[0.06] border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border-white/[0.08]'}`}>
                         {storageMsg.text}
                       </div>
                     )}
@@ -1324,7 +1324,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                               </span>
                             </div>
                             {avatarMsg && (
-                              <div className={`mt-3 text-xs rounded-lg px-3 py-2 ${avatarMsg.ok ? 'text-white/70 bg-white/[0.06] border border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border border-white/[0.08]'}`}>
+                              <div className={`mt-3 text-xs rounded-control px-3 py-2 ${avatarMsg.ok ? 'text-white/70 bg-white/[0.06] border border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border border-white/[0.08]'}`}>
                                 {avatarMsg.text}
                               </div>
                             )}
@@ -1419,7 +1419,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} className={inputCls + ' mt-1'} autoComplete="new-password" />
                         </div>
                         {pwMsg && (
-                          <div className={`text-xs rounded-lg px-3 py-2 ${pwMsg.ok ? 'text-white/70 bg-white/[0.06] border border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border border-white/[0.08]'}`}>
+                          <div className={`text-xs rounded-control px-3 py-2 ${pwMsg.ok ? 'text-white/70 bg-white/[0.06] border border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border border-white/[0.08]'}`}>
                             {pwMsg.text}
                           </div>
                         )}

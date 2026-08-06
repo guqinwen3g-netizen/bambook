@@ -170,10 +170,10 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="搜索资产..."
-                className={`pl-9 pr-4 py-2 border rounded-xl outline-none font-normal text-xs transition-all w-64 shadow-sm ${isDarkMode ? 'bg-deep/60 border-white/10 text-white placeholder-slate-500 focus:ring-2 focus:ring-white/10' : 'bg-white/30 border-white/30 focus:ring-2 focus:ring-blue-500/20'}`}
+                className={`pl-9 pr-4 py-2 border rounded-control outline-none font-normal text-xs transition-all w-64 shadow-sm ${isDarkMode ? 'bg-deep/60 border-white/10 text-white placeholder-slate-500 focus:ring-2 focus:ring-white/10' : 'bg-white/30 border-white/30 focus:ring-2 focus:ring-blue-500/20'}`}
               />
             </div>
-            <button onClick={() => setShowAddModal(true)} className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-[11px] font-light tracking-wide ${isDarkMode ? 'bg-deep/80 text-white/80 border border-white/10 hover:bg-deep' : 'bg-white/70 border border-slate-200/60 text-slate-600 hover:bg-white/90'}`}>
+            <button onClick={() => setShowAddModal(true)} className={`px-4 py-2 rounded-full flex items-center gap-2 transition-all text-[11px] font-light tracking-wide ${isDarkMode ? 'bg-deep/80 text-white/80 border border-white/10 hover:bg-deep' : 'bg-white/70 border border-slate-200/60 text-slate-600 hover:bg-white/90'}`}>
               <Plus size={14} strokeWidth={1} /> 新增资产
             </button>
           </div>
@@ -196,15 +196,15 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             {filteredOfficial.map(item => (
               <motion.div layout key={item.id} data-os-adaptive-container="1" className={`shrink-0 w-[340px] p-6 flex flex-col group relative overflow-hidden ${BAMBOOK_OS.material.cardLight} transition-all duration-300 ${isDarkMode ? 'bg-deep/48' : 'bg-white/46 hover:bg-white/56'}`}>
                 <div className="absolute top-5 right-5 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                  <button onClick={() => setEditingItem(item)} className={`p-2.5 border rounded-xl transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                  <button onClick={() => setEditingItem(item)} className={`p-2.5 border rounded-control transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
                     <Edit2 size={14} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className={`p-2.5 border rounded-xl transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light} hover:text-red-500`}>
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className={`p-2.5 border rounded-control transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light} hover:text-red-500`}>
                     <Trash2 size={14} />
                   </button>
                 </div>
                 <div className="mb-4">
-                  <span className={`px-2.5 py-1 text-[9px] font-light tracking-wide rounded-xl border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                  <span className={`px-2.5 py-1 text-[9px] font-light tracking-wide rounded-full border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
                     {item.category}
                   </span>
                 </div>
@@ -232,7 +232,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 </div>
                 <div className={`mt-6 pt-4 border-t flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-white/30'}`}>
                   <span className={`text-[9px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-blue-500'}`}>{insight.importance} PRIORITY</span>
-                  <button onClick={() => handleSolidifyMemory(insight)} className={`px-4 py-2 rounded-xl text-[10px] font-light transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                  <button onClick={() => handleSolidifyMemory(insight)} className={`px-4 py-2 rounded-full text-[10px] font-light transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
                     固化入库
                   </button>
                 </div>

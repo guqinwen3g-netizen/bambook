@@ -52,7 +52,7 @@ describe('Bambook OS compiler contract', () => {
 
     expect(blueprint.layout.pageShell.component).toBe('CompiledPage');
     expect(blueprint.layout.titleBar.component).toBe('CompiledTitleBar');
-    expect(blueprint.layout.canvas.maxWidth).toBe(1130);
+    expect(blueprint.layout.canvas.maxWidth).toBe(0);
     expect(blueprint.layout.panelRow.component).toBe('CompiledPanelRow');
     expect(blueprint.layout.toolbar.component).toBe('CompiledToolbarRow');
     expect(blueprint.layout.content.component).toBe('CompiledCardGrid');

@@ -20,7 +20,7 @@ export const AgentNextActionsBlock: React.FC<AgentBlockComponentProps<AgentNextA
             type="button"
             onClick={() => onExecuteAction?.({ actionId: action.id, actionType: action.actionType, payload: action.payload, risk: action.risk, label: action.label })}
             disabled={!onExecuteAction}
-            className={`flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-75'} ${borderClass}`}
+            className={`flex w-full items-start gap-2 rounded-compact border px-3 py-2 text-left transition-colors ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-75'} ${borderClass}`}
           >
             <ChevronRight size={14} className={`mt-0.5 shrink-0 ${quietTextClass}`} />
             <span className="min-w-0">

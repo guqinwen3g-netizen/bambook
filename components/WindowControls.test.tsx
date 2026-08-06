@@ -48,36 +48,22 @@ describe('Electron window controls', () => {
     expect(mainSource).toContain('lockRendererZoom(mainWindow)');
   });
 
-  it('can launch UI Lab as a separate Electron preview with its own page and icon', () => {
-    const mainSource = readFileSync(new URL('../electron/main.ts', import.meta.url), 'utf8');
-    const electronViteSource = readFileSync(new URL('../electron.vite.config.ts', import.meta.url), 'utf8');
+  it('can launch the Panda Lab as a separate dev preview with its own page', () => {
     const packageSource = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
-    const uiLabHtml = readFileSync(new URL('../dev-ui-lab.html', import.meta.url), 'utf8');
-    const uiLabEntry = readFileSync(new URL('../dev-ui-lab.tsx', import.meta.url), 'utf8');
-    const uiLabCommand = readFileSync(new URL('../Bambook-UI Lab Electron.command', import.meta.url), 'utf8');
+    const pandaLabHtml = readFileSync(new URL('../dev-panda-lab.html', import.meta.url), 'utf8');
+    const pandaLabEntry = readFileSync(new URL('../dev-panda-lab.tsx', import.meta.url), 'utf8');
 
-    expect(mainSource).toContain("export const BAMBOOK_UI_LAB_ELECTRON_FLAG = 'BAMBOOK_ELECTRON_UI_LAB'");
-    expect(mainSource).toContain("export const BAMBOOK_UI_LAB_ICON_PATH = path.resolve(__dirname, '../../build/ui-lab-icon.png')");
-    expect(mainSource).toContain("export const BAMBOOK_UI_LAB_TITLE = 'Bambook UI Lab'");
-    expect(mainSource).toContain("export const BAMBOOK_UI_LAB_USER_DATA_DIR = 'bambook-ui-lab'");
-    expect(mainSource).toContain("app.setPath('userData', path.join(app.getPath('appData'), BAMBOOK_UI_LAB_USER_DATA_DIR))");
-    expect(mainSource).toContain('app.dock?.setIcon(BAMBOOK_UI_LAB_ICON_PATH)');
-    expect(mainSource).toContain("new URL('/dev-ui-lab.html', devUrl).toString()");
-    expect(mainSource).toContain("isUiLabElectron ? '../renderer/dev-ui-lab.html' : '../renderer/index.html'");
-    expect(electronViteSource).toContain("const BAMBOOK_ELECTRON_RENDERER_PORT = 3000");
-    expect(electronViteSource).toContain("const BAMBOOK_UI_LAB_ELECTRON_RENDERER_PORT = 3100");
-    expect(electronViteSource).toContain("process.env[BAMBOOK_UI_LAB_ELECTRON_FLAG] === '1'");
-    expect(electronViteSource).toContain('port: rendererPort');
-    expect(electronViteSource).toContain('strictPort: true');
-    expect(electronViteSource).toContain("uiLab: path.resolve(__dirname, 'dev-ui-lab.html')");
-    expect(packageSource).toContain('"electron:ui-lab": "env -u ELECTRON_RUN_AS_NODE BAMBOOK_ELECTRON_UI_LAB=1 electron-vite dev"');
-    expect(packageSource).toContain('"electron:ui-lab:preview": "env -u ELECTRON_RUN_AS_NODE BAMBOOK_ELECTRON_UI_LAB=1 electron-vite build && env -u ELECTRON_RUN_AS_NODE BAMBOOK_ELECTRON_UI_LAB=1 electron-vite preview"');
-    expect(uiLabHtml).toContain('<link rel="icon" href="/ui-lab-icon.svg" type="image/svg+xml">');
-    expect(uiLabEntry).toContain("import WindowControls from './components/WindowControls'");
-    expect(uiLabEntry).toContain('<WindowControls />');
-    expect(uiLabCommand).toContain('exec npm run electron:ui-lab');
-    expect(uiLabCommand).not.toContain('electron:ui-lab:preview');
-    expect(uiLabCommand).not.toContain('scripts/electron-preview.sh');
+    // A dedicated dev script serves the Panda Lab preview on its own port.
+    expect(packageSource).toContain('"dev:panda-lab"');
+    expect(packageSource).toContain('--port 3105');
+    expect(packageSource).toContain('--open /dev-panda-lab.html');
+    // Its own HTML page (not the main app entry).
+    expect(pandaLabHtml).toContain('<title>Bambook Panda Sandbox</title>');
+    expect(pandaLabHtml).toContain('src="/dev-panda-lab.tsx"');
+    // Its own entry mounts the Panda mascot tuning studio.
+    expect(pandaLabEntry).toContain("import './styles/flat-experimental.css'");
+    expect(pandaLabEntry).toContain("import('./components/mascot/PandaLab')");
+    expect(pandaLabEntry).toContain('<PandaLab');
   });
 
   it('keeps the main Electron dev launcher from killing the UI Lab dev window', () => {

@@ -17,7 +17,7 @@ const DevPandaLabApp: React.FC = () => {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
-    document.body.className = isDarkMode ? 'bg-[#071321] text-white' : 'bg-[#E8EEF5] text-slate-950';
+    document.body.className = isDarkMode ? 'bg-app-dark text-white' : 'bg-app-light text-slate-950';
     try {
       localStorage.setItem(UI_LAB_THEME_KEY, isDarkMode ? 'dark' : 'light');
       localStorage.setItem('theme_preference', isDarkMode ? 'dark' : 'light');

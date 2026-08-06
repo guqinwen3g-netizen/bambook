@@ -84,11 +84,22 @@ describe('Bambook OS vNext desktop contract', () => {
   it('defines exact CSS variables in the vNext stylesheet, not in pages', () => {
     const css = readFileSync(resolve(__dirname, '../../styles/os-vnext.css'), 'utf8');
 
-    expect(css).toContain('--os-vnext-surface-panel-light: rgba(240, 246, 255, 0.38);');
-    expect(css).toContain('--os-vnext-surface-panel-dark: rgba(8, 16, 28, 0.30);');
+    expect(css).toContain('--os-vnext-surface-panel-light: rgba(236, 244, 249, 0.46);');
+    expect(css).toContain('--os-vnext-surface-panel-dark: rgba(16, 35, 61, 0.46);');
+    expect(css).toContain('--os-vnext-surface-card-light: rgba(255, 255, 255, 0.68);');
+    expect(css).toContain('--os-vnext-surface-card-dark: rgba(22, 38, 62, 0.68);');
     expect(css).toContain('.os-vnext-panel');
+    expect(css).toContain('.dark .os-vnext-panel');
+    expect(css).toContain('.os-vnext-panel--elevated');
+    expect(css).toContain('.os-vnext-card');
+    expect(css).toContain('.dark .os-vnext-card');
+    expect(css).toContain('.os-vnext-toolbar');
+    expect(css).toContain('.dark .os-vnext-toolbar');
     expect(css).toContain('.os-vnext-button--state[data-os-vnext-active="true"]');
+    expect(css).toContain('.dark .os-vnext-button--state[data-os-vnext-active="true"]');
     expect(css).toContain('.os-vnext-button:hover');
+    expect(css).toContain('.dark .os-vnext-button:hover');
+    expect(css).toContain('.os-vnext-button--danger:hover');
     expect(css).toContain('0 10px 22px -14px rgba(15, 23, 42, 0.13)');
     expect(css).toContain('0 2px 8px -6px rgba(15, 23, 42, 0.08)');
     expect(css).toContain('.bambook-selected-surface--light');
@@ -97,10 +108,10 @@ describe('Bambook OS vNext desktop contract', () => {
     expect(css).toContain('border-color: var(--bambook-selected-light-border-color) !important;');
     expect(css).toContain('background: var(--bambook-selected-light-background) !important;');
     expect(css).toContain('box-shadow: var(--bambook-selected-light-shadow) !important;');
-    expect(css).toContain('border-color: rgba(255, 255, 255, 0.10) !important;');
-    expect(css).toContain('background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.105));');
+    expect(css).toContain('border-color: rgba(255, 255, 255, 0.055) !important;');
+    expect(css).toContain('background: rgba(255, 255, 255, 0.055) !important;');
     expect(css).toContain('background: var(--bambook-selected-light-background);');
-    expect(css).toContain('--bambook-selected-light-depth-shadow: 0 4px 12px -7px rgba(15, 23, 42, 0.14);');
+    expect(css).toContain('--bambook-selected-light-depth-shadow: none;');
     expect(css).toContain('.bambook-state-switch-track--checked-light');
     expect(css).toContain('.bambook-state-switch-track--checked-dark');
     expect(css).not.toContain('--bambook-selected-light-inner-outline');
@@ -108,9 +119,15 @@ describe('Bambook OS vNext desktop contract', () => {
     expect(css).not.toContain('inset 0 0 0 1px rgba(100, 116, 139, 0.055)');
     expect(css).not.toContain('background: linear-gradient(135deg, rgba(74, 144, 226, 0.075), rgba(125, 183, 255, 0.040));');
     expect(css).not.toContain('inset 0 1px 0 rgba(125, 183, 255, 0.18)');
-    expect(css).toContain('border: 1px solid rgba(150, 170, 192, 0.22);');
-    expect(css).toContain('inset 0 0 0 1px rgba(255, 255, 255, 0.036)');
-    expect(css).toContain('border-color: rgba(74, 144, 226, 0.25);');
+    expect(css).toContain('border: 1px solid rgba(150, 170, 192, 0.30);');
+    expect(css).toContain('inset 0 0 0 1px rgba(255, 255, 255, 0.08)');
+    expect(css).toContain('border-color: rgba(150, 170, 192, 0.20);');
+    expect(css).toContain('.os-vnext-field');
+    expect(css).toContain('.os-vnext-field:focus');
+    expect(css).toContain('.dark .os-vnext-field');
+    expect(css).toContain('.dark .os-vnext-field:focus');
+    expect(css).toContain('.os-lab-search-shell');
+    expect(css).toContain('.os-lab-wallpaper-stage--dark .os-lab-search-shell');
     expect(css).toContain('.os-vnext-scroll-frame[data-os-vnext-edge-fade="true"]');
   });
 });

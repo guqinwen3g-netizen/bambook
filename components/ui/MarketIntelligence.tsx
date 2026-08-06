@@ -14,6 +14,7 @@ interface Ticker {
     price: number;
     change: number;
     prefix: string;
+    isReal?: boolean; // false = 估算/回退值，UI 透出角标，不冒充实时行情
 }
 
 interface ExchangeScreenProps {
@@ -117,9 +118,14 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                                         className={`flex flex-1 min-h-0 items-center justify-between rounded-control bg-[var(--bambook-rdl-inset-fill)] ${isExpanded ? 'px-3 py-2.5' : 'px-2.5 py-2'}`}
                                     >
                                         <div className="flex flex-col min-w-0">
-                                            <span data-ui-lab-wallpaper-contrast="primary" className="text-[13px] font-normal tracking-wide truncate text-os-adaptive-primary">
-                                                {item.symbol}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span data-ui-lab-wallpaper-contrast="primary" className="text-[13px] font-normal tracking-wide truncate text-os-adaptive-primary">
+                                                    {item.symbol}
+                                                </span>
+                                                {item.isReal === false && (
+                                                    <span className="shrink-0 text-[9px] font-light tracking-wide text-os-adaptive-subtitle">估算</span>
+                                                )}
+                                            </div>
                                             <div className="flex items-center gap-0.5 mt-0.5" style={{ color: accentColor }}>
                                                 {isUp ? <TrendingUp size={12} strokeWidth={1.2} /> : <TrendingDown size={12} strokeWidth={1.2} />}
                                                 <span className="text-[12px] font-mono font-light">{isUp ? '+' : ''}{item.change.toFixed(2)}%</span>

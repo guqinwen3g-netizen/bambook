@@ -38,7 +38,7 @@ export const AgentEvidenceBlock: React.FC<AgentBlockComponentProps<AgentEvidence
         {block.items.map(item => {
           const anchor = anchorsByRef.get(item.refId);
           return (
-            <div key={item.refId} className={`rounded-xl border px-3 py-2 ${borderClass}`}>
+            <div key={item.refId} className={`rounded-compact border px-3 py-2 ${borderClass}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className={`text-xs ${isDarkMode ? 'text-white/78' : 'text-slate-800'}`}>{item.label}</div>
                 <div className={`text-[10px] uppercase tracking-widest ${quietTextClass}`}>{confidenceLabel(item.confidence)}</div>

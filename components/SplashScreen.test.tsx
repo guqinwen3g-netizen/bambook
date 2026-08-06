@@ -12,7 +12,7 @@ describe('SplashScreen', () => {
         const html = renderToStaticMarkup(<SplashScreen isVisible={true} isDarkMode={true} />);
 
         expect(html).toContain('bg-transparent');
-        expect(html).toContain('fill="#4A90E2"');
+        expect(html).toContain('fill="var(--os-vnext-brand-blue)"');
         expect(html).toContain('fill="#FFFFFF"');
     });
 
@@ -20,7 +20,7 @@ describe('SplashScreen', () => {
         const html = renderToStaticMarkup(<SplashScreen isVisible={true} isDarkMode={false} />);
 
         expect(html).toContain('bg-transparent');
-        expect(html).toContain('fill="#4A90E2"');
+        expect(html).toContain('fill="var(--os-vnext-brand-blue)"');
         expect(html).toContain('fill="#1F1F1F"');
     });
 

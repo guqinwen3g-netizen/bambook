@@ -317,7 +317,7 @@ const SourcePill: React.FC<{ tag: 'pdf' | 'manual' | 'imported-then-edited'; isD
           : 'bg-slate-100 text-slate-600 border-slate-200';
   const label = tag === 'pdf' ? 'PDF' : tag === 'manual' ? '手填' : '手改';
   return (
-    <span className={`px-1.5 py-px rounded-lg text-[8px] font-light tracking-wider border ${styles}`}>{label}</span>
+    <span className={`px-1.5 py-px rounded-full text-[8px] font-light tracking-wider border ${styles}`}>{label}</span>
   );
 };
 

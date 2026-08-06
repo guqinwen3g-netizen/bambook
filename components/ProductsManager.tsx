@@ -420,14 +420,14 @@ const CertificationCheckboxes: React.FC<{
           onChange={e => setCustomInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="其他认证（回车添加）"
-          className={`flex-1 px-4 py-3 text-xs rounded-xl border outline-none transition-all ${
+          className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-all ${
             isDarkMode ? 'bg-deep/60 border-white/10 text-white placeholder-white/20 focus:border-[var(--os-vnext-brand-blue-strong)]/40' : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-[var(--os-vnext-brand-blue)]'
           }`}
         />
         <button
           type="button"
           onClick={addCustom}
-          className={`px-4 py-3 text-xs rounded-xl font-light transition-all ${
+          className={`px-4 py-3 text-xs rounded-control font-light transition-all ${
             isDarkMode ? 'bg-deep/80 text-slate-300 border border-white/10 hover:bg-deep' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
@@ -2345,7 +2345,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100' : 'text-[var(--os-vnext-brand-blue)]'}`}>
                           <Library size={22} strokeWidth={1} />
                         </div>
-                        <span className={`px-2.5 py-1 rounded-lg border text-[9px] font-light tracking-wide ${productStatusChipClass(fabricCompleteness(product).complete)}`}>
+                        <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(fabricCompleteness(product).complete)}`}>
                           {fabricCompleteness(product).complete ? '完整' : `待补 ${fabricCompleteness(product).missing.length}`}
                         </span>
                       </div>
@@ -2439,7 +2439,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setEditingProd(product); }}
-                                className={`p-2 rounded-xl ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
+                                className={`p-2 rounded-control ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
                                 aria-label="编辑档案"
                               >
                                 <Edit2 size={13} />
@@ -2447,7 +2447,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setDeleteProdId(product.id); }}
-                                className={`p-2 rounded-xl ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
+                                className={`p-2 rounded-control ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
                                 aria-label="归档档案"
                               >
                                 <Trash2 size={13} />
@@ -2656,7 +2656,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       </div>
                       <div className="space-y-2">
                         {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
-                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 ${isDarkMode ? 'bg-deep/40' : 'bg-white'}`}>
+                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 ${isDarkMode ? 'bg-deep/40' : 'bg-white'}`}>
                             <span className={`text-xs font-light ${isDarkMode ? 'text-white/80' : 'text-slate-800'}`}>
                               {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
                             </span>

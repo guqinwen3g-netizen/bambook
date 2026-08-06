@@ -221,9 +221,9 @@ describe('RelationsManager title system', () => {
     expect(titleSource).toContain('RELATIONS_TITLE_TEXT_BUTTON_CLASS');
     expect(titleSource).toContain('RELATIONS_TITLE_SECTION_BUTTON_CLASS');
     expect(titleSource).not.toContain('h-8 max-w-[160px] truncate rounded-2xl border px-3');
-    expect(titleSource).toContain('text-xl font-light tracking-tight');
-    expect(titleSource).toContain('leading-none');
-    expect(titleSource).toContain('relationBrandInlineClass');
+    expect(BAMBOOK_OS.layout.desktopTitleAccentClass).toContain('text-xl font-light tracking-tight');
+    expect(BAMBOOK_OS.layout.desktopTitleAccentClass).toContain('leading-none');
+    expect(titleSource).toContain('title="关系智库"');
     expect(RELATIONS_BRAND_INLINE_CLASS).toBe(BAMBOOK_OS.tone.text.brandInline);
     expect(titleSource).not.toContain('leading-snug');
     expect(titleSource).not.toContain('text-xl font-normal');
@@ -306,7 +306,7 @@ describe('RelationsManager title system', () => {
       source.indexOf('</form>')
     );
 
-    expect(source).toContain("import SidePanelContainer, {");
+    expect(source).toContain("from './ui/SidePanelContainer'");
     expect(source).toContain("import { OS_MATERIAL } from './ui/osMaterial'");
     expect(source).toContain('OS_MATERIAL.raisedCard');
     expect(indexCss).not.toContain('.bambook-form-panel-edge');
@@ -335,19 +335,20 @@ describe('RelationsManager title system', () => {
     expect(indexCss).toContain('background-image: var(--ui-lab-panel-seam-interference-background) !important;');
     expect(indexCss).not.toContain('bambook-relations-form-panel:not(.bambook-sibling-shadow-caster)::after {\n    background-image: none !important;');
     const glassEdgeFadeShadowSource = readFileSync(new URL('./ui/GlassEdgeFadeShadow.tsx', import.meta.url), 'utf8');
-    expect(sidePanelSource).toContain("import GlassEdgeFadeShadow from './GlassEdgeFadeShadow'");
+    expect(sidePanelSource).toContain("import { OS_MATERIAL, OS_SHADOW");
     expect(sidePanelSource).toContain('surfaceRole?: OSMaterialRole');
     expect(sidePanelSource).toContain('shadowRole?: OSShadowRole');
     expect(sidePanelSource).toContain('shadowMode?: OSShadowMode');
-    expect(sidePanelSource).toContain('<GlassEdgeFadeShadow materialRole={resolvedSurfaceRole} shadowRole={resolvedShadowRole}>');
+    expect(sidePanelSource).toContain("'data-os-shadow-role': OS_SHADOW[resolvedShadowRole]");
+    expect(sidePanelSource).toContain("'data-os-shadow-mode': resolvedShadowMode");
     expect(glassEdgeFadeShadowSource).toContain("GLASS_EDGE_FADE_STACK_CLASS = 'bambook-shadow-sibling-stack'");
     expect(glassEdgeFadeShadowSource).toContain("GLASS_EDGE_FADE_SHADOW_CASTER_CLASS = 'bambook-sibling-shadow-caster'");
-    expect(glassEdgeFadeShadowSource).toContain('className={GLASS_EDGE_FADE_SHADOW_CASTER_CLASS}');
-    expect(glassEdgeFadeShadowSource).toContain('data-os-surface-role={materialRole}');
-    expect(glassEdgeFadeShadowSource).toContain('data-os-shadow-role={OS_SHADOW[shadowRole]}');
-    expect(glassEdgeFadeShadowSource).toContain('data-os-shadow-mode="ghost"');
+    expect(glassEdgeFadeShadowSource).toContain('`${GLASS_EDGE_FADE_STACK_CLASS} ${className}`.trim()');
+    expect(glassEdgeFadeShadowSource).toContain('data-os-shadow-mode="none"');
+    expect(glassEdgeFadeShadowSource).not.toContain('data-os-shadow-role={OS_SHADOW[shadowRole]}');
+    expect(glassEdgeFadeShadowSource).not.toContain('data-os-shadow-mode="ghost"');
     expect(sidePanelSource).toContain('data-glass-edge-mask');
-    expect(glassEdgeFadeShadowSource).toContain('data-glass-edge-mask-shadow-caster');
+    expect(glassEdgeFadeShadowSource).not.toContain('data-glass-edge-mask-shadow-caster');
     expect(glassEdgeFadeShadowSource).not.toContain('bambook-outer-panel ${OS_MATERIAL[materialRole]}');
     expect(glassEdgeFadeShadowSource).not.toContain('data-glass-edge-mask\n      data-glass-edge-mask-shadow-caster');
     expect(indexCss).toContain('[data-glass-edge-mask-shadow-caster]');
@@ -362,15 +363,15 @@ describe('RelationsManager title system', () => {
     expect(indexCss).toContain('background: var(--bambook-selected-light-background) !important;');
     expect(indexCss).toContain('box-shadow: var(--bambook-selected-light-shadow) !important;');
     expect(indexCss).not.toContain('linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.10) 100%) !important');
-    expect(indexCss).toContain('linear-gradient(135deg, rgba(125, 183, 255, 0.035) 0%, rgba(74, 144, 226, 0.012) 100%) !important');
+    expect(indexCss).not.toContain('linear-gradient(135deg, rgba(125, 183, 255, 0.035) 0%, rgba(74, 144, 226, 0.012) 100%) !important');
     expect(source).toContain('${relationCategoryGridClass} ${BAMBOOK_OS.layout.panelShadowViewportClass}');
     expect(source).toContain('${RELATIONS_CARD_GRID_CLASS} ${BAMBOOK_OS.layout.panelShadowViewportClass}');
-    expect(formSource).toContain('<SidePanelContainer');
+    expect(formSource).toContain('<CompiledSurfacePanel');
     expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-4 bambook-relations-form-map-panel');
     expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-5 bambook-relations-form-panel');
-    expect(formSource).toContain('materialRole="framePanel" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}');
-    expect(formSource).toContain('materialRole="framePanel" edgeFadeItem spotlight as="section"');
-    expect(formSource).not.toContain('materialRole="raisedCard" edgeFadeItem spotlight as="section"');
+    expect(formSource).toContain('materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}');
+    expect(formSource).toContain('materialRole="raisedCard" edgeFadeItem spotlight as="section"');
+    expect(formSource).not.toContain('materialRole="framePanel" edgeFadeItem spotlight as="section"');
     expect(formSource).toContain('spotlightSizing={RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING}');
     expect(formSource).toContain('${BAMBOOK_OS.layout.panelShadowViewportClass}');
     expect(formSource).toContain('isDarkMode={isDarkMode}');
@@ -402,8 +403,8 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_FORM_MAP_INDEX_LIGHT_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexLight}`);
     expect(BAMBOOK_OS.tone.surface.formNestedRowDark).toBe('');
     expect(BAMBOOK_OS.tone.surface.formNestedRowLight).toBe('');
-    expect(RELATIONS_FORM_NESTED_ROW_DARK_CLASS).toBe(OS_MATERIAL.raisedCard);
-    expect(RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS).toBe(OS_MATERIAL.raisedCard);
+    expect(RELATIONS_FORM_NESTED_ROW_DARK_CLASS).toBe(OS_MATERIAL.insetSurface);
+    expect(RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS).toBe(OS_MATERIAL.insetSurface);
     expect(RELATIONS_FORM_ICON_ADD_DARK_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.addDark);
     expect(RELATIONS_FORM_ICON_ADD_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.addLight);
     expect(RELATIONS_FORM_ICON_REMOVE_DARK_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.removeDark);
@@ -518,7 +519,7 @@ describe('RelationsManager title system', () => {
     );
 
     expect(osVnextCss).toContain('--bambook-selected-light-border-color: transparent;');
-    expect(osVnextCss).toContain('--bambook-selected-light-background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.105));');
+    expect(osVnextCss).toContain('--bambook-selected-light-background: rgba(255, 255, 255, 0.42);');
     expect(osVnextCss).toContain('--bambook-selected-light-shadow:');
     expect(tertiarySurfaceSource).toContain('border-color: var(--bambook-selected-light-border-color) !important;');
     expect(tertiarySurfaceSource).toContain('background: var(--bambook-selected-light-background) !important;');
@@ -573,8 +574,8 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.dark');
     expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.light');
     expect(BAMBOOK_OS.controls.recessedField.dark).toContain('placeholder-white/34');
-    expect(BAMBOOK_OS.controls.recessedField.dark).toContain('focus:translate-y-[1px]');
-    expect(BAMBOOK_OS.controls.recessedField.light).toContain('focus:translate-y-[1px]');
+    expect(BAMBOOK_OS.controls.recessedField.dark).toContain('backdrop-blur-[15px]');
+    expect(BAMBOOK_OS.controls.recessedField.light).toContain('backdrop-blur-[15px]');
     expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.borderedDark');
     expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.borderedLight');
     expect(contactListSource).not.toContain('border-r backdrop-blur-xl');
@@ -607,7 +608,7 @@ describe('RelationsManager title system', () => {
     expect(orgChartSource).toContain('ORG_CHART_NODE_LIGHT_CLASS');
     expect(orgChartSource).toContain('BAMBOOK_OS.material.panelBase');
     expect(orgChartSource).toContain('BAMBOOK_OS.material.glassColor');
-    expect(orgChartSource).toContain('bambook-outer-panel !rounded-[22px]');
+    expect(orgChartSource).toContain('bambook-outer-panel !rounded-inset');
     expect(orgChartSource).not.toContain('BAMBOOK_OS.material.compactCardDark');
     expect(orgChartSource).not.toContain('BAMBOOK_OS.material.compactCardLight');
     expect(orgChartSource).not.toContain('BAMBOOK_OS.spotlight.compactCardDarkColor');
@@ -640,7 +641,7 @@ describe('RelationsManager title system', () => {
     expect(detailPanelSource).toContain('BAMBOOK_OS.controls.actionControl.borderedDark');
     expect(detailPanelSource).toContain('BAMBOOK_OS.controls.actionControl.borderedLight');
     expect(detailPanelSource).toContain('const detailMaterialClass = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-outer-panel`;');
-    expect(detailPanelSource).toContain('const inlinePanelClass = `${detailMaterialClass} bambook-tertiary-surface !rounded-[18px] relative isolate overflow-hidden`;');
+    expect(detailPanelSource).toContain('const inlinePanelClass = `${detailMaterialClass} bambook-tertiary-surface !rounded-control relative isolate overflow-hidden`;');
     expect(detailPanelSource).not.toContain('const linkedPanelClass');
     expect(detailPanelSource).not.toContain("const inlinePanelClass = 'bambook-card-glass relative isolate overflow-hidden'");
     expect(detailPanelSource).not.toContain('BAMBOOK_OS.tone.surface.inlinePanelDark');
@@ -674,7 +675,7 @@ describe('RelationsManager title system', () => {
     expect(detailPanelSource).toContain('className={BAMBOOK_OS.layout.relationsDetailMainShellClass}');
     expect(detailPanelSource).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-5 pb-8');
     expect(detailPanelSource).toContain('as="section"');
-    expect(detailPanelSource).toContain('className="p-3.5 !rounded-[20px]"');
+    expect(detailPanelSource).toContain('className="p-3.5 !rounded-inset"');
     expect(detailPanelSource).not.toContain('rounded-[22px] border p-4');
     expect(detailPanelSource).not.toContain('Command Center');
     expect(detailPanelSource).not.toContain('bambook-blue-white-light');
@@ -750,7 +751,7 @@ describe('RelationsManager title system', () => {
     expect(formSource).not.toContain('bambook-form-edge-fade bambook-form-edge-fade-top');
     expect(formSource).not.toContain('bambook-form-edge-fade bambook-form-edge-fade-bottom');
     expect(formSource).toContain('-mt-[112px]');
-    expect(formSource).toContain('h-[calc(100%+7rem+32px)]');
+    expect(formSource).toContain('h-[calc(100%+7rem)]');
     expect(formSource).toContain('pt-24');
     expect(formSource).toContain('overflow-y-auto');
     expect(formSource).toContain('bambook-relation-form-scroll-viewport');
@@ -785,9 +786,9 @@ describe('RelationsManager title system', () => {
     expect(source).toContain("bottomFadeActivation: 'zone'");
     expect(listSource).not.toContain('renderMode="overlay"');
     expect(listSource).toContain('ref={relationListScrollRef}');
-    expect(source).toContain('ref={relationTableScrollRef}');
+    expect(source).toContain('scrollRef={relationTableScrollRef}');
     expect(listSource).not.toContain('{renderRelationListToolbar(toolbarInsetClass)}');
-    expect(sharedCardSource).toMatch(/<MotionSpotlightCard\s+as="button"\s+type="button"[\s\S]*?data-glass-edge-mask/);
+    expect(sharedCardSource).toMatch(/<CompiledMotionInteractiveCard\s+as="button"\s+type="button"[\s\S]*?data-glass-edge-mask/);
     expect(sharedCardSource).toContain('spotlightColor={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR}');
     expect(sharedCardSource).toContain('liquidSpotlightTone="light"');
     expect(source).toContain('currentOrganizations.map((org, idx) => renderRelationCard({');
@@ -835,13 +836,13 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('bg-transparent');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('!border-transparent');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('shadow-none');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('text-slate-400');
+    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('text-[var(--os-adaptive-primary)]');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain(SIDEBAR_PRESS_DARK_CLASS);
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:text-[#4A90E2]');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('0_0_0_1px_rgba(96,165,250,0.20)');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('active:scale-[0.968]');
+    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('active:scale-[0.98]');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:bg-[#4A90E2]/15');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:text-[#4A90E2]');
     expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:border-[#4A90E2]');
@@ -851,13 +852,13 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('bg-transparent');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('!border-transparent');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('shadow-none');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('text-slate-500');
+    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('text-[var(--os-adaptive-primary)]');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain(SIDEBAR_HOVER_LIGHT_CLASS);
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain(SIDEBAR_PRESS_LIGHT_CLASS);
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:text-[#0A2746]');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('0_0_0_1px_rgba(74,144,226,0.24)');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('active:scale-[0.968]');
+    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('active:scale-[0.98]');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:bg-blue-50/80');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:text-[#4A90E2]');
     expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:border-blue');
@@ -886,14 +887,14 @@ describe('RelationsManager title system', () => {
   it('keeps the option toolbar aligned to the title strip in expanded and collapsed sidebar modes', () => {
     const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
 
-    expect(RELATIONS_PAGE_X_NORMAL_CLASS).toContain('md:px-8');
+    expect(RELATIONS_PAGE_X_NORMAL_CLASS).toContain('px-5');
     expect(RELATIONS_TOOLBAR_X_NORMAL_CLASS).toBe('mx-auto');
-    expect(RELATIONS_PAGE_X_COLLAPSED_CLASS).toBe('px-4 md:px-8');
-    expect(RELATIONS_TITLE_SAFE_LEFT_STYLE).toBe(BAMBOOK_OS.layout.desktopTitleSafeLeftStyle);
-    expect(RELATIONS_TITLE_SAFE_LEFT_STYLE).toEqual({});
+    expect(RELATIONS_PAGE_X_COLLAPSED_CLASS).toBe('px-5');
+    expect(RELATIONS_TITLE_SAFE_LEFT_STYLE).toEqual({ paddingLeft: 'max(2rem, calc(152px - (100vw - 100%)))' });
+    expect(BAMBOOK_OS.layout.desktopTitleSafeLeftStyle).toEqual({});
     expect(RELATIONS_TOOLBAR_X_COLLAPSED_CLASS).toBe('mx-auto');
     expect(RELATIONS_PAGE_X_COLLAPSED_CLASS).not.toContain('pl-[152px]');
-    expect(source).not.toContain('max(2rem, calc(152px - (100vw - 100%)))');
+    expect(source).toContain('max(2rem, calc(152px - (100vw - 100%)))');
     expect(RELATIONS_TOOLBAR_X_COLLAPSED_CLASS).not.toContain('ml-20');
     expect(RELATIONS_TOOLBAR_CONTENT_CLASS).toContain('px-3');
   });
@@ -914,9 +915,9 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TOOLBAR_CONTENT_CLASS).toContain('px-3');
     expect(RELATIONS_TOOLBAR_CLASS).not.toContain('overflow-hidden');
     expect(RELATIONS_TITLE_ICON_BUTTON_CLASS).toContain('rounded-2xl');
-    expect(RELATIONS_TITLE_ACTION_BUTTON_CLASS).toContain('rounded-2xl');
+    expect(RELATIONS_TITLE_ACTION_BUTTON_CLASS).toContain('rounded-full');
     expect(BAMBOOK_OS.typography.weight.ui).toBe('font-light');
-    expect(BAMBOOK_OS.typography.weight.tableHeader).toBe('font-normal');
+    expect(BAMBOOK_OS.typography.weight.tableHeader).toBe('font-light');
     expect(RELATIONS_TITLE_ACTION_BUTTON_CLASS).toContain(BAMBOOK_OS.typography.weight.ui);
     expect(RELATIONS_TITLE_PAGE_LABEL_CLASS).toContain(BAMBOOK_OS.typography.weight.ui);
     expect(RELATIONS_TOOLBAR_CONTENT_CLASS).toContain('flex-nowrap');
@@ -932,9 +933,7 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TOOLBAR_VIEW_GROUP_CLASS).toContain('ml-auto');
     expect(RELATIONS_TOOLBAR_VIEW_GROUP_CLASS).toContain('gap-1');
     expect(RELATIONS_TOOLBAR_SORT_CLASS).toBe('w-[104px] shrink-0');
-    expect(RELATIONS_TOOLBAR_AMBIENT_CLASS).toContain('relations-toolbar-rail-flow');
-    expect(RELATIONS_TOOLBAR_AMBIENT_CLASS).toContain('group-hover:opacity-100');
-    expect(RELATIONS_TOOLBAR_AMBIENT_CLASS).toContain('via-white/16');
+    expect(RELATIONS_TOOLBAR_AMBIENT_CLASS).toBe('hidden');
     expect(RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS).toContain('glass-panel');
     expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('glass-panel');
     expect(RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS).toContain('bambook-blue-white-surface');
@@ -973,8 +972,8 @@ describe('RelationsManager title system', () => {
     expect(BAMBOOK_OS.controls.title.viewSwitchButton).not.toContain('font-medium');
     expect(RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS).not.toContain('py-1.5');
     expect(customSelectSource).toContain("isInlineToolbarTrigger ? 'h-9 px-2' : 'h-9 px-3'");
-    expect(customSelectSource).toContain("isInlineToolbarTrigger ? 'rounded-[18px]' : 'rounded-2xl'");
-    expect(customSelectSource).toContain("'h-9 px-3 py-0 rounded-2xl text-xs leading-none'");
+    expect(customSelectSource).toContain("isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'");
+    expect(customSelectSource).toContain("'h-9 px-3 py-0 rounded-full text-xs leading-none'");
     expect(customSelectSource).not.toContain("'px-4 py-3 rounded-xl text-[12px]'");
     expect(customSelectSource).toContain("'absolute top-full left-0 right-0 mt-2 z-50'");
     expect(customSelectSource).not.toContain('relative overflow-hidden rounded-2xl p-1');
@@ -984,10 +983,10 @@ describe('RelationsManager title system', () => {
     const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
 
     expect(source).toContain('data-ui-lab-wallpaper-contrast="primary"');
-    expect(source).toContain('data-ui-lab-wallpaper-contrast="brand" className={`font-light ${relationBrandInlineClass}`}>智库</span>');
+    expect(source).toContain('data-ui-lab-wallpaper-contrast="primary">关系</span><span className={BAMBOOK_OS.layout.desktopTitleAccentClass}>智库</span>');
     expect(source).toContain('data-ui-lab-wallpaper-contrast="secondary" className={RELATIONS_TITLE_SEPARATOR_CLASS}');
-    expect(source).toContain('data-ui-lab-wallpaper-contrast="primary"\n                  className={`${RELATIONS_TITLE_SECTION_BUTTON_CLASS}');
-    expect(source).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${RELATIONS_TITLE_PAGE_LABEL_CLASS}');
+    expect(source).toContain('className={`${RELATIONS_TITLE_SECTION_BUTTON_CLASS} text-[var(--os-adaptive-subtitle)] hover:text-[var(--os-adaptive-primary)] transition-colors`}');
+    expect(source).toContain('<span className={`${RELATIONS_TITLE_PAGE_LABEL_CLASS} text-[var(--os-adaptive-primary)]`}>');
     expect(source).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${RELATIONS_FORM_TITLE_HEADING_CLASS}');
     expect(source).toContain('className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2 text-inherit"');
   });
@@ -1007,7 +1006,7 @@ describe('RelationsManager title system', () => {
     expect(toolbarSource).toContain("relationListDisplayMode === 'grid' ? (");
     expect(toolbarSource).toContain('<List size={13} strokeWidth={1.5} />');
     expect(toolbarSource).toContain('<LayoutGrid size={13} strokeWidth={1.5} />');
-    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_LIGHT_CLASS).toContain('text-[#4A90E2]');
+    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_LIGHT_CLASS).toContain('text-[var(--os-vnext-brand-blue)]');
     expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_DARK_CLASS).toContain('text-slate-50');
     expect(toolbarSource).not.toContain("relationListDisplayMode === 'grid' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS");
     expect(toolbarSource).not.toContain("relationListDisplayMode === 'table' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS");
@@ -1043,7 +1042,7 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TOOLBAR_SEGMENT_CLASS).not.toContain('border-transparent');
     expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).not.toContain('bambook-dashboard-glass-color');
     expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).toContain('!border-[rgba(152,176,204,0.20)]');
+    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).toContain('!border-transparent');
     expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).not.toContain('bg-[#0d1b2a]/80');
     expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bambook-dashboard-glass-color');
     expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bambook-blue-white-light');
@@ -1074,8 +1073,8 @@ describe('RelationsManager title system', () => {
     expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarLightBase');
     expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarDarkSelected');
     expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarLightSelected');
-    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarMenuSurfaceDark');
-    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.defaultSelectedDark');
+    expect(customSelectSource).toContain('BAMBOOK_OS.controls.overlayMenu');
+    expect(customSelectSource).toContain('overlayMenu.itemSelectedDark');
     expect(customSelectSource).not.toContain("const toolbarDarkBaseClass = '!bg-[rgba(6,14,24,0.18)]");
     expect(customSelectSource).not.toContain("const toolbarDarkSelectedClass = '!bg-[rgba(7,18,32,0.30)]");
     expect(BAMBOOK_OS.controls.select.toolbarDarkInline).toContain('hover:bg-transparent');
@@ -1112,7 +1111,7 @@ describe('RelationsManager title system', () => {
 
     expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).not.toContain('bambook-dashboard-glass-color');
     expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).toContain('!border-[rgba(150,170,192,0.32)]');
+    expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).toContain('!border-transparent');
     expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).not.toContain('bg-white/35');
     expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).not.toContain('border-white/45');
     expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('glass-panel');
@@ -1141,12 +1140,12 @@ describe('RelationsManager title system', () => {
     expect(lightToolbarSelectButtonSource).toContain('toolbarLightSelectedClass');
     expect(lightToolbarSelectIdleSource).not.toContain('bambook-dashboard-glass-color');
     expect(lightToolbarSelectIdleSource).toContain('toolbarLightHoverClass');
-    expect(customSelectSource).toContain('SIDEBAR_PRESS_LIGHT_CLASS');
+    expect(customSelectSource).not.toContain('SIDEBAR_PRESS_LIGHT_CLASS');
     expect(toolbarSelectSource).not.toContain('hover:border-[#4A90E2]');
     expect(toolbarSelectButtonSource).not.toContain('SIDEBAR_ACTIVE_DARK_CLASS');
-    expect(customSelectSource).toContain('SIDEBAR_PRESS_DARK_CLASS');
+    expect(customSelectSource).not.toContain('SIDEBAR_PRESS_DARK_CLASS');
     expect(lightToolbarSelectButtonSource).not.toContain('SIDEBAR_ACTIVE_LIGHT_CLASS');
-    expect(customSelectSource).toContain('SIDEBAR_PRESS_LIGHT_CLASS');
+    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarDarkInline');
     expect(toolbarSelectButtonSource).not.toContain('circle_at_50%_');
     expect(toolbarSelectSource).not.toContain("bg-[#4A90E2]/15 text-[#4A90E2]");
     expect(toolbarSource).not.toMatch(/#123d68|#1f4c73|#17466f|#0d2438|blue-(?:100|50)(?![0-9])/);
@@ -1189,7 +1188,7 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('h-[190px]');
     expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('p-4');
     expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain('rounded-[24px]');
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain('backdrop-blur-[14px]');
+    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain('backdrop-blur-[15px]');
     expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain('bambook-dashboard-glass-color');
     expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain(OS_MATERIAL.raisedCard);
     expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).not.toContain('bambook-outer-panel');
@@ -1253,7 +1252,7 @@ describe('RelationsManager title system', () => {
     expect(categorySource).toContain('<motion.div');
     expect(categorySource).toContain('layout');
     expect(categorySource).toContain('transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION }}');
-    expect(sharedCardSource).toContain('<MotionSpotlightCard');
+    expect(sharedCardSource).toContain('<CompiledMotionInteractiveCard');
     expect(sharedCardSource).toContain('as="button"');
     expect(sharedCardSource).toContain('idleSpotlightOpacity={0}');
     expect(sharedCardSource).toContain('liquidSpotlight');
@@ -1275,7 +1274,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('group-hover:opacity-100');
     expect(sharedCardSource).not.toContain('SIDEBAR_PRESS_DARK_CLASS');
     expect(sharedCardSource).not.toContain('SIDEBAR_PRESS_LIGHT_CLASS');
-    expect(source).toContain("const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS : 'p-6 h-[220px] rounded-3xl'");
+    expect(source).toContain("const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS : 'p-6 h-[220px] rounded-card-lg'");
     expect(sharedCardSource).toContain('${relationCategoryCardClass} transition-colors duration-200');
     expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SURFACE_DARK_CLASS');
     expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SURFACE_LIGHT_CLASS');
@@ -1298,7 +1297,8 @@ describe('RelationsManager title system', () => {
     expect(source).not.toContain('border-b ${relationTableCellBorderClass}');
     expect(source).toContain('${BAMBOOK_OS.layout.relationsTableColumnTemplateClass}');
     expect(BAMBOOK_OS.layout.relationsTableBodyViewportClass).toBe('min-h-0 flex-1 overflow-y-auto overscroll-contain');
-    expect(source).toContain('<div ref={relationTableScrollRef} className={BAMBOOK_OS.layout.relationsTableBodyViewportClass}>');
+    expect(source).toContain('<CompiledTableShell');
+    expect(source).toContain('scrollRef={relationTableScrollRef}');
     expect(source).not.toContain('ref={relationTableScrollRef} className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${BAMBOOK_OS.layout.panelShadowViewportClass}`}');
     expect(source).not.toContain('mb-2 last:mb-0 relative isolate overflow-hidden !rounded-2xl ${RELATIONS_TABLE_ROW_MATERIAL_CLASS}');
     expect(source).not.toContain('${isDarkMode ? RELATIONS_CATEGORY_CARD_DARK_CLASS : RELATIONS_CATEGORY_CARD_LIGHT_CLASS} ${relationTableRowHoverClass}');
@@ -1310,7 +1310,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('hover:bg-white/80 hover:border-white/70');
     expect(sharedCardSource).not.toContain('group-hover:text-blue-600');
     expect(sharedCardSource).not.toContain("text-slate-400 group-hover:text-[#4A90E2]");
-    expect(sharedCardSource).toContain(": 'text-[#4A90E2]'");
+    expect(sharedCardSource).toContain(": 'text-[var(--os-vnext-brand-blue)]'");
     expect(sharedCardSource).not.toContain('bg-blue-50 text-[#4A90E2]');
     expect(sharedCardSource).not.toContain('bg-[#4A90E2]/10 text-[#4A90E2]');
     expect(sharedCardSource).not.toContain('rounded-xl mb-4 flex items-center justify-center');
@@ -1343,7 +1343,7 @@ describe('RelationsManager title system', () => {
     expect(organizationGridSource).toContain('RELATIONS_CARD_GRID_CLASS');
     expect(organizationGridSource).toContain('<motion.div layout');
     expect(organizationGridSource).toContain('transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION }}');
-    expect(sharedCardSource).toContain('<MotionSpotlightCard');
+    expect(sharedCardSource).toContain('<CompiledMotionInteractiveCard');
     expect(sharedCardSource).toContain('as="button"');
     expect(sharedCardSource).toContain('idleSpotlightOpacity={0}');
     expect(sharedCardSource).toContain('liquidSpotlight');
@@ -1367,7 +1367,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).toContain('group relative isolate overflow-hidden flex flex-col items-start text-left');
     expect(sharedCardSource).toContain('${relationCategoryCardClass} transition-colors duration-200');
     expect(sharedCardSource).toContain('-ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center');
-    expect(sharedCardSource).toContain('text-[#4A90E2] group-hover:text-slate-100');
+    expect(sharedCardSource).toContain('text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_DARK_CLASS');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_LIGHT_CLASS');
     expect(organizationGridSource).not.toContain('{tierLabel(org.rating)}');
@@ -1387,7 +1387,7 @@ describe('RelationsManager title system', () => {
   it('keeps the organization table inside the title-width column by merging secondary fields', () => {
     const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
     const tableSource = source.slice(
-      source.indexOf('<SidePanelContainer', source.indexOf(')) : (')),
+      source.indexOf('<CompiledTableShell', source.indexOf(')) : (')),
       source.indexOf('{/* Empty state */}')
     );
 
@@ -1401,14 +1401,14 @@ describe('RelationsManager title system', () => {
     expect(BAMBOOK_OS.layout.relationsTableHeaders).toEqual(['组织', '主联系人', '地址', '履约', '']);
     expect(source).toContain('`${BAMBOOK_OS.layout.relationsTableViewportClass} ${relationsTableBottomEdgeClass} ${pageInsetClass}`');
     expect(source).not.toContain('pt-[104px] pb-8 overflow-hidden');
-    expect(tableSource).toContain('className={BAMBOOK_OS.layout.relationsTablePanelClass}');
-    expect(tableSource).toContain('contentClassName={BAMBOOK_OS.layout.relationsTablePanelContentClass}');
+    expect(tableSource).toContain('panelClassName={BAMBOOK_OS.layout.relationsTablePanelClass}');
+    expect(tableSource).toContain('panelContentClassName={`${BAMBOOK_OS.layout.relationsTablePanelContentClass} overflow-hidden`}');
     expect(tableSource).toContain('className={BAMBOOK_OS.layout.relationsTableHeaderTableClass}');
     expect(tableSource).toContain('BAMBOOK_OS.layout.relationsTableColumnWidthClasses.map');
     expect(tableSource).toContain('BAMBOOK_OS.layout.relationsTableHeaderCellClass');
-    expect(tableSource).toContain('className={BAMBOOK_OS.layout.relationsTableBodyViewportClass}');
+    expect(tableSource).toContain('scrollClassName="overflow-x-auto overscroll-contain"');
     expect(tableSource).toContain('className={BAMBOOK_OS.layout.relationsTableBodyClass}');
-    expect(tableSource).toContain('<MotionSpotlightCard');
+    expect(tableSource).toContain('<CompiledMotionInteractiveCard');
     expect(tableSource).toContain('data-glass-edge-mask');
     expect(tableSource).toContain('spotlightColor={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR}');
     expect(tableSource).toContain('liquidSpotlight');
@@ -1487,41 +1487,42 @@ describe('RelationsManager title system', () => {
       customSelectSource.indexOf('export default CustomSelect')
     );
 
-    expect(menuSource).toContain('p-1');
-    expect(menuSource).toContain('shadow-[0_18px_42px_-28px_rgba(15,23,42,0.38)]');
-    expect(menuSource).not.toContain('shadow-[0_8px_32px_rgba(0,0,0,0.25)]');
-    expect(menuSource).not.toContain('bg-[radial-gradient');
-    expect(menuSource).toContain('BAMBOOK_OS.controls.select.toolbarMenuDark');
-    expect(BAMBOOK_OS.controls.select.toolbarMenuDark).toContain('bambook-dashboard-glass-color');
-    expect(BAMBOOK_OS.controls.select.toolbarMenuDark).toContain('bambook-blue-white-light');
-    expect(menuSource).toContain('rounded-2xl');
-    expect(menuSource).toContain('h-9');
-    expect(menuSource).toContain('rounded-2xl');
-    expect(menuSource).toContain('mx-0.5');
-    expect(menuSource).toContain('px-3');
-    expect(menuSource).toContain('text-xs text-left');
-    expect(menuSource).toContain('text-[10px] mt-0.5');
-    expect(menuSource).toContain('BAMBOOK_OS.typography.weight.ui');
-    expect(menuSource).toContain('border border-transparent');
+    expect(menuSource).toContain('overlayMenu.surfaceBase');
+    expect(menuSource).toContain('overlayMenu.surfaceDark');
+    expect(menuSource).toContain('overlayMenu.surfaceLight');
+    expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('p-1');
+    expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('rounded-2xl');
+    expect(BAMBOOK_OS.controls.overlayMenu.surfaceDark).toContain('bambook-dashboard-glass-color');
     expect(menuSource).toContain('darkMenuSurfaceClass');
     expect(menuSource).toContain('lightMenuSurfaceClass');
-    expect(menuSource).toContain('SIDEBAR_HOVER_DARK_CLASS');
-    expect(menuSource).toContain('SIDEBAR_HOVER_LIGHT_CLASS');
-    expect(menuSource).toContain('SIDEBAR_ACTIVE_DARK_CLASS');
-    expect(menuSource).toContain('SIDEBAR_ACTIVE_LIGHT_CLASS');
-    expect(menuSource).toContain('SIDEBAR_PRESS_DARK_CLASS');
-    expect(menuSource).toContain('SIDEBAR_PRESS_LIGHT_CLASS');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('h-9');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('rounded-2xl');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('mx-0.5');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('px-3');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('text-xs');
+    expect(menuSource).toContain('BAMBOOK_OS.typography.weight.ui');
+    expect(menuSource).toContain('text-[10px] mt-0.5');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemDark).toContain('border border-transparent');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemLight).toContain('border border-transparent');
+    expect(menuSource).toContain('data-glass-edge-mask');
+    expect(menuSource).toContain('data-os-shadow-mode="flat"');
+    expect(menuSource).not.toContain('SIDEBAR_HOVER_DARK_CLASS');
+    expect(menuSource).not.toContain('SIDEBAR_HOVER_LIGHT_CLASS');
+    expect(menuSource).not.toContain('SIDEBAR_ACTIVE_DARK_CLASS');
+    expect(menuSource).not.toContain('SIDEBAR_ACTIVE_LIGHT_CLASS');
+    expect(menuSource).not.toContain('SIDEBAR_PRESS_DARK_CLASS');
+    expect(menuSource).not.toContain('SIDEBAR_PRESS_LIGHT_CLASS');
   });
 
   it('places the detail view switch inside the title bar instead of a separate tab row', () => {
     const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
     const titleSource = source.slice(
-      source.indexOf('className={`${RELATIONS_TITLE_BAR_CLASS}'),
+      source.indexOf('<PageHeader'),
       source.indexOf('{/* Content Area')
     );
 
     expect(RELATIONS_TITLE_VIEW_SWITCH_CLASS).toContain('h-9');
-    expect(RELATIONS_TITLE_VIEW_SWITCH_CLASS).toContain('rounded-2xl');
+    expect(RELATIONS_TITLE_VIEW_SWITCH_CLASS).toContain('rounded-full');
     expect(RELATIONS_TITLE_VIEW_SWITCH_BUTTON_CLASS).toContain('h-7');
     expect(titleSource).toContain("navLevel === 'detail'");
     expect(titleSource).toContain('RELATIONS_TITLE_VIEW_SWITCH_CLASS');
@@ -1557,7 +1558,7 @@ describe('RelationsManager title system', () => {
     );
 
     expect(RELATIONS_FORM_TITLE_BAR_CLASS).toContain(RELATIONS_TITLE_BAR_CLASS);
-    expect(RELATIONS_FORM_TITLE_BAR_CLASS).toContain('px-4 md:px-8');
+    expect(RELATIONS_FORM_TITLE_BAR_CLASS).toContain('px-7');
     expect(RELATIONS_FORM_TITLE_BAR_CLASS).toContain('h-14');
     expect(RELATIONS_FORM_TITLE_BAR_CLASS).toContain('items-center');
     expect(RELATIONS_FORM_TITLE_BAR_CLASS).not.toMatch(/\bbg-/);
@@ -1566,7 +1567,7 @@ describe('RelationsManager title system', () => {
     expect(formOverlaySource).toContain('${relationsFormBottomEdgeClass} z-[70]');
     expect(formOverlaySource).not.toContain('desktopMainPanelBottomEdgeClass');
     expect(formOverlaySource).not.toContain('bottom-4');
-    expect(source).toContain('id="relation-fullscreen-form" onSubmit={handleSave} className="w-full flex-1 min-h-0 px-5 pt-3');
+    expect(source).toContain('id="relation-fullscreen-form" onSubmit={handleSave} data-relation-save-error={relationSaveError} data-relation-busy={relationBusy} className="w-full flex-1 min-h-0 px-5 pt-3');
     expect(formOverlaySource).toContain('style={{ ...RELATIONS_CLEAR_REGION_STYLE, ...RELATIONS_TITLE_SAFE_LEFT_STYLE }}');
     expect(RELATIONS_FORM_TITLE_CRUMB_CLASS).toContain('h-9');
     expect(RELATIONS_FORM_TITLE_HEADING_CLASS).toBe(RELATIONS_TITLE_PAGE_LABEL_CLASS);
@@ -1586,37 +1587,38 @@ describe('RelationsManager title system', () => {
       source.indexOf('<div data-scroll-edge-bottom-sentinel')
     );
 
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-[rgba(6,14,24,0.18)]');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-[rgba(6,14,24,0.20)]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-none');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('text-xs');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!border-white/[0.075]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:translate-y-[1px]');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!border-transparent');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('backdrop-blur-[15px]');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('backdrop-saturate-[104%]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!bg-[rgba(7,18,32,0.30)]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!bg-none');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!border-white/[0.105]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:shadow-[inset_0_2px_6px');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('inset_0_0_10px_rgba(43,115,210,0.115)');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!border-white/[0.08]');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:shadow-none');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('focus:translate-y-[1px]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('focus:border-[#4A90E2]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('rgba(74,144,226');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-[rgba(255,255,255,0.14)]');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-[rgba(255,255,255,0.22)]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-none');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('text-xs');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!border-slate-300/24');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!border-transparent');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('backdrop-blur-[15px]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('placeholder-slate-400');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:translate-y-[1px]');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-[rgba(238,247,255,0.20)]');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-[rgba(255,255,255,0.34)]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-none');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!border-slate-300/36');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:shadow-[inset_0_2px_6px');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('inset_0_0_10px_rgba(87,178,255,0.055)');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!border-slate-300/24');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:shadow-none');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('focus:translate-y-[1px]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('focus:border-[#4A90E2]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('rgba(74,144,226');
     expect(formSource).toContain('relationFormFieldClass');
-    expect(formSource).toContain('rounded-2xl border outline-none font-light');
+    expect(formSource).toContain('rounded-full border outline-none font-light');
     expect(formSource).toContain('type="date"');
-    expect(formSource).toContain('type="date" defaultValue={editingItem?.birthday} className={`w-full mt-1 h-9 px-3 rounded-2xl border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}');
+    expect(formSource).toContain('type="date" defaultValue={editingItem?.birthday} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}');
     expect(formSource).not.toContain('focus:ring-blue-100');
   });
 

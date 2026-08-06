@@ -310,7 +310,7 @@ export const CompiledDropdownMenuItem = React.forwardRef<HTMLButtonElement, Comp
     data-selected={selected ? 'true' : undefined}
     data-destructive={destructive ? 'true' : undefined}
     className={cx(
-      'group relative flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-[13px] font-light tracking-wide transition-colors',
+      'group relative flex w-full items-center gap-2 rounded-control px-3 py-1.5 text-left text-[13px] font-light tracking-wide transition-colors',
       'hover:bg-white/8 active:bg-white/12',
       selected && 'bg-white/6',
       destructive

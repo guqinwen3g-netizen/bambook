@@ -80,16 +80,16 @@ describe('Dashboard HUD polish', () => {
         expect(css).toContain('.is-electron .dashboard-hud-root');
         expect(css).toContain('padding-top: 7.75rem');
         expect(css).not.toContain('padding-top: 1.75rem');
-        expect(source).toContain('const feather = DASHBOARD_HEADER_CARD_FADE_FEATHER_PX');
-        expect(source).toContain('headerRect.bottom + DASHBOARD_HEADER_CARD_FADE_OFFSET_PX');
-        expect(source).toContain('scrollerRect.bottom - DASHBOARD_HEADER_CARD_FADE_OFFSET_PX');
-        expect(source).toContain('const topActive = rect.top < topFadeLine');
-        expect(source).toContain('rect.top >= bottomFadeLine');
-        expect(source).toContain("const isUiLab = Boolean(scroller.closest('.ui-lab-real-os-root'))");
-        expect(source).toContain("card.setAttribute('data-glass-edge-mask', 'true')");
-        expect(source).toContain('transparent ${fadeStart}px, black ${fadeEnd}px');
-        expect(source).toContain('stops.push(`transparent 0px, transparent ${fadeStart}px, black ${fadeEnd}px`)');
-        expect(source).toContain("stops.push('black 100%')");
+        expect(source).toContain('scroller.querySelectorAll<HTMLElement>(DASHBOARD_EDGE_FADE_CARD_SELECTOR).forEach((card) => {');
+        expect(source).toContain("card.style.maskImage = '';");
+        expect(source).toContain("card.style.webkitMaskImage = '';");
+        expect(source).toContain("card.removeAttribute('data-glass-edge-mask');");
+        expect(source).not.toContain('const feather = DASHBOARD_HEADER_CARD_FADE_FEATHER_PX');
+        expect(source).not.toContain('headerRect.bottom');
+        expect(source).not.toContain('topFadeLine');
+        expect(source).not.toContain('bottomFadeLine');
+        expect(source).not.toContain('stops.push');
+        expect(source).not.toContain('const isUiLab = Boolean(scroller.closest');
         expect(source).not.toContain('DASHBOARD_HEADER_CARD_FADE_OPAQUE_RATIO');
         expect(source).not.toContain('rgba(0,0,0,0.18)');
         expect(DASHBOARD_LIVE_SCAN_CLASS).toContain('dashboard-live-scan');
@@ -129,7 +129,7 @@ describe('Dashboard HUD polish', () => {
         const osVnextCss = readFileSync(new URL('../styles/os-vnext.css', import.meta.url), 'utf8');
         const flatCss = readFileSync(new URL('../styles/flat-experimental.css', import.meta.url), 'utf8');
 
-        expect(DASHBOARD_CARD_RADIUS_CLASS).toBe('!rounded-[34px]');
+        expect(DASHBOARD_CARD_RADIUS_CLASS).toBe('!rounded-panel');
         expect(DASHBOARD_RAISED_CARD_CLASS).toBe(`${OS_MATERIAL.raisedCard} ${DASHBOARD_CARD_RADIUS_CLASS}`);
         expect(DASHBOARD_ADAPTIVE_CARD_ATTR).toBe('data-os-dashboard-adaptive-card');
         expect(source).toContain("export const DASHBOARD_ADAPTIVE_CARD_ATTR = 'data-os-dashboard-adaptive-card'");
@@ -154,7 +154,7 @@ describe('Dashboard HUD polish', () => {
         expect(osVnextCss).toContain('--ui-lab-panel-glass-film-background: none;');
         expect(osVnextCss).toContain('--ui-lab-panel-surface-border: transparent;');
         expect(osVnextCss).toContain('--ui-lab-panel-highlight-opacity: 0;');
-        expect(flatCss).toContain('BAMBOOK FLAT MATERIAL MIGRATION SHIELD');
+        expect(flatCss).toContain('BAMBOOK FLAT DESIGN');
         expect(flatCss).toContain('--bambook-rdl-panel-fill-light: rgb(255 255 255 / 0.50)');
         expect(flatCss).toContain('--bambook-rdl-card-fill-light: rgb(255 255 255 / 0.44)');
         expect(flatCss).toContain('--bambook-rdl-inset-fill-light: rgb(255 255 255 / 0.30)');

@@ -23,7 +23,7 @@ describe('Settings permission visibility', () => {
   it('splits account and system settings into route-level modes', () => {
     expect(source).toContain("mode?: 'account' | 'system'");
     expect(source).toContain("mode === 'account' ? 'account' : 'appearance'");
-    expect(source).toContain("mode === 'account' ? '账号' : '系统'");
+    expect(source).toContain("mode === 'account' ? '账号设置' : '系统设置'");
     expect(source).toContain("mode === 'account'");
     expect(source).toContain("tab.id !== 'account'");
     expect(source).not.toContain('SETTINGS_TARGET_TAB_EVENT');
@@ -42,9 +42,10 @@ describe('Settings permission visibility', () => {
     expect(source).toContain('const settingsFrameClass = `${BAMBOOK_OS.layout.desktopWorkspaceFrameClass} bambook-settings-frame`');
     expect(source).toContain('bambook-settings-frame');
     expect(source).toContain('bambook-settings-nav-panel');
-    expect(source).toContain('const settingsTitleBarClass = BAMBOOK_OS.layout.desktopTitleBarWithInsetClass');
+    expect(source).toContain('<PageHeader');
+    expect(source).toContain("title={mode === 'account' ? '账号设置' : '系统设置'}");
     expect(source).toContain('const settingsPanelRowClass = `${BAMBOOK_OS.layout.desktopPanelRowClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`');
-    expect(source).toContain('className={`${BAMBOOK_OS.layout.desktopSplitNavPanelClass} bambook-settings-nav-panel`}');
+    expect(source).toContain('className={`${BAMBOOK_OS.layout.desktopSplitNavPanelClass} ${BAMBOOK_OS.layout.desktopSiblingPanelNoBleedClass} bambook-settings-nav-panel`}');
     expect(source).toContain('contentClassName={BAMBOOK_OS.layout.desktopSplitNavContentClass}');
     expect(source).toContain('className={BAMBOOK_OS.layout.desktopSplitMainPanelClass}');
     expect(source).toContain('contentClassName={BAMBOOK_OS.layout.desktopSplitMainContentClass}');
@@ -116,7 +117,7 @@ describe('Settings permission visibility', () => {
     expect(source).toContain('getPackagedWallpaperUrl(option)');
     expect(source).toContain('normalizeWallpaperOptions(localConfig.systemWallpaperOptions)');
     expect(source).toContain("PACKAGED_WALLPAPER_URL_BY_ID[decodeURIComponent(match[1])]");
-    expect(source).toContain("const WALLPAPER_GROUP_ORDER = ['极简', '自然', '城市', '动漫']");
+    expect(source).toContain("const WALLPAPER_GROUP_ORDER = ['极简', '自然', '城市', '动漫', '纯色']");
     expect(source).not.toContain("id: 'image-0076aswb'");
     expect(source).not.toContain("id: 'wallhaven-0qkg1q'");
     expect(source).toContain('DEFAULT_WALLPAPER_PREVIEW_LIGHT_STYLE');

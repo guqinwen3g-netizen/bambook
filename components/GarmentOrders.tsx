@@ -4,6 +4,7 @@ import { Scissors, Package, Ruler, Layers, CheckCircle2, Clock, ArrowRight, Aler
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { apiService } from '../services/apiService';
+import { getAuthState } from '../services/authService';
 import type { Order, OrderLineLite, ProductionStep, BomItem, OrderStatusTransition } from '../types';
 
 interface GarmentOrdersProps {
@@ -48,6 +49,10 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<OrderStatusTransition[]>([]);
   const [loading, setLoading] = useState(!propOrders);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [transitionBusy, setTransitionBusy] = useState<string | null>(null);
 
   // Load orders if not provided via props
   useEffect(() => {
@@ -56,20 +61,27 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
       try {
         const loaded = await apiService.listOrders();
         setOrders(loaded.filter((o: Order) => o.type === 'Garment' && !o.deletedAt));
-      } catch { /* ignore */ }
+        setLoadError(null);
+      } catch (e: any) {
+        // fail closed：加载失败必须显式呈现，禁止静默降级为"暂无数据"假空态
+        setLoadError(e?.message || '订单加载失败');
+      }
       setLoading(false);
     })();
   }, [propOrders]);
 
-  // Load timeline for selected order
+  // Load timeline for selected order（统一 apiService 通道：apiBase 解析 + 认证头）
   useEffect(() => {
-    if (!selectedOrderId) { setTimeline([]); return; }
+    if (!selectedOrderId) { setTimeline([]); setTimelineError(null); return; }
     (async () => {
       try {
-        const res = await fetch(`/api/v1/orders/${selectedOrderId}/timeline`);
-        const data = await res.json();
-        if (data.ok) setTimeline(data.timeline);
-      } catch { /* ignore */ }
+        const items = await apiService.getOrderTimeline(selectedOrderId);
+        setTimeline(items);
+        setTimelineError(null);
+      } catch (e: any) {
+        setTimeline([]);
+        setTimelineError(e?.message || '状态时间线加载失败');
+      }
     })();
   }, [selectedOrderId]);
 
@@ -107,7 +119,14 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
           isDarkMode={isDarkMode}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className={cx('text-sm', textSecondaryClass)}>暂无成衣订单数据</div>
+          {loadError ? (
+            <div className={cx('flex items-center gap-2 text-sm', isDarkMode ? 'text-red-400' : 'text-red-600')}>
+              <AlertCircle size={14} strokeWidth={1.5} />
+              <span>订单加载失败：{loadError}</span>
+            </div>
+          ) : (
+            <div className={cx('text-sm', textSecondaryClass)}>暂无成衣订单数据</div>
+          )}
         </div>
       </div>
     );
@@ -155,7 +174,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                     </div>
                   </div>
                   <span className={cx(
-                    'shrink-0 inline-flex rounded-xl border px-2 py-0.5 text-[9px] font-light tracking-wide',
+                    'shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[9px] font-light tracking-wide',
                     order.status === 'Delivered' ? (isDarkMode ? 'border-emerald-500/30 text-emerald-400' : 'border-emerald-300 text-emerald-600') :
                     order.status === 'Alert' ? (isDarkMode ? 'border-red-500/30 text-red-400' : 'border-red-300 text-red-600') :
                     order.status === 'Production' ? (isDarkMode ? 'border-blue-500/30 text-blue-400' : 'border-blue-300 text-blue-600') :
@@ -210,33 +229,39 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
             {/* Status Actions */}
             <div className={cx('rounded-inset border p-4', surfaceClass)}>
               <div className={cx('mb-2 text-[10px] font-light uppercase tracking-widest', textSecondaryClass)}>当前状态: {selectedOrder.status}</div>
+              {actionError && (
+                <div className={cx('mb-2 flex items-center gap-1.5 text-[11px]', isDarkMode ? 'text-red-400' : 'text-red-600')}>
+                  <AlertCircle size={12} strokeWidth={1.5} />
+                  <span>{actionError}</span>
+                </div>
+              )}
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 {(['Confirmed', 'Production', 'Shipping', 'Delivered'] as const)
                   .filter(st => st !== selectedOrder.status)
                   .map(st => (
                   <button
                     key={st}
+                    disabled={transitionBusy !== null}
                     onClick={async () => {
+                      if (transitionBusy) return;
+                      setTransitionBusy(st);
+                      setActionError(null);
                       try {
-                        const res = await fetch(`/api/v1/orders/${selectedOrder.id}/status-transition`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ toStatus: st, operator: 'garment-view' }),
-                        });
-                        const data = await res.json();
-                        if (data.ok && data.order) {
-                          setOrders(prev => prev.map(o => o.id === data.order.id ? data.order : o));
-                        } else {
-                          alert(data?.error?.message || '状态变更失败');
-                        }
+                        const authUser = getAuthState().user;
+                        const operator = authUser?.displayName || authUser?.email || 'local-user';
+                        const updated = await apiService.transitionOrderStatus(selectedOrder.id, st, operator);
+                        setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
                       } catch (e: any) {
-                        alert('网络错误: ' + (e?.message || e));
+                        // fail closed：错误显式呈现，不伪成功
+                        setActionError(e?.message || '状态变更失败');
+                      } finally {
+                        setTransitionBusy(null);
                       }
                     }}
-                    className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[10px] font-light uppercase tracking-wide transition-all hover:opacity-80"
+                    className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[10px] font-light uppercase tracking-wide transition-all hover:opacity-80 disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <ArrowRight size={10} strokeWidth={1.5} />
-                    {st}
+                    {transitionBusy === st ? '提交中…' : st}
                   </button>
                 ))}
               </div>
@@ -256,7 +281,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                     return (
                       <div key={size} className="flex flex-col items-center gap-1">
                         <span className={cx('text-[9px] font-light tracking-wide', textSecondaryClass)}>{size}</span>
-                        <div className={cx('w-full h-16 rounded-lg overflow-hidden flex items-end', isDarkMode ? 'bg-slate-800/50' : 'bg-slate-100')}>
+                        <div className={cx('w-full h-16 rounded-control overflow-hidden flex items-end', isDarkMode ? 'bg-slate-800/50' : 'bg-slate-100')}>
                           <motion.div
                             initial={{ height: 0 }}
                             animate={{ height: `${ratio * 100}%` }}
@@ -287,7 +312,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                     <React.Fragment key={step.step}>
                       <div className="flex flex-col items-center gap-1.5 min-w-[56px]">
                         <div className={cx(
-                          'w-8 h-8 rounded-xl flex items-center justify-center border transition-all',
+                          'w-8 h-8 rounded-control flex items-center justify-center border transition-all',
                           step.status === 'done'
                             ? isDarkMode ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600'
                             : step.status === 'in_progress'
@@ -327,12 +352,12 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                 <div className="space-y-2">
                   {garmentLine.bomItems.map((item, idx) => (
                     <div key={idx} className={cx(
-                      'flex items-center justify-between rounded-xl px-3 py-2',
+                      'flex items-center justify-between rounded-control px-3 py-2',
                       isDarkMode ? 'bg-deep/30' : 'bg-slate-50/80',
                     )}>
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={cx(
-                          'shrink-0 inline-flex rounded-md px-1.5 py-0.5 text-[8px] font-light uppercase tracking-widest',
+                          'shrink-0 inline-flex rounded-full px-1.5 py-0.5 text-[8px] font-light uppercase tracking-widest',
                           item.type === 'fabric' ? (isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600') :
                           item.type === 'lining' ? (isDarkMode ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-50 text-cyan-600') :
                           item.type === 'trim' ? (isDarkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-50 text-amber-600') :

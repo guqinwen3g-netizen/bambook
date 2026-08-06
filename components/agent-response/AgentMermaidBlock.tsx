@@ -115,7 +115,7 @@ export const AgentMermaidBlock: React.FC<AgentBlockComponentProps<AgentMermaidBl
 
       <div
         ref={containerRef}
-        className={`mt-3 overflow-x-auto rounded-xl border px-3 py-3 ${borderClass} ${isDarkMode ? 'bg-black/20' : 'bg-white/60'}`}
+        className={`mt-3 overflow-x-auto rounded-compact border px-3 py-3 ${borderClass} ${isDarkMode ? 'bg-black/20' : 'bg-white/60'}`}
         style={{ minHeight: 80 }}
       >
         {error ? (

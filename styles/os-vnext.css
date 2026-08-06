@@ -3,6 +3,8 @@
   /* Premium blue trio: Deep Ink / Slate Blue / Mist Mint. */
   --os-vnext-bg-light: #F4F7FA;
   --os-vnext-bg-dark: #0B1424;
+  --os-vnext-bg-light-rgb: 244 247 250;
+  --os-vnext-bg-dark-rgb: 11 20 36;
   --os-vnext-brand-blue: #6F8FB8;
   --os-vnext-brand-blue-strong: #173B86;
   --os-vnext-brand-blue-soft: #C7E2DF;
@@ -1209,7 +1211,7 @@
 .bambook-os-root {
   --app-main-cover-radius: 38px;
   --app-main-cover-inset: 28px;
-  --app-underlay-cover-overlap: 2px;
+  --app-underlay-cover-overlap: 0px;
 }
 
 .ui-lab-real-os-root:has(.app-sidebar[data-sidebar-state="collapsed"]),
@@ -1225,43 +1227,45 @@
   bottom: 0;
   left: 0;
   z-index: 5;
-  width: calc(var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) + var(--app-main-cover-radius) + var(--app-underlay-cover-overlap));
+  width: calc(var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) + var(--app-main-cover-radius));
   pointer-events: none;
   background: var(--bambook-rdl-panel-fill, rgb(255 255 255 / 0.64));
   backdrop-filter: var(--bambook-rdl-panel-filter, saturate(124%) blur(15px));
   -webkit-backdrop-filter: var(--bambook-rdl-panel-filter, saturate(124%) blur(15px));
+  /*
+   * Single-element coherent animation:
+   * The mask is a STATIC shape anchored to the right edge of this element.
+   * Only `width` transitions — mask-position/mask-size are NOT transitioned,
+   * so the mask moves as a rigid attachment to the element's right boundary.
+   * This eliminates the drift caused by independent mask-layer transitions.
+   */
   -webkit-mask-image:
     linear-gradient(#000, #000),
-    radial-gradient(circle at 100% 100%, transparent calc(var(--app-main-cover-radius) - var(--app-underlay-cover-overlap)), #000 calc(var(--app-main-cover-radius) - 0.5px)),
-    radial-gradient(circle at 100% 0%, transparent calc(var(--app-main-cover-radius) - var(--app-underlay-cover-overlap)), #000 calc(var(--app-main-cover-radius) - 0.5px));
+    radial-gradient(circle at 100% 100%, transparent calc(var(--app-main-cover-radius) - 0.5px), #000 calc(var(--app-main-cover-radius) - 0.5px)),
+    radial-gradient(circle at 100% 0%, transparent calc(var(--app-main-cover-radius) - 0.5px), #000 calc(var(--app-main-cover-radius) - 0.5px));
   -webkit-mask-size:
-    var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) 100%,
+    calc(100% - var(--app-main-cover-radius)) 100%,
     var(--app-main-cover-radius) var(--app-main-cover-radius),
     var(--app-main-cover-radius) var(--app-main-cover-radius);
   -webkit-mask-position:
     0 0,
-    var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) 0,
-    var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) 100%;
+    100% 0,
+    100% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-image:
     linear-gradient(#000, #000),
-    radial-gradient(circle at 100% 100%, transparent calc(var(--app-main-cover-radius) - var(--app-underlay-cover-overlap)), #000 calc(var(--app-main-cover-radius) - 0.5px)),
-    radial-gradient(circle at 100% 0%, transparent calc(var(--app-main-cover-radius) - var(--app-underlay-cover-overlap)), #000 calc(var(--app-main-cover-radius) - 0.5px));
+    radial-gradient(circle at 100% 100%, transparent calc(var(--app-main-cover-radius) - 0.5px), #000 calc(var(--app-main-cover-radius) - 0.5px)),
+    radial-gradient(circle at 100% 0%, transparent calc(var(--app-main-cover-radius) - 0.5px), #000 calc(var(--app-main-cover-radius) - 0.5px));
   mask-size:
-    var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) 100%,
+    calc(100% - var(--app-main-cover-radius)) 100%,
     var(--app-main-cover-radius) var(--app-main-cover-radius),
     var(--app-main-cover-radius) var(--app-main-cover-radius);
   mask-position:
     0 0,
-    var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) 0,
-    var(--app-sidebar-visual-w, var(--app-sidebar-w, 232px)) 100%;
+    100% 0,
+    100% 100%;
   mask-repeat: no-repeat;
-  transition:
-    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    -webkit-mask-size 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    -webkit-mask-position 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    mask-size 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    mask-position 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .bambook-os-root--dark .app-reveal-underlay-material,

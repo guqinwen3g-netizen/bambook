@@ -52,7 +52,7 @@ export const AgentToolLifecycleBlock: React.FC<AgentBlockComponentProps<AgentToo
             <span className={`rounded-full border px-2 py-1 ${riskPillClass(block.risk, isDarkMode) || borderClass}`}>risk: {block.risk}</span>
             {block.toolRunId && <span className={`rounded-full border px-2 py-1 ${borderClass}`}>run: {block.toolRunId}</span>}
           </div>
-          {block.error && <div className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${borderClass} ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>{block.error}</div>}
+          {block.error && <div className={`mt-2 rounded-compact border px-3 py-2 text-xs leading-5 ${borderClass} ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>{block.error}</div>}
         </div>
       </div>
     </button>

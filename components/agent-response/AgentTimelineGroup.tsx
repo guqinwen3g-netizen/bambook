@@ -100,7 +100,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
             })();
             const truncated = text.length > 360 ? text.slice(0, 360) + '…' : text;
             return (
-              <pre className={`mt-1 max-h-[140px] max-w-full overflow-auto whitespace-pre-wrap break-all rounded-md px-2 py-1 text-[10.5px] leading-[1.45] ${isDarkMode ? 'bg-white/[0.04] text-white/70' : 'bg-slate-50 text-slate-600'}`}>
+              <pre className={`mt-1 max-h-[140px] max-w-full overflow-auto whitespace-pre-wrap break-all rounded-compact px-2 py-1 text-[10.5px] leading-[1.45] ${isDarkMode ? 'bg-white/[0.04] text-white/70' : 'bg-slate-50 text-slate-600'}`}>
                 {truncated}
               </pre>
             );

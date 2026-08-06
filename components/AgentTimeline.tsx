@@ -328,7 +328,7 @@ const ToolCallCard: React.FC<ToolCallCardProps> = ({ call, isDarkMode }) => {
                 isDarkMode={isDarkMode}
               />
               {call.error ? (
-                <div className={`rounded-xl border px-2.5 py-2 text-[11px] ${
+                <div className={`rounded-compact border px-2.5 py-2 text-[11px] ${
                   isDarkMode ? 'border-white/10 bg-white/[0.06] text-white/70' : 'border-slate-200 bg-slate-100/60 text-slate-600'
                 }`}>
                   <div className={`mb-1 text-[10px] uppercase tracking-widest ${labelClass}`}>Error</div>
@@ -472,7 +472,7 @@ const KeyValueBlock: React.FC<KeyValueBlockProps> = ({ label, value, hint, isDar
         <span>{label}</span>
         {hint && <span className={`normal-case tracking-normal ${quietClass}`}>{hint}</span>}
       </div>
-      <pre className={`max-h-40 overflow-auto rounded-xl border px-2.5 py-2 text-[11px] leading-relaxed ${blockBg} ${
+      <pre className={`max-h-40 overflow-auto rounded-compact border px-2.5 py-2 text-[11px] leading-relaxed ${blockBg} ${
         mono ? 'font-mono whitespace-pre-wrap break-words' : `whitespace-pre-wrap ${bodyClass}`
       }`}>
         {value || '—'}

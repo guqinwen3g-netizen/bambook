@@ -1214,7 +1214,7 @@ const App: React.FC = () => {
   // Auth gate: show Login or Register page if not authenticated
   if (authState.isLoading) {
     return (
-      <div className={`w-full h-screen flex items-center justify-center ${isDarkMode ? 'bg-[#0a1628]' : 'bg-gradient-to-br from-zinc-100 to-zinc-300'}`}>
+      <div className={`w-full h-screen flex items-center justify-center ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-zinc-100 to-zinc-300'}`}>
         <div className={`text-xs font-medium tracking-[0.22em] uppercase ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
           Checking session...
         </div>
@@ -1250,7 +1250,7 @@ const App: React.FC = () => {
   return (
     <div
       ref={appRootRef}
-      className={`bambook-os-root ${isDarkMode ? 'bambook-os-root--dark' : ''} flex h-screen overflow-visible relative transition-[background-image] duration-500 ${isDarkMode ? 'dark bg-[#070D15]' : 'bg-[#D8DEE7]'}`}
+      className={`bambook-os-root ${isDarkMode ? 'bambook-os-root--dark' : ''} flex h-screen overflow-visible relative transition-[background-image] duration-500 ${isDarkMode ? 'dark bg-app-dark' : 'bg-app-light'}`}
       data-sidebar-state={isCollapsed ? 'collapsed' : 'expanded'}
       data-wallpaper-mode={isWallpaperMode ? 'on' : 'off'}
       data-appearance-mode={appearanceMode}

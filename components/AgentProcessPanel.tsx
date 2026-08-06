@@ -68,7 +68,7 @@ const renderEventRow = (item: AgentNarrativeLine, bodyClass: string, quietClass:
       <div className="min-w-0 flex-1">
         <div className={`text-[12px] leading-relaxed ${bodyClass}`}>{item.line}</div>
         {item.toolLabel && (
-          <div className={`mt-1 inline-block rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] ${quietClass}`}>
+          <div className={`mt-1 inline-block rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] ${quietClass}`}>
             {item.toolLabel}
           </div>
         )}

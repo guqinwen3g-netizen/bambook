@@ -66,8 +66,8 @@ describe('P0-A 审查结论2: thought_delta 只更新 thinking（不进正文）
   it('前端 thought_delta 累积到 streamingThoughtText（独立变量）', () => {
     expect(ASSISTANT_SRC).toMatch(/streamingThoughtText \+= delta/);
   });
-  it('thought_delta 调 updateThinkingDisplay（💭 前缀引用样式，非正文）', () => {
-    expect(ASSISTANT_SRC).toMatch(/updateThinkingDisplay\(\[`💭 /);
+  it('thought_delta 调 updateThinkingDisplay（「思考 — 」前缀引用样式，非正文）', () => {
+    expect(ASSISTANT_SRC).toMatch(/updateThinkingDisplay\(\[`思考 — /);
   });
   it('block_start 非 approval 时清空 streamingThoughtText（避免残留）', () => {
     expect(ASSISTANT_SRC).toMatch(/isAnswerBlockStart && isShowingThinking/);

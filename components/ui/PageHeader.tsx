@@ -64,13 +64,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
       style={{ ...safeLeftStyle, ...style }}
     >
-      {/* 左侧：主标题 + 副标题 */}
+      {/* 左侧：主标题 + 副标题（nowrap + truncate：顶栏文字禁止换行） */}
       <div className="min-w-0 flex flex-col">
-        <h1 className={cx(BAMBOOK_OS.layout.desktopTitleTextClass, titleColorClass)}>
+        <h1 className={cx(BAMBOOK_OS.layout.desktopTitleTextClass, 'whitespace-nowrap truncate', titleColorClass)}>
           {title}
         </h1>
         {subtitle && (
-          <div className={cx('mt-2 text-xs font-light', mutedClass)}>
+          <div className={cx('mt-2 text-xs font-light whitespace-nowrap truncate', mutedClass)}>
             {subtitle}
           </div>
         )}

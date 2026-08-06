@@ -72,11 +72,11 @@ const ToolCatalogSection: React.FC<{
         const meta = getDomainLabel(group.domain);
         const isOpen = openDomains[group.domain] ?? false;
         return (
-          <div key={group.domain} className={`rounded-xl border ${surfaceClass}`}>
+          <div key={group.domain} className={`rounded-inset border ${surfaceClass}`}>
             <button
               type="button"
               onClick={() => setOpenDomains(prev => ({ ...prev, [group.domain]: !isOpen }))}
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left ${isDarkMode ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.03]'} rounded-xl`}
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left ${isDarkMode ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.03]'} rounded-inset`}
             >
               <Wrench size={11} strokeWidth={1.5} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
               <span className={`text-[11px] font-light flex-1 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{meta.label}</span>
@@ -86,7 +86,7 @@ const ToolCatalogSection: React.FC<{
             {isOpen && (
               <div className={`border-t ${surfaceClass} px-1.5 py-1 space-y-0.5`}>
                 {group.tools.map(tool => (
-                  <div key={tool.id} className={`rounded-lg px-2 py-1.5 ${isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-black/[0.03]'}`}>
+                  <div key={tool.id} className={`rounded-compact px-2 py-1.5 ${isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-black/[0.03]'}`}>
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[11px] font-light truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{tool.name}</span>
                       <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded border ${riskPillClass(tool.risk, isDarkMode)}`}>{tool.risk}</span>
@@ -162,7 +162,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className={`h-7 w-7 rounded-lg flex items-center justify-center transition-colors ${isDarkMode ? 'hover:bg-white/[0.06]' : 'hover:bg-slate-100'}`}
+                className={`h-8 w-8 rounded-control flex items-center justify-center transition-colors ${isDarkMode ? 'hover:bg-white/[0.06]' : 'hover:bg-slate-100'}`}
                 aria-label="关闭设置"
               >
                 <X size={14} className={quietText} />

@@ -798,7 +798,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <RdlPill
                   type="button"
                   onClick={() => openEditInvoice(invoice)}
-                  className="min-h-7 px-2.5 text-[10.5px]"
+                  className="min-h-8 px-2.5 text-[10.5px]"
                 >
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
@@ -823,7 +823,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-7 px-2.5 text-[10.5px]"
+                  className="min-h-8 px-2.5 text-[10.5px]"
                 >
                   {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
                   作废
@@ -848,7 +848,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-7 px-2.5 text-[10.5px]"
+                  className="min-h-8 px-2.5 text-[10.5px]"
                 >
                   {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
@@ -859,7 +859,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <RdlPill
                   type="button"
                   onClick={() => openEditVoucher(voucher)}
-                  className="min-h-7 px-2.5 text-[10.5px]"
+                  className="min-h-8 px-2.5 text-[10.5px]"
                 >
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
@@ -883,7 +883,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-7 px-2.5 text-[10.5px]"
+                  className="min-h-8 px-2.5 text-[10.5px]"
                 >
                   {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
                   作废
@@ -908,7 +908,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-7 px-2.5 text-[10.5px]"
+                  className="min-h-8 px-2.5 text-[10.5px]"
                 >
                   {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
@@ -948,7 +948,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <RdlPill
                   type="button"
                   onClick={openCreateAlloc}
-                  className="min-h-7 px-2.5 text-[10.5px]"
+                  className="min-h-8 px-2.5 text-[10.5px]"
                 >
                   <Link2 size={10} strokeWidth={1.3} />
                   添加核销
@@ -972,11 +972,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <RdlOverlayIconButton type="button" onClick={() => { setEditingAllocId(alloc.id); setAllocForm({ targetId: isInvoiceContext ? alloc.voucherId : alloc.invoiceId, appliedAmount: String(alloc.appliedAmount), appliedDate: alloc.appliedDate }); setAllocError(null); setShowAllocModal(true); }}
-                          className="h-7 w-7">
+                          className="h-8 w-8">
                           <Pencil size={11} strokeWidth={1.3} />
                         </RdlOverlayIconButton>
                         <RdlOverlayIconButton type="button" onClick={() => handleDeleteAlloc(alloc.id)}
-                          className="h-7 w-7">
+                          className="h-8 w-8">
                           <Trash2 size={11} strokeWidth={1.3} />
                         </RdlOverlayIconButton>
                       </div>

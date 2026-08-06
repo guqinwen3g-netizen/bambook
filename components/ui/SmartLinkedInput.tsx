@@ -38,7 +38,7 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
 
   const query = String(value || '').trim();
   const canSearch = query.length >= MIN_QUERY_LENGTH && entityTypes.length > 0 && !disabled;
-  const inputCls = className || `w-full px-3 py-3 border rounded-xl outline-none text-xs font-light ${
+  const inputCls = className || `w-full px-3 py-3 border rounded-control outline-none text-xs font-light ${
     isDarkMode
       ? 'bg-slate-800 border-white/10 text-white placeholder:text-slate-500'
       : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'

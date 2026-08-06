@@ -32,7 +32,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
   const rowBorder = isDarkMode ? 'border-white/[0.05]' : 'border-slate-200/50';
 
   return (
-    <div className={`mt-2 flex flex-col gap-2 rounded-lg border ${rowBorder} px-2.5 py-2`}>
+    <div className={`mt-2 flex flex-col gap-2 rounded-compact border ${rowBorder} px-2.5 py-2`}>
       {draft.beforeAfterDiff.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
@@ -79,7 +79,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           </div>
           <div className="flex flex-wrap gap-1">
             {draft.impactScope.map((scope: string, idx: number) => (
-              <span key={idx} className={`rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>{scope}</span>
+              <span key={idx} className={`rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>{scope}</span>
             ))}
           </div>
         </div>
@@ -87,13 +87,13 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {(draft.irreversible || draft.postCommitHooks.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {draft.irreversible && (
-            <span className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
               <AlertTriangle size={10} />
               <span>不可逆操作</span>
             </span>
           )}
           {draft.postCommitHooks.map((hook: AgentProcessDraftPostCommitHook, idx: number) => (
-            <span key={idx} className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
               <Mail size={10} />
               <span>提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
             </span>
@@ -119,7 +119,7 @@ export const AgentApprovalBlock: React.FC<AgentBlockComponentProps<AgentApproval
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
       <div className="flex items-start gap-3">
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${borderClass}`}>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border ${borderClass}`}>
           <ShieldCheck size={16} className={riskToneClass(block.risk, isDarkMode)} />
         </div>
         <div className="min-w-0 flex-1">
@@ -137,7 +137,7 @@ export const AgentApprovalBlock: React.FC<AgentBlockComponentProps<AgentApproval
                 type="button"
                 onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'approved', toolId: block.toolId, input: block.input }, risk: block.risk, label: '批准' })}
                 disabled={!onExecuteAction}
-                className={`rounded-xl border px-3 py-1.5 text-xs font-light transition-opacity ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-70'} ${borderClass}`}
+                className={`rounded-full border px-3 py-1.5 text-xs font-light transition-opacity ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-70'} ${borderClass}`}
               >
                 批准
               </button>
@@ -145,7 +145,7 @@ export const AgentApprovalBlock: React.FC<AgentBlockComponentProps<AgentApproval
                 type="button"
                 onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'rejected', toolId: block.toolId }, risk: block.risk, label: '拒绝' })}
                 disabled={!onExecuteAction}
-                className={`rounded-xl border px-3 py-1.5 text-xs font-light transition-opacity ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-70'} ${borderClass}`}
+                className={`rounded-full border px-3 py-1.5 text-xs font-light transition-opacity ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-70'} ${borderClass}`}
               >
                 拒绝
               </button>
@@ -153,7 +153,7 @@ export const AgentApprovalBlock: React.FC<AgentBlockComponentProps<AgentApproval
                 type="button"
                 onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'modified', toolId: block.toolId, input: block.input, editableFields: block.editableFields }, risk: block.risk, label: '修改参数' })}
                 disabled={!onExecuteAction}
-                className={`rounded-xl border px-3 py-1.5 text-xs font-light transition-opacity ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-70'} ${borderClass}`}
+                className={`rounded-full border px-3 py-1.5 text-xs font-light transition-opacity ${onExecuteAction ? 'hover:opacity-80' : 'cursor-default opacity-70'} ${borderClass}`}
               >
                 修改参数
               </button>

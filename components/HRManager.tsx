@@ -146,6 +146,7 @@ interface HRManagerProps {
 const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
 
   // Personnel
   const [personnel, setPersonnel] = useState<PersonnelMember[]>([]);
@@ -381,7 +382,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
   // ── Team handlers ──
   const submitTeam = async () => {
-    if (!teamForm.name.trim()) return;
+    if (!teamForm.name.trim() || actionBusy) return;
+    setActionBusy(true);
     try {
       if (editingTeamId) {
         await sendHR(`teams/${editingTeamId}`, teamForm, 'PATCH');
@@ -392,21 +394,29 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '保存团队失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
   const deleteTeam = async (id: string) => {
+    if (actionBusy) return;
+    if (!window.confirm('确认删除该团队？此操作不可撤销。')) return;
+    setActionBusy(true);
     try {
       await sendHR(`teams/${id}`, {}, 'DELETE');
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '删除团队失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
   // ── Project handlers ──
   const submitProject = async () => {
-    if (!projectForm.name.trim()) return;
+    if (!projectForm.name.trim() || actionBusy) return;
+    setActionBusy(true);
     try {
       if (editingProjectId) {
         await sendHR(`projects/${editingProjectId}`, projectForm, 'PATCH');
@@ -417,21 +427,29 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '保存项目失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
   const deleteProject = async (id: string) => {
+    if (actionBusy) return;
+    if (!window.confirm('确认删除该项目？此操作不可撤销。')) return;
+    setActionBusy(true);
     try {
       await sendHR(`projects/${id}`, {}, 'DELETE');
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '删除项目失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
   // ── Assignment handlers ──
   const submitAssignment = async () => {
-    if (!assignmentForm.title.trim() || !assignmentForm.userId) return;
+    if (!assignmentForm.title.trim() || !assignmentForm.userId || actionBusy) return;
+    setActionBusy(true);
     try {
       if (editingAssignmentId) {
         await sendHR(`assignments/${editingAssignmentId}`, assignmentForm, 'PATCH');
@@ -442,15 +460,22 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '保存工作分配失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
   const deleteAssignment = async (id: string) => {
+    if (actionBusy) return;
+    if (!window.confirm('确认删除该工作分配？此操作不可撤销。')) return;
+    setActionBusy(true);
     try {
       await sendHR(`assignments/${id}`, {}, 'DELETE');
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '删除工作分配失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -689,7 +714,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           <button onClick={() => openTeamForm(team)} className={subtleButtonCls}>
             <Pencil className="w-3 h-3" /> 编辑
           </button>
-          <button onClick={() => deleteTeam(team.id)} className={subtleButtonCls}>
+          <button onClick={() => deleteTeam(team.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
@@ -737,7 +762,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           <button onClick={() => openProjectForm(proj)} className={subtleButtonCls}>
             <Pencil className="w-3 h-3" /> 编辑
           </button>
-          <button onClick={() => deleteProject(proj.id)} className={subtleButtonCls}>
+          <button onClick={() => deleteProject(proj.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
@@ -774,7 +799,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         <button onClick={() => openAssignmentForm(a)} className={subtleButtonCls}>
           <Pencil className="w-3 h-3" />
         </button>
-        <button onClick={() => deleteAssignment(a.id)} className={subtleButtonCls}>
+        <button onClick={() => deleteAssignment(a.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
           <Trash2 className="w-3 h-3" />
         </button>
       </div>
@@ -1184,8 +1209,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <button onClick={closeTeamForm} className={actionButtonCls}>取消</button>
-                        <button onClick={submitTeam} className={primaryButtonCls}>
-                          <Check className="w-3.5 h-3.5" /> {editingTeamId ? '保存' : '创建'}
+                        <button onClick={submitTeam} disabled={actionBusy} className={`${primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
+                          <Check className="w-3.5 h-3.5" /> {actionBusy ? '提交中…' : editingTeamId ? '保存' : '创建'}
                         </button>
                       </div>
                     </div>
@@ -1252,8 +1277,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <button onClick={closeProjectForm} className={actionButtonCls}>取消</button>
-                        <button onClick={submitProject} className={primaryButtonCls}>
-                          <Check className="w-3.5 h-3.5" /> {editingProjectId ? '保存' : '创建'}
+                        <button onClick={submitProject} disabled={actionBusy} className={`${primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
+                          <Check className="w-3.5 h-3.5" /> {actionBusy ? '提交中…' : editingProjectId ? '保存' : '创建'}
                         </button>
                       </div>
                     </div>
@@ -1317,8 +1342,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <button onClick={closeAssignmentForm} className={actionButtonCls}>取消</button>
-                        <button onClick={submitAssignment} className={primaryButtonCls} disabled={!assignmentForm.userId}>
-                          <Check className="w-3.5 h-3.5" /> {editingAssignmentId ? '保存' : '分配'}
+                        <button onClick={submitAssignment} className={`${primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`} disabled={!assignmentForm.userId || actionBusy}>
+                          <Check className="w-3.5 h-3.5" /> {actionBusy ? '提交中…' : editingAssignmentId ? '保存' : '分配'}
                         </button>
                       </div>
                     </div>

@@ -90,7 +90,7 @@ const InfoSection: React.FC<{
                 isDarkMode={isDarkMode}
                 materialRole="insetSurface"
                 materialTone="nested"
-                className="p-3.5 !rounded-[20px]"
+                className="p-3.5 !rounded-inset"
                 contentClassName="relative z-10"
                 compilerRole="relation-detail-section-panel"
                 source="DetailPanel.InfoSection"
@@ -191,7 +191,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                     <span
                                         key={tag}
                                         className={`
-                      px-2 py-0.5 rounded-xl text-[10px] font-light
+                      px-2 py-0.5 rounded-full text-[10px] font-light
                       ${dataChipClass}
                     `}
                                     >

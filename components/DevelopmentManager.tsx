@@ -93,7 +93,7 @@ const ToolbarFilterButton = ({
     type="button"
     onClick={onClick}
     className={cx(
-      'h-7 shrink-0 rounded-xl border px-3 text-[10px] font-light tracking-wide transition-all',
+      'h-8 shrink-0 rounded-control border px-3 text-[10px] font-light tracking-wide transition-all',
       active
         ? isDarkMode
           ? BAMBOOK_OS.controls.selectedSurface.dark
@@ -335,7 +335,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
         { label: '产品', value: selectedCase.productName || '—' },
         { label: '样品类型', value: selectedCase.sampleType || '—' },
         { label: '样衣分档', value: (selectedCase as any).sampleCategory === '5a' ? '5A 重点' : '普通' },
-        { label: '评审状态', value: (selectedCase as any).reviewStatus === 'passed' ? '✓ 通过' : (selectedCase as any).reviewStatus === 'failed' ? '✗ 不通过' : (selectedCase as any).reviewStatus === 'pending' ? '待评审' : '—' },
+        { label: '评审状态', value: (selectedCase as any).reviewStatus === 'passed' ? '通过' : (selectedCase as any).reviewStatus === 'failed' ? '不通过' : (selectedCase as any).reviewStatus === 'pending' ? '待评审' : '—' },
         { label: '目标日期', value: selectedCase.targetDate || '—' },
         { label: '当前轮次', value: `S${selectedCase.currentRound}` },
         { label: '快递单号', value: selectedCase.sampleTrackingNumber || '—' },
@@ -377,7 +377,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
           <div className={cx(BAMBOOK_OS.controls.toolbar.base, 'h-auto min-h-9 overflow-hidden py-1', toolbarSurfaceClass)}>
             <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
             <div className={cx(BAMBOOK_OS.controls.toolbar.content, '!h-auto min-h-9 flex-wrap gap-x-2 gap-y-2 py-1.5')}>
-              <label className={cx('flex h-7 min-w-[188px] flex-[1_1_220px] items-center gap-2 rounded-xl border px-2.5 text-[11px] font-light', toolbarSearchShellClass)}>
+              <label className={cx('flex h-9 min-w-[188px] flex-[1_1_220px] items-center gap-2 rounded-control border px-3 text-[11px] font-light', toolbarSearchShellClass)}>
                 <Search size={13} strokeWidth={1.2} className={isDarkMode ? 'text-white/38' : 'text-slate-400'} />
                 <input
                   value={searchTerm}
@@ -465,7 +465,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>{item.code} · {typeLabelMap[item.type]} · S{item.currentRound}</div>
                       </div>
                       <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <span className={cx('inline-flex rounded-xl border px-2.5 py-1 text-[10px] font-light tracking-wide', stageTone(item.stage, isDarkMode))}>
+                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', stageTone(item.stage, isDarkMode))}>
                           {stageLabelMap[item.stage]}
                         </span>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>负责人 · {item.owner || '—'}</div>
@@ -508,7 +508,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                         <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{selectedCase.code} · {typeLabelMap[selectedCase.type]} · S{selectedCase.currentRound}</div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className={cx('inline-flex rounded-xl border px-2.5 py-1 text-[10px] font-light tracking-wide', stageTone(selectedCase.stage, isDarkMode))}>
+                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', stageTone(selectedCase.stage, isDarkMode))}>
                           {stageLabelMap[selectedCase.stage]}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -516,7 +516,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             type="button"
                             onClick={openEditModal}
                             className={cx(
-                              'h-7 inline-flex items-center gap-1 rounded-xl border px-2.5 text-[10px] font-light tracking-wide transition-colors',
+                              'h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors',
                               isDarkMode
                                 ? 'border-white/10 text-white/64 hover:bg-white/8 hover:text-white/88'
                                 : 'border-slate-300/40 text-slate-500 hover:bg-white/60 hover:text-slate-800',
@@ -529,7 +529,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             type="button"
                             onClick={handleDelete}
                             className={cx(
-                              'h-7 inline-flex items-center gap-1 rounded-xl border px-2.5 text-[10px] font-light tracking-wide transition-colors',
+                              'h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors',
                               isDarkMode
                                 ? 'border-white/[0.08] text-white/55 hover:bg-white/[0.05] hover:text-white/70'
                                 : 'border-slate-300/40 text-slate-500 hover:bg-slate-100/60 hover:text-slate-600',

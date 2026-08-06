@@ -145,7 +145,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
               {/* Back Button */}
               <button
                 onClick={handleBack}
-                className={`mb-4 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-light transition-all duration-300 w-fit
+                className={`mb-4 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all duration-300 w-fit
                 ${isDarkMode
                   ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]'
                   : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}

@@ -13,6 +13,6 @@ describe('OrderManager glass edge masks', () => {
     expect(orderSource).toContain('enabled: !!selectedOrder && !showAddModal');
     expect(orderSource).toContain('scrollRef: orderEntryScrollRef');
     expect(orderSource).toContain('enabled: showAddModal');
-    expect(clusterSource).toContain('data-glass-edge-mask');
+    expect(clusterSource).toContain('edgeFadeItem');
   });
 });

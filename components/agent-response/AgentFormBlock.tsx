@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ClipboardList, Send } from 'lucide-react';
+import { Check, ClipboardList, Send } from 'lucide-react';
 import type { AgentFormBlock as AgentFormBlockModel } from '../../types';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { OS_MATERIAL } from '../ui/osMaterial';
@@ -49,7 +49,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
       <div className="flex items-start gap-3">
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${borderClass}`}>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border ${borderClass}`}>
           <ClipboardList size={16} className={isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]'} />
         </div>
         <div className="min-w-0 flex-1">
@@ -59,8 +59,9 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
           )}
 
           {submitted ? (
-            <div className={`mt-3 rounded-xl border px-3 py-2 text-xs ${borderClass} ${quietTextClass}`}>
-              ✓ 已提交{block.submittedValues ? `：${Object.entries(block.submittedValues).map(([k, v]) => `${k}=${String(v)}`).join(', ')}` : ''}
+            <div className={`mt-3 flex items-center gap-1.5 rounded-compact border px-3 py-2 text-xs ${borderClass} ${quietTextClass}`}>
+              <Check size={12} strokeWidth={1.5} className="shrink-0" />
+              已提交{block.submittedValues ? `：${Object.entries(block.submittedValues).map(([k, v]) => `${k}=${String(v)}`).join(', ')}` : ''}
             </div>
           ) : (
             <div className="mt-3 space-y-3">
@@ -79,14 +80,14 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                       onChange={(e) => handleChange(field.key, e.target.value)}
                       placeholder={field.placeholder}
                       rows={3}
-                      className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--os-vnext-brand-blue)]/50 ${inputClass}`}
+                      className={`mt-1 w-full rounded-control border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--os-vnext-brand-blue)]/50 ${inputClass}`}
                     />
                   ) : field.type === 'select' || field.type === 'multiselect' ? (
                     field.type === 'select' ? (
                       <select
                         value={values[field.key] ?? ''}
                         onChange={(e) => handleChange(field.key, e.target.value)}
-                        className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--os-vnext-brand-blue)]/50 ${inputClass}`}
+                        className={`mt-1 w-full rounded-control border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--os-vnext-brand-blue)]/50 ${inputClass}`}
                       >
                         <option value="">请选择...</option>
                         {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -104,7 +105,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                               else current.push(opt);
                               handleChange(field.key, current.join(','));
                             }}
-                            className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${borderClass} ${
+                            className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${borderClass} ${
                               (values[field.key] || '').includes(opt)
                                 ? (isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/20 text-[var(--os-vnext-brand-blue-soft)]' : 'bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)]')
                                 : (isDarkMode ? 'text-white/60' : 'text-slate-600')
@@ -121,7 +122,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                       value={values[field.key] ?? ''}
                       onChange={(e) => handleChange(field.key, e.target.value)}
                       placeholder={field.placeholder}
-                      className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--os-vnext-brand-blue)]/50 ${inputClass}`}
+                      className={`mt-1 w-full rounded-control border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--os-vnext-brand-blue)]/50 ${inputClass}`}
                     />
                   )}
                 </div>
@@ -130,7 +131,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting || !onExecuteAction}
-                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-light transition-opacity ${
+                className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-light transition-opacity ${
                   submitting ? 'cursor-wait opacity-60' : 'hover:opacity-80'
                 } ${borderClass} ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/15 text-[var(--os-vnext-brand-blue-soft)]' : 'bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)]'}`}
               >

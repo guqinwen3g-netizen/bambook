@@ -291,7 +291,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
         {/* Form Section */}
         <div className="space-y-3">
           {/* Invoice Info */}
-          <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+          <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
             <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               发票信息
             </h3>
@@ -305,7 +305,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                   className={`
-                    w-full px-3 py-2 rounded-lg text-sm font-mono
+                    w-full px-3 py-2 rounded-control text-sm font-mono
                     ${isDarkMode
                       ? 'bg-white/5 border border-white/10 text-white focus:border-[var(--os-vnext-brand-blue)]/50'
                       : 'bg-white border border-slate-200 text-slate-900 focus:border-[var(--os-vnext-brand-blue)]'}
@@ -322,7 +322,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
                   className={`
-                    w-full px-3 py-2 rounded-lg text-sm
+                    w-full px-3 py-2 rounded-control text-sm
                     ${isDarkMode
                       ? 'bg-white/5 border border-white/10 text-white focus:border-[var(--os-vnext-brand-blue)]/50'
                       : 'bg-white border border-slate-200 text-slate-900 focus:border-[var(--os-vnext-brand-blue)]'}
@@ -334,7 +334,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
           </div>
 
           {/* Customer Info */}
-          <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+          <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
             <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               客户信息
             </h3>
@@ -357,7 +357,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className={`p-3 rounded-lg ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-slate-50 border border-slate-200'}`}
+                  className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-slate-50 border border-slate-200'}`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <Building2 size={14} className="text-[var(--os-vnext-brand-blue)]" />
@@ -411,7 +411,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                   onChange={(e) => setPoNumber(e.target.value)}
                   placeholder="4500159326"
                   className={`
-                    w-full px-3 py-2 rounded-lg text-sm
+                    w-full px-3 py-2 rounded-control text-sm
                     ${isDarkMode
                       ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600 focus:border-[var(--os-vnext-brand-blue)]/50'
                       : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[var(--os-vnext-brand-blue)]'}
@@ -423,7 +423,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
           </div>
 
           {/* Items */}
-          <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+          <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 样品明细
@@ -431,7 +431,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
               <button
                 onClick={handleAddItem}
                 className={`
-                  flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-light
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-light
                   transition-all duration-300
                   ${isDarkMode
                     ? 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/20'
@@ -462,7 +462,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                       onChange={(e) => handleItemChange(item.id, 'zroh', e.target.value)}
                       placeholder="156111"
                       className={`
-                        w-full px-2 py-1.5 rounded-lg text-xs
+                        w-full px-2 py-1.5 rounded-control text-xs
                         ${isDarkMode
                           ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600'
                           : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'}
@@ -480,7 +480,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                       onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
                       placeholder="70%WOOL/27%POLYESTER..."
                       className={`
-                        w-full px-2 py-1.5 rounded-lg text-xs
+                        w-full px-2 py-1.5 rounded-control text-xs
                         ${isDarkMode
                           ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600'
                           : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'}
@@ -499,7 +499,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                       placeholder="0"
                       min="0"
                       className={`
-                        w-full px-2 py-1.5 rounded-lg text-xs text-right
+                        w-full px-2 py-1.5 rounded-control text-xs text-right
                         ${isDarkMode
                           ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600'
                           : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'}
@@ -519,7 +519,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                       min="0"
                       step="0.01"
                       className={`
-                        w-full px-2 py-1.5 rounded-lg text-xs text-right
+                        w-full px-2 py-1.5 rounded-control text-xs text-right
                         ${isDarkMode
                           ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600'
                           : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'}
@@ -532,7 +532,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
                       onClick={() => handleRemoveItem(item.id)}
                       disabled={items.length === 1}
                       className={`
-                        p-1.5 rounded-lg transition-all duration-300
+                        p-1.5 rounded-control transition-all duration-300
                         ${items.length === 1
                           ? 'opacity-30 cursor-not-allowed'
                           : isDarkMode
@@ -568,7 +568,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
               onClick={handleGenerate}
               disabled={isGenerating}
               className={`
-                flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-light
+                flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light
                 transition-all duration-300
                 ${isDarkMode
                   ? 'bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)]/90'
@@ -592,7 +592,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
               onClick={handleDownload}
               disabled={!previewHtml}
               className={`
-                flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-light
+                flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light
                 transition-all duration-300
                 ${previewHtml
                   ? isDarkMode
@@ -612,7 +612,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={`
-                flex items-center gap-2 p-3 rounded-xl text-sm
+                flex items-center gap-2 p-3 rounded-inset text-sm
                 ${generationStatus === 'success'
                   ? 'bg-emerald-500/10 text-emerald-500'
                   : 'bg-rose-500/10 text-rose-500'}
@@ -629,7 +629,7 @@ const SampleInvoiceGenerator: React.FC<SampleInvoiceGeneratorProps> = ({ isDarkM
         </div>
 
         {/* Preview Section */}
-        <div className={`rounded-xl overflow-hidden flex flex-col ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+        <div className={`rounded-card overflow-hidden flex flex-col ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
           <div className={`px-4 py-3 border-b flex-shrink-0 ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
             <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               预览区域

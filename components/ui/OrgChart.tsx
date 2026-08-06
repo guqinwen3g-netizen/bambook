@@ -150,7 +150,7 @@ const OrgNodeCard: React.FC<{
         <div className="flex flex-col items-center">
             {/* 连接线 - 向上 */}
             {!isRoot && (
-                <div className={`w-px h-6 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
+                <div className={`w-px h-8 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
             )}
 
             {/* 节点卡片 */}
@@ -229,7 +229,7 @@ const OrgNodeCard: React.FC<{
                     {/* 底部：部门 + 展开按钮 */}
                     <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-white/5">
                         {contact.department && (
-                            <span className={`text-[10px] font-light px-2 py-0.5 rounded-xl ${subtleChipClass}`}>
+                            <span className={`text-[10px] font-light px-2 py-0.5 rounded-full ${subtleChipClass}`}>
                                 {contact.department}
                             </span>
                         )}
@@ -247,7 +247,7 @@ const OrgNodeCard: React.FC<{
                 <button
                     onClick={(e) => { e.stopPropagation(); onEdit(contact); }}
                     className={`
-              absolute -top-2 -right-2 z-30 p-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all
+              absolute -top-2 -right-2 z-30 p-1.5 rounded-control opacity-0 group-hover:opacity-100 transition-all
               ${metaEditClass} ${isDarkMode ? SIDEBAR_HOVER_DARK_CLASS : SIDEBAR_HOVER_LIGHT_CLASS}
             `}
                     aria-label={`编辑${contact.name}`}
@@ -277,7 +277,7 @@ const OrgNodeCard: React.FC<{
                         className="flex flex-col items-center"
                     >
                         {/* 连接线 - 向下 */}
-                        <div className={`w-px h-6 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
+                        <div className={`w-px h-8 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
 
                         {/* 横向连接线 */}
                         {children.length > 1 && (
@@ -521,7 +521,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current - ORG_CHART_ZOOM_STEP)}
-                        className={`h-7 w-7 rounded-compact flex items-center justify-center transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/58` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/58` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
                         aria-label="缩小组织架构"
                     >
                         <ZoomOut size={14} strokeWidth={1.6} />
@@ -532,7 +532,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                             updateZoom(1);
                             setPan({ x: 0, y: 0 });
                         }}
-                        className={`h-7 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/62` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
+                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/62` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
                         aria-label="重置组织架构缩放"
                     >
                         <span className="inline-flex items-center gap-1">
@@ -543,7 +543,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current + ORG_CHART_ZOOM_STEP)}
-                        className={`h-7 w-7 rounded-compact flex items-center justify-center transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/58` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/58` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
                         aria-label="放大组织架构"
                     >
                         <ZoomIn size={14} strokeWidth={1.6} />
@@ -623,7 +623,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                 </div>
 
                 {/* 连接线 */}
-                <div className={`w-px h-6 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
+                <div className={`w-px h-8 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
 
                 {/* 树形结构 */}
                 <div className="flex gap-6 items-start">

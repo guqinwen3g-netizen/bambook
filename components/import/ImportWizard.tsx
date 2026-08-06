@@ -152,7 +152,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
           >
             <div className="flex items-center gap-3">
               <div
-                className={`p-2 rounded-lg ${
+                className={`p-2 rounded-control ${
                   isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/10'
                 }`}
               >
@@ -199,7 +199,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {parseError && (
               <div
-                className={`mb-4 rounded-lg px-4 py-3 text-sm ${
+                className={`mb-4 rounded-inset px-4 py-3 text-sm ${
                   isDarkMode
                     ? 'bg-white/10 border border-white/15 text-white/55'
                     : 'bg-slate-50 border border-slate-200 text-slate-500'
@@ -237,7 +237,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               type="button"
               onClick={goBack}
               disabled={step === 1 || isParsing}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                 isDarkMode
                   ? 'text-slate-300 hover:bg-white/10'
                   : 'text-slate-600 hover:bg-slate-100'
@@ -249,7 +249,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               <button
                 type="button"
                 onClick={onClose}
-                className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                className={`px-4 py-2 rounded-full text-sm transition-colors ${
                   isDarkMode ? 'text-slate-400 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'
                 }`}
               >
@@ -259,7 +259,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
                 type="button"
                 onClick={goNext}
                 disabled={!canNext}
-                className={`flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-light transition-all shadow-none disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-light transition-all shadow-none disabled:opacity-40 disabled:cursor-not-allowed ${
                   isDarkMode
                     ? 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-soft)] text-white'
                     : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white'

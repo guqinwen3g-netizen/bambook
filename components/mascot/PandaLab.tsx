@@ -103,8 +103,8 @@ const PandaLab: React.FC<{ isDarkMode: boolean; onToggleTheme: () => void }> = (
       </div>
 
       {/* Main Preview */}
-      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-[#071321] relative">
-        <div className="w-[300px] h-[300px] bg-white dark:bg-[#0F1C2E] shadow-none rounded-card-lg flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-app-dark relative">
+        <div className="w-[300px] h-[300px] bg-white dark:bg-app-dark shadow-none rounded-card-lg flex items-center justify-center">
           
           <svg viewBox="0 0 128 128" className="w-[200px] h-[200px] overflow-visible">
             <defs>

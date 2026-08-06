@@ -83,7 +83,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
   const containerStyle: React.CSSProperties = {
     border: `1px solid ${isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)'}`,
     borderRadius: 12,
-    background: isDarkMode ? '#1a1c20' : '#ffffff',
+    background: isDarkMode ? 'var(--bambook-gray-900)' : 'var(--bambook-gray-50)',
     padding: 16,
   };
 
@@ -136,10 +136,9 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
 
       {error && !loading && (
         <div
+          className={isDarkMode ? 'text-red-400 bg-red-500/10' : 'text-red-600 bg-red-50'}
           style={{
-            color: '#dc2626',
             fontSize: 13,
-            background: isDarkMode ? '#2a1818' : '#fef2f2',
             padding: 8,
             borderRadius: 8,
           }}
@@ -199,7 +198,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '8px 10px',
-                        background: isDarkMode ? '#23262c' : '#f9fafb',
+                        background: isDarkMode ? 'var(--bambook-gray-800)' : 'var(--bambook-gray-50)',
                         border: `1px solid ${isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)'}`,
                         borderRadius: 8,
                         cursor: onSelectNeighbor ? 'pointer' : 'default',

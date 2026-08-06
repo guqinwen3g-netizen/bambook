@@ -67,7 +67,7 @@ describe('Bambook PWA mobile shell', () => {
     expect(indexSource).not.toContain("import('./pwa/mobile/MobilePwaApp')");
   });
 
-  it('adapts the copied phone app with a scaled shell and mobile navigation chrome', () => {
+  it('adapts the copied phone app with a full-screen shell and mobile navigation chrome', () => {
     const mobileWebSource = readFileSync(new URL('./MobileWebApp.tsx', import.meta.url), 'utf8');
     const mobileNavigationSource = readFileSync(new URL('./MobileWebNavigation.tsx', import.meta.url), 'utf8');
     const desktopSidebarSource = readFileSync(new URL('../../components/Sidebar.tsx', import.meta.url), 'utf8');
@@ -124,13 +124,13 @@ describe('Bambook PWA mobile shell', () => {
     expect(mobileWebSource).not.toContain('MobileWebSidebar');
     expect(existsSync(new URL('./MobileWebSidebar.tsx', import.meta.url))).toBe(false);
     expect(desktopSidebarSource).not.toContain('runTouchAction');
-    expect(cssSource).toContain('body.bambook-device-phone .bambook-mobile-web-shell');
-    expect(cssSource).toContain('--bambook-mobile-web-logical-width: 520px');
-    expect(cssSource).toContain('transform: scale(var(--bambook-mobile-web-scale))');
-    expect(cssSource).toContain('body.bambook-device-phone .bambook-mobile-bottom-nav');
-    expect(cssSource).toContain('right: max(env(safe-area-inset-right), 14px)');
-    expect(cssSource).toContain('body.bambook-device-phone .bambook-mobile-home-panel');
-    expect(cssSource).not.toContain('body.bambook-device-phone .bambook-mobile-menu-trigger');
+    expect(mobileWebSource).toContain('bambook-mobile-web-shell flex h-screen overflow-hidden');
+    expect(mobileWebSource).toContain('transition-colors duration-500');
+    expect(mobileNavigationSource).toContain('bambook-mobile-bottom-nav fixed inset-x-3 bottom-3 z-[380]');
+    expect(mobileNavigationSource).toContain('rounded-card-lg border');
+    expect(mobileNavigationSource).toContain('backdrop-blur-2xl');
+    expect(mobileNavigationSource).toContain('bambook-mobile-home-panel absolute inset-3');
+    expect(mobileNavigationSource).not.toContain('bambook-mobile-menu-trigger');
     expect(cssSource).toContain('safe-area-inset-bottom');
     expect(cssSource).toContain('safe-area-inset-left');
     expect(cssSource).toContain('safe-area-inset-right');

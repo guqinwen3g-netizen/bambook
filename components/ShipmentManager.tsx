@@ -200,7 +200,7 @@ const ToolbarFilterButton = ({
     type="button"
     onClick={onClick}
     className={cx(
-      'h-7 shrink-0 rounded-xl border px-3 text-[10px] font-light tracking-wide transition-all',
+      'h-8 shrink-0 rounded-control border px-3 text-[10px] font-light tracking-wide transition-all',
       active
         ? isDarkMode
           ? BAMBOOK_OS.controls.selectedSurface.dark
@@ -467,7 +467,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           <div className={cx(BAMBOOK_OS.controls.toolbar.base, 'h-auto min-h-9 overflow-hidden py-1', toolbarSurfaceClass)}>
             <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
             <div className={cx(BAMBOOK_OS.controls.toolbar.content, '!h-auto min-h-9 flex-wrap gap-x-2 gap-y-2 py-1.5')}>
-              <label className={cx('flex h-7 min-w-[188px] flex-[1_1_220px] items-center gap-2 rounded-xl border px-2.5 text-[11px] font-light', toolbarSearchShellClass)}>
+              <label className={cx('flex h-9 min-w-[188px] flex-[1_1_220px] items-center gap-2 rounded-control border px-3 text-[11px] font-light', toolbarSearchShellClass)}>
                 <Search size={13} strokeWidth={1.2} className={isDarkMode ? 'text-white/38' : 'text-slate-400'} />
                 <input
                   value={searchTerm}
@@ -536,7 +536,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>{item.shippingMethod || '—'} · {item.carrierName || '—'}</div>
                       </div>
                       <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <span className={cx('inline-flex rounded-xl border px-2.5 py-1 text-[10px] font-light tracking-wide', statusTone(item.status, isDarkMode))}>
+                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', statusTone(item.status, isDarkMode))}>
                           {statusLabelMap[item.status]}
                         </span>
                       </div>
@@ -578,14 +578,14 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{selectedShipment.shippingMethod || '—'} · {selectedShipment.carrierName || '—'}</div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className={cx('inline-flex rounded-xl border px-2.5 py-1 text-[10px] font-light tracking-wide', statusTone(selectedShipment.status, isDarkMode))}>
+                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', statusTone(selectedShipment.status, isDarkMode))}>
                           {statusLabelMap[selectedShipment.status]}
                         </span>
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => openEditModal(selectedShipment)}
-                            className={cx('h-7 inline-flex items-center gap-1 rounded-xl border px-2.5 text-[10px] font-light tracking-wide transition-colors', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
+                            className={cx('h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
                           >
                             <Pencil size={11} strokeWidth={1.4} />
                             编辑
@@ -593,7 +593,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                           <button
                             type="button"
                             onClick={() => handleDelete(selectedShipment)} disabled={deletingId !== null}
-                            className={cx('h-7 inline-flex items-center gap-1 rounded-xl border px-2.5 text-[10px] font-light tracking-wide transition-colors', isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/55 hover:bg-white/[0.06]' : 'border-slate-300/40 bg-slate-100/50 text-slate-500 hover:bg-slate-100/60')}
+                            className={cx('h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors', isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/55 hover:bg-white/[0.06]' : 'border-slate-300/40 bg-slate-100/50 text-slate-500 hover:bg-slate-100/60')}
                           >
                             <Trash2 size={11} strokeWidth={1.4} />
                             删除

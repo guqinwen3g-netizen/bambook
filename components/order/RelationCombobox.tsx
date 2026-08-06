@@ -96,20 +96,20 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className={`w-full pl-3 pr-9 py-3 border rounded-xl outline-none text-xs font-light ${baseInputCls}`}
+          className={`w-full pl-3 pr-9 py-3 border rounded-control outline-none text-xs font-light ${baseInputCls}`}
         />
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle dropdown"
-          className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-400 hover:text-slate-700'}`}
+          className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-control ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-400 hover:text-slate-700'}`}
         >
           <ChevronDown size={14} strokeWidth={2} />
         </button>
         {relationId && (
           <span
             title={`Linked to Relation ${relationId}`}
-            className={`absolute -top-2 right-2 px-1.5 py-0.5 rounded-md text-[8px] font-light uppercase tracking-wider ${isDarkMode ? 'bg-white/10 text-white/70 border border-white/15' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}
+            className={`absolute -top-2 right-2 px-1.5 py-0.5 rounded-full text-[8px] font-light uppercase tracking-wider ${isDarkMode ? 'bg-white/10 text-white/70 border border-white/15' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}
           >
             FK
           </span>
@@ -118,7 +118,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
 
       {open && (
         <div
-          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border shadow-none ${
+          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border shadow-none ${
             isDarkMode ? 'bg-deep border-white/10' : 'bg-white border-slate-200'
           }`}
         >

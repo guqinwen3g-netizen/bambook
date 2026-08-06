@@ -17,7 +17,7 @@ describe('ExchangeScreen', () => {
 
         expect(html).toContain('gap-1.5 p-2 overflow-hidden');
         expect(html).toContain('flex-1 min-h-0 items-center');
-        expect(html).toContain('rounded-[18px]');
+        expect(html).toContain('rounded-control');
         expect(html).toContain('bg-[var(--bambook-rdl-inset-fill)]');
         expect(html).toContain('text-os-adaptive-brand');
     });
@@ -30,13 +30,13 @@ describe('ExchangeScreen', () => {
             />
         );
 
-        expect(MARKET_INTELLIGENCE_CARD_CLASS).toBe(`${OS_MATERIAL.raisedCard} !rounded-[34px]`);
+        expect(MARKET_INTELLIGENCE_CARD_CLASS).toBe(`${OS_MATERIAL.raisedCard} !rounded-panel`);
         expect(html).toContain(OS_MATERIAL.raisedCard);
         expect(html).not.toContain('bambook-blue-white-surface');
         expect(html).not.toContain('glass-panel');
-        expect(html).toContain('!rounded-[34px]');
+        expect(html).toContain('!rounded-panel');
         expect(html).toContain('bg-[var(--bambook-rdl-inset-fill)]');
-        expect(MARKET_INTELLIGENCE_CARD_CLASS).toContain('!rounded-[34px]');
+        expect(MARKET_INTELLIGENCE_CARD_CLASS).toContain('!rounded-panel');
         expect(html).not.toContain('rounded-sm');
         expect(html).not.toContain('border-white/5');
     });

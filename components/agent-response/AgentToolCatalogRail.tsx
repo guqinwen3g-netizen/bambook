@@ -51,7 +51,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
     return (
       <div className="flex flex-col space-y-1.5 no-drag">
         <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>工具目录</div>
-        <div className={`rounded-xl border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${surfaceClass} ${quietTextClass}`}>
+        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${surfaceClass} ${quietTextClass}`}>
           {status === 'loading' ? '加载中…' : '准备中'}
         </div>
       </div>
@@ -62,7 +62,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
     return (
       <div className="flex flex-col space-y-1.5 no-drag">
         <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>工具目录</div>
-        <div className={`rounded-xl border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${isDarkMode ? 'border-white/15 bg-white/[0.06] text-white/75' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
+        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${isDarkMode ? 'border-white/15 bg-white/[0.06] text-white/75' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
           {error || '工具目录加载失败'}
           {onRetry && (
             <button type="button" onClick={onRetry} className={`ml-2 underline ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
@@ -78,7 +78,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
     return (
       <div className="flex flex-col space-y-1.5 no-drag">
         <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>工具目录</div>
-        <div className={`rounded-xl border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${surfaceClass} ${quietTextClass}`}>暂无可用工具</div>
+        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${surfaceClass} ${quietTextClass}`}>暂无可用工具</div>
       </div>
     );
   }
@@ -98,11 +98,11 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
           const isOpen = openDomains[group.domain] ?? false;
           const approvalCount = group.tools.filter(t => t.safety.approval !== 'never').length;
           return (
-            <div key={group.domain} className={`rounded-xl border ${surfaceClass}`}>
+            <div key={group.domain} className={`rounded-inset border ${surfaceClass}`}>
               <button
                 type="button"
                 onClick={() => setOpenDomains(prev => ({ ...prev, [group.domain]: !isOpen }))}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left ${isDarkMode ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.03]'} rounded-xl`}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left ${isDarkMode ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.03]'} rounded-inset`}
                 title={meta.hint}
               >
                 <Wrench size={11} strokeWidth={1.5} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
@@ -110,7 +110,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
                 <span className={`text-[10px] ${quietTextClass}`}>{group.tools.length}</span>
                 {approvalCount > 0 && (
                   <span
-                    className={`text-[9px] px-1 py-0.5 rounded-md border ${riskPillClass('high', isDarkMode)}`}
+                    className={`text-[9px] px-1 py-0.5 rounded-full border ${riskPillClass('high', isDarkMode)}`}
                     title={`${approvalCount} 个工具需审批`}
                   >
                     {approvalCount} 审批
@@ -127,7 +127,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
                   {group.tools.map(tool => (
                     <div
                       key={tool.id}
-                      className={`group rounded-lg px-2 py-1.5 ${isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-black/[0.03]'}`}
+                      className={`group rounded-compact px-2 py-1.5 ${isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-black/[0.03]'}`}
                       title={tool.inputHint || tool.description || tool.name}
                     >
                       <div className="flex items-center gap-1.5">

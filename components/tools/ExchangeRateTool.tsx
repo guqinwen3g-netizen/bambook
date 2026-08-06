@@ -106,7 +106,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
           <div className="grid grid-cols-2 gap-3">
             {/* Real-time Rate */}
             <div className={`
-              relative overflow-hidden p-4 rounded-xl
+              relative overflow-hidden p-4 rounded-card
               ${isDarkMode
                 ? 'bg-gradient-to-br from-[var(--os-vnext-brand-blue)]/10 to-transparent border border-[var(--os-vnext-brand-blue)]/20'
                 : 'bg-gradient-to-br from-slate-50 to-transparent border border-slate-200'}
@@ -131,7 +131,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
 
             {/* Trade Rate */}
             <div className={`
-              relative overflow-hidden p-4 rounded-xl
+              relative overflow-hidden p-4 rounded-card
               bg-gradient-to-br ${statusSemanticGradient('rebate', isDarkMode)}
             `}>
               <div className="flex items-center gap-1.5 mb-1">
@@ -163,7 +163,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
               onClick={fetchRate}
               disabled={isRefreshing}
               className={`
-                flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-light
+                flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-light
                 transition-all duration-300
                 ${isDarkMode
                   ? 'hover:bg-white/5 text-slate-400 hover:text-[var(--os-vnext-brand-blue)]'
@@ -182,7 +182,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             className={`
-              p-4 rounded-xl
+              p-4 rounded-card
               ${statusSemanticClass('rebate', isDarkMode)}
             `}>
             <div className="flex items-start gap-2.5">
@@ -204,7 +204,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
           </motion.div>
 
           {/* ── Purchase Price Input ── */}
-          <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+          <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
             <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               采购价转美元成本
             </h3>
@@ -220,7 +220,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
                 min="0"
                 step="0.01"
                 className={`
-                  w-full pl-8 pr-4 py-3 rounded-xl text-lg font-light tabular-nums
+                  w-full pl-8 pr-4 py-3 rounded-control text-lg font-light tabular-nums
                   ${isDarkMode
                     ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600 focus:border-[var(--os-vnext-brand-blue)]/50'
                     : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[var(--os-vnext-brand-blue)]'}
@@ -239,7 +239,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
               className="space-y-3"
             >
               {/* Step-by-step */}
-              <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+              <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
                 <h3 className={`text-xs font-light uppercase tracking-wider mb-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   <Calculator size={12} className="inline mr-1.5" />
                   计算过程
@@ -247,7 +247,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
 
                 <div className="space-y-3">
                   {/* Step 1: Tax Refund */}
-                  <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-white/[0.03] border border-white/5' : 'bg-slate-50 border border-slate-100'}`}>
+                  <div className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/[0.03] border border-white/5' : 'bg-slate-50 border border-slate-100'}`}>
                     <div className="flex items-center justify-between">
                       <div>
                         <div className={`text-[10px] font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -271,7 +271,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
                   </div>
 
                   {/* Step 2: Cost Price (CNY) */}
-                  <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-white/[0.03] border border-white/5' : 'bg-slate-50 border border-slate-100'}`}>
+                  <div className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/[0.03] border border-white/5' : 'bg-slate-50 border border-slate-100'}`}>
                     <div className="flex items-center justify-between">
                       <div>
                         <div className={`text-[10px] font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -296,7 +296,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
 
                   {/* Step 3: USD Cost */}
                   <div className={`
-                    p-4 rounded-lg
+                    p-4 rounded-inset
                     ${isDarkMode
                       ? 'bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/20'
                       : 'bg-slate-100/60 border border-slate-200'}
@@ -322,7 +322,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
               </div>
 
               {/* Quick Reference */}
-              <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+              <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
                 <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   汇总
                 </h3>
@@ -383,7 +383,7 @@ const ExchangeRateTool: React.FC<ExchangeRateToolProps> = ({ isDarkMode }) => {
           )}
 
           {/* Formula Explanation */}
-          <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50/50'}`}>
+          <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50/50'}`}>
             <h3 className={`text-[10px] font-light uppercase tracking-wider mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
               计算公式说明
             </h3>

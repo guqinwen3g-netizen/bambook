@@ -39,9 +39,9 @@ describe('digital archive RDL flat [删除中性]', () => {
     expect(ARCHIVE_SRC).not.toContain('hover:bg-red-50');
     expect(ARCHIVE_SRC).not.toContain('hover:bg-red-500/10');
   });
-  it('确认移除按钮中性深色（bg-slate-800 非 bg-red-500）', () => {
+  it('确认移除按钮中性深色（bg-slate-500 非 bg-red-500）', () => {
     expect(ARCHIVE_SRC).not.toContain('bg-red-500 hover:bg-red-600');
-    expect(ARCHIVE_SRC).toContain('bg-slate-800 hover:bg-slate-700');
+    expect(ARCHIVE_SRC).toContain('bg-slate-500 hover:bg-slate-600');
   });
   it('删除弹窗图标容器中性', () => {
     expect(ARCHIVE_SRC).not.toContain('bg-red-500/20 text-red-400');

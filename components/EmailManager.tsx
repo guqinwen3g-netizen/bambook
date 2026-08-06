@@ -808,7 +808,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       }
     } catch (e: any) {
       console.error(`Failed to load detail for ${uid}:`, e);
-      setSelectedEmailBody(`⚠️ Failed to load content: ${e.message || 'Unknown error'}`);
+      setSelectedEmailBody(`内容加载失败：${e.message || 'Unknown error'}`);
     }
 
     if (isMobile) {

@@ -1277,7 +1277,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <div className={`truncate font-light ${isDarkMode ? 'text-white/85' : 'text-slate-900'}`}>{org.name}</div>
                             <div className={`${isDarkMode ? 'text-white/30' : 'text-slate-400'} mt-1 truncate`}>{org.chineseName || org.englishName || org.type}</div>
                           </div>
-                          <span className={`mt-2 inline-flex rounded-lg px-2.5 py-1 text-[10px] font-light tracking-wide ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-soft)]' : 'bg-[var(--os-vnext-brand-blue)]/7 text-[var(--os-vnext-brand-blue-strong)]'}`}>
+                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-soft)]' : 'bg-[var(--os-vnext-brand-blue)]/7 text-[var(--os-vnext-brand-blue-strong)]'}`}>
                             {tierLabel(org.rating)}
                           </span>
                         </div>
@@ -1491,7 +1491,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             {/* Form */}
             <form id="relation-fullscreen-form" onSubmit={handleSave} data-relation-save-error={relationSaveError} data-relation-busy={relationBusy} className="w-full flex-1 min-h-0 px-5 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">
               {relationSaveError && (
-                <div className="col-span-2 text-xs text-slate-500 bg-slate-500/10 rounded-xl px-3 py-2">{relationSaveError}</div>
+                <div className="col-span-2 text-xs text-slate-500 bg-slate-500/10 rounded-control px-3 py-2">{relationSaveError}</div>
               )}
               <input type="hidden" name="isOrganization" value={relationFormIsOrganization ? 'on' : 'off'} />
               <input type="hidden" name="category" value={selectedCategory || 'Other'} />
@@ -1752,7 +1752,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <button
                               type="button"
                               onClick={handleReResolveCoords}
-                              className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg transition-all ${relationFormQuietActionClass}`}
+                              className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-full transition-all ${relationFormQuietActionClass}`}
                               title="重新解析坐标"
                             >
                               <RefreshCw size={12} />
@@ -1829,7 +1829,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                                   <button
                                     type="button"
                                     onClick={() => removeShipToRow(row.id)}
-                                    className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${relationFormInlineDangerClass}`}
+                                    className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-all ${relationFormInlineDangerClass}`}
                                     aria-label="删除此 Ship To"
                                   >
                                     <X size={14} />
@@ -1964,7 +1964,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                               <button
                                 type="button"
                                 onClick={() => removeOtherContactRow(row.id)}
-                                className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${relationFormInlineDangerClass}`}
+                                className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-all ${relationFormInlineDangerClass}`}
                                 aria-label="删除"
                               >
                                 <X size={14} />
@@ -2045,7 +2045,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 </p>
               </div>
               {relationSaveError && (
-                <div className={`text-xs text-slate-500 ${isDarkMode ? 'bg-white/10' : 'bg-slate-100'} rounded-xl px-3 py-2`}>{relationSaveError}</div>
+                <div className={`text-xs text-slate-500 ${isDarkMode ? 'bg-white/10' : 'bg-slate-100'} rounded-control px-3 py-2`}>{relationSaveError}</div>
               )}
               <div className="flex flex-col gap-2">
                 <button

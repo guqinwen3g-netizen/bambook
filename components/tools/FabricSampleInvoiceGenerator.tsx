@@ -86,7 +86,7 @@ const generateInvoiceNumber = (date: Date): string => {
 };
 
 const fieldClass = (isDarkMode: boolean, extra = '') =>
-  `w-full px-3 py-2 rounded-lg text-sm transition-colors focus:outline-none focus:border-[var(--os-vnext-brand-blue)] ${extra} ${
+  `w-full px-3 py-2 rounded-control text-sm transition-colors focus:outline-none focus:border-[var(--os-vnext-brand-blue)] ${extra} ${
     isDarkMode
       ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600'
       : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'
@@ -98,7 +98,7 @@ const labelClass = (isDarkMode: boolean) =>
   }`;
 
 const panelClass = (isDarkMode: boolean) =>
-  `p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`;
+  `p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`;
 
 const readImageFile = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -599,7 +599,8 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
     const confirm = doc.createElement('button');
     confirm.type = 'button';
     confirm.title = '确认并退出编辑';
-    confirm.textContent = '✓';
+    // 使用内联 SVG 对勾图标（UI 禁用 ✓ 文本符号）
+    confirm.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
     confirm.style.position = 'absolute';
     confirm.style.right = '-10px';
     confirm.style.top = '-10px';
@@ -611,6 +612,9 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
     confirm.style.color = 'var(--os-vnext-brand-blue)';
     confirm.style.boxShadow = 'none';
     confirm.style.cursor = 'pointer';
+    confirm.style.display = 'flex';
+    confirm.style.alignItems = 'center';
+    confirm.style.justifyContent = 'center';
     confirm.style.fontSize = '13px';
     confirm.style.lineHeight = '18px';
     confirm.style.padding = '0';
@@ -896,7 +900,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                   <button
                     type="button"
                     onClick={() => handleDeleteSavedInvoice(invoice.id)}
-                    className={`p-2 rounded-lg transition-colors shrink-0 ${
+                    className={`p-2 rounded-control transition-colors shrink-0 ${
                       isDarkMode ? 'text-slate-500 hover:text-rose-400 hover:bg-rose-400/10' : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50'
                     }`}
                     title="删除历史发票"
@@ -926,7 +930,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
         <button
           type="button"
           onClick={() => setActivePage('history')}
-          className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-light transition-all duration-300 ${
+          className={`shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-light transition-all duration-300 ${
             isDarkMode
               ? 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10'
               : 'bg-white/70 text-slate-600 hover:bg-white border border-slate-200'
@@ -997,7 +1001,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className={`p-3 rounded-lg ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-slate-50 border border-slate-200'}`}
+                    className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-slate-50 border border-slate-200'}`}
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <Building2 size={14} className="text-[var(--os-vnext-brand-blue)]" />
@@ -1042,7 +1046,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
             </section>
 
             <section className={panelClass(isDarkMode)}>
-              <div className={`mb-3 rounded-xl border p-3 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-slate-50/70'}`}>
+              <div className={`mb-3 rounded-inset border p-3 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-slate-50/70'}`}>
                 <label className={labelClass(isDarkMode)}>当前云端档案</label>
                 <select
                   value={selectedProfileId}
@@ -1072,7 +1076,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                   <button
                     type="button"
                     onClick={handleSaveProfile}
-                    className={`shrink-0 px-3 py-2 rounded-lg text-xs font-light ${isDarkMode ? 'bg-white/10 text-slate-200 hover:bg-white/15' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                    className={`shrink-0 px-3 py-2 rounded-full text-xs font-light ${isDarkMode ? 'bg-white/10 text-slate-200 hover:bg-white/15' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
                   >
                     {isProfileSaving ? '保存中' : '保存'}
                   </button>
@@ -1081,7 +1085,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                   <button
                     type="button"
                     onClick={handleCreateProfile}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-light ${isDarkMode ? 'bg-white/5 text-slate-400 hover:text-slate-200' : 'bg-white/70 text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-light ${isDarkMode ? 'bg-white/5 text-slate-400 hover:text-slate-200' : 'bg-white/70 text-slate-500 hover:text-slate-700'}`}
                   >
                     用当前内容另存为新档案
                   </button>
@@ -1123,7 +1127,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                   className="mt-3 overflow-hidden"
                 >
                   <div className="grid grid-cols-2 gap-3 mb-3">
-                    <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-light cursor-pointer transition-colors ${
+                    <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-light cursor-pointer transition-colors ${
                       isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}>
                       <Upload size={13} />
@@ -1135,7 +1139,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                         onChange={e => handleImageUpload(e, 'logoDataUrl')}
                       />
                     </label>
-                    <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-light cursor-pointer transition-colors ${
+                    <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-light cursor-pointer transition-colors ${
                       isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}>
                       <ImageIcon size={13} />
@@ -1238,7 +1242,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                 </h3>
                 <button
                   onClick={() => setItems(prev => [...prev, createEmptyFabricInvoiceItem()])}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-light transition-all duration-300 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-light transition-all duration-300 ${
                     isDarkMode
                       ? 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/20'
                       : 'bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.08)] text-[var(--os-vnext-brand-blue)] hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.12)]'
@@ -1255,7 +1259,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                     key={item.id}
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`rounded-xl p-3 border ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-slate-50/70'}`}
+                    className={`rounded-inset p-3 border ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-slate-50/70'}`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span className={`text-xs font-light ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
@@ -1264,7 +1268,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                       <button
                         onClick={() => setItems(prev => prev.length > 1 ? prev.filter(row => row.id !== item.id) : prev)}
                         disabled={items.length === 1}
-                        className={`p-1.5 rounded-lg transition-all duration-300 ${
+                        className={`p-1.5 rounded-control transition-all duration-300 ${
                           items.length === 1
                             ? 'opacity-30 cursor-not-allowed'
                             : isDarkMode
@@ -1305,7 +1309,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                       </div>
                       {(productSuggestions[item.id] || []).length > 0 && (
                         <div className="col-span-12">
-                          <div className={`rounded-xl border overflow-hidden ${isDarkMode ? 'border-white/10 bg-slate-950/70' : 'border-slate-200 bg-white shadow-none'}`}>
+                          <div className={`rounded-inset border overflow-hidden ${isDarkMode ? 'border-white/10 bg-slate-950/70' : 'border-slate-200 bg-white shadow-none'}`}>
                             {(productSuggestions[item.id] || []).map(product => {
                               const clientCode = activeCustomerCode(product);
                               const fabric = fabricDisplayName(product);
@@ -1399,7 +1403,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="col-span-3 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-light bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)]/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="col-span-3 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)]/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <FileCode size={16} />}
                 生成预览
@@ -1407,7 +1411,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleSaveInvoice}
                 disabled={!previewHtml}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-light transition-all duration-300 ${
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light transition-all duration-300 ${
                   previewHtml
                     ? isDarkMode
                       ? 'bg-white/10 text-white hover:bg-white/20'
@@ -1421,7 +1425,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleDownloadHtml}
                 disabled={!previewHtml}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-light transition-all duration-300 ${
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light transition-all duration-300 ${
                   previewHtml
                     ? isDarkMode
                       ? 'bg-white/10 text-white hover:bg-white/20'
@@ -1435,7 +1439,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleSavePdf}
                 disabled={!previewHtml}
-                className={`col-span-3 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-light transition-all duration-300 ${
+                className={`col-span-3 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light transition-all duration-300 ${
                   previewHtml
                     ? isDarkMode
                       ? 'bg-white/10 text-white hover:bg-white/20'
@@ -1452,7 +1456,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex items-center gap-2 p-3 rounded-xl text-sm ${
+                className={`flex items-center gap-2 p-3 rounded-inset text-sm ${
                   generationStatus === 'success'
                     ? 'bg-emerald-500/10 text-emerald-500'
                     : 'bg-rose-500/10 text-rose-500'
@@ -1464,7 +1468,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
             )}
           </div>
 
-          <section className={`rounded-xl overflow-hidden flex flex-col min-h-[760px] ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+          <section className={`rounded-card overflow-hidden flex flex-col min-h-[760px] ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
             <div className={`px-4 py-3 border-b flex-shrink-0 flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
               <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 预览区域

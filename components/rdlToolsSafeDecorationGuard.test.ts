@@ -35,18 +35,17 @@ describe('RDL tools safe decoration [已清理]', () => {
 
 // ═══ Part 2: 业务语义色未被误清（冻结项保留）═══
 describe('RDL tools safe decoration [业务语义保留]', () => {
-  it('ExchangeRateTool 退税概念色/实时脉冲保留 (emerald)', () => {
+  it('ExchangeRateTool 退税概念语义保留（经 rdlBusinessStatusTokens 中性 token）', () => {
     expect(EXCHANGE).toContain('REBATE_RATE');
-    expect(EXCHANGE).toContain('bg-emerald-400'); // 实时脉冲
-    expect(EXCHANGE).toContain('bg-emerald-500');
+    expect(EXCHANGE).toContain("statusSemanticText('rebate'");
+    expect(EXCHANGE).toContain("statusSemanticClass('rebate'");
   });
   it('Fabric status banner/destructive 保留 (emerald/rose)', () => {
     expect(FABRIC).toContain('bg-emerald-500/10');
     expect(FABRIC).toContain('bg-rose-500/10');
     expect(FABRIC).toContain('hover:text-rose-400');
   });
-  it('Shipping destructive 保留 (red/rose)', () => {
-    expect(SHIPPING).toContain('text-rose-500');
-    expect(SHIPPING).toContain('border-rose-200');
+  it('Shipping destructive 语义保留（经 rdlBusinessStatusTokens 中性 token）', () => {
+    expect(SHIPPING).toContain("statusSemanticText('destructive'");
   });
 });

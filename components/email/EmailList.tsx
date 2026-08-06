@@ -76,7 +76,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                 ) : (
                     <button
                         onClick={loadMore}
-                        className={`w-full py-3 border text-[10px] font-light uppercase tracking-widest rounded-xl transition-all ${actionControlClass}`}
+                        className={`w-full py-3 border text-[10px] font-light uppercase tracking-widest rounded-full transition-all ${actionControlClass}`}
                     >
                         Load Previous Messages
                     </button>
@@ -116,7 +116,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                                     {initials}
                                 </div>
                                 {!email.isRead && (
-                                    <div className={`absolute -top-1 -right-1 w-3 h-3 bg-[var(--os-vnext-brand-blue)] rounded-full border-2 shadow-none ring-0 ${isDarkMode ? 'border-[#1a1c24]' : 'border-white'}`}></div>
+                                    <div className={`absolute -top-1 -right-1 w-3 h-3 bg-[var(--os-vnext-brand-blue)] rounded-full border-2 shadow-none ring-0 ${isDarkMode ? 'border-deep' : 'border-white'}`}></div>
                                 )}
                             </div>
 

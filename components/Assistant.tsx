@@ -1650,35 +1650,35 @@ const Assistant: React.FC<AssistantProps> = ({
             const delta = String(event.metadata?.delta ?? event.message ?? '');
             if (delta) {
               streamingThoughtText += delta;
-              updateThinkingDisplay([`💭 ${streamingThoughtText.trim()}`]);
+              updateThinkingDisplay([`思考 — ${streamingThoughtText.trim()}`]);
             }
           }
           if (event.phase === 'thought' && event.message) {
             const thoughtText = event.message.trim();
             if (thoughtText) {
               streamingThoughtText = thoughtText;
-              updateThinkingDisplay([`💭 ${thoughtText}`]);
+              updateThinkingDisplay([`思考 — ${thoughtText}`]);
             }
           }
           if (event.phase === 'plan' && event.metadata?.plan) {
             const planItems = event.metadata.plan as Array<{ toolId: string; why?: string }>;
             if (planItems.length > 0) {
               updateThinkingDisplay(planItems.map(item =>
-                `🔧 准备调用 ${item.toolId}${item.why ? ' — ' + item.why : ''}`,
+                `计划调用 ${item.toolId}${item.why ? ' — ' + item.why : ''}`,
               ));
             }
           }
           if (event.phase === 'tool_call_start' && event.toolId) {
             const why = (event as any).message || event.metadata?.why || '';
-            updateThinkingDisplay([`⏳ 正在执行 ${event.toolId}${why ? ' — ' + why : ''}`]);
+            updateThinkingDisplay([`正在执行 ${event.toolId}${why ? ' — ' + why : ''}`]);
           }
           if (event.phase === 'tool_call_end' && event.toolId) {
             if (event.status === 'complete') {
               const summary = (event as any).summary || event.metadata?.outputSummary || '已完成';
-              updateThinkingDisplay([`✅ ${event.toolId} 完成 — ${summary}`]);
+              updateThinkingDisplay([`${event.toolId} 完成 — ${summary}`]);
             } else if (event.status === 'failed') {
               const errMsg = (event as any).message || event.metadata?.error?.message || '执行失败';
-              updateThinkingDisplay([`❌ ${event.toolId} 失败 — ${errMsg}`]);
+              updateThinkingDisplay([`${event.toolId} 失败 — ${errMsg}`]);
             }
           }
         },
@@ -2084,7 +2084,7 @@ const Assistant: React.FC<AssistantProps> = ({
   const workspaceTabClass = (selected: boolean) => selected
     ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light)
     : `border-transparent ${isDarkMode ? 'text-white/50 hover:text-white/82 hover:bg-white/[0.04]' : 'text-slate-500 hover:text-slate-900 hover:bg-white/35'}`;
-  const agentFullscreenBackgroundClass = isDarkMode ? 'bg-[#070D15]' : 'bg-[#D8DEE7]';
+  const agentFullscreenBackgroundClass = isDarkMode ? 'bg-app-dark' : 'bg-app-light';
   const agentRootClass = isAgentFullscreen
     ? `fixed inset-0 z-[420] flex h-dvh min-h-0 flex-col overflow-hidden ${agentFullscreenBackgroundClass}`
     : 'flex h-full min-h-0 w-full flex-col overflow-hidden';
@@ -2235,7 +2235,7 @@ const Assistant: React.FC<AssistantProps> = ({
                         setActiveAgentId('default');
                         startNewConversation();
                       }}
-                      className={`-mt-[10px] w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-light transition-all no-drag ${actionControlClass}`}
+                      className={`-mt-[10px] w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-full border flex items-center justify-center gap-1.5 text-xs font-light transition-all no-drag ${actionControlClass}`}
                       title="新建对话"
                     >
                       <Plus size={13} strokeWidth={1.5} className="shrink-0" />
@@ -2255,7 +2255,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 key={agent.id}
                                 type="button"
                                 onClick={() => selectAgent(agent.id)}
-                                className={`w-full rounded-xl px-2.5 py-2 flex items-center gap-3 text-left transition-all ${
+                                className={`w-full rounded-inset px-2.5 py-2 flex items-center gap-3 text-left transition-all ${
                                   isActive
                                     ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light)
                                     : `hover:bg-black/[0.03] dark:hover:bg-white/[0.03] text-slate-600 dark:text-slate-300`
@@ -2277,7 +2277,7 @@ const Assistant: React.FC<AssistantProps> = ({
                             <button
                               type="button"
                               onClick={() => showToast('Agent 功能商店即将上线，敬请期待！')}
-                              className={`w-full h-8 shrink-0 rounded-xl border border-dashed flex items-center justify-center gap-1.5 text-[11px] font-light transition-all no-drag ${actionControlClass}`}
+                              className={`w-full h-8 shrink-0 rounded-full border border-dashed flex items-center justify-center gap-1.5 text-[11px] font-light transition-all no-drag ${actionControlClass}`}
                             >
                               <Plus size={12} strokeWidth={1.5} className="shrink-0" />
                               <span>添加 Agent 功能</span>
@@ -2290,15 +2290,15 @@ const Assistant: React.FC<AssistantProps> = ({
                     <div className="flex-1 flex flex-col min-h-0 mt-[20px] pt-3 border-t border-dashed border-slate-200 dark:border-slate-800 no-drag">
                       <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light mb-1.5 shrink-0 ${labelTextClass}`}>最近对话</div>
                       {isHistoryLoading && sessions.length === 0 && (
-                        <div className={`rounded-xl border px-2.5 py-2 text-[11px] shrink-0 ${actionControlClass}`}>正在加载...</div>
+                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] shrink-0 ${actionControlClass}`}>正在加载...</div>
                       )}
                       {!isHistoryLoading && historyError && (
-                        <div className={`rounded-xl border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/55' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/55' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
                           {historyError === 'Login required.' ? '登录后显示个人历史对话。' : historyError}
                         </div>
                       )}
                       {!isHistoryLoading && !historyError && sessions.length === 0 && (
-                        <div className={`rounded-xl border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${actionControlClass}`}>还没有历史对话。</div>
+                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${actionControlClass}`}>还没有历史对话。</div>
                       )}
                       <div className="relative flex-1 min-h-0">
                         <ScrollEdgeFades scrollRef={historyScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
@@ -2314,7 +2314,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 compilerRole="history-item"
                                 source="Assistant.history"
                                 idleSpotlightOpacity={0}
-                                className={`w-full rounded-xl text-left transition-all ${isActive ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : ''}`}
+                                className={`w-full rounded-inset text-left transition-all ${isActive ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : ''}`}
                               >
                                 {isEditing ? (
                                   <div className="p-2">
@@ -2332,13 +2332,13 @@ const Assistant: React.FC<AssistantProps> = ({
                                         }
                                       }}
                                       autoFocus
-                                      className={`h-7 w-full rounded-[12px] border bg-transparent px-2 text-[12px] font-light outline-none ${fieldClass}`}
+                                      className={`h-8 w-full rounded-compact border bg-transparent px-2 text-[12px] font-light outline-none ${fieldClass}`}
                                     />
                                     <div className="mt-1.5 flex justify-end gap-1">
                                       <button
                                         type="button"
                                         onClick={cancelRenameSession}
-                                        className={`h-6 w-6 rounded-[10px] border flex items-center justify-center ${actionControlClass}`}
+                                        className={`h-8 w-8 rounded-control border flex items-center justify-center ${actionControlClass}`}
                                         title="取消"
                                       >
                                         <X size={12} strokeWidth={1.4} />
@@ -2347,7 +2347,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                         type="button"
                                         disabled={isActing}
                                         onClick={() => submitRenameSession(session.id)}
-                                        className={`h-6 w-6 rounded-[10px] border flex items-center justify-center disabled:opacity-40 ${actionControlClass}`}
+                                        className={`h-8 w-8 rounded-control border flex items-center justify-center disabled:opacity-40 ${actionControlClass}`}
                                         title="保存名称"
                                       >
                                         <Check size={12} strokeWidth={1.4} />
@@ -2406,7 +2406,7 @@ const Assistant: React.FC<AssistantProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsSettingsDrawerOpen(true)}
-                      className={`w-full flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-left transition-colors no-drag ${isDarkMode ? 'hover:bg-white/[0.04] text-white/50' : 'hover:bg-slate-100 text-slate-500'}`}
+                      className={`w-full flex items-center gap-2 rounded-inset px-2.5 py-1.5 text-left transition-colors no-drag ${isDarkMode ? 'hover:bg-white/[0.04] text-white/50' : 'hover:bg-slate-100 text-slate-500'}`}
                       title="设置"
                     >
                       <Settings size={14} strokeWidth={1.4} className="shrink-0" />
@@ -2511,7 +2511,7 @@ const Assistant: React.FC<AssistantProps> = ({
                               patchAgentSessionContext({ workspace: workspaceBindingFromItem(item) });
                             }
                           }}
-                          className={`group flex h-7 max-w-[220px] shrink-0 items-center gap-1.5 rounded-[12px] border px-2.5 text-xs font-light transition-all ${workspaceTabClass(selected)}`}
+                          className={`group flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-light transition-all ${workspaceTabClass(selected)}`}
                           title={item.title}
                         >
                           <span className="truncate">{item.title}</span>
@@ -2760,18 +2760,18 @@ const Assistant: React.FC<AssistantProps> = ({
                   ) : isWorkspaceFinderOpen ? (
                     <div className="flex h-full flex-col p-4">
                       <div className="flex shrink-0 items-center justify-between gap-2">
-                        <div className={`flex h-9 shrink-0 items-center rounded-compact border p-1 ${fieldClass}`}>
+                        <div className={`flex h-10 shrink-0 items-center rounded-compact border p-1 ${fieldClass}`}>
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('bambook')}
-                            className={`h-7 rounded-[11px] px-3 text-xs font-light transition-all ${workspaceFileSource === 'bambook' ? (isDarkMode ? 'bg-white/12 text-white' : 'bg-slate-900/10 text-slate-900') : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'bambook' ? (isDarkMode ? 'bg-white/12 text-white' : 'bg-slate-900/10 text-slate-900') : quietTextClass}`}
                           >
                             Bambook 内容
                           </button>
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('local')}
-                            className={`h-7 rounded-[11px] px-3 text-xs font-light transition-all ${workspaceFileSource === 'local' ? (isDarkMode ? 'bg-white/12 text-white' : 'bg-slate-900/10 text-slate-900') : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'local' ? (isDarkMode ? 'bg-white/12 text-white' : 'bg-slate-900/10 text-slate-900') : quietTextClass}`}
                           >
                             本地文件
                           </button>
@@ -2997,7 +2997,7 @@ const Assistant: React.FC<AssistantProps> = ({
                     </div>
                     <div className={`text-sm font-light ${bodyTextClass}`}>{currentAgent.name}</div>
                     <div className={`mt-1 text-xs font-light ${quietTextClass}`}>{currentAgent.desc}</div>
-                    <div className={`mt-4 max-w-sm text-xs leading-5 ${quietTextClass} border border-dashed rounded-xl p-3 bg-slate-500/[0.02]`}>
+                    <div className={`mt-4 max-w-sm text-xs leading-5 ${quietTextClass} border border-dashed rounded-inset p-3 bg-slate-500/[0.02]`}>
                       {activeAgentId === 'default' && '我是您的全能助手。可以直接提问，或上传文档、订单进行分析与处理。'}
                       {activeAgentId === 'translation' && '支持中英日韩等十余种语言互译，以及学术/商务格式化润色。可以直接发送你想翻译的段落。'}
                       {activeAgentId === 'analysis' && '已为您连接 Bambook 数据中心。可以输入例如“分析上个月销量最好的三个服装款式”或“生成客户关系图表”。'}
@@ -3202,7 +3202,7 @@ const Assistant: React.FC<AssistantProps> = ({
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 15, scale: 0.95 }}
-            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 rounded-xl shadow-none border text-xs font-light flex items-center gap-2 ${
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 rounded-full shadow-none border text-xs font-light flex items-center gap-2 ${
               isDarkMode 
                 ? 'bg-slate-900/90 border-slate-700/50 text-white' 
                 : 'bg-white/95 border-slate-200 text-slate-800'

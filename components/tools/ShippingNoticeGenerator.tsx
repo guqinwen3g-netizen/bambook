@@ -267,7 +267,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
         </div>
         <button
           onClick={handleReset}
-          className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+          className={`p-2 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
           title="重置"
         >
           <RefreshCw size={16} />
@@ -279,7 +279,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
           {/* Left Column - PO Selection */}
           <div className="space-y-3">
             {/* PO Search */}
-            <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+            <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
               <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 订单选择
               </h3>
@@ -293,7 +293,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   onChange={(e) => setSearchKeyword(e.target.value)}
                   placeholder="搜索 PO 号、客户或供应商..."
                   className={`
-                    w-full pl-9 pr-3 py-2 rounded-lg text-sm
+                    w-full pl-9 pr-3 py-2 rounded-control text-sm
                     ${isDarkMode
                       ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-500'
                       : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'}
@@ -329,7 +329,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         onClick={() => handleAddPO(po)}
                         className={`
-                          w-full p-3 rounded-lg text-left transition-all
+                          w-full p-3 rounded-inset text-left transition-all
                           ${isDarkMode
                             ? 'bg-white/5 hover:bg-white/10 border border-white/5'
                             : 'bg-slate-50 hover:bg-slate-100 border border-slate-200'}
@@ -368,7 +368,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
 
             {/* Selected POs */}
             {selectedPOs.length > 0 && (
-              <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+              <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     已选订单 ({selectedPOs.length})
@@ -379,7 +379,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     <div
                       key={po.po_number}
                       className={`
-                        flex items-center justify-between p-2 rounded-lg
+                        flex items-center justify-between p-2 rounded-inset
                         ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/[0.05] border border-[var(--os-vnext-brand-blue)]/20'}
                       `}
                     >
@@ -407,7 +407,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
           {/* Right Column - Shipping Options */}
           <div className="space-y-3">
             {/* Basic Info */}
-            <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+            <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
               <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 发货信息
               </h3>
@@ -421,7 +421,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     value={options.destinationPort}
                     onChange={(e) => setOptions({ ...options, destinationPort: e.target.value })}
                     className={`
-                      w-full px-3 py-2 rounded-lg text-sm
+                      w-full px-3 py-2 rounded-control text-sm
                       ${isDarkMode
                         ? 'bg-white/5 border border-white/10 text-white'
                         : 'bg-white border border-slate-200 text-slate-900'}
@@ -445,7 +445,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     value={options.shipmentDate}
                     onChange={(e) => setOptions({ ...options, shipmentDate: e.target.value })}
                     className={`
-                      w-full px-3 py-2 rounded-lg text-sm
+                      w-full px-3 py-2 rounded-control text-sm
                       ${isDarkMode
                         ? 'bg-white/5 border border-white/10 text-white'
                         : 'bg-white border border-slate-200 text-slate-900'}
@@ -463,7 +463,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     value={options.paymentTerms}
                     onChange={(e) => setOptions({ ...options, paymentTerms: e.target.value })}
                     className={`
-                      w-full px-3 py-2 rounded-lg text-sm
+                      w-full px-3 py-2 rounded-control text-sm
                       ${isDarkMode
                         ? 'bg-white/5 border border-white/10 text-white'
                         : 'bg-white border border-slate-200 text-slate-900'}
@@ -488,7 +488,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                         key={method}
                         onClick={() => setOptions({ ...options, shippingMethod: method })}
                         className={`
-                          flex-1 py-2 rounded-lg text-sm transition-colors
+                          flex-1 py-2 rounded-full text-sm transition-colors
                           ${options.shippingMethod === method
                             ? 'bg-[var(--os-vnext-brand-blue)] text-white'
                             : isDarkMode
@@ -512,7 +512,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     value={options.forwarder}
                     onChange={(e) => setOptions({ ...options, forwarder: e.target.value })}
                     className={`
-                      w-full px-3 py-2 rounded-lg text-sm
+                      w-full px-3 py-2 rounded-control text-sm
                       ${isDarkMode
                         ? 'bg-white/5 border border-white/10 text-white'
                         : 'bg-white border border-slate-200 text-slate-900'}
@@ -531,7 +531,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     onChange={(e) => setOptions({ ...options, remarks: e.target.value })}
                     rows={2}
                     className={`
-                      w-full px-3 py-2 rounded-lg text-sm resize-none
+                      w-full px-3 py-2 rounded-control text-sm resize-none
                       ${isDarkMode
                         ? 'bg-white/5 border border-white/10 text-white'
                         : 'bg-white border border-slate-200 text-slate-900'}
@@ -549,7 +549,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-3 rounded-lg border flex items-center gap-2 ${statusSemanticClass('success', isDarkMode)}`}
+                  className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('success', isDarkMode)}`}
                 >
                   <CheckCircle2 size={16} className={statusSemanticText('success', isDarkMode)} />
                   <span className="text-sm">
@@ -562,7 +562,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-3 rounded-lg border flex items-center gap-2 ${statusSemanticClass('danger', isDarkMode)}`}
+                  className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('danger', isDarkMode)}`}
                 >
                   <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
                   <span className="text-sm">
@@ -576,7 +576,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                 onClick={handleGenerate}
                 disabled={isGenerating || selectedPOs.length === 0}
                 className={`
-                  w-full py-3 rounded-xl font-light text-sm flex items-center justify-center gap-2
+                  w-full py-3 rounded-full font-light text-sm flex items-center justify-center gap-2
                   transition-all duration-300
                   ${isGenerating
                     ? 'bg-slate-500 cursor-not-allowed'

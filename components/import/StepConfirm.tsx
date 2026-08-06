@@ -27,7 +27,7 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
 
   return (
     <div className="space-y-4">
-      <div className={`rounded-xl p-5 ${card}`}>
+      <div className={`rounded-card p-5 ${card}`}>
         <h4 className={`text-xs font-light tracking-widest uppercase mb-4 ${labelCls}`}>
           导入摘要
         </h4>
@@ -54,7 +54,7 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
         )}
       </div>
 
-      <div className={`rounded-xl p-4 ${card}`}>
+      <div className={`rounded-card p-4 ${card}`}>
         <h4 className={`text-xs font-light tracking-widest uppercase mb-3 ${labelCls}`}>
           逐文件状态
         </h4>
@@ -81,7 +81,7 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
       </div>
 
       <div
-        className={`rounded-xl p-4 flex items-start gap-3 ${
+        className={`rounded-inset p-4 flex items-start gap-3 ${
           isDarkMode
             ? 'bg-white/10 border border-white/15 text-white/55'
             : 'bg-slate-50 border border-slate-200 text-slate-500'

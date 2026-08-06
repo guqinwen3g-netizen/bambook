@@ -170,7 +170,7 @@ export default function ImageUploader({
             <div
               key={img.id}
               className={`
-                relative group rounded-xl overflow-hidden border
+                relative group rounded-inset overflow-hidden border
                 transition-all duration-200
                 ${img.isPrimary
                   ? isDarkMode
@@ -216,7 +216,7 @@ export default function ImageUploader({
                 {!img.isPrimary && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleSetPrimary(img.id); }}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded-control transition-colors ${
                       isDarkMode ? 'bg-white/15 hover:bg-white/25 text-white/80' : 'bg-white/80 hover:bg-white text-slate-700'
                     }`}
                     title="设为主图"
@@ -229,7 +229,7 @@ export default function ImageUploader({
                 {idx > 0 && (
                   <button
                     onClick={(e) => { e.stopPropagation(); moveUp(idx); }}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded-control transition-colors ${
                       isDarkMode ? 'bg-white/15 hover:bg-white/25 text-white/80' : 'bg-white/80 hover:bg-white text-slate-700'
                     }`}
                     title="上移"
@@ -241,7 +241,7 @@ export default function ImageUploader({
                 {/* Delete */}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(img.id); }}
-                  className={`p-1.5 rounded-lg transition-colors ${
+                  className={`p-1.5 rounded-control transition-colors ${
                     isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white/55' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
                   }`}
                   title="删除"

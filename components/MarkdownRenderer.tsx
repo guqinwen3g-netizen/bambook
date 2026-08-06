@@ -16,7 +16,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isD
                 code({ node, inline, className, children, ...props }: any) {
                     const match = /language-(\w+)/.exec(className || '');
                     return !inline && match ? (
-                        <div className="relative rounded-lg overflow-hidden my-3 border border-white/10 shadow-none bg-[#1e1e1e]">
+                        <div className="relative rounded-inset overflow-hidden my-3 border border-white/10 shadow-none bg-deep">
                             <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/5">
                                 <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">{match[1]}</span>
                                 <div className="flex gap-1.5 opacity-50">
@@ -38,7 +38,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isD
                 // 2. Tables
                 table({ children }) {
                     return (
-                        <div className="overflow-x-auto my-4 rounded-xl border border-white/10 shadow-none">
+                        <div className="overflow-x-auto my-4 rounded-inset border border-white/10 shadow-none">
                             <table className={`w-full text-sm text-left ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{children}</table>
                         </div>
                     );

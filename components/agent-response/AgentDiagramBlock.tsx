@@ -21,7 +21,7 @@ export const AgentDiagramBlock: React.FC<AgentBlockComponentProps<AgentDiagramBl
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {block.nodes.map(node => (
-          <div key={node.id} className={`min-w-0 rounded-xl border px-3 py-2 ${borderClass}`}>
+          <div key={node.id} className={`min-w-0 rounded-compact border px-3 py-2 ${borderClass}`}>
             <div className={`truncate text-xs ${isDarkMode ? 'text-white/78' : 'text-slate-800'}`}>{node.label}</div>
             {node.subtitle && <div className={`mt-0.5 truncate text-[11px] ${quietTextClass}`}>{node.subtitle}</div>}
           </div>
@@ -29,7 +29,7 @@ export const AgentDiagramBlock: React.FC<AgentBlockComponentProps<AgentDiagramBl
       </div>
 
       {block.edges.length > 0 && (
-        <div className={`mt-3 rounded-xl border px-3 py-2 ${borderClass}`}>
+        <div className={`mt-3 rounded-compact border px-3 py-2 ${borderClass}`}>
           <div className={`text-[10px] uppercase tracking-widest ${labelTextClass}`}>关系</div>
           <div className="mt-2 flex flex-col gap-1.5">
             {block.edges.slice(0, 6).map((edge, index) => (

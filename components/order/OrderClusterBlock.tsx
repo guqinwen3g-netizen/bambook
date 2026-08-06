@@ -86,7 +86,7 @@ const OrderClusterBlock: React.FC<OrderClusterBlockProps> = ({
           {accent && (
             <span
               aria-hidden
-              className="w-1.5 h-6 rounded-full"
+              className="w-1.5 h-8 rounded-full"
               style={{ background: accent }}
             />
           )}

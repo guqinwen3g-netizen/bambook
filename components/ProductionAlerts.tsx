@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AlertCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { apiService } from '../services/apiService';
 
 const cx = (...args: any[]) => args.filter(Boolean).join(' ');
 
@@ -21,21 +22,38 @@ interface ProductionAlertsProps {
 export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode = false, onSelectOrder }) => {
   const [alerts, setAlerts] = useState<ProdAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
+  // 统一 apiService 通道：apiBase 解析 + 认证头（原相对路径裸 fetch 在 Electron file:// 下必失败且静默）
   const fetchAlerts = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/production/alerts/scan');
-      const data = await res.json();
-      if (data.ok) setAlerts(data.alerts || []);
-    } catch { /* ignore */ }
+      const items = await apiService.scanProductionAlerts();
+      setAlerts(items);
+      setLoadError(null);
+    } catch (e: any) {
+      // fail closed：扫描失败显式呈现，不静默吞错
+      setLoadError(e?.message || '预警扫描失败');
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchAlerts(); const t = setInterval(fetchAlerts, 60000); return () => clearInterval(t); }, [fetchAlerts]);
 
   if (loading) return null;
-  if (alerts.length === 0) return null;
+  if (alerts.length === 0 && !loadError) return null;
+
+  if (loadError) {
+    return (
+      <div className={cx(
+        'mb-3 flex items-center gap-2 rounded-card border p-3',
+        isDarkMode ? 'bg-red-500/[0.06] border-red-500/20 text-red-400' : 'bg-red-50 border-red-200 text-red-600',
+      )}>
+        <AlertCircle size={14} className="shrink-0" />
+        <span className="text-[11px] font-light tracking-wide">生产预警扫描失败：{loadError}</span>
+      </div>
+    );
+  }
 
   const critical = alerts.filter(a => a.severity === 'critical').length;
   const high = alerts.filter(a => a.severity === 'high').length;
@@ -50,7 +68,7 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
 
   return (
     <div className={cx(
-      'mb-3 rounded-2xl border p-3',
+      'mb-3 rounded-card border p-3',
       isDarkMode ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white border-slate-200/60',
     )}>
       <button
@@ -73,7 +91,7 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
             key={`${alert.orderId}-${idx}`}
             onClick={() => onSelectOrder?.(alert.orderId)}
             className={cx(
-              'flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-all hover:opacity-80',
+              'flex cursor-pointer items-center gap-2 rounded-full border px-2.5 py-1.5 transition-all hover:opacity-80',
               sevColor(alert.severity),
             )}
           >

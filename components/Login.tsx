@@ -38,14 +38,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
     }
   };
 
-  const inputCls = `w-full px-4 py-3 rounded-xl border outline-none text-sm transition-all ${
+  const inputCls = `w-full px-4 py-3 rounded-control border outline-none text-sm transition-all ${
     isDarkMode
       ? 'bg-deep/40 border-white/10 text-white placeholder-slate-500 focus:border-[var(--os-vnext-brand-blue)]/60'
       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
   }`;
 
   return (
-    <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center ${isDarkMode ? 'bg-[#0a1628]' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
+    <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
       <div className={`w-full max-w-sm p-8 rounded-card-lg border ${
         isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-white/80 border-white/40 shadow-none'
       }`}>
@@ -93,7 +93,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
           </div>
 
           {error && (
-            <div className="text-xs text-slate-500 bg-slate-500/10 border border-slate-500/20 rounded-lg px-3 py-2">
+            <div className="text-xs text-slate-500 bg-slate-500/10 border border-slate-500/20 rounded-inset px-3 py-2">
               {error}
             </div>
           )}
@@ -101,7 +101,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
           <button
             type="submit"
             disabled={isLoading || !email || !password}
-            className={`w-full py-3 rounded-xl text-sm font-light transition-all ${
+            className={`w-full py-3 rounded-full text-sm font-light transition-all ${
               isLoading || !email || !password
                 ? 'bg-slate-500/30 text-slate-400 cursor-not-allowed'
                 : 'bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98]'

@@ -27,16 +27,16 @@ const LIFECYCLE_LABEL: Record<AgentToolLifecycleBlock['lifecycleStatus'], string
   parameterized: '参数生成',
   permission_checked: '权限检查',
   running: '执行中',
-  succeeded: '✅ 完成',
-  failed: '❌ 失败',
-  blocked: '🔒 阻塞',
+  succeeded: '完成',
+  failed: '失败',
+  blocked: '阻塞',
 };
 
 const APPROVAL_LABEL: Record<AgentApprovalBlock['approvalStatus'], string> = {
-  pending: '⏳ 等待审批',
-  approved: '✅ 已批准',
-  rejected: '❌ 已拒绝',
-  modified: '✏️ 已修改',
+  pending: '等待审批',
+  approved: '已批准',
+  rejected: '已拒绝',
+  modified: '已修改',
 };
 
 function serializeBlocksForCopy(blocks: AgentResponseBlock[], answerText: string, userPrompt?: string, events?: AgentWorkEvent[]): string {
@@ -105,7 +105,7 @@ function serializeBlocksForCopy(blocks: AgentResponseBlock[], answerText: string
         lines.push('');
       } else if (ev.phase === 'tool_call_end' && ev.toolId) {
         lines.push(`── 工具: ${ev.toolId} ──`);
-        lines.push(`   状态: ${ev.status === 'complete' ? '✅ 完成' : '❌ 失败'}`);
+        lines.push(`   状态: ${ev.status === 'complete' ? '完成' : '失败'}`);
         if (ev.summary) lines.push(`   摘要: ${ev.summary.slice(0, 300)}`);
         if (ev.metadata?.error) lines.push(`   错误: ${JSON.stringify(ev.metadata.error).slice(0, 300)}`);
         lines.push('');
@@ -228,8 +228,8 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
 
   // user 气泡 hover 操作按钮（icon-only，紧凑），与 model 操作栏共用设计语言
   const userActionBtnClass = isDarkMode
-    ? 'flex items-center justify-center rounded-md p-1 text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/70'
-    : 'flex items-center justify-center rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600';
+    ? 'flex items-center justify-center rounded-control p-1 text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/70'
+    : 'flex items-center justify-center rounded-control p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600';
   const userEditorClass = isDarkMode
     ? 'w-full max-w-[85%] rounded-inset border border-white/15 bg-white/[0.06] px-3 py-2.5'
     : 'w-full max-w-[85%] rounded-inset border border-slate-300/70 bg-white px-3 py-2.5';
@@ -250,7 +250,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
         <>
           {/* 身份头：头像 + 名字 + 时间/token badge */}
           <div className="mb-3 flex items-center gap-2.5">
-            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/8'}`}>
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-control ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/8'}`}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className={isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]'}>
                 <path d="M8 1L1 5v6l7 4 7-4V5L8 1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
                 <path d="M1 5l7 4m0 0l7-4m-7 4v6" stroke="currentColor" strokeWidth="1.2" />
@@ -340,7 +340,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                 <button
                   type="button"
                   onClick={() => onCopy?.(messageKey, message.text)}
-                  className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
                   title="复制回复"
                   aria-label="复制回复"
                 >
@@ -355,7 +355,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                     const fullText = serializeBlocksForCopy(message.blocks ?? [], message.text, userPrompt, runtimeEvents);
                     onCopyFull(`full_${messageKey}`, fullText);
                   }}
-                  className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
                   title="复制完整工作流（含所有工具调用、证据链、审批记录）"
                   aria-label="复制完整工作流"
                 >
@@ -365,7 +365,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
               )}
               <button
                 type="button"
-                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
                 title="有用"
                 aria-label="有用"
               >
@@ -373,7 +373,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
               </button>
               <button
                 type="button"
-                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
                 title="需改进"
                 aria-label="需改进"
               >
@@ -381,7 +381,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
               </button>
               <button
                 type="button"
-                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
                 title="分享"
                 aria-label="分享"
               >
@@ -472,7 +472,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-light transition-opacity hover:opacity-80 ${isDarkMode ? 'text-white/55' : 'text-slate-500'}`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-light transition-opacity hover:opacity-80 ${isDarkMode ? 'text-white/55' : 'text-slate-500'}`}
                 >
                   取消
                 </button>
@@ -480,7 +480,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                   type="button"
                   onClick={submitEdit}
                   disabled={!editText.trim() || editText.trim() === message.text}
-                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-light transition-opacity disabled:cursor-not-allowed disabled:opacity-40 ${isDarkMode ? 'border-white/15 text-white/80 hover:opacity-80' : 'border-slate-300 text-slate-700 hover:opacity-80'}`}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-light transition-opacity disabled:cursor-not-allowed disabled:opacity-40 ${isDarkMode ? 'border-white/15 text-white/80 hover:opacity-80' : 'border-slate-300 text-slate-700 hover:opacity-80'}`}
                 >
                   保存并重新发送
                 </button>

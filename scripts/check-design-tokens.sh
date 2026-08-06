@@ -22,9 +22,9 @@ EXCLUDE_GLOBS=(
   -g '!**/fabricSampleInvoice*' # 面料发票模板
 )
 
-# ── 基线（2026-07-27 收拢后残留，只减不增）──
-BASELINE_ROUNDED=16       # 边缘值 10/11/12/17/20px
-BASELINE_HEX_TAILWIND=13  # #0a1628/#070D15/#0B1F3A 等少量值
+# ── 基线（2026-08-06 根背景色 token 化后收拢，只减不增）──
+BASELINE_ROUNDED=3        # 壁纸缩略图 17px / checkbox 等豁免边缘值（2026-08-06 阶段 B 收拢 4→3）
+BASELINE_HEX_TAILWIND=0   # 全部 hex 颜色已 token 化（bg-app-dark/bg-app-light/text-deep 等）
 BASELINE_HEX_INLINE=8     # 内联 style 中的灰色（已 token 化的排除）
 
 errors=0
@@ -36,12 +36,12 @@ echo ""
 echo "▸ 检查 rounded-[Npx] 硬编码圆角..."
 rounded_count=$(rg -c 'rounded-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$rounded_count" -gt "$BASELINE_ROUNDED" ]; then
-  echo "  ❌ rounded-[Npx] 硬编码增加（基线 $BASELINE_ROUNDED → 当前 $rounded_count）"
+  echo "  ❌ rounded-[Npx] 硬编码增加（基线 ${BASELINE_ROUNDED} → 当前 ${rounded_count}）"
   echo "  请使用语义类：rounded-panel/card/inset/control/field/compact/floating/card-lg"
   rg -n 'rounded-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$rounded_count" -lt "$BASELINE_ROUNDED" ]; then
-  echo "  ✅ rounded-[Npx] 减少（基线 $BASELINE_ROUNDED → 当前 $rounded_count）— 恭喜！请更新基线。"
+  echo "  ✅ rounded-[Npx] 减少（基线 ${BASELINE_ROUNDED} → 当前 ${rounded_count}）— 恭喜！请更新基线。"
 else
   echo "  ✅ rounded-[Npx] 维持基线（$rounded_count 处，均为已知边缘值）"
 fi
@@ -51,12 +51,12 @@ echo ""
 echo "▸ 检查 Tailwind 类中的 hex 颜色..."
 hex_tailwind_count=$(rg -c '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$hex_tailwind_count" -gt "$BASELINE_HEX_TAILWIND" ]; then
-  echo "  ❌ Tailwind 类中的 hex 颜色增加（基线 $BASELINE_HEX_TAILWIND → 当前 $hex_tailwind_count）"
+  echo "  ❌ Tailwind 类中的 hex 颜色增加（基线 ${BASELINE_HEX_TAILWIND} → 当前 ${hex_tailwind_count}）"
   echo "  请使用语义类：bg-deep/text-link/border-action/accent-cyan 等"
   rg -n '(bg|text|border|ring|from|to|via|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$hex_tailwind_count" -lt "$BASELINE_HEX_TAILWIND" ]; then
-  echo "  ✅ Tailwind hex 颜色减少（基线 $BASELINE_HEX_TAILWIND → 当前 $hex_tailwind_count）— 恭喜！请更新基线。"
+  echo "  ✅ Tailwind hex 颜色减少（基线 ${BASELINE_HEX_TAILWIND} → 当前 ${hex_tailwind_count}）— 恭喜！请更新基线。"
 else
   echo "  ✅ Tailwind hex 颜色维持基线（$hex_tailwind_count 处，均为已知残留）"
 fi
@@ -66,7 +66,7 @@ echo ""
 echo "▸ 检查内联 style 中的 hex 颜色..."
 hex_inline_count=$(rg -c "style=\{[^}]*(color|background|borderColor|fill|stroke)[^}]*#[0-9a-fA-F]{3,8}" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$hex_inline_count" -gt "$BASELINE_HEX_INLINE" ]; then
-  echo "  ⚠️  内联 style hex 颜色增加（基线 $BASELINE_HEX_INLINE → 当前 $hex_inline_count）"
+  echo "  ⚠️  内联 style hex 颜色增加（基线 ${BASELINE_HEX_INLINE} → 当前 ${hex_inline_count}）"
   echo "  建议使用 var(--bambook-*-*) token"
   rg -n "style=\{[^}]*(color|background|borderColor|fill|stroke)[^}]*#[0-9a-fA-F]{3,8}" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -5
   # 内联 style 是警告，不计入 errors

@@ -116,7 +116,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
     }
   };
 
-  const inputCls = `w-full px-4 py-2.5 rounded-xl border outline-none text-sm transition-all ${
+  const inputCls = `w-full px-4 py-2.5 rounded-control border outline-none text-sm transition-all ${
     isDarkMode
       ? 'bg-deep/40 border-white/10 text-white placeholder-slate-500 focus:border-[var(--os-vnext-brand-blue)]/60'
       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
@@ -124,7 +124,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
 
   if (submittedEmail) {
     return (
-      <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto ${isDarkMode ? 'bg-[#0a1628]' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
+      <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
         <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border ${
           isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-white/80 border-white/40 shadow-none'
         }`}>
@@ -139,7 +139,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
               管理员审核通过后会向 <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>{submittedEmail}</span> 发送通知邮件，届时即可使用同一邮箱登录。
             </p>
 
-            <div className={`mt-5 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-[11px] ${isDarkMode ? 'border-white/10 bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-white/70 text-slate-500'}`}>
+            <div className={`mt-5 w-full flex items-center gap-2 px-3 py-2.5 rounded-inset border text-[11px] ${isDarkMode ? 'border-white/10 bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-white/70 text-slate-500'}`}>
               <MailCheck size={14} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue)] shrink-0" />
               <span>请留意邮箱（含垃圾邮件夹），如长时间未收到通知可联系您的管理员。</span>
             </div>
@@ -147,7 +147,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
             <button
               type="button"
               onClick={handleReturnNow}
-              className="mt-5 w-full py-2.5 rounded-xl text-sm font-light bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98] transition-all"
+              className="mt-5 w-full py-2.5 rounded-full text-sm font-light bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98] transition-all"
             >
               立即返回登录
             </button>
@@ -161,7 +161,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
   }
 
   return (
-    <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto ${isDarkMode ? 'bg-[#0a1628]' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
+    <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
       <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border ${
         isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-white/80 border-white/40 shadow-none'
       }`}>
@@ -220,7 +220,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
                 type="button"
                 onClick={handleSendCode}
                 disabled={isSendingCode || cooldown > 0 || !email}
-                className={`shrink-0 px-3 rounded-xl text-xs font-light transition-all whitespace-nowrap ${
+                className={`shrink-0 px-3 rounded-full text-xs font-light transition-all whitespace-nowrap ${
                   isSendingCode || cooldown > 0 || !email
                     ? (isDarkMode ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed')
                     : (isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/15 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/25 border border-[var(--os-vnext-brand-blue)]/30' : 'bg-slate-50 text-[var(--os-vnext-brand-blue)] hover:bg-slate-100 border border-slate-200')
@@ -259,7 +259,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
           <button
             type="submit"
             disabled={isLoading || !email || !password || !displayName || !confirm || !code}
-            className={`w-full py-2.5 rounded-xl text-sm font-light transition-all ${
+            className={`w-full py-2.5 rounded-full text-sm font-light transition-all ${
               isLoading || !email || !password || !displayName || !confirm || !code
                 ? 'bg-slate-500/30 text-slate-400 cursor-not-allowed'
                 : 'bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98]'

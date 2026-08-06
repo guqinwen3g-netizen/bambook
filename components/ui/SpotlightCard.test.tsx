@@ -63,8 +63,7 @@ describe('SpotlightCard container-calibrated light', () => {
 
     expect(SPOTLIGHT_CARD_LIGHT_SCOPE).toBe('border-box');
     expect(SPOTLIGHT_CARD_BORDER_LIGHT_BLEED_PX).toBe(1);
-    expect(source).toContain("overflow: 'clip'");
-    expect(source).toContain('overflowClipMargin: `${SPOTLIGHT_CARD_BORDER_LIGHT_BLEED_PX}px`');
+    expect(source).toContain("overflow: 'hidden'");
     expect(source).toContain('className="pointer-events-none absolute -inset-px z-20 overflow-hidden rounded-[inherit]"');
     expect(source).toContain('data-spotlight-scope={SPOTLIGHT_CARD_LIGHT_SCOPE}');
     expect(source).toContain('className="absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300"');

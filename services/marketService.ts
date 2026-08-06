@@ -1,4 +1,3 @@
-import { marketScraper } from './marketScraper';
 import { getApiBaseUrl } from './apiBase';
 
 // Market Data Service
@@ -12,10 +11,6 @@ interface Ticker {
 
 const API_ENDPOINT = 'https://api.exchangerate-api.com/v4/latest/USD';
 const REFRESH_DEBOUNCE_MS = 30_000;
-const VOLATILITY_REAL_FOREX = 0.00002;
-const VOLATILITY_REAL_COMMODITY = 0.0001;
-const VOLATILITY_SIM_FOREX = 0.00005;
-const VOLATILITY_SIM_COMMODITY = 0.002;
 const BACKEND_API = getApiBaseUrl();
 
 const BASE_RATES: Record<string, number> = {
@@ -32,9 +27,9 @@ class MarketService {
         { symbol: 'USD/CNY', price: BASE_RATES['USD/CNY'], change: 0.00, prefix: '¥', isReal: false },
         { symbol: 'EUR/CNY', price: BASE_RATES['EUR/CNY'], change: 0.00, prefix: '¥', isReal: false },
         { symbol: 'GBP/CNY', price: BASE_RATES['GBP/CNY'], change: 0.00, prefix: '¥', isReal: false },
-        { symbol: 'WOOL (CN)', price: BASE_RATES['WOOL (CN)'], change: 1.25, prefix: '¥', isReal: false },
-        { symbol: 'COTTON (CN)', price: BASE_RATES['COTTON (CN)'], change: 0.45, prefix: '¥', isReal: false },
-        { symbol: 'LINEN (CN)', price: BASE_RATES['LINEN (CN)'], change: -0.05, prefix: '¥', isReal: false }
+        { symbol: 'WOOL (CN)', price: BASE_RATES['WOOL (CN)'], change: 0.00, prefix: '¥', isReal: false },
+        { symbol: 'COTTON (CN)', price: BASE_RATES['COTTON (CN)'], change: 0.00, prefix: '¥', isReal: false },
+        { symbol: 'LINEN (CN)', price: BASE_RATES['LINEN (CN)'], change: 0.00, prefix: '¥', isReal: false }
     ];
 
     private isInitialized = false;
@@ -131,36 +126,11 @@ class MarketService {
         return this.tickers;
     }
 
-    // 生成微小的价格波动 (模拟真实市场的实时跳动)
-    generateTick(): Ticker[] {
-        this.tickers = this.tickers.map(item => {
-            // 真实数据只用极小的波动模拟跳动
-            // 模拟数据波动稍大
-            const volatility = item.isReal
-                ? (item.symbol.includes('/') ? VOLATILITY_REAL_FOREX : VOLATILITY_REAL_COMMODITY)
-                : (item.symbol.includes('/') ? VOLATILITY_SIM_FOREX : VOLATILITY_SIM_COMMODITY);
-            
-            const move = (Math.random() - 0.5) * item.price * volatility;
-            let newPrice = item.price + move;
-            
-            // 累计变化
-            const dailyChange = item.change + (move / item.price) * 100;
-
-            if (item.symbol.includes('/')) {
-                newPrice = Math.round(newPrice * 10000) / 10000;
-            } else {
-                newPrice = Math.round(newPrice * 100) / 100;
-            }
-
-            return {
-                ...item,
-                price: newPrice,
-                change: Math.round(dailyChange * 100) / 100
-            };
-        });
+    // 数据诚实：展示值即最近一次真源刷新的值，不叠加随机抖动（此前 generateTick 已移除）
+    getTickers(): Ticker[] {
         return this.tickers;
     }
-    
+
     // 获取数据源信息
     getDataSource() {
         return {

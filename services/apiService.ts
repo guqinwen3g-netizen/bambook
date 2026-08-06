@@ -2,6 +2,7 @@
 import {
   KnowledgeItem,
   Order,
+  OrderStatusTransition,
   SystemConfig,
   Email,
   Relation,
@@ -120,7 +121,8 @@ const requestJson = async <T>(path: string, opts: RequestInit & { endpoint?: str
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || `HTTP ${response.status}`);
+    const serverMessage = data?.message || (typeof data?.error === 'string' ? data.error : data?.error?.message);
+    throw new Error(serverMessage || `HTTP ${response.status}`);
   }
   return data as T;
 };
@@ -379,6 +381,26 @@ export const apiService = {
   async listOrders(endpoint?: string): Promise<Order[]> {
     const data = await requestJson<{ ok: boolean; orders: Order[] }>('/v1/orders', { endpoint, method: 'GET' });
     return Array.isArray(data.orders) ? data.orders : [];
+  },
+
+  async getOrderTimeline(orderId: string, endpoint?: string): Promise<OrderStatusTransition[]> {
+    const data = await requestJson<{ ok: boolean; timeline?: OrderStatusTransition[] }>(`/v1/orders/${encodeURIComponent(orderId)}/timeline`, { endpoint, method: 'GET' });
+    return Array.isArray(data.timeline) ? data.timeline : [];
+  },
+
+  async transitionOrderStatus(orderId: string, toStatus: string, operator: string, endpoint?: string): Promise<Order> {
+    const data = await requestJson<{ ok: boolean; order?: Order; error?: { message?: string } }>(`/v1/orders/${encodeURIComponent(orderId)}/status-transition`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({ toStatus, operator }),
+    });
+    if (!data.ok || !data.order) throw new Error(data.error?.message || '状态变更失败');
+    return data.order;
+  },
+
+  async scanProductionAlerts(endpoint?: string): Promise<{ orderId: string; poNumber?: string; customer?: string; alertType: string; deadline: string; message: string; severity: 'critical' | 'high' | 'medium' | 'low' }[]> {
+    const data = await requestJson<{ ok: boolean; alerts?: any[] }>('/v1/production/alerts/scan', { endpoint, method: 'GET' });
+    return Array.isArray(data.alerts) ? data.alerts : [];
   },
 
   async listInvoices(endpoint?: string): Promise<Invoice[]> {

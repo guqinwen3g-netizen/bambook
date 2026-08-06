@@ -47,7 +47,7 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
           <button
             key={r.filename + i}
             onClick={() => setActiveIdx(i)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs whitespace-nowrap transition-colors ${
               i === activeIdx
                 ? isDarkMode
                   ? 'bg-[var(--os-vnext-brand-blue)]/20 text-[var(--os-vnext-brand-blue-strong)] border border-[var(--os-vnext-brand-blue)]/40'
@@ -73,7 +73,7 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
       {/* Content */}
       {active.error || !active.order ? (
         <div
-          className={`rounded-xl p-4 flex items-start gap-3 ${
+          className={`rounded-inset p-4 flex items-start gap-3 ${
             isDarkMode
               ? 'bg-white/10 border border-white/15 text-white/55'
               : 'bg-slate-50 border border-slate-200 text-slate-500'
@@ -114,7 +114,7 @@ const OrderPreview: React.FC<{
     : 'bg-white/70 border border-slate-200';
   const labelCls = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const valueCls = isDarkMode ? 'text-slate-100' : 'text-slate-800';
-  const inputCls = `w-full bg-transparent border rounded-md px-2 py-1 text-sm ${
+  const inputCls = `w-full bg-transparent border rounded-control px-2 py-1 text-sm ${
     isDarkMode
       ? 'border-white/15 text-slate-100 focus:border-[var(--os-vnext-brand-blue)]'
       : 'border-slate-300 text-slate-800 focus:border-[var(--os-vnext-brand-blue)]'
@@ -124,7 +124,7 @@ const OrderPreview: React.FC<{
     <div className="space-y-4">
       {/* Detection banner */}
       <div
-        className={`rounded-xl px-4 py-3 flex items-center gap-3 text-xs ${
+        className={`rounded-inset px-4 py-3 flex items-center gap-3 text-xs ${
           isDarkMode
             ? 'bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/30 text-slate-200'
             : 'bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/30 text-slate-700'
@@ -141,7 +141,7 @@ const OrderPreview: React.FC<{
 
       {/* Mapping hint — explains how parsed fields land on the unified Order schema */}
       <div
-        className={`rounded-xl px-4 py-3 text-[11px] leading-relaxed ${
+        className={`rounded-inset px-4 py-3 text-[11px] leading-relaxed ${
           isDarkMode
             ? 'bg-white/[0.03] border border-white/10 text-slate-300'
             : 'bg-slate-50 border border-slate-200 text-slate-600'
@@ -169,7 +169,7 @@ const OrderPreview: React.FC<{
       </div>
 
       {/* Header fields */}
-      <div className={`rounded-xl p-4 ${card}`}>
+      <div className={`rounded-card p-4 ${card}`}>
         <h4 className={`text-xs font-light tracking-widest uppercase mb-3 ${labelCls}`}>
           订单抬头
         </h4>
@@ -192,7 +192,7 @@ const OrderPreview: React.FC<{
       </div>
 
       {/* Ship-to (read-only) */}
-      <div className={`rounded-xl p-4 ${card}`}>
+      <div className={`rounded-card p-4 ${card}`}>
         <h4 className={`text-xs font-light tracking-widest uppercase mb-3 ${labelCls}`}>
           收货 / 交付
         </h4>
@@ -219,7 +219,7 @@ const OrderPreview: React.FC<{
       </div>
 
       {/* Lines */}
-      <div className={`rounded-xl p-4 ${card}`}>
+      <div className={`rounded-card p-4 ${card}`}>
         <h4 className={`text-xs font-light tracking-widest uppercase mb-3 ${labelCls}`}>
           行项目（{o.lines.length} 条）
         </h4>

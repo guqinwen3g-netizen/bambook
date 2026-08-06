@@ -88,7 +88,7 @@ describe('ProductsManager Bambook OS tokens', () => {
 
   it('adapts direct-on-wallpaper product title navigation and actions', () => {
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"');
-    expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="brand" className={BAMBOOK_OS.tone.text.brandInline}>档案</span>');
+    expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} ${isDarkMode ? \'text-white/70\' : \'text-slate-700\'}`}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"\n                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
@@ -132,7 +132,7 @@ describe('ProductsManager Bambook OS tokens', () => {
   it('aligns archive cards with the dashboard card material and spotlight system', () => {
     expect(PRODUCT_CATEGORY_CARD_GRID_CLASS).toContain('repeat(auto-fill,316px)');
     expect(PRODUCT_CARD_GRID_CLASS).toContain('repeat(auto-fill,300px)');
-    expect(PRODUCT_CARD_CLASS).toContain('rounded-3xl');
+    expect(PRODUCT_CARD_CLASS).toContain('rounded-card-lg');
     expect(PRODUCT_CARD_DARK_CLASS).toBe(`${OS_MATERIAL.raisedCard} bambook-panel-glass`);
     expect(PRODUCT_CARD_LIGHT_CLASS).toBe(`${OS_MATERIAL.raisedCard} bambook-panel-glass`);
     expect(PRODUCT_CARD_DARK_CLASS).not.toContain('bambook-outer-panel');
@@ -144,7 +144,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
     expect(PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR).toBe(BAMBOOK_OS.spotlight.cardLightColor);
     expect(productsSource).toContain('<SpotlightCard');
-    expect(productsSource).toContain('MotionSpotlightCard');
+    expect(productsSource).toContain('CompiledMotionInteractiveCard');
     expect(productsSource).toContain('const productGlassPanelClass = `${OS_MATERIAL.framePanel} bambook-panel-glass bambook-outer-panel`;');
     expect(productsSource).toContain('const productFloatingPanelClass = `${OS_MATERIAL.floatingOverlay} bambook-panel-glass`;');
     expect(productsSource).not.toContain("isDarkMode ? 'bambook-blue-white-surface bg-white/[0.015]' : 'bambook-blue-white-surface bg-white/20'");
@@ -165,13 +165,13 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_FORM_MAP_INDEX_LIGHT_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexLight}`);
     expect(productsSource).toContain('const productFormSectionTitleClass = isDarkMode ? PRODUCT_FORM_SECTION_TITLE_DARK_CLASS : PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS;');
     expect(productsSource).toContain('const productFormMapIndexClass = isDarkMode ? PRODUCT_FORM_MAP_INDEX_DARK_CLASS : PRODUCT_FORM_MAP_INDEX_LIGHT_CLASS;');
-    expect(productsSource).toContain('<SidePanelContainer materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}>');
+    expect(productsSource).toContain('<CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}>');
     expect(productsSource).toContain('${productFormSectionTitleClass}`}>Form Map</p>');
     expect(productsSource).toContain('w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>');
     expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-5 bambook-relations-form-panel');
     expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-4 bambook-relations-form-map-panel');
     expect(RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING).toBe('width');
-    expect(productsSource).toContain("} from './RelationsManager';");
+    expect(productsSource).toContain("} from './ui/relationsFormStyles';");
     expect(productsSource).toContain('className={RELATIONS_FORM_PANEL_CLASS}');
     expect(productsSource).toContain('className={RELATIONS_FORM_MAP_PANEL_CLASS}');
     expect(productsSource).toContain('spotlightSizing={RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING}');
@@ -185,8 +185,8 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS).toBe(OS_MATERIAL.insetSurface);
     expect(productsSource).toContain('const productFormNestedRowClass = isDarkMode ? RELATIONS_FORM_NESTED_ROW_DARK_CLASS : RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS;');
     expect(productsSource).toContain('const productFormQuietActionClass = isDarkMode ? RELATIONS_FORM_QUIET_ACTION_DARK_CLASS : RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS;');
-    expect(productsSource).toContain('rounded-2xl border p-4 flex items-center ${productFormNestedRowClass}');
-    expect(productsSource).toContain('rounded-2xl border p-4 space-y-3 ${productFormNestedRowClass}');
+    expect(productsSource).toContain('rounded-inset border p-4 flex items-center ${productFormNestedRowClass}');
+    expect(productsSource).toContain('rounded-inset border p-4 space-y-3 ${productFormNestedRowClass}');
     expect(productsSource).toContain('transition-all ${productFormQuietActionClass}');
     expect(productsSource).not.toContain("bg-slate-50/50 border-slate-100");
     expect(productsSource).not.toContain('className="scroll-mt-28 p-5 space-y-6"');
@@ -206,7 +206,7 @@ describe('ProductsManager Bambook OS tokens', () => {
 
   it('aligns archive text inputs with the custom select trigger shell', () => {
     expect(productsSource).toContain('const productFieldShellClass =');
-    expect(productsSource).toContain('rounded-2xl border backdrop-blur-[14px] backdrop-saturate-[135%]');
+    expect(productsSource).toContain('rounded-full border outline-none');
     expect(productsSource).not.toContain('const productFieldShellClass = `rounded-2xl bambook-blue-white-light');
     expect(productsSource).toContain('const productInputClass = `w-full h-9 px-3 ${productFieldShellClass}');
     expect(productsSource).toContain('const productTextareaClass = `w-full px-3 py-3 ${productFieldShellClass}');
@@ -267,7 +267,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_DETAIL_PANEL_LAYOUT_CLASS).not.toContain('overflow-y-auto');
     expect(PRODUCT_DETAIL_MEDIA_PANEL_CLASS).toContain('flex flex-col');
     expect(PRODUCT_DETAIL_MEDIA_FRAME_CLASS).toContain('aspect-[4/5]');
-    expect(PRODUCT_DETAIL_MEDIA_FRAME_CLASS).toContain('rounded-[22px]');
+    expect(PRODUCT_DETAIL_MEDIA_FRAME_CLASS).toContain('rounded-inset');
     expect(PRODUCT_DETAIL_MEDIA_FRAME_CLASS).toContain(OS_MATERIAL.insetSurface);
     expect(PRODUCT_DETAIL_MEDIA_META_CLASS).toContain(OS_MATERIAL.insetSurface);
     expect(PRODUCT_DETAIL_MAIN_PANEL_CLASS).toContain('overflow-hidden');

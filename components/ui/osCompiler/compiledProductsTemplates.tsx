@@ -507,7 +507,7 @@ const CertificationCheckboxes: React.FC<{
       {customCerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customCerts.map(cert => (
-            <span key={cert} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-light ${
+            <span key={cert} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-light ${
               isDarkMode ? 'bg-[var(--os-vnext-brand-blue-strong)]/20 text-[var(--os-vnext-brand-blue-strong)]' : 'bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue-strong)]'
             }`}>
               {cert}
@@ -522,14 +522,14 @@ const CertificationCheckboxes: React.FC<{
           onChange={e => setCustomInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="其他认证（回车添加）"
-          className={`flex-1 px-4 py-3 text-xs rounded-xl border outline-none transition-all ${
+          className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-all ${
             isDarkMode ? 'bg-deep/60 border-white/10 text-white placeholder-white/20 focus:border-[var(--os-vnext-brand-blue-strong)]/40' : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-[rgb(var(--os-vnext-brand-blue-rgb)/0.1)]'
           }`}
         />
         <button
           type="button"
           onClick={addCustom}
-          className={`px-4 py-3 text-xs rounded-xl font-light transition-all ${
+          className={`px-4 py-3 text-xs rounded-full font-light transition-all ${
             isDarkMode ? 'bg-deep/80 text-slate-300 border border-white/10 hover:bg-deep' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
@@ -1906,7 +1906,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                 isDarkMode={isDarkMode}
                 materialRole="insetSurface"
                 materialTone="nested"
-                className="p-4 !rounded-[20px]"
+                className="p-4 !rounded-inset"
                 contentClassName="relative z-10"
                 compilerRole="detail-section-panel"
                 source="CompiledProductsPage.detail-section"
@@ -1951,7 +1951,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
     return formatMeasure(profile?.widthValue, profile?.widthUnit);
   };
 
-  const productFieldShellClass = `rounded-full border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all`;
+  const productFieldShellClass = `rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all`;
   const productInputClass = `w-full h-9 px-3 ${productFieldShellClass} leading-none ${isDarkMode ? PRODUCT_FORM_FIELD_DARK_CLASS : PRODUCT_FORM_FIELD_LIGHT_CLASS}`;
   const productTextareaClass = `w-full px-3 py-3 ${productFieldShellClass} leading-relaxed resize-none ${isDarkMode ? PRODUCT_FORM_FIELD_DARK_CLASS : PRODUCT_FORM_FIELD_LIGHT_CLASS}`;
   const productLabelClass = `text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ml-1 ${isDarkMode ? PRODUCT_FORM_LABEL_DARK_CLASS : PRODUCT_FORM_LABEL_LIGHT_CLASS}`;
@@ -2964,7 +2964,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                                 event.stopPropagation();
                                 setEditingSub(editableCategory);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`编辑${group.name}`}
                             >
                               <Edit2 size={13} strokeWidth={1.4} />
@@ -2975,7 +2975,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                                 event.stopPropagation();
                                 setDeleteSubId(editableCategory.id);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`删除${group.name}`}
                             >
                               <Trash2 size={13} strokeWidth={1.4} />
@@ -3112,7 +3112,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                         <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100' : 'text-[var(--os-vnext-brand-blue)]'}`}>
                           <Library size={22} strokeWidth={1} />
                         </div>
-                        <span className={`px-2.5 py-1 rounded-lg border text-[9px] font-light tracking-wide ${productStatusChipClass(productCompleteness(product).complete)}`}>
+                        <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(productCompleteness(product).complete)}`}>
                           {productCompleteness(product).complete ? '完整' : `待补 ${productCompleteness(product).missing.length}`}
                         </span>
                       </div>
@@ -3205,7 +3205,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setEditingProd(product); }}
-                                className={`p-2 rounded-xl ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
+                                className={`p-2 rounded-full ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
                                 aria-label="编辑档案"
                               >
                                 <Edit2 size={13} />
@@ -3213,7 +3213,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setDeleteProdId(product.id); }}
-                                className={`p-2 rounded-xl ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
+                                className={`p-2 rounded-full ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
                                 aria-label="归档档案"
                               >
                                 <Trash2 size={13} />
@@ -3261,7 +3261,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                       placeholder="搜索目录..."
                       value={sideSearchTerm}
                       onChange={(e) => setSideSearchTerm(e.target.value)}
-                      className={`w-full h-9 pl-9 pr-[4.35rem] rounded-full text-xs font-light border outline-none transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                      className={`w-full h-9 pl-9 pr-[4.35rem] rounded-control text-xs font-light border outline-none transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
                     />
                     {sideSearchTerm && (
                       <button onClick={() => setSideSearchTerm('')} className={`absolute right-8 top-0 z-10 grid h-9 w-7 place-items-center p-0 leading-none transition-colors ${isDarkMode ? 'text-white/40 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -3271,7 +3271,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                     <button
                       onClick={() => setSideSortOption(prev => prev === 'recent' ? 'name' : 'recent')}
                       title={sideSortOption === 'recent' ? '按名称排序' : '按近期更新排序'}
-                      className={`absolute right-1 top-1/2 z-10 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full p-0 leading-none transition-colors ${isDarkMode ? 'text-white/48 hover:bg-white/10 hover:text-white/72' : 'text-slate-500 hover:bg-slate-200/60 hover:text-slate-700'}`}
+                      className={`absolute right-1 top-1/2 z-10 grid h-8 w-7 -translate-y-1/2 place-items-center rounded-full p-0 leading-none transition-colors ${isDarkMode ? 'text-white/48 hover:bg-white/10 hover:text-white/72' : 'text-slate-500 hover:bg-slate-200/60 hover:text-slate-700'}`}
                     >
                       {sideSortOption === 'recent' ? <Clock size={13} className="block" /> : <ArrowDownAZ size={13} className="block" />}
                     </button>
@@ -3354,7 +3354,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                 <div className="flex items-center gap-4 min-w-0">
                   <button
                     onClick={() => setSelectedProduct(null)}
-                    className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isDarkMode ? 'text-white/60 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-200'}`}
+                    className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-colors ${isDarkMode ? 'text-white/60 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-200'}`}
                   >
                     <ChevronLeft size={18} strokeWidth={1.5} />
                   </button>
@@ -3427,7 +3427,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
 
                   {/* 完成度状态 (Completeness Status) */}
                   {(selectedProduct.mainCategory === 'Fabric' || selectedProduct.mainCategory === 'Garment' || selectedProduct.mainCategory === 'Trimmings') && (
-                    <div className={`rounded-[20px] p-5 ${OS_MATERIAL.insetSurface} ${isDarkMode ? BAMBOOK_OS.tone.surface.linkedPanelDark : BAMBOOK_OS.tone.surface.linkedPanelLight}`}>
+                    <div className={`rounded-inset p-5 ${OS_MATERIAL.insetSurface} ${isDarkMode ? BAMBOOK_OS.tone.surface.linkedPanelDark : BAMBOOK_OS.tone.surface.linkedPanelLight}`}>
                       <div className={`text-xs font-light flex items-center gap-2 ${productCompleteness(selectedProduct).complete ? (isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]') : (isDarkMode ? 'text-white/40' : 'text-slate-400')}`}>
                         {productCompleteness(selectedProduct).complete ? <CheckCircle2 size={16} strokeWidth={1.5} /> : <AlertTriangle size={16} strokeWidth={1.5} />}
                         {productCompleteness(selectedProduct).complete ? '核心档案信息已完整' : `核心档案待补全：缺 ${productCompleteness(selectedProduct).missing.length} 项`}
@@ -3657,11 +3657,11 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
             <form onSubmit={editingSub ? handleEditSub : handleAddSub} className="space-y-6 pt-4 pb-12">
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">分类名称</label>
-                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-control outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
               </div>
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">分类说明</label>
-                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-full outline-none font-light resize-none ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-control outline-none font-light resize-none ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
               </div>
               <button type="submit" className={`w-full py-4 rounded-full font-light tracking-wide transition-all ${isDarkMode ? 'bg-white/10 text-white/80 hover:bg-white/15' : 'bg-white/70 border border-slate-200/60 text-slate-700 hover:bg-white/90 hover:text-slate-900'}`}>{editingSub ? '保存' : '确认'}</button>
             </form>
@@ -3684,20 +3684,20 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
               )}
               <div className="space-y-3">
                 <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">档案款名 (Name)</label>
-                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-control outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">SKU</label>
-                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-control outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">Season</label>
-                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-control outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">Cost ($)</label>
-                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-control outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
                 </div>
 	              </div>
 	              {renderFabricProfileFields(editingProd)}

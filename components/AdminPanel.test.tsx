@@ -39,8 +39,8 @@ describe('AdminPanel layout bounds', () => {
     expect(ADMIN_PANEL_GLASS_LIGHT_CLASS).toContain('bambook-dashboard-glass-color');
     expect(ADMIN_USER_CARD_DARK_CLASS).toContain('bambook-dashboard-glass-color');
     expect(ADMIN_USER_CARD_LIGHT_CLASS).toContain('bambook-dashboard-glass-color');
-    expect(ADMIN_USER_FIELD_DARK_CLASS).toContain('inset_0_2px_6px');
-    expect(ADMIN_USER_FIELD_LIGHT_CLASS).toContain('inset_0_2px_6px');
+    expect(ADMIN_USER_FIELD_DARK_CLASS).toContain('backdrop-blur-[15px]');
+    expect(ADMIN_USER_FIELD_LIGHT_CLASS).toContain('backdrop-blur-[15px]');
   });
 
   it('keeps admin page status color language constrained to brand blue, neutral, and danger', () => {

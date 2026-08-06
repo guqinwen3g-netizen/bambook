@@ -88,7 +88,7 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
 
       {files.length > 0 && (
         <div
-          className={`rounded-xl ${
+          className={`rounded-card ${
             isDarkMode ? 'bg-deep/40 border border-white/10' : 'bg-white/70 border border-slate-200'
           } overflow-hidden`}
         >

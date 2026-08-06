@@ -210,7 +210,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => setIsCollapsed((current) => !current)}
-          className={`h-7 w-7 rounded-xl flex items-center justify-center transition-colors ${isDarkMode ? 'hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.075)] text-slate-400' : 'hover:bg-white/70 text-slate-500'}`}
+          className={`h-8 w-7 rounded-control flex items-center justify-center transition-colors ${isDarkMode ? 'hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.075)] text-slate-400' : 'hover:bg-white/70 text-slate-500'}`}
           aria-label={isCollapsed ? '展开调参面板' : '折叠调参面板'}
         >
           <ChevronDown size={15} strokeWidth={1.6} className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
@@ -226,7 +226,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
                 {controls.map((control) => {
                   const value = values[control.key] ?? control.defaultValue;
                   return (
-                    <label key={control.key} className={`rounded-xl border p-2 ${isDarkMode ? 'border-white/[0.06] bg-white/[0.035]' : 'border-white/50 bg-white/45'}`}>
+                    <label key={control.key} className={`rounded-inset border p-2 ${isDarkMode ? 'border-white/[0.06] bg-white/[0.035]' : 'border-white/50 bg-white/45'}`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[10px] font-light truncate">{control.label}</span>
                         <input
@@ -236,7 +236,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
                           max={control.max}
                           step={control.step}
                           onChange={(event) => updateValue(control.key, clamp(Number(event.target.value), control.min, control.max))}
-                          className={`w-16 h-6 rounded-lg border px-1.5 text-[10px] outline-none ${isDarkMode ? 'border-white/10 bg-black/20 text-slate-200' : 'border-white/60 bg-white/70 text-slate-700'}`}
+                          className={`w-16 h-8 rounded-control border px-1.5 text-[10px] outline-none ${isDarkMode ? 'border-white/10 bg-black/20 text-slate-200' : 'border-white/60 bg-white/70 text-slate-700'}`}
                         />
                       </div>
                       <input
@@ -261,7 +261,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
               <button
                 type="button"
                 onClick={resetValues}
-                className={`h-8 px-3 rounded-xl border flex items-center gap-1.5 text-[10px] transition-colors ${isDarkMode ? 'border-white/10 hover:bg-white/10' : 'border-white/55 hover:bg-white/70'}`}
+                className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-[10px] transition-colors ${isDarkMode ? 'border-white/10 hover:bg-white/10' : 'border-white/55 hover:bg-white/70'}`}
               >
                 <RotateCcw size={13} strokeWidth={1.6} />
                 Reset
@@ -269,7 +269,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
               <button
                 type="button"
                 onClick={exportValues}
-                className="h-8 px-3 rounded-xl border border-[var(--os-vnext-brand-blue)]/30 bg-[var(--os-vnext-brand-blue)]/12 text-[var(--os-vnext-brand-blue)] flex items-center gap-1.5 text-[10px] transition-colors hover:bg-[var(--os-vnext-brand-blue)]/18"
+                className="h-8 px-3 rounded-full border border-[var(--os-vnext-brand-blue)]/30 bg-[var(--os-vnext-brand-blue)]/12 text-[var(--os-vnext-brand-blue)] flex items-center gap-1.5 text-[10px] transition-colors hover:bg-[var(--os-vnext-brand-blue)]/18"
               >
                 <Copy size={13} strokeWidth={1.6} />
                 Export
