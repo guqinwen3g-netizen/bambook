@@ -16,6 +16,9 @@ import {
 import FabricSampleInvoiceGenerator from './tools/FabricSampleInvoiceGenerator';
 import ShippingNoticeGenerator from './tools/ShippingNoticeGenerator';
 import ExchangeRateTool from './tools/ExchangeRateTool';
+import QuoteCalculator from './tools/QuoteCalculator';
+import PackingListGenerator from './tools/PackingListGenerator';
+import ContractGenerator from './tools/ContractGenerator';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -79,23 +82,26 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
     {
       id: 'contract-generator',
       name: '合同生成器',
-      description: '快速生成采购合同模板',
+      description: '采购/销售合同模板 · PDF 打印',
       icon: FileText,
-      status: 'coming-soon'
+      status: 'available',
+      component: <ContractGenerator isDarkMode={isDarkMode} relations={relations} orders={orders} />
     },
     {
       id: 'packing-list',
       name: '装箱单生成器',
-      description: '生成出口装箱明细单',
+      description: '生成出口装箱明细单 · PDF 打印',
       icon: Package,
-      status: 'coming-soon'
+      status: 'available',
+      component: <PackingListGenerator isDarkMode={isDarkMode} relations={relations} orders={orders} />
     },
     {
       id: 'quote-calculator',
       name: '报价计算器',
-      description: '原料成本与利润计算',
+      description: '成本测算 · 利润分析 · FOB/CIF 报价',
       icon: Calculator,
-      status: 'coming-soon'
+      status: 'available',
+      component: <QuoteCalculator isDarkMode={isDarkMode} />
     },
     {
       id: 'exchange-rate',
