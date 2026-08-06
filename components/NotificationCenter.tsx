@@ -126,6 +126,41 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
     return () => clearInterval(interval);
   }, [fetchStats]);
 
+  // ── 实时 SSE 通知订阅（增量更新，无需等待轮询）──
+  useEffect(() => {
+    const unsubscribe = apiService.subscribeToNotifications(endpoint, (sseEvent) => {
+      // 增量更新未读徽章统计
+      setStats(prev => prev ? {
+        ...prev,
+        total: prev.total + 1,
+        unread: prev.unread + 1,
+        critical: sseEvent.level === 'critical' ? prev.critical + 1 : prev.critical,
+        byType: {
+          ...prev.byType,
+          [sseEvent.type]: (prev.byType[sseEvent.type] ?? 0) + 1,
+        },
+      } : prev);
+
+      // 若抽屉已打开，将新通知增量插入列表头部
+      if (isOpen) {
+        const newItem: NotificationItem = {
+          id: sseEvent.eventId,
+          userId: '', // SSE 推送不携带当前用户 ID，落库记录已有真实 userId
+          type: sseEvent.type,
+          title: sseEvent.title,
+          body: sseEvent.body,
+          level: sseEvent.level as 'info' | 'warning' | 'critical',
+          link: sseEvent.link ?? null,
+          metadata: { eventId: sseEvent.eventId, eventType: sseEvent.eventType, orderId: sseEvent.orderId ?? null },
+          readAt: null,
+          createdAt: new Date(sseEvent.timestamp ?? Date.now()).toISOString(),
+        };
+        setItems(prev => [newItem, ...prev]);
+      }
+    });
+    return unsubscribe;
+  }, [endpoint, isOpen]);
+
   // ── 抽屉打开时获取列表 ──
   useEffect(() => {
     if (isOpen) fetchItems();

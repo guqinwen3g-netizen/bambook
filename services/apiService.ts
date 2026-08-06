@@ -383,6 +383,34 @@ export const apiService = {
     return () => source.close();
   },
 
+  /**
+   * 订阅实时通知 SSE 事件（Phase 0 Sprint 1 通知系统实时链路）
+   *
+   * 后端 publishNotificationEvent 推送 `event: notification` SSE 事件，
+   * 前端收到后增量更新未读徽章 + 抽屉列表，无需等待 30s 轮询。
+   *
+   * 返回 cleanup 函数，组件卸载时调用以关闭 EventSource。
+   */
+  subscribeToNotifications(endpoint: string | undefined, onNotification: (event: { type: string; title: string; body: string; level: string; link?: string; eventId: string; eventType: string; orderId?: string; recipientIds: string[]; timestamp: number }) => void): () => void {
+    if (typeof EventSource === 'undefined') return () => {};
+    const apiKey = getApiKey();
+    const url = new URL(buildApiUrl('/v1/events', endpoint), window.location.origin);
+    if (apiKey) url.searchParams.set('apiKey', apiKey);
+
+    const source = new EventSource(url.toString());
+    source.addEventListener('notification', (event) => {
+      try {
+        onNotification(JSON.parse((event as MessageEvent).data));
+      } catch (error) {
+        console.warn('[NotificationCenter] ignored malformed notification event:', error);
+      }
+    });
+    source.onerror = () => {
+      console.warn('[NotificationCenter] realtime stream disconnected; browser will retry automatically');
+    };
+    return () => source.close();
+  },
+
   async listOrders(endpoint?: string): Promise<Order[]> {
     const data = await requestJson<{ ok: boolean; orders: Order[] }>('/v1/orders', { endpoint, method: 'GET' });
     return Array.isArray(data.orders) ? data.orders : [];
