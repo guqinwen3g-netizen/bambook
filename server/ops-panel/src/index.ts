@@ -41,7 +41,9 @@ if (!ADMIN_TOKEN && process.env.NODE_ENV === 'production') {
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 const dbPool = DATABASE_URL ? new Pool({ connectionString: DATABASE_URL }) : null;
-const DEPLOY_PACKAGE_LIMIT = process.env.BAMBOOK_OPS_DEPLOY_PACKAGE_LIMIT || '80mb';
+// 部署包体量上限：webapp 含 mermaid/maplibre/three.js/cytoscape 等大依赖，90MB+ 为正常体量。
+// 80mb 过保守（曾致 webapp 部署 413）；200mb 覆盖增长空间，Mac Mini 16GB+ 内存无压力。
+const DEPLOY_PACKAGE_LIMIT = process.env.BAMBOOK_OPS_DEPLOY_PACKAGE_LIMIT || '200mb';
 
 type ServiceStatus = 'ok' | 'warn' | 'error';
 type OpsAction = {
