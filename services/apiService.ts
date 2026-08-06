@@ -11,6 +11,21 @@ import {
   ProductSubCategory,
   Invoice,
   PaymentVoucher,
+  Quotation,
+  QuotationInput,
+  PurchaseOrder,
+  PurchaseOrderInput,
+  MaterialReceipt,
+  MaterialReceiptInput,
+  Warehouse,
+  WarehouseInput,
+  InventoryItem,
+  InventoryItemInput,
+  StockMovement,
+  StockMovementInput,
+  BOM,
+  CreateBOMInput,
+  UpdateBOMInput,
   Shipment,
   DevelopmentCase,
   Insight,
@@ -449,6 +464,262 @@ export const apiService = {
   async listShipments(endpoint?: string): Promise<Shipment[]> {
     const data = await requestJson<{ items: Shipment[]; total: number }>('/v1/shipping', { endpoint, method: 'GET' });
     return Array.isArray(data.items) ? data.items : [];
+  },
+
+  // ── Phase 2: 报价管理 API ──
+  async listQuotations(params?: { status?: string; customerRelationId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: Quotation[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.customerRelationId) query.set('customerRelationId', params.customerRelationId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const path = `/v1/quotations${qs ? '?' + qs : ''}`;
+    return requestJson<{ items: Quotation[]; total: number }>(path, { endpoint, method: 'GET' });
+  },
+
+  async getQuotation(id: string, endpoint?: string): Promise<Quotation | null> {
+    try {
+      const data = await requestJson<{ quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.quotation;
+    } catch { return null; }
+  },
+
+  async createQuotation(input: QuotationInput, endpoint?: string): Promise<Quotation> {
+    const data = await requestJson<{ quotation: Quotation }>('/v1/quotations', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.quotation;
+  },
+
+  async updateQuotation(id: string, input: Partial<QuotationInput>, endpoint?: string): Promise<Quotation> {
+    const data = await requestJson<{ quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.quotation;
+  },
+
+  async deleteQuotation(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/quotations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async sendQuotation(id: string, endpoint?: string): Promise<Quotation> {
+    const data = await requestJson<{ quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}/send`, { endpoint, method: 'POST' });
+    return data.quotation;
+  },
+
+  async acceptQuotation(id: string, note?: string, endpoint?: string): Promise<Quotation> {
+    const data = await requestJson<{ quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}/accept`, { endpoint, method: 'POST', body: JSON.stringify({ note }) });
+    return data.quotation;
+  },
+
+  async rejectQuotation(id: string, note?: string, endpoint?: string): Promise<Quotation> {
+    const data = await requestJson<{ quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}/reject`, { endpoint, method: 'POST', body: JSON.stringify({ note }) });
+    return data.quotation;
+  },
+
+  async convertQuotationToOrder(id: string, overrides?: { poNumber?: string; millName?: string; type?: string; dueDate?: string }, endpoint?: string): Promise<{ orderId: string; quotation: Quotation }> {
+    const data = await requestJson<{ orderId: string; quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}/convert-to-order`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify(overrides || {}),
+    });
+    return data;
+  },
+
+  // ── Phase 2 B1: 采购管理 API ──
+  async listPurchaseOrders(params?: { status?: string; supplierRelationId?: string; dateFrom?: string; dateTo?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: PurchaseOrder[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.supplierRelationId) query.set('supplierRelationId', params.supplierRelationId);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const path = `/v1/procurement${qs ? '?' + qs : ''}`;
+    return requestJson<{ items: PurchaseOrder[]; total: number }>(path, { endpoint, method: 'GET' });
+  },
+
+  async getPurchaseOrder(id: string, endpoint?: string): Promise<PurchaseOrder | null> {
+    try {
+      const data = await requestJson<{ purchaseOrder: PurchaseOrder }>(`/v1/procurement/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.purchaseOrder;
+    } catch { return null; }
+  },
+
+  async createPurchaseOrder(input: PurchaseOrderInput, endpoint?: string): Promise<PurchaseOrder> {
+    const data = await requestJson<{ purchaseOrder: PurchaseOrder }>('/v1/procurement', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.purchaseOrder;
+  },
+
+  async updatePurchaseOrder(id: string, input: Partial<PurchaseOrderInput>, endpoint?: string): Promise<PurchaseOrder> {
+    const data = await requestJson<{ purchaseOrder: PurchaseOrder }>(`/v1/procurement/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.purchaseOrder;
+  },
+
+  async deletePurchaseOrder(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/procurement/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async sendPurchaseOrder(id: string, endpoint?: string): Promise<PurchaseOrder> {
+    const data = await requestJson<{ purchaseOrder: PurchaseOrder }>(`/v1/procurement/${encodeURIComponent(id)}/send`, { endpoint, method: 'POST' });
+    return data.purchaseOrder;
+  },
+
+  async confirmPurchaseOrder(id: string, endpoint?: string): Promise<PurchaseOrder> {
+    const data = await requestJson<{ purchaseOrder: PurchaseOrder }>(`/v1/procurement/${encodeURIComponent(id)}/confirm`, { endpoint, method: 'POST' });
+    return data.purchaseOrder;
+  },
+
+  async cancelPurchaseOrder(id: string, reason?: string, endpoint?: string): Promise<PurchaseOrder> {
+    const data = await requestJson<{ purchaseOrder: PurchaseOrder }>(`/v1/procurement/${encodeURIComponent(id)}/cancel`, { endpoint, method: 'POST', body: JSON.stringify({ reason }) });
+    return data.purchaseOrder;
+  },
+
+  async closePurchaseOrder(id: string, endpoint?: string): Promise<PurchaseOrder> {
+    const data = await requestJson<{ purchaseOrder: PurchaseOrder }>(`/v1/procurement/${encodeURIComponent(id)}/close`, { endpoint, method: 'POST' });
+    return data.purchaseOrder;
+  },
+
+  async listMaterialReceipts(purchaseOrderId: string, endpoint?: string): Promise<MaterialReceipt[]> {
+    const data = await requestJson<{ receipts: MaterialReceipt[] }>(`/v1/procurement/${encodeURIComponent(purchaseOrderId)}/receipts`, { endpoint, method: 'GET' });
+    return Array.isArray(data.receipts) ? data.receipts : [];
+  },
+
+  async createMaterialReceipt(purchaseOrderId: string, input: MaterialReceiptInput, endpoint?: string): Promise<MaterialReceipt> {
+    const data = await requestJson<{ receipt: MaterialReceipt }>(`/v1/procurement/${encodeURIComponent(purchaseOrderId)}/receipts`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.receipt;
+  },
+
+  // ── Phase 2 B2: 库存管理 API ──
+  async listWarehouses(includeInactive = false, endpoint?: string): Promise<Warehouse[]> {
+    const data = await requestJson<{ warehouses: Warehouse[] }>(`/v1/inventory/warehouses${includeInactive ? '?includeInactive=true' : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.warehouses) ? data.warehouses : [];
+  },
+
+  async createWarehouse(input: WarehouseInput, endpoint?: string): Promise<Warehouse> {
+    const data = await requestJson<{ warehouse: Warehouse }>('/v1/inventory/warehouses', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.warehouse;
+  },
+
+  async updateWarehouse(id: string, input: Partial<WarehouseInput>, endpoint?: string): Promise<Warehouse> {
+    const data = await requestJson<{ warehouse: Warehouse }>(`/v1/inventory/warehouses/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.warehouse;
+  },
+
+  async deleteWarehouse(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/inventory/warehouses/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async listInventoryItems(params?: { warehouseId?: string; category?: string; materialCode?: string; search?: string; lowStockOnly?: boolean; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: InventoryItem[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.warehouseId) query.set('warehouseId', params.warehouseId);
+    if (params?.category) query.set('category', params.category);
+    if (params?.materialCode) query.set('materialCode', params.materialCode);
+    if (params?.search) query.set('search', params.search);
+    if (params?.lowStockOnly) query.set('lowStockOnly', 'true');
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const path = `/v1/inventory/items${qs ? '?' + qs : ''}`;
+    return requestJson<{ items: InventoryItem[]; total: number }>(path, { endpoint, method: 'GET' });
+  },
+
+  async getInventoryItem(id: string, endpoint?: string): Promise<InventoryItem | null> {
+    try {
+      const data = await requestJson<{ item: InventoryItem }>(`/v1/inventory/items/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.item;
+    } catch { return null; }
+  },
+
+  async createInventoryItem(input: InventoryItemInput, endpoint?: string): Promise<InventoryItem> {
+    const data = await requestJson<{ item: InventoryItem }>('/v1/inventory/items', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateInventoryItem(id: string, input: Partial<InventoryItemInput>, endpoint?: string): Promise<InventoryItem> {
+    const data = await requestJson<{ item: InventoryItem }>(`/v1/inventory/items/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteInventoryItem(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/inventory/items/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async listStockMovements(params?: { itemId?: string; warehouseId?: string; type?: string; dateFrom?: string; dateTo?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: StockMovement[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.itemId) query.set('itemId', params.itemId);
+    if (params?.warehouseId) query.set('warehouseId', params.warehouseId);
+    if (params?.type) query.set('type', params.type);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const path = `/v1/inventory/movements${qs ? '?' + qs : ''}`;
+    return requestJson<{ items: StockMovement[]; total: number }>(path, { endpoint, method: 'GET' });
+  },
+
+  async createStockMovement(input: StockMovementInput, endpoint?: string): Promise<StockMovement> {
+    const data = await requestJson<{ movement: StockMovement }>('/v1/inventory/movements', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.movement;
+  },
+
+  async getLowStockAlerts(endpoint?: string): Promise<InventoryItem[]> {
+    const data = await requestJson<{ items: InventoryItem[]; total: number }>('/v1/inventory/alerts/low-stock', { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  // ── Phase 2 B4: BOM / 成本核算 API ──
+  async listBOMs(params?: { status?: string; productAssetId?: string; orderId?: string; quotationId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: BOM[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.productAssetId) query.set('productAssetId', params.productAssetId);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.quotationId) query.set('quotationId', params.quotationId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const path = `/v1/bom${qs ? '?' + qs : ''}`;
+    return requestJson<{ items: BOM[]; total: number }>(path, { endpoint, method: 'GET' });
+  },
+
+  async getBOM(id: string, endpoint?: string): Promise<BOM | null> {
+    try {
+      const data = await requestJson<{ bom: BOM }>(`/v1/bom/${id}`, { endpoint, method: 'GET' });
+      return data.bom;
+    } catch {
+      return null;
+    }
+  },
+
+  async createBOM(input: CreateBOMInput, endpoint?: string): Promise<BOM> {
+    const data = await requestJson<{ bom: BOM }>('/v1/bom', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.bom;
+  },
+
+  async updateBOM(id: string, input: UpdateBOMInput, endpoint?: string): Promise<BOM> {
+    const data = await requestJson<{ bom: BOM }>(`/v1/bom/${id}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.bom;
+  },
+
+  async deleteBOM(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/bom/${id}`, { endpoint, method: 'DELETE' });
+  },
+
+  async confirmBOM(id: string, endpoint?: string): Promise<BOM> {
+    const data = await requestJson<{ bom: BOM }>(`/v1/bom/${id}/confirm`, { endpoint, method: 'POST' });
+    return data.bom;
+  },
+
+  async archiveBOM(id: string, endpoint?: string): Promise<BOM> {
+    const data = await requestJson<{ bom: BOM }>(`/v1/bom/${id}/archive`, { endpoint, method: 'POST' });
+    return data.bom;
+  },
+
+  async recalculateBOMCost(id: string, endpoint?: string): Promise<BOM> {
+    const data = await requestJson<{ bom: BOM }>(`/v1/bom/${id}/recalculate`, { endpoint, method: 'POST' });
+    return data.bom;
   },
 
   async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {

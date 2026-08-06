@@ -9,6 +9,10 @@ export type CompiledMainModuleId =
   | 'garment-orders'
   | 'invoices'
   | 'payment-vouchers'
+  | 'quotations'
+  | 'procurement'
+  | 'inventory'
+  | 'bom'
   | 'shipments'
   | 'emails'
   | 'business-tools'
@@ -35,6 +39,10 @@ const MAIN_MODULE_SOURCE_BY_ID: Record<CompiledMainModuleId, CompiledMainModuleB
   'garment-orders': 'GarmentOrders.main-app.compiler-slot',
   invoices: 'FinanceManager.invoices.main-app.compiler-slot',
   'payment-vouchers': 'FinanceManager.payment-vouchers.main-app.compiler-slot',
+  quotations: 'QuotationManager.main-app.compiler-slot',
+  procurement: 'ProcurementManager.main-app.compiler-slot',
+  inventory: 'InventoryManager.main-app.compiler-slot',
+  bom: 'BomManager.main-app.compiler-slot',
   shipments: 'ShipmentManager.main-app.compiler-slot',
   emails: 'EmailManager.main-app.compiler-slot',
   'business-tools': 'BusinessTools.main-app.compiler-slot',

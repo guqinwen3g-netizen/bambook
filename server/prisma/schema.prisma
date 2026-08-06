@@ -2047,3 +2047,410 @@ model WorkflowStep {
   @@index([approverRole])
 }
 
+// ════════════════════════════════════════════════════════════════
+// Phase 2: 报价管理 Quotation Management
+// 外贸「接单起点」：询价 → 报价 → 样品 → 订单 → 生产 → 发货 → 发票 → 收款
+// 报价单是订单的前置环节，accepted 状态可转为 Order
+// ════════════════════════════════════════════════════════════════
+
+model Quotation {
+  id               String  @id // 格式：QT_${shortId}
+  quotationNumber  String  @unique // 业务报价号（如 QT-20260806-001）
+
+  // ─── 业务字段 ───
+  status    String  // Draft(草稿) | Sent(已发送) | Accepted(已接受) | Rejected(已拒绝) | Expired(已过期)
+  currency  String  // USD | CNY | EUR ...
+  totalAmount Decimal @db.Decimal(18, 4) // 报价总金额（所有行金额合计）
+
+  // ─── 汇率快照（外贸场景） ───
+  exchangeRate  Decimal? @db.Decimal(18, 4) // 报价当日 currency → baseCurrency 汇率
+  baseCurrency  String   @default("CNY") // 本位币
+
+  // ─── 关联（snapshot FK，不强制约束） ───
+  customerRelationId String? // 结算单位
+  customerName       String? // 冗余快照
+  customerCode       String? // 客户编码
+
+  // ─── 报价条款 ───
+  issueDate     String   // 报价日期 YYYY-MM-DD
+  validUntil    String? // 报价有效期至 YYYY-MM-DD
+  deliveryTerms String? // FOB Shanghai | CIF ...
+  paymentTerms  String? // T/T 30% deposit ...
+  salesperson   String? // 业务员
+  inquiryRef    String? // 询价参考号
+
+  // ─── 转换 ───
+  convertedOrderId String? // accepted → 转换为订单后的 orderId
+
+  // ─── 备注 / 附件 ───
+  notes       String?
+  attachments Json?
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  // ─── 关联行 ───
+  lines QuotationLine[]
+
+  @@index([status])
+  @@index([customerRelationId])
+  @@index([quotationNumber])
+  @@index([issueDate])
+  @@index([validUntil])
+}
+
+model QuotationLine {
+  id           String  @id
+  quotationId  String
+  lineNumber   Int
+
+  // ─── 商品明细 ───
+  fabricCode   String? // 面料编码
+  description  String  // 品名描述
+  quantity     Decimal @db.Decimal(18, 4)
+  unit         String  // YD | M | KG | PC | SET
+  unitPrice    Decimal @db.Decimal(18, 4) // 单价（报价币种）
+  amount       Decimal @db.Decimal(18, 4) // 行金额 = quantity * unitPrice
+  notes        String?
+
+  createdAt    BigInt
+
+  // ─── 关联 ───
+  quotation    Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@index([quotationId])
+  @@index([fabricCode])
+}
+
+// ============ Phase 2 B1: 采购管理 Procurement ============
+model PurchaseOrder {
+  id                String  @id // 格式：PO_${shortId}
+  poNumber          String  @unique // 业务采购单号（如 PO-20260806-001）
+  status            String  // Draft(草稿) | Sent(已发送) | Confirmed(已确认) | PartiallyReceived(部分到货) | Received(全部到货) | Closed(已关闭) | Cancelled(已取消)
+
+  // ─── 供应商 ───
+  supplierRelationId String? // 供应商 Relation ID
+  supplierName       String?  // 供应商名称（冗余快照）
+  supplierCode       String?  // 供应商编码
+
+  // ─── 金额 ───
+  currency           String   // USD | CNY | EUR
+  totalAmount        Decimal  @db.Decimal(18, 4) // 采购总金额
+  exchangeRate       Decimal? @db.Decimal(18, 4)
+  baseCurrency      String   @default("CNY")
+
+  // ─── 日期 ───
+  orderDate          String   // 下单日期 YYYY-MM-DD
+  expectedDeliveryDate String? // 预计交货日期
+  actualDeliveryDate  String?  // 实际交货日期
+
+  // ─── 条款 ───
+  deliveryTerms      String? // 交货条款
+  paymentTerms       String? // 付款条款
+  shipToAddress      String? // 收货地址
+
+  // ─── 关联 ───
+  orderId            String? // 关联销售订单（从订单/BOM 触发采购）
+  quotationId        String? // 关联报价单（可选）
+  bomId              String? // 关联 BOM（可选）
+
+  // ─── 采购员 ───
+  buyer              String? // 采购员
+  notes              String?
+  attachments        Json?
+
+  createdAt          BigInt
+  updatedAt          BigInt
+  deletedAt          BigInt?
+
+  lines              PurchaseLine[]
+  receipts           MaterialReceipt[]
+
+  @@index([status])
+  @@index([supplierRelationId])
+  @@index([poNumber])
+  @@index([orderDate])
+  @@index([orderId])
+}
+
+model PurchaseLine {
+  id              String  @id
+  purchaseOrderId String
+  lineNumber      Int
+
+  // ─── 物料信息 ───
+  materialCode    String?  // 物料编码（面料编码/辅料编码）
+  description     String   // 品名描述
+  category        String?  // Fabric | Trimmings | Accessories | Other
+  specification   String?  // 规格描述
+
+  // ─── 数量价格 ───
+  quantity        Decimal @db.Decimal(18, 4) // 订单数量
+  unit            String  // YD | M | KG | PC | SET
+  unitPrice       Decimal @db.Decimal(18, 4) // 单价
+  amount          Decimal @db.Decimal(18, 4) // 行金额 = quantity * unitPrice
+
+  // ─── 收货跟踪 ───
+  receivedQuantity Decimal @default(0) @db.Decimal(18, 4) // 已收数量
+  rejectedQuantity Decimal @default(0) @db.Decimal(18, 4) // 不合格数量
+
+  notes           String?
+
+  createdAt       BigInt
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([materialCode])
+}
+
+model MaterialReceipt {
+  id              String  @id // 格式：MR_${shortId}
+  receiptNumber   String  // 收料单号
+  purchaseOrderId String
+  status          String  // Pending(待检) | Inspected(已检验) | Accepted(合格入库) | Rejected(不合格) | PartiallyAccepted(部分合格)
+
+  // ─── 收货信息 ───
+  receivedDate    String  // 收货日期
+  receivedBy      String? // 收货人
+  inspectedBy     String? // 检验员
+  inspectionDate  String? // 检验日期
+
+  // ─── 仓库 ───
+  warehouseId     String? // 收货仓库 ID
+  warehouseName   String?  // 仓库名称（冗余）
+
+  // ─── 检验结果 ───
+  totalReceived   Decimal @db.Decimal(18, 4) // 总收货数量
+  totalAccepted   Decimal @db.Decimal(18, 4) // 合格数量
+  totalRejected   Decimal @db.Decimal(18, 4) // 不合格数量
+  rejectionReason String?  // 不合格原因
+  qualityNotes    String?  // 质量备注
+
+  notes           String?
+  createdAt       BigInt
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([status])
+  @@index([receivedDate])
+}
+
+// ============ Phase 2 B2: 库存管理 Inventory Management ============
+
+model Warehouse {
+  id          String  @id // 格式：WH_${shortId}
+  code        String  @unique // 仓库编码（如 WH-001 / SH-MAIN）
+  name        String  // 仓库名称
+  type        String  // Main(主仓) | Auxiliary(辅仓) | Temporary(临时仓) | Virtual(虚拟仓)
+  address     String? // 仓库地址
+  manager     String? // 仓库管理员
+  phone       String? // 联系电话
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+  notes       String?
+
+  createdAt   BigInt
+  updatedAt   BigInt
+  deletedAt   BigInt?
+
+  items       InventoryItem[]
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model InventoryItem {
+  id              String  @id // 格式：INV_${shortId}
+  warehouseId     String
+  productAssetId  String?  // 关联产品档案（面料/辅料/成衣）
+  materialCode    String?  // 物料编码（可独立于产品档案，如临时编码）
+  description     String   // 品名描述
+  category        String?  // Fabric | Trimmings | Accessories | Garment | Other
+  specification   String?  // 规格描述
+  batchNumber     String?  // 批次号（可追溯）
+  locationCode    String?  // 库位编码（如 A-01-03）
+
+  // ─── 数量 ───
+  quantity        Decimal @db.Decimal(18, 4) // 当前库存数量
+  lockedQuantity  Decimal @default(0) @db.Decimal(18, 4) // 锁定/预留数量（已分配未出库）
+  unit            String  // YD | M | KG | PC | SET
+
+  // ─── 成本 ───
+  unitCost        Decimal? @db.Decimal(18, 4) // 单位成本
+  currency        String   @default("CNY")
+
+  // ─── 预警 ───
+  minStock        Decimal? @db.Decimal(18, 4) // 最低库存预警线
+  maxStock        Decimal? @db.Decimal(18, 4) // 最高库存预警线
+
+  // ─── 日期 ───
+  lastInDate      String? // 最后入库日期
+  lastOutDate     String? // 最后出库日期
+
+  notes           String?
+  createdAt       BigInt
+  updatedAt       BigInt
+  deletedAt       BigInt?
+
+  warehouse       Warehouse  @relation(fields: [warehouseId], references: [id])
+  movements       StockMovement[]
+
+  @@index([warehouseId])
+  @@index([productAssetId])
+  @@index([materialCode])
+  @@index([category])
+  @@index([batchNumber])
+}
+
+model StockMovement {
+  id              String  @id // 格式：SM_${shortId}
+  movementNumber  String  // 流水单号（如 SM-20260806-001）
+  type            String  // Inbound(入库) | Outbound(出库) | Transfer(调拨) | Adjustment(盘点调整) | Lock(锁定) | Unlock(解锁)
+
+  // ─── 关联库存项 ───
+  itemId          String  // 关联 InventoryItem
+  warehouseId     String  // 操作仓库（源仓库）
+  targetWarehouseId String? // 调拨目标仓库（仅 Transfer 类型）
+
+  // ─── 数量 ───
+  quantity        Decimal @db.Decimal(18, 4) // 变动数量（Inbound 正 / Outbound 负 / Transfer 记录绝对值）
+  unit            String
+  unitCost        Decimal? @db.Decimal(18, 4) // 变动时的单位成本
+  balanceBefore   Decimal @db.Decimal(18, 4) // 变动前余额
+  balanceAfter    Decimal @db.Decimal(18, 4) // 变动后余额
+
+  // ─── 来源追溯 ───
+  reason          String? // 变动原因
+  referenceType   String? // PurchaseOrder | Order | Shipment | ProductionStage | Adjustment | Manual
+  referenceId     String? // 关联单据 ID
+
+  // ─── 操作人 ───
+  operator        String? // 操作人
+  movementDate    String  // 变动日期 YYYY-MM-DD
+
+  notes           String?
+  createdAt       BigInt
+
+  item            InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([type])
+  @@index([warehouseId])
+  @@index([movementDate])
+  @@index([referenceType, referenceId])
+}
+
+// ============ Phase 2 B4: BOM / 成本核算 Bill of Materials ============
+model BOM {
+  id          String  @id // 格式：BOM_${shortId}
+  bomNumber   String  @unique // 业务 BOM 号（如 BOM-20260806-001）
+
+  // ─── 业务字段 ───
+  status      String  // Draft(草稿) | Confirmed(已确认) | Archived(已归档)
+  description String  // BOM 描述（如：男款西装外套 - 款号 M2026-001）
+
+  // ─── 关联（snapshot FK，不强制约束） ───
+  productAssetId String? // 关联产品档案（成衣款式）
+  orderId        String? // 关联订单（订单确认后自动生成 BOM）
+  quotationId   String? // 关联报价单
+
+  // ─── 版本 ───
+  version   Int     @default(1) // BOM 版本号（修订递增）
+  parentBomId String? // 上一版本 BOM ID（版本追溯）
+
+  // ─── 成本汇总（料/工/费） ───
+  totalMaterialCost Decimal @default(0) @db.Decimal(18, 4) // 物料成本合计
+  totalLaborCost    Decimal @default(0) @db.Decimal(18, 4) // 人工成本合计
+  totalOverheadCost Decimal @default(0) @db.Decimal(18, 4) // 制造费用合计
+  totalCost         Decimal @default(0) @db.Decimal(18, 4) // 总成本 = 物料 + 人工 + 费用
+  currency          String  @default("CNY")
+
+  // ─── 利润分析 ───
+  sellingPrice   Decimal? @db.Decimal(18, 4) // 销售单价
+  profitMargin   Decimal? @db.Decimal(8, 4) // 利润率（%）
+  profitAmount   Decimal? @db.Decimal(18, 4) // 利润额 = sellingPrice - totalCost
+
+  // ─── 备注 ───
+  notes       String?
+  attachments Json?
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  // ─── 关联行 ───
+  lines          BOMLine[]
+  costEstimates  CostEstimate[]
+
+  @@index([status])
+  @@index([productAssetId])
+  @@index([orderId])
+  @@index([quotationId])
+  @@index([bomNumber])
+}
+
+model BOMLine {
+  id          String  @id
+  bomId       String
+  lineNumber  Int
+
+  // ─── 物料明细 ───
+  materialType   String  // Main(主料) | Contrast(对比料) | Lining(里布) | Pocketing(口袋布) | Trimmings(辅料) | Thread(缝纫线) | Packaging(包装) | Other
+  materialCode   String? // 物料编码
+  description    String  // 品名描述
+  category       String? // Fabric | Trimmings | Accessories | Garment | Other
+  specification  String? // 规格描述
+  supplierId     String? // 供应商 ID（snapshot）
+
+  // ─── 用量 + 成本 ───
+  quantity       Decimal @db.Decimal(18, 4) // 单件用量
+  unit           String  // YD | M | KG | PC | SET
+  wastagePercent Decimal @default(0) @db.Decimal(8, 4) // 损耗率（%）
+  effectiveQty   Decimal @db.Decimal(18, 4) // 实际用量 = quantity * (1 + wastage%)
+  unitCost       Decimal @db.Decimal(18, 4) // 单价
+  amount         Decimal @db.Decimal(18, 4) // 行金额 = effectiveQty * unitCost
+  currency       String  @default("CNY")
+
+  notes          String?
+  createdAt      BigInt
+  updatedAt      BigInt
+
+  // ─── 关联 ───
+  bom            BOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
+
+  @@index([bomId])
+  @@index([materialCode])
+  @@index([materialType])
+  @@index([category])
+}
+
+model CostEstimate {
+  id          String  @id
+  bomId       String
+
+  // ─── 成本类型 ───
+  costType    String  // Material(物料) | Labor(人工) | Overhead(制造费用) | Other(其他)
+  description String  // 成本项描述（如：裁剪人工 / 缝纫人工 / 厂房折旧 / 检验费）
+
+  // ─── 金额 ───
+  amount      Decimal @db.Decimal(18, 4)
+  currency    String  @default("CNY")
+
+  // ─── 备注 ───
+  notes       String?
+  createdAt   BigInt
+  updatedAt   BigInt
+
+  // ─── 关联 ───
+  bom            BOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
+
+  @@index([bomId])
+  @@index([costType])
+}
+
+

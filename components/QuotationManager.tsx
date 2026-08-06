@@ -1,0 +1,584 @@
+/**
+ * 报价管理 QuotationManager
+ * Phase 2 缺失模块补齐：报价单全生命周期管理
+ *
+ * 功能：
+ *   - 报价单列表（状态过滤、搜索、分页）
+ *   - 创建报价单（含行明细、客户选择、条款）
+ *   - 状态流转：Draft → Sent → Accepted/Rejected/Expired
+ *   - 行明细编辑（增删行、自动金额计算）
+ */
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Plus,
+  Trash2,
+  Send,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
+  Search,
+  RefreshCw,
+  ChevronRight,
+  ChevronDown,
+  Loader2,
+  AlertCircle,
+  ArrowRight,
+} from 'lucide-react';
+import { apiService } from '../services/apiService';
+import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation } from '../types';
+import { PageHeader } from './ui/PageHeader';
+import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
+import { BAMBOOK_OS } from './ui/bambookOsTokens';
+import ScrollEdgeFades from './ui/ScrollEdgeFades';
+
+// ==================== 常量 ====================
+const STATUS_TABS: Array<{ id: 'all' | QuotationStatus; label: string }> = [
+  { id: 'all', label: '全部' },
+  { id: 'Draft', label: '草稿' },
+  { id: 'Sent', label: '已发送' },
+  { id: 'Accepted', label: '已接受' },
+  { id: 'Rejected', label: '已拒绝' },
+  { id: 'Expired', label: '已过期' },
+];
+
+const STATUS_LABELS: Record<QuotationStatus, string> = {
+  Draft: '草稿',
+  Sent: '已发送',
+  Accepted: '已接受',
+  Rejected: '已拒绝',
+  Expired: '已过期',
+};
+
+const CURRENCIES = ['USD', 'CNY', 'EUR'];
+const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
+
+interface QuotationManagerProps {
+  isDarkMode: boolean;
+}
+
+let lineCounter = 0;
+const newLineKey = () => `new_qtl_${Date.now()}_${++lineCounter}`;
+
+interface DraftLine {
+  key: string;
+  fabricCode: string;
+  description: string;
+  quantity: string;
+  unit: string;
+  unitPrice: string;
+  notes: string;
+}
+
+const createEmptyLine = (): DraftLine => ({
+  key: newLineKey(),
+  fabricCode: '',
+  description: '',
+  quantity: '',
+  unit: 'YD',
+  unitPrice: '',
+  notes: '',
+});
+
+const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | QuotationStatus>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [relations, setRelations] = useState<Relation[]>([]);
+
+  // 创建表单状态
+  const [form, setForm] = useState({
+    quotationNumber: '',
+    currency: 'USD',
+    customerRelationId: '',
+    customerName: '',
+    issueDate: new Date().toISOString().split('T')[0],
+    validUntil: '',
+    deliveryTerms: 'FOB Shanghai',
+    paymentTerms: 'T/T 30% deposit, 70% before shipment',
+    salesperson: '',
+    inquiryRef: '',
+    notes: '',
+  });
+  const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // ── 拉取数据 ──
+  const fetchQuotations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await apiService.listQuotations({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchQuery || undefined,
+        limit: 100,
+      });
+      setQuotations(result.items);
+    } catch (e: any) {
+      setError(String(e?.message || e || '加载失败'));
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, searchQuery]);
+
+  useEffect(() => { fetchQuotations(); }, [fetchQuotations]);
+
+  useEffect(() => {
+    apiService.listRelations().then(setRelations).catch(() => {});
+  }, []);
+
+  // ── 客户选项 ──
+  const customerOptions = useMemo(() => {
+    return relations
+      .filter(r => !r.deletedAt && (r.type === 'Customer' || r.type === 'Supplier'))
+      .map(r => ({
+        id: r.id,
+        label: r.englishName || r.chineseName || r.name,
+        chineseName: r.chineseName || r.name,
+      }));
+  }, [relations]);
+
+  // ── 行金额计算 ──
+  const calcLineAmount = (qty: string, price: string) => {
+    const q = parseFloat(qty);
+    const p = parseFloat(price);
+    if (!Number.isFinite(q) || !Number.isFinite(p)) return 0;
+    return Math.round(q * p * 10000) / 10000;
+  };
+
+  const formTotal = useMemo(() => {
+    return formLines.reduce((sum, l) => sum + calcLineAmount(l.quantity, l.unitPrice), 0);
+  }, [formLines]);
+
+  // ── 状态转换操作 ──
+  const handleAction = useCallback(async (id: string, action: 'send' | 'accept' | 'reject' | 'delete' | 'convert') => {
+    setActionLoading(`${id}_${action}`);
+    try {
+      if (action === 'send') await apiService.sendQuotation(id);
+      else if (action === 'accept') await apiService.acceptQuotation(id);
+      else if (action === 'reject') await apiService.rejectQuotation(id);
+      else if (action === 'delete') await apiService.deleteQuotation(id);
+      else if (action === 'convert') {
+        const result = await apiService.convertQuotationToOrder(id);
+        setError(`已转为订单 ${result.orderId}，可在生产管理中查看`);
+      }
+      await fetchQuotations();
+    } catch (e: any) {
+      setError(`操作失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [fetchQuotations]);
+
+  // ── 创建报价单 ──
+  const handleCreate = useCallback(async () => {
+    setFormError(null);
+    const validLines = formLines.filter(l => l.description && l.quantity && l.unitPrice);
+    if (!form.quotationNumber) { setFormError('请填写报价编号'); return; }
+    if (!form.issueDate) { setFormError('请填写报价日期'); return; }
+    if (validLines.length === 0) { setFormError('至少需要一行有效报价明细'); return; }
+
+    setActionLoading('create');
+    try {
+      const input: QuotationInput = {
+        quotationNumber: form.quotationNumber,
+        currency: form.currency,
+        customerRelationId: form.customerRelationId || undefined,
+        customerName: form.customerName || undefined,
+        issueDate: form.issueDate,
+        validUntil: form.validUntil || undefined,
+        deliveryTerms: form.deliveryTerms || undefined,
+        paymentTerms: form.paymentTerms || undefined,
+        salesperson: form.salesperson || undefined,
+        inquiryRef: form.inquiryRef || undefined,
+        notes: form.notes || undefined,
+        lines: validLines.map(l => ({
+          fabricCode: l.fabricCode || undefined,
+          description: l.description,
+          quantity: parseFloat(l.quantity),
+          unit: l.unit,
+          unitPrice: parseFloat(l.unitPrice),
+          notes: l.notes || undefined,
+        })),
+      };
+      await apiService.createQuotation(input);
+      setShowCreateForm(false);
+      // 重置表单
+      setForm({
+        quotationNumber: '', currency: 'USD', customerRelationId: '', customerName: '',
+        issueDate: new Date().toISOString().split('T')[0], validUntil: '',
+        deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit, 70% before shipment',
+        salesperson: '', inquiryRef: '', notes: '',
+      });
+      setFormLines([createEmptyLine()]);
+      await fetchQuotations();
+    } catch (e: any) {
+      setFormError(`创建失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [form, formLines, fetchQuotations]);
+
+  const updateFormLine = (key: string, field: keyof DraftLine, value: string) => {
+    setFormLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
+  };
+  const addFormLine = () => setFormLines(prev => [...prev, createEmptyLine()]);
+  const removeFormLine = (key: string) => setFormLines(prev => (prev.length > 1 ? prev.filter(l => l.key !== key) : prev));
+
+  const formatAmount = (n: number, currency: string) =>
+    `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+
+  const formatDate = (s?: string) => s || '—';
+
+  // ── 主题样式 ──
+  const panelClass = isDarkMode ? `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceDark}` : `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceLight}`;
+  const cardClass = isDarkMode
+    ? `rounded-card border border-white/[0.055] bg-white/[0.018] ${BAMBOOK_OS.material.glassColor}`
+    : `rounded-card border border-white/45 bg-white/24 ${BAMBOOK_OS.material.glassColor}`;
+  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
+    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
+  }`;
+  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
+  const actionBtnCls = `h-8 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50`;
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <PageHeader title="报价管理" subtitle="Quotations" isDarkMode={isDarkMode} />
+
+      <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
+        <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+          <AnimatePresence mode="wait">
+            {showCreateForm ? (
+              <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+                {/* 创建表单 */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建报价单</h2>
+                  <button onClick={() => setShowCreateForm(false)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]' : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}>
+                    <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {/* 基本信息 */}
+                  <div className={`p-4 rounded-card ${cardClass}`}>
+                    <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>基本信息</h3>
+                    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                      <div>
+                        <label className={labelClass}>报价编号 *</label>
+                        <input type="text" value={form.quotationNumber} onChange={(e) => setForm({ ...form, quotationNumber: e.target.value })} placeholder="QT-2026-001" className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>币种</label>
+                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className={fieldClass}>
+                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>报价日期 *</label>
+                        <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>有效期至</label>
+                        <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>客户</label>
+                        <select value={form.customerRelationId} onChange={(e) => {
+                          const rel = relations.find(r => r.id === e.target.value);
+                          setForm({ ...form, customerRelationId: e.target.value, customerName: rel?.englishName || rel?.chineseName || '' });
+                        }} className={fieldClass}>
+                          <option value="">选择客户...</option>
+                          {customerOptions.map(c => <option key={c.id} value={c.id}>{c.label} ({c.chineseName})</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>业务员</label>
+                        <input type="text" value={form.salesperson} onChange={(e) => setForm({ ...form, salesperson: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>询价参考</label>
+                        <input type="text" value={form.inquiryRef} onChange={(e) => setForm({ ...form, inquiryRef: e.target.value })} className={fieldClass} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className={labelClass}>交货条款</label>
+                        <input type="text" value={form.deliveryTerms} onChange={(e) => setForm({ ...form, deliveryTerms: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>付款条款</label>
+                        <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className={fieldClass} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 报价行 */}
+                  <div className={`p-4 rounded-card ${cardClass}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>报价明细</h3>
+                      <button onClick={addFormLine} className={`text-xs px-3 py-1.5 rounded-full flex items-center gap-1 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] hover:bg-white/5' : 'text-[var(--os-vnext-brand-blue)] hover:bg-slate-100/60'}`}>
+                        <Plus size={12} /> 添加行
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {formLines.map((line) => (
+                        <div key={line.key} className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/5' : 'bg-slate-50'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>行 {formLines.indexOf(line) + 1}</span>
+                            {formLines.length > 1 && (
+                              <button onClick={() => removeFormLine(line.key)} className={`p-1 rounded ${isDarkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500'}`}>
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
+                            <input type="text" value={line.fabricCode} onChange={(e) => updateFormLine(line.key, 'fabricCode', e.target.value)} placeholder="面料编码" className={`${fieldClass} py-1.5 text-xs`} />
+                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className={`${fieldClass} py-1.5 text-xs xl:col-span-2`} />
+                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className={`${fieldClass} py-1.5 text-xs`} />
+                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className={`${fieldClass} py-1.5 text-xs`} />
+                          </div>
+                          <div className={`mt-1 text-right text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            金额: {formatAmount(calcLineAmount(line.quantity, line.unitPrice), form.currency)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`mt-3 pt-3 border-t flex justify-between items-center text-sm ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>合计</span>
+                      <span className={`font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatAmount(formTotal, form.currency)}</span>
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <div className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('danger', isDarkMode)}`}>
+                      <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
+                      <span className="text-sm">{formError}</span>
+                    </div>
+                  )}
+
+                  <button onClick={handleCreate} disabled={actionLoading === 'create'} className="w-full py-3 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white font-light text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                    {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                    <span>创建报价单</span>
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                {/* 工具栏 */}
+                <div className="flex items-center gap-3 mb-4">
+                  <button onClick={() => setShowCreateForm(true)} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors">
+                    <Plus size={14} /><span>新建报价单</span>
+                  </button>
+                  <div className="relative flex-1 max-w-xs">
+                    <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className={`${fieldClass} pl-9`} />
+                  </div>
+                  <button onClick={fetchQuotations} className={`p-2 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`} title="刷新">
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+
+                {/* 状态过滤 */}
+                <div className="flex items-center gap-1 mb-4">
+                  {STATUS_TABS.map(tab => (
+                    <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${
+                      statusFilter === tab.id
+                        ? 'bg-[var(--os-vnext-brand-blue)] text-white'
+                        : isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 错误提示 */}
+                {error && (
+                  <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('danger', isDarkMode)}`}>
+                    <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
+                    <span className="text-sm">{error}</span>
+                  </div>
+                )}
+
+                {/* 列表 */}
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 size={24} className={`animate-spin ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                  </div>
+                ) : quotations.length === 0 ? (
+                  <div className={`text-center py-12 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <FileText size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">暂无报价单</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {quotations.map((qt, index) => (
+                      <motion.div
+                        key={qt.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className={`${cardClass} overflow-hidden`}
+                      >
+                        {/* 卡片头部 */}
+                        <div
+                          className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                          onClick={() => setExpandedId(expandedId === qt.id ? null : qt.id)}
+                        >
+                          <button className={`flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {expandedId === qt.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{qt.quotationNumber}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(qt.status.toLowerCase() as any, isDarkMode)} ${statusSemanticText(qt.status.toLowerCase() as any, isDarkMode)}`}>
+                                {STATUS_LABELS[qt.status as QuotationStatus] || qt.status}
+                              </span>
+                            </div>
+                            <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              {qt.customerName || '未指定客户'} · {formatDate(qt.issueDate)}
+                              {qt.validUntil ? ` · 有效期至 ${qt.validUntil}` : ''}
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className={`text-sm font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                              {formatAmount(Number(qt.totalAmount), qt.currency)}
+                            </div>
+                            {qt.lines && qt.lines.length > 0 && (
+                              <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{qt.lines.length} 行</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 展开详情 */}
+                        <AnimatePresence>
+                          {expandedId === qt.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className={`overflow-hidden border-t ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}
+                            >
+                              <div className="p-4 space-y-3">
+                                {/* 条款信息 */}
+                                <div className={`grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  {qt.deliveryTerms && <div><span className="opacity-60">交货:</span> {qt.deliveryTerms}</div>}
+                                  {qt.paymentTerms && <div><span className="opacity-60">付款:</span> {qt.paymentTerms}</div>}
+                                  {qt.salesperson && <div><span className="opacity-60">业务员:</span> {qt.salesperson}</div>}
+                                  {qt.inquiryRef && <div><span className="opacity-60">询价参考:</span> {qt.inquiryRef}</div>}
+                                </div>
+
+                                {/* 行明细表 */}
+                                {qt.lines && qt.lines.length > 0 && (
+                                  <div className={`rounded-inset overflow-hidden ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>
+                                          <th className="text-left p-2 font-light">#</th>
+                                          <th className="text-left p-2 font-light">编码</th>
+                                          <th className="text-left p-2 font-light">品名</th>
+                                          <th className="text-right p-2 font-light">数量</th>
+                                          <th className="text-center p-2 font-light">单位</th>
+                                          <th className="text-right p-2 font-light">单价</th>
+                                          <th className="text-right p-2 font-light">金额</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {qt.lines.map((line) => (
+                                          <tr key={line.id} className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>
+                                            <td className="p-2">{line.lineNumber}</td>
+                                            <td className="p-2 font-mono">{line.fabricCode || '—'}</td>
+                                            <td className="p-2">{line.description}</td>
+                                            <td className="p-2 text-right tabular-nums">{Number(line.quantity).toLocaleString('en-US')}</td>
+                                            <td className="p-2 text-center">{line.unit}</td>
+                                            <td className="p-2 text-right tabular-nums">{Number(line.unitPrice).toFixed(4)}</td>
+                                            <td className="p-2 text-right tabular-nums">{Number(line.amount).toFixed(2)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+
+                                {/* 操作按钮 */}
+                                <div className="flex items-center gap-2 pt-2">
+                                  {qt.status === 'Draft' && (
+                                    <>
+                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}>
+                                        {actionLoading === `${qt.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                        <span>发送报价</span>
+                                      </button>
+                                      <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
+                                        {actionLoading === `${qt.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                        <span>删除</span>
+                                      </button>
+                                    </>
+                                  )}
+                                  {qt.status === 'Sent' && (
+                                    <>
+                                      <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className={`${actionBtnCls} bg-green-500/10 text-green-500 hover:bg-green-500/14`}>
+                                        {actionLoading === `${qt.id}_accept` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                        <span>接受</span>
+                                      </button>
+                                      <button onClick={() => handleAction(qt.id, 'reject')} disabled={actionLoading === `${qt.id}_reject`} className={`${actionBtnCls} bg-red-500/10 text-red-500 hover:bg-red-500/14`}>
+                                        {actionLoading === `${qt.id}_reject` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                                        <span>拒绝</span>
+                                      </button>
+                                    </>
+                                  )}
+                                  {(qt.status === 'Accepted' || qt.status === 'Rejected' || qt.status === 'Expired') && (
+                                    <>
+                                      {qt.status === 'Accepted' && !qt.convertedOrderId && (
+                                        <button
+                                          onClick={() => handleAction(qt.id, 'convert')}
+                                          disabled={actionLoading === `${qt.id}_convert`}
+                                          className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}
+                                        >
+                                          {actionLoading === `${qt.id}_convert` ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
+                                          <span>转为订单</span>
+                                        </button>
+                                      )}
+                                      {qt.status === 'Accepted' && qt.convertedOrderId && (
+                                        <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                          <CheckCircle2 size={12} />
+                                          <span>已转订单 {qt.convertedOrderId}</span>
+                                        </div>
+                                      )}
+                                      {(qt.status === 'Rejected' || qt.status === 'Expired') && (
+                                        <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                          <Clock size={12} />
+                                          <span>{STATUS_LABELS[qt.status as QuotationStatus]} — 终态</span>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default QuotationManager;

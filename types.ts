@@ -6,6 +6,10 @@ export enum View {
   Products = 'products',
   KnowledgeBase = 'knowledge-base',
   Orders = 'orders',
+  Quotations = 'quotations',
+  Procurement = 'procurement',
+  Inventory = 'inventory',
+  BOM = 'bom',
   Invoices = 'invoices',
   PaymentVouchers = 'payment-vouchers',
   Shipments = 'shipments',
@@ -1618,6 +1622,404 @@ export type BambookModelId = typeof MODELS[keyof typeof MODELS];
 // ═══════════════════════════════════════════════════════════
 // Finance & Logistics types (Invoice / PaymentVoucher / Shipment)
 // ═══════════════════════════════════════════════════════════
+
+// ─── Phase 2: 报价管理 ───
+export type QuotationStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
+
+export interface QuotationLine {
+  id: string;
+  quotationId: string;
+  lineNumber: number;
+  fabricCode?: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  amount: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Quotation {
+  id: string;
+  quotationNumber: string;
+  status: QuotationStatus;
+  currency: string;
+  totalAmount: number;
+  exchangeRate?: number;
+  baseCurrency: string;
+  customerRelationId?: string;
+  customerName?: string;
+  customerCode?: string;
+  issueDate: string;
+  validUntil?: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  salesperson?: string;
+  inquiryRef?: string;
+  convertedOrderId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+  lines?: QuotationLine[];
+}
+
+export interface QuotationInput {
+  quotationNumber: string;
+  currency: string;
+  customerRelationId?: string;
+  customerName?: string;
+  customerCode?: string;
+  issueDate: string;
+  validUntil?: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  salesperson?: string;
+  inquiryRef?: string;
+  exchangeRate?: number;
+  baseCurrency?: string;
+  notes?: string;
+  lines: Array<{
+    fabricCode?: string;
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    notes?: string;
+  }>;
+}
+
+// ─── Phase 2 B1: 采购管理 ───
+export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Confirmed' | 'PartiallyReceived' | 'Received' | 'Closed' | 'Cancelled';
+
+export interface PurchaseLine {
+  id: string;
+  purchaseOrderId: string;
+  lineNumber: number;
+  materialCode?: string;
+  description: string;
+  category?: string;
+  specification?: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  amount: number;
+  receivedQuantity: number;
+  rejectedQuantity: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface MaterialReceipt {
+  id: string;
+  receiptNumber: string;
+  purchaseOrderId: string;
+  status: 'Pending' | 'Inspected' | 'Accepted' | 'Rejected' | 'PartiallyAccepted';
+  receivedDate: string;
+  receivedBy?: string;
+  inspectedBy?: string;
+  inspectionDate?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  totalReceived: number;
+  totalAccepted: number;
+  totalRejected: number;
+  rejectionReason?: string;
+  qualityNotes?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  status: PurchaseOrderStatus;
+  supplierRelationId?: string;
+  supplierName?: string;
+  supplierCode?: string;
+  currency: string;
+  totalAmount: number;
+  exchangeRate?: number;
+  baseCurrency: string;
+  orderDate: string;
+  expectedDeliveryDate?: string;
+  actualDeliveryDate?: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  shipToAddress?: string;
+  orderId?: string;
+  quotationId?: string;
+  bomId?: string;
+  buyer?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+  lines?: PurchaseLine[];
+  receipts?: MaterialReceipt[];
+}
+
+export interface PurchaseOrderInput {
+  poNumber: string;
+  currency: string;
+  supplierRelationId?: string;
+  supplierName?: string;
+  supplierCode?: string;
+  orderDate: string;
+  expectedDeliveryDate?: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  shipToAddress?: string;
+  orderId?: string;
+  quotationId?: string;
+  bomId?: string;
+  buyer?: string;
+  exchangeRate?: number;
+  baseCurrency?: string;
+  notes?: string;
+  lines: Array<{
+    materialCode?: string;
+    description: string;
+    category?: string;
+    specification?: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    notes?: string;
+  }>;
+}
+
+export interface MaterialReceiptInput {
+  receiptNumber: string;
+  receivedDate: string;
+  receivedBy?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  totalReceived: number;
+  totalAccepted: number;
+  totalRejected: number;
+  rejectionReason?: string;
+  qualityNotes?: string;
+  notes?: string;
+}
+
+// ─── Phase 2 B2: 库存管理 ───
+export type WarehouseType = 'Main' | 'Auxiliary' | 'Temporary' | 'Virtual';
+export type StockMovementType = 'Inbound' | 'Outbound' | 'Transfer' | 'Adjustment' | 'Lock' | 'Unlock';
+
+export interface Warehouse {
+  id: string;
+  code: string;
+  name: string;
+  type: WarehouseType;
+  address?: string;
+  manager?: string;
+  phone?: string;
+  isActive: boolean;
+  sortOrder: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface WarehouseInput {
+  code: string;
+  name: string;
+  type: WarehouseType;
+  address?: string;
+  manager?: string;
+  phone?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  notes?: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  warehouseId: string;
+  warehouse?: Warehouse | null;
+  productAssetId?: string;
+  materialCode?: string;
+  description: string;
+  category?: string;
+  specification?: string;
+  batchNumber?: string;
+  locationCode?: string;
+  quantity: number;
+  lockedQuantity: number;
+  availableQuantity: number; // quantity - lockedQuantity（前端计算）
+  unit: string;
+  unitCost?: number;
+  currency: string;
+  minStock?: number;
+  maxStock?: number;
+  lastInDate?: string;
+  lastOutDate?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+  movements?: StockMovement[];
+}
+
+export interface InventoryItemInput {
+  warehouseId: string;
+  productAssetId?: string;
+  materialCode?: string;
+  description: string;
+  category?: string;
+  specification?: string;
+  batchNumber?: string;
+  locationCode?: string;
+  quantity: number;
+  unit: string;
+  unitCost?: number;
+  currency?: string;
+  minStock?: number;
+  maxStock?: number;
+  notes?: string;
+}
+
+export interface StockMovement {
+  id: string;
+  movementNumber: string;
+  type: StockMovementType;
+  itemId: string;
+  warehouseId: string;
+  targetWarehouseId?: string;
+  quantity: number;
+  unit: string;
+  unitCost?: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  reason?: string;
+  referenceType?: string;
+  referenceId?: string;
+  operator?: string;
+  movementDate: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface StockMovementInput {
+  itemId: string;
+  type: StockMovementType;
+  quantity: number;
+  unit?: string;
+  unitCost?: number;
+  targetWarehouseId?: string;
+  reason?: string;
+  referenceType?: string;
+  referenceId?: string;
+  movementDate?: string;
+  notes?: string;
+}
+
+// ─── Phase 2 B4: BOM / 成本核算 ───
+export type BOMStatus = 'Draft' | 'Confirmed' | 'Archived';
+export type MaterialType = 'Main' | 'Contrast' | 'Lining' | 'Pocketing' | 'Trimmings' | 'Thread' | 'Packaging' | 'Other';
+export type CostType = 'Material' | 'Labor' | 'Overhead' | 'Other';
+
+export interface BOMLine {
+  id: string;
+  bomId: string;
+  lineNumber: number;
+  materialType: MaterialType;
+  materialCode?: string;
+  description: string;
+  category?: string;
+  specification?: string;
+  supplierId?: string;
+  quantity: number;
+  unit: string;
+  wastagePercent: number;
+  effectiveQty: number;
+  unitCost: number;
+  amount: number;
+  currency: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CostEstimate {
+  id: string;
+  bomId: string;
+  costType: CostType;
+  description: string;
+  amount: number;
+  currency: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BOM {
+  id: string;
+  bomNumber: string;
+  status: BOMStatus;
+  description: string;
+  productAssetId?: string;
+  orderId?: string;
+  quotationId?: string;
+  version: number;
+  parentBomId?: string;
+  totalMaterialCost: number;
+  totalLaborCost: number;
+  totalOverheadCost: number;
+  totalCost: number;
+  currency: string;
+  sellingPrice?: number;
+  profitMargin?: number;
+  profitAmount?: number;
+  notes?: string;
+  attachments?: unknown;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number;
+  lines?: BOMLine[];
+  costEstimates?: CostEstimate[];
+}
+
+export interface BOMLineInput {
+  materialType: MaterialType;
+  materialCode?: string;
+  description: string;
+  category?: string;
+  specification?: string;
+  supplierId?: string;
+  quantity: number;
+  unit: string;
+  wastagePercent?: number;
+  unitCost: number;
+  notes?: string;
+}
+
+export interface CostEstimateInput {
+  costType: CostType;
+  description: string;
+  amount: number;
+  notes?: string;
+}
+
+export interface CreateBOMInput {
+  bomNumber: string;
+  description: string;
+  productAssetId?: string;
+  orderId?: string;
+  quotationId?: string;
+  currency?: string;
+  sellingPrice?: number;
+  notes?: string;
+  lines: BOMLineInput[];
+  costEstimates?: CostEstimateInput[];
+}
+
+export interface UpdateBOMInput extends Partial<CreateBOMInput> {
+  status?: string;
+}
 
 export type InvoiceStatus = 'Draft' | 'Issued' | 'PartiallyPaid' | 'Paid' | 'Cancelled';
 export type InvoiceType = 'Receivable' | 'Payable';

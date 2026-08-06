@@ -48,6 +48,11 @@ import { logger } from '../lib/logger';
 export type BusinessEventType =
   | 'OrderCreated'
   | 'OrderConfirmed'
+  | 'QuotationIssued'
+  | 'QuotationAccepted'
+  | 'PurchaseOrderSent'
+  | 'PurchaseOrderConfirmed'
+  | 'MaterialReceived'
   | 'OrderStatusChanged'
   | 'ProductionStageAdvanced'
   | 'ProductionCompleted'
@@ -60,7 +65,11 @@ export type BusinessEventType =
   | 'PaymentReceived'
   | 'AllocationReconciled'
   | 'DevelopmentConverted'
-  | 'RelationOnboarded';
+  | 'RelationOnboarded'
+  | 'StockLowAlarm'
+  | 'StockOverstockAlarm'
+  | 'BOMConfirmed'
+  | 'BOMCostCalculated';
 
 export interface BusinessEvent<T extends Record<string, unknown> = Record<string, unknown>> {
   /** 事件唯一 ID，用于幂等持久化与重放去重 */

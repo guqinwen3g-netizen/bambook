@@ -3,10 +3,14 @@ import {
   CreditCard,
   Database,
   Factory,
+  FileSignature,
   FileText,
   LayoutDashboard,
   Library,
   Mail,
+  PackageCheck,
+  Boxes,
+  Calculator,
   Shield,
   Sparkles,
   Truck,
@@ -33,6 +37,10 @@ export type MainCompilerSurface =
   | 'development'
   | 'knowledgeBase'
   | 'orders'
+  | 'quotations'
+  | 'procurement'
+  | 'inventory'
+  | 'bom'
   | 'invoices'
   | 'paymentVouchers'
   | 'shipments'
@@ -115,6 +123,10 @@ export const BAMBOOK_MAIN_COMPILER_SURFACES: readonly MainCompilerSurface[] = [
   'development',
   'knowledgeBase',
   'orders',
+  'quotations',
+  'procurement',
+  'inventory',
+  'bom',
   'invoices',
   'paymentVouchers',
   'shipments',
@@ -160,6 +172,22 @@ export const BAMBOOK_MAIN_COMPILER_SURFACE_CONFIGS: Record<MainCompilerSurface, 
   orders: {
     queryKey: 'ordersCompiler',
     storageKey: 'bambook_orders_compiler_enabled',
+  },
+  quotations: {
+    queryKey: 'quotationsCompiler',
+    storageKey: 'bambook_quotations_compiler_enabled',
+  },
+  procurement: {
+    queryKey: 'procurementCompiler',
+    storageKey: 'bambook_procurement_compiler_enabled',
+  },
+  inventory: {
+    queryKey: 'inventoryCompiler',
+    storageKey: 'bambook_inventory_compiler_enabled',
+  },
+  bom: {
+    queryKey: 'bomCompiler',
+    storageKey: 'bambook_bom_compiler_enabled',
   },
   invoices: {
     queryKey: 'invoicesCompiler',
@@ -284,6 +312,54 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
       { id: 'fabric-orders', label: '面料订单', localStateKey: 'orderType' },
       { id: 'garment-orders', label: '成衣订单', localStateKey: 'orderType' },
     ],
+  },
+  {
+    id: 'quotations',
+    view: View.Quotations,
+    productLabel: '报价管理',
+    internalName: 'Quotations',
+    icon: FileSignature,
+    nav: { primary: true, order: 49 },
+    permissions: getViewPermissionDefinition(View.Quotations),
+    compiler: compiler('quotations', 'provisional'),
+    runtime: desktopRuntime,
+    entry: { current: 'components/QuotationManager.tsx' },
+  },
+  {
+    id: 'procurement',
+    view: View.Procurement,
+    productLabel: '采购管理',
+    internalName: 'Procurement',
+    icon: PackageCheck,
+    nav: { primary: true, order: 49.5 },
+    permissions: getViewPermissionDefinition(View.Procurement),
+    compiler: compiler('procurement', 'provisional'),
+    runtime: desktopRuntime,
+    entry: { current: 'components/ProcurementManager.tsx' },
+  },
+  {
+    id: 'inventory',
+    view: View.Inventory,
+    productLabel: '库存管理',
+    internalName: 'Inventory',
+    icon: Boxes,
+    nav: { primary: true, order: 49.6 },
+    permissions: getViewPermissionDefinition(View.Inventory),
+    compiler: compiler('inventory', 'provisional'),
+    runtime: desktopRuntime,
+    entry: { current: 'components/InventoryManager.tsx' },
+  },
+  {
+    id: 'bom',
+    view: View.BOM,
+    productLabel: 'BOM 成本核算',
+    internalName: 'BOM',
+    icon: Calculator,
+    nav: { primary: true, order: 49.7 },
+    permissions: getViewPermissionDefinition(View.BOM),
+    compiler: compiler('bom', 'provisional'),
+    runtime: desktopRuntime,
+    entry: { current: 'components/BomManager.tsx' },
   },
   {
     id: 'invoices',

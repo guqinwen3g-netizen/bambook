@@ -1,0 +1,804 @@
+/**
+ * 采购管理 ProcurementManager
+ * Phase 2 B1 缺失模块补齐：采购单全生命周期管理 + 来料检验
+ *
+ * 功能：
+ *   - 采购单列表（状态过滤、搜索、供应商筛选）
+ *   - 创建采购单（含行明细、供应商选择、条款）
+ *   - 状态流转：Draft → Sent → Confirmed → PartiallyReceived/Received → Closed / Cancelled
+ *   - 来料检验记录（MaterialReceipt）：合格/不合格数量、入库仓库、检验员
+ *   - 行明细：物料编码、品名、数量、单价、已收数量跟踪
+ */
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Plus,
+  Trash2,
+  Send,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  PackageCheck,
+  Search,
+  RefreshCw,
+  ChevronRight,
+  ChevronDown,
+  Loader2,
+  AlertCircle,
+  Package,
+  X,
+} from 'lucide-react';
+import { apiService } from '../services/apiService';
+import {
+  PurchaseOrder,
+  PurchaseLine,
+  PurchaseOrderStatus,
+  PurchaseOrderInput,
+  MaterialReceipt,
+  MaterialReceiptInput,
+  Relation,
+} from '../types';
+import { PageHeader } from './ui/PageHeader';
+import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
+import { BAMBOOK_OS } from './ui/bambookOsTokens';
+import ScrollEdgeFades from './ui/ScrollEdgeFades';
+
+// ==================== 常量 ====================
+type StatusTab = 'all' | PurchaseOrderStatus;
+
+const STATUS_TABS: Array<{ id: StatusTab; label: string }> = [
+  { id: 'all', label: '全部' },
+  { id: 'Draft', label: '草稿' },
+  { id: 'Sent', label: '已发送' },
+  { id: 'Confirmed', label: '已确认' },
+  { id: 'PartiallyReceived', label: '部分到货' },
+  { id: 'Received', label: '全部到货' },
+  { id: 'Closed', label: '已关闭' },
+  { id: 'Cancelled', label: '已取消' },
+];
+
+const STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
+  Draft: '草稿',
+  Sent: '已发送',
+  Confirmed: '已确认',
+  PartiallyReceived: '部分到货',
+  Received: '全部到货',
+  Closed: '已关闭',
+  Cancelled: '已取消',
+};
+
+// 采购单状态 → 语义色阶映射
+const STATUS_SEMANTIC: Record<PurchaseOrderStatus, StatusSemantic> = {
+  Draft: 'neutral',
+  Sent: 'info',
+  Confirmed: 'active',
+  PartiallyReceived: 'warning',
+  Received: 'success',
+  Closed: 'neutral',
+  Cancelled: 'danger',
+};
+
+const CURRENCIES = ['USD', 'CNY', 'EUR'];
+const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
+const LINE_CATEGORIES = ['Fabric', 'Trimmings', 'Accessories', 'Other'];
+
+const RECEIPT_STATUS_LABELS: Record<MaterialReceipt['status'], string> = {
+  Pending: '待检',
+  Inspected: '已检验',
+  Accepted: '合格入库',
+  Rejected: '不合格',
+  PartiallyAccepted: '部分合格',
+};
+
+interface ProcurementManagerProps {
+  isDarkMode: boolean;
+}
+
+let lineCounter = 0;
+const newLineKey = () => `new_pol_${Date.now()}_${++lineCounter}`;
+
+interface DraftLine {
+  key: string;
+  materialCode: string;
+  description: string;
+  category: string;
+  specification: string;
+  quantity: string;
+  unit: string;
+  unitPrice: string;
+  notes: string;
+}
+
+const createEmptyLine = (): DraftLine => ({
+  key: newLineKey(),
+  materialCode: '',
+  description: '',
+  category: 'Fabric',
+  specification: '',
+  quantity: '',
+  unit: 'YD',
+  unitPrice: '',
+  notes: '',
+});
+
+const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) => {
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusTab>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [relations, setRelations] = useState<Relation[]>([]);
+  const [receiptsByPo, setReceiptsByPo] = useState<Record<string, MaterialReceipt[]>>({});
+  const [showReceiptForm, setShowReceiptForm] = useState<string | null>(null);
+
+  // 创建表单状态
+  const [form, setForm] = useState({
+    poNumber: '',
+    currency: 'USD',
+    supplierRelationId: '',
+    supplierName: '',
+    orderDate: new Date().toISOString().split('T')[0],
+    expectedDeliveryDate: '',
+    deliveryTerms: 'FOB Shanghai',
+    paymentTerms: 'T/T 30% deposit, 70% before shipment',
+    shipToAddress: '',
+    buyer: '',
+    notes: '',
+  });
+  const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // 来料检验表单状态
+  const [receiptForm, setReceiptForm] = useState({
+    receiptNumber: '',
+    receivedDate: new Date().toISOString().split('T')[0],
+    receivedBy: '',
+    warehouseName: '',
+    totalReceived: '',
+    totalAccepted: '',
+    totalRejected: '',
+    rejectionReason: '',
+    qualityNotes: '',
+  });
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+
+  // ── 拉取数据 ──
+  const fetchPurchaseOrders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await apiService.listPurchaseOrders({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchQuery || undefined,
+        limit: 100,
+      });
+      setPurchaseOrders(result.items);
+    } catch (e: any) {
+      setError(String(e?.message || e || '加载失败'));
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, searchQuery]);
+
+  useEffect(() => { fetchPurchaseOrders(); }, [fetchPurchaseOrders]);
+
+  useEffect(() => {
+    apiService.listRelations().then(setRelations).catch(() => {});
+  }, []);
+
+  // ── 供应商选项 ──
+  const supplierOptions = useMemo(() => {
+    return relations
+      .filter(r => !r.deletedAt && (r.type === 'Supplier' || r.category === 'Supplier'))
+      .map(r => ({
+        id: r.id,
+        label: r.englishName || r.chineseName || r.name,
+        chineseName: r.chineseName || r.name,
+        code: r.paymentTerms || '',
+      }));
+  }, [relations]);
+
+  // ── 行金额计算 ──
+  const calcLineAmount = (qty: string, price: string) => {
+    const q = parseFloat(qty);
+    const p = parseFloat(price);
+    if (!Number.isFinite(q) || !Number.isFinite(p)) return 0;
+    return Math.round(q * p * 10000) / 10000;
+  };
+
+  const formTotal = useMemo(() => {
+    return formLines.reduce((sum, l) => sum + calcLineAmount(l.quantity, l.unitPrice), 0);
+  }, [formLines]);
+
+  // ── 状态转换操作 ──
+  const handleAction = useCallback(async (id: string, action: 'send' | 'confirm' | 'cancel' | 'close' | 'delete') => {
+    setActionLoading(`${id}_${action}`);
+    setError(null);
+    try {
+      if (action === 'send') await apiService.sendPurchaseOrder(id);
+      else if (action === 'confirm') await apiService.confirmPurchaseOrder(id);
+      else if (action === 'cancel') await apiService.cancelPurchaseOrder(id);
+      else if (action === 'close') await apiService.closePurchaseOrder(id);
+      else if (action === 'delete') await apiService.deletePurchaseOrder(id);
+      await fetchPurchaseOrders();
+    } catch (e: any) {
+      setError(`操作失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [fetchPurchaseOrders]);
+
+  // ── 拉取来料记录 ──
+  const fetchReceipts = useCallback(async (poId: string) => {
+    try {
+      const receipts = await apiService.listMaterialReceipts(poId);
+      setReceiptsByPo(prev => ({ ...prev, [poId]: receipts }));
+    } catch {
+      // 静默失败，不影响主列表
+    }
+  }, []);
+
+  const handleExpand = useCallback((poId: string) => {
+    if (expandedId === poId) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(poId);
+      fetchReceipts(poId);
+    }
+  }, [expandedId, fetchReceipts]);
+
+  // ── 创建采购单 ──
+  const handleCreate = useCallback(async () => {
+    setFormError(null);
+    const validLines = formLines.filter(l => l.description && l.quantity && l.unitPrice);
+    if (!form.poNumber) { setFormError('请填写采购单号'); return; }
+    if (!form.orderDate) { setFormError('请填写下单日期'); return; }
+    if (validLines.length === 0) { setFormError('至少需要一行有效采购明细'); return; }
+
+    setActionLoading('create');
+    try {
+      const input: PurchaseOrderInput = {
+        poNumber: form.poNumber,
+        currency: form.currency,
+        supplierRelationId: form.supplierRelationId || undefined,
+        supplierName: form.supplierName || undefined,
+        orderDate: form.orderDate,
+        expectedDeliveryDate: form.expectedDeliveryDate || undefined,
+        deliveryTerms: form.deliveryTerms || undefined,
+        paymentTerms: form.paymentTerms || undefined,
+        shipToAddress: form.shipToAddress || undefined,
+        buyer: form.buyer || undefined,
+        notes: form.notes || undefined,
+        lines: validLines.map(l => ({
+          materialCode: l.materialCode || undefined,
+          description: l.description,
+          category: l.category || undefined,
+          specification: l.specification || undefined,
+          quantity: parseFloat(l.quantity),
+          unit: l.unit,
+          unitPrice: parseFloat(l.unitPrice),
+          notes: l.notes || undefined,
+        })),
+      };
+      await apiService.createPurchaseOrder(input);
+      setShowCreateForm(false);
+      // 重置表单
+      setForm({
+        poNumber: '', currency: 'USD', supplierRelationId: '', supplierName: '',
+        orderDate: new Date().toISOString().split('T')[0], expectedDeliveryDate: '',
+        deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit, 70% before shipment',
+        shipToAddress: '', buyer: '', notes: '',
+      });
+      setFormLines([createEmptyLine()]);
+      await fetchPurchaseOrders();
+    } catch (e: any) {
+      setFormError(`创建失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [form, formLines, fetchPurchaseOrders]);
+
+  // ── 创建来料检验记录 ──
+  const handleCreateReceipt = useCallback(async (poId: string) => {
+    setReceiptError(null);
+    if (!receiptForm.receiptNumber) { setReceiptError('请填写收料单号'); return; }
+    if (!receiptForm.receivedDate) { setReceiptError('请填写收货日期'); return; }
+    if (receiptForm.totalReceived === '' || receiptForm.totalAccepted === '' || receiptForm.totalRejected === '') {
+      setReceiptError('请填写收货数量 / 合格数量 / 不合格数量'); return;
+    }
+
+    setActionLoading(`receipt_${poId}`);
+    try {
+      const input: MaterialReceiptInput = {
+        receiptNumber: receiptForm.receiptNumber,
+        receivedDate: receiptForm.receivedDate,
+        receivedBy: receiptForm.receivedBy || undefined,
+        warehouseName: receiptForm.warehouseName || undefined,
+        totalReceived: parseFloat(receiptForm.totalReceived),
+        totalAccepted: parseFloat(receiptForm.totalAccepted),
+        totalRejected: parseFloat(receiptForm.totalRejected),
+        rejectionReason: receiptForm.rejectionReason || undefined,
+        qualityNotes: receiptForm.qualityNotes || undefined,
+      };
+      await apiService.createMaterialReceipt(poId, input);
+      setShowReceiptForm(null);
+      // 重置来料表单
+      setReceiptForm({
+        receiptNumber: '', receivedDate: new Date().toISOString().split('T')[0],
+        receivedBy: '', warehouseName: '', totalReceived: '', totalAccepted: '',
+        totalRejected: '', rejectionReason: '', qualityNotes: '',
+      });
+      await fetchReceipts(poId);
+      await fetchPurchaseOrders();
+    } catch (e: any) {
+      setReceiptError(`登记失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [receiptForm, fetchReceipts, fetchPurchaseOrders]);
+
+  const updateFormLine = (key: string, field: keyof DraftLine, value: string) => {
+    setFormLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
+  };
+  const addFormLine = () => setFormLines(prev => [...prev, createEmptyLine()]);
+  const removeFormLine = (key: string) => setFormLines(prev => (prev.length > 1 ? prev.filter(l => l.key !== key) : prev));
+
+  const formatAmount = (n: number, currency: string) =>
+    `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+
+  const formatDate = (s?: string) => s || '—';
+
+  // ── 主题样式 ──
+  const cardClass = isDarkMode
+    ? `rounded-card border border-white/[0.055] bg-white/[0.018] ${BAMBOOK_OS.material.glassColor}`
+    : `rounded-card border border-white/45 bg-white/24 ${BAMBOOK_OS.material.glassColor}`;
+  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
+    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
+  }`;
+  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
+  const actionBtnCls = `h-8 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50`;
+
+  const canReceive = (status: PurchaseOrderStatus) =>
+    status === 'Confirmed' || status === 'PartiallyReceived' || status === 'Received';
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <PageHeader title="采购管理" subtitle="Procurement" isDarkMode={isDarkMode} />
+
+      <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
+        <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+          <AnimatePresence mode="wait">
+            {showCreateForm ? (
+              <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+                {/* 创建表单 */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建采购单</h2>
+                  <button onClick={() => setShowCreateForm(false)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]' : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}>
+                    <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {/* 基本信息 */}
+                  <div className={`p-4 rounded-card ${cardClass}`}>
+                    <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>基本信息</h3>
+                    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                      <div>
+                        <label className={labelClass}>采购单号 *</label>
+                        <input type="text" value={form.poNumber} onChange={(e) => setForm({ ...form, poNumber: e.target.value })} placeholder="PO-2026-001" className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>币种</label>
+                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className={fieldClass}>
+                          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>下单日期 *</label>
+                        <input type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>预计交货日期</label>
+                        <input type="date" value={form.expectedDeliveryDate} onChange={(e) => setForm({ ...form, expectedDeliveryDate: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>供应商</label>
+                        <select value={form.supplierRelationId} onChange={(e) => {
+                          const rel = relations.find(r => r.id === e.target.value);
+                          setForm({ ...form, supplierRelationId: e.target.value, supplierName: rel?.englishName || rel?.chineseName || '' });
+                        }} className={fieldClass}>
+                          <option value="">选择供应商...</option>
+                          {supplierOptions.map(s => <option key={s.id} value={s.id}>{s.label} ({s.chineseName})</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>采购员</label>
+                        <input type="text" value={form.buyer} onChange={(e) => setForm({ ...form, buyer: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>收货地址</label>
+                        <input type="text" value={form.shipToAddress} onChange={(e) => setForm({ ...form, shipToAddress: e.target.value })} className={fieldClass} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className={labelClass}>交货条款</label>
+                        <input type="text" value={form.deliveryTerms} onChange={(e) => setForm({ ...form, deliveryTerms: e.target.value })} className={fieldClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>付款条款</label>
+                        <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className={fieldClass} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 采购行 */}
+                  <div className={`p-4 rounded-card ${cardClass}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>采购明细</h3>
+                      <button onClick={addFormLine} className={`text-xs px-3 py-1.5 rounded-full flex items-center gap-1 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] hover:bg-white/5' : 'text-[var(--os-vnext-brand-blue)] hover:bg-slate-100/60'}`}>
+                        <Plus size={12} /> 添加行
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {formLines.map((line) => (
+                        <div key={line.key} className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/5' : 'bg-slate-50'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>行 {formLines.indexOf(line) + 1}</span>
+                            {formLines.length > 1 && (
+                              <button onClick={() => removeFormLine(line.key)} className={`p-1 rounded ${isDarkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500'}`}>
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
+                            <input type="text" value={line.materialCode} onChange={(e) => updateFormLine(line.key, 'materialCode', e.target.value)} placeholder="物料编码" className={`${fieldClass} py-1.5 text-xs`} />
+                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className={`${fieldClass} py-1.5 text-xs xl:col-span-2`} />
+                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                              {LINE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className={`${fieldClass} py-1.5 text-xs`} />
+                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className={`${fieldClass} py-1.5 text-xs`} />
+                            <input type="text" value={line.specification} onChange={(e) => updateFormLine(line.key, 'specification', e.target.value)} placeholder="规格" className={`${fieldClass} py-1.5 text-xs xl:col-span-2`} />
+                          </div>
+                          <div className={`mt-1 text-right text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            金额: {formatAmount(calcLineAmount(line.quantity, line.unitPrice), form.currency)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`mt-3 pt-3 border-t flex justify-between items-center text-sm ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>合计</span>
+                      <span className={`font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatAmount(formTotal, form.currency)}</span>
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <div className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('danger', isDarkMode)}`}>
+                      <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
+                      <span className="text-sm">{formError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => setShowCreateForm(false)} className={`h-9 px-4 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                      取消
+                    </button>
+                    <button onClick={handleCreate} disabled={actionLoading === 'create'} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors disabled:opacity-50">
+                      {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                      <span>创建采购单</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                {/* 工具栏 */}
+                <div className="flex items-center gap-3 mb-4">
+                  <button onClick={() => setShowCreateForm(true)} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors">
+                    <Plus size={14} /><span>新建采购单</span>
+                  </button>
+                  <div className="relative flex-1 max-w-xs">
+                    <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className={`${fieldClass} pl-9`} />
+                  </div>
+                  <button onClick={fetchPurchaseOrders} className={`p-2 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`} title="刷新">
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+
+                {/* 状态过滤 */}
+                <div className="flex items-center gap-1 mb-4 flex-wrap">
+                  {STATUS_TABS.map(tab => (
+                    <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${
+                      statusFilter === tab.id
+                        ? 'bg-[var(--os-vnext-brand-blue)] text-white'
+                        : isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 错误提示 */}
+                {error && (
+                  <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('danger', isDarkMode)}`}>
+                    <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
+                    <span className="text-sm">{error}</span>
+                    <button onClick={() => setError(null)} className={`ml-auto p-0.5 ${isDarkMode ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-slate-900'}`}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* 列表 */}
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 size={24} className={`animate-spin ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                  </div>
+                ) : purchaseOrders.length === 0 ? (
+                  <div className={`text-center py-12 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <PackageCheck size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">暂无采购单</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {purchaseOrders.map((po, index) => {
+                      const semantic = STATUS_SEMANTIC[po.status as PurchaseOrderStatus] || 'neutral';
+                      const receipts = receiptsByPo[po.id] || [];
+                      return (
+                        <motion.div
+                          key={po.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.03 }}
+                          className={`${cardClass} overflow-hidden`}
+                        >
+                          {/* 卡片头部 */}
+                          <div
+                            className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                            onClick={() => handleExpand(po.id)}
+                          >
+                            <button className={`flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                              {expandedId === po.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{po.poNumber}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(semantic, isDarkMode)} ${statusSemanticText(semantic, isDarkMode)}`}>
+                                  {STATUS_LABELS[po.status as PurchaseOrderStatus] || po.status}
+                                </span>
+                              </div>
+                              <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                {po.supplierName || '未指定供应商'} · 下单 {formatDate(po.orderDate)}
+                                {po.expectedDeliveryDate ? ` · 预计交货 ${po.expectedDeliveryDate}` : ''}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className={`text-sm font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                {formatAmount(Number(po.totalAmount), po.currency)}
+                              </div>
+                              {po.lines && po.lines.length > 0 && (
+                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  {po.lines.length} 行
+                                  {receipts.length > 0 && ` · ${receipts.length} 次收料`}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 展开详情 */}
+                          <AnimatePresence>
+                            {expandedId === po.id && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className={`overflow-hidden border-t ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}
+                              >
+                                <div className="p-4 space-y-3">
+                                  {/* 条款信息 */}
+                                  <div className={`grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    {po.deliveryTerms && <div><span className="opacity-60">交货:</span> {po.deliveryTerms}</div>}
+                                    {po.paymentTerms && <div><span className="opacity-60">付款:</span> {po.paymentTerms}</div>}
+                                    {po.buyer && <div><span className="opacity-60">采购员:</span> {po.buyer}</div>}
+                                    {po.shipToAddress && <div><span className="opacity-60">收货:</span> {po.shipToAddress}</div>}
+                                  </div>
+
+                                  {/* 行明细表 */}
+                                  {po.lines && po.lines.length > 0 && (
+                                    <div className={`rounded-inset overflow-hidden ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>
+                                            <th className="text-left p-2 font-light">#</th>
+                                            <th className="text-left p-2 font-light">物料编码</th>
+                                            <th className="text-left p-2 font-light">品名</th>
+                                            <th className="text-right p-2 font-light">订单数量</th>
+                                            <th className="text-center p-2 font-light">单位</th>
+                                            <th className="text-right p-2 font-light">单价</th>
+                                            <th className="text-right p-2 font-light">金额</th>
+                                            <th className="text-right p-2 font-light">已收</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {po.lines.map((line: PurchaseLine) => (
+                                            <tr key={line.id} className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>
+                                              <td className="p-2">{line.lineNumber}</td>
+                                              <td className="p-2 font-mono">{line.materialCode || '—'}</td>
+                                              <td className="p-2">{line.description}</td>
+                                              <td className="p-2 text-right tabular-nums">{Number(line.quantity).toLocaleString('en-US')}</td>
+                                              <td className="p-2 text-center">{line.unit}</td>
+                                              <td className="p-2 text-right tabular-nums">{Number(line.unitPrice).toFixed(4)}</td>
+                                              <td className="p-2 text-right tabular-nums">{Number(line.amount).toFixed(2)}</td>
+                                              <td className="p-2 text-right tabular-nums">
+                                                {Number(line.receivedQuantity) > 0 ? (
+                                                  <span className={isDarkMode ? 'text-green-400' : 'text-green-600'}>{Number(line.receivedQuantity).toLocaleString('en-US')}</span>
+                                                ) : '—'}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+
+                                  {/* 来料检验记录 */}
+                                  {receipts.length > 0 && (
+                                    <div>
+                                      <h4 className={`text-xs font-light uppercase tracking-wider mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>来料检验记录</h4>
+                                      <div className="space-y-1.5">
+                                        {receipts.map(rc => (
+                                          <div key={rc.id} className={`p-2.5 rounded-inset flex items-center gap-3 text-xs ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50/80'}`}>
+                                            <Package size={14} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
+                                            <span className={`font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{rc.receiptNumber}</span>
+                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(
+                                              rc.status === 'Accepted' ? 'success' : rc.status === 'Rejected' ? 'danger' : rc.status === 'PartiallyAccepted' ? 'warning' : 'neutral',
+                                              isDarkMode,
+                                            )} ${statusSemanticText(
+                                              rc.status === 'Accepted' ? 'success' : rc.status === 'Rejected' ? 'danger' : rc.status === 'PartiallyAccepted' ? 'warning' : 'neutral',
+                                              isDarkMode,
+                                            )}`}>
+                                              {RECEIPT_STATUS_LABELS[rc.status] || rc.status}
+                                            </span>
+                                            <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{formatDate(rc.receivedDate)}</span>
+                                            <span className={`ml-auto tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                                              合格 {Number(rc.totalAccepted).toLocaleString('en-US')} / 不合格 {Number(rc.totalRejected).toLocaleString('en-US')}
+                                            </span>
+                                            {rc.warehouseName && (
+                                              <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>· {rc.warehouseName}</span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 来料检验表单 */}
+                                  <AnimatePresence>
+                                    {showReceiptForm === po.id && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
+                                          <h4 className={`text-xs font-light mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>登记来料检验</h4>
+                                          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
+                                            <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="date" value={receiptForm.receivedDate} onChange={(e) => setReceiptForm({ ...receiptForm, receivedDate: e.target.value })} className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="text" value={receiptForm.warehouseName} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseName: e.target.value })} placeholder="入库仓库" className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="number" value={receiptForm.totalReceived} onChange={(e) => setReceiptForm({ ...receiptForm, totalReceived: e.target.value })} placeholder="收货数量 *" className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="number" value={receiptForm.totalAccepted} onChange={(e) => setReceiptForm({ ...receiptForm, totalAccepted: e.target.value })} placeholder="合格数量 *" className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="number" value={receiptForm.totalRejected} onChange={(e) => setReceiptForm({ ...receiptForm, totalRejected: e.target.value })} placeholder="不合格数量 *" className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="text" value={receiptForm.rejectionReason} onChange={(e) => setReceiptForm({ ...receiptForm, rejectionReason: e.target.value })} placeholder="不合格原因" className={`${fieldClass} py-1.5 text-xs`} />
+                                          </div>
+                                          {receiptError && (
+                                            <div className={`text-xs mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>{receiptError}</div>
+                                          )}
+                                          <div className="flex items-center justify-end gap-2">
+                                            <button onClick={() => { setShowReceiptForm(null); setReceiptError(null); }} className={`h-7 px-3 rounded-full text-xs font-light ${isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                              取消
+                                            </button>
+                                            <button onClick={() => handleCreateReceipt(po.id)} disabled={actionLoading === `receipt_${po.id}`} className="h-7 px-3 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1 disabled:opacity-50">
+                                              {actionLoading === `receipt_${po.id}` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                              <span>登记</span>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+
+                                  {/* 操作按钮 */}
+                                  <div className="flex items-center gap-2 pt-2 flex-wrap">
+                                    {po.status === 'Draft' && (
+                                      <>
+                                        <button onClick={() => handleAction(po.id, 'send')} disabled={actionLoading === `${po.id}_send`} className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}>
+                                          {actionLoading === `${po.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                          <span>发送采购单</span>
+                                        </button>
+                                        <button onClick={() => handleAction(po.id, 'delete')} disabled={actionLoading === `${po.id}_delete`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
+                                          {actionLoading === `${po.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                          <span>删除</span>
+                                        </button>
+                                      </>
+                                    )}
+                                    {po.status === 'Sent' && (
+                                      <>
+                                        <button onClick={() => handleAction(po.id, 'confirm')} disabled={actionLoading === `${po.id}_confirm`} className={`${actionBtnCls} bg-green-500/10 text-green-500 hover:bg-green-500/14`}>
+                                          {actionLoading === `${po.id}_confirm` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                          <span>确认采购单</span>
+                                        </button>
+                                        <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className={`${actionBtnCls} bg-red-500/10 text-red-500 hover:bg-red-500/14`}>
+                                          {actionLoading === `${po.id}_cancel` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                                          <span>取消</span>
+                                        </button>
+                                      </>
+                                    )}
+                                    {canReceive(po.status as PurchaseOrderStatus) && (
+                                      <>
+                                        <button
+                                          onClick={() => { setShowReceiptForm(showReceiptForm === po.id ? null : po.id); setReceiptError(null); }}
+                                          className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}
+                                        >
+                                          <Package size={12} />
+                                          <span>{showReceiptForm === po.id ? '收起' : '登记来料'}</span>
+                                        </button>
+                                        {po.status !== 'Received' && po.status !== 'Closed' && (
+                                          <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className={`${actionBtnCls} bg-red-500/10 text-red-500 hover:bg-red-500/14`}>
+                                            {actionLoading === `${po.id}_cancel` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                                            <span>取消</span>
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                    {po.status === 'Received' && (
+                                      <button onClick={() => handleAction(po.id, 'close')} disabled={actionLoading === `${po.id}_close`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
+                                        {actionLoading === `${po.id}_close` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                        <span>关闭采购单</span>
+                                      </button>
+                                    )}
+                                    {po.status === 'Closed' && (
+                                      <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        <CheckCircle2 size={12} />
+                                        <span>已关闭 — 终态</span>
+                                      </div>
+                                    )}
+                                    {po.status === 'Cancelled' && (
+                                      <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        <Clock size={12} />
+                                        <span>已取消 — 终态</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProcurementManager;

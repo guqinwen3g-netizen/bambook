@@ -172,6 +172,10 @@ import { OS_MATERIAL } from './components/ui/osMaterial';
 import DevelopmentManager from './components/DevelopmentManager';
 import FinanceManager from './components/FinanceManager';
 import ShipmentManager from './components/ShipmentManager';
+import QuotationManager from './components/QuotationManager';
+import ProcurementManager from './components/ProcurementManager';
+import InventoryManager from './components/InventoryManager';
+import BomManager from './components/BomManager';
 import type { GlobeQualityMode, GlobeViewportCenter } from './components/ProductionGlobe';
 import {
   requestOsAdaptiveContrastRefresh,
@@ -1130,7 +1134,7 @@ const App: React.FC = () => {
   };
 
   const settingsMode = resolveSettingsMode(activeView);
-  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.KnowledgeBase || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR;
+  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.KnowledgeBase || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR;
 
   // Views that render the ProductionGlobe as an underlay. We must let pointer
   // events pass THROUGH the main / wrapper divs to the canvas underneath; the
@@ -1530,6 +1534,26 @@ const App: React.FC = () => {
               compilerSurfaces.shipments,
               'shipments',
               <ShipmentManager isDarkMode={isDarkMode} shipments={shipments} setShipments={setShipments} />,
+            )}
+            {activeView === View.Quotations && renderMainCompilerSlot(
+              compilerSurfaces.quotations,
+              'quotations',
+              <QuotationManager isDarkMode={isDarkMode} />,
+            )}
+            {activeView === View.Procurement && renderMainCompilerSlot(
+              compilerSurfaces.procurement,
+              'procurement',
+              <ProcurementManager isDarkMode={isDarkMode} />,
+            )}
+            {activeView === View.Inventory && renderMainCompilerSlot(
+              compilerSurfaces.inventory,
+              'inventory',
+              <InventoryManager isDarkMode={isDarkMode} />,
+            )}
+            {activeView === View.BOM && renderMainCompilerSlot(
+              compilerSurfaces.bom,
+              'bom',
+              <BomManager isDarkMode={isDarkMode} />,
             )}
             {activeView === View.KnowledgeBase && renderMainCompilerSlot(
               compilerSurfaces.knowledgeBase,

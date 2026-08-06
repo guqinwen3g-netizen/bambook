@@ -17,6 +17,7 @@
     "electron:dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
     "electron:agent-local": "bash scripts/agent-local-stack.sh electron",
     "electron:build": "electron-vite build",
+    "electron:dist": "electron-vite build && electron-builder --mac",
     "electron:preview": "env -u ELECTRON_RUN_AS_NODE electron-vite preview",
     "electron:start": "env -u ELECTRON_RUN_AS_NODE electron .",
     "electron:rebuild:native": "node node_modules/@electron/rebuild/lib/cli.js -f --only better-sqlite3",

@@ -27,6 +27,10 @@ import { createBusinessProfilesRouter } from './business-profiles/route';
 import { createDevelopmentRouter } from './development/route';
 import { createFinanceRouter } from './finance/route';
 import { createShippingRouter } from './shipping/route';
+import { createQuotationRouter } from './quotations/quotationRoute';
+import { createProcurementRouter } from './procurement/procurementRoute';
+import { createInventoryRouter } from './inventory/inventoryRoute';
+import { createBOMRouter } from './bom/bomRoute';
 import { createProductionRouter } from './production/route';
 import { createTemplatesRouter } from './templates/route';
 import { logger } from './lib/logger';
@@ -474,6 +478,46 @@ app.use(
 app.use(
     '/api/v1/production',
     (req, res, next) => createProductionRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/quotations',
+    (req, res, next) => createQuotationRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/procurement',
+    (req, res, next) => createProcurementRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/inventory',
+    (req, res, next) => createInventoryRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/bom',
+    (req, res, next) => createBOMRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
