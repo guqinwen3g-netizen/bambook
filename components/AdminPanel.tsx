@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { hasRole } from '../services/authService';
 import { getApiBaseUrl } from '../services/apiBase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown } from 'lucide-react';
+import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown, Workflow } from 'lucide-react';
+import { WorkflowPanel } from './WorkflowPanel';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
@@ -88,7 +89,7 @@ const formatPermissionLabel = (scope: string) => PERMISSION_LABELS[scope] || sco
 const formatAccessLabel = (access: string) => ACCESS_LABELS[access] || access;
 const formatRiskModeLabel = (mode: string) => RISK_MODE_LABELS[mode] || mode;
 
-type TabId = 'users' | 'roles' | 'knowledge-acl' | 'tool-perms' | 'approvals' | 'audit-logs';
+type TabId = 'users' | 'roles' | 'knowledge-acl' | 'tool-perms' | 'approvals' | 'workflow' | 'audit-logs';
 type AdminTabCache = Partial<Record<TabId, any>>;
 
 const ADMIN_PANEL_SESSION_CACHE_KEY = 'bambook_admin_panel_session_cache_v1';
@@ -99,6 +100,7 @@ const TABS: { id: TabId; label: string; icon: typeof Users }[] = [
   { id: 'knowledge-acl', label: '知识库权限', icon: BookOpen },
   { id: 'tool-perms', label: '工具权限', icon: Wrench },
   { id: 'approvals', label: '学习与审批', icon: CheckSquare },
+  { id: 'workflow', label: '工作流审批', icon: Workflow },
   { id: 'audit-logs', label: '系统日志', icon: ScrollText },
 ];
 
@@ -1047,6 +1049,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'workflow' && (
+                <WorkflowPanel isDarkMode={isDarkMode} />
               )}
 
               {activeTab === 'audit-logs' && (
