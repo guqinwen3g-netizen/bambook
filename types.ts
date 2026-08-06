@@ -1778,3 +1778,35 @@ export interface Shipment {
   updatedAt: number;
   createdAt: number;
 }
+
+// ── Notifications ──
+export type NotificationLevel = 'info' | 'warning' | 'critical';
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  level: NotificationLevel;
+  link: string | null;
+  metadata: Record<string, unknown> | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationStats {
+  total: number;
+  unread: number;
+  critical: number;
+  byType: Record<string, number>;
+}
+
+// ── 自动化规则 ──
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description: string;
+  eventType: string;
+  enabled: boolean;
+}

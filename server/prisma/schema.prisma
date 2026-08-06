@@ -754,6 +754,8 @@ model UserAccount {
   approvalsReviewed ApprovalRequest[] @relation("ApprovalReviewer")
   toolRuns          AgentToolRun[]
   auditLogs         AuditLog[]
+  notifications          Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@index([status])
   @@index([primaryDeptId])
@@ -1837,14 +1839,20 @@ model EmailAttachment {
 // ════════════════════════════════════════════════════════════════════
 
 model AuditLog {
-  id         String   @id
-  actorId    String
-  action     String
-  targetType String?
-  targetId   String?
-  detail     Json?
-  ip         String?
-  createdAt  DateTime @default(now())
+  id            String   @id
+  actorId       String
+  action        String
+  targetType    String?
+  targetId      String?
+  detail        Json?
+  ip            String?
+  // Phase 0 Sprint 1: 字段级审计（before/after 单字段追踪）
+  operationType String?  // create / update / delete / transition / link / unlink
+  fieldPath     String?  // 如 "status" 或 "lines[0].quantity"
+  beforeValue   Json?
+  afterValue    Json?
+  transactionId String?  // 关联 OrderStatusTransition / BusinessEvent id，用于串联同一业务操作
+  createdAt     DateTime @default(now())
 
   actor UserAccount @relation(fields: [actorId], references: [id])
 
@@ -1852,6 +1860,63 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@index([targetType, targetId])
+  @@index([transactionId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Notification Module (Phase 0 Sprint 1: 通知系统)
+// ════════════════════════════════════════════════════════════════════
+// 站内/邮件/Push 多通道通知，由 BusinessEventBus 事件触发，
+// 用户可通过 NotificationPreference 配置各类型通知的通道偏好。
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // order_confirmed / shipment_completed / invoice_issued / payment_received / stock_low / payment_overdue / agent_message / briefing
+  title     String
+  body      String
+  level     String   @default("info") // info / warning / critical
+  link      String?  // 前端跳转路由
+  metadata  Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user UserAccount @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@index([type])
+  @@index([createdAt])
+  @@index([level])
+}
+
+model NotificationTemplate {
+  id             String   @id
+  key            String   @unique // e.g. "order_confirmed"
+  titleTemplate  String   // e.g. "订单 {poNumber} 已确认"
+  bodyTemplate   String   // e.g. "客户 {customer} 的订单已确认..."
+  level          String   @default("info")
+  defaultChannel String   @default("in_app") // in_app / email / push
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([key])
+  @@index([isActive])
+}
+
+model NotificationPreference {
+  id               String   @id @default(cuid())
+  userId           String
+  notificationType String   // 与 Notification.type 对应
+  channels         Json     // ["in_app", "email"] — 用户偏好的通道
+  isEnabled        Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user UserAccount @relation(fields: [userId], references: [id])
+
+  @@unique([userId, notificationType])
+  @@index([userId])
 }
 
 // ════════════════════════════════════════════════════════════════════

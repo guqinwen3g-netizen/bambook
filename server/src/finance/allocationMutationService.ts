@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { syncInvoiceReferences, syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { recalcInvoiceStatus, recalcVoucherStatus, validateAllocationInput, syncAllocationVoucherLinks, applyAllocation, isValidAllocationDecimal } from './allocationService';
+import { publishBusinessEvent } from '../events/businessEventBus';
 
 export type AllocationMutationErrorCode =
   | 'MISSING_INVOICE' | 'MISSING_VOUCHER' | 'MISSING_AMOUNT' | 'INVALID_AMOUNT'
@@ -48,6 +49,18 @@ export async function createAllocation(params: {
         voucherAppliedAmount: r.voucherAppliedAmount.toString(), auditId: r.auditId,
       };
     }, SERIALIZABLE_TX);
+    // Publish domain events after commit (best-effort, never fails business)
+    publishAllocationEvents({
+      prisma,
+      invoiceId: data.allocation.invoiceId,
+      voucherId: data.allocation.voucherId,
+      newInvoiceStatus: data.newInvoiceStatus,
+      newVoucherStatus: data.newVoucherStatus,
+      appliedAmount: data.allocation.appliedAmount,
+      voucherAppliedAmount: data.voucherAppliedAmount,
+      auditId: data.auditId,
+      actorId: actorId || 'api',
+    }).catch(() => { /* event publish failure must not fail business */ });
     return { ok: true, data };
   } catch (e: any) {
     return { ok: false, error: toAllocationError(e, 'CREATE_FAILED') };
@@ -56,6 +69,7 @@ export async function createAllocation(params: {
 
 export interface UpdateAllocationData {
   allocation: { id: string; appliedAmount: string; appliedDate: string };
+  invoiceId: string; voucherId: string;
   newInvoiceStatus: string; newVoucherStatus: string; voucherAppliedAmount: string; auditId: string;
 }
 
@@ -91,8 +105,20 @@ export async function updateAllocation(params: {
         after: { appliedAmount: new Prisma.Decimal(updated.appliedAmount).toString(), invoiceStatus: newInvoiceStatus, voucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString() },
         ip: ip || null,
       });
-      return { allocation: { id: allocationId, appliedAmount: new Prisma.Decimal(updated.appliedAmount).toString(), appliedDate: updated.appliedDate }, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
+      return { allocation: { id: allocationId, appliedAmount: new Prisma.Decimal(updated.appliedAmount).toString(), appliedDate: updated.appliedDate }, invoiceId: existing.invoiceId, voucherId: existing.voucherId, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
     }, SERIALIZABLE_TX);
+    // Publish domain events after commit (best-effort, never fails business)
+    publishAllocationEvents({
+      prisma,
+      invoiceId: data.invoiceId,
+      voucherId: data.voucherId,
+      newInvoiceStatus: data.newInvoiceStatus,
+      newVoucherStatus: data.newVoucherStatus,
+      appliedAmount: data.allocation.appliedAmount,
+      voucherAppliedAmount: data.voucherAppliedAmount,
+      auditId: data.auditId,
+      actorId: actorId || 'api',
+    }).catch(() => { /* event publish failure must not fail business */ });
     return { ok: true, data };
   } catch (e: any) {
     return { ok: false, error: toAllocationError(e, 'UPDATE_FAILED') };
@@ -100,7 +126,95 @@ export async function updateAllocation(params: {
 }
 
 export interface DeleteAllocationData {
-  deleted: boolean; id: string; newInvoiceStatus: string; newVoucherStatus: string; voucherAppliedAmount: string; auditId: string;
+  deleted: boolean; id: string; invoiceId: string; voucherId: string;
+  newInvoiceStatus: string; newVoucherStatus: string; voucherAppliedAmount: string; auditId: string;
+}
+
+/**
+ * 核销操作后发布业务事件（best-effort，永不阻断业务主流程）。
+ *
+ * 触发规则（仅正向推进才发事件，回退不发布）：
+ *   - newInvoiceStatus === 'Paid'           → PaymentReceived（发票全额收款）
+ *   - newVoucherStatus === 'reconciled'      → AllocationReconciled（付款凭证全额核销）
+ *
+ * 事件 payload 通过事后查询 invoice/voucher 详情进行富化（事务已提交，读取快照即可）。
+ */
+async function publishAllocationEvents(params: {
+  prisma: PrismaClient;
+  invoiceId: string;
+  voucherId: string;
+  newInvoiceStatus: string;
+  newVoucherStatus: string;
+  appliedAmount: string;
+  voucherAppliedAmount: string;
+  auditId: string;
+  actorId: string;
+}): Promise<void> {
+  const { prisma, invoiceId, voucherId, newInvoiceStatus, newVoucherStatus, appliedAmount, voucherAppliedAmount, auditId, actorId } = params;
+
+  // 仅在正向推进时查询并发布（避免无谓 DB 读）
+  const needPaymentReceived = newInvoiceStatus === 'Paid';
+  const needAllocationReconciled = newVoucherStatus === 'reconciled';
+  if (!needPaymentReceived && !needAllocationReconciled) return;
+
+  const [invoice, voucher] = await Promise.all([
+    prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      select: { orderId: true, invoiceNumber: true, customerName: true, amount: true, currency: true, customerRelationId: true },
+    }),
+    prisma.paymentVoucher.findUnique({
+      where: { id: voucherId },
+      select: { voucherNumber: true, type: true, amount: true, currency: true, paymentMethod: true, paymentDate: true },
+    }),
+  ]);
+
+  const orderId = invoice?.orderId || undefined;
+
+  if (needPaymentReceived) {
+    publishBusinessEvent({
+      type: 'PaymentReceived',
+      sourceEntityType: 'Invoice',
+      sourceEntityId: invoiceId,
+      orderId,
+      payload: {
+        invoiceId,
+        invoiceNumber: invoice?.invoiceNumber,
+        amount: invoice?.amount?.toString(),
+        currency: invoice?.currency,
+        customerName: invoice?.customerName,
+        customerRelationId: invoice?.customerRelationId,
+        voucherId,
+        voucherNumber: voucher?.voucherNumber,
+        appliedAmount,
+      },
+      actorId,
+      transactionId: auditId,
+    }).catch(() => { /* event publish failure must not fail business */ });
+  }
+
+  if (needAllocationReconciled) {
+    publishBusinessEvent({
+      type: 'AllocationReconciled',
+      sourceEntityType: 'PaymentVoucher',
+      sourceEntityId: voucherId,
+      orderId,
+      payload: {
+        voucherId,
+        voucherNumber: voucher?.voucherNumber,
+        voucherType: voucher?.type,
+        voucherAmount: voucher?.amount?.toString(),
+        voucherCurrency: voucher?.currency,
+        paymentMethod: voucher?.paymentMethod,
+        paymentDate: voucher?.paymentDate,
+        invoiceId,
+        invoiceNumber: invoice?.invoiceNumber,
+        appliedAmount,
+        voucherAppliedAmount,
+      },
+      actorId,
+      transactionId: auditId,
+    }).catch(() => { /* event publish failure must not fail business */ });
+  }
 }
 
 export async function deleteAllocation(params: {
@@ -127,7 +241,7 @@ export async function deleteAllocation(params: {
         after: { invoiceStatus: newInvoiceStatus, voucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString() },
         ip: ip || null,
       });
-      return { deleted: true as const, id: allocationId, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
+      return { deleted: true as const, id: allocationId, invoiceId: existing.invoiceId, voucherId: existing.voucherId, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
     }, SERIALIZABLE_TX);
     return { ok: true, data };
   } catch (e: any) {

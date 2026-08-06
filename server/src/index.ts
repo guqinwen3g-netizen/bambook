@@ -43,6 +43,11 @@ import { ensureDefaultAgentTools } from './agent/tools';
 import { createAuthRouter } from './auth/route';
 import { createAdminRouter } from './admin/route';
 import { createHRRouter } from './hr/route';
+import { initializeNotificationBindings } from './notifications/eventBindings';
+import { createNotificationsRouter } from './notifications/route';
+import { createAutomationRouter } from './config/automationRoute';
+import { registerAllLinkages } from './events/linkages';
+import { startScheduler } from './scheduler';
 import { extractActorFromRequest } from './auth/middleware';
 import { TokenPayload } from './auth/service';
 import { AgentRole } from './agent/types';
@@ -63,6 +68,13 @@ logger.info(`[data-source] kind=${runtimeDataSource.kind} host=${runtimeDataSour
 ensureDefaultAgentTools(prisma).catch(error => {
     logger.error('[agent-tools] failed to ensure default tools', { error: error?.message || String(error) });
 });
+// Phase 0 Sprint 1: 初始化业务事件总线 + 通知系统
+// 注入 prisma 到 businessEventBus，订阅所有业务事件 → notificationService
+initializeNotificationBindings(prisma);
+// Phase 1 Sprint 3: 注册业务联动执行器（订单→生产→发货→发票→收款 自动联动）
+registerAllLinkages();
+// Phase 0 Sprint 2: 启动调度器（崩溃恢复 + 每日 briefing + 卡滞检测 + AgentJob 清理）
+startScheduler(prisma);
 startPdmlSyncScheduler({ prisma, onDataChange: publishDataChange });
 const macMiniChatRunner = createMacMiniChatRunner({
     prisma,
@@ -193,9 +205,9 @@ app.use((req, res, next) => {
 });
 
 // Cloudflare Tunnel routes /bambook/api/* to this 8081 service (without prefix rewrite).
-// Strip the /bambook prefix so existing /api/* handlers and the /api/app webapp mount
-// stay intact. Public URL: https://jiangsupanda.com/bambook/api/app/
-// (reuses the existing /bambook/api Cloudflare ingress — no extra public hostname).
+// Strip the /bambook prefix so existing /api/* handlers stay intact for the Electron
+// desktop client, which calls https://jiangsupanda.com/bambook/api/... via the tunnel.
+// (Web APP project已下线 — 不再有 /api/app 静态托管，仅保留 API 路由。)
 app.use((req, _res, next) => {
     if (req.url === '/bambook/api' || req.url.startsWith('/bambook/api/')) {
         req.url = req.url.slice('/bambook'.length);
@@ -205,40 +217,6 @@ app.use((req, _res, next) => {
 
 // Serve uploaded images at /api/uploads/*
 app.use('/api/uploads', express.static(UPLOAD_DIR));
-
-// Web app static hosting — Vite-built SPA bundle deployed to ~/bambook-main-api/webapp/.
-// Public URL: https://jiangsupanda.com/bambook/api/app/
-// Mounted at /api/app (after the /bambook prefix is stripped), reusing the existing
-// /bambook/api Cloudflare Tunnel ingress — no extra public hostname needed.
-// SPA history routes 404-fallback to index.html so client-side routing works.
-const WEBAPP_DIR = process.env.BAMBOOK_WEBAPP_DIR || path.resolve(__dirname, '../webapp');
-const WEBAPP_MOUNT = process.env.BAMBOOK_WEBAPP_MOUNT || '/api/app';
-if (fs.existsSync(WEBAPP_DIR)) {
-    app.use(
-        WEBAPP_MOUNT,
-        express.static(WEBAPP_DIR, {
-            // Hashed asset filenames → safe to cache for a year. index.html stays
-            // short-lived so users see new deploys without a hard refresh.
-            setHeaders: (res, filePath) => {
-                if (filePath.endsWith('index.html')) {
-                    res.setHeader('Cache-Control', 'no-cache');
-                } else if (/\.(js|css|woff2?|png|jpg|jpeg|svg|webp|gif|ico)$/.test(filePath)) {
-                    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-                }
-            },
-            fallthrough: true,
-        }),
-    );
-    app.get(`${WEBAPP_MOUNT}/*`, (_req, res, next) => {
-        const indexFile = path.join(WEBAPP_DIR, 'index.html');
-        if (!fs.existsSync(indexFile)) return next();
-        res.setHeader('Cache-Control', 'no-cache');
-        res.sendFile(indexFile);
-    });
-    logger.info(`[Webapp] Serving SPA from ${WEBAPP_DIR} at ${WEBAPP_MOUNT}/`);
-} else {
-    logger.info(`[Webapp] No bundle at ${WEBAPP_DIR} — SPA disabled (deploy via ops panel).`);
-}
 
 // Serialization helper for BigInt
 // @ts-ignore
@@ -542,6 +520,27 @@ app.use(
         apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
     })(req, res, next),
+);
+
+// Phase 0 Sprint 1: 通知系统路由（鉴权后挂载，要求 actor.userId）
+app.use(
+    '/api/v1/notifications',
+    (req, res, next) => {
+        // 共用 sdkAuth 中间件链
+        sdkAuth(req, res, () => {
+            createNotificationsRouter()(req, res, next);
+        });
+    },
+);
+
+// ── 自动化规则 API ──
+app.use(
+    '/api/v1/automation',
+    (req, res, next) => {
+        sdkAuth(req, res, () => {
+            createAutomationRouter(prisma)(req, res, next);
+        });
+    },
 );
 
 // ------------------------------------------------------------------

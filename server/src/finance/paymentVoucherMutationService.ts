@@ -6,6 +6,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
+import { publishBusinessEvent } from '../events/businessEventBus';
 
 export const VALID_PAYMENT_VOUCHER_STATUS = ['unreconciled', 'partially_reconciled', 'reconciled'] as const;
 export type PaymentVoucherStatus = typeof VALID_PAYMENT_VOUCHER_STATUS[number];
@@ -140,6 +141,28 @@ export async function createPaymentVoucher(params: {
       });
       return { voucher, auditId };
     });
+    // Publish domain event after commit (best-effort, never fails business)
+    publishBusinessEvent({
+      type: 'PaymentVoucherCreated',
+      sourceEntityType: 'PaymentVoucher',
+      sourceEntityId: result.voucher.id,
+      orderId: result.voucher.orderId || undefined,
+      payload: {
+        voucherId: result.voucher.id,
+        voucherNumber: result.voucher.voucherNumber,
+        type: result.voucher.type,
+        amount: decimalString(result.voucher.amount),
+        currency: result.voucher.currency,
+        paymentDate: result.voucher.paymentDate,
+        paymentMethod: result.voucher.paymentMethod,
+        status: result.voucher.status,
+        customerName: result.voucher.customerName,
+        customerRelationId: result.voucher.customerRelationId,
+        invoiceId: result.voucher.invoiceId,
+      },
+      actorId: actorId || 'api',
+      transactionId: result.auditId,
+    }).catch(() => { /* event publish failure must not fail business */ });
     return { ok: true, data: result };
   } catch (e: any) {
     if (e?.code && typeof e.code === 'string' && !e.code.startsWith('P')) {

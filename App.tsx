@@ -142,6 +142,7 @@ import {
   type WallpaperAccentPalette,
 } from './utils/wallpaperAccent';
 import Sidebar from './components/Sidebar';
+import { NotificationCenter } from './components/NotificationCenter';
 
 import Dashboard from './components/Dashboard';
 import { CompiledDashboardPage } from './components/ui/osCompiler/compiledDashboardTemplates';
@@ -1318,6 +1319,9 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 业务事件通知中心 — 铃铛 + 抽屉，全局持久化 */}
+      <NotificationCenter isDarkMode={isDarkMode} />
 
       {/* 自定义壁纸高对比磨砂防护层 */}
       {resolvedBackgroundImageUrl && (

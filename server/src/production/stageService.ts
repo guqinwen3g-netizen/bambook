@@ -9,6 +9,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
+import { publishBusinessEvent } from '../events/businessEventBus';
 
 export const PRODUCTION_STAGES = [
   { key: 'order_placed', seq: 1, label: '业务下单' },
@@ -229,6 +230,33 @@ export async function advanceStage(params: AdvanceStageParams): Promise<
         auditId,
       };
     });
+
+    // Phase 0 Sprint 1: 生产阶段推进事件（事务提交后发布，fire-and-forget）
+    // - ProductionStageAdvanced：每次阶段完成都发布
+    // - ProductionCompleted：qc_shipped 阶段（第 10 阶段，最终验货发货）完成时发布
+    //   用于 Phase 1 Sprint 3 触发自动创建发货单联动
+    const stageLabel = STAGE_MAP.get(stageKey)?.label || stageKey;
+    publishBusinessEvent({
+      type: 'ProductionStageAdvanced',
+      sourceEntityType: 'ProductionStage',
+      sourceEntityId: result.stage.id,
+      orderId,
+      payload: { stageKey, stageLabel, operator: operator || 'api', auditId: result.auditId },
+      actorId: operator || 'api',
+      transactionId: result.auditId,
+    }).catch(() => { /* event publish failure must not fail business */ });
+
+    if (stageKey === 'qc_shipped') {
+      publishBusinessEvent({
+        type: 'ProductionCompleted',
+        sourceEntityType: 'ProductionStage',
+        sourceEntityId: result.stage.id,
+        orderId,
+        payload: { stageKey, stageLabel, completedAt: Number(result.stage.doneAt), auditId: result.auditId },
+        actorId: operator || 'api',
+        transactionId: result.auditId,
+      }).catch(() => { /* event publish failure must not fail business */ });
+    }
     return { ok: true, data: result };
   } catch (e: any) {
     const GATE_ERROR_CODES: Set<string> = new Set([

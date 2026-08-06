@@ -11,6 +11,7 @@ import { syncShipmentReferences, deactivateEntityLinks } from '../entities/sync'
 import { linkOrderStatusFromShipment } from './orderLinkService';
 import { validateStatusTransition } from '../statusTransition';
 import { writeRouteAuditLog } from '../audit/routeAudit';
+import { publishBusinessEvent } from '../events/businessEventBus';
 
 export type ShipmentMutationErrorCode =
   | 'NOT_FOUND'
@@ -146,6 +147,40 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
 
       return { shipment: sh, orderStatus, auditId };
     });
+
+    // Phase 0 Sprint 1: 发货单创建事件（事务提交后发布）
+    // - ShipmentCreated：所有创建都发布
+    // - ShipmentCompleted：状态直接为 Delivered 时发布（罕见但合法的补录场景）
+    publishBusinessEvent({
+      type: 'ShipmentCreated',
+      sourceEntityType: 'Shipment',
+      sourceEntityId: result.shipment.id,
+      orderId: result.shipment.orderId,
+      payload: {
+        shipmentId: result.shipment.id,
+        shipmentNumber: result.shipment.shipmentNumber,
+        status: result.shipment.status,
+        orderId: result.shipment.orderId,
+      },
+      actorId,
+      transactionId: result.auditId,
+    }).catch(() => { /* event publish failure must not fail business */ });
+
+    if (result.shipment.status === 'Delivered') {
+      publishBusinessEvent({
+        type: 'ShipmentCompleted',
+        sourceEntityType: 'Shipment',
+        sourceEntityId: result.shipment.id,
+        orderId: result.shipment.orderId,
+        payload: {
+          shipmentId: result.shipment.id,
+          shipmentNumber: result.shipment.shipmentNumber,
+          orderId: result.shipment.orderId,
+        },
+        actorId,
+        transactionId: result.auditId,
+      }).catch(() => { /* event publish failure must not fail business */ });
+    }
     return { ok: true, data: result };
   } catch (e: any) {
     return { ok: false, error: toMutationError(e, tx ? 'COMMIT_TRANSACTION_FAILED' : 'CREATE_FAILED') };
@@ -195,8 +230,46 @@ export async function updateShipment(params: UpdateShipmentParams): Promise<Ship
         after: { status: upd.status, shipmentNumber: upd.shipmentNumber },
         ip: ip || null,
       });
-      return { shipment: upd, orderStatus, auditId };
+      return { shipment: upd, orderStatus, auditId, fromStatus: existing.status };
     });
+
+    // Phase 0 Sprint 1: 发货单状态变更事件（事务提交后发布）
+    // - ShipmentStatusChanged：所有状态变更都发布
+    // - ShipmentCompleted：状态变为 Delivered 时发布（用于 Phase 1 Sprint 3 触发开票联动）
+    if (hasStatus && result.fromStatus !== result.shipment.status) {
+      publishBusinessEvent({
+        type: 'ShipmentStatusChanged',
+        sourceEntityType: 'Shipment',
+        sourceEntityId: result.shipment.id,
+        orderId: result.shipment.orderId,
+        payload: {
+          shipmentId: result.shipment.id,
+          shipmentNumber: result.shipment.shipmentNumber,
+          fromStatus: result.fromStatus,
+          toStatus: result.shipment.status,
+          orderId: result.shipment.orderId,
+        },
+        actorId,
+        transactionId: result.auditId,
+      }).catch(() => { /* event publish failure must not fail business */ });
+
+      if (result.shipment.status === 'Delivered' && result.fromStatus !== 'Delivered') {
+        publishBusinessEvent({
+          type: 'ShipmentCompleted',
+          sourceEntityType: 'Shipment',
+          sourceEntityId: result.shipment.id,
+          orderId: result.shipment.orderId,
+          payload: {
+            shipmentId: result.shipment.id,
+            shipmentNumber: result.shipment.shipmentNumber,
+            orderId: result.shipment.orderId,
+            fromStatus: result.fromStatus,
+          },
+          actorId,
+          transactionId: result.auditId,
+        }).catch(() => { /* event publish failure must not fail business */ });
+      }
+    }
     return { ok: true, data: result };
   } catch (e: any) {
     return { ok: false, error: toMutationError(e, tx ? 'COMMIT_TRANSACTION_FAILED' : 'UPDATE_FAILED') };

@@ -9,6 +9,7 @@
 import { PrismaClient } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { syncOrderEntityReferences, deactivateEntityLinks } from '../entities/sync';
+import { publishBusinessEvent } from '../events/businessEventBus';
 
 export const VALID_ORDER_STATUSES = ['Pending', 'Confirmed', 'Production', 'Shipping', 'Delivered', 'Alert'] as const;
 const VALID_STATUS_SET = new Set<string>(VALID_ORDER_STATUSES);
@@ -183,6 +184,31 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
 
       return { order: updated, transitionId, auditId, fromStatus, toStatus, note: note || null, operator: operator || actorId || 'api', lineId: lineId || null, createdAt: Number(now) };
     });
+
+    // Phase 0 Sprint 1: 事务提交后发布业务事件（fire-and-forget，永不阻断业务操作）
+    // - OrderStatusChanged：所有状态变更都发布
+    // - OrderConfirmed：仅 Pending→Confirmed 转换发布（用于触发生产单创建联动 Phase 1 Sprint 3）
+    publishBusinessEvent({
+      type: 'OrderStatusChanged',
+      sourceEntityType: 'Order',
+      sourceEntityId: orderId,
+      orderId,
+      payload: { poNumber: result.order.poNumber, fromStatus: result.fromStatus, toStatus: result.toStatus, transitionId: result.transitionId },
+      actorId: actorId || operator || 'api',
+      transactionId: result.transitionId,
+    }).catch(() => { /* event publish failure must not fail business */ });
+
+    if (result.toStatus === 'Confirmed' && result.fromStatus !== 'Confirmed') {
+      publishBusinessEvent({
+        type: 'OrderConfirmed',
+        sourceEntityType: 'Order',
+        sourceEntityId: orderId,
+        orderId,
+        payload: { poNumber: result.order.poNumber, fromStatus: result.fromStatus, customer: result.order.customer, transitionId: result.transitionId },
+        actorId: actorId || operator || 'api',
+        transactionId: result.transitionId,
+      }).catch(() => { /* event publish failure must not fail business */ });
+    }
     return { ok: true, data: result };
   } catch (e: any) {
     if (e.code) return { ok: false, error: { code: e.code, message: e.message } };

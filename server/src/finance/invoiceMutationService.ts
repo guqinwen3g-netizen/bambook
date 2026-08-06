@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { syncInvoiceReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { validateStatusTransition } from '../statusTransition';
+import { publishBusinessEvent } from '../events/businessEventBus';
 
 export type InvoiceMutationErrorCode =
   | 'INVALID_STATUS'
@@ -106,6 +107,26 @@ export async function createInvoice(params: { prisma: PrismaClient; input: Invoi
       });
       return { invoice, auditId };
     });
+    // Publish domain events after commit (best-effort, never fails business)
+    if (result.invoice.status === 'Issued') {
+      publishBusinessEvent({
+        type: 'InvoiceIssued',
+        sourceEntityType: 'Invoice',
+        sourceEntityId: result.invoice.id,
+        orderId: result.invoice.orderId || undefined,
+        payload: {
+          invoiceId: result.invoice.id,
+          invoiceNumber: result.invoice.invoiceNumber,
+          type: result.invoice.type,
+          amount: decimalString(result.invoice.amount),
+          currency: result.invoice.currency,
+          customerName: result.invoice.customerName,
+          customerRelationId: result.invoice.customerRelationId,
+        },
+        actorId: actorId || 'api',
+        transactionId: result.auditId,
+      }).catch(() => { /* event publish failure must not fail business */ });
+    }
     return { ok: true, data: result };
   } catch (e: any) {
     return { ok: false, error: toError(e, 'CREATE_FAILED') };
@@ -140,8 +161,49 @@ export async function updateInvoice(params: { prisma: PrismaClient; invoiceId: s
         after: { status: invoice.status, amount: decimalString(invoice.amount) },
         ip: ip || null,
       });
-      return { invoice, auditId };
+      return { invoice, auditId, fromStatus: existing.status };
     });
+    // Publish domain events after commit (best-effort, never fails business)
+    if (normalized.hasStatus && result.fromStatus !== result.invoice.status) {
+      if (result.invoice.status === 'Issued' && result.fromStatus !== 'Issued') {
+        publishBusinessEvent({
+          type: 'InvoiceIssued',
+          sourceEntityType: 'Invoice',
+          sourceEntityId: result.invoice.id,
+          orderId: result.invoice.orderId || undefined,
+          payload: {
+            invoiceId: result.invoice.id,
+            invoiceNumber: result.invoice.invoiceNumber,
+            type: result.invoice.type,
+            amount: decimalString(result.invoice.amount),
+            currency: result.invoice.currency,
+            customerName: result.invoice.customerName,
+            fromStatus: result.fromStatus,
+          },
+          actorId: actorId || 'api',
+          transactionId: result.auditId,
+        }).catch(() => { /* event publish failure must not fail business */ });
+      }
+      if (result.invoice.status === 'Cancelled' && result.fromStatus !== 'Cancelled') {
+        publishBusinessEvent({
+          type: 'InvoiceCancelled',
+          sourceEntityType: 'Invoice',
+          sourceEntityId: result.invoice.id,
+          orderId: result.invoice.orderId || undefined,
+          payload: {
+            invoiceId: result.invoice.id,
+            invoiceNumber: result.invoice.invoiceNumber,
+            type: result.invoice.type,
+            amount: decimalString(result.invoice.amount),
+            currency: result.invoice.currency,
+            customerName: result.invoice.customerName,
+            fromStatus: result.fromStatus,
+          },
+          actorId: actorId || 'api',
+          transactionId: result.auditId,
+        }).catch(() => { /* event publish failure must not fail business */ });
+      }
+    }
     return { ok: true, data: result };
   } catch (e: any) {
     return { ok: false, error: toError(e, 'UPDATE_FAILED') };

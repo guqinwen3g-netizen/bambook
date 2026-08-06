@@ -10,8 +10,9 @@ import {
   Monitor, Moon, Sun, DatabaseZap,
   Bot, Cable, Server, Cpu, Globe, User, ArrowRight, LogOut,
   HardDrive, RefreshCw, Trash2, Pencil, RotateCw, Image, Upload,
-  Sparkles
+  Sparkles, Workflow
 } from 'lucide-react';
+import { AutomationRulesSection } from './AutomationRulesSection';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import SidePanelContainer from './ui/SidePanelContainer';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -41,7 +42,7 @@ interface SettingsProps {
   isDarkMode?: boolean;
 }
 
-type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'security' | 'account';
+type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'security' | 'account' | 'automation';
 type AvatarCropDraft = {
   src: string;
   fileName: string;
@@ -300,6 +301,7 @@ export const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: type
   { id: 'sync', label: '同步', hint: '云端与知识库', icon: Globe },
   { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive },
   { id: 'api', label: 'API', hint: '对外接口密钥', icon: Cable },
+  { id: 'automation', label: '自动化', hint: '业务流程联动规则', icon: Workflow },
   { id: 'security', label: '安全', hint: '隐私与重置', icon: Shield }
 ];
 
@@ -1446,6 +1448,10 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     </div>
                   )}
                 </div>
+              )}
+
+              {activeTab === 'automation' && (
+                <AutomationRulesSection isDarkMode={isDarkMode} />
               )}
 
               {activeTab === 'security' && (

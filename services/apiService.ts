@@ -23,6 +23,9 @@ import {
   PdmlSyncResult,
   PdmlSyncJob,
   PdmlMapResult,
+  NotificationItem,
+  NotificationStats,
+  AutomationRule,
 } from '../types';
 import { getApiBaseUrl, CORPORATE_MASTER_IP, normalizeDataCenterEndpoint } from './apiBase';
 
@@ -888,5 +891,48 @@ export const apiService = {
     const apiKey = getApiKey();
     if (apiKey) url.searchParams.set('apiKey', apiKey);
     return url.toString();
+  },
+
+  // ── Notifications ──
+  async listNotifications(params: { unreadOnly?: boolean; type?: string; level?: string; limit?: number; offset?: number; endpoint?: string }): Promise<{ items: NotificationItem[]; total: number }> {
+    const searchParams = new URLSearchParams();
+    if (params.unreadOnly) searchParams.set('unreadOnly', 'true');
+    if (params.type) searchParams.set('type', params.type);
+    if (params.level) searchParams.set('level', params.level);
+    if (params.limit) searchParams.set('limit', String(params.limit));
+    if (params.offset) searchParams.set('offset', String(params.offset));
+    const query = searchParams.toString();
+    return requestJson<{ items: NotificationItem[]; total: number }>(`/v1/notifications${query ? `?${query}` : ''}`, { endpoint: params.endpoint, method: 'GET' });
+  },
+
+  async getNotificationStats(endpoint?: string): Promise<NotificationStats> {
+    return requestJson<NotificationStats>('/v1/notifications/stats', { endpoint, method: 'GET' });
+  },
+
+  async markNotificationAsRead(notificationId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/notifications/${encodeURIComponent(notificationId)}/read`, { endpoint, method: 'POST' });
+  },
+
+  async markAllNotificationsAsRead(endpoint?: string): Promise<{ count: number }> {
+    const data = await requestJson<{ ok: boolean; count: number }>('/v1/notifications/read-all', { endpoint, method: 'POST' });
+    return { count: data.count || 0 };
+  },
+
+  async deleteNotification(notificationId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/notifications/${encodeURIComponent(notificationId)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 自动化规则 ──
+  async listAutomationRules(endpoint?: string): Promise<AutomationRule[]> {
+    const data = await requestJson<{ rules: AutomationRule[] }>('/v1/automation/rules', { endpoint, method: 'GET' });
+    return data.rules || [];
+  },
+
+  async updateAutomationRule(ruleId: string, enabled: boolean, endpoint?: string): Promise<AutomationRule> {
+    return requestJson<{ rule: AutomationRule }>(`/v1/automation/rules/${encodeURIComponent(ruleId)}`, {
+      endpoint,
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }).then(data => data.rule);
   }
 };
