@@ -43,6 +43,7 @@ import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
 type StatusTab = 'all' | PurchaseOrderStatus;
@@ -783,6 +784,14 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) =
                                       </div>
                                     )}
                                   </div>
+
+                                  {/* 跨模块关联视图（EntityLink 图谱）— 采购供应商/所属订单/来源 BOM/来源报价 */}
+                                  <RelatedEntitiesPanel
+                                    type="purchaseOrder"
+                                    id={po.id}
+                                    isDarkMode={isDarkMode}
+                                    title="采购关联视图"
+                                  />
                                 </div>
                               </motion.div>
                             )}

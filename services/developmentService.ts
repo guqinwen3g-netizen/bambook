@@ -10,6 +10,9 @@ import type {
   DevelopmentType,
   DevelopmentStage,
   DevelopmentPriority,
+  SampleNode,
+  SampleNodeLevel,
+  SampleNodeAction,
 } from '../types';
 
 type DevelopmentListParams = {
@@ -205,5 +208,62 @@ export const developmentService = {
       },
     });
     if (!res.ok) throw new Error(`deleteDevelopmentCase failed: HTTP ${res.status}`);
+  },
+
+  // ── Phase B4 三级样衣节点 ──
+
+  /** 获取三级样衣节点（若无则自动 ensure 创建） */
+  async listSampleNodes(caseId: string, endpoint?: string): Promise<SampleNode[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const apiKey = apiService.getApiKey();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
+    };
+    // 写权限接口 ensure 幂等创建 + 返回最新列表（一次往返）
+    const res = await fetch(apiService.buildApiUrl(`/v1/development/${encodeURIComponent(caseId)}/sample-nodes/ensure`, base), {
+      method: 'POST',
+      headers,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `ensureSampleNodes failed: HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.nodes || [];
+  },
+
+  /** 推进样衣节点状态机 */
+  async advanceSampleNode(
+    caseId: string,
+    level: SampleNodeLevel,
+    input: {
+      action: SampleNodeAction;
+      sentDate?: string;
+      courier?: string;
+      trackingNumber?: string;
+      feedback?: string;
+      feedbackDate?: string;
+      notes?: string;
+    },
+    endpoint?: string,
+  ): Promise<SampleNode> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(caseId)}/sample-nodes/${encodeURIComponent(level)}`, base);
+    const apiKey = apiService.getApiKey();
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
+      },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `advanceSampleNode failed: HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.node;
   },
 };

@@ -153,3 +153,55 @@ describe('emailSyncService: helpers', () => {
     expect(e.code).toBe('IMAP_CONNECT_FAILED');
   });
 });
+
+describe('emailSyncService: C2 自动归档集成', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makePrismaWithLinks() {
+    const emailCreate = vi.fn().mockImplementation(async ({ data }: any) => ({ ...data }));
+    const txEmail = { findFirst: vi.fn().mockResolvedValue(null), create: emailCreate };
+    return {
+      prisma: {
+        email: txEmail,
+        relation: { findMany: vi.fn().mockResolvedValue([
+          { id: 'REL__1', name: 'Acme', chineseName: null, email: 'sender@test.com', primaryContactEmail: null, isOrganization: true, rating: 1 },
+        ]) },
+        order: { findMany: vi.fn().mockResolvedValue([
+          { id: 'ORD__1', poNumber: 'PO-7788', customerRelationId: 'REL__1' },
+        ]) },
+        $transaction: vi.fn(async (fn: any) => fn({ email: txEmail, auditLog: { create: vi.fn() }, entityReference: { upsert: vi.fn() }, entityLink: { upsert: vi.fn() } })),
+      } as any,
+      emailCreate,
+    };
+  }
+
+  const linkMessage = {
+    attributes: { uid: 200, date: new Date(), flags: [] },
+    parts: [{ which: '', body: {} }, {
+      which: 'HEADER.FIELDS (FROM TO CC BCC SUBJECT DATE MESSAGE-ID REFERENCES IN-REPLY-TO CONTENT-TYPE)',
+      body: { 'message-id': ['<link@test.com>'], from: ['Acme <sender@test.com>'], to: [['me@bambook.com']], subject: ['PO-7788 shipping docs'], date: ['2026-08-07T10:00:00Z'] },
+    }],
+  };
+
+  it('地址+PO 命中 → create data 直接携带 relationId/orderId', async () => {
+    const { prisma, emailCreate } = makePrismaWithLinks();
+    const imapConnect = makeImapConnect({ messages: [linkMessage] });
+    const result = await syncEmailsFromImap({ prisma, credentials: { user: 'a@b.com', pass: 'x' }, imapConnect });
+    expect(result.ok).toBe(true);
+    expect(emailCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ relationId: 'REL__1', relationName: 'Acme', orderId: 'ORD__1', orderPo: 'PO-7788' }),
+    }));
+  });
+
+  it('索引加载失败 → 降级不链接，同步主流程不受影响', async () => {
+    const { prisma, emailCreate } = makePrismaWithLinks();
+    prisma.relation.findMany.mockRejectedValue(new Error('relation table gone'));
+    const imapConnect = makeImapConnect({ messages: [linkMessage] });
+    const result = await syncEmailsFromImap({ prisma, credentials: { user: 'a@b.com', pass: 'x' }, imapConnect });
+    expect(result.ok).toBe(true);
+    expect(result.data?.synced).toBe(1);
+    expect(emailCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.not.objectContaining({ relationId: expect.anything() }),
+    }));
+  });
+});

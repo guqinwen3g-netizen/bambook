@@ -14,6 +14,7 @@
  *   L6_create_bom_draft: 订单确认→生成 BOM 草稿（从模板复制）
  *   L7_create_procurement: BOM 确认→生成采购需求草稿
  *   L8_auto_stock_in: 采购来料→自动入库
+ *   L9_convert_quotation_to_order: 报价接受→自动转订单草稿
  *
  * 不变量：
  *   - 配置读取永不抛错（失败时返回默认值，所有规则默认 enabled）
@@ -80,6 +81,20 @@ export const AUTOMATION_RULES: readonly AutomationRule[] = [
     name: '采购来料 → 自动入库',
     description: '采购来料接收后自动创建入库流水（需有 active 仓库，默认入主仓）',
     eventType: 'MaterialReceived',
+    enabled: true,
+  },
+  {
+    id: 'L9_convert_quotation_to_order',
+    name: '报价接受 → 转订单草稿',
+    description: '报价被接受后自动创建 Draft 订单（含行明细、条款带出，需人工审核后确认）',
+    eventType: 'QuotationAccepted',
+    enabled: true,
+  },
+  {
+    id: 'L10_create_tax_refund_draft',
+    name: '报关放行 → 退税申报草稿',
+    description: '报关放行后自动核算生成退税申报草稿（FOB×汇率×HS退税率加权，需人工提交审核）',
+    eventType: 'CustomsCleared',
     enabled: true,
   },
 ];

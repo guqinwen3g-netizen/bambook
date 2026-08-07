@@ -27,10 +27,14 @@ import { createBusinessProfilesRouter } from './business-profiles/route';
 import { createDevelopmentRouter } from './development/route';
 import { createFinanceRouter } from './finance/route';
 import { createShippingRouter } from './shipping/route';
+import { createDashboardRouter } from './dashboard/route';
 import { createQuotationRouter } from './quotations/quotationRoute';
 import { createProcurementRouter } from './procurement/procurementRoute';
 import { createInventoryRouter } from './inventory/inventoryRoute';
 import { createBOMRouter } from './bom/bomRoute';
+import { createCrmRouter } from './crm/crmRoute';
+import { createMesRouter } from './mes/mesRoute';
+import { createCustomsRouter } from './customs/customsRoute';
 import { createProductionRouter } from './production/route';
 import { createTemplatesRouter } from './templates/route';
 import { logger } from './lib/logger';
@@ -476,6 +480,15 @@ app.use(
 );
 
 app.use(
+    '/api/v1/dashboard',
+    (req, res, next) => createDashboardRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+app.use(
     '/api/v1/production',
     (req, res, next) => createProductionRouter({
         prisma,
@@ -518,6 +531,36 @@ app.use(
 app.use(
     '/api/v1/bom',
     (req, res, next) => createBOMRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/crm',
+    (req, res, next) => createCrmRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/mes',
+    (req, res, next) => createMesRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/customs',
+    (req, res, next) => createCustomsRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

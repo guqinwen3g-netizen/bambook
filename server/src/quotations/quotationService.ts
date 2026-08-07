@@ -17,6 +17,7 @@
 import { PrismaClient, Quotation, QuotationLine } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
+import { deactivateEntityLinks, syncOrderEntityReferences, syncQuotationReferences } from '../entities/sync';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -170,6 +171,9 @@ export function createQuotationService(prisma: PrismaClient) {
         },
       });
 
+      // EntityLink 图谱：quotedFor（customerRelationId → relation.organization）
+      await syncQuotationReferences(prisma, quotation, { source: 'api:quotation' }, tx);
+
       return quotation;
     });
 
@@ -250,6 +254,9 @@ export function createQuotationService(prisma: PrismaClient) {
         },
       });
 
+      // EntityLink 图谱：quotedFor 快照随 FK 更新
+      await syncQuotationReferences(prisma, quotation, { source: 'api:quotation' }, tx);
+
       return quotation;
     });
 
@@ -268,6 +275,8 @@ export function createQuotationService(prisma: PrismaClient) {
     const now = Date.now();
     await prisma.$transaction(async (tx) => {
       await tx.quotation.update({ where: { id }, data: { deletedAt: now, updatedAt: now } });
+      // EntityLink 图谱：软删同步失效发出的关联
+      await deactivateEntityLinks(tx, 'quotation', id, BigInt(now));
       await tx.auditLog.create({
         data: {
           id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
@@ -637,6 +646,10 @@ export function createQuotationService(prisma: PrismaClient) {
           transactionId: null,
         },
       });
+
+      // 5. EntityLink 图谱：报价 convertedToOrder + quotedFor；新订单关系 FK 一并入图
+      await syncQuotationReferences(prisma, quotation, { source: 'quotation-convert' }, tx);
+      await syncOrderEntityReferences(prisma, order, { source: 'quotation-convert' }, tx);
 
       return { order, quotation };
     });

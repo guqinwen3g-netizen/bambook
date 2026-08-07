@@ -18,6 +18,7 @@
 import { PrismaClient, PurchaseOrder, PurchaseLine, MaterialReceipt } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
+import { deactivateEntityLinks, syncPurchaseOrderReferences } from '../entities/sync';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -202,6 +203,9 @@ export function createProcurementService(prisma: PrismaClient) {
         },
       });
 
+      // EntityLink 图谱：purchasedFrom / forOrder / fromBom / fromQuotation
+      await syncPurchaseOrderReferences(prisma, purchaseOrder, { source: 'api:procurement' }, tx);
+
       return purchaseOrder;
     });
 
@@ -289,6 +293,9 @@ export function createProcurementService(prisma: PrismaClient) {
         },
       });
 
+      // EntityLink 图谱：FK 快照随 update 同步
+      await syncPurchaseOrderReferences(prisma, purchaseOrder, { source: 'api:procurement' }, tx);
+
       return purchaseOrder;
     });
 
@@ -307,6 +314,8 @@ export function createProcurementService(prisma: PrismaClient) {
     const now = Date.now();
     await prisma.$transaction(async (tx) => {
       await tx.purchaseOrder.update({ where: { id }, data: { deletedAt: now, updatedAt: now } });
+      // EntityLink 图谱：软删同步失效发出的关联
+      await deactivateEntityLinks(tx, 'purchaseOrder', id, BigInt(now));
       await tx.auditLog.create({
         data: {
           id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,

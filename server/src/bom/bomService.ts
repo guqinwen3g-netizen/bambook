@@ -20,6 +20,7 @@
 import { PrismaClient, BOM, BOMLine, CostEstimate } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
+import { deactivateEntityLinks, syncBomReferences } from '../entities/sync';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -296,6 +297,9 @@ export function createBOMService(prisma: PrismaClient) {
         },
       });
 
+      // EntityLink 图谱：forOrder / aboutProduct / fromQuotation
+      await syncBomReferences(prisma, created, { source: 'api:bom' }, tx);
+
       // 重新查询返回完整明细
       return tx.bOM.findUnique({
         where: { id: created.id },
@@ -494,6 +498,9 @@ export function createBOMService(prisma: PrismaClient) {
         },
       });
 
+      // EntityLink 图谱：FK 快照随 update 同步
+      await syncBomReferences(prisma, bom, { source: 'api:bom' }, tx);
+
       return tx.bOM.findUnique({
         where: { id },
         include: { lines: { orderBy: { lineNumber: 'asc' } }, costEstimates: { orderBy: { createdAt: 'asc' } } },
@@ -518,6 +525,8 @@ export function createBOMService(prisma: PrismaClient) {
     const now = Date.now();
     await prisma.$transaction(async (tx) => {
       await tx.bOM.update({ where: { id }, data: { deletedAt: now, updatedAt: now } });
+      // EntityLink 图谱：软删同步失效发出的关联
+      await deactivateEntityLinks(tx, 'bom', id, BigInt(now));
       await tx.auditLog.create({
         data: {
           id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,

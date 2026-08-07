@@ -159,6 +159,64 @@ describe('advanceStage: qc_shipped threshold gate', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) { expect(r.error.code).toBe('INSPECTION_NOT_QUALIFIED'); }
   });
+  // Phase B4：验货结论与致命疵点纳入门禁
+  it('rejects when final inspection result is fail', async () => {
+    const { prisma } = makePrisma({
+      stage: { stageKey: 'qc_shipped', stageSeq: 10, status: 'pending', id: 'P', orderId: 'O1', doneAt: null },
+      inspection: { totalUnits: 100, passedUnits: 98, approvedByBusiness: true, result: 'fail' },
+    });
+    const r = await advanceStage({ prisma, orderId: 'O1', stageKey: 'qc_shipped' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.error.code).toBe('INSPECTION_NOT_QUALIFIED'); expect(r.error.message).toContain('不合格'); }
+  });
+  it('rejects when critical defects > 0（AQL 0 零容忍）', async () => {
+    const { prisma } = makePrisma({
+      stage: { stageKey: 'qc_shipped', stageSeq: 10, status: 'pending', id: 'P', orderId: 'O1', doneAt: null },
+      inspection: { totalUnits: 100, passedUnits: 99, approvedByBusiness: true, result: 'pass', criticalDefects: 1 },
+    });
+    const r = await advanceStage({ prisma, orderId: 'O1', stageKey: 'qc_shipped' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.error.code).toBe('INSPECTION_NOT_QUALIFIED'); expect(r.error.message).toContain('致命疵点'); }
+  });
+});
+
+describe('saveInspectionReport: Phase B4 多类型 + QC 字段', () => {
+  it('中期与终期报告按 (orderId, inspectionType) 分别 upsert', async () => {
+    const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => ({
+      ...create,
+      passRate: 0,
+      defectRate: 0,
+    }));
+    const prisma = { inspectionReport: { upsert: upsertMock } } as any;
+    const { saveInspectionReport } = await import('../stageService');
+
+    await saveInspectionReport(prisma, 'O1', { inspectionType: 'midline', totalUnits: 50, passedUnits: 48, aqlLevel: '2.5/4.0 II' });
+    await saveInspectionReport(prisma, 'O1', { totalUnits: 100, passedUnits: 98 });
+
+    expect(upsertMock).toHaveBeenCalledTimes(2);
+    const first = upsertMock.mock.calls[0][0];
+    const second = upsertMock.mock.calls[1][0];
+    expect(first.where.orderId_inspectionType).toEqual({ orderId: 'O1', inspectionType: 'midline' });
+    expect(first.create.id).toBe('INR__O1__midline');
+    expect(first.create.aqlLevel).toBe('2.5/4.0 II');
+    // 缺省类型按 final 处理，沿用历史 id 格式
+    expect(second.where.orderId_inspectionType).toEqual({ orderId: 'O1', inspectionType: 'final' });
+    expect(second.create.id).toBe('INR__O1');
+  });
+
+  it('非法验货结论抛出 INVALID_RESULT', async () => {
+    const prisma = { inspectionReport: { upsert: vi.fn() } } as any;
+    const { saveInspectionReport } = await import('../stageService');
+    await expect(saveInspectionReport(prisma, 'O1', { result: 'unknown' })).rejects.toMatchObject({ code: 'INVALID_RESULT' });
+  });
+
+  it('未知 inspectionType 归一为 final', async () => {
+    const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => create);
+    const prisma = { inspectionReport: { upsert: upsertMock } } as any;
+    const { saveInspectionReport } = await import('../stageService');
+    await saveInspectionReport(prisma, 'O1', { inspectionType: 'weird' });
+    expect(upsertMock.mock.calls[0][0].create.inspectionType).toBe('final');
+  });
 });
 
 describe('advanceStage: invalid input', () => {

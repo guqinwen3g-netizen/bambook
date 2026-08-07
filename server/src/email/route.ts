@@ -11,6 +11,10 @@
  *   - POST /api/v1/email/sync     — 触发 IMAP→DB 同步
  *   - GET  /api/v1/email/attachments/:id/download — 下载附件
  *   - PATCH /api/v1/email/:id     — 更新邮件状态（read/starred/important/labels）
+ *
+ * Phase C2 新增（邮件→客户/订单自动归档）：
+ *   - POST /api/v1/email/backfill-links   — 批量回填缺失链接（owner/admin/manager）
+ *   - POST /api/v1/email/:id/auto-link    — 单封重算补缺链接
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -23,6 +27,7 @@ import { simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
 import { sendOutboxEmail } from './outboxSend';
 import { syncEmailsFromImap } from './emailSyncService';
+import { autoLinkEmailById, backfillEmailLinks } from './emailLinkService';
 import { createOutboxEmail, createReplyOutboxEmail } from './emailOutboxMutationService';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
@@ -228,6 +233,39 @@ export function createEmailRouter(options: EmailRouterOptions) {
       return res.status(EMAIL_SYNC_STATUS_MAP[result.error!.code]).json({ ok: false, error: result.error });
     }
     res.json({ ok: true, ...result.data! });
+  });
+
+  /**
+   * POST /api/v1/email/backfill-links — C2 批量回填邮件→客户/订单链接
+   * 扫描 relationId/orderId 缺失的邮件，按确定性口径（地址匹配 + PO 包含）补链；
+   * 手工已设置的链接绝不覆盖。批量写操作，限 owner/admin/manager。
+   */
+  router.post('/backfill-links', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    try {
+      const limit = Number((req.body || {}).limit) || undefined;
+      const result = await backfillEmailLinks(prisma, { limit, actorId: actorIdFromRequest(req) });
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      logger.error('[email] backfill-links error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'BACKFILL_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  /**
+   * POST /api/v1/email/:id/auto-link — C2 单封邮件自动归档（重算并补缺链接）
+   * 已同时具有 relationId + orderId 的邮件直接返回 alreadyLinked。
+   */
+  router.post('/:id/auto-link', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const result = await autoLinkEmailById(prisma, req.params.id, { actorId: actorIdFromRequest(req) });
+      if ('error' in result) {
+        return res.status(404).json({ ok: false, error: { code: result.error, message: 'Email not found' } });
+      }
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      logger.error('[email] auto-link error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'AUTO_LINK_FAILED', message: String(e?.message ?? e) } });
+    }
   });
 
   /**

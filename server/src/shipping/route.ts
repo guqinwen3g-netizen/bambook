@@ -16,6 +16,8 @@ import type { AgentRole } from '../agent/types';
 import { PrismaClient } from '@prisma/client';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { createShipment, updateShipment, deleteShipment, VALID_SHIPMENT_STATUSES } from './shipmentMutationService';
+import { assembleDocumentSetData } from './documentSetService';
+import { getOnTimeStats } from './shipmentStatsService';
 
 export interface ShippingRouterOptions {
   prisma: PrismaClient;
@@ -133,6 +135,19 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     }
   });
 
+  // GET /api/v1/shipping/stats/on-time — 准交率统计（只读；两段式路径不与 /:id 冲突）
+  router.get('/stats/on-time', async (req: Request, res: Response) => {
+    try {
+      const stats = await getOnTimeStats(prisma, {
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'STATS_FAILED', message: err.message } });
+    }
+  });
+
   // GET /api/v1/shipping/:id
   router.get('/:id', async (req: Request, res: Response) => {
     try {
@@ -141,6 +156,21 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
       res.json(item);
     } catch (err: any) {
       res.status(500).json({ error: { code: 'GET_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/shipping/:id/document-set — 制单数据装配（只读，CI/PL/CO/BL 成套生成数据源）
+  router.get('/:id/document-set', async (req: Request, res: Response) => {
+    try {
+      const result = await assembleDocumentSetData(prisma, req.params.id);
+      if (!result.ok) {
+        const statusCode = result.error!.code === 'SHIPMENT_NOT_FOUND' ? 404 : 500;
+        res.status(statusCode).json({ error: result.error });
+        return;
+      }
+      res.json(result.data);
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'ASSEMBLE_FAILED', message: err.message } });
     }
   });
 

@@ -145,6 +145,7 @@ import Sidebar from './components/Sidebar';
 import { NotificationCenter } from './components/NotificationCenter';
 
 import Dashboard from './components/Dashboard';
+import CockpitManager from './components/CockpitManager';
 import { CompiledDashboardPage } from './components/ui/osCompiler/compiledDashboardTemplates';
 import Assistant, { assistantRuntimeStore, type AssistantRuntimeSnapshot } from './components/Assistant';
 import DataTwinCenter from './components/DataTwinCenter';
@@ -176,6 +177,9 @@ import QuotationManager from './components/QuotationManager';
 import ProcurementManager from './components/ProcurementManager';
 import InventoryManager from './components/InventoryManager';
 import BomManager from './components/BomManager';
+import CrmManager from './components/CrmManager';
+import MesManager from './components/MesManager';
+import CustomsManager from './components/CustomsManager';
 import type { GlobeQualityMode, GlobeViewportCenter } from './components/ProductionGlobe';
 import {
   requestOsAdaptiveContrastRefresh,
@@ -1134,7 +1138,7 @@ const App: React.FC = () => {
   };
 
   const settingsMode = resolveSettingsMode(activeView);
-  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.KnowledgeBase || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR;
+  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.MES || activeView === View.Customs || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.KnowledgeBase || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR;
 
   // Views that render the ProductionGlobe as an underlay. We must let pointer
   // events pass THROUGH the main / wrapper divs to the canvas underneath; the
@@ -1555,6 +1559,21 @@ const App: React.FC = () => {
               'bom',
               <BomManager isDarkMode={isDarkMode} />,
             )}
+            {activeView === View.CRM && renderMainCompilerSlot(
+              compilerSurfaces.crm,
+              'crm',
+              <CrmManager isDarkMode={isDarkMode} />,
+            )}
+            {activeView === View.MES && renderMainCompilerSlot(
+              compilerSurfaces.mes,
+              'mes',
+              <MesManager isDarkMode={isDarkMode} />,
+            )}
+            {activeView === View.Customs && renderMainCompilerSlot(
+              compilerSurfaces.customs,
+              'customs',
+              <CustomsManager isDarkMode={isDarkMode} />,
+            )}
             {activeView === View.KnowledgeBase && renderMainCompilerSlot(
               compilerSurfaces.knowledgeBase,
               'knowledge-base',
@@ -1582,6 +1601,7 @@ const App: React.FC = () => {
                       relations={relations}
                       allowGlobeView={isProductionGlobeEnabled}
                       onFullscreenOpenChange={setOrderFullscreenOpen}
+                      onNavigate={handleViewChange}
                     />
                   )
                   : <div className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>订单正在读取数据中心...</div>,
@@ -1649,7 +1669,7 @@ const App: React.FC = () => {
             {activeView === View.BusinessTools && renderMainCompilerSlot(
               compilerSurfaces.businessTools,
               'business-tools',
-              <BusinessTools isDarkMode={isDarkMode} relations={relationsReady ? relations : []} orders={ordersReady ? orders : []} />,
+              <BusinessTools isDarkMode={isDarkMode} relations={relationsReady ? relations : []} orders={ordersReady ? orders : []} onNavigate={handleViewChange} />,
             )}
             {activeView === View.AdminPanel && renderMainCompilerSlot(
               compilerSurfaces.adminPanel,
@@ -1658,6 +1678,9 @@ const App: React.FC = () => {
             )}
             {activeView === View.HR && (
               <HRManager isDarkMode={isDarkMode} />
+            )}
+            {activeView === View.Cockpit && (
+              <CockpitManager isDarkMode={isDarkMode} />
             )}
           </div>
         </div>

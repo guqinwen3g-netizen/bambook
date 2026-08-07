@@ -406,6 +406,13 @@ export const DEFAULT_AGENT_TOOLS: DefaultToolDefinition[] = [
     allowedRoles: ['owner', 'admin', 'manager', 'finance', 'sales', 'merchandiser'],
   },
   {
+    id: 'finance.get_aging',
+    name: 'Get AR/AP Aging Report',
+    scope: 'finance',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'finance', 'sales', 'merchandiser'],
+  },
+  {
     id: 'finance.create_invoice',
     name: 'Create Invoice',
     scope: 'finance',
@@ -459,6 +466,43 @@ export const DEFAULT_AGENT_TOOLS: DefaultToolDefinition[] = [
     risk: 'medium',
     allowedRoles: ['owner', 'admin', 'manager', 'logistics'],
     approvalRoles: ['owner', 'admin', 'manager'],
+  },
+  {
+    id: 'shipping.scan_delays',
+    name: 'Scan Delayed Shipments',
+    scope: 'shipping',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'finance', 'sales', 'merchandiser', 'logistics'],
+  },
+  // ── Quotations (报价管理) — C3 智能报价 ──
+  {
+    id: 'quotations.query',
+    name: 'Query Quotations',
+    scope: 'quotations',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'sales', 'merchandiser'],
+  },
+  {
+    id: 'quotations.get',
+    name: 'Get Quotation',
+    scope: 'quotations',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'sales', 'merchandiser'],
+  },
+  // ── Customs (通关单证) — C3 LC 审单 ──
+  {
+    id: 'customs.query_lc',
+    name: 'Query Letters of Credit',
+    scope: 'customs',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'finance', 'sales', 'merchandiser'],
+  },
+  {
+    id: 'customs.get_lc',
+    name: 'Get Letter of Credit',
+    scope: 'customs',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'finance', 'sales', 'merchandiser'],
   },
   // ── Email (邮件管理) — Phase 4a ──
   {

@@ -33,9 +33,9 @@ describe('AutomationConfig', () => {
   });
 
   describe('listAutomationRules', () => {
-    it('returns all 7 automation rules', () => {
+    it('returns all 9 automation rules', () => {
       const rules = listAutomationRules();
-      expect(rules).toHaveLength(7);
+      expect(rules).toHaveLength(9);
       expect(rules.map(r => r.id)).toEqual([
         'L1_init_production',
         'L2_create_shipment',
@@ -44,6 +44,8 @@ describe('AutomationConfig', () => {
         'L6_create_bom_draft',
         'L7_create_procurement',
         'L8_auto_stock_in',
+        'L9_convert_quotation_to_order',
+        'L10_create_tax_refund_draft',
       ]);
     });
 

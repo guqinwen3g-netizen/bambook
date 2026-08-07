@@ -31,23 +31,39 @@ export interface PreCutChecklist {
   confirmedAt?: number | null;
 }
 
+export type InspectionType = 'midline' | 'final';
+
 export interface InspectionReport {
   orderId: string;
+  inspectionType?: InspectionType;
   totalUnits: number;
   passedUnits: number;
   passRate: number;
   defectRate: number;
+  inspectionDate?: string | null;
+  inspectorOrg?: string | null;
+  aqlLevel?: string | null;
+  lotSize?: number | null;
+  sampleSize?: number | null;
+  criticalDefects?: number;
+  majorDefects?: number;
+  minorDefects?: number;
+  defectSummary?: string | null;
+  result?: 'pass' | 'conditional' | 'fail' | null;
+  shipmentId?: string | null;
   reportFile?: string | null;
   inspectedBy?: string | null;
   approvedByBusiness: boolean;
   businessApprover?: string | null;
   approvedAt?: number | null;
+  notes?: string | null;
 }
 
 export interface ProductionPipeline {
   stages: PipelineStage[];
   checklist: PreCutChecklist | null;
   inspection: InspectionReport | null;
+  inspections?: InspectionReport[];
 }
 
 export const productionService = {
@@ -60,7 +76,7 @@ export const productionService = {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data?.error?.message || `getPipeline failed: HTTP ${res.status}`);
-    return { stages: data.stages || [], checklist: data.checklist || null, inspection: data.inspection || null };
+    return { stages: data.stages || [], checklist: data.checklist || null, inspection: data.inspection || null, inspections: data.inspections || [] };
   },
 
   async advanceStage(orderId: string, stageKey: string, note?: string, endpoint?: string): Promise<PipelineStage> {

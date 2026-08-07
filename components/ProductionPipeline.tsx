@@ -43,12 +43,23 @@ interface PreCutChecklist {
 
 interface InspectionReport {
   orderId: string;
+  inspectionType?: string | null; // midline | final（缺省 final）
   totalUnits: number;
   passedUnits: number;
   passRate: number;
   defectRate: number;
   approvedByBusiness: boolean;
   inspectedBy?: string | null;
+  inspectionDate?: string | null;
+  inspectorOrg?: string | null;
+  aqlLevel?: string | null;
+  lotSize?: number | null;
+  sampleSize?: number | null;
+  criticalDefects?: number | null;
+  majorDefects?: number | null;
+  minorDefects?: number | null;
+  defectSummary?: string | null;
+  result?: string | null; // pass | conditional | fail
 }
 
 interface ProductionPipelineProps {
@@ -59,7 +70,8 @@ interface ProductionPipelineProps {
 export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId, isDarkMode = false }) => {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [checklist, setChecklist] = useState<PreCutChecklist | null>(null);
-  const [inspection, setInspection] = useState<InspectionReport | null>(null);
+  const [inspections, setInspections] = useState<InspectionReport[]>([]);
+  const [inspType, setInspType] = useState<'final' | 'midline'>('final');
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,12 +80,14 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
   const textSecondary = isDarkMode ? 'text-white/50' : 'text-slate-500';
   const surfaceClass = isDarkMode ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-200/60';
 
+  const inspection = inspections.find(i => (i.inspectionType ?? 'final') === inspType) ?? null;
+
   const fetchPipeline = useCallback(async () => {
     try {
       const data = await productionService.getPipeline(orderId);
       setStages(data.stages);
       setChecklist(data.checklist);
-      setInspection(data.inspection);
+      setInspections(data.inspections && data.inspections.length > 0 ? data.inspections : (data.inspection ? [data.inspection] : []));
     } catch { /* ignore */ }
     setLoading(false);
   }, [orderId]);
@@ -103,8 +117,12 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
 
   const handleInspectionSave = async (field: string, value: any) => {
     try {
-      const report = await productionService.saveInspection(orderId, { [field]: value });
-      setInspection(report);
+      const report = await productionService.saveInspection(orderId, { inspectionType: inspType, [field]: value });
+      setInspections(prev => {
+        const idx = prev.findIndex(i => (i.inspectionType ?? 'final') === (report.inspectionType ?? 'final'));
+        if (idx >= 0) return prev.map((i, n) => (n === idx ? report : i));
+        return [...prev, report];
+      });
     } catch { /* ignore */ }
   };
 
@@ -245,11 +263,120 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
         </div>
       )}
 
-      {/* Inspection Report */}
+      {/* Inspection Report — Phase B4：中期/终期双报告 + AQL/三级疵点 */}
       {stages.some(s => s.stageKey === 'qc_shipped') && (
         <div className={cx('rounded-inset border p-4', surfaceClass)}>
-          <div className={cx('mb-3 text-[10px] font-light uppercase tracking-widest', textSecondary)}>验货报告 (阈值: 合格率≥90% 不合格率≤3%)</div>
+          <div className="mb-3 flex items-center justify-between">
+            <div className={cx('text-[10px] font-light uppercase tracking-widest', textSecondary)}>
+              验货报告{inspType === 'final' ? ' (门禁: 合格率≥90% 不合格率≤3% 致命疵点=0)' : ''}
+            </div>
+            <div className="flex items-center gap-1">
+              {(['final', 'midline'] as const).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setInspType(t)}
+                  className={cx(
+                    'h-6 rounded-control border px-2.5 text-[10px] font-light transition-colors',
+                    inspType === t
+                      ? isDarkMode ? 'border-white/20 bg-white/10 text-white/85' : 'border-slate-400/50 bg-slate-100 text-slate-700'
+                      : isDarkMode ? 'border-white/[0.08] text-white/40 hover:text-white/65' : 'border-slate-200 text-slate-400 hover:text-slate-600',
+                  )}
+                >
+                  {t === 'final' ? '终期验货' : '中期验货'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货日期</label>
+              <input
+                type="date"
+                value={inspection?.inspectionDate ?? ''}
+                onChange={e => handleInspectionSave('inspectionDate', e.target.value)}
+                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+              />
+            </div>
+            <div>
+              <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货方</label>
+              <input
+                type="text"
+                placeholder="自有 QC / SGS / BV / 客户验货员"
+                value={inspection?.inspectorOrg ?? ''}
+                onChange={e => handleInspectionSave('inspectorOrg', e.target.value)}
+                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+              />
+            </div>
+            <div>
+              <label className={cx('mb-1 block text-[10px]', textSecondary)}>AQL 标准</label>
+              <input
+                type="text"
+                placeholder="如 2.5/4.0 II"
+                value={inspection?.aqlLevel ?? ''}
+                onChange={e => handleInspectionSave('aqlLevel', e.target.value)}
+                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+              />
+            </div>
+            <div>
+              <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货结论</label>
+              <select
+                value={inspection?.result ?? ''}
+                onChange={e => handleInspectionSave('result', e.target.value || null)}
+                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+              >
+                <option value="">未判定</option>
+                <option value="pass">合格 Pass</option>
+                <option value="conditional">有条件合格 Conditional</option>
+                <option value="fail">不合格 Fail</option>
+              </select>
+            </div>
+            <div>
+              <label className={cx('mb-1 block text-[10px]', textSecondary)}>批量 / 抽样数</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="批量"
+                  value={inspection?.lotSize ?? ''}
+                  onChange={e => handleInspectionSave('lotSize', e.target.value ? Number(e.target.value) : null)}
+                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                />
+                <input
+                  type="number"
+                  placeholder="抽样"
+                  value={inspection?.sampleSize ?? ''}
+                  onChange={e => handleInspectionSave('sampleSize', e.target.value ? Number(e.target.value) : null)}
+                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={cx('mb-1 block text-[10px]', textSecondary)}>疵点 致命/主要/次要</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="致命"
+                  value={inspection?.criticalDefects ?? ''}
+                  onChange={e => handleInspectionSave('criticalDefects', Number(e.target.value) || 0)}
+                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                />
+                <input
+                  type="number"
+                  placeholder="主要"
+                  value={inspection?.majorDefects ?? ''}
+                  onChange={e => handleInspectionSave('majorDefects', Number(e.target.value) || 0)}
+                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                />
+                <input
+                  type="number"
+                  placeholder="次要"
+                  value={inspection?.minorDefects ?? ''}
+                  onChange={e => handleInspectionSave('minorDefects', Number(e.target.value) || 0)}
+                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                />
+              </div>
+            </div>
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>总检验件数</label>
               <input
@@ -269,21 +396,37 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
               />
             </div>
           </div>
+          <div className="mt-3">
+            <label className={cx('mb-1 block text-[10px]', textSecondary)}>疵点描述</label>
+            <input
+              type="text"
+              placeholder="如 跳线x3 污渍x2 尺寸超差x1"
+              value={inspection?.defectSummary ?? ''}
+              onChange={e => handleInspectionSave('defectSummary', e.target.value)}
+              className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+            />
+          </div>
+
           {inspection && inspection.totalUnits > 0 && (
             <div className="mt-3 space-y-1">
               <div className={cx('flex justify-between text-[11px]', textSecondary)}>
                 <span>合格率: <span className={inspection.passRate >= 0.9 ? 'text-emerald-500 font-normal' : 'text-red-500 font-normal'}>{(inspection.passRate * 100).toFixed(1)}%</span></span>
                 <span>不合格率: <span className={inspection.defectRate <= 0.03 ? 'text-emerald-500 font-normal' : 'text-red-500 font-normal'}>{(inspection.defectRate * 100).toFixed(1)}%</span></span>
+                {(inspection.criticalDefects ?? 0) > 0 && (
+                  <span className="text-red-500 font-normal">致命疵点 {inspection.criticalDefects}（零容忍）</span>
+                )}
               </div>
-              <label className="flex items-center gap-2 cursor-pointer mt-2">
-                <input
-                  type="checkbox"
-                  checked={inspection.approvedByBusiness}
-                  onChange={e => handleInspectionSave('approvedByBusiness', e.target.checked)}
-                  className="w-4 h-4 rounded accent-emerald-500"
-                />
-                <span className={cx('text-xs font-light', textPrimary)}>业务部批准发货</span>
-              </label>
+              {inspType === 'final' && (
+                <label className="flex items-center gap-2 cursor-pointer mt-2">
+                  <input
+                    type="checkbox"
+                    checked={inspection.approvedByBusiness}
+                    onChange={e => handleInspectionSave('approvedByBusiness', e.target.checked)}
+                    className="w-4 h-4 rounded accent-emerald-500"
+                  />
+                  <span className={cx('text-xs font-light', textPrimary)}>业务部批准发货</span>
+                </label>
+              )}
             </div>
           )}
         </div>

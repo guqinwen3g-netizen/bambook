@@ -5,9 +5,10 @@
  * 采用 Bambook OS 风格的大玻璃面板展示详细信息。
  */
 
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Relation } from '../../types';
+import { Relation, FollowUpRecord } from '../../types';
+import { apiService } from '../../services/apiService';
 import {
     Building2, User, Globe, Mail, Phone, MapPin,
     CreditCard, DollarSign, Calendar, Clock, MessageCircle,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
+import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
 
 interface DetailPanelProps {
     type: 'organization' | 'contact';
@@ -109,6 +111,15 @@ const InfoSection: React.FC<{
     );
 };
 
+const FOLLOW_UP_TYPE_LABELS: Record<string, string> = {
+    Visit: '拜访',
+    Call: '电话',
+    Email: '邮件',
+    WeChat: '微信',
+    Meeting: '会议',
+    Other: '其他',
+};
+
 const DetailPanel: React.FC<DetailPanelProps> = ({
     type,
     data,
@@ -118,6 +129,18 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
     isDarkMode
 }) => {
     const isOrg = type === 'organization';
+    const [followUps, setFollowUps] = useState<FollowUpRecord[] | null>(null);
+
+    // 互动历史：CRM 跟进记录（FollowUpRecord）为单一真源，按当前 Relation 拉取
+    useEffect(() => {
+        let cancelled = false;
+        setFollowUps(null);
+        apiService.listFollowUps(data.id, { limit: 5, includeCompleted: true })
+            .then(items => { if (!cancelled) setFollowUps(items); })
+            .catch(() => { if (!cancelled) setFollowUps([]); });
+        return () => { cancelled = true; };
+    }, [data.id]);
+
     const actionButtonClass = isDarkMode
         ? BAMBOOK_OS.controls.actionControl.borderedDark
         : BAMBOOK_OS.controls.actionControl.borderedLight;
@@ -136,6 +159,49 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
         ? BAMBOOK_OS.tone.divider.panelDark
         : BAMBOOK_OS.tone.divider.panelLight;
     const detailScrollRef = useRef<HTMLDivElement | null>(null);
+
+    // 互动历史区块（组织/联系人两种布局共用，真源：CRM FollowUpRecord）
+    const interactionHistorySection = (
+        <InfoSection title="互动历史" icon={<Calendar size={14} />} isDarkMode={isDarkMode}>
+            <div className={`text-sm ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                    <Calendar size={14} />
+                    <span>最近互动: {new Date(data.lastInteraction).toLocaleDateString('zh-CN')}</span>
+                </div>
+                {followUps === null ? (
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>加载中…</p>
+                ) : followUps.length === 0 ? (
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>暂无跟进记录，可在 CRM 模块添加</p>
+                ) : (
+                    <ul className="space-y-1.5">
+                        {followUps.map(fu => (
+                            <li key={fu.id} className={`text-xs leading-5 ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                                <span className={`inline-block px-1.5 py-0.5 rounded mr-1.5 text-[10px] ${dataChipClass}`}>
+                                    {FOLLOW_UP_TYPE_LABELS[fu.type] ?? fu.type}
+                                </span>
+                                <span className={isDarkMode ? 'text-white/40' : 'text-slate-500'}>{fu.followUpAt}</span>
+                                <span className="mx-1">·</span>
+                                <span className="break-all">{fu.content}</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </InfoSection>
+    );
+
+    // 跨模块关联视图（EntityLink 图谱，组织/联系人两种布局共用）
+    // 联系人双码合并：owned 链接挂在 relation.contact，订单角色链接指向 relation.person
+    const relatedEntitiesSection = (
+        <RelatedEntitiesPanel
+            type={isOrg ? 'relation.organization' : 'relation.contact'}
+            additionalTypes={isOrg ? undefined : ['relation.person']}
+            id={data.id}
+            isDarkMode={isDarkMode}
+            title="关联视图"
+        />
+    );
+
     return (
         <div className={BAMBOOK_OS.layout.relationsDetailMainShellClass}>
         <CompiledSurfacePanel
@@ -304,6 +370,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                 </p>
                             </InfoSection>
                         )}
+
+                        {interactionHistorySection}
+
+                        {/* 跨模块关联视图（EntityLink 图谱） */}
+                        {relatedEntitiesSection}
                     </>
                 ) : (
                     // ========== 联系人信息布局 ==========
@@ -356,18 +427,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             </InfoSection>
                         )}
 
-                        {/* 互动历史 */}
-                        <InfoSection title="互动历史" icon={<Calendar size={14} />} isDarkMode={isDarkMode}>
-                            <div className={`text-sm ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Calendar size={14} />
-                                    <span>最近互动: {new Date(data.lastInteraction).toLocaleDateString('zh-CN')}</span>
-                                </div>
-                                <p className={`text-xs italic ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>
-                                    (详细互动历史功能开发中)
-                                </p>
-                            </div>
-                        </InfoSection>
+                        {/* 互动历史（CRM 跟进记录） */}
+                        {interactionHistorySection}
+
+                        {/* 跨模块关联视图（EntityLink 图谱） */}
+                        {relatedEntitiesSection}
                     </>
                 )}
 

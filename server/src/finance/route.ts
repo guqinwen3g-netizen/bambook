@@ -23,6 +23,7 @@ import { createAllocation, updateAllocation, deleteAllocation } from './allocati
 import { validateStatusTransition } from '../statusTransition';
 import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMutationService';
 import { createInvoice, updateInvoice } from './invoiceMutationService';
+import { getAgingReport, getCustomerStatement, getFxGainLoss } from './reportService';
 
 export interface FinanceRouterOptions {
   prisma: PrismaClient;
@@ -375,6 +376,59 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
     } catch (err: any) {
       logger.error('[finance] DELETE /:id failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: { code: 'DELETE_FAILED', message: err.message } });
+    }
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // 财务报表（只读） — /api/v1/finance/reports
+  // ⚠️ 字面路由 /reports 必须在参数路由 /:id 之前注册。
+  // ────────────────────────────────────────────────────────────────
+
+  // GET /api/v1/finance/reports/aging?type=Receivable|Payable&asOf=YYYY-MM-DD
+  router.get('/reports/aging', async (req: Request, res: Response) => {
+    try {
+      const type = String(req.query.type ?? 'Receivable');
+      if (type !== 'Receivable' && type !== 'Payable') {
+        return res.status(400).json({ error: { code: 'INVALID_TYPE', message: 'type 必须为 Receivable 或 Payable' } });
+      }
+      const report = await getAgingReport(prisma, { type, asOf: req.query.asOf ? String(req.query.asOf) : undefined });
+      res.json(report);
+    } catch (err: any) {
+      logger.error('[finance] GET /reports/aging failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/reports/statement?customerRelationId=xx&from=YYYY-MM-DD&to=YYYY-MM-DD
+  router.get('/reports/statement', async (req: Request, res: Response) => {
+    try {
+      const customerRelationId = String(req.query.customerRelationId ?? '');
+      if (!customerRelationId) {
+        return res.status(400).json({ error: { code: 'MISSING_CUSTOMER', message: 'customerRelationId is required' } });
+      }
+      const report = await getCustomerStatement(prisma, {
+        customerRelationId,
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      res.json(report);
+    } catch (err: any) {
+      logger.error('[finance] GET /reports/statement failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/reports/fx-gain-loss?from=YYYY-MM-DD&to=YYYY-MM-DD
+  router.get('/reports/fx-gain-loss', async (req: Request, res: Response) => {
+    try {
+      const report = await getFxGainLoss(prisma, {
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      res.json(report);
+    } catch (err: any) {
+      logger.error('[finance] GET /reports/fx-gain-loss failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
     }
   });
 

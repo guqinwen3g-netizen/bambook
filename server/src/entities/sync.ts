@@ -829,3 +829,350 @@ export async function deactivateEntityLinks(tx: any, ownerType: string, ownerId:
     });
   }
 }
+
+// ---------------------------------------------------------------------------
+// 阶段 D / D1.1a：主链路实体图谱补缺
+//
+// Quotation / BOM / PurchaseOrder / CustomsDeclaration / TaxRefund / Opportunity
+// 六类主链路实体此前零图谱覆盖。以下 sync 函数与既有 Order/Invoice/Shipment
+// 模式语义完全一致（entityReference + entityLink 双写、确定性 ID、tx 感知），
+// 通过共享的 spec 驱动 helper 消除六份重复。
+//
+// 服务挂载点（create/update 事务内调用，软删走 deactivateEntityLinks）：
+//   quotationService / bomService / procurementService / customsService / crm服务
+// 手动操作与 L6-L10 自动联动共享同一 service 入口，单点修复双路受益。
+// ---------------------------------------------------------------------------
+
+type EntityLinkSpec = {
+  /** EntityReference.fieldKey（快照键） */
+  fieldKey: string;
+  /** 人类可读标签（冗余快照名） */
+  label?: unknown;
+  /** 目标实体类型，如 'order' / 'relation.organization' / 'product' / 'bom' / 'quotation' / 'shipment' / 'customsDeclaration' */
+  targetType: string;
+  /** FK 值（空则跳过该条） */
+  targetId: unknown;
+  linkKind: string;
+  /** 额外快照字段（如单号） */
+  snapshotExtra?: Record<string, unknown>;
+};
+
+type SyncOptions = { source: string; now?: () => number };
+
+function buildEntitySyncOps(
+  ctx: any,
+  ownerType: string,
+  ownerId: string,
+  specs: EntityLinkSpec[],
+  options: SyncOptions,
+): any[] {
+  const now = options.now?.() ?? Date.now();
+  const ops: any[] = [];
+  for (const spec of specs) {
+    const targetId = stringOrNull(spec.targetId);
+    if (!targetId) continue;
+    const snapshot = compact({
+      label: spec.label,
+      fieldKey: spec.fieldKey,
+      targetId,
+      ...(spec.snapshotExtra ?? {}),
+    });
+    const referenceId = referenceIdFor(ownerType, ownerId, spec.fieldKey, spec.targetType, targetId);
+    const linkId = linkIdFor(ownerType, ownerId, spec.targetType, targetId, spec.linkKind);
+
+    ops.push(ctx.entityReference.upsert({
+      where: { id: referenceId },
+      update: { snapshot, confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: referenceId,
+        ownerType, ownerId,
+        fieldKey: spec.fieldKey,
+        targetType: spec.targetType, targetId,
+        snapshot, confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+    ops.push(ctx.entityLink.upsert({
+      where: { id: linkId },
+      update: { confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: linkId,
+        fromType: ownerType, fromId: ownerId,
+        toType: spec.targetType, toId: targetId,
+        linkKind: spec.linkKind,
+        confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+  }
+  return ops;
+}
+
+async function runEntitySyncOps(prisma: PrismaClient, ops: any[], tx?: any): Promise<void> {
+  if (ops.length === 0) return;
+  if (tx) {
+    for (const op of ops) await op;
+  } else {
+    await (prisma as any).$transaction(ops);
+  }
+}
+
+type QuotationLike = Record<string, any> & { id: string };
+
+/** Quotation → Relation(quotedFor) / Order(convertedToOrder) */
+export async function syncQuotationReferences(
+  prisma: PrismaClient,
+  quotation: QuotationLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!quotation?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'quotation', quotation.id, [
+    {
+      fieldKey: 'customerRelationId', label: quotation.customerName,
+      targetType: 'relation.organization', targetId: quotation.customerRelationId, linkKind: 'quotedFor',
+      snapshotExtra: { quotationNumber: quotation.quotationNumber },
+    },
+    {
+      fieldKey: 'convertedOrderId', label: quotation.quotationNumber,
+      targetType: 'order', targetId: quotation.convertedOrderId, linkKind: 'convertedToOrder',
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+type BomLike = Record<string, any> & { id: string };
+
+/** BOM → Order(forOrder) / Product(aboutProduct) / Quotation(fromQuotation) */
+export async function syncBomReferences(
+  prisma: PrismaClient,
+  bom: BomLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!bom?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'bom', bom.id, [
+    {
+      fieldKey: 'orderId', label: bom.bomNumber,
+      targetType: 'order', targetId: bom.orderId, linkKind: 'forOrder',
+      snapshotExtra: { bomNumber: bom.bomNumber },
+    },
+    {
+      fieldKey: 'productAssetId', label: bom.description,
+      targetType: 'product', targetId: bom.productAssetId, linkKind: 'aboutProduct',
+      snapshotExtra: { bomNumber: bom.bomNumber },
+    },
+    {
+      fieldKey: 'quotationId', label: bom.bomNumber,
+      targetType: 'quotation', targetId: bom.quotationId, linkKind: 'fromQuotation',
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+type PurchaseOrderLike = Record<string, any> & { id: string };
+
+/** PurchaseOrder → Relation(purchasedFrom) / Order(forOrder) / BOM(fromBom) / Quotation(fromQuotation) */
+export async function syncPurchaseOrderReferences(
+  prisma: PrismaClient,
+  po: PurchaseOrderLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!po?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'purchaseOrder', po.id, [
+    {
+      fieldKey: 'supplierRelationId', label: po.supplierName,
+      targetType: 'relation.organization', targetId: po.supplierRelationId, linkKind: 'purchasedFrom',
+      snapshotExtra: { poNumber: po.poNumber },
+    },
+    {
+      fieldKey: 'orderId', label: po.poNumber,
+      targetType: 'order', targetId: po.orderId, linkKind: 'forOrder',
+    },
+    {
+      fieldKey: 'bomId', label: po.poNumber,
+      targetType: 'bom', targetId: po.bomId, linkKind: 'fromBom',
+    },
+    {
+      fieldKey: 'quotationId', label: po.poNumber,
+      targetType: 'quotation', targetId: po.quotationId, linkKind: 'fromQuotation',
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+type CustomsDeclarationLike = Record<string, any> & { id: string };
+
+/** CustomsDeclaration → Shipment(clearsShipment) / Order(aboutOrder) / Relation(declaredFor) */
+export async function syncCustomsDeclarationReferences(
+  prisma: PrismaClient,
+  declaration: CustomsDeclarationLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!declaration?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'customsDeclaration', declaration.id, [
+    {
+      fieldKey: 'shipmentId', label: declaration.declarationNumber,
+      targetType: 'shipment', targetId: declaration.shipmentId, linkKind: 'clearsShipment',
+      snapshotExtra: { declarationNumber: declaration.declarationNumber },
+    },
+    {
+      fieldKey: 'orderId', label: declaration.declarationNumber,
+      targetType: 'order', targetId: declaration.orderId, linkKind: 'aboutOrder',
+    },
+    {
+      fieldKey: 'relationId', label: declaration.declarationNumber,
+      targetType: 'relation.organization', targetId: declaration.relationId, linkKind: 'declaredFor',
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+type TaxRefundLike = Record<string, any> & { id: string };
+
+/** TaxRefund → CustomsDeclaration(refundsDeclaration) / Order(aboutOrder) / Relation(refundTo) */
+export async function syncTaxRefundReferences(
+  prisma: PrismaClient,
+  refund: TaxRefundLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!refund?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'taxRefund', refund.id, [
+    {
+      fieldKey: 'declarationId', label: refund.refundNumber,
+      targetType: 'customsDeclaration', targetId: refund.declarationId, linkKind: 'refundsDeclaration',
+      snapshotExtra: { refundNumber: refund.refundNumber },
+    },
+    {
+      fieldKey: 'orderId', label: refund.refundNumber,
+      targetType: 'order', targetId: refund.orderId, linkKind: 'aboutOrder',
+    },
+    {
+      fieldKey: 'relationId', label: refund.refundNumber,
+      targetType: 'relation.organization', targetId: refund.relationId, linkKind: 'refundTo',
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+type OpportunityLike = Record<string, any> & { id: string };
+
+/** Opportunity → Relation(opportunityFor) / Order(convertedToOrder，成交后) */
+export async function syncOpportunityReferences(
+  prisma: PrismaClient,
+  opportunity: OpportunityLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!opportunity?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'opportunity', opportunity.id, [
+    {
+      fieldKey: 'relationId', label: opportunity.title,
+      targetType: 'relation.organization', targetId: opportunity.relationId, linkKind: 'opportunityFor',
+      snapshotExtra: { stage: opportunity.stage },
+    },
+    {
+      fieldKey: 'orderId', label: opportunity.title,
+      targetType: 'order', targetId: opportunity.orderId, linkKind: 'convertedToOrder',
+      snapshotExtra: { stage: opportunity.stage },
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+// ---------------------------------------------------------------------------
+// 阶段 D / D2：ProductAsset ↔ Relation 图谱（关系完整性收口）
+//
+// 面料 mill / 成衣 customer+factory / 辅料 supplier 由裸文本升级为
+// snapshot + FK 双写（与 Order.customerRelationId 模式一致），FK 入图：
+//   product → relation.organization
+//   linkKind: suppliedBy（面料 mill / 辅料 supplier）
+//             producedFor（成衣客户）/ manufacturedBy（成衣工厂）
+// 挂载点：products route POST/PATCH 事务内（profile upsert 之后）。
+// ---------------------------------------------------------------------------
+
+type ProductAssetLike = Record<string, any> & { id: string };
+
+/** ProductAsset → Relation(suppliedBy / producedFor / manufacturedBy) */
+export async function syncProductAssetReferences(
+  prisma: PrismaClient,
+  product: ProductAssetLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!product?.id) return;
+  const ctx = tx || prisma;
+  const label = product.name ?? product.sku;
+  const fabric = product.fabricProfile;
+  const garment = product.garmentProfile;
+  const trimming = product.trimmingProfile;
+  const ops = buildEntitySyncOps(ctx, 'product', product.id, [
+    {
+      fieldKey: 'fabricProfile.millOrganizationId', label,
+      targetType: 'relation.organization', targetId: fabric?.millOrganizationId, linkKind: 'suppliedBy',
+      snapshotExtra: { mainCategory: 'Fabric', millName: fabric?.millName, sku: product.sku },
+    },
+    {
+      fieldKey: 'garmentProfile.customerRelationId', label,
+      targetType: 'relation.organization', targetId: garment?.customerRelationId, linkKind: 'producedFor',
+      snapshotExtra: { mainCategory: 'Garment', customer: garment?.customer, sku: product.sku },
+    },
+    {
+      fieldKey: 'garmentProfile.factoryRelationId', label,
+      targetType: 'relation.organization', targetId: garment?.factoryRelationId, linkKind: 'manufacturedBy',
+      snapshotExtra: { mainCategory: 'Garment', factory: garment?.factory, sku: product.sku },
+    },
+    {
+      fieldKey: 'trimmingProfile.supplierRelationId', label,
+      targetType: 'relation.organization', targetId: trimming?.supplierRelationId, linkKind: 'suppliedBy',
+      snapshotExtra: { mainCategory: 'Trimmings', supplier: trimming?.supplier, sku: product.sku },
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
+// ---------------------------------------------------------------------------
+// 阶段 D / D5：OutsourcingOrder ↔ Relation/Order/BOM sync
+// 外协单 FK 入图（D1.1a 豁免项在此落地）：
+//   outsourcedTo（supplierId→relation.organization）
+//   forOrder（orderId→order）/ fromBom（bomId→bom）
+// 挂载点：mesService createOutsourcingOrder / updateOutsourcingOrder 事务内。
+// ---------------------------------------------------------------------------
+
+type OutsourcingOrderLike = Record<string, any> & { id: string };
+
+/** OutsourcingOrder → Relation(outsourcedTo) / Order(forOrder) / BOM(fromBom) */
+export async function syncOutsourcingOrderReferences(
+  prisma: PrismaClient,
+  outsourcingOrder: OutsourcingOrderLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!outsourcingOrder?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'outsourcingOrder', outsourcingOrder.id, [
+    {
+      fieldKey: 'supplierId', label: outsourcingOrder.orderNumber,
+      targetType: 'relation.organization', targetId: outsourcingOrder.supplierId, linkKind: 'outsourcedTo',
+      snapshotExtra: { orderNumber: outsourcingOrder.orderNumber, processType: outsourcingOrder.processType },
+    },
+    {
+      fieldKey: 'orderId', label: outsourcingOrder.orderNumber,
+      targetType: 'order', targetId: outsourcingOrder.orderId, linkKind: 'forOrder',
+    },
+    {
+      fieldKey: 'bomId', label: outsourcingOrder.orderNumber,
+      targetType: 'bom', targetId: outsourcingOrder.bomId, linkKind: 'fromBom',
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}

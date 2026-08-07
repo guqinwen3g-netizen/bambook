@@ -33,6 +33,7 @@ import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
 const STATUS_TABS: Array<{ id: 'all' | QuotationStatus; label: string }> = [
@@ -564,6 +565,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
                                     </>
                                   )}
                                 </div>
+
+                                {/* 跨模块关联视图（EntityLink 图谱）— 报价客户/转化订单 */}
+                                <RelatedEntitiesPanel
+                                  type="quotation"
+                                  id={qt.id}
+                                  isDarkMode={isDarkMode}
+                                  title="报价关联视图"
+                                />
                               </div>
                             </motion.div>
                           )}

@@ -64,6 +64,207 @@ export async function getOrder(prisma: PrismaClient, input: StructuredOrderQuery
     : { dataSource: 'bambook-data-center', found: false, input };
 }
 
+// ---------------------------------------------------------------------------
+// 阶段 D / D3：订单全链路聚合（只读，直接查表制）
+// 按业务阶段分组返回订单生命周期的全部关联实体摘要：
+//   报价 → 开发 → BOM → 采购 → 生产(阶段+验货) → 外协 → 出运(报关+退税) → 财务(发票+核销+凭证)
+// 各段只取摘要字段（id/编号/状态/金额/日期），不做全字段展开。
+// 双轨制：EntityLink 图谱服务"关联面板"横向发现；本函数服务"全链路视图"纵向生命周期。
+// ---------------------------------------------------------------------------
+
+export async function getOrderContext(prisma: PrismaClient, orderIdRaw: unknown) {
+  const id = cleanText(orderIdRaw);
+  if (!id) return { found: false as const, reason: 'MISSING_ORDER_IDENTIFIER' };
+
+  const order = await prisma.order.findFirst({
+    where: { deletedAt: null, OR: [{ id }, { poNumber: id }] },
+    select: { id: true, poNumber: true },
+  });
+  if (!order) return { found: false as const };
+
+  const orderId = order.id;
+  const active = { deletedAt: null } as const;
+
+  const [
+    quotations,
+    developmentCases,
+    boms,
+    purchaseOrders,
+    productionStages,
+    inspections,
+    outsourcingOrders,
+    shipments,
+    invoices,
+    vouchers,
+  ] = await Promise.all([
+    (prisma as any).quotation.findMany({
+      where: { ...active, convertedOrderId: orderId },
+      select: { id: true, quotationNumber: true, status: true, currency: true, totalAmount: true, issueDate: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    (prisma as any).developmentCase.findMany({
+      where: { ...active, linkedOrderId: orderId },
+      select: { id: true, code: true, name: true, type: true, stage: true, currentRound: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    (prisma as any).bOM.findMany({
+      where: { ...active, orderId },
+      select: { id: true, bomNumber: true, status: true, version: true, totalCost: true, currency: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    (prisma as any).purchaseOrder.findMany({
+      where: { ...active, orderId },
+      select: {
+        id: true, poNumber: true, status: true, supplierName: true,
+        currency: true, totalAmount: true, orderDate: true, expectedDeliveryDate: true, actualDeliveryDate: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    (prisma as any).productionStage.findMany({
+      where: { orderId },
+      select: { id: true, stageKey: true, stageSeq: true, status: true, startedAt: true, doneAt: true },
+      orderBy: { stageSeq: 'asc' },
+    }),
+    (prisma as any).inspectionReport.findMany({
+      where: { orderId },
+      select: {
+        id: true, inspectionType: true, result: true, inspectionDate: true, aqlLevel: true,
+        criticalDefects: true, majorDefects: true, minorDefects: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    (prisma as any).outsourcingOrder.findMany({
+      where: { ...active, orderId },
+      select: {
+        id: true, orderNumber: true, processType: true, status: true, quantity: true, unit: true,
+        plannedDeliveryDate: true, actualDeliveryDate: true, qualityAcceptedQty: true, qualityRejectedQty: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    (prisma as any).shipment.findMany({
+      where: { ...active, orderId },
+      select: {
+        id: true, shipmentNumber: true, status: true, shippingMethod: true,
+        etd: true, atd: true, eta: true, ata: true, portOfLoading: true, portOfDischarge: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    (prisma as any).invoice.findMany({
+      where: { ...active, orderId },
+      select: {
+        id: true, invoiceNumber: true, type: true, status: true, amount: true, currency: true,
+        issueDate: true, dueDate: true, settlementDate: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    (prisma as any).paymentVoucher.findMany({
+      where: { ...active, orderId },
+      select: {
+        id: true, voucherNumber: true, type: true, status: true, amount: true, currency: true,
+        paymentDate: true, invoiceId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  // 二级查询：样衣节点 / 报关单 / 退税 / 核销明细
+  const caseIds = developmentCases.map((c: any) => c.id);
+  const shipmentIds = shipments.map((s: any) => s.id);
+  const invoiceIds = invoices.map((i: any) => i.id);
+
+  const [sampleNodes, customsDeclarations, allocations] = await Promise.all([
+    caseIds.length
+      ? (prisma as any).sampleNode.findMany({
+          where: { deletedAt: null, developmentCaseId: { in: caseIds } },
+          select: { id: true, developmentCaseId: true, level: true, round: true, status: true, sentDate: true, approvedAt: true },
+          orderBy: { createdAt: 'asc' },
+        })
+      : [],
+    (prisma as any).customsDeclaration.findMany({
+      where: { ...active, OR: [{ orderId }, { shipmentId: { in: shipmentIds } }] },
+      select: {
+        id: true, declarationNumber: true, status: true, shipmentId: true,
+        declarationDate: true, totalValue: true, currency: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    invoiceIds.length
+      ? (prisma as any).invoiceAllocation.findMany({
+          where: { invoiceId: { in: invoiceIds } },
+          select: { id: true, invoiceId: true, voucherId: true, appliedAmount: true, appliedDate: true },
+          orderBy: { createdAt: 'asc' },
+        })
+      : [],
+  ]);
+
+  const declarationIds = customsDeclarations.map((d: any) => d.id);
+  // 退税按 orderId 或 declarationId 双路匹配（declarationId 空集时 `in: []` 不命中，无副作用）
+  const taxRefunds = await (prisma as any).taxRefund.findMany({
+    where: { ...active, OR: [{ orderId }, { declarationId: { in: declarationIds } }] },
+    select: {
+      id: true, refundNumber: true, status: true, declarationId: true,
+      exportAmountFob: true, exportAmountFobCurrency: true, refundAmount: true, refundDate: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // 嵌套装配：样衣节点 → 开发案；报关单 → 运单；退税 → 报关单；核销 → 发票
+  const nodesByCase = new Map<string, any[]>();
+  for (const n of sampleNodes as any[]) {
+    const list = nodesByCase.get(n.developmentCaseId) ?? [];
+    list.push(n);
+    nodesByCase.set(n.developmentCaseId, list);
+  }
+  const refundsByDeclaration = new Map<string, any[]>();
+  const orphanRefunds: any[] = [];
+  for (const r of taxRefunds as any[]) {
+    if (r.declarationId && declarationIds.includes(r.declarationId)) {
+      const list = refundsByDeclaration.get(r.declarationId) ?? [];
+      list.push(r);
+      refundsByDeclaration.set(r.declarationId, list);
+    } else {
+      orphanRefunds.push(r);
+    }
+  }
+  const declarationsByShipment = new Map<string, any[]>();
+  const orphanDeclarations: any[] = [];
+  for (const d of customsDeclarations as any[]) {
+    const withRefunds = { ...d, taxRefunds: refundsByDeclaration.get(d.id) ?? [] };
+    if (d.shipmentId && shipmentIds.includes(d.shipmentId)) {
+      const list = declarationsByShipment.get(d.shipmentId) ?? [];
+      list.push(withRefunds);
+      declarationsByShipment.set(d.shipmentId, list);
+    } else {
+      orphanDeclarations.push(withRefunds);
+    }
+  }
+  const allocationsByInvoice = new Map<string, any[]>();
+  for (const a of allocations as any[]) {
+    const list = allocationsByInvoice.get(a.invoiceId) ?? [];
+    list.push(a);
+    allocationsByInvoice.set(a.invoiceId, list);
+  }
+
+  return serializeBigInts({
+    found: true as const,
+    order: { id: order.id, poNumber: order.poNumber },
+    quotation: quotations,
+    developmentCase: (developmentCases as any[]).map((c) => ({ ...c, sampleNodes: nodesByCase.get(c.id) ?? [] })),
+    bom: boms,
+    procurement: purchaseOrders,
+    production: { stages: productionStages, inspections },
+    outsourcing: outsourcingOrders,
+    shipments: (shipments as any[]).map((s) => ({ ...s, customsDeclarations: declarationsByShipment.get(s.id) ?? [] })),
+    customsDeclarations: orphanDeclarations,
+    taxRefunds: orphanRefunds,
+    finance: {
+      invoices: (invoices as any[]).map((i) => ({ ...i, allocations: allocationsByInvoice.get(i.id) ?? [] })),
+      vouchers,
+    },
+  });
+}
+
+
 export function describeOrderSchema() {
   return {
     entity: 'Order',

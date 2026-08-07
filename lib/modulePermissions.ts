@@ -10,6 +10,7 @@ export type ViewPermissionDefinition = {
 
 export const VIEW_PERMISSION_DEFINITIONS = {
   [View.Dashboard]: { policy: 'public-authenticated' },
+  [View.Cockpit]: { policy: 'permission', required: 'finance:read' },
   [View.Assistant]: { policy: 'permission', required: 'ai:chat' },
   [View.Relations]: { policy: 'permission', required: 'relations:read' },
   [View.Products]: { policy: 'permission', required: 'products:read' },
@@ -19,6 +20,9 @@ export const VIEW_PERMISSION_DEFINITIONS = {
   [View.Procurement]: { policy: 'permission', required: 'orders:read' },
   [View.Inventory]: { policy: 'permission', required: 'orders:read' },
   [View.BOM]: { policy: 'permission', required: 'orders:read' },
+  [View.CRM]: { policy: 'permission', required: 'relations:read' },
+  [View.MES]: { policy: 'permission', required: 'orders:read' },
+  [View.Customs]: { policy: 'permission', required: 'orders:read' },
   [View.Invoices]: { policy: 'public-authenticated' },
   [View.PaymentVouchers]: { policy: 'public-authenticated' },
   [View.Shipments]: { policy: 'public-authenticated' },

@@ -77,6 +77,17 @@ function makeApp(opts: {
     quotation: { create: quotationCreate, update: quotationUpdate },
     quotationLine: { deleteMany: quotationLineDeleteMany, createMany: quotationLineCreateMany },
     auditLog: { create: auditCreate },
+    // EntityLink 图谱（D1.1a）：sync/deactivate 走 tx 内 upsert/findMany/update
+    entityReference: {
+      upsert: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    entityLink: {
+      upsert: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockResolvedValue({}),
+    },
   };
 
   const prisma: any = {

@@ -27,6 +27,7 @@ import {
   CreateBOMInput,
   UpdateBOMInput,
   Shipment,
+  DocumentSetData,
   DevelopmentCase,
   Insight,
   CreateProductAssetInput,
@@ -43,6 +44,65 @@ import {
   AutomationRule,
   WorkflowDefinition,
   WorkflowInstance,
+  // CRM
+  Contact,
+  ContactInput,
+  CreditLimit,
+  CreditLimitInput,
+  FollowUpRecord,
+  FollowUpInput,
+  Opportunity,
+  OpportunityInput,
+  CustomerTier,
+  CustomerTierInput,
+  CrmOverview,
+  // MES
+  WorkStation,
+  WorkStationInput,
+  WorkStationUtilization,
+  ProductionPlan,
+  ProductionPlanInput,
+  ProductionPlanStatus,
+  WorkHour,
+  WorkHourInput,
+  WorkHourSummary,
+  PieceRateRule,
+  PieceRateRuleInput,
+  PieceRateRecord,
+  PieceRateRecordInput,
+  PieceRateStatus,
+  PieceRateSummary,
+  OutsourcingOrder,
+  OutsourcingOrderInput,
+  OutsourcingStatus,
+  // Customs
+  CustomsType,
+  CustomsDeclaration,
+  CustomsDeclarationInput,
+  CustomsDeclarationLine,
+  CustomsDeclarationLineInput,
+  CustomsDeclarationStatus,
+  HsCode,
+  HsCodeInput,
+  HsCodeCategory,
+  LetterOfCredit,
+  LetterOfCreditInput,
+  LetterOfCreditType,
+  LetterOfCreditStatus,
+  TaxRefund,
+  TaxRefundInput,
+  TaxRefundReviewInput,
+  TaxRefundStatus,
+  TradeDocument,
+  TradeDocumentInput,
+  TradeDocumentType,
+  TradeDocumentStatus,
+  CustomsOverview,
+  // Finance Reports (Phase B2)
+  AgingReport,
+  CustomerStatement,
+  FxGainLossReport,
+  BusinessCockpit,
 } from '../types';
 import { getApiBaseUrl, CORPORATE_MASTER_IP, normalizeDataCenterEndpoint } from './apiBase';
 
@@ -461,9 +521,46 @@ export const apiService = {
     return Array.isArray(data.items) ? data.items : [];
   },
 
+  // ── Phase B2: 财务报表 API（账龄 / 对账单 / 汇率损益，只读）──
+  async getAgingReport(type: 'Receivable' | 'Payable', asOf?: string, endpoint?: string): Promise<AgingReport> {
+    const query = new URLSearchParams({ type });
+    if (asOf) query.set('asOf', asOf);
+    return requestJson<AgingReport>(`/v1/finance/reports/aging?${query.toString()}`, { endpoint, method: 'GET' });
+  },
+
+  async getCustomerStatement(params: { customerRelationId: string; from?: string; to?: string }, endpoint?: string): Promise<CustomerStatement> {
+    const query = new URLSearchParams({ customerRelationId: params.customerRelationId });
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    return requestJson<CustomerStatement>(`/v1/finance/reports/statement?${query.toString()}`, { endpoint, method: 'GET' });
+  },
+
+  async getFxGainLoss(params?: { from?: string; to?: string }, endpoint?: string): Promise<FxGainLossReport> {
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const qs = query.toString();
+    return requestJson<FxGainLossReport>(`/v1/finance/reports/fx-gain-loss${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  // ── Phase C1: 经营驾驶舱 API（只读聚合）──
+  async getBusinessCockpit(params?: { from?: string; to?: string; marginRowLimit?: number }, endpoint?: string): Promise<BusinessCockpit> {
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    if (params?.marginRowLimit) query.set('marginRowLimit', String(params.marginRowLimit));
+    const qs = query.toString();
+    return requestJson<BusinessCockpit>(`/v1/dashboard/cockpit${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
   async listShipments(endpoint?: string): Promise<Shipment[]> {
     const data = await requestJson<{ items: Shipment[]; total: number }>('/v1/shipping', { endpoint, method: 'GET' });
     return Array.isArray(data.items) ? data.items : [];
+  },
+
+  /** 出运制单数据装配（CI/PL/CO/BL 成套生成数据源，只读） */
+  async getShipmentDocumentSet(shipmentId: string, endpoint?: string): Promise<DocumentSetData> {
+    return requestJson<DocumentSetData>(`/v1/shipping/${encodeURIComponent(shipmentId)}/document-set`, { endpoint, method: 'GET' });
   },
 
   // ── Phase 2: 报价管理 API ──
@@ -720,6 +817,359 @@ export const apiService = {
   async recalculateBOMCost(id: string, endpoint?: string): Promise<BOM> {
     const data = await requestJson<{ bom: BOM }>(`/v1/bom/${id}/recalculate`, { endpoint, method: 'POST' });
     return data.bom;
+  },
+
+  // ════════════════════════════════════════
+  // Phase 3 C2: 生产 MES 深化 API
+  // ════════════════════════════════════════
+
+  // ── 工位 WorkStation ──
+  async listWorkStations(params?: { type?: string; isActive?: boolean }, endpoint?: string): Promise<WorkStation[]> {
+    const query = new URLSearchParams();
+    if (params?.type) query.set('type', params.type);
+    if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+    const qs = query.toString();
+    const data = await requestJson<{ items: WorkStation[] }>(`/v1/mes/work-stations${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async getWorkStation(id: string, endpoint?: string): Promise<WorkStation | null> {
+    try {
+      const data = await requestJson<{ item: WorkStation }>(`/v1/mes/work-stations/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.item;
+    } catch { return null; }
+  },
+
+  async getWorkStationUtilization(id: string, startDate: string, endDate: string, endpoint?: string): Promise<WorkStationUtilization | null> {
+    try {
+      const data = await requestJson<{ utilization: WorkStationUtilization }>(`/v1/mes/work-stations/${encodeURIComponent(id)}/utilization?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`, { endpoint, method: 'GET' });
+      return data.utilization;
+    } catch { return null; }
+  },
+
+  async createWorkStation(input: WorkStationInput, endpoint?: string): Promise<WorkStation> {
+    const data = await requestJson<{ item: WorkStation }>('/v1/mes/work-stations', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateWorkStation(id: string, input: Partial<WorkStationInput>, endpoint?: string): Promise<WorkStation> {
+    const data = await requestJson<{ item: WorkStation }>(`/v1/mes/work-stations/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteWorkStation(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/mes/work-stations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 排产 ProductionPlan ──
+  async listProductionPlans(params?: { orderId?: string; workStationId?: string; status?: string; processType?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<ProductionPlan[]> {
+    const query = new URLSearchParams();
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.workStationId) query.set('workStationId', params.workStationId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.processType) query.set('processType', params.processType);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    const qs = query.toString();
+    const data = await requestJson<{ items: ProductionPlan[] }>(`/v1/mes/plans${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async getProductionPlan(id: string, endpoint?: string): Promise<ProductionPlan | null> {
+    try {
+      const data = await requestJson<{ item: ProductionPlan }>(`/v1/mes/plans/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.item;
+    } catch { return null; }
+  },
+
+  async createProductionPlan(input: ProductionPlanInput, endpoint?: string): Promise<ProductionPlan> {
+    const data = await requestJson<{ item: ProductionPlan }>('/v1/mes/plans', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateProductionPlan(id: string, input: Partial<ProductionPlanInput>, endpoint?: string): Promise<ProductionPlan> {
+    const data = await requestJson<{ item: ProductionPlan }>(`/v1/mes/plans/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteProductionPlan(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/mes/plans/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async transitionPlanStatus(id: string, toStatus: ProductionPlanStatus, endpoint?: string): Promise<ProductionPlan> {
+    const data = await requestJson<{ item: ProductionPlan }>(`/v1/mes/plans/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
+    return data.item;
+  },
+
+  async updatePlanProgress(id: string, actualQuantity: number, endpoint?: string): Promise<ProductionPlan> {
+    const data = await requestJson<{ item: ProductionPlan }>(`/v1/mes/plans/${encodeURIComponent(id)}/progress`, { endpoint, method: 'POST', body: JSON.stringify({ actualQuantity }) });
+    return data.item;
+  },
+
+  // ── 工时 WorkHour ──
+  async listWorkHours(params?: { productionPlanId?: string; employeeId?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<WorkHour[]> {
+    const query = new URLSearchParams();
+    if (params?.productionPlanId) query.set('productionPlanId', params.productionPlanId);
+    if (params?.employeeId) query.set('employeeId', params.employeeId);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    const qs = query.toString();
+    const data = await requestJson<{ items: WorkHour[] }>(`/v1/mes/work-hours${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async getWorkHourSummary(params?: { productionPlanId?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<WorkHourSummary[]> {
+    const query = new URLSearchParams();
+    if (params?.productionPlanId) query.set('productionPlanId', params.productionPlanId);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    const qs = query.toString();
+    const data = await requestJson<{ summary: WorkHourSummary[] }>(`/v1/mes/work-hours/summary${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.summary) ? data.summary : [];
+  },
+
+  async createWorkHour(input: WorkHourInput, endpoint?: string): Promise<WorkHour> {
+    const data = await requestJson<{ item: WorkHour }>('/v1/mes/work-hours', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteWorkHour(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/mes/work-hours/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 计件规则 PieceRateRule ──
+  async listPieceRateRules(params?: { processType?: string; productAssetId?: string; isActive?: boolean }, endpoint?: string): Promise<PieceRateRule[]> {
+    const query = new URLSearchParams();
+    if (params?.processType) query.set('processType', params.processType);
+    if (params?.productAssetId) query.set('productAssetId', params.productAssetId);
+    if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+    const qs = query.toString();
+    const data = await requestJson<{ items: PieceRateRule[] }>(`/v1/mes/piece-rate-rules${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async createPieceRateRule(input: PieceRateRuleInput, endpoint?: string): Promise<PieceRateRule> {
+    const data = await requestJson<{ item: PieceRateRule }>('/v1/mes/piece-rate-rules', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updatePieceRateRule(id: string, input: Partial<PieceRateRuleInput>, endpoint?: string): Promise<PieceRateRule> {
+    const data = await requestJson<{ item: PieceRateRule }>(`/v1/mes/piece-rate-rules/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deletePieceRateRule(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/mes/piece-rate-rules/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 计件记录 PieceRateRecord ──
+  async listPieceRateRecords(params?: { pieceRateRuleId?: string; productionPlanId?: string; employeeId?: string; status?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<PieceRateRecord[]> {
+    const query = new URLSearchParams();
+    if (params?.pieceRateRuleId) query.set('pieceRateRuleId', params.pieceRateRuleId);
+    if (params?.productionPlanId) query.set('productionPlanId', params.productionPlanId);
+    if (params?.employeeId) query.set('employeeId', params.employeeId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    const qs = query.toString();
+    const data = await requestJson<{ items: PieceRateRecord[] }>(`/v1/mes/piece-rate-records${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async getPieceRateSummary(params?: { employeeId?: string; status?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<PieceRateSummary[]> {
+    const query = new URLSearchParams();
+    if (params?.employeeId) query.set('employeeId', params.employeeId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    const qs = query.toString();
+    const data = await requestJson<{ summary: PieceRateSummary[] }>(`/v1/mes/piece-rate-records/summary${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.summary) ? data.summary : [];
+  },
+
+  async createPieceRateRecord(input: PieceRateRecordInput, endpoint?: string): Promise<PieceRateRecord> {
+    const data = await requestJson<{ item: PieceRateRecord }>('/v1/mes/piece-rate-records', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async transitionPieceRateStatus(id: string, toStatus: PieceRateStatus, endpoint?: string): Promise<PieceRateRecord> {
+    const data = await requestJson<{ item: PieceRateRecord }>(`/v1/mes/piece-rate-records/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
+    return data.item;
+  },
+
+  async deletePieceRateRecord(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/mes/piece-rate-records/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 外协 OutsourcingOrder ──
+  async listOutsourcingOrders(params?: { supplierId?: string; orderId?: string; status?: string; processType?: string }, endpoint?: string): Promise<OutsourcingOrder[]> {
+    const query = new URLSearchParams();
+    if (params?.supplierId) query.set('supplierId', params.supplierId);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.processType) query.set('processType', params.processType);
+    const qs = query.toString();
+    const data = await requestJson<{ items: OutsourcingOrder[] }>(`/v1/mes/outsourcing${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async getOutsourcingOrder(id: string, endpoint?: string): Promise<OutsourcingOrder | null> {
+    try {
+      const data = await requestJson<{ item: OutsourcingOrder }>(`/v1/mes/outsourcing/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.item;
+    } catch { return null; }
+  },
+
+  async createOutsourcingOrder(input: OutsourcingOrderInput, endpoint?: string): Promise<OutsourcingOrder> {
+    const data = await requestJson<{ item: OutsourcingOrder }>('/v1/mes/outsourcing', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateOutsourcingOrder(id: string, input: Partial<OutsourcingOrderInput>, endpoint?: string): Promise<OutsourcingOrder> {
+    const data = await requestJson<{ item: OutsourcingOrder }>(`/v1/mes/outsourcing/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteOutsourcingOrder(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/mes/outsourcing/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async transitionOutsourcingStatus(id: string, toStatus: OutsourcingStatus, endpoint?: string): Promise<OutsourcingOrder> {
+    const data = await requestJson<{ item: OutsourcingOrder }>(`/v1/mes/outsourcing/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
+    return data.item;
+  },
+
+  async receiveOutsourcing(id: string, opts: { qualityAcceptedQty: number; qualityRejectedQty?: number }, endpoint?: string): Promise<OutsourcingOrder> {
+    const data = await requestJson<{ item: OutsourcingOrder }>(`/v1/mes/outsourcing/${encodeURIComponent(id)}/receive`, { endpoint, method: 'POST', body: JSON.stringify(opts) });
+    return data.item;
+  },
+
+  // ── Phase 3 C1: CRM 深化 API ──
+  // Contact
+  async listContacts(relationId: string, endpoint?: string): Promise<Contact[]> {
+    const data = await requestJson<{ contacts: Contact[] }>(`/v1/crm/${encodeURIComponent(relationId)}/contacts`, { endpoint, method: 'GET' });
+    return data.contacts ?? [];
+  },
+  async createContact(relationId: string, input: ContactInput, endpoint?: string): Promise<Contact> {
+    const data = await requestJson<{ contact: Contact }>(`/v1/crm/${encodeURIComponent(relationId)}/contacts`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.contact;
+  },
+  async updateContact(id: string, input: Partial<ContactInput>, endpoint?: string): Promise<Contact> {
+    const data = await requestJson<{ contact: Contact }>(`/v1/crm/contacts/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.contact;
+  },
+  async deleteContact(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/crm/contacts/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // CreditLimit
+  async getActiveCreditLimit(relationId: string, endpoint?: string): Promise<CreditLimit | null> {
+    try {
+      const data = await requestJson<{ creditLimit: CreditLimit | null }>(`/v1/crm/${encodeURIComponent(relationId)}/credit-limit`, { endpoint, method: 'GET' });
+      return data.creditLimit;
+    } catch { return null; }
+  },
+  async listCreditLimitHistory(relationId: string, endpoint?: string): Promise<CreditLimit[]> {
+    const data = await requestJson<{ history: CreditLimit[] }>(`/v1/crm/${encodeURIComponent(relationId)}/credit-limit/history`, { endpoint, method: 'GET' });
+    return data.history ?? [];
+  },
+  async setCreditLimit(relationId: string, input: CreditLimitInput, endpoint?: string): Promise<CreditLimit> {
+    const data = await requestJson<{ creditLimit: CreditLimit }>(`/v1/crm/${encodeURIComponent(relationId)}/credit-limit`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.creditLimit;
+  },
+  async updateCreditLimitStatus(id: string, status: string, endpoint?: string): Promise<CreditLimit> {
+    const data = await requestJson<{ creditLimit: CreditLimit }>(`/v1/crm/credit-limit/${encodeURIComponent(id)}/status`, { endpoint, method: 'PATCH', body: JSON.stringify({ status }) });
+    return data.creditLimit;
+  },
+
+  // FollowUp
+  async listFollowUps(relationId: string, opts?: { limit?: number; includeCompleted?: boolean }, endpoint?: string): Promise<FollowUpRecord[]> {
+    const query = new URLSearchParams();
+    if (opts?.limit != null) query.set('limit', String(opts.limit));
+    if (opts?.includeCompleted) query.set('includeCompleted', 'true');
+    const qs = query.toString();
+    const data = await requestJson<{ followUps: FollowUpRecord[] }>(`/v1/crm/${encodeURIComponent(relationId)}/follow-ups${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.followUps ?? [];
+  },
+  async createFollowUp(relationId: string, input: FollowUpInput, endpoint?: string): Promise<FollowUpRecord> {
+    const data = await requestJson<{ followUp: FollowUpRecord }>(`/v1/crm/${encodeURIComponent(relationId)}/follow-ups`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.followUp;
+  },
+  async updateFollowUp(id: string, input: Partial<FollowUpInput>, endpoint?: string): Promise<FollowUpRecord> {
+    const data = await requestJson<{ followUp: FollowUpRecord }>(`/v1/crm/follow-ups/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.followUp;
+  },
+  async deleteFollowUp(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/crm/follow-ups/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async listOverdueFollowUps(daysAhead?: number, endpoint?: string): Promise<FollowUpRecord[]> {
+    const query = daysAhead != null ? `?daysAhead=${daysAhead}` : '';
+    const data = await requestJson<{ overdue: FollowUpRecord[] }>(`/v1/crm/follow-ups/overdue${query}`, { endpoint, method: 'GET' });
+    return data.overdue ?? [];
+  },
+
+  // Opportunity
+  async listOpportunities(params?: { relationId?: string; stage?: string; salesRepId?: string }, endpoint?: string): Promise<Opportunity[]> {
+    const query = new URLSearchParams();
+    if (params?.relationId) query.set('relationId', params.relationId);
+    if (params?.stage) query.set('stage', params.stage);
+    if (params?.salesRepId) query.set('salesRepId', params.salesRepId);
+    const qs = query.toString();
+    const data = await requestJson<{ opportunities: Opportunity[] }>(`/v1/crm/opportunities${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.opportunities ?? [];
+  },
+  async createOpportunity(relationId: string, input: OpportunityInput, endpoint?: string): Promise<Opportunity> {
+    const data = await requestJson<{ opportunity: Opportunity }>(`/v1/crm/${encodeURIComponent(relationId)}/opportunities`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.opportunity;
+  },
+  async getOpportunity(id: string, endpoint?: string): Promise<Opportunity | null> {
+    try {
+      const data = await requestJson<{ opportunity: Opportunity }>(`/v1/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.opportunity;
+    } catch { return null; }
+  },
+  async updateOpportunity(id: string, input: Partial<OpportunityInput>, endpoint?: string): Promise<Opportunity> {
+    const data = await requestJson<{ opportunity: Opportunity }>(`/v1/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.opportunity;
+  },
+  async transitionOpportunity(id: string, toStage: string, endpoint?: string): Promise<Opportunity> {
+    const data = await requestJson<{ opportunity: Opportunity }>(`/v1/crm/opportunities/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStage }) });
+    return data.opportunity;
+  },
+  async deleteOpportunity(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async getOpportunityPipelineSummary(salesRepId?: string, endpoint?: string): Promise<Record<string, { count: number; totalAmount: number }>> {
+    const query = salesRepId ? `?salesRepId=${encodeURIComponent(salesRepId)}` : '';
+    const data = await requestJson<{ summary: Record<string, { count: number; totalAmount: number }> }>(`/v1/crm/opportunities/pipeline/summary${query}`, { endpoint, method: 'GET' });
+    return data.summary ?? {};
+  },
+
+  // CustomerTier
+  async getActiveCustomerTier(relationId: string, endpoint?: string): Promise<CustomerTier | null> {
+    try {
+      const data = await requestJson<{ customerTier: CustomerTier | null }>(`/v1/crm/${encodeURIComponent(relationId)}/customer-tier`, { endpoint, method: 'GET' });
+      return data.customerTier;
+    } catch { return null; }
+  },
+  async listCustomerTierHistory(relationId: string, endpoint?: string): Promise<CustomerTier[]> {
+    const data = await requestJson<{ history: CustomerTier[] }>(`/v1/crm/${encodeURIComponent(relationId)}/customer-tier/history`, { endpoint, method: 'GET' });
+    return data.history ?? [];
+  },
+  async assignCustomerTier(relationId: string, input: CustomerTierInput, endpoint?: string): Promise<CustomerTier> {
+    const data = await requestJson<{ customerTier: CustomerTier }>(`/v1/crm/${encodeURIComponent(relationId)}/customer-tier`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.customerTier;
+  },
+  async deleteCustomerTier(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/crm/customer-tier/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // CRM Overview
+  async getCrmOverview(relationId: string, endpoint?: string): Promise<CrmOverview | null> {
+    try {
+      const data = await requestJson<CrmOverview>(`/v1/crm/${encodeURIComponent(relationId)}/overview`, { endpoint, method: 'GET' });
+      return data;
+    } catch { return null; }
   },
 
   async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {
@@ -1192,6 +1642,214 @@ export const apiService = {
     const apiKey = getApiKey();
     if (apiKey) url.searchParams.set('apiKey', apiKey);
     return url.toString();
+  },
+
+  // ── Phase 5 B5 + Phase 3 C6: 外贸与报关 API ──
+
+  // CustomsDeclaration（报关单）
+  async listCustomsDeclarations(params?: {
+    type?: string;
+    status?: string;
+    shipmentId?: string;
+    orderId?: string;
+    relationId?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }, endpoint?: string): Promise<{ items: CustomsDeclaration[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.type) query.set('type', params.type);
+    if (params?.status) query.set('status', params.status);
+    if (params?.shipmentId) query.set('shipmentId', params.shipmentId);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.relationId) query.set('relationId', params.relationId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return requestJson<{ items: CustomsDeclaration[]; total: number }>(`/v1/customs/declarations${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  async getCustomsDeclaration(id: string, endpoint?: string): Promise<CustomsDeclaration> {
+    const data = await requestJson<{ item: CustomsDeclaration }>(`/v1/customs/declarations/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+    return data.item;
+  },
+
+  async createCustomsDeclaration(input: CustomsDeclarationInput, endpoint?: string): Promise<CustomsDeclaration> {
+    const data = await requestJson<{ item: CustomsDeclaration }>(`/v1/customs/declarations`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateCustomsDeclaration(id: string, input: Partial<CustomsDeclarationInput>, endpoint?: string): Promise<CustomsDeclaration> {
+    const data = await requestJson<{ item: CustomsDeclaration }>(`/v1/customs/declarations/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteCustomsDeclaration(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/customs/declarations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async transitionCustomsDeclarationStatus(id: string, toStatus: CustomsDeclarationStatus, endpoint?: string): Promise<CustomsDeclaration> {
+    const data = await requestJson<{ item: CustomsDeclaration }>(`/v1/customs/declarations/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
+    return data.item;
+  },
+
+  // HsCode（HS 编码库）
+  async listHsCodes(params?: { category?: string; search?: string; isActive?: boolean; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: HsCode[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.search) query.set('search', params.search);
+    if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return requestJson<{ items: HsCode[]; total: number }>(`/v1/customs/hs-codes${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  async getHsCodeByCode(code: string, endpoint?: string): Promise<HsCode> {
+    const data = await requestJson<{ item: HsCode }>(`/v1/customs/hs-codes/${encodeURIComponent(code)}`, { endpoint, method: 'GET' });
+    return data.item;
+  },
+
+  async createHsCode(input: HsCodeInput, endpoint?: string): Promise<HsCode> {
+    const data = await requestJson<{ item: HsCode }>(`/v1/customs/hs-codes`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateHsCode(id: string, input: Partial<HsCodeInput>, endpoint?: string): Promise<HsCode> {
+    const data = await requestJson<{ item: HsCode }>(`/v1/customs/hs-codes/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteHsCode(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/customs/hs-codes/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // LetterOfCredit（信用证）
+  async listLettersOfCredit(params?: { status?: string; relationId?: string; orderId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: LetterOfCredit[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.relationId) query.set('relationId', params.relationId);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return requestJson<{ items: LetterOfCredit[]; total: number }>(`/v1/customs/letters-of-credit${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  async getLetterOfCredit(id: string, endpoint?: string): Promise<LetterOfCredit> {
+    const data = await requestJson<{ item: LetterOfCredit }>(`/v1/customs/letters-of-credit/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+    return data.item;
+  },
+
+  async createLetterOfCredit(input: LetterOfCreditInput, endpoint?: string): Promise<LetterOfCredit> {
+    const data = await requestJson<{ item: LetterOfCredit }>(`/v1/customs/letters-of-credit`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateLetterOfCredit(id: string, input: Partial<LetterOfCreditInput>, endpoint?: string): Promise<LetterOfCredit> {
+    const data = await requestJson<{ item: LetterOfCredit }>(`/v1/customs/letters-of-credit/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteLetterOfCredit(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/customs/letters-of-credit/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async transitionLetterOfCreditStatus(id: string, toStatus: LetterOfCreditStatus, discrepancies?: string, endpoint?: string): Promise<LetterOfCredit> {
+    const body: Record<string, string> = { toStatus };
+    if (discrepancies !== undefined) body.discrepancies = discrepancies;
+    const data = await requestJson<{ item: LetterOfCredit }>(`/v1/customs/letters-of-credit/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify(body) });
+    return data.item;
+  },
+
+  // TaxRefund（出口退税）
+  async listTaxRefunds(params?: { status?: string; declarationId?: string; orderId?: string; relationId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: TaxRefund[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.declarationId) query.set('declarationId', params.declarationId);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.relationId) query.set('relationId', params.relationId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return requestJson<{ items: TaxRefund[]; total: number }>(`/v1/customs/tax-refunds${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  async getTaxRefund(id: string, endpoint?: string): Promise<TaxRefund> {
+    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+    return data.item;
+  },
+
+  async createTaxRefund(input: TaxRefundInput, endpoint?: string): Promise<TaxRefund> {
+    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateTaxRefund(id: string, input: Partial<TaxRefundInput>, endpoint?: string): Promise<TaxRefund> {
+    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteTaxRefund(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async transitionTaxRefundStatus(id: string, toStatus: TaxRefundStatus, endpoint?: string): Promise<TaxRefund> {
+    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
+    return data.item;
+  },
+
+  async reviewTaxRefund(id: string, input: TaxRefundReviewInput, endpoint?: string): Promise<TaxRefund> {
+    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}/review`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  // TradeDocument（贸易单据）
+  async listTradeDocuments(params?: { type?: string; status?: string; shipmentId?: string; declarationId?: string; orderId?: string; relationId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: TradeDocument[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.type) query.set('type', params.type);
+    if (params?.status) query.set('status', params.status);
+    if (params?.shipmentId) query.set('shipmentId', params.shipmentId);
+    if (params?.declarationId) query.set('declarationId', params.declarationId);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.relationId) query.set('relationId', params.relationId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return requestJson<{ items: TradeDocument[]; total: number }>(`/v1/customs/trade-documents${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  async getTradeDocument(id: string, endpoint?: string): Promise<TradeDocument> {
+    const data = await requestJson<{ item: TradeDocument }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+    return data.item;
+  },
+
+  async createTradeDocument(input: TradeDocumentInput, endpoint?: string): Promise<TradeDocument> {
+    const data = await requestJson<{ item: TradeDocument }>(`/v1/customs/trade-documents`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async updateTradeDocument(id: string, input: Partial<TradeDocumentInput>, endpoint?: string): Promise<TradeDocument> {
+    const data = await requestJson<{ item: TradeDocument }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  async deleteTradeDocument(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async transitionTradeDocumentStatus(id: string, toStatus: TradeDocumentStatus, endpoint?: string): Promise<TradeDocument> {
+    const data = await requestJson<{ item: TradeDocument }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
+    return data.item;
+  },
+
+  // Customs Overview
+  async getCustomsOverview(endpoint?: string): Promise<CustomsOverview> {
+    return requestJson<CustomsOverview>('/v1/customs/overview', { endpoint, method: 'GET' });
   },
 
   // ── Notifications ──

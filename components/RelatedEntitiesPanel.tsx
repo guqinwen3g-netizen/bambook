@@ -28,6 +28,14 @@ export interface RelatedEntitiesPanelProps {
   type: string;
   /** Entity id */
   id: string;
+  /**
+   * Additional type codes for the same entity (graph code aliasing).
+   * The EntityLink graph historically uses more than one type code for the
+   * same row — e.g. a Relation contact owns links as "relation.contact" but
+   * is targeted by order sales/merchandiser roles as "relation.person".
+   * Neighbors from all listed codes are merged by linkKind.
+   */
+  additionalTypes?: string[];
   /** Title override; defaults to "关联视图" */
   title?: string;
   /** Click handler — receives the neighbor row so the host can navigate. */
@@ -46,6 +54,7 @@ export interface RelatedEntitiesPanelProps {
 export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
   type,
   id,
+  additionalTypes,
   title = '关联视图',
   onSelectNeighbor,
   isDarkMode = false,
@@ -56,16 +65,29 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const additionalTypesKey = (additionalTypes ?? []).join('|');
+
   useEffect(() => {
     if (!type || !id) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
-    entityLinksService
-      .getNeighbors({ type, id, limit })
-      .then((res) => {
+    const typeCodes = [type, ...(additionalTypes ?? [])];
+    Promise.all(
+      typeCodes.map((t) => entityLinksService.getNeighbors({ type: t, id, limit })),
+    )
+      .then((responses) => {
         if (cancelled) return;
-        setData(res);
+        // 多 type code 结果按 linkKind 合并（图谱别名场景）
+        const merged: Record<string, NeighborRow[]> = {};
+        let total = 0;
+        for (const res of responses) {
+          total += res.total ?? 0;
+          for (const [kind, rows] of Object.entries(res.neighbors ?? {})) {
+            merged[kind] = [...(merged[kind] ?? []), ...rows];
+          }
+        }
+        setData({ ok: true, type, id, total, neighbors: merged });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -78,7 +100,8 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [type, id, limit, refreshKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, id, limit, refreshKey, additionalTypesKey]);
 
   const containerStyle: React.CSSProperties = {
     border: `1px solid ${isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)'}`,

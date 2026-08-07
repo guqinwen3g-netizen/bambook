@@ -1,6 +1,7 @@
 
 export enum View {
   Dashboard = 'dashboard',
+  Cockpit = 'cockpit',
   Assistant = 'assistant',
   Relations = 'relations',
   Products = 'products',
@@ -10,6 +11,9 @@ export enum View {
   Procurement = 'procurement',
   Inventory = 'inventory',
   BOM = 'bom',
+  CRM = 'crm',
+  MES = 'mes',
+  Customs = 'customs',
   Invoices = 'invoices',
   PaymentVouchers = 'payment-vouchers',
   Shipments = 'shipments',
@@ -318,6 +322,7 @@ export interface FabricProfile {
   productAssetId: string;
   articleNo?: string | null;
   millOrganizationId?: string | null;
+  millName?: string | null;
   millQuality?: string | null;
   millColorCode?: string | null;
   colorDescription?: string | null;
@@ -351,6 +356,8 @@ export interface GarmentProfile {
   garmentCategory?: string | null;
   collection?: string | null;
   customer?: string | null;
+  customerRelationId?: string | null;
+  factoryRelationId?: string | null;
   brand?: string | null;
   project?: string | null;
   gender?: string | null;
@@ -440,6 +447,7 @@ export interface TrimmingProfile {
   colorCode?: string | null;
   finish?: string | null;
   supplier?: string | null;
+  supplierRelationId?: string | null;
   factory?: string | null;
   brand?: string | null;
   customer?: string | null;
@@ -946,6 +954,29 @@ export interface DevelopmentCaseUpdateInput extends Partial<DevelopmentCaseCreat
   convertedAt?: number;
   completedDate?: string;
   attachments?: any;
+}
+
+// ── Phase B4 三级样衣节点 ──
+export type SampleNodeLevel = 'confirmation' | 'pp' | 'top';
+export type SampleNodeStatus = 'pending' | 'making' | 'sent' | 'approved' | 'revising';
+export type SampleNodeAction = 'start' | 'send' | 'approve' | 'revise';
+
+export interface SampleNode {
+  id: string;
+  developmentCaseId: string;
+  level: SampleNodeLevel;
+  round: number;
+  status: SampleNodeStatus;
+  sentDate?: string | null;
+  courier?: string | null;
+  trackingNumber?: string | null;
+  feedback?: string | null;
+  feedbackDate?: string | null;
+  approvedAt?: number | null;
+  approvedBy?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /** Status transition audit record for an order. */
@@ -2099,6 +2130,139 @@ export interface AllocationDeleteResult {
   newVoucherStatus: VoucherStatus;
 }
 
+// ── Phase B2: 财务报表（账龄 / 对账单 / 汇率损益，消费 /v1/finance/reports contract）──
+export interface AgingBuckets {
+  current: number;
+  d1_30: number;
+  d31_60: number;
+  d61_90: number;
+  d90plus: number;
+  total: number;
+}
+
+export interface AgingRow {
+  customerRelationId: string | null;
+  customerName: string;
+  currency: string;
+  invoiceCount: number;
+  buckets: AgingBuckets;
+}
+
+export interface AgingReport {
+  type: 'Receivable' | 'Payable';
+  asOf: string;
+  rows: AgingRow[];
+  totals: Array<{ currency: string } & AgingBuckets>;
+}
+
+export interface StatementTransaction {
+  date: string;
+  kind: 'invoice' | 'receipt';
+  number: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface StatementSection {
+  currency: string;
+  openingBalance: number;
+  closingBalance: number;
+  transactions: StatementTransaction[];
+}
+
+export interface CustomerStatement {
+  customerRelationId: string;
+  customerName: string | null;
+  from: string | null;
+  to: string | null;
+  sections: StatementSection[];
+}
+
+export interface FxGainLossRow {
+  allocationId: string;
+  appliedDate: string;
+  invoiceNumber: string;
+  voucherNumber: string;
+  invoiceType: string;
+  currency: string;
+  appliedAmount: number;
+  invoiceRate: number;
+  voucherRate: number;
+  gainLoss: number;
+}
+
+export interface FxGainLossReport {
+  from: string | null;
+  to: string | null;
+  baseCurrency: string;
+  rows: FxGainLossRow[];
+  totalGainLoss: number;
+}
+
+// ── Phase C1: 经营驾驶舱（消费 /v1/dashboard/cockpit contract）──
+export interface SalesLeaderboardRow {
+  salesPerson: string;
+  currency: string;
+  orderCount: number;
+  salesAmount: number;
+  collectedAmount: number;
+}
+
+export interface CustomerContributionRow {
+  customer: string;
+  customerRelationId: string | null;
+  currency: string;
+  orderCount: number;
+  salesAmount: number;
+  share: number; // 同币种内占比 0-1
+}
+
+export interface OrderMarginRow {
+  orderId: string;
+  poNumber: string | null;
+  customer: string;
+  product: string;
+  salesPerson: string | null;
+  dueDate: string;
+  status: string;
+  currency: string;
+  revenue: number;
+  cost: number | null;
+  crossCurrency: boolean;
+  margin: number | null;
+  marginRate: number | null;
+}
+
+export interface OrderMarginTotal {
+  currency: string;
+  revenue: number;
+  cost: number;
+  margin: number;
+  marginRate: number | null;
+  orderCount: number;
+}
+
+export interface ArApAlertBucket {
+  currency: string;
+  overdue: number;
+  total: number;
+}
+
+export interface BusinessCockpit {
+  from: string | null;
+  to: string | null;
+  generatedAt: string;
+  salesLeaderboard: SalesLeaderboardRow[];
+  customerContribution: CustomerContributionRow[];
+  orderMargins: { rows: OrderMarginRow[]; totals: OrderMarginTotal[]; excludedCount: number };
+  arApAlerts: {
+    receivable: { rows: AgingRow[]; totals: ArApAlertBucket[] };
+    payable: { rows: AgingRow[]; totals: ArApAlertBucket[] };
+  };
+  fxSummary: { baseCurrency: string; totalGainLoss: number; rowCount: number };
+}
+
 export type ShipmentStatus = 'Draft' | 'Booked' | 'Loading' | 'Shipped' | 'Arrived' | 'Cleared' | 'Delivered' | 'Cancelled';
 export type ShipmentDirection = 'Outbound' | 'Inbound';
 
@@ -2120,6 +2284,97 @@ export interface ShipmentLine {
 }
 
 export type ShipmentType2 = 'Export' | 'Import' | 'Domestic';
+
+// ─── 出运制单引擎（GET /v1/shipping/:id/document-set） ───
+
+export interface DocumentSetLine {
+  lineNumber: number;
+  description: string;
+  productCode: string | null;
+  hsCode: string | null;
+  quantity: number | null;
+  unit: string | null;
+  unitPrice: number | null;
+  amount: number | null;
+  cartons: number | null;
+  grossWeight: number | null;
+  netWeight: number | null;
+  volume: number | null;
+  originCountry: string | null;
+}
+
+export interface DocumentSetParty {
+  name: string;
+  address: string | null;
+  contact: string | null;
+}
+
+export interface DocumentSetData {
+  shipment: {
+    id: string;
+    shipmentNumber: string;
+    status: string;
+    type: string;
+    shippingMethod: string | null;
+    vesselOrFlight: string | null;
+    voyageNumber: string | null;
+    portOfLoading: string | null;
+    portOfDischarge: string | null;
+    containerNumber: string | null;
+    sealNumber: string | null;
+    bookingDate: string | null;
+    etd: string | null;
+    atd: string | null;
+    eta: string | null;
+    totalPackages: number | null;
+    grossWeight: number | null;
+    netWeight: number | null;
+    volume: number | null;
+    hsCode: string | null;
+    customsDeclarationNumber: string | null;
+    notes: string | null;
+  };
+  order: {
+    id: string;
+    poNumber: string | null;
+    customer: string;
+    currency: string | null;
+    deliveryTerms: string | null;
+    paymentTerms: string | null;
+    salesContractNumber: string | null;
+    finalContractNumber: string | null;
+    invoiceNumber: string | null;
+    invoiceDate: string | null;
+  } | null;
+  customs: {
+    declarationNumber: string;
+    declarationDate: string | null;
+    declarationPort: string | null;
+    tradeTerms: string | null;
+    totalValue: number | null;
+    currency: string | null;
+    originCountry: string | null;
+    destinationCountry: string | null;
+    consignee: string | null;
+    consignor: string | null;
+  } | null;
+  parties: {
+    customer: DocumentSetParty | null;
+    consignee: DocumentSetParty | null;
+    carrier: { name: string } | null;
+  };
+  lines: DocumentSetLine[];
+  totals: {
+    quantity: number | null;
+    amount: number | null;
+    cartons: number | null;
+    grossWeight: number | null;
+    netWeight: number | null;
+    volume: number | null;
+    currency: string | null;
+  };
+  missing: string[];
+}
 
 export interface Shipment {
   id: string;
@@ -2266,4 +2521,773 @@ export interface WorkflowInstance {
   createdAt: string;
   updatedAt: string;
   steps: WorkflowStepDetail[];
+}
+
+// ════════════════════════════════════════════════════════════════
+// Phase 3 C1: CRM 深化类型
+// ════════════════════════════════════════════════════════════════
+
+export interface Contact {
+  id: string;
+  relationId: string;
+  name: string;
+  title?: string | null;
+  department?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  wechat?: string | null;
+  whatsapp?: string | null;
+  isPrimary: boolean;
+  isDecisionMaker: boolean;
+  birthday?: string | null;
+  personalNote?: string | null;
+  tags: string[];
+  status: string; // Active | Inactive | Left
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface ContactInput {
+  name: string;
+  title?: string;
+  department?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  wechat?: string;
+  whatsapp?: string;
+  isPrimary?: boolean;
+  isDecisionMaker?: boolean;
+  birthday?: string;
+  personalNote?: string;
+  tags?: string[];
+}
+
+export interface CreditLimit {
+  id: string;
+  relationId: string;
+  totalLimit: number;
+  usedAmount: number;
+  currency: string;
+  validFrom: string;
+  validTo?: string | null;
+  status: string; // Active | Frozen | Expired | Revoked
+  approvedBy?: string | null;
+  approvedAt?: number | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface CreditLimitInput {
+  totalLimit: number;
+  currency?: string;
+  validFrom: string;
+  validTo?: string;
+  approvedBy?: string;
+  notes?: string;
+}
+
+export interface FollowUpRecord {
+  id: string;
+  relationId: string;
+  contactId?: string | null;
+  type: string; // Visit | Call | Email | WeChat | Meeting | Other
+  content: string;
+  followUpAt: string;
+  nextFollowUpAt?: string | null;
+  nextFollowUpTopic?: string | null;
+  opportunityId?: string | null;
+  orderId?: string | null;
+  salesRepId?: string | null;
+  salesRepName?: string | null;
+  attachments?: unknown;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  contact?: { name: string; title: string | null } | null;
+}
+
+export interface FollowUpInput {
+  contactId?: string;
+  type: string;
+  content: string;
+  followUpAt: string;
+  nextFollowUpAt?: string;
+  nextFollowUpTopic?: string;
+  opportunityId?: string;
+  orderId?: string;
+  salesRepId?: string;
+  salesRepName?: string;
+  attachments?: Record<string, unknown>;
+  notes?: string;
+}
+
+export type OpportunityStage = 'Prospecting' | 'Qualification' | 'Proposal' | 'Negotiation' | 'ClosedWon' | 'ClosedLost';
+
+export interface Opportunity {
+  id: string;
+  relationId: string;
+  title: string;
+  description?: string | null;
+  amount: number;
+  currency: string;
+  stage: OpportunityStage;
+  probability: number;
+  expectedCloseDate?: string | null;
+  source?: string | null;
+  orderId?: string | null;
+  salesRepId?: string | null;
+  salesRepName?: string | null;
+  tags: string[];
+  notes?: string | null;
+  closedAt?: number | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  relation?: { name: string; category: string } | null;
+}
+
+export interface OpportunityInput {
+  title: string;
+  description?: string;
+  amount: number;
+  currency?: string;
+  stage?: OpportunityStage;
+  probability?: number;
+  expectedCloseDate?: string;
+  source?: string;
+  salesRepId?: string;
+  salesRepName?: string;
+  tags?: string[];
+  notes?: string;
+}
+
+export type CustomerTierLevel = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'VIP';
+
+export interface CustomerTier {
+  id: string;
+  relationId: string;
+  level: CustomerTierLevel;
+  criteria?: string | null;
+  discountRate?: number | null;
+  paymentTermsDays?: number | null;
+  creditPriority: string; // High | Normal | Low
+  evaluatedAt: string;
+  validUntil?: string | null;
+  evaluatedBy?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface CustomerTierInput {
+  level: CustomerTierLevel;
+  criteria?: string;
+  discountRate?: number;
+  paymentTermsDays?: number;
+  creditPriority?: string;
+  evaluatedAt: string;
+  validUntil?: string;
+  evaluatedBy?: string;
+  notes?: string;
+}
+
+export interface CrmOverview {
+  contacts: Contact[];
+  activeCreditLimit: CreditLimit | null;
+  creditLimitHistory: CreditLimit[];
+  pendingFollowUps: FollowUpRecord[];
+  opportunities: Opportunity[];
+  activeTier: CustomerTier | null;
+  tierHistory: CustomerTier[];
+}
+
+// ════════════════════════════════════════════════════════════════
+// Phase 3 C2: 生产 MES 深化类型
+// 制造执行系统：工位 / 排产 / 工时 / 计件 / 外协
+// ════════════════════════════════════════════════════════════════
+
+export type WorkStationType = 'Sewing' | 'Cutting' | 'Printing' | 'Embroidery' | 'Packing' | 'QC' | 'Other';
+export type ProductionPlanStatus = 'Draft' | 'Confirmed' | 'InProgress' | 'Completed' | 'Cancelled';
+export type Priority = 'High' | 'Normal' | 'Low';
+export type PieceRateStatus = 'Pending' | 'Confirmed' | 'Paid';
+export type OutsourcingStatus = 'Draft' | 'Sent' | 'Confirmed' | 'InProduction' | 'Received' | 'Cancelled';
+export type OutsourcingProcessType = 'Sewing' | 'Cutting' | 'Washing' | 'Printing' | 'Embroidery' | 'Dyeing' | 'Other';
+
+// ── 工位 WorkStation ──
+export interface WorkStation {
+  id: string;
+  code: string;
+  name: string;
+  type: WorkStationType;
+  capacityPerDay?: number | null;
+  capacityUnit?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  location?: string | null;
+  manager?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface WorkStationInput {
+  code: string;
+  name: string;
+  type: WorkStationType;
+  capacityPerDay?: number;
+  capacityUnit?: string;
+  isActive?: boolean;
+  location?: string;
+  manager?: string;
+  sortOrder?: number;
+  notes?: string;
+}
+
+export interface WorkStationUtilization {
+  workStationId: string;
+  plannedQty: number;
+  capacity: number;
+  days: number;
+  utilization: number;
+}
+
+// ── 排产 ProductionPlan ──
+export interface ProductionPlan {
+  id: string;
+  planNumber: string;
+  orderId?: string | null;
+  workStationId: string;
+  workStation?: { code: string; name: string; type: WorkStationType } | null;
+  processType: WorkStationType;
+  processSeq: number;
+  plannedQuantity: number;
+  actualQuantity: number;
+  unit: string;
+  plannedStartDate: string;
+  plannedEndDate: string;
+  actualStartDate?: string | null;
+  actualEndDate?: string | null;
+  status: ProductionPlanStatus;
+  priority: Priority;
+  assignedTo?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  workHours?: WorkHour[];
+}
+
+export interface ProductionPlanInput {
+  planNumber: string;
+  orderId?: string;
+  workStationId: string;
+  processType: WorkStationType;
+  processSeq?: number;
+  plannedQuantity: number;
+  unit: string;
+  plannedStartDate: string;
+  plannedEndDate: string;
+  priority?: Priority;
+  assignedTo?: string;
+  notes?: string;
+}
+
+// ── 工时 WorkHour ──
+export interface WorkHour {
+  id: string;
+  productionPlanId: string;
+  employeeId?: string | null;
+  employeeName?: string | null;
+  workDate: string;
+  hours: number;
+  overtimeHours: number;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorkHourInput {
+  productionPlanId: string;
+  employeeId?: string;
+  employeeName?: string;
+  workDate: string;
+  hours: number;
+  overtimeHours?: number;
+  notes?: string;
+}
+
+export interface WorkHourSummary {
+  employeeId: string;
+  employeeName: string | null;
+  totalHours: number;
+  totalOvertime: number;
+}
+
+// ── 计件规则 PieceRateRule ──
+export interface PieceRateRule {
+  id: string;
+  code: string;
+  name: string;
+  processType: WorkStationType;
+  productAssetId?: string | null;
+  unit: string;
+  ratePerUnit: number;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  isActive: boolean;
+  description?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface PieceRateRuleInput {
+  code: string;
+  name: string;
+  processType: WorkStationType;
+  productAssetId?: string;
+  unit: string;
+  ratePerUnit: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  isActive?: boolean;
+  description?: string;
+  notes?: string;
+}
+
+// ── 计件记录 PieceRateRecord ──
+export interface PieceRateRecord {
+  id: string;
+  pieceRateRuleId: string;
+  pieceRateRule?: { code: string; name: string; processType: WorkStationType } | null;
+  productionPlanId?: string | null;
+  employeeId?: string | null;
+  employeeName?: string | null;
+  workDate: string;
+  quantity: number;
+  unit: string;
+  ratePerUnit: number;
+  amount: number;
+  currency: string;
+  status: PieceRateStatus;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PieceRateRecordInput {
+  pieceRateRuleId: string;
+  productionPlanId?: string;
+  employeeId?: string;
+  employeeName?: string;
+  workDate: string;
+  quantity: number;
+  unit: string;
+  notes?: string;
+}
+
+export interface PieceRateSummary {
+  employeeId: string;
+  employeeName: string | null;
+  totalAmount: number;
+  pendingAmount: number;
+  confirmedAmount: number;
+  paidAmount: number;
+}
+
+// ── 外协 OutsourcingOrder ──
+export interface OutsourcingLine {
+  id: string;
+  outsourcingOrderId: string;
+  processType: OutsourcingProcessType;
+  description: string;
+  materialCode?: string | null;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  amount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface OutsourcingOrder {
+  id: string;
+  orderNumber: string;
+  supplierId?: string | null;
+  orderId?: string | null;
+  bomId?: string | null;
+  processType: OutsourcingProcessType;
+  description?: string | null;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  currency: string;
+  totalAmount: number;
+  orderDate: string;
+  plannedDeliveryDate?: string | null;
+  actualDeliveryDate?: string | null;
+  qualityAcceptedQty?: number | null;
+  qualityRejectedQty?: number | null;
+  status: OutsourcingStatus;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  lines?: OutsourcingLine[];
+}
+
+export interface OutsourcingLineInput {
+  processType: OutsourcingProcessType;
+  description: string;
+  materialCode?: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  notes?: string;
+}
+
+export interface OutsourcingOrderInput {
+  orderNumber: string;
+  supplierId?: string;
+  orderId?: string;
+  bomId?: string;
+  processType: OutsourcingProcessType;
+  description?: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  currency?: string;
+  orderDate?: string;
+  plannedDeliveryDate?: string;
+  notes?: string;
+  lines?: OutsourcingLineInput[];
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 外贸与报关 Customs (Phase 5 B5 + Phase 3 C6)
+// 报关单 / HS编码 / 信用证 / 出口退税 / 贸易单据
+// ════════════════════════════════════════════════════════════════════════════
+
+export type CustomsType = 'Export' | 'Import';
+export type CustomsDeclarationStatus = 'Draft' | 'Submitted' | 'Declared' | 'Inspecting' | 'Released' | 'Exception' | 'Cancelled';
+export type HsCodeCategory = 'Textile' | 'Garment' | 'Accessory' | 'Material' | 'Yarn' | 'Other';
+export type LetterOfCreditType = 'Irrevocable' | 'Revocable' | 'Standby' | 'Transferable';
+export type LetterOfCreditStatus = 'Issued' | 'Presented' | 'Accepted' | 'Discrepant' | 'Settled' | 'Expired' | 'Cancelled';
+export type TaxRefundStatus = 'Draft' | 'Submitted' | 'Reviewing' | 'Approved' | 'Rejected' | 'Refunded' | 'Cancelled';
+export type TradeDocumentType = 'CommercialInvoice' | 'PackingList' | 'CertificateOfOrigin' | 'BillOfLading' | 'AirWaybill' | 'InsuranceCert' | 'InspectionCert' | 'PhytosanitaryCert' | 'Other';
+export type TradeDocumentStatus = 'Draft' | 'Issued' | 'Submitted' | 'Accepted' | 'Rejected' | 'Cancelled';
+
+// ── 报关单 CustomsDeclaration ──
+
+export interface CustomsDeclarationLine {
+  id: string;
+  declarationId: string;
+  lineNumber: number;
+  productCode?: string | null;
+  productName: string;
+  hsCode?: string | null;
+  brandName?: string | null;
+  specification?: string | null;
+  quantity: string;
+  unit: string;
+  unitPrice?: string | null;
+  totalAmount?: string | null;
+  currency?: string | null;
+  grossWeight?: string | null;
+  netWeight?: string | null;
+  originCountry?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CustomsDeclaration {
+  id: string;
+  declarationNumber: string;
+  shipmentId?: string | null;
+  orderId?: string | null;
+  relationId?: string | null;
+  type: CustomsType;
+  status: CustomsDeclarationStatus;
+  declarationDate?: string | null;
+  customsCode?: string | null;
+  declarationPort?: string | null;
+  tradeTerms?: string | null;
+  totalValue?: string | null;
+  currency?: string | null;
+  totalPackages?: number | null;
+  grossWeight?: string | null;
+  netWeight?: string | null;
+  originCountry?: string | null;
+  destinationCountry?: string | null;
+  consignee?: string | null;
+  consignor?: string | null;
+  declarant?: string | null;
+  agent?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  lines?: CustomsDeclarationLine[];
+  _count?: { lines: number };
+}
+
+export interface CustomsDeclarationLineInput {
+  productCode?: string;
+  productName: string;
+  hsCode?: string;
+  brandName?: string;
+  specification?: string;
+  quantity: number;
+  unit: string;
+  unitPrice?: number;
+  totalAmount?: number;
+  currency?: string;
+  grossWeight?: number;
+  netWeight?: number;
+  originCountry?: string;
+  notes?: string;
+}
+
+export interface CustomsDeclarationInput {
+  declarationNumber: string;
+  shipmentId?: string;
+  orderId?: string;
+  relationId?: string;
+  type: CustomsType;
+  declarationDate?: string;
+  customsCode?: string;
+  declarationPort?: string;
+  tradeTerms?: string;
+  totalValue?: number;
+  currency?: string;
+  totalPackages?: number;
+  grossWeight?: number;
+  netWeight?: number;
+  originCountry?: string;
+  destinationCountry?: string;
+  consignee?: string;
+  consignor?: string;
+  declarant?: string;
+  agent?: string;
+  notes?: string;
+  lines?: CustomsDeclarationLineInput[];
+}
+
+// ── HS 编码 HsCode ──
+
+export interface HsCode {
+  id: string;
+  code: string;
+  description: string;
+  category: HsCodeCategory;
+  exportTaxRebateRate?: string | null;
+  importTariffRate?: string | null;
+  vatRate?: string | null;
+  unit?: string | null;
+  supervisionCondition?: string | null;
+  inspectionQuarantine?: string | null;
+  additionalDuty?: string | null;
+  notes?: string | null;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface HsCodeInput {
+  code: string;
+  description: string;
+  category: HsCodeCategory;
+  exportTaxRebateRate?: number;
+  importTariffRate?: number;
+  vatRate?: number;
+  unit?: string;
+  supervisionCondition?: string;
+  inspectionQuarantine?: string;
+  additionalDuty?: string;
+  notes?: string;
+  isActive?: boolean;
+}
+
+// ── 信用证 LetterOfCredit ──
+
+export interface LetterOfCredit {
+  id: string;
+  lcNumber: string;
+  relationId?: string | null;
+  orderId?: string | null;
+  type: LetterOfCreditType;
+  status: LetterOfCreditStatus;
+  issueDate?: string | null;
+  issueBank?: string | null;
+  advisingBank?: string | null;
+  negotiatingBank?: string | null;
+  confirmingBank?: string | null;
+  applicant?: string | null;
+  beneficiary?: string | null;
+  amount: string;
+  currency: string;
+  availableAmount?: string | null;
+  expiryDate?: string | null;
+  expiryPlace?: string | null;
+  presentationDeadline?: string | null;
+  shipmentDeadline?: string | null;
+  tradeTerms?: string | null;
+  portOfLoading?: string | null;
+  portOfDischarge?: string | null;
+  documentsRequired?: string[] | null;
+  specialConditions?: string | null;
+  discrepancies?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface LetterOfCreditInput {
+  lcNumber: string;
+  relationId?: string;
+  orderId?: string;
+  type: LetterOfCreditType;
+  issueDate?: string;
+  issueBank?: string;
+  advisingBank?: string;
+  negotiatingBank?: string;
+  confirmingBank?: string;
+  applicant?: string;
+  beneficiary?: string;
+  amount: number;
+  currency?: string;
+  availableAmount?: number;
+  expiryDate?: string;
+  expiryPlace?: string;
+  presentationDeadline?: string;
+  shipmentDeadline?: string;
+  tradeTerms?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
+  documentsRequired?: string[];
+  specialConditions?: string;
+  discrepancies?: string;
+  notes?: string;
+}
+
+// ── 出口退税 TaxRefund ──
+
+export interface TaxRefund {
+  id: string;
+  refundNumber: string;
+  declarationId?: string | null;
+  orderId?: string | null;
+  relationId?: string | null;
+  status: TaxRefundStatus;
+  exportDate?: string | null;
+  declarationDate?: string | null;
+  fxRate?: string | null;
+  exportAmountFob?: string | null;
+  exportAmountFobCurrency?: string | null;
+  exportAmountCny?: string | null;
+  refundableVat?: string | null;
+  refundableRate?: string | null;
+  refundAmount?: string | null;
+  refundDate?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: number | null;
+  reviewNotes?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface TaxRefundInput {
+  refundNumber: string;
+  declarationId?: string;
+  orderId?: string;
+  relationId?: string;
+  exportDate?: string;
+  declarationDate?: string;
+  fxRate?: number;
+  exportAmountFob?: number;
+  exportAmountFobCurrency?: string;
+  exportAmountCny?: number;
+  refundableVat?: number;
+  refundableRate?: number;
+  refundAmount?: number;
+  refundDate?: string;
+  notes?: string;
+}
+
+export interface TaxRefundReviewInput {
+  reviewedBy: string;
+  decision: 'Approved' | 'Rejected';
+  reviewNotes?: string;
+  refundAmount?: number;
+}
+
+// ── 贸易单据 TradeDocument ──
+
+export interface TradeDocument {
+  id: string;
+  documentNumber: string;
+  type: TradeDocumentType;
+  status: TradeDocumentStatus;
+  shipmentId?: string | null;
+  declarationId?: string | null;
+  orderId?: string | null;
+  relationId?: string | null;
+  issueDate?: string | null;
+  expiryDate?: string | null;
+  issuedBy?: string | null;
+  consignee?: string | null;
+  consignor?: string | null;
+  portOfLoading?: string | null;
+  portOfDischarge?: string | null;
+  totalAmount?: string | null;
+  currency?: string | null;
+  filePath?: string | null;
+  fileName?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface TradeDocumentInput {
+  documentNumber: string;
+  type: TradeDocumentType;
+  shipmentId?: string;
+  declarationId?: string;
+  orderId?: string;
+  relationId?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  issuedBy?: string;
+  consignee?: string;
+  consignor?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
+  totalAmount?: number;
+  currency?: string;
+  filePath?: string;
+  fileName?: string;
+  notes?: string;
+}
+
+// ── 概览 ──
+
+export interface CustomsOverview {
+  declarations: { total: number; released: number };
+  lettersOfCredit: { pending: number; settled: number };
+  taxRefunds: { pending: number; refunded: number; totalRefundedAmount: number };
+  tradeDocuments: { total: number };
 }

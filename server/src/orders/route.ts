@@ -9,7 +9,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { persistOrders, PersistResult } from '../import/persistOrders';
 import { ParsedOrder } from '../import/types';
 import { syncOrderEntityReferences } from '../entities/sync';
-import { getOrder, queryOrders } from './query';
+import { getOrder, getOrderContext, queryOrders } from './query';
 import { logger } from '../lib/logger';
 
 export interface OrdersRouterOptions {
@@ -72,6 +72,18 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     } catch (e: any) {
       logger.error('[orders/query] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'QUERY_FAILED', message: String(e?.message ?? e) });
+    }
+  });
+
+  // 阶段 D / D3：订单全链路聚合（只读）。注册在 /:id 之前避免歧义。
+  router.get('/:id/context', async (req: Request, res: Response) => {
+    try {
+      const result = await getOrderContext(opts.prisma, req.params.id);
+      if (!result.found) return res.status(404).json({ error: 'NOT_FOUND', message: 'Order not found' });
+      return res.json({ ok: true, ...result });
+    } catch (e: any) {
+      logger.error('[orders/context] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ error: 'CONTEXT_FAILED', message: String(e?.message ?? e) });
     }
   });
 

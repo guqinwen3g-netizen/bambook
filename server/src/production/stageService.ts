@@ -86,7 +86,45 @@ export async function getProductionPipeline(prisma: PrismaClient, orderId: strin
     orderBy: { stageSeq: 'asc' },
   });
   const checklist = await prisma.preCutChecklist.findUnique({ where: { orderId } });
-  const inspection = await prisma.inspectionReport.findUnique({ where: { orderId } });
+  // Phase B4：终期验货报告是 qc_shipped 门禁判据；inspections 返回全部类型报告
+  const inspections = await prisma.inspectionReport.findMany({
+    where: { orderId },
+    orderBy: { createdAt: 'asc' },
+  });
+  const inspection = inspections.find(i => i.inspectionType === 'final') ?? null;
+
+  // 阶段 D / D5：外协只读区块 — 直接查表（production 不反向依赖 mes 服务）。
+  // 跟单员在生产跟进视图可见外协进度：加工厂/工序/数量/验收/交期。
+  const outsourcingRows = await prisma.outsourcingOrder.findMany({
+    where: { orderId, deletedAt: null },
+    select: {
+      id: true, orderNumber: true, supplierId: true, processType: true, status: true,
+      quantity: true, unit: true, plannedDeliveryDate: true, actualDeliveryDate: true,
+      qualityAcceptedQty: true, qualityRejectedQty: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  const supplierIds = [...new Set(outsourcingRows.map(o => o.supplierId).filter(Boolean))] as string[];
+  const supplierRows = supplierIds.length
+    ? await prisma.relation.findMany({ where: { id: { in: supplierIds } }, select: { id: true, name: true } })
+    : [];
+  const supplierNameById = new Map(supplierRows.map(r => [r.id, r.name]));
+  const outsourcing = outsourcingRows.map(o => ({
+    ...o,
+    supplierName: o.supplierId ? supplierNameById.get(o.supplierId) ?? null : null,
+    quantity: Number(o.quantity),
+    qualityAcceptedQty: Number(o.qualityAcceptedQty),
+    qualityRejectedQty: Number(o.qualityRejectedQty),
+  }));
+
+  const serializeInspection = (r: any) => ({
+    ...r,
+    passRate: passRate(r.totalUnits, r.passedUnits),
+    defectRate: defectRate(r.totalUnits, r.passedUnits),
+    createdAt: Number(r.createdAt),
+    updatedAt: Number(r.updatedAt),
+    approvedAt: r.approvedAt ? Number(r.approvedAt) : null,
+  });
 
   return {
     stages: stages.map(s => ({
@@ -102,16 +140,9 @@ export async function getProductionPipeline(prisma: PrismaClient, orderId: strin
       updatedAt: Number(checklist.updatedAt),
       confirmedAt: checklist.confirmedAt ? Number(checklist.confirmedAt) : null,
     } : null,
-    inspection: inspection
-      ? {
-          ...inspection,
-          passRate: passRate(inspection.totalUnits, inspection.passedUnits),
-          defectRate: defectRate(inspection.totalUnits, inspection.passedUnits),
-          createdAt: Number(inspection.createdAt),
-          updatedAt: Number(inspection.updatedAt),
-          approvedAt: inspection.approvedAt ? Number(inspection.approvedAt) : null,
-        }
-      : null,
+    inspection: inspection ? serializeInspection(inspection) : null,
+    inspections: inspections.map(serializeInspection),
+    outsourcing,
   };
 }
 
@@ -186,9 +217,18 @@ export async function advanceStage(params: AdvanceStageParams): Promise<
       }
 
       if (stageKey === 'qc_shipped') {
-        const inspection = await tx.inspectionReport.findUnique({ where: { orderId } });
+        // Phase B4：门禁仅认终期验货（final）报告
+        const inspection = await tx.inspectionReport.findUnique({
+          where: { orderId_inspectionType: { orderId, inspectionType: 'final' } },
+        });
         if (!inspection) {
-          throw Object.assign(new Error('InspectionReport not found'), { code: 'INSPECTION_NOT_QUALIFIED' });
+          throw Object.assign(new Error('终期验货报告（final）未建立'), { code: 'INSPECTION_NOT_QUALIFIED' });
+        }
+        if (inspection.result === 'fail') {
+          throw Object.assign(new Error('终期验货结论为不合格（fail），需整改复验'), { code: 'INSPECTION_NOT_QUALIFIED' });
+        }
+        if ((inspection.criticalDefects ?? 0) > 0) {
+          throw Object.assign(new Error(`存在 ${inspection.criticalDefects} 个致命疵点（AQL 0 零容忍）`), { code: 'INSPECTION_NOT_QUALIFIED' });
         }
         const pr = passRate(inspection.totalUnits, inspection.passedUnits);
         const dr = defectRate(inspection.totalUnits, inspection.passedUnits);
@@ -308,37 +348,84 @@ export async function savePreCutChecklist(prisma: PrismaClient, orderId: string,
   return { ...result, createdAt: Number(result.createdAt), updatedAt: Number(result.updatedAt), confirmedAt: result.confirmedAt ? Number(result.confirmedAt) : null };
 }
 
+export const INSPECTION_TYPES = ['midline', 'final'] as const;
+export type InspectionType = typeof INSPECTION_TYPES[number];
+
 export async function saveInspectionReport(prisma: PrismaClient, orderId: string, data: {
+  inspectionType?: string;
   totalUnits?: number;
   passedUnits?: number;
+  inspectionDate?: string;
+  inspectorOrg?: string;
+  aqlLevel?: string;
+  lotSize?: number;
+  sampleSize?: number;
+  criticalDefects?: number;
+  majorDefects?: number;
+  minorDefects?: number;
+  defectSummary?: string;
+  result?: string;
+  shipmentId?: string;
   reportFile?: string;
   inspectedBy?: string;
   approvedByBusiness?: boolean;
   businessApprover?: string;
+  notes?: string;
 }): Promise<any> {
+  const inspectionType: InspectionType = data.inspectionType === 'midline' ? 'midline' : 'final';
+  if (data.result !== undefined && data.result !== null && !['pass', 'conditional', 'fail'].includes(data.result)) {
+    throw Object.assign(new Error(`非法验货结论: ${data.result}`), { code: 'INVALID_RESULT' });
+  }
   const now = BigInt(Date.now());
+  // final 沿用历史 id 格式（迁移前数据 id=INR__${orderId}），保证 upsert 命中旧行
+  const id = inspectionType === 'final' ? `INR__${orderId}` : `INR__${orderId}__${inspectionType}`;
   const result = await prisma.inspectionReport.upsert({
-    where: { orderId },
+    where: { orderId_inspectionType: { orderId, inspectionType } },
     create: {
-      id: `INR__${orderId}`,
+      id,
       orderId,
+      inspectionType,
       totalUnits: data.totalUnits ?? 0,
       passedUnits: data.passedUnits ?? 0,
+      inspectionDate: data.inspectionDate || null,
+      inspectorOrg: data.inspectorOrg || null,
+      aqlLevel: data.aqlLevel || null,
+      lotSize: data.lotSize ?? null,
+      sampleSize: data.sampleSize ?? null,
+      criticalDefects: data.criticalDefects ?? 0,
+      majorDefects: data.majorDefects ?? 0,
+      minorDefects: data.minorDefects ?? 0,
+      defectSummary: data.defectSummary || null,
+      result: data.result || null,
+      shipmentId: data.shipmentId || null,
       reportFile: data.reportFile || null,
       inspectedBy: data.inspectedBy || null,
       approvedByBusiness: data.approvedByBusiness ?? false,
       businessApprover: data.businessApprover || null,
       approvedAt: data.approvedByBusiness ? now : null,
+      notes: data.notes || null,
       createdAt: now,
       updatedAt: now,
     },
     update: {
       ...(data.totalUnits !== undefined ? { totalUnits: data.totalUnits } : {}),
       ...(data.passedUnits !== undefined ? { passedUnits: data.passedUnits } : {}),
+      ...(data.inspectionDate !== undefined ? { inspectionDate: data.inspectionDate || null } : {}),
+      ...(data.inspectorOrg !== undefined ? { inspectorOrg: data.inspectorOrg || null } : {}),
+      ...(data.aqlLevel !== undefined ? { aqlLevel: data.aqlLevel || null } : {}),
+      ...(data.lotSize !== undefined ? { lotSize: data.lotSize } : {}),
+      ...(data.sampleSize !== undefined ? { sampleSize: data.sampleSize } : {}),
+      ...(data.criticalDefects !== undefined ? { criticalDefects: data.criticalDefects } : {}),
+      ...(data.majorDefects !== undefined ? { majorDefects: data.majorDefects } : {}),
+      ...(data.minorDefects !== undefined ? { minorDefects: data.minorDefects } : {}),
+      ...(data.defectSummary !== undefined ? { defectSummary: data.defectSummary || null } : {}),
+      ...(data.result !== undefined ? { result: data.result || null } : {}),
+      ...(data.shipmentId !== undefined ? { shipmentId: data.shipmentId || null } : {}),
       ...(data.reportFile !== undefined ? { reportFile: data.reportFile } : {}),
       ...(data.inspectedBy !== undefined ? { inspectedBy: data.inspectedBy } : {}),
       ...(data.approvedByBusiness !== undefined ? { approvedByBusiness: data.approvedByBusiness, approvedAt: data.approvedByBusiness ? now : null } : {}),
       ...(data.businessApprover !== undefined ? { businessApprover: data.businessApprover } : {}),
+      ...(data.notes !== undefined ? { notes: data.notes || null } : {}),
       updatedAt: now,
     },
   });

@@ -14,6 +14,22 @@ type ShipmentListParams = {
   offset?: number;
 };
 
+/** Phase B3 — 准交率统计（与 server/src/shipping/shipmentStatsService.ts 契约一致） */
+export interface OnTimeBucket {
+  total: number;
+  onTime: number;
+  late: number;
+  pending: number;
+  rate: number | null; // onTime / (total - pending)；无可判定样本时为 null
+}
+
+export interface OnTimeStats {
+  from: string | null;
+  to: string | null;
+  shipment: OnTimeBucket; // 运单准点率（ata ≤ eta）
+  order: OnTimeBucket; // 订单准交率（最后一票 ata ≤ dueDate）
+}
+
 export const shipmentService = {
   async listShipments(endpoint?: string, params?: ShipmentListParams): Promise<Shipment[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
@@ -115,5 +131,25 @@ export const shipmentService = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `deleteShipment failed: HTTP ${res.status}`);
     }
+  },
+
+  /** Phase B3 — 准交率统计（GET /v1/shipping/stats/on-time） */
+  async getOnTimeStats(params?: { from?: string; to?: string }, endpoint?: string): Promise<OnTimeStats> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl('/v1/shipping/stats/on-time', base);
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
+    const apiKey = apiService.getApiKey();
+
+    const res = await fetch(fullUrl, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
+      },
+    });
+    if (!res.ok) throw new Error(`getOnTimeStats failed: HTTP ${res.status}`);
+    return res.json();
   },
 };

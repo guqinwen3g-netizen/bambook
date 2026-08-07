@@ -44,6 +44,13 @@ const TYPE_ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeW
   stuck_shipment: AlertTriangle,
   stuck_invoice: Clock,
   stuck_voucher: Clock,
+  // LC / 退税到期预警（expiry_watchdog，分级 info/warning/critical）
+  lc_expiry: AlertTriangle,
+  lc_shipment_deadline: Truck,
+  lc_presentation_deadline: FileText,
+  tax_refund_deadline: Receipt,
+  // 出运延误预警（shipment_delay_detector，warning/critical）
+  shipment_delay: Truck,
   // 工作流引擎审批通知
   workflow_pending: ClipboardList,
   workflow_approved: CheckCircle,

@@ -17,6 +17,8 @@ import { initializeScheduler } from './schedulerService';
 import { createCrashRecoveryTask, createCleanupTask } from './tasks/retryLinkages';
 import { createDailyBriefingTask } from './tasks/dailyBriefing';
 import { createStuckProcessDetectorTask } from './tasks/stuckProcessDetector';
+import { createExpiryWatchdogTask } from './tasks/expiryWatchdog';
+import { createShipmentDelayDetectorTask } from './tasks/shipmentDelayDetector';
 import { logger } from '../lib/logger';
 
 export function startScheduler(prisma: PrismaClient): void {
@@ -27,12 +29,14 @@ export function startScheduler(prisma: PrismaClient): void {
   scheduler.register(createCleanupTask());
   scheduler.register(createDailyBriefingTask());
   scheduler.register(createStuckProcessDetectorTask());
+  scheduler.register(createExpiryWatchdogTask());
+  scheduler.register(createShipmentDelayDetectorTask());
 
   // 启动调度器
   scheduler.start();
 
-  logger.info('[Scheduler] initialized with 4 tasks', {
-    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'stuck_process_detector'],
+  logger.info('[Scheduler] initialized with 6 tasks', {
+    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector'],
   });
 }
 

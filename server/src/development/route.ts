@@ -10,6 +10,7 @@ import type { AgentRole } from '../agent/types';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { syncOrderEntityReferences } from '../entities/sync';
 import { createDevelopmentCase, updateDevelopmentCase, updateDevelopmentStage, deleteDevelopmentCase } from './developmentCaseMutationService';
+import { ensureSampleNodes, listSampleNodes, advanceSampleNode } from './sampleNodeService';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { convertDevCaseToOrder } from './convertService';
 import { logger } from '../lib/logger';
@@ -343,6 +344,55 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
       logger.error('[development] POST /:id/convert failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: { code: 'CONVERT_FAILED', message: err.message } });
     }
+  });
+
+  // ─── GET /:id/sample-nodes — 三级样衣节点列表（Phase B4） ───
+  router.get('/:id/sample-nodes', async (req: Request, res: Response) => {
+    try {
+      const doc = await prisma.developmentCase.findFirst({ where: { id: req.params.id, deletedAt: null }, select: { id: true } });
+      if (!doc) {
+        res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Development case not found' } });
+        return;
+      }
+      const nodes = await listSampleNodes(prisma, req.params.id);
+      res.json({ ok: true, nodes });
+    } catch (err: any) {
+      logger.error('[development] GET /:id/sample-nodes failed', { error: err?.message || String(err) });
+      res.status(500).json({ ok: false, error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // ─── POST /:id/sample-nodes/ensure — 幂等创建三级节点（Phase B4） ───
+  router.post('/:id/sample-nodes/ensure', requireWrite, async (req: Request, res: Response) => {
+    const result = await ensureSampleNodes(prisma, req.params.id);
+    if (!result.ok) {
+      res.status(result.error!.code === 'NOT_FOUND' ? 404 : 500).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json({ ok: true, nodes: result.data!.nodes });
+  });
+
+  // ─── PATCH /:id/sample-nodes/:level — 推进样衣节点状态机（Phase B4） ───
+  router.patch('/:id/sample-nodes/:level', requireWrite, async (req: Request, res: Response) => {
+    const result = await advanceSampleNode({
+      prisma,
+      caseId: req.params.id,
+      level: req.params.level,
+      input: req.body || {},
+      actorId: actorIdFromRequest(req),
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        NOT_FOUND: 404,
+        INVALID_LEVEL: 400,
+        INVALID_ACTION: 400,
+        INVALID_TRANSITION: 400,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ ok: false, error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'development', action: 'sample-node', ids: [req.params.id] });
+    res.json({ ok: true, node: result.data!.node });
   });
 
   // ─── DELETE /:id ─── Soft delete ───

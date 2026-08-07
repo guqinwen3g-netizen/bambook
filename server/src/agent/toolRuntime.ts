@@ -20,6 +20,10 @@ import { syncEmailReferences } from '../email/sync';
 import { createInvoice, updateInvoice } from '../finance/invoiceMutationService';
 import { createPaymentVoucher, updatePaymentVoucher } from '../finance/paymentVoucherMutationService';
 import { applyAllocation } from '../finance/allocationService';
+import { getAgingReport } from '../finance/reportService';
+import { createQuotationService } from '../quotations/quotationService';
+import { createCustomsService } from '../customs/customsService';
+import { scanDelayedShipments } from '../shipping/shipmentDelayService';
 import {
   listTemplates as listAvailableTemplates,
   renderTemplate as renderTemplateById,
@@ -2348,6 +2352,14 @@ registerTool('template.list', () => handleTemplateList());
 registerTool('template.render', (prisma, input) => handleTemplateRender(prisma, input));
 registerTool('template.render_pdf', (prisma, input) => handleTemplateRenderPdf(prisma, input));
 
+// C3 高频外贸场景只读工具（智能报价 / 跟单提醒 / LC 审单 / 客户风险预警）
+registerTool('quotations.query', (prisma, input) => handleQuotationsQuery(prisma, input));
+registerTool('quotations.get', (prisma, input) => handleQuotationsGet(prisma, input));
+registerTool('finance.get_aging', (prisma, input) => handleFinanceGetAging(prisma, input));
+registerTool('customs.query_lc', (prisma, input) => handleCustomsQueryLc(prisma, input));
+registerTool('customs.get_lc', (prisma, input) => handleCustomsGetLc(prisma, input));
+registerTool('shipping.scan_delays', (prisma, input) => handleShippingScanDelays(prisma, input));
+
 // 生产管线工具（10阶段门禁引擎）
 registerTool('production.get_pipeline', async (prisma, input) => {
   const { getProductionPipeline } = await import('../production/stageService');
@@ -2383,11 +2395,24 @@ registerTool('production.save_checklist', async (prisma, input) => {
 registerTool('production.save_inspection', async (prisma, input) => {
   const { saveInspectionReport } = await import('../production/stageService');
   const report = await saveInspectionReport(prisma, String(input.orderId || ''), {
+    inspectionType: input.inspectionType ? String(input.inspectionType) : undefined,
     totalUnits: input.totalUnits as number | undefined,
     passedUnits: input.passedUnits as number | undefined,
+    inspectionDate: input.inspectionDate ? String(input.inspectionDate) : undefined,
+    inspectorOrg: input.inspectorOrg ? String(input.inspectorOrg) : undefined,
+    aqlLevel: input.aqlLevel ? String(input.aqlLevel) : undefined,
+    lotSize: input.lotSize as number | undefined,
+    sampleSize: input.sampleSize as number | undefined,
+    criticalDefects: input.criticalDefects as number | undefined,
+    majorDefects: input.majorDefects as number | undefined,
+    minorDefects: input.minorDefects as number | undefined,
+    defectSummary: input.defectSummary ? String(input.defectSummary) : undefined,
+    result: input.result ? String(input.result) : undefined,
+    shipmentId: input.shipmentId ? String(input.shipmentId) : undefined,
     inspectedBy: input.inspectedBy ? String(input.inspectedBy) : undefined,
     approvedByBusiness: input.approvedByBusiness as boolean | undefined,
     businessApprover: input.businessApprover ? String(input.businessApprover) : undefined,
+    notes: input.notes ? String(input.notes) : undefined,
   });
   return { ok: true, inspection: report };
 });
@@ -5088,6 +5113,88 @@ async function handleFinanceGetVoucher(prisma: PrismaClient, input: any): Promis
   if (!item) return { ok: false, error: 'PaymentVoucher not found' };
   return { ok: true, item };
 }
+
+// ── C3 高频外贸场景只读工具（智能报价 / 跟单提醒 / LC 审单 / 客户风险预警）──
+
+async function handleQuotationsQuery(prisma: PrismaClient, input: any): Promise<any> {
+  const service = createQuotationService(prisma);
+  const filters = input?.filters || {};
+  const { items, total } = await service.listQuotations({
+    status: filters.status ? String(filters.status) : undefined,
+    customerRelationId: filters.customerRelationId ? String(filters.customerRelationId) : undefined,
+    dateFrom: filters.dateFrom ? String(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? String(filters.dateTo) : undefined,
+    search: input?.query ? String(input.query) : undefined,
+    limit: input?.limit,
+    offset: input?.offset,
+  });
+  return { ok: true, items, total };
+}
+
+async function handleQuotationsGet(prisma: PrismaClient, input: any): Promise<any> {
+  const service = createQuotationService(prisma);
+  const id = input?.id ? String(input.id) : '';
+  const quotationNumber = input?.quotationNumber ? String(input.quotationNumber) : '';
+  if (!id && !quotationNumber) return { ok: false, error: 'id or quotationNumber required' };
+  const item = id
+    ? await service.getQuotation(id)
+    : await prisma.quotation.findFirst({
+        where: { quotationNumber, deletedAt: null },
+        include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      });
+  if (!item) return { ok: false, error: 'Quotation not found' };
+  return { ok: true, item };
+}
+
+async function handleFinanceGetAging(prisma: PrismaClient, input: any): Promise<any> {
+  const type = input?.type === 'Payable' ? 'Payable' : 'Receivable';
+  const report = await getAgingReport(prisma, { type, asOf: input?.asOf ? String(input.asOf) : undefined });
+  // 行级按逾期额（1-90+ 四档合计）降序截取，控制响应体积；合计行始终完整返回
+  const rowLimit = Math.min(Math.max(Number(input?.rowLimit) || 20, 1), 100);
+  const overdueOf = (r: { buckets: { d1_30: number; d31_60: number; d61_90: number; d90plus: number } }) =>
+    r.buckets.d1_30 + r.buckets.d31_60 + r.buckets.d61_90 + r.buckets.d90plus;
+  const rows = [...report.rows].sort((a, b) => overdueOf(b) - overdueOf(a)).slice(0, rowLimit);
+  return { ok: true, report: { ...report, rows, rowCount: report.rows.length } };
+}
+
+async function handleCustomsQueryLc(prisma: PrismaClient, input: any): Promise<any> {
+  const service = createCustomsService(prisma);
+  const filters = input?.filters || {};
+  const { items, total } = await service.listLettersOfCredit({
+    status: filters.status ? String(filters.status) : undefined,
+    relationId: filters.relationId ? String(filters.relationId) : undefined,
+    orderId: filters.orderId ? String(filters.orderId) : undefined,
+    issuingBank: filters.issuingBank ? String(filters.issuingBank) : undefined,
+    expiringBefore: filters.expiringBefore ? String(filters.expiringBefore) : undefined,
+    search: input?.query ? String(input.query) : undefined,
+    limit: input?.limit,
+    offset: input?.offset,
+  });
+  return { ok: true, items, total };
+}
+
+async function handleCustomsGetLc(prisma: PrismaClient, input: any): Promise<any> {
+  const service = createCustomsService(prisma);
+  const id = input?.id ? String(input.id) : '';
+  const lcNumber = input?.lcNumber ? String(input.lcNumber) : '';
+  if (!id && !lcNumber) return { ok: false, error: 'id or lcNumber required' };
+  try {
+    const item = id ? await service.getLetterOfCredit(id) : await service.getLetterOfCreditByNumber(lcNumber);
+    return { ok: true, item };
+  } catch {
+    return { ok: false, error: 'Letter of credit not found' };
+  }
+}
+
+async function handleShippingScanDelays(prisma: PrismaClient, input: any): Promise<any> {
+  // 与 shipmentDelayDetector 调度任务同一口径（shipmentDelayService 单一权威源）
+  const result = await scanDelayedShipments(prisma, {
+    asOf: input?.asOf ? String(input.asOf) : undefined,
+    limit: input?.limit,
+  });
+  return { ok: true, ...result };
+}
+
 
 async function handleFinanceQueryOutstanding(prisma: PrismaClient, input: any): Promise<any> {
   const where: any = { deletedAt: null, status: { in: ['Issued', 'PartiallyPaid'] } };

@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Order, KnowledgeItem, ResolutionStrategy, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition } from '../types';
+import { Order, KnowledgeItem, ResolutionStrategy, PoItem, Relation, OrderLineItem, OrderLineLite, OrderStatusTransition, View } from '../types';
 import { apiService } from '../services/apiService';
 import {
   Plus, Filter, Clock, ArrowRight, MoreHorizontal,
@@ -26,6 +26,7 @@ import { PageHeader } from './ui/PageHeader';
 import { CompiledTableShell } from './ui/osCompiler/compiledPrimitives';
 import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/osCompiler/compiledSurfacePrimitives';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import OrderContextSection from './order/OrderContextSection';
 import { fieldsForDetail, fieldsForManualForm, requiredKeysForManual, computeAutoFillPatch, fieldMetaByKey, ORDER_CLUSTERS } from '../lib/orderSchema';
 import { flattenOrderLines, getNextItemNo } from '../lib/orderLineItems';
 
@@ -105,6 +106,8 @@ interface OrderManagerProps {
   onCreateRelation?: (typedName: string, fkTarget: 'customer' | 'mill' | 'consignee' | 'billTo') => Promise<{ id: string; name: string } | null> | { id: string; name: string } | null;
   allowGlobeView?: boolean;
   onFullscreenOpenChange?: (open: boolean) => void;
+  /** 阶段 D / D3：全链路区块点击卡片跳转对应模块 */
+  onNavigate?: (view: View) => void;
 }
 
 const ORDER_TABLE_GRID_CLASS = 'grid-cols-[22%_15%_27%_13%_13%_10%]';
@@ -131,7 +134,7 @@ const ORDER_TYPE_LABELS: Record<'fabric' | 'garment', string> = {
   garment: '成衣',
 };
 
-const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, isMobile = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange }) => {
+const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, isMobile = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange, onNavigate }) => {
   // Local state removed, using props
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
@@ -1199,6 +1202,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         id={selectedOrder.id}
                         isDarkMode={isDarkMode}
                         title="订单关联视图"
+                      />
+                    </div>
+
+                    {/* 阶段 D / D3：订单全链路（报价→开发→BOM→采购→生产→外协→出运→财务） */}
+                    <div className="mt-4">
+                      <OrderContextSection
+                        orderId={selectedOrder.id}
+                        isDarkMode={isDarkMode}
+                        onNavigate={onNavigate}
                       />
                     </div>
 

@@ -4,6 +4,13 @@ import crypto from 'crypto';
 import { syncEmailReferences } from './sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
+import {
+  computeEmailLinkUpdates,
+  loadOrderCandidates,
+  loadRelationAddressIndex,
+  type OrderCandidate,
+  type RelationCandidate,
+} from './emailLinkService';
 
 export type EmailSyncErrorCode =
   | 'MISSING_CREDENTIALS'
@@ -114,6 +121,19 @@ export async function syncEmailsFromImap(params: EmailSyncParams): Promise<Email
       const auditIds: string[] = [];
       const physicalBoxFinal = physicalBox;
 
+      // C2 自动归档：客户/订单匹配索引每批次加载一次（避免逐封全表扫描）；
+      // 索引加载失败降级为不链接，不阻断同步主流程
+      let relationIndex: Map<string, RelationCandidate> = new Map();
+      let orderCandidates: OrderCandidate[] = [];
+      try {
+        [relationIndex, orderCandidates] = await Promise.all([
+          loadRelationAddressIndex(prisma),
+          loadOrderCandidates(prisma),
+        ]);
+      } catch (idxErr: any) {
+        logger.warn('[email-sync] Auto-link index load failed; sync continues without auto-link', { error: sanitizeMessage(String(idxErr?.message || idxErr)) });
+      }
+
       for (const item of fullMessages) {
         try {
           const headerPart = item.parts.find((p: any) => p.which !== '');
@@ -141,14 +161,24 @@ export async function syncEmailsFromImap(params: EmailSyncParams): Promise<Email
           const threadId = references ? crypto.createHash('md5').update(references).digest('hex').slice(0, 12) : null;
           const now = BigInt(Date.now());
           const emailId = generateId('EML');
+          const snippet = subject.slice(0, 200);
+
+          // C2 自动归档：create 前确定性地算出客户/订单链接，随 create 一并写入
+          // （新邮件 relationId/orderId 必为空，无需担心覆盖手工链接）
+          const linkUpdates = computeEmailLinkUpdates(
+            { relationId: null, orderId: null, direction, fromAddress, toAddresses, subject, snippet },
+            relationIndex,
+            orderCandidates,
+          );
 
           await (prisma as any).$transaction(async (tx: any) => {
             const createdEmail = await tx.email.create({
               data: {
                 id: emailId, messageId, direction, status, fromAddress, fromName, toAddresses, ccAddresses, bccAddresses,
-                subject, bodyText: '', bodyHtml: null, snippet: subject.slice(0, 200),
+                subject, bodyText: '', bodyHtml: null, snippet,
                 mailbox: physicalBoxFinal, uid, uidValidity: null, threadId, sentAt: dateStr, receivedAt: dateStr,
                 hasAttachments: false, attachmentCount: 0, createdAt: now, updatedAt: now, syncedAt: now,
+                ...linkUpdates,
               },
             });
 

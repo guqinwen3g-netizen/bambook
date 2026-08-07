@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
@@ -13,6 +13,7 @@ import {
 } from './ui/osCompiler/compiledPrimitives';
 import type { Shipment as ShipmentType, ShipmentStatus } from '../types';
 import { shipmentService } from '../services/shipmentService';
+import type { OnTimeStats } from '../services/shipmentService';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 
 interface ShipmentManagerProps {
@@ -227,6 +228,16 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Phase B3 — 准交率统计（只读；挂载时拉取一次，失败静默不影响主流程）
+  const [onTimeStats, setOnTimeStats] = useState<OnTimeStats | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    shipmentService.getOnTimeStats()
+      .then(stats => { if (!cancelled) setOnTimeStats(stats); })
+      .catch(() => { /* 统计条不可用时不阻断货运主流程 */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Derive filtered list from App-level shipments (optimistic display from cache + dataHub)
   const filteredShipments = useMemo(() => {
@@ -486,6 +497,32 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
               </div>
             </div>
           </div>
+
+          {/* Phase B3 — 准交率统计条（只读，口径：订单最后一票 ata ≤ dueDate / 运单 ata ≤ eta） */}
+          {onTimeStats && (onTimeStats.order.total > 0 || onTimeStats.shipment.total > 0) && (
+            <div className={cx('flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1.5 rounded-inset border px-4 py-2', toolbarSurfaceClass)}>
+              <div className="flex items-baseline gap-2">
+                <span className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>订单准交率</span>
+                <span className={cx('text-sm font-light tabular-nums', textPrimaryClass)}>
+                  {onTimeStats.order.rate == null ? '—' : `${(onTimeStats.order.rate * 100).toFixed(1)}%`}
+                </span>
+                <span className={cx('text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                  准交 {onTimeStats.order.onTime} / 可判定 {onTimeStats.order.total - onTimeStats.order.pending}
+                  {onTimeStats.order.pending > 0 && ` · 待出运 ${onTimeStats.order.pending}`}
+                </span>
+              </div>
+              <div className={cx('hidden h-4 w-px xl:block', isDarkMode ? 'bg-white/8' : 'bg-slate-300/32')} />
+              <div className="flex items-baseline gap-2">
+                <span className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>运单准点率</span>
+                <span className={cx('text-sm font-light tabular-nums', textPrimaryClass)}>
+                  {onTimeStats.shipment.rate == null ? '—' : `${(onTimeStats.shipment.rate * 100).toFixed(1)}%`}
+                </span>
+                <span className={cx('text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                  准点 {onTimeStats.shipment.onTime} / {onTimeStats.shipment.total}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_320px]">
             <CompiledTableShell

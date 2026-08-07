@@ -2,9 +2,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as QRCode from 'qrcode';
-import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric } from '../../../types';
+import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory } from '../../../types';
 import { apiService } from '../../../services/apiService';
 import { storageService } from '../../../services/storageService';
+import RelationCombobox from '../RelationCombobox';
 import {
   COMPOSITION_TERMS,
   findCompositionTermByValue,
@@ -22,6 +23,7 @@ import {
 import { BAMBOOK_OS } from '../bambookOsTokens';
 import { OS_MATERIAL } from '../osMaterial';
 import { PageHeader } from '../PageHeader';
+import { RelatedEntitiesPanel } from '../../RelatedEntitiesPanel';
 import {
   RELATIONS_FORM_NESTED_ROW_DARK_CLASS,
   RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS,
@@ -69,6 +71,8 @@ import {
 export interface CompiledProductsPageProps {
   products: ProductAsset[];
   productCategories: ProductSubCategory[];
+  /** 阶段 D / D2：关系档案列表（供应商/客户字段 RelationCombobox FK 化） */
+  relations?: Relation[];
   onUpdateProducts?: (items: ProductAsset[], modified?: ProductAsset) => void;
   onUpdateCategories?: (items: ProductSubCategory[], modified?: ProductSubCategory) => void;
   cloudEndpoint?: string;
@@ -86,6 +90,61 @@ export interface CompiledProductsPageProps {
 type NavLevel = 'main' | 'sub' | 'list' | 'detail';
 type ClassificationView = 'category' | 'supplier' | 'customer' | 'certification' | 'price' | 'status';
 type ProductListDisplayMode = 'grid' | 'table';
+
+/**
+ * 阶段 D / D2：RelationCombobox 的 FormData 兼容包装器。
+ *
+ * 本页面的产品表单走原生 FormData 收集（非受控），RelationCombobox 是受控组件，
+ * 因此用两个 hidden input 桥接：`name` 输出名称快照、`fkName` 输出 Relation FK。
+ * 与 Order 的 snapshot + FK 双写模式一致：文本快照用于显示，FK 用于图谱与统计。
+ *
+ * 模块级定义（非闭包组件）：保证 combobox 内部 open/query 状态在父级重渲染后不丢失。
+ */
+const ProductRelationField: React.FC<{
+  label: string;
+  /** 名称快照字段（FormData key），如 'millName' / 'customer' / 'supplier' */
+  name: string;
+  /** Relation FK 字段（FormData key），如 'millOrganizationId' / 'customerRelationId' */
+  fkName: string;
+  defaultValue?: string | null;
+  defaultRelationId?: string | null;
+  relations: Relation[];
+  filterCategories?: RelationCategory[];
+  placeholder?: string;
+  isDarkMode: boolean;
+  labelClass: string;
+}> = ({ label, name, fkName, defaultValue, defaultRelationId, relations, filterCategories, placeholder, isDarkMode, labelClass }) => {
+  // 初值解析：FK 命中 Relation → 显示快照名（缺快照回退 Relation.name）+ 保留 FK；
+  // FK 未命中（含历史裸文本残留在 FK 位的情况）→ 退化为纯文本快照，不携带 FK。
+  const resolveInitial = () => {
+    const fkHit = defaultRelationId ? relations.find((r) => r.id === defaultRelationId) : undefined;
+    if (fkHit) return { name: defaultValue || fkHit.name, relationId: fkHit.id as string | undefined };
+    return { name: defaultValue || defaultRelationId || '', relationId: undefined as string | undefined };
+  };
+  const [selection, setSelection] = useState<{ name: string; relationId?: string }>(resolveInitial);
+  // 切换编辑对象时同步外部初值（表单无 key 重置，靠 prop 变化驱动）
+  useEffect(() => {
+    setSelection(resolveInitial());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultValue, defaultRelationId]);
+
+  return (
+    <div className="space-y-2">
+      <label className={labelClass}>{label}</label>
+      <RelationCombobox
+        value={selection.name}
+        relationId={selection.relationId}
+        relations={relations}
+        filterCategories={filterCategories}
+        isDarkMode={isDarkMode}
+        placeholder={placeholder}
+        onChange={(next) => setSelection({ name: next.name, relationId: next.relationId })}
+      />
+      <input type="hidden" name={name} value={selection.name} />
+      <input type="hidden" name={fkName} value={selection.relationId || ''} />
+    </div>
+  );
+};
 type ProductFormSectionId =
   | 'images'
   | 'basic'
@@ -540,7 +599,7 @@ const CertificationCheckboxes: React.FC<{
   );
 };
 
-export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ products, productCategories, onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings }) => {
+export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ products, productCategories, relations = [], onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings }) => {
   const blueprint = useMemo(() => compileProductsPage(), []);
   const [navLevel, setNavLevel] = useState<NavLevel>('main');
   const [sideSearchTerm, setSideSearchTerm] = useState('');
@@ -3612,6 +3671,16 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
 	                      </div>
 	                    </>
 	                  )}
+
+	                  {/* 跨模块关联视图（EntityLink 图谱）— 开发案/BOM/订单行等 */}
+	                  <div className="pt-2">
+	                    <RelatedEntitiesPanel
+	                      type="product"
+	                      id={selectedProduct.id}
+	                      isDarkMode={isDarkMode}
+	                      title="产品关联视图"
+	                    />
+	                  </div>
 
                 </div>
               </div>

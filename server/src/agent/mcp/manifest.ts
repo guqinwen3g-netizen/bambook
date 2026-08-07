@@ -804,6 +804,79 @@ const MANIFEST_SEEDS: ManifestSeed[] = [
     },
     safety: READ_ONLY_SAFETY,
   },
+  // ── C3 高频外贸场景只读工具 ──
+  {
+    id: 'shipping.scan_delays',
+    name: 'Scan Delayed Shipments',
+    domain: 'shipping',
+    description: '实时扫描出运延误运单：ETD 已过未离港（离港延误）或 ETA 已过未到港（到港延误），返回延误天数与 warning/critical 分级。与调度任务 shipment_delay_detector 同一口径。',
+    inputHint: '{ asOf?: "YYYY-MM-DD", limit?: number }',
+    example: {
+      user: '现在有哪些运单延误了？',
+      input: {},
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'quotations.query',
+    name: 'Query Quotations',
+    domain: 'quotations',
+    description: '查询报价单列表：支持状态/客户/日期区间过滤，以及对报价单号、品名、客户名的全文搜索。用于智能报价场景的历史报价回溯。',
+    inputHint: '{ filters?: { status?, customerRelationId?, dateFrom?, dateTo? }, query?: string, limit?: number, offset?: number }',
+    example: {
+      user: '查一下客户 ACME 最近三个月的报价记录。',
+      input: { filters: { customerRelationId: '<REL_ID>', dateFrom: '2026-05-01' }, limit: 20 },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'quotations.get',
+    name: 'Get Quotation',
+    domain: 'quotations',
+    description: '按 id 或报价单号读取单条报价单详情（含行明细）。',
+    inputHint: '{ id?: string, quotationNumber?: string }',
+    example: {
+      user: '看一下报价单 QUO-2026-0001 的明细。',
+      input: { quotationNumber: 'QUO-2026-0001' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'customs.query_lc',
+    name: 'Query Letters of Credit',
+    domain: 'customs',
+    description: '查询信用证列表：支持状态/客户/开证行过滤，expiringBefore 用于到期预警，支持按信用证号/开证申请人搜索。LC 审单场景的数据入口。',
+    inputHint: '{ filters?: { status?, customerRelationId?, issuingBank?, expiringBefore? }, query?: string, limit?: number }',
+    example: {
+      user: '列出 9 月 1 日前到期的所有已收信用证。',
+      input: { filters: { status: 'Received', expiringBefore: '2026-09-01' } },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'customs.get_lc',
+    name: 'Get Letter of Credit',
+    domain: 'customs',
+    description: '按 id 或信用证号读取信用证详情（金额、效期、最迟装运日、单证条款等），供 LC 审单逐条核对。',
+    inputHint: '{ id?: string, lcNumber?: string }',
+    example: {
+      user: '读取信用证 LC2026-001 的完整条款。',
+      input: { lcNumber: 'LC2026-001' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'finance.get_aging',
+    name: 'Get AR/AP Aging Report',
+    domain: 'finance',
+    description: '生成应收/应付账龄报告：分币种合计 + 按客户五档账龄（current/1-30/31-60/61-90/90+），行按逾期金额降序。客户风险预警场景的核心数据。',
+    inputHint: '{ type?: "Receivable"|"Payable", asOf?: "YYYY-MM-DD", rowLimit?: number }',
+    example: {
+      user: '哪些客户逾期欠款最多？',
+      input: { type: 'Receivable', rowLimit: 10 },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
 ];
 
 export function getMcpManifest(): ToolManifest[] {

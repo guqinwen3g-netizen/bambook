@@ -1,10 +1,14 @@
 import {
   ClipboardList,
+  Cog,
+  Contact,
   CreditCard,
   Database,
   Factory,
+  FileCheck,
   FileSignature,
   FileText,
+  Gauge,
   LayoutDashboard,
   Library,
   Mail,
@@ -41,6 +45,9 @@ export type MainCompilerSurface =
   | 'procurement'
   | 'inventory'
   | 'bom'
+  | 'crm'
+  | 'mes'
+  | 'customs'
   | 'invoices'
   | 'paymentVouchers'
   | 'shipments'
@@ -127,6 +134,9 @@ export const BAMBOOK_MAIN_COMPILER_SURFACES: readonly MainCompilerSurface[] = [
   'procurement',
   'inventory',
   'bom',
+  'crm',
+  'mes',
+  'customs',
   'invoices',
   'paymentVouchers',
   'shipments',
@@ -189,6 +199,18 @@ export const BAMBOOK_MAIN_COMPILER_SURFACE_CONFIGS: Record<MainCompilerSurface, 
     queryKey: 'bomCompiler',
     storageKey: 'bambook_bom_compiler_enabled',
   },
+  crm: {
+    queryKey: 'crmCompiler',
+    storageKey: 'bambook_crm_compiler_enabled',
+  },
+  mes: {
+    queryKey: 'mesCompiler',
+    storageKey: 'bambook_mes_compiler_enabled',
+  },
+  customs: {
+    queryKey: 'customsCompiler',
+    storageKey: 'bambook_customs_compiler_enabled',
+  },
   invoices: {
     queryKey: 'invoicesCompiler',
     storageKey: 'bambook_invoices_compiler_enabled',
@@ -249,6 +271,17 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
       compiled: 'components/ui/osCompiler/compiledDashboardTemplates.tsx',
       fallback: 'components/Dashboard.tsx',
     },
+  },
+  {
+    id: 'cockpit',
+    view: View.Cockpit,
+    productLabel: '经营驾驶舱',
+    internalName: 'Cockpit',
+    icon: Gauge,
+    nav: { primary: true, order: 12 },
+    permissions: getViewPermissionDefinition(View.Cockpit),
+    runtime: desktopRuntime,
+    entry: { current: 'components/CockpitManager.tsx' },
   },
   {
     id: 'assistant',
@@ -360,6 +393,46 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     compiler: compiler('bom', 'provisional'),
     runtime: desktopRuntime,
     entry: { current: 'components/BomManager.tsx' },
+  },
+  {
+    id: 'crm',
+    view: View.CRM,
+    productLabel: '客户关系管理',
+    internalName: 'CRM',
+    icon: Contact,
+    nav: { primary: true, order: 49.8 },
+    permissions: getViewPermissionDefinition(View.CRM),
+    compiler: compiler('crm', 'provisional'),
+    runtime: desktopRuntime,
+    entry: { current: 'components/CrmManager.tsx' },
+  },
+  {
+    id: 'mes',
+    view: View.MES,
+    productLabel: '生产执行 MES',
+    internalName: 'MES',
+    icon: Cog,
+    // 业务边界决策（2026-08-07）：工厂端加工执行（工位/排产/工时/计件）不是贸易公司
+    // 的必要工作流，降级为可选模块 —— 不进主导航，经「业务工具」页进入；外协加工
+    // （OutsourcingOrder）属贸易侧能力，仍由该模块承载。后续若接入合作/自有工厂
+    // 数据可重新评估。
+    nav: { primary: false, order: 49.9 },
+    permissions: getViewPermissionDefinition(View.MES),
+    compiler: compiler('mes', 'provisional'),
+    runtime: desktopRuntime,
+    entry: { current: 'components/MesManager.tsx' },
+  },
+  {
+    id: 'customs',
+    view: View.Customs,
+    productLabel: '外贸与报关',
+    internalName: 'Customs',
+    icon: FileCheck,
+    nav: { primary: true, order: 49.95 },
+    permissions: getViewPermissionDefinition(View.Customs),
+    compiler: compiler('customs', 'provisional'),
+    runtime: desktopRuntime,
+    entry: { current: 'components/CustomsManager.tsx' },
   },
   {
     id: 'invoices',

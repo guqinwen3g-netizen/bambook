@@ -156,3 +156,216 @@ describe('manifest 字段契约对齐 schema（task_mqxwgae9）', () => {
     expect(manifestSrc).toContain('carrierName');
   });
 });
+
+// ---------------------------------------------------------------------------
+// 阶段 D / D1.1a：六类主链路实体 sync 函数
+// ---------------------------------------------------------------------------
+
+/** mock prisma：upsert 返回标记对象，$transaction 收集 ops */
+function makeSyncPrisma() {
+  const ops: any[] = [];
+  const prisma = {
+    entityReference: { upsert: vi.fn((op) => ({ kind: 'reference', op })) },
+    entityLink: { upsert: vi.fn((op) => ({ kind: 'link', op })) },
+    $transaction: vi.fn(async (items: any[]) => { ops.push(...items); }),
+  };
+  return { prisma, ops };
+}
+
+const linkKindsOf = (ops: any[]) => ops.filter(o => o.kind === 'link').map(o => o.op.create?.linkKind);
+
+describe('阶段 D / D1.1a 主链路实体 sync', () => {
+  it('syncQuotationReferences：quotedFor + convertedToOrder', async () => {
+    const { syncQuotationReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncQuotationReferences(prisma as any, {
+      id: 'QT-1', quotationNumber: 'QT-20260807-001',
+      customerRelationId: 'REL-CUST', customerName: 'ACME',
+      convertedOrderId: 'ORD-1',
+    }, { source: 'api:quotation', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['quotedFor', 'convertedToOrder']);
+    const ref = ops.find(o => o.kind === 'reference' && o.op.create?.fieldKey === 'customerRelationId');
+    expect(ref.op.create).toEqual(expect.objectContaining({
+      ownerType: 'quotation', ownerId: 'QT-1',
+      targetType: 'relation.organization', targetId: 'REL-CUST',
+      source: 'api:quotation', status: 'active',
+    }));
+    expect(ref.op.create.snapshot).toEqual(expect.objectContaining({ quotationNumber: 'QT-20260807-001' }));
+  });
+
+  it('syncQuotationReferences：无 FK 时不产生任何 ops', async () => {
+    const { syncQuotationReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncQuotationReferences(prisma as any, {
+      id: 'QT-2', quotationNumber: 'QT-20260807-002',
+      customerRelationId: null, convertedOrderId: null,
+    }, { source: 'api:quotation' });
+
+    expect(ops).toHaveLength(0);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('syncBomReferences：forOrder / aboutProduct / fromQuotation', async () => {
+    const { syncBomReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncBomReferences(prisma as any, {
+      id: 'BOM-1', bomNumber: 'BOM-001', description: '夹克 BOM',
+      orderId: 'ORD-1', productAssetId: 'PROD-1', quotationId: 'QT-1',
+    }, { source: 'api:bom', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['forOrder', 'aboutProduct', 'fromQuotation']);
+    const productLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'aboutProduct');
+    expect(productLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'bom', fromId: 'BOM-1', toType: 'product', toId: 'PROD-1',
+    }));
+  });
+
+  it('syncPurchaseOrderReferences：purchasedFrom / forOrder / fromBom / fromQuotation', async () => {
+    const { syncPurchaseOrderReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncPurchaseOrderReferences(prisma as any, {
+      id: 'PO-1', poNumber: 'PO-001', supplierName: 'Panda Mill',
+      supplierRelationId: 'REL-MILL', orderId: 'ORD-1', bomId: 'BOM-1', quotationId: 'QT-1',
+    }, { source: 'api:procurement', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['purchasedFrom', 'forOrder', 'fromBom', 'fromQuotation']);
+    const supplierRef = ops.find(o => o.kind === 'reference' && o.op.create?.fieldKey === 'supplierRelationId');
+    expect(supplierRef.op.create.snapshot).toEqual(expect.objectContaining({ poNumber: 'PO-001' }));
+  });
+
+  it('syncCustomsDeclarationReferences：clearsShipment / aboutOrder / declaredFor', async () => {
+    const { syncCustomsDeclarationReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncCustomsDeclarationReferences(prisma as any, {
+      id: 'CD-1', declarationNumber: 'DEC-001',
+      shipmentId: 'SHP-1', orderId: 'ORD-1', relationId: 'REL-CUST',
+    }, { source: 'api:customs', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['clearsShipment', 'aboutOrder', 'declaredFor']);
+    const shipLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'clearsShipment');
+    expect(shipLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'customsDeclaration', fromId: 'CD-1', toType: 'shipment', toId: 'SHP-1',
+    }));
+  });
+
+  it('syncTaxRefundReferences：refundsDeclaration / aboutOrder / refundTo', async () => {
+    const { syncTaxRefundReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncTaxRefundReferences(prisma as any, {
+      id: 'TR-1', refundNumber: 'TR-001',
+      declarationId: 'CD-1', orderId: 'ORD-1', relationId: 'REL-CUST',
+    }, { source: 'api:customs', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['refundsDeclaration', 'aboutOrder', 'refundTo']);
+    const declLink = ops.find(o => o.kind === 'link' && o.op.create?.linkKind === 'refundsDeclaration');
+    expect(declLink.op.create).toEqual(expect.objectContaining({
+      fromType: 'taxRefund', fromId: 'TR-1', toType: 'customsDeclaration', toId: 'CD-1',
+    }));
+  });
+
+  it('syncOpportunityReferences：opportunityFor + convertedToOrder（orderId 成交后）', async () => {
+    const { syncOpportunityReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncOpportunityReferences(prisma as any, {
+      id: 'OPP-1', title: '2026 春季夹克', stage: 'ClosedWon',
+      relationId: 'REL-CUST', orderId: 'ORD-1',
+    }, { source: 'api:crm', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['opportunityFor', 'convertedToOrder']);
+    const ref = ops.find(o => o.kind === 'reference' && o.op.create?.fieldKey === 'relationId');
+    expect(ref.op.create.snapshot).toEqual(expect.objectContaining({ stage: 'ClosedWon' }));
+  });
+
+  it('tx 模式：传入事务上下文时不走 prisma.$transaction，逐个 await', async () => {
+    const { syncQuotationReferences } = await import('../sync');
+    const { prisma } = makeSyncPrisma();
+    const txOps: any[] = [];
+    const tx = {
+      entityReference: { upsert: vi.fn((op) => { txOps.push({ kind: 'reference', op }); return Promise.resolve({}); }) },
+      entityLink: { upsert: vi.fn((op) => { txOps.push({ kind: 'link', op }); return Promise.resolve({}); }) },
+    };
+
+    await syncQuotationReferences(prisma as any, {
+      id: 'QT-3', quotationNumber: 'QT-20260807-003',
+      customerRelationId: 'REL-CUST', customerName: 'ACME',
+    }, { source: 'api:quotation', now: () => 1234 }, tx);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.entityReference.upsert).toHaveBeenCalledTimes(1);
+    expect(tx.entityLink.upsert).toHaveBeenCalledTimes(1);
+    expect(linkKindsOf(txOps)).toEqual(['quotedFor']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 阶段 D / D2：ProductAsset ↔ Relation sync
+// ---------------------------------------------------------------------------
+
+describe('阶段 D / D2 产品档案 Relation sync', () => {
+  it('syncProductAssetReferences：面料 mill → suppliedBy', async () => {
+    const { syncProductAssetReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncProductAssetReferences(prisma as any, {
+      id: 'PROD-F1', name: '精纺羊毛面料', sku: 'FAB-001',
+      fabricProfile: { millOrganizationId: 'REL-MILL', millName: 'Panda Mill' },
+    }, { source: 'api:products', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['suppliedBy']);
+    const ref = ops.find(o => o.kind === 'reference');
+    expect(ref.op.create).toEqual(expect.objectContaining({
+      ownerType: 'product', ownerId: 'PROD-F1',
+      fieldKey: 'fabricProfile.millOrganizationId',
+      targetType: 'relation.organization', targetId: 'REL-MILL',
+    }));
+    expect(ref.op.create.snapshot).toEqual(expect.objectContaining({ millName: 'Panda Mill', mainCategory: 'Fabric' }));
+  });
+
+  it('syncProductAssetReferences：成衣 customer/factory → producedFor / manufacturedBy', async () => {
+    const { syncProductAssetReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncProductAssetReferences(prisma as any, {
+      id: 'PROD-G1', name: '西装夹克', sku: 'GAR-001',
+      garmentProfile: {
+        customer: 'ACME', customerRelationId: 'REL-CUST',
+        factory: 'Panda Garment', factoryRelationId: 'REL-FACT',
+      },
+    }, { source: 'api:products', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['producedFor', 'manufacturedBy']);
+  });
+
+  it('syncProductAssetReferences：辅料 supplier → suppliedBy；无 FK 时不产生 ops', async () => {
+    const { syncProductAssetReferences } = await import('../sync');
+    const { prisma, ops } = makeSyncPrisma();
+
+    await syncProductAssetReferences(prisma as any, {
+      id: 'PROD-T1', name: 'YKK 拉链', sku: 'TRM-001',
+      trimmingProfile: { supplier: 'YKK 中国', supplierRelationId: 'REL-SUP' },
+    }, { source: 'api:products', now: () => 1234 });
+
+    expect(linkKindsOf(ops)).toEqual(['suppliedBy']);
+    const link = ops.find(o => o.kind === 'link');
+    expect(link.op.create).toEqual(expect.objectContaining({
+      fromType: 'product', fromId: 'PROD-T1', toType: 'relation.organization', toId: 'REL-SUP',
+    }));
+
+    // 纯文本（无 FK）不入图
+    const { prisma: prisma2, ops: ops2 } = makeSyncPrisma();
+    await syncProductAssetReferences(prisma2 as any, {
+      id: 'PROD-T2', name: '无 FK 辅料', sku: 'TRM-002',
+      trimmingProfile: { supplier: '某供应商' },
+    }, { source: 'api:products' });
+    expect(ops2).toHaveLength(0);
+    expect(prisma2.$transaction).not.toHaveBeenCalled();
+  });
+});

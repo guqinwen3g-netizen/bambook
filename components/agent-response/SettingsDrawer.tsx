@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Wrench, X, Bot, Cat, ChevronRight, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
+import { Settings, Wrench, X, ChevronRight, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import {
   type AgentToolCatalog,
   type AgentToolManifestEntry,
@@ -12,10 +12,8 @@ import { riskPillClass } from './agentResponseTone';
 // ─────────────────────────────────────────────────────────────────────────────
 // 左栏底部设置抽屉
 // ─────────────────────────────────────────────────────────────────────────────
-// 从左栏中移出的所有设置类内容：
+// 从左栏中移出的设置类内容：
 // 1. 工具目录（原 AgentToolCatalogRail）
-// 2. Agent 设置（占位）
-// 3. Pet 悬浮窗开关
 // 设计：左栏底部齿轮按钮 → 从左侧滑出覆盖抽屉
 
 type SettingsDrawerProps = {
@@ -120,17 +118,10 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onRetryCatalog,
   isDarkMode,
 }) => {
-  const [activeSection, setActiveSection] = useState<'tools' | 'agent' | 'pet'>('tools');
   const bodyBg = isDarkMode ? 'bg-slate-950' : 'bg-white';
   const mainText = isDarkMode ? 'text-white/85' : 'text-slate-800';
   const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
   const surfaceClass = isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/70';
-
-  const sections = [
-    { key: 'tools' as const, icon: Wrench, label: '工具目录' },
-    { key: 'agent' as const, icon: Bot, label: 'Agent 设置' },
-    { key: 'pet' as const, icon: Cat, label: '悬浮宠物' },
-  ];
 
   return (
     <AnimatePresence>
@@ -169,57 +160,15 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </button>
             </div>
 
-            {/* 左侧 tab 列表 + 右侧内容 */}
-            <div className="flex-1 flex min-h-0">
-              {/* Tab 列表 */}
-              <div className={`w-[88px] shrink-0 border-r ${surfaceClass} py-3 space-y-0.5`}>
-                {sections.map(sec => {
-                  const Icon = sec.icon;
-                  const active = activeSection === sec.key;
-                  return (
-                    <button
-                      key={sec.key}
-                      type="button"
-                      onClick={() => setActiveSection(sec.key)}
-                      className={`w-full flex flex-col items-center gap-1 py-2 px-1 text-[10px] font-light transition-colors ${
-                        active
-                          ? (isDarkMode ? 'bg-white/[0.06] text-white/90' : 'bg-slate-100 text-slate-900')
-                          : (isDarkMode ? 'text-white/40 hover:bg-white/[0.03]' : 'text-slate-500 hover:bg-slate-50')
-                      }`}
-                    >
-                      <Icon size={16} strokeWidth={1.4} />
-                      <span>{sec.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* 内容区 */}
-              <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar px-3 py-3">
-                {activeSection === 'tools' && (
-                  <ToolCatalogSection
-                    catalog={catalog}
-                    status={catalogStatus}
-                    error={catalogError}
-                    onRetry={onRetryCatalog}
-                    isDarkMode={isDarkMode}
-                  />
-                )}
-                {activeSection === 'agent' && (
-                  <div className={`text-[12px] font-light leading-5 ${quietText} py-4`}>
-                    <div className={`text-[13px] font-light ${mainText} mb-3`}>Agent 配置</div>
-                    <p>Agent 运行时参数配置即将上线。</p>
-                    <p className="mt-2">当前 Agent 使用规则化 planner 路径，manifest schemaVersion <span className="font-mono text-[11px]">2026-06-runtime-2.0</span>。</p>
-                  </div>
-                )}
-                {activeSection === 'pet' && (
-                  <div className={`text-[12px] font-light leading-5 ${quietText} py-4`}>
-                    <div className={`text-[13px] font-light ${mainText} mb-3`}>悬浮宠物</div>
-                    <p>桌面悬浮宠物窗口的开关和外观配置即将上线。</p>
-                    <p className="mt-2">当前宠物在 Agent 工作时自动显示执行状态。</p>
-                  </div>
-                )}
-              </div>
+            {/* 内容区：工具目录（当前唯一设置内容，无 tab 栏） */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 py-3">
+              <ToolCatalogSection
+                catalog={catalog}
+                status={catalogStatus}
+                error={catalogError}
+                onRetry={onRetryCatalog}
+                isDarkMode={isDarkMode}
+              />
             </div>
           </motion.div>
         </>

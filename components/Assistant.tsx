@@ -12,7 +12,7 @@ import {
   Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
   Archive, Check, Copy, Maximize2, Mic, Minimize2, Pencil, Trash2, X,
   ChevronDown, ChevronRight,
-  Sparkles, Languages, BarChart3, Mail, ShoppingBag, Settings
+  Languages, BarChart3, Mail, ShoppingBag, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -343,17 +343,9 @@ const Assistant: React.FC<AssistantProps> = ({
   const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
   const [copiedMessageKey, setCopiedMessageKey] = useState<string | number | null>(null);
   const [activeAgentId, setActiveAgentId] = useState('default');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   useEffect(() => {
     saveSessionsCache(sessions);
   }, [sessions]);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 2500);
-  };
 
   const selectAgent = (agentId: string) => {
     setActiveAgentId(agentId);
@@ -2273,16 +2265,6 @@ const Assistant: React.FC<AssistantProps> = ({
                               </button>
                             );
                           })}
-                          <div className="pt-1 px-0.5">
-                            <button
-                              type="button"
-                              onClick={() => showToast('Agent 功能商店即将上线，敬请期待！')}
-                              className={`w-full h-8 shrink-0 rounded-full border border-dashed flex items-center justify-center gap-1.5 text-[11px] font-light transition-all no-drag ${actionControlClass}`}
-                            >
-                              <Plus size={12} strokeWidth={1.5} className="shrink-0" />
-                              <span>添加 Agent 功能</span>
-                            </button>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -3196,23 +3178,6 @@ const Assistant: React.FC<AssistantProps> = ({
         </div>
         </div>
       </motion.div>
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 15, scale: 0.95 }}
-            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 rounded-full shadow-none border text-xs font-light flex items-center gap-2 ${
-              isDarkMode 
-                ? 'bg-slate-900/90 border-slate-700/50 text-white' 
-                : 'bg-white/95 border-slate-200 text-slate-800'
-            }`}
-          >
-            <Sparkles size={13} className="text-os-adaptive-brand animate-pulse" />
-            <span>{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 

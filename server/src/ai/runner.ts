@@ -205,6 +205,25 @@ export const AGENT_LOOP_TOOL_DESCRIPTORS: ToolDescriptor[] = [
   { id: 'template.render_pdf', name: 'Render Template to PDF', scope: 'templates', risk: 'low',
     description: '按模板名 + 参数渲染 PDF 输出。',
     inputHint: '{ templateName: string, params?: object }' },
+  // ── C3 高频外贸场景只读工具 ──
+  { id: 'quotations.query', name: 'Query Quotations', scope: 'quotations', risk: 'low',
+    description: '检索报价单列表（智能报价的历史报价回溯）。状态/客户/日期过滤走 filters，报价单号/品名/客户名短文本走 query。',
+    inputHint: '{ filters?: { status?: string, customerRelationId?: string, dateFrom?: string, dateTo?: string }, query?: string /* 短文本，不塞整句 */, limit?: number, offset?: number }' },
+  { id: 'quotations.get', name: 'Get Quotation', scope: 'quotations', risk: 'low',
+    description: '按 id 或报价单号读取报价单详情（含行明细与价格条款）。',
+    inputHint: '{ id?: string, quotationNumber?: string }' },
+  { id: 'finance.get_aging', name: 'Get AR/AP Aging Report', scope: 'finance', risk: 'low',
+    description: '应收/应付账龄报告：分币种合计 + 按客户五档账龄，行按逾期金额降序。客户风险预警的核心数据。',
+    inputHint: '{ type?: "Receivable"|"Payable" /* 默认 Receivable */, asOf?: string /* YYYY-MM-DD */, rowLimit?: number }' },
+  { id: 'customs.query_lc', name: 'Query Letters of Credit', scope: 'customs', risk: 'low',
+    description: '检索信用证列表。状态/客户/开证行过滤走 filters；expiringBefore 查将到期；信用证号/申请人短文本走 query。LC 审单的数据入口。',
+    inputHint: '{ filters?: { status?: string, customerRelationId?: string, issuingBank?: string, expiringBefore?: string /* YYYY-MM-DD */ }, query?: string, limit?: number }' },
+  { id: 'customs.get_lc', name: 'Get Letter of Credit', scope: 'customs', risk: 'low',
+    description: '按 id 或信用证号读取信用证详情（金额/效期/最迟装运日/单证条款），供逐条审单核对。',
+    inputHint: '{ id?: string, lcNumber?: string }' },
+  { id: 'shipping.scan_delays', name: 'Scan Delayed Shipments', scope: 'shipping', risk: 'low',
+    description: '实时扫描出运延误：ETD 已过未离港 / ETA 已过未到港，返回延误天数与 warning/critical 分级。跟单提醒场景首选。',
+    inputHint: '{ asOf?: string /* YYYY-MM-DD，默认今天 */, limit?: number }' },
 ];
 
 export function createMacMiniChatRunner(options: RunnerOptions) {

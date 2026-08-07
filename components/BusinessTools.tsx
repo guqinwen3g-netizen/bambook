@@ -11,7 +11,9 @@ import {
   Lock,
   LucideIcon,
   Ship,
-  Upload
+  Upload,
+  Layers,
+  Cog
 } from 'lucide-react';
 import FabricSampleInvoiceGenerator from './tools/FabricSampleInvoiceGenerator';
 import ShippingNoticeGenerator from './tools/ShippingNoticeGenerator';
@@ -19,6 +21,7 @@ import ExchangeRateTool from './tools/ExchangeRateTool';
 import QuoteCalculator from './tools/QuoteCalculator';
 import PackingListGenerator from './tools/PackingListGenerator';
 import ContractGenerator from './tools/ContractGenerator';
+import ShipmentDocumentGenerator from './tools/ShipmentDocumentGenerator';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -33,7 +36,7 @@ import {
   SIDEBAR_HOVER_DARK_CLASS,
   SIDEBAR_HOVER_LIGHT_CLASS
 } from './ui/osCompiler/compiledSidebarTemplates';
-import { Relation, Order } from '../types';
+import { Relation, Order, View } from '../types';
 
 interface Tool {
   id: string;
@@ -42,15 +45,18 @@ interface Tool {
   icon: LucideIcon;
   status: 'available' | 'coming-soon';
   component?: React.ReactNode;
+  /** 设置了 targetView 的卡片点击后跳转对应视图（而非打开内嵌面板） */
+  targetView?: View;
 }
 
 interface BusinessToolsProps {
   isDarkMode: boolean;
   relations?: Relation[];
   orders?: Order[];
+  onNavigate?: (view: View) => void;
 }
 
-const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [], orders = [] }) => {
+const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [], orders = [], onNavigate }) => {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const toolsScrollRef = useRef<HTMLDivElement>(null);
   const toolContentScrollRef = useRef<HTMLDivElement>(null);
@@ -59,9 +65,18 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
     {
       id: 'po-import',
       name: 'PO 文件导入',
-      description: '请使用订单管理页的导入向导',
+      description: '跳转订单管理页，使用 PO 导入向导',
       icon: Upload,
-      status: 'coming-soon',
+      status: 'available',
+      targetView: View.Orders,
+    },
+    {
+      id: 'mes-console',
+      name: '生产执行 MES',
+      description: '工位排产 · 工时 · 计件 · 外协加工（可选模块，非核心流程）',
+      icon: Cog,
+      status: 'available',
+      targetView: View.MES,
     },
     {
       id: 'sample-invoice',
@@ -96,6 +111,14 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       component: <PackingListGenerator isDarkMode={isDarkMode} relations={relations} orders={orders} />
     },
     {
+      id: 'shipment-documents',
+      name: '出运制单引擎',
+      description: '运单一键生成 CI/PL/CO/BL 成套单据',
+      icon: Layers,
+      status: 'available',
+      component: <ShipmentDocumentGenerator isDarkMode={isDarkMode} />
+    },
+    {
       id: 'quote-calculator',
       name: '报价计算器',
       description: '成本测算 · 利润分析 · FOB/CIF 报价',
@@ -114,6 +137,10 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
   ];
 
   const handleToolClick = (tool: Tool) => {
+    if (tool.targetView) {
+      onNavigate?.(tool.targetView);
+      return;
+    }
     if (tool.status === 'available') {
       setSelectedTool(tool.id);
     }

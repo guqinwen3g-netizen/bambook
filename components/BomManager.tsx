@@ -43,6 +43,7 @@ import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
 const MATERIAL_TYPES: Array<{ id: MaterialType; label: string; semantic: StatusSemantic }> = [
@@ -500,6 +501,14 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                 </button>
                               )}
                             </div>
+
+                            {/* 跨模块关联视图（EntityLink 图谱）— 所属订单/关联产品/来源报价 */}
+                            <RelatedEntitiesPanel
+                              type="bom"
+                              id={bom.id}
+                              isDarkMode={isDarkMode}
+                              title="BOM 关联视图"
+                            />
                           </div>
                         </motion.div>
                       )}

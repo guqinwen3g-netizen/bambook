@@ -124,6 +124,17 @@ function makeMockPrisma(): any {
 
 const baseOpts = { prisma: makeMockPrisma(), requireAuth: true, apiKeys };
 
+/**
+ * 全量套件并发下曾观察到偶发失败但日志缺失实际状态码。
+ * 统一断言助手：失败时携带实际 status + body，便于根因定位（非特例补丁，全文件复用）。
+ */
+function expectStatus(res: request.Response, status: number, label: string) {
+  expect(
+    res.status,
+    `${label} → expected ${status}, got ${res.status}; body=${JSON.stringify(res.body)}`,
+  ).toBe(status);
+}
+
 // ══════════════════════════════════════════════════════════════
 // 攻击向量 1-3：伪造 token / 无 token / 过期 token → 401
 // 重点验证 products 模块（原 requireWrite 不验签漏洞的修复）
@@ -247,7 +258,7 @@ describe('Security · API-Key 越权写 → 401', () => {
     const res = await request(app)
       .delete('/test/wallpaper-1')
       .set('x-bambook-api-key', validApiKey);
-    expect(res.status).toBe(401);
+    expectStatus(res, 401, 'system-assets DELETE /:id API-Key');
   });
 });
 

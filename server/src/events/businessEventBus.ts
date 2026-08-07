@@ -69,7 +69,17 @@ export type BusinessEventType =
   | 'StockLowAlarm'
   | 'StockOverstockAlarm'
   | 'BOMConfirmed'
-  | 'BOMCostCalculated';
+  | 'BOMCostCalculated'
+  | 'CreditLimitExceeded'
+  | 'FollowUpOverdue'
+  | 'OpportunityStageChanged'
+  | 'OpportunityClosedWon'
+  | 'OpportunityClosedLost'
+  | 'CustomerTierAssigned'
+  | 'CustomsDeclarationCreated'
+  | 'CustomsDeclarationStatusChanged'
+  | 'CustomsCleared'
+  | 'TaxRefundCompleted';
 
 export interface BusinessEvent<T extends Record<string, unknown> = Record<string, unknown>> {
   /** 事件唯一 ID，用于幂等持久化与重放去重 */

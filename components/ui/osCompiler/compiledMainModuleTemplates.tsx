@@ -13,6 +13,9 @@ export type CompiledMainModuleId =
   | 'procurement'
   | 'inventory'
   | 'bom'
+  | 'crm'
+  | 'mes'
+  | 'customs'
   | 'shipments'
   | 'emails'
   | 'business-tools'
@@ -43,6 +46,9 @@ const MAIN_MODULE_SOURCE_BY_ID: Record<CompiledMainModuleId, CompiledMainModuleB
   procurement: 'ProcurementManager.main-app.compiler-slot',
   inventory: 'InventoryManager.main-app.compiler-slot',
   bom: 'BomManager.main-app.compiler-slot',
+  crm: 'CrmManager.main-app.compiler-slot',
+  mes: 'MesManager.main-app.compiler-slot',
+  customs: 'CustomsManager.main-app.compiler-slot',
   shipments: 'ShipmentManager.main-app.compiler-slot',
   emails: 'EmailManager.main-app.compiler-slot',
   'business-tools': 'BusinessTools.main-app.compiler-slot',

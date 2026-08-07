@@ -22,6 +22,7 @@ import type {
   SampleType,
 } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import { SampleNodesPanel } from './development/SampleNodesPanel';
 
 interface DevelopmentManagerProps {
   isDarkMode: boolean;
@@ -555,6 +556,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     <div className={cx('rounded-inset border', BAMBOOK_OS.spacing.nestedPanelPadding, isDarkMode ? 'border-[var(--os-vnext-brand-blue-soft)]/12 bg-[var(--os-vnext-brand-blue)]/[0.045]' : 'border-[var(--os-vnext-brand-blue)]/16 bg-[var(--os-vnext-brand-blue)]/[0.045]')}>
                       <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>下一动作</div>
                       <div className={cx('mt-2 text-sm font-light leading-snug', textPrimaryClass)}>{selectedCase.nextAction}</div>
+                    </div>
+                    <div className="mt-4">
+                      <SampleNodesPanel key={selectedCase.id} caseId={selectedCase.id} isDarkMode={isDarkMode} />
                     </div>
                     {selectedCase.stage === 'approved' && !selectedCase.linkedOrderId && (
                       <button

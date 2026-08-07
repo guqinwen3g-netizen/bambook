@@ -16,6 +16,8 @@
  *   L6: OrderConfirmed        → createBOMDraft         （从模板复制 BOM 草稿）
  *   L7: BOMConfirmed          → createProcurement     （生成采购需求草稿）
  *   L8: MaterialReceived      → autoStockIn           （采购来料自动入库）
+ *   L9: QuotationAccepted     → convertToOrderDraft   （报价接受自动转订单草稿）
+ *   L10: CustomsCleared       → createTaxRefundDraft  （报关放行自动核算退税草稿）
  *
  * L4 (InvoiceIssued → payment todo) 由通知系统覆盖，无需独立联动。
  *
@@ -33,6 +35,8 @@ import { registerL5AutoAllocate } from './L5AutoAllocate';
 import { registerL6CreateBOMDraft } from './L6CreateBOMDraft';
 import { registerL7CreateProcurement } from './L7CreateProcurement';
 import { registerL8AutoStockIn } from './L8AutoStockIn';
+import { registerL9ConvertQuotationToOrder } from './L9ConvertQuotationToOrder';
+import { registerL10CreateTaxRefundDraft } from './L10CreateTaxRefundDraft';
 
 export function registerAllLinkages(): void {
   // registerLinkage 内部通过 linkageHandlers.has(key) 去重，
@@ -44,11 +48,14 @@ export function registerAllLinkages(): void {
   registerL6CreateBOMDraft();
   registerL7CreateProcurement();
   registerL8AutoStockIn();
+  registerL9ConvertQuotationToOrder();
+  registerL10CreateTaxRefundDraft();
 
   logger.info('[Linkages] linkage handlers registration attempted', {
     linkages: [
       'L1_init_production', 'L2_create_shipment', 'L3_issue_invoice', 'L5_auto_allocate',
-      'L6_create_bom_draft', 'L7_create_procurement', 'L8_auto_stock_in',
+      'L6_create_bom_draft', 'L7_create_procurement', 'L8_auto_stock_in', 'L9_convert_quotation_to_order',
+      'L10_create_tax_refund_draft',
     ],
   });
 }

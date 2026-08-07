@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { createProductAsset, updateProductAsset, deleteProductAsset } from './productAssetMutationService';
+import { syncProductAssetReferences } from '../entities/sync';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { logger } from '../lib/logger';
 
@@ -37,7 +38,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   const router = Router();
 
   const fabricProfileWritableKeys = [
-    'id', 'articleNo', 'millOrganizationId', 'millQuality', 'millColorCode',
+    'id', 'articleNo', 'millOrganizationId', 'millName', 'millQuality', 'millColorCode',
     'colorDescription', 'construction', 'yarnCount', 'pattern',
     'weightValue', 'weightUnit', 'widthValue', 'widthUnit', 'widthText',
     'productionLeadDays', 'referenceBatch', 'stockStatus',
@@ -47,6 +48,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
 
   const garmentProfileWritableKeys = [
     'id', 'styleNo', 'productName', 'garmentCategory', 'collection', 'customer',
+    'customerRelationId', 'factoryRelationId',
     'brand', 'project', 'gender', 'ageGroup', 'tags', 'silhouette', 'fit',
     'collarType', 'sleeveType', 'closureType', 'pocketDetails', 'hemDetails',
     'waistbandDetails', 'liningStructure', 'interlining', 'shoulderPad',
@@ -68,6 +70,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   const trimmingProfileWritableKeys = [
     'id', 'trimmingCode', 'trimmingName', 'trimmingCategory', 'material',
     'specification', 'size', 'color', 'colorCode', 'finish', 'supplier',
+    'supplierRelationId',
     'factory', 'brand', 'customer', 'applicableProducts', 'usagePosition',
     'unit', 'unitConsumption', 'moq', 'leadTime', 'stockStatus',
     'stockQuantity', 'stockUnit', 'price', 'currency', 'complianceTests',
@@ -399,10 +402,13 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
           await tx.trimmingProfile.create({ data: { id: String(trimmingProfileInput.id || `TRIM-${now}`), productAssetId: created.id, ...trimmingProfileInput, updatedAt: BigInt(now), deletedAt: null } });
         }
         await saveProductCollections(tx, created.id, body, now, false);
-        return tx.productAsset.findFirst({
+        const createdAsset = await tx.productAsset.findFirst({
           where: { id: created.id, deletedAt: null },
           include: productAssetInclude(),
         });
+        // 阶段 D / D2：产品↔Relation FK 入图（EntityLink），与档案写入同事务
+        await syncProductAssetReferences(opts.prisma, createdAsset, { source: 'api:products' }, tx);
+        return createdAsset;
       });
 
       opts.onDataChange?.({ entity: 'products', action: 'create', ids: [asset.id] });
@@ -445,7 +451,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
         if (body.fabricProfile && existing.fabricProfile) {
           const fp: Record<string, any> = { updatedAt: BigInt(now) };
           const fpKeys = [
-            'articleNo', 'millOrganizationId', 'millQuality', 'millColorCode',
+            'articleNo', 'millOrganizationId', 'millName', 'millQuality', 'millColorCode',
             'colorDescription', 'construction', 'yarnCount', 'pattern',
             'weightValue', 'weightUnit', 'widthValue', 'widthUnit', 'widthText',
             'productionLeadDays', 'referenceBatch', 'stockStatus',
@@ -534,10 +540,13 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
         if (!svcResult.ok) throw new Error(svcResult.error!.message);
 
         // 回传更新后的完整记录
-        return tx.productAsset.findFirst({
+        const refreshedAsset = await tx.productAsset.findFirst({
           where: { id: existing.id, deletedAt: null },
           include: productAssetInclude(),
         });
+        // 阶段 D / D2：产品↔Relation FK 入图（EntityLink），与档案写入同事务
+        await syncProductAssetReferences(opts.prisma, refreshedAsset, { source: 'api:products' }, tx);
+        return refreshedAsset;
       });
 
       opts.onDataChange?.({ entity: 'products', action: 'update', ids: [existing.id] });

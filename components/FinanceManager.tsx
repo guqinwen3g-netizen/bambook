@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { paymentVoucherService } from '../services/paymentVoucherService';
 import { invoiceService } from '../services/invoiceService';
 import { allocationService } from '../services/allocationService';
-import { CreditCard, FileText, Link2, Pencil, Plus, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { CreditCard, FileText, Link2, Pencil, Plus, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { RdlMetricCard, RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
+import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import type {
   Invoice as InvoiceEntity,
   InvoiceStatus,
@@ -19,7 +20,7 @@ import { PageHeader } from './ui/PageHeader';
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-type FinanceTabId = 'invoices' | 'vouchers';
+type FinanceTabId = 'invoices' | 'vouchers' | 'reports';
 
 type InvoiceTypeId = 'all' | InvoiceType;
 type InvoiceStatusId = 'all' | InvoiceStatus;
@@ -57,6 +58,7 @@ const voucherTypeLabel = (t: VoucherType) => (t === 'Receipt' ? '收款' : '付�
 const FINANCE_TABS: Array<{ id: FinanceTabId; label: string; icon: typeof FileText }> = [
   { id: 'invoices', label: '发票', icon: FileText },
   { id: 'vouchers', label: '收付款', icon: CreditCard },
+  { id: 'reports', label: '报表', icon: BarChart3 },
 ];
 
 const TABLE_GRID_CLASS =
@@ -600,6 +602,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   // ── Status quick-stats (shown at right of toolbar for the active tab) ───
   const statusStats = useMemo(() => {
+    if (activeTab === 'reports') return [];
     if (activeTab === 'invoices') {
       const paid = invoices.filter(i => i.status === 'Paid').length;
       const partiallyPaid = invoices.filter(i => i.status === 'PartiallyPaid').length;
@@ -1012,7 +1015,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       <PageHeader
         title="财务管理"
         subtitle="Invoices / Vouchers / Reconciliation"
-        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : 'Voucher Desk'}
+        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'reports' ? 'Finance Reports' : 'Voucher Desk'}
         isDarkMode={isDarkMode}
       />
 
@@ -1044,10 +1047,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               })}
             </RdlToolbar>
             <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
-              共 {activeList.length} {activeTab === 'invoices' ? '张发票' : '张凭证'}
+              {activeTab === 'reports'
+                ? '账龄 / 对账单 / 汇率损益'
+                : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : '张凭证'}`}
             </div>
           </div>
 
+          {/* 报表 tab：自包含面板（账龄 / 对账单 / 汇率损益） */}
+          {activeTab === 'reports' && (
+            <FinanceReportsPanel isDarkMode={isDarkMode} />
+          )}
+
+          {activeTab !== 'reports' && (
+          <>
           {/* Shared toolbar (chips adapt per tab) */}
           <RdlToolbar className="h-auto min-h-11 flex-wrap gap-x-2 gap-y-2">
               <RdlSearch
@@ -1129,6 +1141,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {renderSidePanel()}
             </RdlSurface>
           </div>
+          </>
+          )}
         </div>
       </main>
 

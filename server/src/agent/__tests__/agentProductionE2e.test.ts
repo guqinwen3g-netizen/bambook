@@ -51,7 +51,14 @@ function createMockPrisma(overrides: Record<string, unknown> = {}) {
       findUnique: vi.fn(async ({ where }: any) => _stageMap.get(where.orderId_stageKey?.stageKey) || null),
     },
     preCutChecklist: { findUnique: vi.fn().mockResolvedValue(overrides.checklist || null) },
-    inspectionReport: { findUnique: vi.fn().mockResolvedValue(overrides.inspection || null) },
+    inspectionReport: {
+      findUnique: vi.fn().mockResolvedValue(overrides.inspection || null),
+      // Phase B4：getProductionPipeline 改用 findMany 拉取全量（中期+终期）验货报告
+      findMany: vi.fn().mockResolvedValue(overrides.inspection ? [{ inspectionType: 'final', ...overrides.inspection as object }] : []),
+    },
+    // 阶段 D / D5：getProductionPipeline 外协只读区块（直接查表 + 供应商名解析）
+    outsourcingOrder: { findMany: vi.fn().mockResolvedValue([]) },
+    relation: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn(async (fn: any) => fn({
       order: { findFirst: vi.fn().mockResolvedValue(mockOrder(overrides.order as Record<string, unknown>)) },
       productionStage: {

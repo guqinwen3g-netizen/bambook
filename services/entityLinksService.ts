@@ -122,6 +122,26 @@ export const LINK_KIND_LABELS: Record<string, string> = {
   developFor: '开发客户',
   developBy: '开发供应商',
   aboutProduct: '关联产品',
+  sentBy: '往来邮件',
+  aboutOrder: '关联订单',
+  aboutInvoice: '发票邮件',
+  // ── 阶段 D / D1.1a：主链路实体图谱补缺 ──
+  quotedFor: '报价客户',
+  convertedToOrder: '转化订单',
+  forOrder: '所属订单',
+  fromQuotation: '来源报价',
+  purchasedFrom: '采购供应商',
+  fromBom: '来源 BOM',
+  clearsShipment: '清关出运',
+  declaredFor: '报关客户',
+  refundsDeclaration: '退税报关单',
+  refundTo: '退税客户',
+  opportunityFor: '商机客户',
+  // 阶段 D / D2：产品↔Relation FK 图谱
+  producedFor: '所属客户',
+  manufacturedBy: '生产工厂',
+  // 阶段 D / D5：外协图谱
+  outsourcedTo: '外协加工厂',
 };
 
 export function labelForLinkKind(kind: string): string {
