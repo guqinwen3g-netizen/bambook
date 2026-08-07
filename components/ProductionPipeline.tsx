@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { productionService } from '../services/productionService';
+import type { OutsourcingProgress } from '../services/productionService';
 
 const cx = (...args: any[]) => args.filter(Boolean).join(' ');
 
@@ -16,6 +17,17 @@ const STAGE_LABELS: Record<string, string> = {
   manufacturing: '生产过程',
   final_review: '成品确认',
   qc_shipped: '验货发货',
+};
+
+// 阶段 D / D5：外协工序与状态标签（真源 mes OutsourcingOrder，此处只读）
+const PROCESS_TYPE_LABELS: Record<string, string> = {
+  Sewing: '缝制', Cutting: '裁剪', Washing: '水洗', Printing: '印花',
+  Embroidery: '绣花', Dyeing: '染色', Other: '其他',
+};
+
+const OUTSOURCING_STATUS_LABELS: Record<string, string> = {
+  Draft: '草稿', Sent: '已发出', Confirmed: '已确认',
+  InProduction: '生产中', Received: '已到货', Cancelled: '已取消',
 };
 
 interface PipelineStage {
@@ -71,6 +83,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [checklist, setChecklist] = useState<PreCutChecklist | null>(null);
   const [inspections, setInspections] = useState<InspectionReport[]>([]);
+  const [outsourcing, setOutsourcing] = useState<OutsourcingProgress[]>([]);
   const [inspType, setInspType] = useState<'final' | 'midline'>('final');
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState<string | null>(null);
@@ -88,6 +101,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
       setStages(data.stages);
       setChecklist(data.checklist);
       setInspections(data.inspections && data.inspections.length > 0 ? data.inspections : (data.inspection ? [data.inspection] : []));
+      setOutsourcing(data.outsourcing ?? []);
     } catch { /* ignore */ }
     setLoading(false);
   }, [orderId]);
@@ -189,6 +203,48 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
             );
           })}
         </div>
+      </div>
+
+      {/* 阶段 D / D5：外协加工进度（只读，真源 OutsourcingOrder；管理入口在 MES 可选模块） */}
+      <div className={cx('rounded-inset border p-4', surfaceClass)}>
+        <div className={cx('mb-3 text-[10px] font-light uppercase tracking-widest', textSecondary)}>外协加工进度</div>
+        {outsourcing.length === 0 ? (
+          <p className={cx('text-xs font-light', textSecondary)}>无外协加工</p>
+        ) : (
+          <div className="space-y-2">
+            {outsourcing.map(o => {
+              const accepted = o.qualityAcceptedQty ?? 0;
+              const rejected = o.qualityRejectedQty ?? 0;
+              const inspected = accepted + rejected > 0;
+              return (
+                <div key={o.id} className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <span className={cx('text-xs font-light truncate', textPrimary)}>
+                      {o.orderNumber} · {o.supplierName || '未指定加工厂'} · {PROCESS_TYPE_LABELS[o.processType] || o.processType}
+                    </span>
+                    <div className={cx('mt-0.5 text-[10px] font-light', textSecondary)}>
+                      {o.quantity} {o.unit}
+                      {inspected && ` · 验收 合格${accepted} / 不合格${rejected}`}
+                      {o.actualDeliveryDate
+                        ? ` · 实到 ${o.actualDeliveryDate}`
+                        : o.plannedDeliveryDate ? ` · 计划 ${o.plannedDeliveryDate}` : ''}
+                    </div>
+                  </div>
+                  <span className={cx(
+                    'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-light',
+                    o.status === 'Received'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+                      : o.status === 'Cancelled'
+                        ? isDarkMode ? 'border-white/10 text-white/35' : 'border-slate-200 text-slate-400'
+                        : isDarkMode ? 'border-white/10 text-white/60' : 'border-slate-200 text-slate-600',
+                  )}>
+                    {OUTSOURCING_STATUS_LABELS[o.status] || o.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* PP Sample Dual Sign */}

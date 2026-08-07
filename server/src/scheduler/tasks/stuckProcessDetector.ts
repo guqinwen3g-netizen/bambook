@@ -4,13 +4,16 @@
  * 每小时扫描以下卡滞场景，创建 warning 级别通知：
  *   1. 订单确认后 >7 天仍未进入生产（updatedAt 超过 7 天）
  *   2. 发货单创建后 >3 天仍为 Draft（未订舱）
- *   3. 发票开具后 >30 天仍未收款（Issued/PartiallyPaid 且已过到期日）
- *   4. 收款凭证登记后 >2 天未核销（unreconciled）
+ *   3. 收款凭证登记后 >2 天未核销（unreconciled）
  *
  * 每个卡滞实体每天只发一次通知（通过通知 metadata.stuckKey 去重）
  *
  * 注意：Order/Shipment/Invoice/PaymentVoucher 的 createdAt/updatedAt 是 BigInt（Unix 毫秒），
  * 时间比较用 number，格式化时用 new Date(Number(value))。
+ *
+ * 历史变更（阶段 E / E1）：原第 3 段「发票 >30 天未收款」已移除，
+ * 由 receivableOverdueDetector 取代——旧段注释声称判 dueDate，实现却只判
+ * issueDate > 30 天（Net 60 误报 / Net 7 漏报），口径修正为到期日分级预警。
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -20,7 +23,6 @@ import { logger } from '../../lib/logger';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 const BATCH_LIMIT = 20;
 
@@ -109,37 +111,7 @@ export function createStuckProcessDetectorTask(): ScheduledTask {
           stuckCount++;
         }
 
-        // 3. 发票 >30 天未收款（已过到期日）
-        const thirtyDaysAgo = new Date(now - THIRTY_DAYS_MS).toISOString().slice(0, 10);
-        const stuckInvoices = await prisma.invoice.findMany({
-          where: {
-            status: { in: ['Issued', 'PartiallyPaid'] },
-            issueDate: { lt: thirtyDaysAgo },
-            deletedAt: null,
-          },
-          select: { id: true, invoiceNumber: true, amount: true, currency: true, orderId: true, issueDate: true },
-          take: BATCH_LIMIT,
-        });
-        for (const inv of stuckInvoices) {
-          const stuckKey = `stuck:invoice:${inv.id}:${today}`;
-          const existing = await prisma.notification.findFirst({
-            where: { type: 'stuck_invoice', metadata: { path: ['stuckKey'], equals: stuckKey } },
-            select: { id: true },
-          });
-          if (existing) continue;
-
-          await notificationService.broadcastNotification({
-            type: 'stuck_invoice',
-            title: `发票 ${inv.invoiceNumber} 逾期未收款`,
-            body: `发票 ${inv.invoiceNumber}（金额 ${inv.amount} ${inv.currency}）开具于 ${inv.issueDate}，已超过 30 天未收清。`,
-            level: 'critical',
-            link: `/finance?tab=invoices&id=${inv.id}`,
-            metadata: { stuckKey, entityType: 'Invoice', entityId: inv.id, orderId: inv.orderId },
-          });
-          stuckCount++;
-        }
-
-        // 4. 收款凭证 >2 天未核销
+        // 3. 收款凭证 >2 天未核销
         const voucherCutoff = now - TWO_DAYS_MS;
         const stuckVouchers = await prisma.paymentVoucher.findMany({
           where: {

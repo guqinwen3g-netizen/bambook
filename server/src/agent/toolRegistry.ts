@@ -591,6 +591,57 @@ export const P0B_TOOL_DEFINITIONS: ToolDefinition[] = [
     approvalPolicy: 'always',
     processSpec: { composedOf: ['product_asset.delete'], draftPhase: { produces: 'ProcessDraft' }, approvalPhase: { consumes: 'ProcessDraft', approvalCard: { changeList: true, irreversibleMarkers: true, impactScope: true } }, commitTransaction: { consumes: 'ProcessDraft', wrapper: 'prisma_transaction' }, postCommitHooks: [], partialFailurePolicy: { draftFail: 'abort_no_approval', transactionFail: 'rollback', postCommitFail: 'queue_retry' } },
   },
+  {
+    // task E3: development.create draft→approval→commit flow（给 XX 客户下样品单）
+    id: 'development.create',
+    name: 'Development Case Create (Flow API)',
+    scope: 'development',
+    risk: 'high',
+    description: '开发单/样品单创建复合流程：draft 引用 code/name/type + 客户归属，审批后 commit 调用共用 createDevelopmentCase service（$transaction + EntityLink sync + AuditLog 闭环），不绕 route，不手写 DB mutation。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string' },
+        name: { type: 'string' },
+        type: { type: 'string', enum: ['fabric', 'garment', 'pp', 'trim'] },
+        customerRelationId: { type: 'string' },
+        customerName: { type: 'string' },
+        supplierName: { type: 'string' },
+        sampleType: { type: 'string' },
+        sampleQuantity: { type: 'number' },
+        sampleUnit: { type: 'string' },
+        targetDate: { type: 'string' },
+        nextAction: { type: 'string' },
+        priority: { type: 'string' },
+        notes: { type: 'string' },
+      },
+      required: ['code', 'name', 'type'],
+    },
+    outputSchema: { type: 'object', properties: { processDraft: { type: 'object' }, committed: { type: 'boolean' } } },
+    approvalPolicy: 'always',
+    processSpec: { composedOf: ['development.create'], draftPhase: { produces: 'ProcessDraft' }, approvalPhase: { consumes: 'ProcessDraft', approvalCard: { changeList: true, irreversibleMarkers: true, impactScope: true } }, commitTransaction: { consumes: 'ProcessDraft', wrapper: 'prisma_transaction' }, postCommitHooks: [], partialFailurePolicy: { draftFail: 'abort_no_approval', transactionFail: 'rollback', postCommitFail: 'queue_retry' } },
+  },
+  {
+    // task E3: statement.send draft→approval→commit flow（生成对账单并投递客户）
+    id: 'statement.send',
+    name: 'Statement Send (Flow API)',
+    scope: 'finance',
+    risk: 'high',
+    description: '客户对账单生成投递复合流程：draft 内含 getCustomerStatement 完整快照（审批即所得），审批后 commit 事务内写 outbound Outbox Email（正文=对账单明细）+ AuditLog。不 SMTP 发送，不手写 DB mutation。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        customerRelationId: { type: 'string' },
+        from: { type: 'string' },
+        to: { type: 'string' },
+        email: { type: 'object', properties: { to: { type: 'array', items: { type: 'string' } }, subject: { type: 'string' } }, required: ['to', 'subject'] },
+      },
+      required: ['customerRelationId', 'email'],
+    },
+    outputSchema: { type: 'object', properties: { processDraft: { type: 'object' }, committed: { type: 'boolean' } } },
+    approvalPolicy: 'always',
+    processSpec: { composedOf: ['statement.send'], draftPhase: { produces: 'ProcessDraft' }, approvalPhase: { consumes: 'ProcessDraft', approvalCard: { changeList: true, irreversibleMarkers: true, impactScope: true } }, commitTransaction: { consumes: 'ProcessDraft', wrapper: 'prisma_transaction' }, postCommitHooks: [], partialFailurePolicy: { draftFail: 'abort_no_approval', transactionFail: 'rollback', postCommitFail: 'queue_retry' } },
+  },
 ];
 
 /** ToolDefinition 查找索引 */

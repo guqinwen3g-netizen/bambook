@@ -626,4 +626,28 @@ export const DEFAULT_AGENT_TOOLS: DefaultToolDefinition[] = [
       description: '扫描所有活跃订单的生产预警——生产计划超期、延期通知窗口临近。返回预警列表含严重级别。',
     inputHint: '{}',
 },
+  // ── E3 NL 高频业务操作（下样品单 / 对账单）──
+  {
+    id: 'development.create',
+    name: 'Create Development Case',
+    scope: 'development',
+    risk: 'high',
+    allowedRoles: ['owner', 'admin', 'manager', 'merchandiser'],
+    approvalRoles: ['owner', 'admin', 'manager'],
+  },
+  {
+    id: 'finance.get_statement',
+    name: 'Get Customer Statement',
+    scope: 'finance',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'finance', 'sales', 'merchandiser'],
+  },
+  {
+    id: 'statement.send',
+    name: 'Send Customer Statement',
+    scope: 'finance',
+    risk: 'high',
+    allowedRoles: ['owner', 'admin', 'manager', 'finance'],
+    approvalRoles: ['owner', 'admin', 'manager'],
+  },
 ];

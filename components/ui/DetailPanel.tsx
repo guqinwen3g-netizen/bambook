@@ -19,6 +19,7 @@ import {
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
+import AuditHistorySection from '../AuditHistorySection';
 
 interface DetailPanelProps {
     type: 'organization' | 'contact';
@@ -202,6 +203,16 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
         />
     );
 
+    // 阶段 D / D6：变更历史（实体审计，组织/联系人两种布局共用；Relation targetType 统一为 'Relation'）
+    const auditHistorySection = (
+        <AuditHistorySection
+            targetType="Relation"
+            targetId={data.id}
+            isDarkMode={isDarkMode}
+            title="变更历史"
+        />
+    );
+
     return (
         <div className={BAMBOOK_OS.layout.relationsDetailMainShellClass}>
         <CompiledSurfacePanel
@@ -375,6 +386,9 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
                         {/* 跨模块关联视图（EntityLink 图谱） */}
                         {relatedEntitiesSection}
+
+                        {/* 变更历史（实体审计） */}
+                        {auditHistorySection}
                     </>
                 ) : (
                     // ========== 联系人信息布局 ==========
@@ -432,6 +446,9 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
                         {/* 跨模块关联视图（EntityLink 图谱） */}
                         {relatedEntitiesSection}
+
+                        {/* 变更历史（实体审计） */}
+                        {auditHistorySection}
                     </>
                 )}
 

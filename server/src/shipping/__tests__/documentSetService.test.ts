@@ -35,6 +35,11 @@ function makePrisma(overrides: Record<string, any> = {}) {
       findUnique: vi.fn().mockResolvedValue(null),
       ...overrides.relation,
     },
+    // 阶段 D / D4：关联信用证装配（受益人证明/保险单引用）
+    letterOfCredit: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      ...overrides.letterOfCredit,
+    },
   } as any;
 }
 
@@ -269,5 +274,103 @@ describe('documentSetService · assembleDocumentSetData', () => {
     expect(res.data!.parties.consignee?.name).toBe('PT. MAJU BERSAMA');
     expect(res.data!.parties.consignee?.address).toBe('JAKARTA UTARA');
     expect(res.data!.parties.customer?.name).toBe('ACME TEXTILE CO., LTD.');
+  });
+
+  // ── 阶段 D / D4：extras（Form A / 保险单 / 受益人证明） ──
+
+  it('extras：默认原产地标准 P；FOB 条款不推断保额；无 LC → letterOfCredit 为 null', async () => {
+    const prisma = makePrisma({
+      shipment: { findUnique: vi.fn().mockResolvedValue(BASE_SHIPMENT) },
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ORD_1', poNumber: 'PO-1', customer: 'ACME',
+          currency: 'USD', salesCurrency: null,
+          deliveryTerms: 'FOB SHANGHAI', paymentTerms: null,
+          salesContractNumber: null, finalContractNumber: null,
+          invoiceNumber: null, invoiceDate: null,
+          totalNet: '9000', quoteAmount: '9000',
+          billToName: null, billToAddress: null, billToContact: null,
+          consigneeName: null, consigneeAddress: null, consigneeContact: null,
+          consigneeRelationId: null, customerAddress: null,
+          lines: [
+            { id: 'OL_1', lineNumber: 1, itemNo: 'IT-1', description: 'GREIGE', quantity: '10000', unit: 'M', unitPrice: '0.9', netValue: '9000' },
+          ],
+        }),
+      },
+    });
+    const res = await assembleDocumentSetData(prisma, 'SHP_1');
+    expect(res.ok).toBe(true);
+    const ex = res.data!.extras;
+    expect(ex.originCriterion).toBe('P');
+    expect(ex.insurance.insuredAmount).toBeNull(); // FOB 卖方不投保
+    expect(ex.insurance.coverage).toContain('ALL RISKS');
+    expect(ex.letterOfCredit).toBeNull();
+  });
+
+  it('extras：CIF 条款按货值 ×110% 推断保额；LC 摘要装配', async () => {
+    const prisma = makePrisma({
+      shipment: {
+        findUnique: vi.fn().mockResolvedValue({
+          ...BASE_SHIPMENT,
+          insuranceAmount: '68.75', insuranceCurrency: 'USD',
+        }),
+      },
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ORD_1', poNumber: 'PO-1', customer: 'ACME',
+          currency: 'USD', salesCurrency: null,
+          deliveryTerms: 'CIF SURABAYA', paymentTerms: 'L/C AT SIGHT',
+          salesContractNumber: null, finalContractNumber: null,
+          invoiceNumber: null, invoiceDate: null,
+          totalNet: '12500', quoteAmount: '12500',
+          billToName: null, billToAddress: null, billToContact: null,
+          consigneeName: null, consigneeAddress: null, consigneeContact: null,
+          consigneeRelationId: null, customerAddress: null,
+          lines: [
+            { id: 'OL_1', lineNumber: 1, itemNo: 'IT-1', description: 'SATIN', quantity: '5000', unit: 'YD', unitPrice: '2.5', netValue: '12500' },
+          ],
+        }),
+      },
+      letterOfCredit: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'LC_1', lcNumber: 'LC-2026-7788', issueBank: 'BANK CENTRAL ASIA',
+          issueDate: '2026-07-20', applicant: 'PT. MAJU BERSAMA',
+        }),
+      },
+    });
+    const res = await assembleDocumentSetData(prisma, 'SHP_1');
+    expect(res.ok).toBe(true);
+    const ex = res.data!.extras;
+    expect(ex.insurance.insuredAmount).toBe(13750); // 12500 × 1.1
+    expect(ex.insurance.currency).toBe('USD');
+    expect(ex.insurance.premium).toBe(68.75);
+    expect(ex.insurance.premiumCurrency).toBe('USD');
+    expect(ex.letterOfCredit?.lcNumber).toBe('LC-2026-7788');
+    expect(ex.letterOfCredit?.issueBank).toBe('BANK CENTRAL ASIA');
+    expect(ex.letterOfCredit?.applicant).toBe('PT. MAJU BERSAMA');
+  });
+
+  it('extras：CIF 但无货值 → 保额 null + missing 提示', async () => {
+    const prisma = makePrisma({
+      shipment: { findUnique: vi.fn().mockResolvedValue(BASE_SHIPMENT) },
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ORD_1', poNumber: 'PO-1', customer: 'ACME',
+          currency: 'USD', salesCurrency: null,
+          deliveryTerms: 'CIF SURABAYA', paymentTerms: null,
+          salesContractNumber: null, finalContractNumber: null,
+          invoiceNumber: null, invoiceDate: null,
+          totalNet: null, quoteAmount: null,
+          billToName: null, billToAddress: null, billToContact: null,
+          consigneeName: null, consigneeAddress: null, consigneeContact: null,
+          consigneeRelationId: null, customerAddress: null,
+          lines: [],
+        }),
+      },
+    });
+    const res = await assembleDocumentSetData(prisma, 'SHP_1');
+    expect(res.ok).toBe(true);
+    expect(res.data!.extras.insurance.insuredAmount).toBeNull();
+    expect(res.data!.missing).toContain('CIF/CIP 条款下缺少货值（无法推断投保金额）');
   });
 });

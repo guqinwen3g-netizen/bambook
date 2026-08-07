@@ -20,7 +20,7 @@ import { syncEmailReferences } from '../email/sync';
 import { createInvoice, updateInvoice } from '../finance/invoiceMutationService';
 import { createPaymentVoucher, updatePaymentVoucher } from '../finance/paymentVoucherMutationService';
 import { applyAllocation } from '../finance/allocationService';
-import { getAgingReport } from '../finance/reportService';
+import { getAgingReport, getCustomerStatement } from '../finance/reportService';
 import { createQuotationService } from '../quotations/quotationService';
 import { createCustomsService } from '../customs/customsService';
 import { scanDelayedShipments } from '../shipping/shipmentDelayService';
@@ -49,6 +49,8 @@ import { buildEmailSyncDraft, commitEmailSync, validateEmailSyncDraftSemantics, 
 import { buildKnowledgeIngestDraft, commitKnowledgeIngest, validateKnowledgeIngestDraftSemantics, verifyKnowledgeIngestDraftHash } from './knowledgeIngestFlow';
 import { putEmailCredential, takeEmailCredential } from './emailCredentialStore';
 import { buildDevConvertDraft, commitDevConvert, validateDevConvertDraftSemantics, verifyDevConvertDraftHash, buildDevConvertError } from './developmentConvertFlow';
+import { buildDevCreateDraft, commitDevCreate, validateDevCreateDraftSemantics, verifyDevCreateDraftHash, buildDevCreateError } from './developmentCreateFlow';
+import { buildStatementSendDraft, commitStatementSend, validateStatementSendDraftSemantics, verifyStatementSendDraftHash, buildStatementSendError, statementHasActivity } from './statementSendFlow';
 import { buildInvoiceCancelDraft, commitInvoiceCancel, validateInvoiceCancelDraftSemantics, verifyInvoiceCancelDraftHash, buildInvoiceCancelError } from './invoiceCancelFlow';
 import { buildInvoiceDeleteDraft, commitInvoiceDelete, validateInvoiceDeleteDraftSemantics, buildPaymentVoucherDeleteDraft, commitPaymentVoucherDelete, validatePaymentVoucherDeleteDraftSemantics, buildFinanceSoftDeleteError } from './financeSoftDeleteFlow';
 import { buildProductAssetCreateDraft, commitProductAssetCreate, buildProductAssetUpdateDraft, commitProductAssetUpdate, buildProductAssetDeleteDraft, commitProductAssetDelete, buildProductAssetFlowError } from './productAssetMutationFlow';
@@ -788,6 +790,110 @@ export async function executeAgentTool(input: {
     const semCheck = validateDevConvertDraftSemantics(draft);
     if (!semCheck.ok || !verifyDevConvertDraftHash(draft).ok) {
       const errMsg = `DEV_CONVERT_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, {
+        actor: input.actor, definition, status: 'failed',
+        toolInput: input.toolInput, error: errMsg,
+        startedAt: new Date(), sessionId: input.sessionId,
+        actorUserId: input.actorUserId, requestSource: input.requestSource,
+      });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // task E3: development.create draft-first（给 XX 客户下样品单）
+  if (p0bToolDef?.processSpec && definition.id === 'development.create') {
+    const ti = input.toolInput || {};
+    const code = String(ti.code || '');
+    const name = String(ti.name || '');
+    const type = String(ti.type || '');
+    if (!code || !name || !type) {
+      const errMsg = 'DEV_CREATE_PRECONDITIONS_FAILED: code/name/type are required';
+      await recordAgentToolRun(input.prisma, {
+        actor: input.actor, definition, status: 'failed',
+        toolInput: input.toolInput, error: errMsg,
+        startedAt: new Date(), sessionId: input.sessionId,
+        actorUserId: input.actorUserId, requestSource: input.requestSource,
+      });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['code/name/type required'] };
+    }
+    const draft = buildDevCreateDraft({
+      code, name, type,
+      stage: ti.stage ? String(ti.stage) : undefined,
+      priority: ti.priority ? String(ti.priority) : undefined,
+      owner: ti.owner ? String(ti.owner) : undefined,
+      customerRelationId: ti.customerRelationId ? String(ti.customerRelationId) : undefined,
+      customerName: ti.customerName ? String(ti.customerName) : undefined,
+      supplierRelationId: ti.supplierRelationId ? String(ti.supplierRelationId) : undefined,
+      supplierName: ti.supplierName ? String(ti.supplierName) : undefined,
+      productAssetId: ti.productAssetId ? String(ti.productAssetId) : undefined,
+      productName: ti.productName ? String(ti.productName) : undefined,
+      nextAction: ti.nextAction ? String(ti.nextAction) : undefined,
+      targetDate: ti.targetDate ? String(ti.targetDate) : undefined,
+      sampleType: ti.sampleType ? String(ti.sampleType) : undefined,
+      sampleQuantity: typeof ti.sampleQuantity === 'number' ? ti.sampleQuantity : undefined,
+      sampleUnit: ti.sampleUnit ? String(ti.sampleUnit) : undefined,
+      notes: ti.notes ? String(ti.notes) : undefined,
+      tags: Array.isArray(ti.tags) ? ti.tags.map(String) : undefined,
+    });
+    const semCheck = validateDevCreateDraftSemantics(draft);
+    if (!semCheck.ok || !verifyDevCreateDraftHash(draft).ok) {
+      const errMsg = `DEV_CREATE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, {
+        actor: input.actor, definition, status: 'failed',
+        toolInput: input.toolInput, error: errMsg,
+        startedAt: new Date(), sessionId: input.sessionId,
+        actorUserId: input.actorUserId, requestSource: input.requestSource,
+      });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // task E3: statement.send draft-first（生成对账单并投递客户；draft 内含完整快照，commit 零重算）
+  if (p0bToolDef?.processSpec && definition.id === 'statement.send') {
+    const ti = input.toolInput || {};
+    const customerRelationId = String(ti.customerRelationId || '');
+    const emailInput = (ti.email || {}) as { to?: unknown; subject?: unknown };
+    const emailTo = Array.isArray(emailInput.to) ? emailInput.to.map(String).filter(Boolean) : [];
+    const emailSubject = emailInput.subject ? String(emailInput.subject) : '';
+    if (!customerRelationId || emailTo.length === 0 || !emailSubject) {
+      const errMsg = 'STATEMENT_SEND_PRECONDITIONS_FAILED: customerRelationId and email.to/email.subject are required';
+      await recordAgentToolRun(input.prisma, {
+        actor: input.actor, definition, status: 'failed',
+        toolInput: input.toolInput, error: errMsg,
+        startedAt: new Date(), sessionId: input.sessionId,
+        actorUserId: input.actorUserId, requestSource: input.requestSource,
+      });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['customerRelationId/email required'] };
+    }
+    // draft 阶段生成完整对账单快照（审批即所得：commit 仅从快照渲染，零 DB 重算）
+    const snapshot = await getCustomerStatement(input.prisma, {
+      customerRelationId,
+      from: ti.from ? String(ti.from) : undefined,
+      to: ti.to ? String(ti.to) : undefined,
+    });
+    if (!statementHasActivity(snapshot)) {
+      const errMsg = 'STATEMENT_SEND_PRECONDITIONS_FAILED: customer has no receivable activity in the given period';
+      await recordAgentToolRun(input.prisma, {
+        actor: input.actor, definition, status: 'failed',
+        toolInput: input.toolInput, error: errMsg,
+        startedAt: new Date(), sessionId: input.sessionId,
+        actorUserId: input.actorUserId, requestSource: input.requestSource,
+      });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['STATEMENT_EMPTY'] };
+    }
+    const draft = buildStatementSendDraft({
+      customerRelationId,
+      customerName: ti.customerName ? String(ti.customerName) : snapshot.customerName,
+      from: ti.from ? String(ti.from) : undefined,
+      to: ti.to ? String(ti.to) : undefined,
+      email: { to: emailTo, subject: emailSubject },
+      statementSnapshot: snapshot,
+    });
+    const semCheck = validateStatementSendDraftSemantics(draft);
+    if (!semCheck.ok || !verifyStatementSendDraftHash(draft).ok) {
+      const errMsg = `STATEMENT_SEND_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
       await recordAgentToolRun(input.prisma, {
         actor: input.actor, definition, status: 'failed',
         toolInput: input.toolInput, error: errMsg,
@@ -2356,6 +2462,7 @@ registerTool('template.render_pdf', (prisma, input) => handleTemplateRenderPdf(p
 registerTool('quotations.query', (prisma, input) => handleQuotationsQuery(prisma, input));
 registerTool('quotations.get', (prisma, input) => handleQuotationsGet(prisma, input));
 registerTool('finance.get_aging', (prisma, input) => handleFinanceGetAging(prisma, input));
+registerTool('finance.get_statement', (prisma, input) => handleFinanceGetStatement(prisma, input));
 registerTool('customs.query_lc', (prisma, input) => handleCustomsQueryLc(prisma, input));
 registerTool('customs.get_lc', (prisma, input) => handleCustomsGetLc(prisma, input));
 registerTool('shipping.scan_delays', (prisma, input) => handleShippingScanDelays(prisma, input));
@@ -2519,6 +2626,14 @@ _rct('email.send', async (ctx) => {
 });
 _rct('development.convert_to_order', async (ctx) => {
   const result = await commitDevConvert({ prisma: ctx.prisma, approvalId: ctx.approvalId, approvalPayload: ctx.approvalPayload });
+  const _r = result as any; return _r.ok ? { ok: true, ..._r.feedback } : { ok: false, errorFeedback: { code: _r.feedback?.error?.code || 'COMMIT_FAILED', message: _r.feedback?.error?.message || 'commit failed', retryable: false } };
+});
+_rct('development.create', async (ctx) => {
+  const result = await commitDevCreate({ prisma: ctx.prisma, approvalId: ctx.approvalId, approvalPayload: ctx.approvalPayload });
+  const _r = result as any; return _r.ok ? { ok: true, ..._r.feedback } : { ok: false, errorFeedback: { code: _r.feedback?.error?.code || 'COMMIT_FAILED', message: _r.feedback?.error?.message || 'commit failed', retryable: false } };
+});
+_rct('statement.send', async (ctx) => {
+  const result = await commitStatementSend({ prisma: ctx.prisma, approvalId: ctx.approvalId, approvalPayload: ctx.approvalPayload });
   const _r = result as any; return _r.ok ? { ok: true, ..._r.feedback } : { ok: false, errorFeedback: { code: _r.feedback?.error?.code || 'COMMIT_FAILED', message: _r.feedback?.error?.message || 'commit failed', retryable: false } };
 });
 _rct('order.status_transition', async (ctx) => {
@@ -5155,6 +5270,17 @@ async function handleFinanceGetAging(prisma: PrismaClient, input: any): Promise<
     r.buckets.d1_30 + r.buckets.d31_60 + r.buckets.d61_90 + r.buckets.d90plus;
   const rows = [...report.rows].sort((a, b) => overdueOf(b) - overdueOf(a)).slice(0, rowLimit);
   return { ok: true, report: { ...report, rows, rowCount: report.rows.length } };
+}
+
+async function handleFinanceGetStatement(prisma: PrismaClient, input: any): Promise<any> {
+  const customerRelationId = input?.customerRelationId ? String(input.customerRelationId) : '';
+  if (!customerRelationId) return { ok: false, error: 'customerRelationId required' };
+  const statement = await getCustomerStatement(prisma, {
+    customerRelationId,
+    from: input?.from ? String(input.from) : undefined,
+    to: input?.to ? String(input.to) : undefined,
+  });
+  return { ok: true, statement };
 }
 
 async function handleCustomsQueryLc(prisma: PrismaClient, input: any): Promise<any> {

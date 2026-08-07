@@ -2374,6 +2374,40 @@ export interface DocumentSetData {
     currency: string | null;
   };
   missing: string[];
+  /** 阶段 D / D4：Form A / 保险单 / 受益人证明扩展装配 */
+  extras: {
+    /** Form A 第 8 栏原产地标准（'P' = 完全原产） */
+    originCriterion: string;
+    insurance: {
+      insuredAmount: number | null;
+      currency: string | null;
+      coverage: string;
+      premium: number | null;
+      premiumCurrency: string | null;
+      insurer: string | null;
+    };
+    letterOfCredit: {
+      lcNumber: string;
+      issueBank: string | null;
+      issueDate: string | null;
+      applicant: string | null;
+    } | null;
+  };
+}
+
+/** 阶段 D / D6：实体级审计日志项（GET /v1/audit/entity 返回） */
+export interface EntityAuditLogItem {
+  id: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  operationType: string | null;
+  fieldPath: string | null;
+  beforeValue: unknown;
+  afterValue: unknown;
+  detail: unknown;
+  createdAt: string;
+  actor: { id: string; displayName: string | null; email: string | null };
 }
 
 export interface Shipment {

@@ -877,6 +877,43 @@ const MANIFEST_SEEDS: ManifestSeed[] = [
     },
     safety: READ_ONLY_SAFETY,
   },
+  // ── E3 NL 高频业务操作（下样品单 / 对账单）──
+  {
+    id: 'development.create',
+    name: 'Create Development Case',
+    domain: 'development',
+    description: '创建开发单/样品单复合流程（draft→approval→commit）：给某客户下样品单（手刮样/色样/确认样等）走此工具。code/name/type 必填；客户归属必填（customerRelationId 或 customerName 至少其一，只有客户名时先 relations.query 解析）。审批后复用 createDevelopmentCase shared service（事务闭环 EntityLink sync + AuditLog）。',
+    inputHint: '{ code: string /* 业务编号，唯一，如 DEV-2608-001 */, name: string /* 样品名，如 "全棉斜纹手刮样" */, type: "fabric"|"garment"|"pp"|"trim", customerRelationId?: string, customerName?: string, supplierName?: string, sampleType?: string /* 如 手刮样/色样/确认样 */, sampleQuantity?: number, sampleUnit?: string /* 默认 meter */, targetDate?: string /* YYYY-MM-DD */, nextAction?: string, priority?: "urgent"|"high"|"normal"|"low", notes?: string }',
+    example: {
+      user: '给客户 Peerless 下一单样品单：全棉斜纹手刮样 5 米，8 月 20 日前要。',
+      input: { code: 'DEV-2608-001', name: '全棉斜纹手刮样', type: 'fabric', customerName: 'Peerless', sampleType: '手刮样', sampleQuantity: 5, sampleUnit: 'meter', targetDate: '2026-08-20' },
+    },
+    safety: { approval: 'always', sideEffects: true },
+  },
+  {
+    id: 'finance.get_statement',
+    name: 'Get Customer Statement',
+    domain: 'finance',
+    description: '生成客户对账单（只读）：按客户聚合应收发票（借）与收款凭证（贷），分币种给出期初余额、逐笔往来、期末余额。用于"看看某客户往来/余额"，对话中直接展示；要生成并投递给客户走 statement.send。',
+    inputHint: '{ customerRelationId: string /* 必填；只有客户名时先 relations.query 解析 */, from?: "YYYY-MM-DD", to?: "YYYY-MM-DD" }',
+    example: {
+      user: '看一下 Peerless 这个月的对账单。',
+      input: { customerRelationId: '<RELATION_ID>', from: '2026-08-01', to: '2026-08-31' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'statement.send',
+    name: 'Send Customer Statement',
+    domain: 'finance',
+    description: '生成对账单并投递给客户复合流程（draft→approval→commit）：draft 内含完整对账单快照（审批即所得），审批后事务内写 outbound Outbox 邮件（正文=对账单明细）+ AuditLog。不 SMTP 发送（contract 边界），显式发送走 email.send。customerRelationId 与 email 必填；期间无往来会被拒绝。',
+    inputHint: '{ customerRelationId: string /* 必填；只有客户名时先 relations.query 解析 */, from?: "YYYY-MM-DD", to?: "YYYY-MM-DD", email: { to: string[] /* 客户对账邮箱 */, subject: string } }',
+    example: {
+      user: '生成本月对账单并发到 Peerless 财务邮箱对账。',
+      input: { customerRelationId: '<RELATION_ID>', from: '2026-08-01', to: '2026-08-31', email: { to: ['finance@peerless.com'], subject: 'Statement of Account 2026-08' } },
+    },
+    safety: { approval: 'always', sideEffects: true },
+  },
 ];
 
 export function getMcpManifest(): ToolManifest[] {

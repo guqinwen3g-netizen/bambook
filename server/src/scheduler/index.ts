@@ -16,9 +16,13 @@ import { PrismaClient } from '@prisma/client';
 import { initializeScheduler } from './schedulerService';
 import { createCrashRecoveryTask, createCleanupTask } from './tasks/retryLinkages';
 import { createDailyBriefingTask } from './tasks/dailyBriefing';
+import { createWeeklyBriefingTask } from './tasks/weeklyBriefing';
 import { createStuckProcessDetectorTask } from './tasks/stuckProcessDetector';
 import { createExpiryWatchdogTask } from './tasks/expiryWatchdog';
 import { createShipmentDelayDetectorTask } from './tasks/shipmentDelayDetector';
+import { createReceivableOverdueDetectorTask } from './tasks/receivableOverdueDetector';
+import { createInventoryWatchdogTask } from './tasks/inventoryWatchdog';
+import { createProductionDeadlineWatchdogTask } from './tasks/productionDeadlineWatchdog';
 import { logger } from '../lib/logger';
 
 export function startScheduler(prisma: PrismaClient): void {
@@ -31,12 +35,18 @@ export function startScheduler(prisma: PrismaClient): void {
   scheduler.register(createStuckProcessDetectorTask());
   scheduler.register(createExpiryWatchdogTask());
   scheduler.register(createShipmentDelayDetectorTask());
+  // 阶段 E / E1：主动提醒引擎扩展（应收逾期 / 库存预警 / 生产超期）
+  scheduler.register(createReceivableOverdueDetectorTask());
+  scheduler.register(createInventoryWatchdogTask());
+  scheduler.register(createProductionDeadlineWatchdogTask());
+  // 阶段 E / E2：每周经营 briefing（日报已升级为 C1 聚合口径）
+  scheduler.register(createWeeklyBriefingTask());
 
   // 启动调度器
   scheduler.start();
 
-  logger.info('[Scheduler] initialized with 6 tasks', {
-    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector'],
+  logger.info('[Scheduler] initialized with 10 tasks', {
+    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog'],
   });
 }
 

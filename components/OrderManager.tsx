@@ -26,6 +26,7 @@ import { PageHeader } from './ui/PageHeader';
 import { CompiledTableShell } from './ui/osCompiler/compiledPrimitives';
 import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/osCompiler/compiledSurfacePrimitives';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import AuditHistorySection from './AuditHistorySection';
 import OrderContextSection from './order/OrderContextSection';
 import { fieldsForDetail, fieldsForManualForm, requiredKeysForManual, computeAutoFillPatch, fieldMetaByKey, ORDER_CLUSTERS } from '../lib/orderSchema';
 import { flattenOrderLines, getNextItemNo } from '../lib/orderLineItems';
@@ -1211,6 +1212,16 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         orderId={selectedOrder.id}
                         isDarkMode={isDarkMode}
                         onNavigate={onNavigate}
+                      />
+                    </div>
+
+                    {/* 阶段 D / D6：订单变更历史（实体审计，模块读权限门禁） */}
+                    <div className="mt-4">
+                      <AuditHistorySection
+                        targetType="Order"
+                        targetId={selectedOrder.id}
+                        isDarkMode={isDarkMode}
+                        title="订单变更历史"
                       />
                     </div>
 

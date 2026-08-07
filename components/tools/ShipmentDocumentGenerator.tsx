@@ -13,6 +13,9 @@ import {
   Package,
   ScrollText,
   Ship,
+  Award,
+  ShieldCheck,
+  BadgeCheck,
   Search,
   RefreshCw,
   Loader2,
@@ -36,6 +39,10 @@ const DOC_OPTIONS: Array<{ kind: ExportDocKind; label: string; sub: string; icon
   { kind: 'PL', label: '装箱单', sub: 'Packing List', icon: Package },
   { kind: 'CO', label: '原产地证', sub: 'Certificate of Origin', icon: ScrollText },
   { kind: 'BL', label: '提单补料', sub: 'Bill of Lading Draft', icon: Ship },
+  // 阶段 D / D4：按需单据（GSP 目的国 / CIF 投保 / LC 交单时勾选）
+  { kind: 'FORMA', label: '普惠制产地证', sub: 'GSP Form A', icon: Award },
+  { kind: 'INS', label: '保险单', sub: 'Insurance Policy', icon: ShieldCheck },
+  { kind: 'BC', label: '受益人证明', sub: "Beneficiary's Cert.", icon: BadgeCheck },
 ];
 
 const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ isDarkMode }) => {
@@ -46,7 +53,8 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [docSet, setDocSet] = useState<DocumentSetData | null>(null);
   const [loadingDocSet, setLoadingDocSet] = useState(false);
-  const [selectedDocs, setSelectedDocs] = useState<Record<ExportDocKind, boolean>>({ CI: true, PL: true, CO: true, BL: true });
+  // 阶段 D / D4：CI/PL/CO/BL 常规默认勾选；FORMA/INS/BC 按需（GSP/CIF/LC 场景）
+  const [selectedDocs, setSelectedDocs] = useState<Record<ExportDocKind, boolean>>({ CI: true, PL: true, CO: true, BL: true, FORMA: false, INS: false, BC: false });
   const [generating, setGenerating] = useState(false);
 
   // ── 运单列表 ──
@@ -84,6 +92,12 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
     try {
       const data = await apiService.getShipmentDocumentSet(id);
       setDocSet(data);
+      // 阶段 D / D4：按需单据智能预勾选——CIF/CIP 保额可推断 → 保险单；存在信用证 → 受益人证明
+      setSelectedDocs(prev => ({
+        ...prev,
+        INS: data.extras.insurance.insuredAmount !== null,
+        BC: data.extras.letterOfCredit !== null,
+      }));
     } catch (e: any) {
       setError(String(e?.message || e || '装配制单数据失败'));
     } finally {

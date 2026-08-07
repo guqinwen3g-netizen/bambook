@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+// apiService 模块级无可执行副作用（localStorage/fetch 全部调用时读取），
+// 静态导入一次即可；beforeEach 的 stubGlobal 保证测试间隔离。
+// 避免 vi.resetModules() + 逐测试 await import 重复 transform 大模块图
+//（单跑 ~1.1s，全量并发下 transform 队列挤占曾致 5s 超时假象）。
+import { apiService } from './apiService';
 
 function createStorage() {
   const values = new Map<string, string>();
@@ -18,7 +23,6 @@ function createStorage() {
 
 describe('apiService product reads', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.unstubAllGlobals();
     vi.stubGlobal('localStorage', createStorage());
   });
@@ -52,8 +56,6 @@ describe('apiService product reads', () => {
     }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const { apiService } = await import('./apiService');
-
     await apiService.listProducts('https://jiangsupanda.com/bambook');
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -79,8 +81,6 @@ describe('apiService product reads', () => {
       };
     });
     vi.stubGlobal('fetch', fetchMock);
-
-    const { apiService } = await import('./apiService');
 
     const result = await apiService.listAllPdmlRawFabrics('https://jiangsupanda.com/bambook', { pageSize: 1 });
 
@@ -133,8 +133,6 @@ describe('apiService product reads', () => {
       }),
     }));
     vi.stubGlobal('fetch', fetchMock);
-
-    const { apiService } = await import('./apiService');
 
     await apiService.syncPdmlRawFabrics('https://jiangsupanda.com/bambook', { limit: 1 });
 

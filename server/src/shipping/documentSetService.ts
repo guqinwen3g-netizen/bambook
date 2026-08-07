@@ -110,6 +110,30 @@ export interface DocumentSetData {
   };
   /** 数据完整度提示（供 UI 展示，不阻断） */
   missing: string[];
+  /** 阶段 D / D4：Form A / 保险单 / 受益人证明扩展装配 */
+  extras: {
+    /** Form A 第 8 栏原产地标准（默认 'P' = 完全原产，纺织品出口惯例） */
+    originCriterion: string;
+    insurance: {
+      /** 投保金额：CIF/CIP 条款按货值 ×110% 惯例推断；否则 null */
+      insuredAmount: number | null;
+      currency: string | null;
+      /** 险别（默认 CIC 一切险+战争险） */
+      coverage: string;
+      /** 保费（shipment.insuranceAmount，成本字段，非保额） */
+      premium: number | null;
+      premiumCurrency: string | null;
+      /** 保险人（schema 无字段，预留 null → 模板显示 —） */
+      insurer: string | null;
+    };
+    /** 关联信用证摘要（经 orderId 解析，受益人证明/保险单引用） */
+    letterOfCredit: {
+      lcNumber: string;
+      issueBank: string | null;
+      issueDate: string | null;
+      applicant: string | null;
+    } | null;
+  };
 }
 
 export type DocumentSetErrorCode = 'SHIPMENT_NOT_FOUND' | 'ASSEMBLE_FAILED';
@@ -212,6 +236,14 @@ export async function assembleDocumentSetData(
       consigneeRel = await db.relation.findUnique({ where: { id: order.consigneeRelationId } });
     }
 
+    // 3b) 阶段 D / D4：关联信用证（受益人证明/保险单引用）——经 orderId 取最近一张
+    const lcRow = order
+      ? await db.letterOfCredit.findFirst({
+          where: { orderId: order.id, deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
+
     // 4) 行装配：以 shipmentLines 为主轴；无行时回退 orderLines
     const lines: DocumentSetLine[] = [];
     if (shipmentLines.length > 0) {
@@ -302,6 +334,35 @@ export async function assembleDocumentSetData(
     if (totals.grossWeight === null) missing.push('缺少毛重');
     if (!customer) missing.push('缺少客户信息');
 
+    // 8) 阶段 D / D4：Form A / 保险单 / 受益人证明扩展装配
+    const incoTerms = (first(str(order?.deliveryTerms), str(customsDecl?.tradeTerms)) ?? '').toUpperCase();
+    const sellerPaysInsurance = /CIF|CIP/.test(incoTerms);
+    const insuredAmount = sellerPaysInsurance && totals.amount !== null
+      ? Math.round(totals.amount * 1.1 * 100) / 100
+      : null;
+    if (sellerPaysInsurance && insuredAmount === null) {
+      missing.push('CIF/CIP 条款下缺少货值（无法推断投保金额）');
+    }
+    const extras: DocumentSetData['extras'] = {
+      originCriterion: 'P',
+      insurance: {
+        insuredAmount,
+        currency: insuredAmount !== null ? totals.currency : null,
+        coverage: 'COVERING ALL RISKS AND WAR RISKS AS PER C.I.C. (1/1/1981)',
+        premium: num(shipment.insuranceAmount),
+        premiumCurrency: str(shipment.insuranceCurrency),
+        insurer: null,
+      },
+      letterOfCredit: lcRow
+        ? {
+            lcNumber: lcRow.lcNumber,
+            issueBank: str(lcRow.issueBank),
+            issueDate: str(lcRow.issueDate),
+            applicant: str(lcRow.applicant),
+          }
+        : null,
+    };
+
     return {
       ok: true,
       data: {
@@ -361,6 +422,7 @@ export async function assembleDocumentSetData(
         lines,
         totals,
         missing,
+        extras,
       },
     };
   } catch (e: any) {

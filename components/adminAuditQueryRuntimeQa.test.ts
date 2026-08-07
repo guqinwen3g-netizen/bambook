@@ -9,12 +9,24 @@ import { describe, expect, it } from 'vitest';
 const fs = require('fs');
 const path = require('path');
 const ROUTE_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/admin/route.ts'), 'utf-8');
+// 阶段 D / D6：where 构造抽取至 server/src/audit/entityQuery.ts（admin 全局端点与
+// /api/v1/audit/entity 实体端点共享）。实现契约断言指向新执行边界（buildAuditLogQuery
+// 函数体），route 侧仅保留接线契约（调用共享构造 / findMany+count 同 where / 返回形状）。
+const ENTITY_QUERY_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/audit/entityQuery.ts'), 'utf-8');
 const ADMIN_SRC = fs.readFileSync(path.resolve(__dirname, 'AdminPanel.tsx'), 'utf-8');
+
+// buildAuditLogQuery 函数体（结束于行首 }）
+const BUILD_FN = /export function buildAuditLogQuery[\s\S]*?\n\}/;
 
 // ═══ Part 1: route contract — query params ═══
 describe('runtime QA [route]: GET /audit-logs query params', () => {
-  it('route 解构 targetType/targetId/createdFrom/createdTo/limit/offset', () => {
+  it('route 经共享 buildAuditLogQuery 构造查询（D6 抽取后接线契约）', () => {
     const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    expect(m).not.toBeNull();
+    expect(m![0]).toMatch(/buildAuditLogQuery\(req\.query/);
+  });
+  it('buildAuditLogQuery 解构 targetType/targetId/createdFrom/createdTo/limit/offset', () => {
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m).not.toBeNull();
     expect(m![0]).toMatch(/targetType/);
     expect(m![0]).toMatch(/targetId/);
@@ -23,8 +35,8 @@ describe('runtime QA [route]: GET /audit-logs query params', () => {
     expect(m![0]).toMatch(/limit/);
     expect(m![0]).toMatch(/offset/);
   });
-  it('route 默认 limit=100, offset=0', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+  it('buildAuditLogQuery 默认 limit=100, offset=0', () => {
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m![0]).toMatch(/limit = '100'/);
     expect(m![0]).toMatch(/offset = '0'/);
   });
@@ -33,15 +45,15 @@ describe('runtime QA [route]: GET /audit-logs query params', () => {
 // ═══ Part 2: route contract — pagination 严格校验 fail closed ═══
 describe('runtime QA [route]: pagination 严格校验', () => {
   it('strictNonNegInt: 只接受纯数字字符串', () => {
-    const m = ROUTE_SRC.match(/const strictNonNegInt[\s\S]*?test\(v\)/);
+    const m = ENTITY_QUERY_SRC.match(/const strictNonNegInt[\s\S]*?test\(v\)/);
     expect(m).not.toBeNull();
   });
   it('非法 limit/offset → INVALID_PAGINATION 400', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m![0]).toMatch(/INVALID_PAGINATION/);
   });
   it('limit 上限 500（Math.min）', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m![0]).toMatch(/Math\.min\(parseInt\(limit.*500\)/);
   });
 });
@@ -49,16 +61,16 @@ describe('runtime QA [route]: pagination 严格校验', () => {
 // ═══ Part 3: route contract — date range 校验 fail closed ═══
 describe('runtime QA [route]: date range 校验', () => {
   it('createdFrom/createdTo 转 Date（DateTime contract）', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m![0]).toMatch(/new Date\(f\)/);
     expect(m![0]).toMatch(/new Date\(t\)/);
   });
   it('非法 createdFrom → INVALID_DATE_RANGE 400', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m![0]).toMatch(/createdFrom must be a valid timestamp/);
   });
   it('fromDate > toDate → INVALID_DATE_RANGE', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m![0]).toMatch(/fromDate > toDate/);
   });
 });
@@ -66,15 +78,15 @@ describe('runtime QA [route]: date range 校验', () => {
 // ═══ Part 4: route contract — where 构建 + return ═══
 describe('runtime QA [route]: where 构建 + return', () => {
   it('where 条件含 targetType/targetId/createdAt gte/lte', () => {
-    const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
+    const m = ENTITY_QUERY_SRC.match(BUILD_FN);
     expect(m![0]).toMatch(/where\.targetType = targetType/);
     expect(m![0]).toMatch(/where\.targetId = targetId/);
     expect(m![0]).toMatch(/where\.createdAt\.gte = fromDate/);
     expect(m![0]).toMatch(/where\.createdAt\.lte = toDate/);
   });
-  it('同一 where 用于 findMany + count', () => {
+  it('同一 where 用于 findMany + count（route 接线）', () => {
     const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);
-    expect(m![0]).toMatch(/findMany[\s\S]*count\(\{ where \}\)/);
+    expect(m![0]).toMatch(/findMany[\s\S]*count\(\{ where: built\.where \}\)/);
   });
   it('成功返回 { ok:true, logs, total }', () => {
     const m = ROUTE_SRC.match(/router\.get\('\/audit-logs'[\s\S]*?\n  \}\);/);

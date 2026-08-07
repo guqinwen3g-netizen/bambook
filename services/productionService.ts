@@ -64,6 +64,23 @@ export interface ProductionPipeline {
   checklist: PreCutChecklist | null;
   inspection: InspectionReport | null;
   inspections?: InspectionReport[];
+  outsourcing?: OutsourcingProgress[];
+}
+
+/** 阶段 D / D5：外协进度只读视图（真源 OutsourcingOrder，管理 UI 在 MES 可选模块） */
+export interface OutsourcingProgress {
+  id: string;
+  orderNumber: string;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  processType: string;
+  status: string;
+  quantity: number;
+  unit: string;
+  plannedDeliveryDate?: string | null;
+  actualDeliveryDate?: string | null;
+  qualityAcceptedQty: number;
+  qualityRejectedQty: number;
 }
 
 export const productionService = {
@@ -76,7 +93,7 @@ export const productionService = {
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data?.error?.message || `getPipeline failed: HTTP ${res.status}`);
-    return { stages: data.stages || [], checklist: data.checklist || null, inspection: data.inspection || null, inspections: data.inspections || [] };
+    return { stages: data.stages || [], checklist: data.checklist || null, inspection: data.inspection || null, inspections: data.inspections || [], outsourcing: data.outsourcing || [] };
   },
 
   async advanceStage(orderId: string, stageKey: string, note?: string, endpoint?: string): Promise<PipelineStage> {

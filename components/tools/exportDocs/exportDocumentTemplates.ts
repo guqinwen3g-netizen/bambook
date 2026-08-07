@@ -1,5 +1,5 @@
 /**
- * 外贸出运单据模板（CI / PL / CO / BL）
+ * 外贸出运单据模板（CI / PL / CO / BL / Form A / 保险单 / 受益人证明）
  *
  * 纯函数渲染器：DocumentSetData → HTML body 字符串。
  * 样式复用 printDocument.ts 的 BASE_PRINT_STYLES（.doc-header / .doc-table 等），
@@ -535,14 +535,313 @@ export function renderBillOfLadingHtml(data: DocumentSetData): string {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Form A — GSP 普惠制原产地证（官方 12 栏格式草稿）
+// ────────────────────────────────────────────────────────────────
+
+export function renderFormAHtml(data: DocumentSetData): string {
+  const origin = data.customs?.originCountry || data.lines.find(l => l.originCountry)?.originCountry || 'CHINA';
+  const transport = [
+    data.shipment.vesselOrFlight ? escapeHtml(data.shipment.vesselOrFlight) + (data.shipment.voyageNumber ? ' ' + escapeHtml(data.shipment.voyageNumber) : '') : null,
+    data.shipment.etd || data.shipment.atd ? `ON/ABOUT ${escapeHtml(data.shipment.atd || data.shipment.etd || '')}` : null,
+    data.shipment.portOfLoading && data.shipment.portOfDischarge ? `FROM ${escapeHtml(data.shipment.portOfLoading)}, CHINA TO ${escapeHtml(data.shipment.portOfDischarge)}` : null,
+    data.shipment.shippingMethod ? `BY ${data.shipment.shippingMethod.toUpperCase() === 'SEA' ? 'SEA' : escapeHtml(data.shipment.shippingMethod.toUpperCase())}` : null,
+  ].filter(Boolean).join('<br>') || '—';
+
+  const rows = data.lines.map((l: DocumentSetLine, i: number) => `
+    <tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${i === 0 ? shippingMarks(data) : ''}</td>
+      <td>${l.cartons ?? '—'} CTNS<br>${escapeHtml(l.description)}</td>
+      <td style="text-align:center">${escapeHtml(data.extras.originCriterion)}</td>
+      <td style="text-align:right">${fmtW(l.grossWeight)} KGS</td>
+      <td>${i === 0 ? escapeHtml(resolvedInvoiceNo(data)) + '<br>' + escapeHtml(resolvedInvoiceDate(data)) : ''}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>GENERALIZED SYSTEM OF PREFERENCES<br>CERTIFICATE OF ORIGIN</h1>
+      <div class="subtitle">FORM A · 普惠制原产地证 (Combined declaration and certificate)</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">FA-${escapeHtml(data.shipment.shipmentNumber)}</div>
+      <div>Issued in ${escapeHtml(origin === 'CHINA' ? "THE PEOPLE'S REPUBLIC OF CHINA" : origin)}</div>
+      <div>Country of destination: ${dash(data.customs?.destinationCountry)}</div>
+    </div>
+  </div>
+
+  <table class="doc-table">
+    <tbody>
+      <tr>
+        <td style="width:50%;vertical-align:top">
+          <strong>1. Goods consigned from (Exporter's business name, address, country)</strong><br><br>
+          ${escapeHtml(EXPORTER_PROFILE.nameEn)}<br>${linesToHtml(EXPORTER_PROFILE.addressEn)}
+        </td>
+        <td style="width:50%;vertical-align:top">
+          <strong>Reference No.</strong><br>
+          FA-${escapeHtml(data.shipment.shipmentNumber)}
+        </td>
+      </tr>
+      <tr>
+        <td style="vertical-align:top">
+          <strong>2. Goods consigned to (Consignee's name, address, country)</strong><br><br>
+          ${data.parties.consignee?.name ? escapeHtml(data.parties.consignee.name) : '—'}<br>
+          ${data.parties.consignee?.address ? linesToHtml(data.parties.consignee.address) : ''}
+        </td>
+        <td style="vertical-align:top;color:#4a5568">
+          <strong>4. For official use</strong><br><br>
+          &nbsp;
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="vertical-align:top">
+          <strong>3. Means of transport and route (as far as known)</strong><br><br>
+          ${transport}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="doc-section">
+    <table class="doc-table">
+      <thead>
+        <tr>
+          <th style="width:6%">5. Item No.</th>
+          <th style="width:16%">6. Marks &amp; Nos.</th>
+          <th>7. No. &amp; kind of packages; description of goods</th>
+          <th style="width:8%">8. Origin criterion</th>
+          <th style="width:14%;text-align:right">9. Gross weight</th>
+          <th style="width:14%">10. No. &amp; date of invoices</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+
+  <table class="doc-table">
+    <tbody>
+      <tr>
+        <td style="width:50%;vertical-align:top">
+          <strong>11. Certification</strong><br>
+          It is hereby certified, on the basis of control carried out, that the declaration by the exporter is correct.
+          <br><br><br><br>
+          <div style="color:#4a5568">Place and date, signature and stamp of certifying authority</div>
+        </td>
+        <td style="width:50%;vertical-align:top">
+          <strong>12. Declaration by the exporter</strong><br>
+          The undersigned hereby declares that the above details and statements are correct; that all the goods were produced in
+          <strong>${escapeHtml(origin === 'CHINA' ? 'CHINA' : origin)}</strong> and that they comply with the origin requirements
+          specified for those goods in the Generalized System of Preferences for goods exported to the importing country.
+          <br><br><br><br>
+          <div style="color:#4a5568">Place and date, signature of authorized signatory</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// INS — Insurance Policy / Certificate 保险单
+// ────────────────────────────────────────────────────────────────
+
+export function renderInsurancePolicyHtml(data: DocumentSetData): string {
+  const ins = data.extras.insurance;
+  const lc = data.extras.letterOfCredit;
+  const claimsAt = data.shipment.portOfDischarge || data.customs?.destinationCountry || '—';
+
+  const rows = data.lines.map((l: DocumentSetLine) => `
+    <tr>
+      <td>${l.cartons ?? '—'} CTNS</td>
+      <td>${escapeHtml(l.description)}</td>
+      <td style="text-align:right">${fmtQty(l.quantity)}${l.unit ? ' ' + escapeHtml(l.unit) : ''}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>INSURANCE POLICY / CERTIFICATE</h1>
+      <div class="subtitle">货物运输保险单</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">POLICY-${escapeHtml(data.shipment.shipmentNumber)}</div>
+      <div>Invoice No.: ${escapeHtml(resolvedInvoiceNo(data))}</div>
+      ${lc ? `<div>L/C No.: ${escapeHtml(lc.lcNumber)}</div>` : ''}
+    </div>
+  </div>
+
+  <div class="doc-party-grid">
+    <div class="doc-party">
+      <div class="label">Insured / Beneficiary 被保险人</div>
+      <div class="name">${escapeHtml(EXPORTER_PROFILE.beneficiary)}</div>
+      <div class="detail">${linesToHtml(EXPORTER_PROFILE.addressEn)}</div>
+    </div>
+    <div class="doc-party">
+      <div class="label">Insurer 保险人</div>
+      <div class="name">${dash(ins.insurer)}</div>
+      <div class="detail">Claims payable at 赔付地点: ${escapeHtml(claimsAt)}</div>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <table class="doc-table">
+      <tbody>
+        <tr>
+          <td style="width:25%"><strong>Amount Insured 保险金额</strong></td>
+          <td style="width:25%"><strong>${fmtMoney(ins.insuredAmount, ins.currency)}</strong></td>
+          <td style="width:25%"><strong>Premium 保费</strong></td>
+          <td style="width:25%">${ins.premium !== null ? fmtMoney(ins.premium, ins.premiumCurrency) : 'PAID 已付'}</td>
+        </tr>
+        <tr>
+          <td><strong>Conveyance 运输工具</strong></td>
+          <td>${dash(data.shipment.vesselOrFlight)}${data.shipment.voyageNumber ? ' ' + escapeHtml(data.shipment.voyageNumber) : ''}</td>
+          <td><strong>Sailing on/about 开航日</strong></td>
+          <td>${dash(data.shipment.atd || data.shipment.etd)}</td>
+        </tr>
+        <tr>
+          <td><strong>From 起运港</strong></td>
+          <td>${dash(data.shipment.portOfLoading)}</td>
+          <td><strong>To 目的港</strong></td>
+          <td>${dash(data.shipment.portOfDischarge)}</td>
+        </tr>
+        <tr>
+          <td><strong>Conditions 承保险别</strong></td>
+          <td colspan="3">${escapeHtml(ins.coverage)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Subject-matter Insured 保险标的</div>
+    <table class="doc-table">
+      <thead><tr><th>Marks &amp; Nos.</th></tr></thead>
+      <tbody><tr><td>${shippingMarks(data)}</td></tr></tbody>
+    </table>
+    <table class="doc-table">
+      <thead>
+        <tr>
+          <th>No. of Packages 件数</th>
+          <th>Description of Goods 货名</th>
+          <th style="text-align:right">Quantity 数量</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${ins.insuredAmount !== null ? `<div class="doc-notes"><div class="notes-title">Amount in Words</div>${escapeHtml(amountInWords(ins.insuredAmount, ins.currency))}</div>` : ''}
+  </div>
+
+  ${lc ? `
+  <div class="doc-section">
+    <div class="doc-section-title">L/C Reference 信用证引用</div>
+    <table class="doc-table">
+      <tbody>
+        <tr>
+          <td style="width:25%"><strong>L/C No. 信用证号</strong></td>
+          <td style="width:25%">${escapeHtml(lc.lcNumber)}</td>
+          <td style="width:25%"><strong>Issuing Bank 开证行</strong></td>
+          <td style="width:25%">${dash(lc.issueBank)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>` : ''}
+
+  <div class="doc-footer">
+    <div class="doc-signature">
+      <div class="sig-label">Insurer / Authorized Agent 保险人签章</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">Authorized Signature</div>
+    </div>
+    <div class="doc-signature">
+      <div class="sig-label">Insured 被保险人 (签章)</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">${escapeHtml(EXPORTER_PROFILE.nameEn)}</div>
+    </div>
+  </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// BC — Beneficiary's Certificate 受益人证明
+// ────────────────────────────────────────────────────────────────
+
+export function renderBeneficiaryCertificateHtml(data: DocumentSetData): string {
+  const lc = data.extras.letterOfCredit;
+  const today = formatDate(new Date());
+
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>BENEFICIARY'S CERTIFICATE</h1>
+      <div class="subtitle">受益人证明</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">BC-${escapeHtml(data.shipment.shipmentNumber)}</div>
+      <div>Date: ${escapeHtml(today)}</div>
+      <div>Invoice No.: ${escapeHtml(resolvedInvoiceNo(data))}</div>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <table class="doc-table">
+      <tbody>
+        <tr>
+          <td style="width:25%"><strong>To 致</strong></td>
+          <td style="width:75%">${lc?.applicant ? escapeHtml(lc.applicant) : data.parties.customer?.name ? escapeHtml(data.parties.customer.name) : '—'}</td>
+        </tr>
+        ${lc ? `
+        <tr>
+          <td><strong>L/C No. 信用证号</strong></td>
+          <td>${escapeHtml(lc.lcNumber)}${lc.issueBank ? ` issued by ${escapeHtml(lc.issueBank)}` : ''}${lc.issueDate ? ` dated ${escapeHtml(lc.issueDate)}` : ''}</td>
+        </tr>` : ''}
+        <tr>
+          <td><strong>S/C or P/O No. 合同/订单号</strong></td>
+          <td>${escapeHtml(data.order?.finalContractNumber || data.order?.salesContractNumber || data.order?.poNumber || '—')}</td>
+        </tr>
+        <tr>
+          <td><strong>B/L or Shipment 运单号</strong></td>
+          <td>${escapeHtml(data.shipment.shipmentNumber)}${data.shipment.vesselOrFlight ? ` per ${escapeHtml(data.shipment.vesselOrFlight)}` : ''}${data.shipment.voyageNumber ? ' ' + escapeHtml(data.shipment.voyageNumber) : ''}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Certification 声明</div>
+    <div class="doc-notes" style="color:#2d3748;font-size:12px;line-height:1.9">
+      WE, ${escapeHtml(EXPORTER_PROFILE.beneficiary)}, HEREBY CERTIFY THAT:
+      <br><br>
+      1. ONE FULL SET OF NON-NEGOTIABLE SHIPPING DOCUMENTS (INCLUDING COPY OF BILL OF LADING,
+      COMMERCIAL INVOICE AND PACKING LIST) HAS BEEN SENT DIRECTLY TO THE APPLICANT BY COURIER
+      IMMEDIATELY AFTER SHIPMENT.
+      <br>
+      2. ALL DOCUMENTS PRESENTED CONFORM TO THE TERMS AND CONDITIONS OF THE RELATIVE LETTER OF CREDIT
+      AND THE GOODS SHIPPED ARE IN STRICT ACCORDANCE WITH THE CONTRACT SPECIFICATIONS.
+      <br><br>
+      我司兹证明：船运后已立即以快递方式向开证申请人直接寄送全套副本装运单据（含提单副本、商业发票与装箱单），
+      且所提交单据均符合相关信用证条款，所装货物与合同规格严格相符。
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div class="doc-signature">
+      <div class="sig-label">For and on behalf of ${escapeHtml(EXPORTER_PROFILE.nameEn)} (签章)</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">Beneficiary's Authorized Signature · ${escapeHtml(today)}</div>
+    </div>
+  </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────
 // 注册表
 // ────────────────────────────────────────────────────────────────
 
-export type ExportDocKind = 'CI' | 'PL' | 'CO' | 'BL';
+export type ExportDocKind = 'CI' | 'PL' | 'CO' | 'BL' | 'FORMA' | 'INS' | 'BC';
 
 export const EXPORT_DOC_RENDERERS: Record<ExportDocKind, { title: string; render: (d: DocumentSetData) => string }> = {
   CI: { title: 'Commercial Invoice 商业发票', render: renderCommercialInvoiceHtml },
   PL: { title: 'Packing List 装箱单', render: renderPackingListHtml },
   CO: { title: 'Certificate of Origin 原产地证', render: renderCertificateOfOriginHtml },
   BL: { title: 'Bill of Lading 提单补料', render: renderBillOfLadingHtml },
+  FORMA: { title: 'GSP Form A 普惠制原产地证', render: renderFormAHtml },
+  INS: { title: 'Insurance Policy 保险单', render: renderInsurancePolicyHtml },
+  BC: { title: "Beneficiary's Certificate 受益人证明", render: renderBeneficiaryCertificateHtml },
 };

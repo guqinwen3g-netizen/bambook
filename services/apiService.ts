@@ -28,6 +28,7 @@ import {
   UpdateBOMInput,
   Shipment,
   DocumentSetData,
+  EntityAuditLogItem,
   DevelopmentCase,
   Insight,
   CreateProductAssetInput,
@@ -561,6 +562,13 @@ export const apiService = {
   /** 出运制单数据装配（CI/PL/CO/BL 成套生成数据源，只读） */
   async getShipmentDocumentSet(shipmentId: string, endpoint?: string): Promise<DocumentSetData> {
     return requestJson<DocumentSetData>(`/v1/shipping/${encodeURIComponent(shipmentId)}/document-set`, { endpoint, method: 'GET' });
+  },
+
+  /** 阶段 D / D6：实体级审计历史（模块读权限门禁，最近 20 条倒序） */
+  async getEntityAuditLogs(targetType: string, targetId: string, endpoint?: string): Promise<EntityAuditLogItem[]> {
+    const query = new URLSearchParams({ targetType, targetId });
+    const data = await requestJson<{ ok: boolean; logs: EntityAuditLogItem[] }>(`/v1/audit/entity?${query.toString()}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.logs) ? data.logs : [];
   },
 
   // ── Phase 2: 报价管理 API ──

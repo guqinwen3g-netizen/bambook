@@ -50,6 +50,7 @@ import { createAgentRouter } from './agent/route';
 import { ensureDefaultAgentTools } from './agent/tools';
 import { createAuthRouter } from './auth/route';
 import { createAdminRouter } from './admin/route';
+import { createAuditRouter } from './audit/route';
 import { createHRRouter } from './hr/route';
 import { initializeNotificationBindings } from './notifications/eventBindings';
 import { createNotificationsRouter } from './notifications/route';
@@ -505,6 +506,16 @@ app.use(
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 D / D6：实体级审计查询（普通用户按 targetType+targetId，模块读权限门禁）
+app.use(
+    '/api/v1/audit',
+    (req, res, next) => createAuditRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
     })(req, res, next),
 );
 

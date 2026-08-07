@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { createAuthService } from '../auth/service';
 import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
+import { buildAuditLogQuery } from '../audit/entityQuery';
 import { AgentRole } from '../agent/types';
 import { EmailService, buildApprovalApprovedEmail, createEmailService } from '../auth/email';
 import { logger } from '../lib/logger';
@@ -451,58 +452,21 @@ export function createAdminRouter(options: AdminRouterOptions) {
 
   // ---- Audit Logs ----
   // task ERP-P1: target/time filters + 参数校验 fail closed
+  // 阶段 D / D6：where 构造抽取至 audit/entityQuery.ts（与 /api/v1/audit/entity 共享）
   router.get('/audit-logs', async (req: Request, res: Response) => {
-    const { action, actorId, targetType, targetId, createdFrom, createdTo, limit = '100', offset = '0' } = req.query as any;
-
-    // 参数校验：pagination（严格整数字符串校验，不宽松吞掉 10abc/1.5）
-    const strictNonNegInt = (v: any) => typeof v === 'string' && /^\d+$/.test(v);
-    const safeLimit = strictNonNegInt(limit) ? Math.min(parseInt(limit, 10), 500) : (limit === undefined ? 100 : NaN);
-    const safeOffset = strictNonNegInt(offset) ? parseInt(offset, 10) : (offset === undefined ? 0 : NaN);
-    if (isNaN(safeLimit) || isNaN(safeOffset)) {
-      return res.status(400).json({ ok: false, error: 'INVALID_PAGINATION', message: 'limit and offset must be non-negative integer strings' });
-    }
-
-    // 参数校验：date range（AuditLog.createdAt 是 DateTime，转 Date 对象）
-    let fromDate: Date | undefined;
-    let toDate: Date | undefined;
-    if (createdFrom !== undefined) {
-      const f = Number(createdFrom);
-      if (!Number.isFinite(f) || f < 0) {
-        return res.status(400).json({ ok: false, error: 'INVALID_DATE_RANGE', message: 'createdFrom must be a valid timestamp (ms)' });
-      }
-      fromDate = new Date(f);
-    }
-    if (createdTo !== undefined) {
-      const t = Number(createdTo);
-      if (!Number.isFinite(t) || t < 0) {
-        return res.status(400).json({ ok: false, error: 'INVALID_DATE_RANGE', message: 'createdTo must be a valid timestamp (ms)' });
-      }
-      toDate = new Date(t);
-    }
-    if (fromDate && toDate && fromDate > toDate) {
-      return res.status(400).json({ ok: false, error: 'INVALID_DATE_RANGE', message: 'createdFrom must be <= createdTo' });
-    }
-
-    // 同一个 where 用于 findMany + count
-    const where: any = {};
-    if (action) where.action = action;
-    if (actorId) where.actorId = actorId;
-    if (targetType) where.targetType = targetType;
-    if (targetId) where.targetId = targetId;
-    if (fromDate || toDate) {
-      where.createdAt = {};
-      if (fromDate) where.createdAt.gte = fromDate;
-      if (toDate) where.createdAt.lte = toDate;
+    const built = buildAuditLogQuery(req.query as any);
+    if (!built.ok) {
+      return res.status(built.status).json({ ok: false, error: built.error, message: built.message });
     }
 
     const [logs, total] = await Promise.all([
       options.prisma.auditLog.findMany({
-        where,
+        where: built.where,
         orderBy: { createdAt: 'desc' },
-        take: safeLimit,
-        skip: safeOffset,
+        take: built.limit,
+        skip: built.offset,
       }),
-      options.prisma.auditLog.count({ where }),
+      options.prisma.auditLog.count({ where: built.where }),
     ]);
     res.json({ ok: true, logs, total });
   });
