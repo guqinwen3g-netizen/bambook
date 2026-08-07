@@ -279,6 +279,13 @@ const DEFAULT_TEMPLATES: Record<BusinessEventType, TemplateSpec> = {
     body: '退税申报 {refundNumber} 已完成退款，请核对到账金额。',
     link: '/customs?tab=taxRefunds',
   },
+  FxSettlementCreated: {
+    type: 'fx_settlement_created',
+    level: 'info',
+    title: '结汇水单 {settlementNumber} 已登记',
+    body: '结汇 {foreignAmount} {currency}，汇率 {fxRate}，折人民币 {cnyAmount} 元。',
+    link: '/finance?tab=vouchers',
+  },
 };
 
 // ────────────────────────────────────────────────────────────────

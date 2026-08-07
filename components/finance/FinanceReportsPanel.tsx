@@ -1,29 +1,32 @@
 /**
- * FinanceReportsPanel — 财务报表面板（Phase B2）
+ * FinanceReportsPanel — 财务报表面板（Phase B2 + 阶段 F / F2）
  *
- * 三个子视图：
+ * 四个子视图：
  *   1. 账龄分析 Aging — 应收/应付五桶（未到期/1-30/31-60/61-90/90+），按客户×币种分组
  *   2. 客户对账单 Statement — 期初余额 + 开票/收款流水 + running balance，多币种分节
  *   3. 汇率损益 FX Gain/Loss — 核销维度（收款汇率 vs 开票汇率），收益/损失汇总
+ *   4. 外汇台账 FX Ledger — 收汇/已结汇/未结汇按币种聚合 + 未结汇凭证清单（F2 外汇核销闭环）
  *
- * 数据源：GET /v1/finance/reports/*（只读报表，多币种不折算汇总）
+ * 数据源：GET /v1/finance/reports/* + GET /v1/finance/fx-settlements/ledger（只读报表，多币种不折算汇总）
  * 设计：flat 无阴影、RDL 原语、tabular-nums 数字对齐
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle } from 'lucide-react';
 import { apiService } from '../../services/apiService';
+import { fxSettlementService } from '../../services/fxSettlementService';
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
-import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, Relation } from '../../types';
+import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Relation } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-type ReportTabId = 'aging' | 'statement' | 'fx';
+type ReportTabId = 'aging' | 'statement' | 'fx' | 'fx-ledger';
 
 const REPORT_TABS: Array<{ id: ReportTabId; label: string; en: string }> = [
   { id: 'aging', label: '账龄分析', en: 'Aging' },
   { id: 'statement', label: '客户对账单', en: 'Statement' },
   { id: 'fx', label: '汇率损益', en: 'FX Gain/Loss' },
+  { id: 'fx-ledger', label: '外汇台账', en: 'FX Ledger' },
 ];
 
 function formatAmount(amount: number, currency?: string): string {
@@ -65,6 +68,11 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   const [fxFrom, setFxFrom] = useState(firstDayOfMonth());
   const [fxTo, setFxTo] = useState(today());
   const [fx, setFx] = useState<FxGainLossReport | null>(null);
+
+  // ── 外汇台账（F2）──
+  const [ledgerFrom, setLedgerFrom] = useState(firstDayOfMonth());
+  const [ledgerTo, setLedgerTo] = useState(today());
+  const [ledger, setLedger] = useState<FxLedger | null>(null);
 
   const textPrimary = isDarkMode ? 'text-white/88' : 'text-slate-800/88';
   const textSecondary = isDarkMode ? 'text-white/50' : 'text-slate-500/75';
@@ -109,10 +117,23 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     }
   }, [fxFrom, fxTo, endpoint]);
 
+  const loadLedger = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setLedger(await fxSettlementService.getFxLedger({ from: ledgerFrom || undefined, to: ledgerTo || undefined }, endpoint));
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }, [ledgerFrom, ledgerTo, endpoint]);
+
   // 初次进入各 tab 时加载
   useEffect(() => {
     if (tab === 'aging' && !aging) loadAging();
     if (tab === 'fx' && !fx) loadFx();
+    if (tab === 'fx-ledger' && !ledger) loadLedger();
     if (tab === 'statement' && relations.length === 0) {
       apiService.listRelations(endpoint).then(list => {
         const customers = list.filter(r => r.type === 'Customer' && !r.deletedAt);
@@ -120,7 +141,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         if (customers.length > 0 && !customerId) setCustomerId(customers[0].id);
       }).catch(() => {});
     }
-  }, [tab, aging, fx, relations.length, customerId, endpoint, loadAging, loadFx]);
+  }, [tab, aging, fx, ledger, relations.length, customerId, endpoint, loadAging, loadFx, loadLedger]);
 
   // 客户选定后自动加载对账单
   useEffect(() => {
@@ -288,6 +309,93 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     );
   };
 
+  // ── 外汇台账视图（F2）──
+  const renderFxLedger = () => {
+    if (!ledger) return null;
+    const gridCls = 'grid w-full min-w-0 grid-cols-[minmax(0,0.55fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.45fr)_minmax(0,0.7fr)_minmax(0,0.8fr)]';
+    const formatRate = (rate: string | null) => (rate == null ? '—' : Number(rate).toFixed(4));
+    const formatDiff = (diff: string | null) => {
+      if (diff == null) return { text: '—', cls: textFaint };
+      const n = Number(diff);
+      return { text: `${n >= 0 ? '+' : ''}${formatAmount(n, 'CNY')}`, cls: n >= 0 ? 'text-emerald-400' : 'text-red-400' };
+    };
+    return (
+      <>
+        {/* 未结汇余额汇总卡片（待办导向：还有多少外币躺在账上） */}
+        <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
+          {ledger.rows.map(row => (
+            <RdlMetricCard key={row.currency} className="px-4 py-3">
+              <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>未结汇余额 · {row.currency}</div>
+              <div className={cx('mt-1.5 text-lg font-light tabular-nums', Number(row.unsettledBalance) > 0 ? 'text-amber-400' : textPrimary)}>
+                {formatAmount(Number(row.unsettledBalance), row.currency)}
+              </div>
+              <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>
+                期间收汇 {formatAmount(Number(row.receivedTotal), row.currency)} · 已结汇 {formatAmount(Number(row.settledTotal), row.currency)}
+              </div>
+            </RdlMetricCard>
+          ))}
+          {ledger.rows.length === 0 && (
+            <div className={cx('col-span-full py-6 text-center text-xs font-light', textFaint)}>该期间无外币收汇/结汇记录</div>
+          )}
+        </div>
+
+        {/* 币种聚合表 */}
+        {ledger.rows.length > 0 && (
+          <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-1 flex-col">
+            <div className={cx(gridCls, 'px-4 pb-2 pt-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
+              <div>币种</div>
+              <div className="text-right">期间收汇</div>
+              <div className="text-right">期间结汇</div>
+              <div className="text-right">未结汇余额</div>
+              <div className="text-right">笔数</div>
+              <div className="text-right">加权汇率</div>
+              <div className="text-right">汇兑差额估算 (CNY)</div>
+            </div>
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
+              {ledger.rows.map(row => {
+                const diff = formatDiff(row.fxDiffEstimate);
+                return (
+                  <div key={row.currency} className={cx(gridCls, 'items-center rounded-control px-4 py-2.5', isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40')}>
+                    <div className={cx('font-light', textPrimary)}>{row.currency}</div>
+                    <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(row.receivedTotal), row.currency)}</div>
+                    <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(row.settledTotal), row.currency)}</div>
+                    <div className={cx('text-right font-light tabular-nums', Number(row.unsettledBalance) > 0 ? 'text-amber-400' : textPrimary)}>
+                      {formatAmount(Number(row.unsettledBalance), row.currency)}
+                    </div>
+                    <div className={cx('text-right font-light tabular-nums', textSecondary)}>{row.settlementCount}</div>
+                    <div className={cx('text-right font-light tabular-nums', textSecondary)}>{formatRate(row.weightedAvgSettleRate)}</div>
+                    <div className={cx('text-right font-light tabular-nums', diff.cls)}>{diff.text}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </RdlSurface>
+        )}
+
+        {/* 未结汇凭证清单（行动导向） */}
+        {ledger.unsettledVouchers.length > 0 && (
+          <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-1 flex-col">
+            <div className={cx('flex items-baseline justify-between px-4 pb-2 pt-1')}>
+              <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>未结汇凭证（{ledger.unsettledVouchers.length} 笔待处理）</div>
+              <div className={cx('text-[10px] font-light', textFaint)}>可在「收付款」tab 选中凭证后点「结汇」登记</div>
+            </div>
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
+              {ledger.unsettledVouchers.map(v => (
+                <div key={v.voucherId} className={cx('grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] items-center rounded-control px-4 py-2.5', isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40')}>
+                  <div className={cx('font-light tabular-nums', textSecondary)}>{v.paymentDate}</div>
+                  <div className={cx('truncate font-light', textPrimary)}>{v.voucherNumber}</div>
+                  <div className={cx('truncate font-light', textSecondary)}>{v.customerName || '—'}</div>
+                  <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(v.voucherAmount), v.currency)}</div>
+                  <div className={cx('text-right font-light tabular-nums', 'text-amber-400')}>{formatAmount(Number(v.remainingAmount), v.currency)}</div>
+                </div>
+              ))}
+            </div>
+          </RdlSurface>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-2.5">
       {/* 子 tab + 过滤器 */}
@@ -327,6 +435,14 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <RdlPill type="button" active tone="accent" onClick={loadFx} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
             </>
           )}
+          {tab === 'fx-ledger' && (
+            <>
+              <input type="date" value={ledgerFrom} onChange={e => setLedgerFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
+              <span className={cx('text-[10px]', textFaint)}>至</span>
+              <input type="date" value={ledgerTo} onChange={e => setLedgerTo(e.target.value)} className={inputCls} aria-label="结束日期" />
+              <RdlPill type="button" active tone="accent" onClick={loadLedger} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
+            </>
+          )}
         </div>
       </div>
 
@@ -345,6 +461,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           {tab === 'aging' && renderAging()}
           {tab === 'statement' && renderStatement()}
           {tab === 'fx' && renderFx()}
+          {tab === 'fx-ledger' && renderFxLedger()}
         </>
       )}
     </div>

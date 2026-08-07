@@ -24,6 +24,7 @@ import { validateStatusTransition } from '../statusTransition';
 import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMutationService';
 import { createInvoice, updateInvoice } from './invoiceMutationService';
 import { getAgingReport, getCustomerStatement, getFxGainLoss } from './reportService';
+import { createFxSettlement, deleteFxSettlement, getFxLedger, getVoucherSettlementSummary } from './fxSettlementService';
 
 export interface FinanceRouterOptions {
   prisma: PrismaClient;
@@ -338,6 +339,108 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
     }
     onDataChange?.({ entity: 'finance.allocations', action: 'delete', ids: [req.params.id] });
     res.json(result.data);
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // 结汇水单（FxSettlement） — /api/v1/finance/fx-settlements
+  // 阶段 F / F2 外汇核销闭环：收汇凭证 → 结汇 → 台账
+  // ⚠️ 字面路由 /fx-settlements 必须在参数路由 /:id 之前注册。
+  // ────────────────────────────────────────────────────────────────
+
+  // GET /api/v1/finance/fx-settlements/ledger — 外汇台账（只读聚合）
+  router.get('/fx-settlements/ledger', async (req: Request, res: Response) => {
+    try {
+      const ledger = await getFxLedger(prisma, {
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      res.json(serializeFinanceValue(ledger));
+    } catch (err: any) {
+      logger.error('[finance] GET /fx-settlements/ledger failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'LEDGER_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/fx-settlements — list / search
+  router.get('/fx-settlements', async (req: Request, res: Response) => {
+    try {
+      const limit = Math.min(Number(req.query.limit) || 50, 200);
+      const offset = Number(req.query.offset) || 0;
+      const where: any = { deletedAt: null };
+      if (req.query.voucherId) where.voucherId = String(req.query.voucherId);
+      if (req.query.orderId) where.orderId = String(req.query.orderId);
+      if (req.query.customerRelationId) where.customerRelationId = String(req.query.customerRelationId);
+      if (req.query.currency) where.currency = String(req.query.currency);
+      if (req.query.from) where.settleDate = { ...(where.settleDate || {}), gte: String(req.query.from) };
+      if (req.query.to) where.settleDate = { ...(where.settleDate || {}), lte: String(req.query.to) };
+      const [items, total] = await Promise.all([
+        (prisma as any).fxSettlement.findMany({ where, take: limit, skip: offset, orderBy: { settleDate: 'desc' } }),
+        (prisma as any).fxSettlement.count({ where }),
+      ]);
+      res.json(serializeFinanceValue({ items, total }));
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/fx-settlements/:id
+  router.get('/fx-settlements/:id', async (req: Request, res: Response) => {
+    try {
+      const item = await (prisma as any).fxSettlement.findUnique({ where: { id: req.params.id } });
+      if (!item || item.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '结汇水单不存在' } });
+      res.json(serializeFinanceValue(item));
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'GET_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /api/v1/finance/fx-settlements — create（核销校验 + cnyAmount 服务端计算）
+  router.post('/fx-settlements', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await createFxSettlement({
+      prisma,
+      input: req.body,
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        INVALID_INPUT: 400, INVALID_AMOUNT: 400, INVALID_DATE: 400,
+        VOUCHER_NOT_FOUND: 404, NOT_A_RECEIPT: 400, CNY_VOUCHER_NO_SETTLEMENT: 400,
+        CURRENCY_MISMATCH: 400, OVER_SETTLEMENT: 409, CREATE_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    const created = result.data!.settlement;
+    onDataChange?.({ entity: 'finance.fx-settlements', action: 'create', ids: [created.id] });
+    res.status(201).json(serializeFinanceValue(created));
+  });
+
+  // DELETE /api/v1/finance/fx-settlements/:id — 软删（回滚核销余额）
+  router.delete('/fx-settlements/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await deleteFxSettlement({
+      prisma,
+      settlementId: req.params.id,
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = { SETTLEMENT_NOT_FOUND: 404, DELETE_FAILED: 500 };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ ok: false, error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'finance.fx-settlements', action: 'delete', ids: [req.params.id] });
+    res.json({ ok: true });
+  });
+
+  // GET /api/v1/finance/vouchers/:id/settlements — 凭证核销摘要（已结汇/余额/明细）
+  router.get('/vouchers/:id/settlements', async (req: Request, res: Response) => {
+    const result = await getVoucherSettlementSummary(prisma, req.params.id);
+    if (!result.ok) {
+      res.status(result.error!.code === 'VOUCHER_NOT_FOUND' ? 404 : 500).json({ error: result.error });
+      return;
+    }
+    res.json(serializeFinanceValue(result.data));
   });
 
   // task ERP-P1: POST /:id/cancel — Invoice 作废（调 voidDeleteService）

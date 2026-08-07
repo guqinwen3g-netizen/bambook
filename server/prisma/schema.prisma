@@ -1773,6 +1773,46 @@ model InvoiceAllocation {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// FxSettlement — 结汇水单（F2 外汇核销闭环核心）
+// ════════════════════════════════════════════════════════════════════
+// 业务语义：收款凭证（PaymentVoucher type=Receipt，外币）→ 银行结汇 → 人民币入账。
+//   - 一笔外币收款可分次结汇（1 voucher : N settlements），核销余额 = voucher.amount - Σsettlements.foreignAmount
+//   - cnyAmount 由服务端按 foreignAmount × fxRate 计算（round4），不接受客户端传入（防篡改）
+//   - 汇兑损益线索：voucher.exchangeRate（收款日快照）vs settlement.fxRate（结汇日实际）
+//   - 软删（deletedAt），删除即回滚核销余额（无独立状态机——水单是事实记录）
+// ════════════════════════════════════════════════════════════════════
+model FxSettlement {
+  id               String @id // 格式：FXS__${shortId}
+  settlementNumber String @unique // 结汇水单号（如 FXS-20260808-001）
+
+  // ─── 核销关联（snapshot FK） ───
+  voucherId          String  // 关联收款凭证（settlesVoucher linkKind）
+  orderId            String? // 冗余关联订单（aboutOrder linkKind），便于按订单聚合
+  customerRelationId String? // 交易对象（billTo linkKind）
+
+  // ─── 结汇信息 ───
+  settleDate    String  // 结汇日期 YYYY-MM-DD
+  foreignAmount Decimal @db.Decimal(18, 4) // 结汇外币金额（≤ 凭证未结汇余额，币种须与凭证一致）
+  currency      String  // 外币币种（与凭证币种一致；CNY 凭证无结汇语义，fail closed）
+  fxRate        Decimal @db.Decimal(18, 8) // 结汇汇率（外币 → CNY）
+  cnyAmount     Decimal @db.Decimal(18, 4) // 折合人民币（服务端计算 = foreignAmount × fxRate）
+
+  // ─── 银行信息 ───
+  bank       String? // 结汇银行
+  slipNumber String? // 银行水单号
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([voucherId])
+  @@index([orderId])
+  @@index([customerRelationId])
+  @@index([settleDate])
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Shipping Module — 货运与报关
 // ════════════════════════════════════════════════════════════════════
 // 设计决策：

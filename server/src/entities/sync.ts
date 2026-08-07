@@ -656,6 +656,69 @@ export async function syncPaymentVoucherReferences(
   }
 }
 
+// ---------------------------------------------------------------------------
+// 阶段 F / F2：FxSettlement（结汇水单）图谱链接
+//   settlesVoucher — voucherId → paymentVoucher（核销勾稽主干）
+//   aboutOrder     — orderId → order
+//   billTo         — customerRelationId → relation.organization
+// ---------------------------------------------------------------------------
+
+type FxSettlementLike = Record<string, any> & { id: string };
+
+export async function syncFxSettlementReferences(
+  prisma: PrismaClient,
+  settlement: FxSettlementLike,
+  options: { source: string; now?: () => number } = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!settlement?.id) return;
+  const now = options.now?.() ?? Date.now();
+  const ctx = tx || prisma;
+  const ops: any[] = [];
+
+  const push = (fieldKey: string, targetType: string, targetId: string, linkKind: string, extraSnapshot: Record<string, any> = {}) => {
+    const snapshot = compact({ targetId, fieldKey, settlementNumber: settlement.settlementNumber, ...extraSnapshot });
+    const referenceId = referenceIdFor('fxSettlement', settlement.id, fieldKey, targetType, targetId);
+    const linkId = linkIdFor('fxSettlement', settlement.id, targetType, targetId, linkKind);
+    ops.push(ctx.entityReference.upsert({
+      where: { id: referenceId },
+      update: { snapshot, confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: referenceId,
+        ownerType: 'fxSettlement', ownerId: settlement.id,
+        fieldKey, targetType, targetId,
+        snapshot, confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+    ops.push(ctx.entityLink.upsert({
+      where: { id: linkId },
+      update: { confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: linkId,
+        fromType: 'fxSettlement', fromId: settlement.id,
+        toType: targetType, toId: targetId,
+        linkKind, confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+  };
+
+  const voucherId = stringOrNull(settlement.voucherId);
+  if (voucherId) push('voucherId', 'paymentVoucher', voucherId, 'settlesVoucher', { foreignAmount: settlement.foreignAmount, currency: settlement.currency });
+  const orderId = stringOrNull(settlement.orderId);
+  if (orderId) push('orderId', 'order', orderId, 'aboutOrder');
+  const relationId = stringOrNull(settlement.customerRelationId);
+  if (relationId) push('customerRelationId', 'relation.organization', relationId, 'billTo');
+
+  if (ops.length === 0) return;
+  if (tx) {
+    for (const op of ops) await op;
+  } else {
+    await (prisma as any).$transaction(ops);
+  }
+}
+
 export function referenceIdFor(ownerType: string, ownerId: string, fieldKey: string, targetType: string, targetId: string): string {
   return ['REF', ownerType, ownerId, fieldKey, targetType, targetId].map(safeIdPart).join('__');
 }

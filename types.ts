@@ -2200,6 +2200,67 @@ export interface FxGainLossReport {
   totalGainLoss: number;
 }
 
+// ── Phase F2: 外汇核销闭环（结汇水单 + 台账，消费 /v1/finance/fx-settlements contract）──
+// 注意：Decimal 字段经后端 serializeFinanceValue 序列化为 string（保精度），createdAt/updatedAt 为 number
+export interface FxSettlement {
+  id: string; // 格式：FXS__${shortId}
+  settlementNumber: string; // 结汇水单号
+  voucherId: string;
+  orderId?: string | null;
+  customerRelationId?: string | null;
+  settleDate: string; // YYYY-MM-DD
+  foreignAmount: string; // 结汇外币金额
+  currency: string;
+  fxRate: string; // 结汇汇率（外币 → CNY）
+  cnyAmount: string; // 折合人民币（服务端计算）
+  bank?: string | null;
+  slipNumber?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+/** GET /v1/finance/vouchers/:id/settlements 响应——凭证核销摘要 */
+export interface VoucherSettlementSummary {
+  voucherId: string;
+  voucherNumber: string;
+  voucherAmount: string;
+  currency: string;
+  settledAmount: string;
+  remainingAmount: string;
+  fullySettled: boolean;
+  settlements: FxSettlement[];
+}
+
+/** GET /v1/finance/fx-settlements/ledger 响应——外汇台账（只读聚合） */
+export interface FxLedgerRow {
+  currency: string;
+  receivedTotal: string; // 期间内收汇总额
+  settledTotal: string; // 期间内已结汇总额
+  unsettledBalance: string; // 未结汇余额（全量口径）
+  settlementCount: number;
+  weightedAvgSettleRate: string | null; // 加权平均结汇汇率
+  fxDiffEstimate: string | null; // 汇兑差额估算（CNY）
+}
+
+export interface FxLedgerUnsettledVoucher {
+  voucherId: string;
+  voucherNumber: string;
+  customerName: string | null;
+  paymentDate: string;
+  currency: string;
+  voucherAmount: string;
+  remainingAmount: string;
+}
+
+export interface FxLedger {
+  from: string | null;
+  to: string | null;
+  rows: FxLedgerRow[];
+  unsettledVouchers: FxLedgerUnsettledVoucher[];
+}
+
 // ── Phase C1: 经营驾驶舱（消费 /v1/dashboard/cockpit contract）──
 export interface SalesLeaderboardRow {
   salesPerson: string;

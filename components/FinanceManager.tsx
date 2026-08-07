@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { paymentVoucherService } from '../services/paymentVoucherService';
 import { invoiceService } from '../services/invoiceService';
 import { allocationService } from '../services/allocationService';
-import { CreditCard, FileText, Link2, Pencil, Plus, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
+import { fxSettlementService } from '../services/fxSettlementService';
+import { CreditCard, FileText, Landmark, Link2, Pencil, Plus, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { RdlMetricCard, RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import type {
@@ -13,6 +14,7 @@ import type {
   PaymentVoucher as VoucherEntity,
   VoucherStatus,
   VoucherType,
+  VoucherSettlementSummary,
 } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { PageHeader } from './ui/PageHeader';
@@ -286,6 +288,105 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setVoucherError(`创建失败：${e?.message ?? e}`);
     } finally {
       setVoucherCreating(false);
+    }
+  };
+
+  // ── F2 外汇核销闭环：结汇 modal state（消费 /v1/finance/fx-settlements contract）───
+  const [settlementVoucher, setSettlementVoucher] = useState<VoucherEntity | null>(null);
+  const [settlementSummary, setSettlementSummary] = useState<VoucherSettlementSummary | null>(null);
+  const [settlementLoading, setSettlementLoading] = useState(false);
+  const [settlementSaving, setSettlementSaving] = useState(false);
+  const [settlementDeletingId, setSettlementDeletingId] = useState<string | null>(null);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
+  const [settlementForm, setSettlementForm] = useState({ settleDate: '', foreignAmount: '', fxRate: '', bank: '', slipNumber: '', notes: '' });
+
+  const loadSettlementSummary = async (voucherId: string) => {
+    setSettlementLoading(true);
+    setSettlementError(null);
+    try {
+      setSettlementSummary(await fxSettlementService.getVoucherSettlementSummary(voucherId));
+    } catch (e: any) {
+      setSettlementError(`核销摘要加载失败：${e?.message ?? e}`);
+    } finally {
+      setSettlementLoading(false);
+    }
+  };
+
+  const openSettlementModal = (voucher: VoucherEntity) => {
+    setSettlementVoucher(voucher);
+    setSettlementSummary(null);
+    setSettlementError(null);
+    setSettlementForm({ settleDate: new Date().toISOString().slice(0, 10), foreignAmount: '', fxRate: '', bank: '', slipNumber: '', notes: '' });
+    loadSettlementSummary(voucher.id);
+  };
+
+  const handleCreateSettlement = async () => {
+    if (!settlementVoucher || settlementSaving) return;
+    const foreignAmount = Number(settlementForm.foreignAmount);
+    const fxRate = Number(settlementForm.fxRate);
+    if (!settlementForm.settleDate) {
+      setSettlementError('结汇日期为必填项');
+      return;
+    }
+    if (!Number.isFinite(foreignAmount) || foreignAmount <= 0) {
+      setSettlementError('结汇外币金额必须是大于 0 的有效数字');
+      return;
+    }
+    if (!Number.isFinite(fxRate) || fxRate <= 0) {
+      setSettlementError('结汇汇率必须是大于 0 的有效数字');
+      return;
+    }
+    setSettlementSaving(true);
+    setSettlementError(null);
+    let mutationOk = false;
+    try {
+      await fxSettlementService.createFxSettlement({
+        voucherId: settlementVoucher.id,
+        settleDate: settlementForm.settleDate,
+        foreignAmount,
+        fxRate,
+        bank: settlementForm.bank || undefined,
+        slipNumber: settlementForm.slipNumber || undefined,
+        notes: settlementForm.notes || undefined,
+      });
+      mutationOk = true;
+      setSettlementForm({ settleDate: new Date().toISOString().slice(0, 10), foreignAmount: '', fxRate: '', bank: '', slipNumber: '', notes: '' });
+    } catch (e: any) {
+      // mutation 失败——真实未落库（超结/币种不一致等服务端阻断原因透出）
+      setSettlementError(`结汇登记失败：${e?.message ?? e}`);
+    } finally {
+      setSettlementSaving(false);
+    }
+    // ✅ mutation 成功后以服务端摘要为真源刷新（含 cnyAmount 服务端计算结果）
+    if (mutationOk) {
+      try {
+        await loadSettlementSummary(settlementVoucher.id);
+      } catch {
+        window.alert('结汇已登记，但摘要刷新失败，请关闭后重开查看最新数据。');
+      }
+    }
+  };
+
+  const handleDeleteSettlement = async (settlementId: string, settlementNumber: string) => {
+    if (!settlementVoucher || settlementDeletingId) return;
+    if (!window.confirm(`删除结汇水单 ${settlementNumber}？\n删除后该凭证未结汇余额将回滚。`)) return;
+    setSettlementDeletingId(settlementId);
+    setSettlementError(null);
+    let mutationOk = false;
+    try {
+      await fxSettlementService.deleteFxSettlement(settlementId);
+      mutationOk = true;
+    } catch (e: any) {
+      setSettlementError(`删除失败：${e?.message ?? e}`);
+    } finally {
+      setSettlementDeletingId(null);
+    }
+    if (mutationOk) {
+      try {
+        await loadSettlementSummary(settlementVoucher.id);
+      } catch {
+        window.alert('已删除，但摘要刷新失败，请关闭后重开查看最新数据。');
+      }
     }
   };
 
@@ -868,6 +969,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   编辑
                 </RdlPill>
               )}
+              {/* F2 外汇核销闭环：结汇入口（仅外币收款凭证有结汇语义） */}
+              {!isInvoice && voucher && voucher.type === 'Receipt' && voucher.currency !== 'CNY' && (
+                <RdlPill
+                  type="button"
+                  onClick={() => openSettlementModal(voucher)}
+                  className="min-h-8 px-2.5 text-[10.5px]"
+                >
+                  <Landmark size={10} strokeWidth={1.3} />
+                  结汇
+                </RdlPill>
+              )}
               {/* voucher 作废入口（非 cancelled 状态可作废） */}
               {!isInvoice && voucher && voucher.status !== 'cancelled' && (
                 <RdlPill
@@ -1048,12 +1160,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </RdlToolbar>
             <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
               {activeTab === 'reports'
-                ? '账龄 / 对账单 / 汇率损益'
+                ? '账龄 / 对账单 / 汇率损益 / 外汇台账'
                 : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : '张凭证'}`}
             </div>
           </div>
 
-          {/* 报表 tab：自包含面板（账龄 / 对账单 / 汇率损益） */}
+          {/* 报表 tab：自包含面板（账龄 / 对账单 / 汇率损益 / 外汇台账） */}
           {activeTab === 'reports' && (
             <FinanceReportsPanel isDarkMode={isDarkMode} />
           )}
@@ -1330,6 +1442,138 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
                 {allocSaving ? '核销中...' : '确认核销'}
               </RdlPill>
+            </div>
+          </RdlSurface>
+        </div>
+      )}
+
+      {/* F2 外汇核销闭环：结汇 modal（核销摘要 + 结汇记录 + 登记表单） */}
+      {settlementVoucher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !settlementSaving && setSettlementVoucher(null)}>
+          <RdlSurface tone="floating" padding="regular" className="flex max-h-[85vh] w-full max-w-lg flex-col" onClick={e => e.stopPropagation()}>
+            <h2 className={cx('mb-3 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+              结汇核销 · {settlementVoucher.voucherNumber}
+              <span className={cx('ml-2 text-[11px]', textSecondaryClass)}>{settlementVoucher.customerName || '—'}</span>
+            </h2>
+
+            {/* 核销摘要（服务端真源） */}
+            <div className="grid shrink-0 grid-cols-3 gap-2">
+              {([
+                { label: '凭证金额', value: settlementSummary ? formatAmount(Number(settlementSummary.voucherAmount), settlementSummary.currency) : '—' },
+                { label: '已结汇', value: settlementSummary ? formatAmount(Number(settlementSummary.settledAmount), settlementSummary.currency) : '—' },
+                { label: '未结汇余额', value: settlementSummary ? formatAmount(Number(settlementSummary.remainingAmount), settlementSummary.currency) : '—', accent: true },
+              ]).map(card => (
+                <RdlSurface key={card.label} tone="inset" padding="compact">
+                  <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>{card.label}</div>
+                  {/* 中性材质对比表达强调（Finance 页面禁用语义色族）：未结清用主色，结清降为次级 */}
+                  <div className={cx('mt-1 text-sm font-light tabular-nums', card.accent && settlementSummary?.fullySettled ? textSecondaryClass : textPrimaryClass)}>
+                    {settlementLoading ? '加载中…' : card.value}
+                  </div>
+                </RdlSurface>
+              ))}
+            </div>
+
+            <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+              {/* 结汇记录 */}
+              <div>
+                <div className={cx('mb-1.5 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>
+                  结汇记录{settlementSummary ? `（${settlementSummary.settlements.length} 笔）` : ''}
+                </div>
+                {settlementSummary && settlementSummary.settlements.length === 0 && (
+                  <div className={cx('py-3 text-center text-[11px] font-light', textSecondaryClass)}>暂无结汇记录</div>
+                )}
+                <div className="space-y-1">
+                  {settlementSummary?.settlements.map(s => (
+                    <div key={s.id} className={cx('flex items-center gap-2 rounded-control px-3 py-2', isDarkMode ? 'bg-white/[0.035]' : 'bg-white/40')}>
+                      <div className="min-w-0 flex-1">
+                        <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                          {s.settleDate}
+                          <span className={cx('ml-2 text-[10px]', textSecondaryClass)}>{s.settlementNumber}</span>
+                        </div>
+                        <div className={cx('mt-0.5 truncate text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                          {formatAmount(Number(s.foreignAmount), s.currency)} × {Number(s.fxRate)} = {formatAmount(Number(s.cnyAmount), 'CNY')}
+                          {s.bank ? ` · ${s.bank}` : ''}{s.slipNumber ? ` · 水单 ${s.slipNumber}` : ''}
+                        </div>
+                      </div>
+                      <RdlOverlayIconButton
+                        type="button"
+                        disabled={settlementDeletingId === s.id}
+                        onClick={() => handleDeleteSettlement(s.id, s.settlementNumber)}
+                        title="删除结汇水单（回滚未结汇余额）"
+                      >
+                        {settlementDeletingId === s.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
+                      </RdlOverlayIconButton>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 登记结汇表单 */}
+              {(!settlementSummary || !settlementSummary.fullySettled) && (
+                <div className={cx('rounded-field border p-3', isDarkMode ? 'border-white/8' : 'border-slate-300/30')}>
+                  <div className={cx('mb-2 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>登记结汇</div>
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇日期 *</label>
+                        <input type="date" value={settlementForm.settleDate} onChange={e => setSettlementForm(f => ({ ...f, settleDate: e.target.value }))}
+                          className={formInputClass} />
+                      </div>
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇外币金额（{settlementVoucher.currency}）*</label>
+                        <input type="number" step="0.0001" value={settlementForm.foreignAmount} onChange={e => setSettlementForm(f => ({ ...f, foreignAmount: e.target.value }))}
+                          placeholder={settlementSummary ? `未结汇 ${settlementSummary.remainingAmount}` : ''}
+                          className={formInputClass} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇汇率（{settlementVoucher.currency} → CNY）*</label>
+                        <input type="number" step="0.00000001" value={settlementForm.fxRate} onChange={e => setSettlementForm(f => ({ ...f, fxRate: e.target.value }))}
+                          placeholder="7.12345678"
+                          className={formInputClass} />
+                      </div>
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇银行</label>
+                        <input value={settlementForm.bank} onChange={e => setSettlementForm(f => ({ ...f, bank: e.target.value }))}
+                          placeholder="中国银行"
+                          className={formInputClass} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>银行水单号</label>
+                        <input value={settlementForm.slipNumber} onChange={e => setSettlementForm(f => ({ ...f, slipNumber: e.target.value }))}
+                          className={formInputClass} />
+                      </div>
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>备注</label>
+                        <input value={settlementForm.notes} onChange={e => setSettlementForm(f => ({ ...f, notes: e.target.value }))}
+                          className={formInputClass} />
+                      </div>
+                    </div>
+                    {/* 折人民币预览（本地估算，真源以服务端计算为准） */}
+                    {Number(settlementForm.foreignAmount) > 0 && Number(settlementForm.fxRate) > 0 && (
+                      <div className={cx('text-[11px] font-light tabular-nums', textSecondaryClass)}>
+                        折人民币约 {formatAmount(Number(settlementForm.foreignAmount) * Number(settlementForm.fxRate), 'CNY')}（以服务端计算为准）
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {settlementError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{settlementError}</div>}
+            </div>
+
+            <div className="mt-3 flex shrink-0 justify-end gap-2">
+              <RdlPill type="button" disabled={settlementSaving} onClick={() => setSettlementVoucher(null)}
+                className="min-h-8 px-4 text-xs">关闭</RdlPill>
+              {(!settlementSummary || !settlementSummary.fullySettled) && (
+                <RdlPill type="button" disabled={settlementSaving || settlementLoading} onClick={handleCreateSettlement}
+                  active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+                  {settlementSaving ? '登记中…' : '登记结汇'}
+                </RdlPill>
+              )}
             </div>
           </RdlSurface>
         </div>
