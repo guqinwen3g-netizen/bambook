@@ -126,3 +126,6 @@ server/storage/rendered/
 
 # IDE generated documents
 .trae/documents/
+
+# Design exploration lab (local-only reference material)
+design-lab/
