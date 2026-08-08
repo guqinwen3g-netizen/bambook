@@ -120,6 +120,7 @@ function makeShipTx(opts: {
 
   const tx = {
     shipment: { create: shipmentCreate },
+    shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
     order: { findUnique: vi.fn().mockResolvedValue(order), update: orderUpdate },
     orderStatusTransition: { create: orderStatusTransitionCreate },
     auditLog: { create: auditLogCreate },

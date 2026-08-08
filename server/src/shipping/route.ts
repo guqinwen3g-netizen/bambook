@@ -174,6 +174,21 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     }
   });
 
+  // GET /api/v1/shipping/:id/events — F3 物流节点时间轴（ShipmentEvent 升序全量）
+  router.get('/:id/events', async (req: Request, res: Response) => {
+    try {
+      const sh = await (prisma as any).shipment.findUnique({ where: { id: req.params.id }, select: { id: true, deletedAt: true } });
+      if (!sh || sh.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '运单不存在' } });
+      const items = await (prisma as any).shipmentEvent.findMany({
+        where: { shipmentId: req.params.id },
+        orderBy: [{ eventDate: 'asc' }, { createdAt: 'asc' }],
+      });
+      res.json({ items, total: items.length });
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
   // POST /api/v1/shipping — create (high risk, approval upstream)
   // task ERP-P1-shipping-mutation-shared-service-foundation: route 只调 service
   router.post('/', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {

@@ -50,6 +50,41 @@ async function withTx<T>(prisma: PrismaClient, tx: any | undefined, fn: (t: any)
   return tx ? await fn(tx) : await (prisma as any).$transaction(fn);
 }
 
+// ─── F3：物流节点事件 ─────────────────────────────────────────────
+// 节点业务日期取值口径：优先对应业务日期字段，兜底当日（YYYY-MM-DD）
+function nodeBusinessDate(toNode: string, sh: any): string {
+  const today = new Date().toISOString().slice(0, 10);
+  switch (toNode) {
+    case 'Booked': return sh?.bookingDate || today;
+    case 'Shipped': return sh?.atd || sh?.etd || today;
+    case 'Arrived': return sh?.ata || sh?.eta || today;
+    case 'Cleared': return sh?.customsClearanceDate || today;
+    default: return today;
+  }
+}
+
+/**
+ * 事务内追加物流节点事件（append-only）。
+ * route / agent 两条写路径共用此 helper，保证时间轴完整性单一来源。
+ */
+export async function appendShipmentEvent(
+  t: any,
+  params: { shipmentId: string; fromNode: string | null; toNode: string; shipment?: any; note?: string | null; actorId?: string | null },
+): Promise<void> {
+  await t.shipmentEvent.create({
+    data: {
+      id: `SHPE__${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+      shipmentId: params.shipmentId,
+      fromNode: params.fromNode,
+      toNode: params.toNode,
+      eventDate: nodeBusinessDate(params.toNode, params.shipment),
+      note: params.note ?? null,
+      actorId: params.actorId ?? null,
+      createdAt: BigInt(Date.now()),
+    },
+  });
+}
+
 function toMutationError(e: any, fallback: ShipmentMutationErrorCode): ShipmentMutationError {
   const passThroughCodes: ShipmentMutationErrorCode[] = [
     'NOT_FOUND', 'INVALID_STATUS', 'INVALID_INITIAL_STATUS', 'INVALID_TRANSITION', 'INVALID_CURRENT_STATUS',
@@ -121,6 +156,9 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
       const data: any = { ...input, status: shipmentStatus, createdAt: now, updatedAt: now };
       if (shipmentId) data.id = shipmentId;
       const sh = await t.shipment.create({ data });
+
+      // F3：首节点事件（创建即入时间轴，fromNode=null）
+      await appendShipmentEvent(t, { shipmentId: sh.id, fromNode: null, toNode: sh.status, shipment: sh, actorId });
 
       // sync EntityReference / EntityLink
       await syncShipmentReferences(prisma, sh, { source: syncSource }, t);
@@ -217,6 +255,10 @@ export async function updateShipment(params: UpdateShipmentParams): Promise<Ship
       }
       const now = BigInt(Date.now());
       const upd = await t.shipment.update({ where: { id: shipmentId }, data: { ...patch, updatedAt: now } });
+      // F3：状态实际变更时落节点事件（同事务；同状态幂等 patch 不落事件）
+      if (hasStatus && existing.status !== upd.status) {
+        await appendShipmentEvent(t, { shipmentId: upd.id, fromNode: existing.status, toNode: upd.status, shipment: upd, note: upd.notes ?? null, actorId });
+      }
       await syncShipmentReferences(prisma, upd, { source: syncSource }, t);
       let orderStatus: string | null = null;
       if (upd.orderId) {

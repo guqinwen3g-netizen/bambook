@@ -1931,6 +1931,28 @@ model ShipmentLine {
   @@index([orderLineId])
 }
 
+// ShipmentEvent：运单物流节点事件（F3 lifecycle 深化）
+// 每次状态机转换在事务内追加一条节点事件，形成可回溯的
+// 订舱→装货→发运→到港→清关→交付 物流时间轴（独立于通用 auditLog，
+// 面向业务查询与前端时间轴渲染；append-only，无软删）。
+model ShipmentEvent {
+  id         String @id // 格式：SHPE__${shortId}
+  shipmentId String // 关联运单
+
+  // ─── 节点信息 ───
+  fromNode String? // 上一节点（首节点为 null）
+  toNode   String // 到达节点（取值与运单状态一致：Draft | Booked | Loading | Shipped | Arrived | Cleared | Delivered | Cancelled）
+
+  eventDate String // 节点业务日期 YYYY-MM-DD（优先取对应业务日期：Shipped→atd / Arrived→ata / Cleared→清关日 / Booked→订舱日，兜底当日）
+  note      String? // 节点备注（船名航次 / 异常说明等）
+  actorId   String? // 操作人
+
+  createdAt BigInt
+
+  @@index([shipmentId])
+  @@index([toNode])
+}
+
 // ════════════════════════════════════════════════════════════════════
 // End of Shipping Module
 // ════════════════════════════════════════════════════════════════════

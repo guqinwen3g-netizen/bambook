@@ -9,6 +9,7 @@ import { buildOrderShipDraft } from '../orderShipFlow';
 function makeShipCommitTx(order: any = { id: 'O1', status: 'Confirmed', deletedAt: null }) {
   return {
     shipment: { create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data, orderId: data.orderId })) },
+    shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
     order: { findUnique: vi.fn().mockResolvedValue(order), update: vi.fn().mockResolvedValue({}) },
     orderStatusTransition: { create: vi.fn().mockResolvedValue({}) },
     auditLog: { create: vi.fn().mockResolvedValue({}) },

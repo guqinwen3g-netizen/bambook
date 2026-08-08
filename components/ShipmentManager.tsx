@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save } from 'lucide-react';
+import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import {
@@ -11,10 +11,11 @@ import {
   CompiledSurfacePanel,
   CompiledTableShell,
 } from './ui/osCompiler/compiledPrimitives';
-import type { Shipment as ShipmentType, ShipmentStatus } from '../types';
+import type { Shipment as ShipmentType, ShipmentStatus, ShipmentEvent } from '../types';
 import { shipmentService } from '../services/shipmentService';
 import type { OnTimeStats } from '../services/shipmentService';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import { statusSemanticBg, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 
 interface ShipmentManagerProps {
   isDarkMode: boolean;
@@ -26,19 +27,23 @@ type ShipmentStatusId = 'all' | ShipmentStatus;
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-const SHIPMENT_STATUSES: Array<{ id: ShipmentStatusId; label: string }> = [
+const SHIPMENT_STATUSES: Array<{ id: ShipmentStatusId; label: string; semantic?: StatusSemantic }> = [
   { id: 'all', label: '全部状态' },
-  { id: 'Draft', label: '草稿' },
-  { id: 'Booked', label: '已订舱' },
-  { id: 'Loading', label: '装货中' },
-  { id: 'Shipped', label: '已发运' },
-  { id: 'Arrived', label: '已到港' },
-  { id: 'Cleared', label: '已清关' },
-  { id: 'Delivered', label: '已交付' },
-  { id: 'Cancelled', label: '已取消' },
+  { id: 'Draft', label: '草稿', semantic: 'neutral' },
+  { id: 'Booked', label: '已订舱', semantic: 'info' },
+  { id: 'Loading', label: '装货中', semantic: 'active' },
+  { id: 'Shipped', label: '已发运', semantic: 'active' },
+  { id: 'Arrived', label: '已到港', semantic: 'active' },
+  { id: 'Cleared', label: '已清关', semantic: 'active' },
+  { id: 'Delivered', label: '已交付', semantic: 'success' },
+  { id: 'Cancelled', label: '已取消', semantic: 'neutral' },
 ];
 
 const statusLabelMap = Object.fromEntries(SHIPMENT_STATUSES.map(item => [item.id, item.label])) as Record<ShipmentStatusId, string>;
+
+// F3：节点语义色（时间轴圆点/文字，沿用 RDL 低饱和语义 token）
+const shipmentStatusSemantic = (s: ShipmentStatus): StatusSemantic =>
+  SHIPMENT_STATUSES.find(item => item.id === s)?.semantic ?? 'neutral';
 
 const tableColumns = [
   { key: 'shipment', label: '货运单' },
@@ -255,6 +260,25 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     return result;
   }, [shipments, selectedStatus, searchTerm]);
   const selectedShipment = filteredShipments.find(item => item.id === selectedId) || filteredShipments[0];
+
+  // F3 — 物流节点时间轴（选中运单时拉取；状态变更后随 selectedShipment.status 联动刷新）
+  const [shipmentEvents, setShipmentEvents] = useState<ShipmentEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const selectedShipmentId = selectedShipment?.id;
+  const selectedShipmentStatus = selectedShipment?.status;
+  useEffect(() => {
+    if (!selectedShipmentId) {
+      setShipmentEvents([]);
+      return;
+    }
+    let cancelled = false;
+    setEventsLoading(true);
+    shipmentService.listShipmentEvents(selectedShipmentId)
+      .then(items => { if (!cancelled) setShipmentEvents(items); })
+      .catch(() => { if (!cancelled) setShipmentEvents([]); /* 时间轴不可用时不阻断详情面板 */ })
+      .finally(() => { if (!cancelled) setEventsLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedShipmentId, selectedShipmentStatus]);
 
   const textPrimaryClass = isDarkMode ? 'text-white/86' : 'text-slate-950';
   const textSecondaryClass = isDarkMode ? 'text-white/52' : 'text-slate-500';
@@ -657,6 +681,41 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                       <div className={cx('mt-1 text-[10px] font-light', textSecondaryClass)}>
                         离港 {selectedShipment.etd || '?'} · 到港 {selectedShipment.eta || '?'}
                         {selectedShipment.ata && ` · 实际到港 ${selectedShipment.ata}`}
+                      </div>
+                      {/* F3：节点时间轴（ShipmentEvent 订舱→装货→发运→到港→清关→交付） */}
+                      <div className={cx('mt-3 pt-3 border-t', isDarkMode ? 'border-white/[0.055]' : 'border-white/50')}>
+                        {eventsLoading ? (
+                          <div className={cx('flex items-center gap-2 py-1 text-[10px] font-light', textSecondaryClass)}>
+                            <Loader2 size={11} className="animate-spin" />加载节点时间轴…
+                          </div>
+                        ) : shipmentEvents.length === 0 ? (
+                          <div className={cx('py-1 text-[10px] font-light', textSecondaryClass)}>暂无节点记录</div>
+                        ) : (
+                          <div className="space-y-0">
+                            {shipmentEvents.map((ev, idx) => {
+                              const semantic = shipmentStatusSemantic(ev.toNode);
+                              const isLast = idx === shipmentEvents.length - 1;
+                              return (
+                                <div key={ev.id} className="flex gap-2.5">
+                                  <div className="flex flex-col items-center shrink-0 w-2.5 pt-1">
+                                    <span className={cx('w-1.5 h-1.5 rounded-full shrink-0', statusSemanticBg(semantic, isDarkMode))} />
+                                    {!isLast && <span className={cx('flex-1 w-px', isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-200/70')} />}
+                                  </div>
+                                  <div className={cx('flex-1 min-w-0', isLast ? 'pb-0.5' : 'pb-3')}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className={cx('text-xs font-light', statusSemanticText(semantic, isDarkMode))}>{statusLabelMap[ev.toNode] || ev.toNode}</span>
+                                      <span className={cx('text-[10px] font-light', textSecondaryClass)}>{ev.eventDate}</span>
+                                      {ev.actorId && <span className={cx('text-[10px] font-light', isDarkMode ? 'text-white/32' : 'text-slate-400/80')}>操作人: {ev.actorId}</span>}
+                                    </div>
+                                    {ev.note && (
+                                      <div className={cx('mt-1 px-2 py-1 rounded-inset text-[11px] font-light', isDarkMode ? 'bg-white/[0.02] text-white/45' : 'bg-white/50 text-slate-500')}>{ev.note}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="mt-4">

@@ -3260,6 +3260,18 @@ export interface LcEvent {
   createdAt: number;
 }
 
+/** F3：运单物流节点事件（时间轴渲染，append-only） */
+export interface ShipmentEvent {
+  id: string;
+  shipmentId: string;
+  fromNode?: ShipmentStatus | null;
+  toNode: ShipmentStatus;
+  eventDate: string;
+  note?: string | null;
+  actorId?: string | null;
+  createdAt: number;
+}
+
 export interface LetterOfCreditInput {
   lcNumber: string;
   relationId?: string;

@@ -3,7 +3,7 @@
  * Communicates with /api/v1/shipping endpoints.
  */
 import { apiService } from './apiService';
-import type { Shipment, ShipmentStatus } from '../types';
+import type { Shipment, ShipmentStatus, ShipmentEvent } from '../types';
 
 type ShipmentListParams = {
   status?: ShipmentStatus;
@@ -131,6 +131,23 @@ export const shipmentService = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `deleteShipment failed: HTTP ${res.status}`);
     }
+  },
+
+  /** F3 — 物流节点时间轴（GET /v1/shipping/:id/events，升序全量） */
+  async listShipmentEvents(id: string, endpoint?: string): Promise<ShipmentEvent[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/events`, base);
+    const apiKey = apiService.getApiKey();
+
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
+      },
+    });
+    if (!res.ok) throw new Error(`listShipmentEvents failed: HTTP ${res.status}`);
+    const data = await res.json();
+    return data.items || [];
   },
 
   /** Phase B3 — 准交率统计（GET /v1/shipping/stats/on-time） */

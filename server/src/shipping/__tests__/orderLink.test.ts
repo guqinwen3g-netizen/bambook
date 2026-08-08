@@ -131,6 +131,7 @@ function makeShippingTx(opts: { order?: any; shipmentFind?: any; txFail?: boolea
   const orderStatusTransitionCreate = vi.fn().mockResolvedValue({});
   const tx = {
     shipment: { create: shipmentCreate, findUnique: vi.fn().mockResolvedValue(shipmentFind), update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data, shipmentNumber: 'SHP001' })) },
+    shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
     order: { findUnique: orderFind, update: orderUpdate },
     orderStatusTransition: { create: orderStatusTransitionCreate },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
@@ -218,6 +219,7 @@ describe('task order-shipment-link: shipping route PATCH 状态变更 → order 
   it('PATCH shipment Booked→Shipped + orderId → order 联动', async () => {
     const tx = {
       shipment: { findUnique: vi.fn().mockResolvedValue({ id: 'S1', status: 'Booked', shipmentNumber: 'SHP001', orderId: 'O1' }), update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, status: data.status, shipmentNumber: 'SHP001', orderId: 'O1' })) },
+      shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
       order: { findUnique: vi.fn().mockResolvedValue({ id: 'O1', status: 'Confirmed', deletedAt: null }), update: vi.fn().mockResolvedValue({}) },
       orderStatusTransition: { create: vi.fn().mockResolvedValue({}) },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
@@ -237,6 +239,7 @@ describe('task order-shipment-link: shipping route PATCH 状态变更 → order 
   it('PATCH shipment Cleared→Delivered + orderId → order → Delivered', async () => {
     const tx = {
       shipment: { findUnique: vi.fn().mockResolvedValue({ id: 'S1', status: 'Cleared', shipmentNumber: 'SHP001', orderId: 'O1' }), update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, status: data.status, shipmentNumber: 'SHP001', orderId: 'O1' })) },
+      shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
       order: { findUnique: vi.fn().mockResolvedValue({ id: 'O1', status: 'Shipping', deletedAt: null }), update: vi.fn().mockResolvedValue({}) },
       orderStatusTransition: { create: vi.fn().mockResolvedValue({}) },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
@@ -256,6 +259,7 @@ describe('task order-shipment-link: shipping route PATCH 状态变更 → order 
     // shipment Arrived→Cleared 合法转移，但 order 已 Delivered（终态）→ ORDER_TERMINAL
     const tx = {
       shipment: { findUnique: vi.fn().mockResolvedValue({ id: 'S1', status: 'Arrived', shipmentNumber: 'SHP001', orderId: 'O1' }), update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, status: data.status, shipmentNumber: 'SHP001', orderId: 'O1' })) },
+      shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
       order: { findUnique: vi.fn().mockResolvedValue({ id: 'O1', status: 'Delivered', deletedAt: null }), update: vi.fn() },
       orderStatusTransition: { create: vi.fn() },
       auditLog: { create: vi.fn().mockResolvedValue({}) },

@@ -23,16 +23,18 @@ function makeTx(opts: {
   const orderFind = opts.orderFind ?? vi.fn().mockResolvedValue({ id: 'O1', status: 'Pending', deletedAt: null });
   const orderUpdate = opts.orderUpdate ?? vi.fn().mockResolvedValue({});
   const orderStatusTransitionCreate = vi.fn().mockResolvedValue({});
+  const shipmentEventCreate = vi.fn().mockResolvedValue({});
 
   const tx = {
     shipment: { create: shipmentCreate, findUnique: shipmentFind, update: shipmentUpdate },
+    shipmentEvent: { create: shipmentEventCreate },
     auditLog: { create: auditCreate },
     entityReference: { upsert: entityRefUpsert },
     entityLink: { upsert: entityLinkUpsert },
     order: { findUnique: orderFind, update: orderUpdate },
     orderStatusTransition: { create: orderStatusTransitionCreate },
   };
-  return { tx, shipmentCreate, shipmentFind, shipmentUpdate, auditCreate, entityRefUpsert, entityLinkUpsert, orderFind, orderUpdate, orderStatusTransitionCreate };
+  return { tx, shipmentCreate, shipmentFind, shipmentUpdate, shipmentEventCreate, auditCreate, entityRefUpsert, entityLinkUpsert, orderFind, orderUpdate, orderStatusTransitionCreate };
 }
 
 function makePrisma(tx: any, txFail = false) {
@@ -153,5 +155,37 @@ describe('task review-fix: handleShippingUpdateTrackingStatus 真实执行', () 
     const r = await handleShippingUpdateTrackingStatus(prisma, { shipmentId: 'NOPE', status: 'Shipped' });
     expect(r.ok).toBe(false);
     expect(r.error).toBe('SHIPMENT_NOT_FOUND');
+  });
+});
+
+// ============================================================================
+// F3：agent 直改路径同样落 ShipmentEvent（时间轴完整性单一来源）
+// ============================================================================
+describe('F3: agent 路径 ShipmentEvent 节点跟踪', () => {
+  it('agent create → 事务内落首节点事件（fromNode=null，toNode=初始状态）', async () => {
+    const { tx, shipmentEventCreate } = makeTx();
+    const prisma = makePrisma(tx);
+    const r = await handleShippingCreateShipment(prisma, {
+      shipmentNumber: 'S1', type: 'Ocean', shippingMethod: 'FCL', status: 'Booked',
+    });
+    expect(r.ok).toBe(true);
+    expect(shipmentEventCreate).toHaveBeenCalledTimes(1);
+    expect(shipmentEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ fromNode: null, toNode: 'Booked', actorId: 'agent' }),
+      }),
+    );
+  });
+
+  it('agent update_tracking 状态变更 → 落节点事件（from Booked → to Shipped）', async () => {
+    const { tx, shipmentEventCreate } = makeTx();
+    const prisma = makePrisma(tx);
+    const r = await handleShippingUpdateTrackingStatus(prisma, { shipmentId: 'S1', status: 'Shipped' });
+    expect(r.ok).toBe(true);
+    expect(shipmentEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ shipmentId: 'S1', fromNode: 'Booked', toNode: 'Shipped', actorId: 'agent' }),
+      }),
+    );
   });
 });

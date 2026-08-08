@@ -53,9 +53,12 @@ function makeApp(opts: {
     ? vi.fn().mockRejectedValue(new Error('ORDER_BOOM'))
     : vi.fn().mockResolvedValue(order);
   const orderStatusTransitionCreate = vi.fn().mockResolvedValue({});
+  const shipmentEventCreate = vi.fn().mockResolvedValue({});
+  const shipmentEventFindMany = vi.fn().mockResolvedValue([]);
 
   const tx: any = {
     shipment: { create: shipmentCreate, update: shipmentUpdate, findUnique: shipmentFindUnique },
+    shipmentEvent: { create: shipmentEventCreate, findMany: shipmentEventFindMany },
     order: { findUnique: orderFindUnique, update: orderUpdate },
     orderStatusTransition: { create: orderStatusTransitionCreate },
     auditLog: { create: auditCreate },
@@ -64,13 +67,14 @@ function makeApp(opts: {
   };
   const prisma: any = {
     shipment: { findUnique: shipmentFindUnique },
+    shipmentEvent: { findMany: shipmentEventFindMany },
     $transaction: vi.fn(async (fn: any) => fn(tx)),
   };
   const onDataChange = opts.onDataChange || vi.fn();
   const app = express();
   app.use(express.json());
   app.use('/api/v1/shipping', createShippingRouter({ prisma, requireAuth: false, apiKeys: new Set<string>(), onDataChange }));
-  return { app, prisma, tx, shipmentCreate, shipmentUpdate, shipmentFindUnique, auditCreate, entityRefUpsert, entityLinkUpsert, entityLinkFindMany, entityLinkUpdate, entityRefFindMany, entityRefUpdate, orderFindUnique, orderUpdate, onDataChange };
+  return { app, prisma, tx, shipmentCreate, shipmentUpdate, shipmentFindUnique, shipmentEventCreate, shipmentEventFindMany, auditCreate, entityRefUpsert, entityLinkUpsert, entityLinkFindMany, entityLinkUpdate, entityRefFindMany, entityRefUpdate, orderFindUnique, orderUpdate, onDataChange };
 }
 
 describe('shipping route → service: POST /', () => {
@@ -231,5 +235,61 @@ describe('shipping route → service: route→service 契约', () => {
     await request(app).patch('/api/v1/shipping/SHP-1').set(authHeader()).send({ vesselOrFlight: 'MV-1' });
     await request(app).delete('/api/v1/shipping/SHP-1').set(authHeader());
     expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+  });
+});
+
+// ── F3：ShipmentEvent 物流节点时间轴 ──
+describe('F3: ShipmentEvent 节点跟踪', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('POST 创建 → 事务内落首节点事件（fromNode=null，toNode=初始状态，eventDate 取 bookingDate）', async () => {
+    const { app, shipmentEventCreate } = makeApp();
+    const res = await request(app).post('/api/v1/shipping').set(authHeader()).send({
+      shipmentNumber: 'SHP001', type: 'sea', shippingMethod: 'ocean', bookingDate: '2026-08-10',
+    });
+    expect(res.status).toBe(201);
+    expect(shipmentEventCreate).toHaveBeenCalledTimes(1);
+    expect(shipmentEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ fromNode: null, toNode: 'Booked', eventDate: '2026-08-10' }),
+      }),
+    );
+  });
+
+  it('PATCH 状态变更 → 落节点事件（from/to + Shipped 取 atd）；同状态幂等 patch 不落事件', async () => {
+    const { app, shipmentEventCreate } = makeApp();
+    const res = await request(app).patch('/api/v1/shipping/SHP-1').set(authHeader()).send({ status: 'Shipped', atd: '2026-08-15' });
+    expect(res.status).toBe(200);
+    expect(shipmentEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ shipmentId: 'SHP-1', fromNode: 'Booked', toNode: 'Shipped', eventDate: '2026-08-15' }),
+      }),
+    );
+
+    shipmentEventCreate.mockClear();
+    const res2 = await request(app).patch('/api/v1/shipping/SHP-1').set(authHeader()).send({ vesselOrFlight: 'MV-2' });
+    expect(res2.status).toBe(200);
+    expect(shipmentEventCreate).not.toHaveBeenCalled();
+  });
+
+  it('GET /:id/events → 升序返回节点时间轴；运单不存在 → 404', async () => {
+    const { app, shipmentEventFindMany } = makeApp();
+    shipmentEventFindMany.mockResolvedValueOnce([
+      { id: 'e1', shipmentId: 'SHP-1', fromNode: null, toNode: 'Booked', eventDate: '2026-08-10' },
+      { id: 'e2', shipmentId: 'SHP-1', fromNode: 'Booked', toNode: 'Shipped', eventDate: '2026-08-15' },
+    ]);
+    const res = await request(app).get('/api/v1/shipping/SHP-1/events').set(authHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(2);
+    expect(res.body.items[1].toNode).toBe('Shipped');
+    expect(shipmentEventFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { shipmentId: 'SHP-1' },
+        orderBy: [{ eventDate: 'asc' }, { createdAt: 'asc' }],
+      }),
+    );
+
+    const res404 = await request(app).get('/api/v1/shipping/MISSING/events').set(authHeader());
+    expect(res404.status).toBe(404);
   });
 });

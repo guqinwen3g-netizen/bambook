@@ -220,6 +220,7 @@ function makeShipmentApp(existingStatus: string, txFail = false) {
   const shipmentUpdate = vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, status: data.status, shipmentNumber: 'SHP001' }));
   const tx = {
     shipment: { findUnique: shipmentFind, update: shipmentUpdate },
+    shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     entityReference: { upsert: vi.fn().mockResolvedValue({}) },
     entityLink: { upsert: vi.fn().mockResolvedValue({}) },

@@ -15,6 +15,7 @@ import { syncInvoiceReferences, syncPaymentVoucherReferences, syncShipmentRefere
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { validateStatusTransition } from '../statusTransition';
 import { linkOrderStatusFromShipment } from '../shipping/orderLinkService';
+import { appendShipmentEvent } from '../shipping/shipmentMutationService';
 import { extractEmailAi } from '../email/aiExtract';
 import { syncEmailReferences } from '../email/sync';
 import { createInvoice, updateInvoice } from '../finance/invoiceMutationService';
@@ -5600,6 +5601,8 @@ export async function handleShippingCreateShipment(prisma: PrismaClient, input: 
         },
       });
       await syncShipmentReferences(prisma, sh, { source: 'agent:create_shipment' }, tx);
+      // F3：首节点事件（agent 直建路径同口径）
+      await appendShipmentEvent(tx, { shipmentId: sh.id, fromNode: null, toNode: sh.status, shipment: sh, actorId: 'agent' });
       if (sh.orderId) {
         await linkOrderStatusFromShipment(tx, sh.orderId, sh.status, { operator: 'agent' });
       }
@@ -5648,6 +5651,10 @@ export async function handleShippingUpdateTrackingStatus(prisma: PrismaClient, i
       if (!t.ok) throw Object.assign(new Error(t.message!), { code: t.error! });
 
       const upd = await tx.shipment.update({ where: { id: shipmentId }, data: patchData });
+      // F3：状态实际变更时落节点事件（agent 直改路径同口径）
+      if (existing.status !== upd.status) {
+        await appendShipmentEvent(tx, { shipmentId: upd.id, fromNode: existing.status, toNode: upd.status, shipment: upd, note: upd.notes ?? null, actorId: 'agent' });
+      }
       await syncShipmentReferences(prisma, upd, { source: 'agent:update_tracking' }, tx);
       if (upd.orderId) {
         await linkOrderStatusFromShipment(tx, upd.orderId, upd.status, { operator: 'agent' });
