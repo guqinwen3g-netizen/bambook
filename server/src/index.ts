@@ -36,6 +36,8 @@ import { createCrmRouter } from './crm/crmRoute';
 import { createSupplierRouter } from './suppliers/factoryRoute';
 import { createSeasonRouter } from './seasons/seasonRoute';
 import { createRiskRouter } from './risk/riskRoute';
+import { createBusinessLineRouter } from './businessLines/businessLineRoute';
+import { createQcRouter } from './qc/qcRoute';
 import { createMesRouter } from './mes/mesRoute';
 import { createCustomsRouter } from './customs/customsRoute';
 import { createProductionRouter } from './production/route';
@@ -600,6 +602,28 @@ app.use(
 app.use(
     '/api/v1/risk',
     (req, res, next) => createRiskRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 P0 回补：业务线注册与订单 MOQ 软校验（PRD 6.2）
+app.use(
+    '/api/v1/business-lines',
+    (req, res, next) => createBusinessLineRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 P0 回补：QC 驻地 / 验货任务 / QC 工作台（PRD 6.2 / 4.2）
+app.use(
+    '/api/v1/qc',
+    (req, res, next) => createQcRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

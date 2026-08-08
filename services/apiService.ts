@@ -97,6 +97,19 @@ import {
   ComplianceCheck,
   ComplianceCheckInput,
   DefectTrendItem,
+  // QC 工作台 + 驻地管理 + 业务线配置（阶段 P0）
+  BusinessLine,
+  BusinessLineInput,
+  BusinessLinePatch,
+  QCLocation,
+  QCLocationInput,
+  QCLocationPatch,
+  QCAssignment,
+  QCAssignmentInput,
+  QCAssignmentPatch,
+  QcWorkbenchData,
+  QcMoqCheckResult,
+  UserAccountOption,
   // MES
   WorkStation,
   WorkStationInput,
@@ -1539,6 +1552,112 @@ export const apiService = {
   async runQualityRepeatScan(endpoint?: string): Promise<{ alerted: number }> {
     const data = await requestJson<{ ok: boolean; alerted: number }>(`/v1/risk/quality/repeat-scan`, { endpoint, method: 'POST' });
     return { alerted: data.alerted ?? 0 };
+  },
+
+  // ── 阶段 P0: 业务线配置 BusinessLine API ──
+  async listBusinessLines(endpoint?: string): Promise<BusinessLine[]> {
+    const data = await requestJson<{ items: BusinessLine[]; total?: number }>(`/v1/business-lines`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createBusinessLine(input: BusinessLineInput, endpoint?: string): Promise<BusinessLine> {
+    const data = await requestJson<{ ok: boolean; item: BusinessLine }>(`/v1/business-lines`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateBusinessLine(id: string, patch: BusinessLinePatch, endpoint?: string): Promise<BusinessLine> {
+    const data = await requestJson<{ ok: boolean; item: BusinessLine }>(`/v1/business-lines/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteBusinessLine(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/business-lines/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async setOrderBusinessLine(orderId: string, businessLine: string | null, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/business-lines/order/${encodeURIComponent(orderId)}`, { endpoint, method: 'PUT', body: JSON.stringify({ businessLine }) });
+  },
+  async checkOrderMoq(orderId: string, endpoint?: string): Promise<QcMoqCheckResult> {
+    return requestJson<QcMoqCheckResult>(`/v1/business-lines/order/${encodeURIComponent(orderId)}/moq-check`, { endpoint, method: 'GET' });
+  },
+
+  // ── 阶段 P0: QC 驻地 QCLocation API ──
+  async listQcLocations(endpoint?: string): Promise<QCLocation[]> {
+    const data = await requestJson<{ items: QCLocation[]; total?: number }>(`/v1/qc/locations`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createQcLocation(input: QCLocationInput, endpoint?: string): Promise<QCLocation> {
+    const data = await requestJson<{ ok: boolean; item: QCLocation }>(`/v1/qc/locations`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateQcLocation(id: string, patch: QCLocationPatch, endpoint?: string): Promise<QCLocation> {
+    const data = await requestJson<{ ok: boolean; item: QCLocation }>(`/v1/qc/locations/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteQcLocation(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/qc/locations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 阶段 P0: QC 验货任务 QCAssignment API ──
+  async listQcAssignments(params?: { qcUserId?: string; status?: string; orderId?: string; locationId?: string; dueBefore?: string }, endpoint?: string): Promise<QCAssignment[]> {
+    const query = new URLSearchParams();
+    if (params?.qcUserId) query.set('qcUserId', params.qcUserId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.locationId) query.set('locationId', params.locationId);
+    if (params?.dueBefore) query.set('dueBefore', params.dueBefore);
+    const qs = query.toString();
+    const data = await requestJson<{ items: QCAssignment[]; total?: number }>(`/v1/qc/assignments${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createQcAssignment(input: QCAssignmentInput, endpoint?: string): Promise<QCAssignment> {
+    const data = await requestJson<{ ok: boolean; item: QCAssignment }>(`/v1/qc/assignments`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateQcAssignment(id: string, patch: QCAssignmentPatch, endpoint?: string): Promise<QCAssignment> {
+    const data = await requestJson<{ ok: boolean; item: QCAssignment }>(`/v1/qc/assignments/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteQcAssignment(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/qc/assignments/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async startQcAssignment(id: string, endpoint?: string): Promise<QCAssignment> {
+    const data = await requestJson<{ ok: boolean; item: QCAssignment }>(`/v1/qc/assignments/${encodeURIComponent(id)}/start`, { endpoint, method: 'POST' });
+    return data.item;
+  },
+  async completeQcAssignment(id: string, reportId?: string, endpoint?: string): Promise<QCAssignment> {
+    const data = await requestJson<{ ok: boolean; item: QCAssignment }>(`/v1/qc/assignments/${encodeURIComponent(id)}/complete`, { endpoint, method: 'POST', body: JSON.stringify({ reportId: reportId ?? null }) });
+    return data.item;
+  },
+  async cancelQcAssignment(id: string, endpoint?: string): Promise<QCAssignment> {
+    const data = await requestJson<{ ok: boolean; item: QCAssignment }>(`/v1/qc/assignments/${encodeURIComponent(id)}/cancel`, { endpoint, method: 'POST' });
+    return data.item;
+  },
+  async getQcWorkbench(qcUserId?: string, endpoint?: string): Promise<QcWorkbenchData> {
+    const qs = qcUserId ? `?qcUserId=${encodeURIComponent(qcUserId)}` : '';
+    const data = await requestJson<{ assigned: QCAssignment[]; inProgress: QCAssignment[]; completed: QCAssignment[] }>(`/v1/qc/workbench${qs}`, { endpoint, method: 'GET' });
+    return { assigned: data.assigned ?? [], inProgress: data.inProgress ?? [], completed: data.completed ?? [] };
+  },
+
+  // QC 人员选择器：最小方法，复用已挂载的 /api/hr/personnel（UserAccount 聚合视图）
+  // 该端点要求 owner/admin 角色；调用方需在失败时降级为手工录入 qcUserId
+  async listUserAccounts(endpoint?: string): Promise<UserAccountOption[]> {
+    const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
+    const data = await requestJson<{
+      ok: boolean;
+      personnel?: Array<{ id: string; displayName: string; email?: string | null; status?: string | null; department?: string | null }>;
+    }>(`/hr/personnel`, {
+      endpoint,
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: token ? 'omit' : 'include',
+    });
+    const personnel = Array.isArray(data.personnel) ? data.personnel : [];
+    return personnel
+      .filter((u) => u && u.id && u.status !== 'disabled')
+      .map((u) => ({
+        id: u.id,
+        displayName: u.displayName,
+        email: u.email ?? null,
+        status: u.status ?? null,
+        department: u.department ?? null,
+      }));
   },
 
   async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {

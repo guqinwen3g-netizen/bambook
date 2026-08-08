@@ -38,6 +38,7 @@ export const VIEW_PERMISSION_DEFINITIONS = {
   [View.UiLab]: { policy: 'dev-only' },
   [View.AdminPanel]: { policy: 'permission', required: 'users:read' },
   [View.HR]: { policy: 'permission', required: 'users:read' },
+  [View.QcWorkbench]: { policy: 'permission', required: 'orders:read' },
 } satisfies Record<View, ViewPermissionDefinition>;
 
 export function getViewPermissionDefinition(view: View): ViewPermissionDefinition {

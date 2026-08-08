@@ -71,6 +71,7 @@ const ALERT_TYPE_LABELS: Record<RiskAlertType, string> = {
   bad_debt: '坏账预警',
   compliance_fail: '合规未通过',
   quality_repeat: '质量重复问题',
+  sample_deadline: '样品交期',
 };
 
 const ALERT_LEVEL_LABELS: Record<RiskAlertLevel, string> = {
@@ -329,7 +330,7 @@ function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
         <div className="p-3 border-b border-border-subtle space-y-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] text-text-tertiary w-10 shrink-0">类型</span>
-            {(['', 'fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat'] as const).map((t) => (
+            {(['', 'fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat', 'sample_deadline'] as const).map((t) => (
               <button
                 key={t || 'all'}
                 onClick={() => setTypeFilter(t)}

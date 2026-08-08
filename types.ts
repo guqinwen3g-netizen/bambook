@@ -29,6 +29,7 @@ export enum View {
   UiLab = 'ui-lab',
   AdminPanel = 'admin-panel',
   HR = 'hr',
+  QcWorkbench = 'qc-workbench',
 }
 
 export interface WallpaperOption {
@@ -3110,7 +3111,7 @@ export interface TradeShowROI {
 // 统一风险预警中心 / 汇率与锁定 / 客户信用评级 / 合规检查 / 质量疵点趋势
 // ════════════════════════════════════════════════════════════════
 
-export type RiskAlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat';
+export type RiskAlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat' | 'sample_deadline';
 export type RiskAlertLevel = 'info' | 'warning' | 'critical';
 export type RiskAlertStatus = 'Open' | 'Acknowledged' | 'Resolved';
 
@@ -3851,4 +3852,131 @@ export interface CustomsOverview {
   lettersOfCredit: { pending: number; settled: number };
   taxRefunds: { pending: number; refunded: number; totalRefundedAmount: number };
   tradeDocuments: { total: number };
+}
+
+// ════════════════════════════════════════════════════════════════
+// 阶段 P0: QC 工作台 + 驻地管理 + 业务线配置
+// QC 验货任务分配 / QC 驻地 / 业务线规则（MOQ 校验与报表口径）
+// ════════════════════════════════════════════════════════════════
+
+/** BusinessLine：业务线注册表（影响 MOQ 校验 / 生产流程 / 报表口径） */
+export interface BusinessLine {
+  id: string;
+  code: string; // fabric | garment | capsule
+  name: string;
+  description?: string | null;
+  moqValue?: number | null;
+  moqUnit?: string | null; // M | PC
+  productionCycleDays?: number | null;
+  paymentTermsHint?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BusinessLineInput {
+  code: string;
+  name: string;
+  description?: string | null;
+  moqValue?: number | null;
+  moqUnit?: string | null;
+  productionCycleDays?: number | null;
+  paymentTermsHint?: string | null;
+  sortOrder?: number;
+}
+
+export type BusinessLinePatch = Partial<Omit<BusinessLineInput, 'code'>> & { isActive?: boolean };
+
+/** QCLocation：QC 驻地（温州驻场-服装 / 苏州驻场-面料） */
+export interface QCLocation {
+  id: string;
+  code: string; // wenzhou | suzhou
+  name: string;
+  region?: string | null;
+  focus?: string | null; // 驻地主攻业务线：garment | fabric
+  address?: string | null;
+  notes?: string | null;
+}
+
+export interface QCLocationInput {
+  code: string;
+  name: string;
+  region?: string | null;
+  focus?: string | null;
+  address?: string | null;
+  notes?: string | null;
+}
+
+export type QCLocationPatch = Partial<QCLocationInput>;
+
+export type QCInspectionType = 'midline' | 'final';
+export type QCAssignmentStatus = 'Assigned' | 'InProgress' | 'Completed' | 'Cancelled';
+
+/** QC 任务上的订单快照（服务端冗余，前端只读展示） */
+export interface QCOrderSnapshot {
+  poNumber?: string | null;
+  customer: string;
+  product: string;
+  dueDate: string;
+  clientDate?: string | null;
+  businessLine?: string | null;
+}
+
+/** QCAssignment：QC 验货任务分配 */
+export interface QCAssignment {
+  id: string;
+  orderId: string;
+  inspectionType: QCInspectionType; // midline 中期验货 | final 终期验货
+  qcUserId: string; // UserAccount snapshot FK
+  locationId?: string | null;
+  factoryRelationId?: string | null;
+  status: QCAssignmentStatus;
+  dueDate?: string | null; // YYYY-MM-DD
+  assignedAt: number;
+  assignedById?: string | null;
+  completedAt?: number | null;
+  reportId?: string | null;
+  notes?: string | null;
+  location?: QCLocation | null;
+  order?: QCOrderSnapshot | null;
+}
+
+export interface QCAssignmentInput {
+  orderId: string;
+  inspectionType: QCInspectionType;
+  qcUserId: string;
+  locationId?: string | null;
+  dueDate?: string | null;
+  notes?: string | null;
+}
+
+export type QCAssignmentPatch = Partial<Omit<QCAssignmentInput, 'orderId'>>;
+
+/** QC 工作台聚合视图（按状态分组，含订单快照 + 驻地） */
+export interface QcWorkbenchData {
+  assigned: QCAssignment[];
+  inProgress: QCAssignment[];
+  completed: QCAssignment[];
+}
+
+/** 订单 MOQ 校验结果（业务线软校验，产出警示不阻断） */
+export interface QcMoqCheckResult {
+  checked: boolean;
+  reason?: string;
+  businessLine?: string | null;
+  moqValue?: number | null;
+  moqUnit?: string | null;
+  quantity?: number | null;
+  compliant?: boolean | null;
+  violations?: string[];
+}
+
+/** QC 人员选择器选项（UserAccount 最小快照，来自 /api/hr/personnel） */
+export interface UserAccountOption {
+  id: string;
+  displayName: string;
+  email?: string | null;
+  status?: string | null;
+  department?: string | null;
 }

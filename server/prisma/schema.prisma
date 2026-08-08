@@ -185,6 +185,9 @@ model Order {
   specialInstructions String?
   ocDays              Int?
 
+  // ============ 阶段 P0：业务线标记（BusinessLine.code 快照引用，见 H3 后 P0 块） ============
+  businessLine String? // fabric | garment | capsule（snapshot，不强制外键）
+
   // ============ Production pipeline deadlines (业务十条规则) ============
   productionPlanDeadline String? // 下单后7天内需出生产计划（createdAt + 7d），超时触发预警
   delayNoticeDeadline    String? // 交货期前15天需发延期通知（dueDate - 15d），超时升级
@@ -197,6 +200,7 @@ model Order {
   @@index([millName])
   @@index([consigneeName])
   @@index([billToName])
+  @@index([businessLine])
 }
 
 model OrderLine {
@@ -2935,6 +2939,87 @@ model RiskAlert {
   @@index([type])
   @@index([status])
   @@index([level])
+}
+
+// ============ 阶段 P0 回补: 业务线 / QC 工作台（PRD 6.2 / 4.2 / 5.2） ============
+// 设计口径：
+//   - Order.businessLine 为 BusinessLine.code 的 snapshot 引用（不加 @relation，与全库一致）
+//   - 船样/匹头样追踪字段已在 Order（sampleSentDate/fabricSampleSentDate 等），
+//     本批次只补「Exmill 前未确认」预警层，不重复建样品模型
+//   - QC 人员身份用 UserAccount snapshot FK；QC 任务完成态关联 InspectionReport
+
+// BusinessLine：业务线注册表（PRD 6.2 P0）——影响 MOQ 校验 / 生产流程 / 报表
+model BusinessLine {
+  id   String @id // 格式：BL__${shortId}
+  code String @unique // fabric | garment | capsule
+  name String // 面料大货 | 成衣大货 | 成衣 Capsule
+
+  description String?
+
+  // ─── 业务规则基准 ───
+  moqValue             Float? // MOQ 校验基准（软校验，产出警示不阻断）
+  moqUnit              String? // M | PC
+  productionCycleDays  Int? // 生产周期天数（面料 70 天）
+  paymentTermsHint     String? // 付款条件提示（T/T 30 天 / T/T 60 天）
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([isActive])
+}
+
+// QCLocation：QC 驻地管理（PRD 6.2 P0）——温州（服装）/ 苏州（面料）
+model QCLocation {
+  id   String @id // 格式：QCL__${shortId}
+  code String @unique // wenzhou | suzhou
+  name String // 温州驻场 | 苏州驻场
+
+  region  String? // 区域
+  focus   String? // 驻地主攻业务线：garment | fabric
+  address String?
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  assignments QCAssignment[]
+}
+
+// QCAssignment：QC 验货任务分配（PRD 6.2 P0 / 4.2 QC 工作台）
+model QCAssignment {
+  id      String @id // 格式：QCA__${shortId}
+  orderId String // 关联订单（snapshot FK）
+
+  inspectionType String // midline（中期验货） | final（终期验货）
+
+  qcUserId          String // 执行 QC（UserAccount snapshot FK）
+  locationId        String? // 所属驻地
+  factoryRelationId String? // 验货工厂（Relation snapshot FK，冗余自 Order.millRelationId）
+
+  status String @default("Assigned") // Assigned | InProgress | Completed | Cancelled
+
+  dueDate     String? // 要求完成日期 YYYY-MM-DD
+  assignedAt  BigInt
+  assignedById String?
+  completedAt BigInt?
+  reportId    String? // 完成后关联 InspectionReport
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  location QCLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([qcUserId, status])
+  @@index([orderId])
+  @@index([status])
+  @@index([dueDate])
 }
 
 // ============ Phase 2 B2: 库存管理 Inventory Management ============

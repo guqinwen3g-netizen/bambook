@@ -1,6 +1,7 @@
 import {
   Building2,
   CalendarRange,
+  ClipboardCheck,
   ClipboardList,
   Cog,
   Contact,
@@ -441,6 +442,22 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     permissions: getViewPermissionDefinition(View.Risks),
     runtime: desktopRuntime,
     entry: { current: 'components/RisksManager.tsx' },
+  },
+  {
+    id: 'qc-workbench',
+    view: View.QcWorkbench,
+    productLabel: 'QC 工作台',
+    internalName: 'QcWorkbench',
+    icon: ClipboardCheck,
+    nav: { primary: true, order: 49.58 },
+    permissions: getViewPermissionDefinition(View.QcWorkbench),
+    runtime: desktopRuntime,
+    entry: { current: 'components/QcWorkbenchManager.tsx' },
+    subViews: [
+      { id: 'assignments', label: '验货任务', localStateKey: 'qcTab' },
+      { id: 'locations', label: '驻地管理', localStateKey: 'qcTab' },
+      { id: 'business-lines', label: '业务线配置', localStateKey: 'qcTab' },
+    ],
   },
   {
     id: 'mes',
