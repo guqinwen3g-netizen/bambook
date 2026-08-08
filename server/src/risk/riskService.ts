@@ -25,7 +25,7 @@ import crypto from 'crypto';
 // 类型定义
 // ────────────────────────────────────────────────────────────────
 
-export type AlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat' | 'sample_deadline';
+export type AlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat' | 'sample_deadline' | 'hr_lifecycle';
 export type AlertLevel = 'info' | 'warning' | 'critical';
 export type AlertStatus = 'Open' | 'Acknowledged' | 'Resolved';
 
@@ -63,7 +63,7 @@ export interface ManualComplianceCheckInput {
   details?: unknown;
 }
 
-const ALERT_TYPES: readonly string[] = ['fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat', 'sample_deadline'];
+const ALERT_TYPES: readonly string[] = ['fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat', 'sample_deadline', 'hr_lifecycle'];
 const ALERT_LEVELS: readonly string[] = ['info', 'warning', 'critical'];
 const ALERT_STATUSES: readonly string[] = ['Open', 'Acknowledged', 'Resolved'];
 const COMPLIANCE_TYPES: readonly string[] = ['hs_code', 'export_control', 'origin_rule'];

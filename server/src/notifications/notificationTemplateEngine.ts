@@ -335,6 +335,21 @@ const DEFAULT_TEMPLATES: Record<BusinessEventType, TemplateSpec> = {
     body: '工厂 {factoryName} 的 {certType} 认证将于 {validUntil} 到期，请及时安排复审。',
     link: '/suppliers?id={factoryId}',
   },
+  // ── C3 HR 深化 ──
+  EmployeeStatusChanged: {
+    type: 'employee_status_changed',
+    level: 'info',
+    title: '员工 {displayName} 状态变更：{eventType}',
+    body: '员工 {displayName} 于 {effectiveDate} 发生 {eventType} 异动（{fromStatus} → {toStatus}）。',
+    link: '/hr?tab=employees',
+  },
+  LeaveRequestDecided: {
+    type: 'leave_request_decided',
+    level: 'info',
+    title: '请假申请{decision}',
+    body: '{leaveType} 请假（{startDate} 至 {endDate}，共 {days} 天）审批结果：{decision}。',
+    link: '/hr?tab=attendance',
+  },
 };
 
 // ────────────────────────────────────────────────────────────────

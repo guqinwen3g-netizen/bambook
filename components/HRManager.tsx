@@ -10,6 +10,23 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
+import EmployeeProfilesTab from './hr/EmployeeProfilesTab';
+import AttendanceLeaveTab from './hr/AttendanceLeaveTab';
+import PayrollTab from './hr/PayrollTab';
+import PerformanceTab from './hr/PerformanceTab';
+import TrainingTab from './hr/TrainingTab';
+
+// ── C3 HR 视图（org = 既有组织架构视图）──
+type HRView = 'org' | 'employees' | 'attendance' | 'payroll' | 'performance' | 'training';
+
+const HR_VIEWS: Array<{ id: HRView; label: string }> = [
+  { id: 'org', label: '组织架构' },
+  { id: 'employees', label: '员工档案' },
+  { id: 'attendance', label: '考勤请假' },
+  { id: 'payroll', label: '薪资工资' },
+  { id: 'performance', label: '绩效管理' },
+  { id: 'training', label: '培训管理' },
+];
 
 // ───────────────────────────────────────────────
 // Types
@@ -147,6 +164,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
+  const [activeView, setActiveView] = useState<HRView>('org');
 
   // Personnel
   const [personnel, setPersonnel] = useState<PersonnelMember[]>([]);
@@ -1078,7 +1096,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         subtitle="Human Resources"
         contextLabel="Organization & Teams"
         isDarkMode={isDarkMode}
-        actions={(
+        actions={activeView === 'org' ? (
           <RdlToolbar density="compact">
             <RdlPill type="button" active tone="accent" onClick={() => openTeamForm()} className="min-h-8 px-4 text-[11px]">
               <Plus className="w-3.5 h-3.5" /> 新建团队
@@ -1087,8 +1105,26 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
               <Plus className="w-3.5 h-3.5" /> 新建项目
             </RdlPill>
           </RdlToolbar>
-        )}
+        ) : undefined}
       />
+
+      {/* C3 视图切换 tab 栏 */}
+      <div className="flex-shrink-0 px-7 pb-1">
+        <RdlToolbar density="compact">
+          {HR_VIEWS.map(v => (
+            <RdlPill
+              key={v.id}
+              type="button"
+              active={activeView === v.id}
+              tone={activeView === v.id ? 'accent' : undefined}
+              onClick={() => setActiveView(v.id)}
+              className="min-h-8 px-4 text-[11px]"
+            >
+              {v.label}
+            </RdlPill>
+          ))}
+        </RdlToolbar>
+      </div>
 
       {/* Error banner */}
       <AnimatePresence>
@@ -1112,7 +1148,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         )}
       </AnimatePresence>
 
-      {/* Main: org tree nav + detail panel */}
+      {/* Main: org tree nav + detail panel（org 视图）/ C3 tab 视图 */}
+      {activeView === 'org' ? (
       <main className="flex-1 min-h-0 px-5 pb-5 pt-1">
         <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)] gap-3">
           {/* Left: org tree navigation */}
@@ -1366,6 +1403,24 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           </RdlSurface>
         </div>
       </main>
+      ) : (
+      <main className="flex-1 min-h-0 px-5 pb-5 pt-1">
+        <RdlSurface tone="panel" className="flex h-full min-h-0 flex-col overflow-hidden p-4">
+          {activeView === 'employees' && (
+            <EmployeeProfilesTab
+              isDarkMode={isDarkMode}
+              personnel={personnel}
+              departments={departments}
+              positions={positions}
+            />
+          )}
+          {activeView === 'attendance' && <AttendanceLeaveTab isDarkMode={isDarkMode} personnel={personnel} />}
+          {activeView === 'payroll' && <PayrollTab isDarkMode={isDarkMode} personnel={personnel} />}
+          {activeView === 'performance' && <PerformanceTab isDarkMode={isDarkMode} personnel={personnel} />}
+          {activeView === 'training' && <TrainingTab isDarkMode={isDarkMode} personnel={personnel} />}
+        </RdlSurface>
+      </main>
+      )}
     </div>
   );
 };

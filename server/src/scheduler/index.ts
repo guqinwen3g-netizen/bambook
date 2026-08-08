@@ -28,6 +28,7 @@ import { createSeasonReviewWatchdogTask } from './tasks/seasonReviewWatchdog';
 import { createCreditRiskWatchdogTask, createQualityRepeatWatchdogTask } from './tasks/riskWatchdog';
 import { createSampleDeadlineWatchdogTask } from './tasks/sampleDeadlineWatchdog';
 import { createScheduledReportRunnerTask } from './tasks/scheduledReportRunner';
+import { createHrLifecycleWatchdogTask } from './tasks/hrLifecycleWatchdog';
 import { logger } from '../lib/logger';
 
 export function startScheduler(prisma: PrismaClient): void {
@@ -57,12 +58,14 @@ export function startScheduler(prisma: PrismaClient): void {
   scheduler.register(createSampleDeadlineWatchdogTask());
   // 阶段 A5：定时报表运行器（每小时扫描，按周期键幂等）
   scheduler.register(createScheduledReportRunnerTask());
+  // 阶段 C3：HR 生命周期预警 — 试用转正（前 7 天）/ 合同到期（前 30 天），每日 09:00
+  scheduler.register(createHrLifecycleWatchdogTask());
 
   // 启动调度器
   scheduler.start();
 
-  logger.info('[Scheduler] initialized with 16 tasks', {
-    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog', 'season_review_watchdog', 'credit_risk_watchdog', 'quality_repeat_watchdog', 'sample_deadline_watchdog', 'scheduled_report_runner'],
+  logger.info('[Scheduler] initialized with 17 tasks', {
+    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog', 'season_review_watchdog', 'credit_risk_watchdog', 'quality_repeat_watchdog', 'sample_deadline_watchdog', 'scheduled_report_runner', 'hr_lifecycle_watchdog'],
   });
 }
 

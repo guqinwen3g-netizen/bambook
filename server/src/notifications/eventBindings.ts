@@ -51,6 +51,9 @@ export function initializeNotificationBindings(prisma: PrismaClient): Notificati
     'AllocationReconciled',
     'DevelopmentConverted',
     'RelationOnboarded',
+    // C3 HR 深化：员工状态跃迁 / 请假审批结果
+    'EmployeeStatusChanged',
+    'LeaveRequestDecided',
   ];
 
   for (const eventType of ALL_BUSINESS_EVENT_TYPES) {

@@ -975,6 +975,7 @@ model UserAccount {
   notificationPreferences NotificationPreference[]
   workflowInitiated       WorkflowInstance[]       @relation("WorkflowInitiator")
   workflowDecided         WorkflowStep[]           @relation("WorkflowDecider")
+  employeeProfile         EmployeeProfile?
 
   @@index([status])
   @@index([primaryDeptId])
@@ -1093,6 +1094,7 @@ model JobPosition {
   deletedAt    BigInt?
 
   department Department? @relation(fields: [departmentId], references: [id])
+  employees  EmployeeProfile[]
 
   @@index([departmentId])
   @@index([status])
@@ -1194,6 +1196,225 @@ model WorkAssignment {
   @@index([userId])
   @@index([projectId])
   @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// C3 HR 深化 Models（员工档案/生命周期/考勤/薪资/绩效/培训）
+// ─────────────────────────────────────────────
+
+/// C3a 员工档案扩展（与 UserAccount 1:1，承载 HR 业务字段，UserAccount 保持认证纯净）
+model EmployeeProfile {
+  id               String   @id
+  userId           String   @unique
+  employeeNo       String   @unique
+  positionId       String?
+  hireDate         String // YYYY-MM-DD
+  regularDate      String? // 转正日期（试用期待转正提醒依据）
+  contractType     String? // FixedTerm / OpenEnded / PartTime / Intern
+  contractEnd      String? // 合同到期日（到期提醒依据）
+  employmentStatus String   @default("Probation") // Probation/Regular/Suspended/Resigned/Terminated
+  phone            String?
+  emergencyContact String?
+  workLocation     String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        BigInt?
+
+  user     UserAccount  @relation(fields: [userId], references: [id])
+  position JobPosition? @relation(fields: [positionId], references: [id])
+
+  @@index([employmentStatus])
+  @@index([positionId])
+}
+
+/// C3a 员工生命周期事件（入/转/调/升/停/复/离，历史流水 — 故意用松散 id 引用，部门/岗位改名删除不影响历史）
+model EmploymentEvent {
+  id             String   @id
+  userId         String
+  type           String // Onboard/Regularize/Transfer/Promote/Suspend/Resume/Resign/Terminate
+  effectiveDate  String // YYYY-MM-DD
+  fromDeptId     String?
+  toDeptId       String?
+  fromPositionId String?
+  toPositionId   String?
+  reason         String?
+  operatorId     String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([effectiveDate])
+}
+
+/// C3b 考勤打卡记录（每人每日一条）
+model AttendanceRecord {
+  id        String   @id
+  userId    String
+  date      String // YYYY-MM-DD
+  checkIn   String? // HH:MM
+  checkOut  String? // HH:MM
+  status    String   @default("Normal") // Normal/Late/EarlyLeave/LateAndEarly/Absent/Leave/Holiday/Overtime
+  workHours Float?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([status])
+}
+
+/// C3b 请假申请（状态机与退税审核同口径：Pending→Approved/Rejected，可 Cancelled）
+model LeaveRequest {
+  id           String    @id
+  userId       String
+  type         String // Annual/Sick/Personal/CompTime/Maternity/Other
+  startDate    String
+  endDate      String
+  days         Float
+  reason       String?
+  status       String    @default("Pending") // Pending/Approved/Rejected/Cancelled
+  approverId   String?
+  approvedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    BigInt?
+
+  @@index([userId])
+  @@index([status])
+}
+
+/// C3c 薪资结构（变更留痕：effectiveFrom/To 形成生效区间，当前生效 effectiveTo=null）
+model SalaryStructure {
+  id                String   @id
+  userId            String
+  baseSalary        Float
+  positionAllowance Float    @default(0)
+  currency          String   @default("CNY")
+  effectiveFrom     String // YYYY-MM-DD
+  effectiveTo       String?
+  note              String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+/// C3c 月度工资单批次（Draft→Confirmed→Paid）
+model PayrollRun {
+  id          String    @id
+  period      String // YYYY-MM
+  status      String    @default("Draft") // Draft/Confirmed/Paid
+  totalNet    Float     @default(0)
+  headcount   Int       @default(0)
+  note        String?
+  confirmedAt DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items PayrollItem[]
+
+  @@unique([period])
+}
+
+/// C3c 工资单明细行（commission 可引用 P2 佣金结算额，手工录入）
+model PayrollItem {
+  id          String   @id
+  runId       String
+  userId      String
+  base        Float    @default(0)
+  allowance   Float    @default(0)
+  overtimePay Float    @default(0)
+  commission  Float    @default(0)
+  bonus       Float    @default(0)
+  deduction   Float    @default(0)
+  net         Float    @default(0)
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  run PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, userId])
+  @@index([userId])
+}
+
+/// C3d 绩效考核周期
+model PerformanceCycle {
+  id        String   @id
+  name      String
+  period    String // 如 2026-H1 / 2026-Q3
+  status    String   @default("Open") // Open/Closed
+  startDate String?
+  endDate   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews PerformanceReview[]
+
+  @@unique([period])
+}
+
+/// C3d 绩效评定（自评→主管评→终评确认；kpi Json 保持指标弹性）
+model PerformanceReview {
+  id           String   @id
+  cycleId      String
+  userId       String
+  selfScore    Float?
+  managerScore Float?
+  finalScore   Float?
+  grade        String? // A/B/C/D
+  kpi          Json?
+  comment      String?
+  status       String   @default("Draft") // Draft/Submitted/Confirmed
+  reviewerId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cycle PerformanceCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, userId])
+  @@index([userId])
+}
+
+/// C3e 培训课程
+model TrainingCourse {
+  id          String   @id
+  title       String
+  type        String   @default("Internal") // Internal/External
+  instructor  String?
+  startDate   String?
+  endDate     String?
+  capacity    Int?
+  status      String   @default("Planned") // Planned/Ongoing/Completed/Cancelled
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   BigInt?
+
+  enrollments TrainingEnrollment[]
+
+  @@index([status])
+}
+
+/// C3e 培训报名/成绩记录
+model TrainingEnrollment {
+  id          String   @id
+  courseId    String
+  userId      String
+  status      String   @default("Enrolled") // Enrolled/Completed/Absent/Cancelled
+  score       Float?
+  certificate String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@index([userId])
 }
 
 model AgentSession {

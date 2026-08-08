@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
+import { createHrService, HrError } from './hrService';
 
 type HRRouterOptions = {
   prisma: PrismaClient;
@@ -681,6 +682,407 @@ export function createHRRouter(options: HRRouterOptions) {
     } catch (err: any) {
       res.status(500).json({ ok: false, error: 'HR_ASSIGNMENT_DELETE_FAILED', message: err.message });
     }
+  });
+
+  // ════════════════════════════════════════════
+  // C3 HR 深化 — 员工档案 / 生命周期 / 考勤请假 / 薪资 / 绩效 / 培训
+  // 业务规则统一收口 hrService，route 只做参数透传 + 审计
+  // ════════════════════════════════════════════
+  const hr = createHrService(prisma);
+
+  /** HrError → HTTP 状态码映射（业务规则冲突 409，校验失败 400，未找到 404） */
+  function hrErrorStatus(err: any): number {
+    if (!(err instanceof HrError)) return 500;
+    if (err.code === 'VALIDATION_FAILED') return 400;
+    if (err.code.endsWith('_NOT_FOUND')) return 404;
+    return 409;
+  }
+
+  async function audited(
+    req: Request,
+    res: Response,
+    ctx: { source: string; operation: string; targetType: string; targetId: () => string },
+    fn: () => Promise<{ payload: Record<string, unknown>; auditAfter?: Record<string, unknown> }>,
+  ) {
+    try {
+      const { payload, auditAfter } = await fn();
+      await writeRouteAuditLog({
+        prisma,
+        actorId: actorIdFromRequest(req),
+        source: ctx.source,
+        operation: ctx.operation,
+        targetType: ctx.targetType,
+        targetId: ctx.targetId(),
+        after: auditAfter ?? payload,
+        ip: req.ip || null,
+      });
+      res.json({ ok: true, ...payload });
+    } catch (err: any) {
+      const status = hrErrorStatus(err);
+      res.status(status).json({ ok: false, error: err.code || 'HR_OPERATION_FAILED', message: err.message });
+    }
+  }
+
+  // ── C3a 员工档案 ──
+  router.get('/employees', async (req: Request, res: Response) => {
+    try {
+      const { status, deptId, q } = req.query as any;
+      const employees = await hr.listProfiles({ status, deptId, q });
+      res.json({ ok: true, employees });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_EMPLOYEES_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.get('/employees/:userId', async (req: Request, res: Response) => {
+    try {
+      const profile = await hr.getProfile(req.params.userId);
+      if (!profile) return res.status(404).json({ ok: false, error: 'PROFILE_NOT_FOUND', message: '员工档案不存在' });
+      res.json({ ok: true, profile });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_EMPLOYEE_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.put('/employees/:userId', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:upsert_employee', operation: 'upsert_employee',
+      targetType: 'EmployeeProfile', targetId: () => req.params.userId,
+    }, async () => {
+      const { profile, created } = await hr.upsertProfile({ ...req.body, userId: req.params.userId });
+      return { payload: { profile, created } };
+    });
+  });
+
+  router.delete('/employees/:userId', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:delete_employee', operation: 'delete_employee',
+      targetType: 'EmployeeProfile', targetId: () => req.params.userId,
+    }, async () => ({ payload: await hr.deleteProfile(req.params.userId) }));
+  });
+
+  // ── C3a 生命周期事件 ──
+  router.get('/employment-events', async (req: Request, res: Response) => {
+    try {
+      const { userId, type, limit } = req.query as any;
+      const events = await hr.listEmploymentEvents({ userId, type, limit: limit ? Number(limit) : undefined });
+      res.json({ ok: true, events });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_EVENTS_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/employment-events', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:record_employment_event', operation: 'record_employment_event',
+      targetType: 'EmploymentEvent', targetId: () => req.body?.userId || 'unknown',
+    }, async () => {
+      const { event } = await hr.recordEmploymentEvent(actorIdFromRequest(req) ?? 'unknown', req.body || {});
+      return { payload: { event } };
+    });
+  });
+
+  // ── C3b 考勤 ──
+  router.get('/attendance', async (req: Request, res: Response) => {
+    try {
+      const { userId, month, date, status } = req.query as any;
+      const records = await hr.listAttendance({ userId, month, date, status });
+      res.json({ ok: true, records });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_ATTENDANCE_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.get('/attendance/summary', async (req: Request, res: Response) => {
+    try {
+      const { month } = req.query as any;
+      const summary = await hr.attendanceSummary(month);
+      res.json({ ok: true, summary });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_ATTENDANCE_SUMMARY_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/attendance', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:upsert_attendance', operation: 'upsert_attendance',
+      targetType: 'AttendanceRecord', targetId: () => `${req.body?.userId || 'unknown'}:${req.body?.date || ''}`,
+    }, async () => {
+      const { record } = await hr.upsertAttendance(req.body || {});
+      return { payload: { record } };
+    });
+  });
+
+  // ── C3b 请假 ──
+  router.get('/leave-requests', async (req: Request, res: Response) => {
+    try {
+      const { userId, status } = req.query as any;
+      const requests = await hr.listLeaveRequests({ userId, status });
+      res.json({ ok: true, requests });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_LEAVE_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/leave-requests', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:create_leave_request', operation: 'create_leave_request',
+      targetType: 'LeaveRequest', targetId: () => req.body?.userId || 'unknown',
+    }, async () => {
+      const { request } = await hr.createLeaveRequest(req.body || {});
+      return { payload: { request } };
+    });
+  });
+
+  router.post('/leave-requests/:id/decide', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:decide_leave_request', operation: 'decide_leave_request',
+      targetType: 'LeaveRequest', targetId: () => req.params.id,
+    }, async () => {
+      const { decision, rejectReason } = req.body || {};
+      if (decision !== 'Approved' && decision !== 'Rejected') {
+        throw new HrError('VALIDATION_FAILED', 'decision 须为 Approved 或 Rejected');
+      }
+      const { request } = await hr.decideLeaveRequest(actorIdFromRequest(req) ?? 'unknown', req.params.id, decision, rejectReason);
+      return { payload: { request } };
+    });
+  });
+
+  router.post('/leave-requests/:id/cancel', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:cancel_leave_request', operation: 'cancel_leave_request',
+      targetType: 'LeaveRequest', targetId: () => req.params.id,
+    }, async () => {
+      const { request } = await hr.cancelLeaveRequest(req.params.id);
+      return { payload: { request } };
+    });
+  });
+
+  // ── C3c 薪资 ──
+  router.get('/salary-structures/:userId', async (req: Request, res: Response) => {
+    try {
+      const structures = await hr.getSalaryHistory(req.params.userId);
+      res.json({ ok: true, structures });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_SALARY_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/salary-structures', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:set_salary_structure', operation: 'set_salary_structure',
+      targetType: 'SalaryStructure', targetId: () => req.body?.userId || 'unknown',
+    }, async () => {
+      const result = await hr.setSalaryStructure(req.body || {});
+      return { payload: result };
+    });
+  });
+
+  router.get('/payroll-runs', async (_req: Request, res: Response) => {
+    try {
+      const runs = await hr.listPayrollRuns();
+      res.json({ ok: true, runs });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_PAYROLL_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.get('/payroll-runs/:id', async (req: Request, res: Response) => {
+    try {
+      const run = await hr.getPayrollRun(req.params.id);
+      if (!run) return res.status(404).json({ ok: false, error: 'RUN_NOT_FOUND', message: '工资单不存在' });
+      res.json({ ok: true, run });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_PAYROLL_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/payroll-runs', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:create_payroll_run', operation: 'create_payroll_run',
+      targetType: 'PayrollRun', targetId: () => req.body?.period || 'unknown',
+    }, async () => {
+      const { run } = await hr.createPayrollRun(req.body?.period, req.body?.note);
+      return { payload: { run } };
+    });
+  });
+
+  router.post('/payroll-runs/:id/generate', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:generate_payroll_items', operation: 'generate_payroll_items',
+      targetType: 'PayrollRun', targetId: () => req.params.id,
+    }, async () => ({ payload: await hr.generatePayrollItems(req.params.id) }));
+  });
+
+  router.patch('/payroll-items/:id', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:update_payroll_item', operation: 'update_payroll_item',
+      targetType: 'PayrollItem', targetId: () => req.params.id,
+    }, async () => {
+      const { item } = await hr.updatePayrollItem(req.params.id, req.body || {});
+      return { payload: { item } };
+    });
+  });
+
+  router.post('/payroll-runs/:id/confirm', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:confirm_payroll_run', operation: 'confirm_payroll_run',
+      targetType: 'PayrollRun', targetId: () => req.params.id,
+    }, async () => {
+      const { run } = await hr.confirmPayrollRun(req.params.id);
+      return { payload: { run } };
+    });
+  });
+
+  router.post('/payroll-runs/:id/pay', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:mark_payroll_paid', operation: 'mark_payroll_paid',
+      targetType: 'PayrollRun', targetId: () => req.params.id,
+    }, async () => {
+      const { run } = await hr.markPayrollPaid(req.params.id);
+      return { payload: { run } };
+    });
+  });
+
+  // ── C3d 绩效 ──
+  router.get('/performance-cycles', async (_req: Request, res: Response) => {
+    try {
+      const cycles = await hr.listPerformanceCycles();
+      res.json({ ok: true, cycles });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_CYCLES_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/performance-cycles', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:create_performance_cycle', operation: 'create_performance_cycle',
+      targetType: 'PerformanceCycle', targetId: () => req.body?.period || 'unknown',
+    }, async () => {
+      const { cycle } = await hr.createPerformanceCycle(req.body || {});
+      return { payload: { cycle } };
+    });
+  });
+
+  router.post('/performance-cycles/:id/close', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:close_performance_cycle', operation: 'close_performance_cycle',
+      targetType: 'PerformanceCycle', targetId: () => req.params.id,
+    }, async () => {
+      const { cycle } = await hr.closePerformanceCycle(req.params.id);
+      return { payload: { cycle } };
+    });
+  });
+
+  router.get('/performance-reviews', async (req: Request, res: Response) => {
+    try {
+      const { cycleId, userId, status } = req.query as any;
+      const reviews = await hr.listPerformanceReviews({ cycleId, userId, status });
+      res.json({ ok: true, reviews });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_REVIEWS_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.put('/performance-reviews', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:upsert_performance_review', operation: 'upsert_performance_review',
+      targetType: 'PerformanceReview', targetId: () => `${req.body?.cycleId || ''}:${req.body?.userId || ''}`,
+    }, async () => {
+      const { review } = await hr.upsertPerformanceReview(req.body || {});
+      return { payload: { review } };
+    });
+  });
+
+  router.post('/performance-reviews/:id/submit', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:submit_performance_review', operation: 'submit_performance_review',
+      targetType: 'PerformanceReview', targetId: () => req.params.id,
+    }, async () => {
+      const { review } = await hr.submitPerformanceReview(req.params.id);
+      return { payload: { review } };
+    });
+  });
+
+  router.post('/performance-reviews/:id/confirm', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:confirm_performance_review', operation: 'confirm_performance_review',
+      targetType: 'PerformanceReview', targetId: () => req.params.id,
+    }, async () => {
+      const { review } = await hr.confirmPerformanceReview(req.params.id, {
+        ...req.body,
+        reviewerId: req.body?.reviewerId ?? actorIdFromRequest(req) ?? null,
+      });
+      return { payload: { review } };
+    });
+  });
+
+  // ── C3e 培训 ──
+  router.get('/training-courses', async (req: Request, res: Response) => {
+    try {
+      const { status } = req.query as any;
+      const courses = await hr.listTrainingCourses({ status });
+      res.json({ ok: true, courses });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_COURSES_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/training-courses', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:create_training_course', operation: 'create_training_course',
+      targetType: 'TrainingCourse', targetId: () => req.body?.title || 'unknown',
+    }, async () => {
+      const { course } = await hr.createTrainingCourse(req.body || {});
+      return { payload: { course } };
+    });
+  });
+
+  router.patch('/training-courses/:id', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:update_training_course', operation: 'update_training_course',
+      targetType: 'TrainingCourse', targetId: () => req.params.id,
+    }, async () => {
+      const { course } = await hr.updateTrainingCourse(req.params.id, req.body || {});
+      return { payload: { course } };
+    });
+  });
+
+  router.delete('/training-courses/:id', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:delete_training_course', operation: 'delete_training_course',
+      targetType: 'TrainingCourse', targetId: () => req.params.id,
+    }, async () => ({ payload: await hr.deleteTrainingCourse(req.params.id) }));
+  });
+
+  router.get('/training-enrollments', async (req: Request, res: Response) => {
+    try {
+      const { courseId, userId } = req.query as any;
+      const enrollments = await hr.listEnrollments({ courseId, userId });
+      res.json({ ok: true, enrollments });
+    } catch (err: any) {
+      res.status(hrErrorStatus(err)).json({ ok: false, error: err.code || 'HR_ENROLLMENTS_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  router.post('/training-courses/:id/enroll', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:enroll_training', operation: 'enroll_training',
+      targetType: 'TrainingEnrollment', targetId: () => `${req.params.id}:${req.body?.userId || ''}`,
+    }, async () => {
+      const { enrollment } = await hr.enrollTraining(req.params.id, req.body?.userId);
+      return { payload: { enrollment } };
+    });
+  });
+
+  router.patch('/training-enrollments/:id', async (req: Request, res: Response) => {
+    await audited(req, res, {
+      source: 'route:hr:update_enrollment', operation: 'update_enrollment',
+      targetType: 'TrainingEnrollment', targetId: () => req.params.id,
+    }, async () => {
+      const { enrollment } = await hr.updateEnrollment(req.params.id, req.body || {});
+      return { payload: { enrollment } };
+    });
   });
 
   return router;
