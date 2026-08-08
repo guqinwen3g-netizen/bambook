@@ -273,6 +273,31 @@ function validateTransition(transitions: Record<string, string[]>, from: string,
   }
 }
 
+// ─── C4 关单闭环 ───
+// 报关单关联运单（shipmentId）时，事务内回填 Shipment 关单字段：
+//   - 创建报关单 → customsDeclarationNumber（免手工双录，运单详情即时可见）
+//   - 放行（Released）→ customsDeclarationNumber（防漏补写）+ customsClearanceDate（当日 YYYY-MM-DD）
+// 运单不存在/已软删时静默跳过（shipmentId 为 snapshot FK，不阻断报关单主流程）。
+async function backfillShipmentCustoms(
+  tx: any,
+  decl: { shipmentId: string | null; declarationNumber: string },
+  cleared: boolean,
+): Promise<void> {
+  if (!decl.shipmentId) return;
+  const shipment = await tx.shipment.findUnique({ where: { id: decl.shipmentId }, select: { id: true, deletedAt: true } });
+  if (!shipment || shipment.deletedAt) return;
+  const data: Record<string, unknown> = {
+    customsDeclarationNumber: decl.declarationNumber,
+    updatedAt: now(),
+  };
+  if (cleared) {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    data.customsClearanceDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  await tx.shipment.update({ where: { id: shipment.id }, data });
+}
+
 // ════════════════════════════════════════════════════════════════
 // Service Factory
 // ════════════════════════════════════════════════════════════════
@@ -366,6 +391,9 @@ export function createCustomsService(prisma: PrismaClient) {
 
       // EntityLink 图谱：clearsShipment / aboutOrder / declaredFor
       await syncCustomsDeclarationReferences(prisma, decl, { source: 'api:customs' }, tx);
+
+      // C4 关单闭环：回填运单报关单号
+      await backfillShipmentCustoms(tx, decl, false);
 
       return decl;
     });
@@ -557,6 +585,10 @@ export function createCustomsService(prisma: PrismaClient) {
           detail: { from: existing.status, to: toStatus },
         },
       });
+      // C4 关单闭环：放行时回填运单报关单号 + 清关日期
+      if (toStatus === 'Released') {
+        await backfillShipmentCustoms(tx, decl, true);
+      }
       return decl;
     });
 

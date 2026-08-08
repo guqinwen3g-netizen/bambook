@@ -106,3 +106,74 @@ export async function getOnTimeStats(
 
   return { from: from ?? null, to: to ?? null, shipment: shipBucket, order: orderBucket };
 }
+
+// ────────────────────────────────────────────────────────────────
+// C4：运输方式维度统计
+//   按 shippingMethod 分组：总量 / 在途 / 已交付 / 准点率（ata≤eta 口径与 on-time 一致）
+// ────────────────────────────────────────────────────────────────
+
+export interface MethodBucket {
+  method: string;
+  total: number;
+  inTransit: number;   // Booked/Loading/Shipped/Arrived
+  delivered: number;
+  cancelled: number;
+  judged: number;      // 有 eta+ata 可判定准点的样本数
+  onTime: number;
+  late: number;
+  onTimeRate: number | null;
+}
+
+export interface MethodStats {
+  from: string | null;
+  to: string | null;
+  methods: MethodBucket[];
+}
+
+const IN_TRANSIT_STATUSES = new Set(['Booked', 'Loading', 'Shipped', 'Arrived']);
+
+export async function getMethodStats(
+  prisma: PrismaClient,
+  params: { from?: string; to?: string } = {},
+): Promise<MethodStats> {
+  const { from, to } = params;
+  // createdAt 为 BigInt 时间戳，区间过滤统一走 etd/ata 字符串口径（内存过滤）
+  const shipments = await prisma.shipment.findMany({
+    where: { deletedAt: null },
+    select: { shippingMethod: true, status: true, eta: true, ata: true, etd: true },
+  });
+
+  // etd 区间过滤（YYYY-MM-DD 字典序；无 etd 的运单在带区间时排除）
+  const filtered = shipments.filter((s: any) => {
+    if (!from && !to) return true;
+    const d = s.etd ?? s.ata;
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+
+  const byMethod = new Map<string, MethodBucket>();
+  for (const s of filtered as any[]) {
+    const method = s.shippingMethod || 'Unknown';
+    let b = byMethod.get(method);
+    if (!b) {
+      b = { method, total: 0, inTransit: 0, delivered: 0, cancelled: 0, judged: 0, onTime: 0, late: 0, onTimeRate: null };
+      byMethod.set(method, b);
+    }
+    b.total++;
+    if (IN_TRANSIT_STATUSES.has(s.status)) b.inTransit++;
+    else if (s.status === 'Delivered') b.delivered++;
+    else if (s.status === 'Cancelled') b.cancelled++;
+    if (s.eta && s.ata) {
+      b.judged++;
+      if (s.ata <= s.eta) b.onTime++;
+      else b.late++;
+    }
+  }
+  const methods = [...byMethod.values()].sort((a, b) => b.total - a.total);
+  for (const m of methods) {
+    m.onTimeRate = m.judged > 0 ? Math.round((m.onTime / m.judged) * 10000) / 10000 : null;
+  }
+  return { from: from ?? null, to: to ?? null, methods };
+}

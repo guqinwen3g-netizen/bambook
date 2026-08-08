@@ -122,6 +122,7 @@ function makeShipTx(opts: {
     shipment: { create: shipmentCreate },
     shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
     order: { findUnique: vi.fn().mockResolvedValue(order), update: orderUpdate },
+    orderLine: { findMany: vi.fn().mockResolvedValue([]) }, // C4：首装自动带出装运行——空订单行跳过
     orderStatusTransition: { create: orderStatusTransitionCreate },
     auditLog: { create: auditLogCreate },
     entityReference: { upsert: entityRefUpsert },

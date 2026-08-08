@@ -11,6 +11,7 @@ function makeShipCommitTx(order: any = { id: 'O1', status: 'Confirmed', deletedA
     shipment: { create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data, orderId: data.orderId })) },
     shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
     order: { findUnique: vi.fn().mockResolvedValue(order), update: vi.fn().mockResolvedValue({}) },
+    orderLine: { findMany: vi.fn().mockResolvedValue([]) }, // C4：首装自动带出装运行——空订单行跳过
     orderStatusTransition: { create: vi.fn().mockResolvedValue({}) },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     entityReference: { upsert: vi.fn().mockResolvedValue({}) },

@@ -133,6 +133,7 @@ function makeShippingTx(opts: { order?: any; shipmentFind?: any; txFail?: boolea
     shipment: { create: shipmentCreate, findUnique: vi.fn().mockResolvedValue(shipmentFind), update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data, shipmentNumber: 'SHP001' })) },
     shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
     order: { findUnique: orderFind, update: orderUpdate },
+    orderLine: { findMany: vi.fn().mockResolvedValue([]) }, // C4：首装自动带出装运行——空订单行跳过
     orderStatusTransition: { create: orderStatusTransitionCreate },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     entityReference: { upsert: vi.fn().mockResolvedValue({}) },

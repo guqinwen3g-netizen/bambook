@@ -2563,18 +2563,46 @@ export type ShipmentDirection = 'Outbound' | 'Inbound';
 export interface ShipmentLine {
   id: string;
   shipmentId: string;
+  lineNumber?: number;
   orderId?: string;
   orderPo?: string;
+  orderLineId?: string | null; // C4：关联订单行（pull-from-order 带出）
   productId?: string;
+  productCode?: string | null;
   productName?: string;
+  colorCode?: string | null;
   quantity?: number;
   unit?: string;
   cartons?: number;
   grossWeight?: number;
   netWeight?: number;
   volume?: number;
+  hsCode?: string | null;
+  countryOfOrigin?: string | null;
   notes?: string;
   deletedAt?: number | null;
+}
+
+// ─── C4 发货深化：逐箱装箱 ───
+export interface ShipmentCartonItem {
+  id: string;
+  cartonId: string;
+  shipmentLineId: string;
+  quantity: number;
+}
+
+export interface ShipmentCarton {
+  id: string;
+  shipmentId: string;
+  cartonNo: string;
+  description?: string | null;
+  length?: number | null;
+  width?: number | null;
+  height?: number | null;
+  grossWeight?: number | null;
+  netWeight?: number | null;
+  volume?: number | null;
+  items?: ShipmentCartonItem[];
 }
 
 export type ShipmentType2 = 'Export' | 'Import' | 'Domestic';
@@ -2725,6 +2753,8 @@ export interface Shipment {
   portOfDischarge?: string;
   containerNumber?: string;
   sealNumber?: string;
+  trackingNumber?: string; // C4：物流跟踪号（快递单号/集装箱跟踪号）
+  carrierTrackingUrl?: string; // C4：承运商跟踪查询链接（前端跳转）
 
   // ─── 重量/体积 ───
   totalPackages?: number;

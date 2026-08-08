@@ -2196,6 +2196,8 @@ model Shipment {
   portOfDischarge String? // 卸货港
   containerNumber String? // 集装箱号
   sealNumber      String? // 封条号
+  trackingNumber    String? // C4：物流跟踪号（快递单号/集装箱跟踪号）
+  carrierTrackingUrl String? // C4：承运商跟踪查询链接（前端跳转，不内置外部 API）
 
   // ─── 重量/体积 ───
   totalPackages Int? // 总件数
@@ -2258,7 +2260,7 @@ model ShipmentLine {
   productCode String?
   productName String?
   colorCode   String?
-  quantity    Int?
+  quantity    Decimal? @db.Decimal(18, 4) // C4：Int→Decimal（面料米数/码数含小数；模型此前无写路径，零存量行，安全变更）
   unit        String? // e.g. "m", "yd", "kg", "pcs"
 
   // ─── 箱规/包装 ───
@@ -2299,6 +2301,51 @@ model ShipmentEvent {
 
   @@index([shipmentId])
   @@index([toNode])
+}
+
+// ShipmentCarton：逐箱装箱明细（C4 发货深化）
+// 行级 ShipmentLine 回答「发什么货」，逐箱回答「每个箱子装了什么/多重/多大」：
+// 装箱单（PL）按 C/NO 逐箱列示是外贸刚需，混装经 ShipmentCartonItem 分配数量。
+// 汇总口径：运单 totalPackages/grossWeight/netWeight/volume 在有箱时由箱级派生
+// （服务层重算写回），无箱有行时由行级派生，两者皆无保持手工录入。
+model ShipmentCarton {
+  id         String @id // 格式：SHPC__${shortId}
+  shipmentId String // 所属运单（snapshot FK）
+
+  cartonNo    String  // 箱号（如 "1" / "1-60"，展示用字符串）
+  description String? // 箱内货物描述（混装摘要，可空）
+
+  // ─── 尺寸/重量/体积 ───
+  length      Decimal? @db.Decimal(10, 2) // 长(cm)
+  width       Decimal? @db.Decimal(10, 2) // 宽(cm)
+  height      Decimal? @db.Decimal(10, 2) // 高(cm)
+  grossWeight Decimal? @db.Decimal(12, 3) // 毛重(kg)
+  netWeight   Decimal? @db.Decimal(12, 3) // 净重(kg)
+  volume      Decimal? @db.Decimal(12, 4) // 体积(CBM)；三尺寸齐全且缺省时由服务层推导
+
+  createdAt BigInt
+  updatedAt BigInt
+
+  items ShipmentCartonItem[]
+
+  @@index([shipmentId])
+}
+
+// ShipmentCartonItem：箱内货物分配（混装支持）
+// 同一 (cartonId, shipmentLineId) 唯一；服务层校验每行累计分配量 ≤ 行数量。
+model ShipmentCartonItem {
+  id             String @id // 格式：SHPCI__${shortId}
+  cartonId       String
+  shipmentLineId String // 关联 ShipmentLine（snapshot FK，行删除由服务层清理）
+  quantity       Decimal @db.Decimal(18, 4) // 该行在此箱中的数量
+
+  createdAt BigInt
+  updatedAt BigInt
+
+  carton ShipmentCarton @relation(fields: [cartonId], references: [id], onDelete: Cascade)
+
+  @@unique([cartonId, shipmentLineId])
+  @@index([shipmentLineId])
 }
 
 // ════════════════════════════════════════════════════════════════════

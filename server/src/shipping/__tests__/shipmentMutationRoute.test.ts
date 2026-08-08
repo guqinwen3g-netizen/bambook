@@ -60,6 +60,7 @@ function makeApp(opts: {
     shipment: { create: shipmentCreate, update: shipmentUpdate, findUnique: shipmentFindUnique },
     shipmentEvent: { create: shipmentEventCreate, findMany: shipmentEventFindMany },
     order: { findUnique: orderFindUnique, update: orderUpdate },
+    orderLine: { findMany: vi.fn().mockResolvedValue([]) }, // C4：首装自动带出装运行——空订单行跳过
     orderStatusTransition: { create: orderStatusTransitionCreate },
     auditLog: { create: auditCreate },
     entityReference: { upsert: entityRefUpsert, findMany: entityRefFindMany, update: entityRefUpdate },

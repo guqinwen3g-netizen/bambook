@@ -78,6 +78,11 @@ function makePrisma(overrides: Record<string, any> = {}) {
       delete: vi.fn().mockImplementation(async ({ where }: any) => ({ id: where.id })),
     },
     auditLog: { create: auditLogCreate },
+    // C4 关单闭环：backfillShipmentCustoms 探测运单（null → 静默跳过）
+    shipment: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
+    },
     // EntityLink 图谱（D1.1a）：sync/deactivate 走 tx 内 upsert/findMany/update
     entityReference: {
       upsert: vi.fn().mockResolvedValue({}),

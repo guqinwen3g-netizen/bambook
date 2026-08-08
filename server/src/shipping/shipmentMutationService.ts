@@ -12,6 +12,7 @@ import { linkOrderStatusFromShipment } from './orderLinkService';
 import { validateStatusTransition } from '../statusTransition';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import { mapOrderLinesToShipmentLineInputs, replaceShipmentLinesTx } from './shipmentPackingService';
 
 export type ShipmentMutationErrorCode =
   | 'NOT_FOUND'
@@ -169,6 +170,13 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
         const linkResult = await linkOrderStatusFromShipment(t, sh.orderId, sh.status, { operator: actorId });
         if (linkResult.ok && !linkResult.skipped) {
           orderStatus = linkResult.toStatus || null;
+        }
+
+        // C4：建单首装——关联订单且订单有明细行时自动带出装运行
+        // （同事务，映射口径与 pull-from-order 端点共用 mapOrderLinesToShipmentLineInputs）
+        const orderLines = await t.orderLine.findMany({ where: { orderId: sh.orderId }, orderBy: { lineNumber: 'asc' } });
+        if (orderLines.length > 0) {
+          await replaceShipmentLinesTx(t, sh.id, mapOrderLinesToShipmentLineInputs(orderLines), actorId, ip);
         }
       }
 

@@ -17,7 +17,11 @@ import { PrismaClient } from '@prisma/client';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { createShipment, updateShipment, deleteShipment, VALID_SHIPMENT_STATUSES } from './shipmentMutationService';
 import { assembleDocumentSetData } from './documentSetService';
-import { getOnTimeStats } from './shipmentStatsService';
+import { getOnTimeStats, getMethodStats } from './shipmentStatsService';
+import {
+  listShipmentLines, listShipmentCartons,
+  replaceShipmentLines, replaceShipmentCartons, pullLinesFromOrder,
+} from './shipmentPackingService';
 
 export interface ShippingRouterOptions {
   prisma: PrismaClient;
@@ -44,6 +48,8 @@ type ShipmentCreateInput = {
   portOfDischarge?: string;
   containerNumber?: string;
   sealNumber?: string;
+  trackingNumber?: string;
+  carrierTrackingUrl?: string;
   totalPackages?: number;
   grossWeight?: number;
   netWeight?: number;
@@ -73,7 +79,7 @@ const SHIPMENT_PATCH_FIELDS: (keyof ShipmentCreateInput)[] = [
   'status', 'bookingDate', 'etd', 'atd', 'eta', 'ata',
   'vesselOrFlight', 'voyageNumber',
   'portOfLoading', 'portOfDischarge',
-  'containerNumber', 'sealNumber', 'totalPackages',
+  'containerNumber', 'sealNumber', 'trackingNumber', 'carrierTrackingUrl', 'totalPackages',
   'grossWeight', 'netWeight', 'volume',
   'freightAmount', 'freightCurrency',
   'insuranceAmount', 'insuranceCurrency',
@@ -174,6 +180,83 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     }
   });
 
+  // GET /api/v1/shipping/stats/by-method — C4 运输方式维度统计（只读；须在 /:id 之前注册）
+  router.get('/stats/by-method', async (req: Request, res: Response) => {
+    try {
+      const stats = await getMethodStats(prisma, {
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'STATS_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/shipping/:id/lines — C4 装运行（只读）
+  router.get('/:id/lines', async (req: Request, res: Response) => {
+    try {
+      const sh = await (prisma as any).shipment.findUnique({ where: { id: req.params.id }, select: { id: true, deletedAt: true } });
+      if (!sh || sh.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '运单不存在' } });
+      const items = await listShipmentLines(prisma, req.params.id);
+      res.json({ items, total: items.length });
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // PUT /api/v1/shipping/:id/lines — C4 装运行整组替换（幂等）
+  router.put('/:id/lines', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines : null;
+    if (!lines) return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'body.lines must be an array' } });
+    const result = await replaceShipmentLines(prisma, req.params.id, lines, actorIdFromRequest(req), req.ip || null);
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400 };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'shipping', action: 'update', ids: [req.params.id] });
+    res.json(result.data);
+  });
+
+  // POST /api/v1/shipping/:id/lines/pull-from-order — C4 从订单重新带出装运行
+  router.post('/:id/lines/pull-from-order', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await pullLinesFromOrder(prisma, req.params.id, actorIdFromRequest(req), req.ip || null);
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, ORDER_NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400 };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'shipping', action: 'update', ids: [req.params.id] });
+    res.json(result.data);
+  });
+
+  // GET /api/v1/shipping/:id/cartons — C4 逐箱装箱（只读，含箱内分配）
+  router.get('/:id/cartons', async (req: Request, res: Response) => {
+    try {
+      const sh = await (prisma as any).shipment.findUnique({ where: { id: req.params.id }, select: { id: true, deletedAt: true } });
+      if (!sh || sh.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '运单不存在' } });
+      const items = await listShipmentCartons(prisma, req.params.id);
+      res.json({ items, total: items.length });
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // PUT /api/v1/shipping/:id/cartons — C4 逐箱整组替换（幂等，箱内分配随行校验）
+  router.put('/:id/cartons', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const cartons = Array.isArray(req.body?.cartons) ? req.body.cartons : null;
+    if (!cartons) return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'body.cartons must be an array' } });
+    const result = await replaceShipmentCartons(prisma, req.params.id, cartons, actorIdFromRequest(req), req.ip || null);
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400 };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'shipping', action: 'update', ids: [req.params.id] });
+    res.json(result.data);
+  });
+
   // GET /api/v1/shipping/:id/events — F3 物流节点时间轴（ShipmentEvent 升序全量）
   router.get('/:id/events', async (req: Request, res: Response) => {
     try {
@@ -197,7 +280,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
       'etd', 'atd', 'eta', 'ata',
       'vesselOrFlight', 'voyageNumber',
       'portOfLoading', 'portOfDischarge',
-      'containerNumber', 'sealNumber', 'totalPackages',
+      'containerNumber', 'sealNumber', 'trackingNumber', 'carrierTrackingUrl', 'totalPackages',
       'grossWeight', 'netWeight', 'volume',
       'freightAmount', 'freightCurrency',
       'insuranceAmount', 'insuranceCurrency',

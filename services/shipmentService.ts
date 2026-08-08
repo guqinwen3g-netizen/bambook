@@ -3,7 +3,7 @@
  * Communicates with /api/v1/shipping endpoints.
  */
 import { apiService } from './apiService';
-import type { Shipment, ShipmentStatus, ShipmentEvent } from '../types';
+import type { Shipment, ShipmentStatus, ShipmentEvent, ShipmentLine, ShipmentCarton } from '../types';
 
 type ShipmentListParams = {
   status?: ShipmentStatus;
@@ -28,6 +28,54 @@ export interface OnTimeStats {
   to: string | null;
   shipment: OnTimeBucket; // 运单准点率（ata ≤ eta）
   order: OnTimeBucket; // 订单准交率（最后一票 ata ≤ dueDate）
+}
+
+/** C4 — 运输方式维度统计（与 server/src/shipping/shipmentStatsService.ts getMethodStats 契约一致） */
+export interface MethodBucket {
+  method: string;
+  total: number;
+  inTransit: number;
+  delivered: number;
+  cancelled: number;
+  judged: number;
+  onTime: number;
+  late: number;
+  onTimeRate: number | null;
+}
+
+export interface MethodStats {
+  from: string | null;
+  to: string | null;
+  methods: MethodBucket[];
+}
+
+/** C4 — 装运行写入载荷（镜像 server shipmentPackingService.ShipmentLineInput；null 清空字段） */
+export interface ShipmentLineInput {
+  orderLineId?: string | null;
+  productCode?: string | null;
+  productName?: string | null;
+  colorCode?: string | null;
+  quantity?: number | string | null;
+  unit?: string | null;
+  cartons?: number | null;
+  grossWeight?: number | string | null;
+  netWeight?: number | string | null;
+  volume?: number | string | null;
+  hsCode?: string | null;
+  countryOfOrigin?: string | null;
+}
+
+/** C4 — 逐箱写入载荷（镜像 server shipmentPackingService.ShipmentCartonInput） */
+export interface ShipmentCartonInput {
+  cartonNo: string;
+  description?: string | null;
+  length?: number | string | null;
+  width?: number | string | null;
+  height?: number | string | null;
+  grossWeight?: number | string | null;
+  netWeight?: number | string | null;
+  volume?: number | string | null;
+  items?: Array<{ shipmentLineId: string; quantity: number | string }>;
 }
 
 export const shipmentService = {
@@ -167,6 +215,97 @@ export const shipmentService = {
       },
     });
     if (!res.ok) throw new Error(`getOnTimeStats failed: HTTP ${res.status}`);
+    return res.json();
+  },
+
+  // ────────────────────────────────────────────────────────────
+  // C4 发货深化：装运行 / 逐箱 / 方式统计
+  // ────────────────────────────────────────────────────────────
+
+  /** C4 — 装运行列表（GET /v1/shipping/:id/lines） */
+  async listShipmentLines(id: string, endpoint?: string): Promise<ShipmentLine[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/lines`, base);
+    const apiKey = apiService.getApiKey();
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+    });
+    if (!res.ok) throw new Error(`listShipmentLines failed: HTTP ${res.status}`);
+    const data = await res.json();
+    return data.items || [];
+  },
+
+  /** C4 — 装运行整组替换（PUT /v1/shipping/:id/lines，幂等） */
+  async replaceShipmentLines(id: string, lines: ShipmentLineInput[], endpoint?: string): Promise<ShipmentLine[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/lines`, base);
+    const apiKey = apiService.getApiKey();
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      body: JSON.stringify({ lines }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message || `replaceShipmentLines failed: HTTP ${res.status}`);
+    return data.lines || [];
+  },
+
+  /** C4 — 从订单重新带出装运行（POST /v1/shipping/:id/lines/pull-from-order） */
+  async pullLinesFromOrder(id: string, endpoint?: string): Promise<ShipmentLine[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/lines/pull-from-order`, base);
+    const apiKey = apiService.getApiKey();
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message || `pullLinesFromOrder failed: HTTP ${res.status}`);
+    return data.lines || [];
+  },
+
+  /** C4 — 逐箱装箱列表（GET /v1/shipping/:id/cartons，含箱内分配） */
+  async listShipmentCartons(id: string, endpoint?: string): Promise<ShipmentCarton[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/cartons`, base);
+    const apiKey = apiService.getApiKey();
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+    });
+    if (!res.ok) throw new Error(`listShipmentCartons failed: HTTP ${res.status}`);
+    const data = await res.json();
+    return data.items || [];
+  },
+
+  /** C4 — 逐箱整组替换（PUT /v1/shipping/:id/cartons，幂等） */
+  async replaceShipmentCartons(id: string, cartons: ShipmentCartonInput[], endpoint?: string): Promise<ShipmentCarton[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/cartons`, base);
+    const apiKey = apiService.getApiKey();
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      body: JSON.stringify({ cartons }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message || `replaceShipmentCartons failed: HTTP ${res.status}`);
+    return data.cartons || [];
+  },
+
+  /** C4 — 运输方式维度统计（GET /v1/shipping/stats/by-method） */
+  async getMethodStats(params?: { from?: string; to?: string }, endpoint?: string): Promise<MethodStats> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl('/v1/shipping/stats/by-method', base);
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
+    const apiKey = apiService.getApiKey();
+    const res = await fetch(fullUrl, {
+      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+    });
+    if (!res.ok) throw new Error(`getMethodStats failed: HTTP ${res.status}`);
     return res.json();
   },
 };
