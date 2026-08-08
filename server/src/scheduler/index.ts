@@ -24,6 +24,7 @@ import { createReceivableOverdueDetectorTask } from './tasks/receivableOverdueDe
 import { createInventoryWatchdogTask } from './tasks/inventoryWatchdog';
 import { createProductionDeadlineWatchdogTask } from './tasks/productionDeadlineWatchdog';
 import { createFactoryCertificationWatchdogTask } from './tasks/factoryCertificationWatchdog';
+import { createSeasonReviewWatchdogTask } from './tasks/seasonReviewWatchdog';
 import { logger } from '../lib/logger';
 
 export function startScheduler(prisma: PrismaClient): void {
@@ -44,12 +45,14 @@ export function startScheduler(prisma: PrismaClient): void {
   scheduler.register(createWeeklyBriefingTask());
   // 阶段 H / H1c：工厂认证到期 30 天预警（每日）
   scheduler.register(createFactoryCertificationWatchdogTask());
+  // 阶段 H / H2：季度结束后自动生成季度回顾（每日）
+  scheduler.register(createSeasonReviewWatchdogTask());
 
   // 启动调度器
   scheduler.start();
 
-  logger.info('[Scheduler] initialized with 11 tasks', {
-    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog'],
+  logger.info('[Scheduler] initialized with 12 tasks', {
+    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog', 'season_review_watchdog'],
   });
 }
 

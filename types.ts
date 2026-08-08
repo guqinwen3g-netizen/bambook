@@ -13,6 +13,7 @@ export enum View {
   BOM = 'bom',
   CRM = 'crm',
   Suppliers = 'suppliers',
+  Seasons = 'seasons',
   MES = 'mes',
   Customs = 'customs',
   Invoices = 'invoices',
@@ -2921,6 +2922,186 @@ export interface FactoryOverview {
   evaluations: FactoryEvaluation[];
   certifications: FactoryCertification[];
   capacity: FactoryCapacity[];
+}
+
+// ════════════════════════════════════════════════════════════════
+// 阶段 H H2: 季节性与趋势管理 Season & Trend Management
+// 季度（开发日历 + 季度回顾快照）/ 趋势标签（关联面料）/ 展会（线索 + ROI）
+// ════════════════════════════════════════════════════════════════
+
+export type SeasonStatus = 'Planning' | 'Active' | 'Closed';
+export type TrendTagType = 'fabric' | 'color' | 'craft' | 'composition';
+export type TradeShowStatus = 'Planned' | 'Ongoing' | 'Completed' | 'Cancelled';
+export type TradeShowLeadStatus = 'New' | 'Following' | 'Converted' | 'Lost';
+
+export interface SeasonCalendarItem {
+  key: string;
+  label: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+}
+
+export interface Season {
+  id: string;
+  code: string; // 季节代码，如 SS26 / AW26
+  name: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  calendar?: SeasonCalendarItem[] | null; // 开发日历节点
+  status: SeasonStatus;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  trendTags?: TrendTag[];
+  tradeShows?: TradeShow[];
+}
+
+export interface SeasonInput {
+  code: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  calendar?: SeasonCalendarItem[] | null;
+  notes?: string | null;
+}
+
+/** code 创建后不可改 */
+export type SeasonPatch = Partial<Omit<SeasonInput, 'code'>> & { status?: SeasonStatus };
+
+export interface SeasonReviewTopCustomer {
+  customer: string;
+  orderCount: number;
+  revenue: number;
+}
+
+/** 季度回顾快照（服务端聚合生成，前端只读） */
+export interface SeasonReview {
+  orderCount: number;
+  shippedCount: number;
+  revenue: number;
+  cost: number;
+  grossProfit: number;
+  topCustomers: SeasonReviewTopCustomer[];
+  generatedAt: string;
+}
+
+/** 趋势标签关联的面料（FabricProfile 携带 productAsset 展示名/sku） */
+export type TrendFabric = FabricProfile & { productAsset?: ProductAsset | null };
+
+export interface TrendTagFabricLink {
+  id: string;
+  fabricId: string;
+  note?: string | null;
+  fabric?: TrendFabric | null;
+}
+
+export interface TrendTag {
+  id: string;
+  seasonId?: string | null; // null = 跨季通用
+  type: TrendTagType;
+  name: string;
+  description?: string | null;
+  source?: string | null; // 来源说明（如 WGSN / 展会名）
+  tradeShowId?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  fabricLinks?: TrendTagFabricLink[];
+  tradeShow?: TradeShow | null;
+}
+
+export interface TrendTagInput {
+  seasonId?: string | null;
+  type: TrendTagType;
+  name: string;
+  description?: string | null;
+  source?: string | null;
+  tradeShowId?: string | null;
+}
+
+export type TrendTagPatch = Partial<TrendTagInput>;
+
+export interface TrendingFabricItem {
+  link: TrendTagFabricLink;
+  tag: TrendTag;
+  fabric: TrendFabric;
+}
+
+export interface TradeShow {
+  id: string;
+  seasonId?: string | null;
+  name: string;
+  location?: string | null;
+  startDate: string; // YYYY-MM-DD
+  endDate?: string | null;
+  boothNo?: string | null;
+  attendees?: number | null;
+  cost?: number | null;
+  currency?: string | null;
+  notes?: string | null;
+  status: TradeShowStatus;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  leads?: TradeShowLead[];
+}
+
+export interface TradeShowInput {
+  seasonId?: string | null;
+  name: string;
+  location?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  boothNo?: string | null;
+  attendees?: number | null;
+  cost?: number | null;
+  currency?: string | null;
+  notes?: string | null;
+}
+
+export type TradeShowPatch = Partial<TradeShowInput> & { status?: TradeShowStatus };
+
+export interface TradeShowLead {
+  id: string;
+  showId: string;
+  customerName: string;
+  company?: string | null;
+  country?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  demand?: string | null;
+  nextFollowUpAt?: string | null; // YYYY-MM-DD
+  notes?: string | null;
+  status: TradeShowLeadStatus;
+  convertedRelationId?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface TradeShowLeadInput {
+  customerName: string;
+  company?: string | null;
+  country?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  demand?: string | null;
+  nextFollowUpAt?: string | null;
+  notes?: string | null;
+}
+
+export type TradeShowLeadPatch = Partial<TradeShowLeadInput> & { status?: TradeShowLeadStatus };
+
+/** 展会 ROI 聚合（服务端实时计算） */
+export interface TradeShowROI {
+  cost: number;
+  currency: string;
+  leadsTotal: number;
+  leadsConverted: number;
+  orderCount: number;
+  orderAmount: number;
+  roi: number;
 }
 
 // ════════════════════════════════════════════════════════════════

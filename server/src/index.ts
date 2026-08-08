@@ -34,6 +34,7 @@ import { createInventoryRouter } from './inventory/inventoryRoute';
 import { createBOMRouter } from './bom/bomRoute';
 import { createCrmRouter } from './crm/crmRoute';
 import { createSupplierRouter } from './suppliers/factoryRoute';
+import { createSeasonRouter } from './seasons/seasonRoute';
 import { createMesRouter } from './mes/mesRoute';
 import { createCustomsRouter } from './customs/customsRoute';
 import { createProductionRouter } from './production/route';
@@ -578,6 +579,16 @@ app.use(
 app.use(
     '/api/v1/suppliers',
     (req, res, next) => createSupplierRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/seasons',
+    (req, res, next) => createSeasonRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

@@ -595,6 +595,8 @@ model FabricProfile {
 
   productAsset ProductAsset @relation(fields: [productAssetId], references: [id], onDelete: Cascade)
 
+  trendTagLinks TrendTagFabric[]
+
   @@index([millOrganizationId])
   @@index([millQuality])
   @@index([articleNo])
@@ -2709,6 +2711,143 @@ model FactoryCapacity {
 
   @@unique([factoryId, month])
   @@index([month])
+}
+
+// ============ 阶段 H H2: 季节性与趋势管理 Season & Trend Management（PRD 14） ============
+// 季度标签口径：Order.season / ProductAsset.season 为自由文本，Season.code 为注册真源，
+// 关联匹配按字符串等值（如 "SS26"），季度回顾按 code 等值聚合订单。
+
+// Season：季度/系列管理（PRD 14.1）——开发日历 + 季度回顾
+model Season {
+  id   String @id // 格式：SEAS__${shortId}
+  code String @unique // SS26 | AW26 | SS27（与 Order.season / ProductAsset.season 等值匹配）
+  name String // 显示名（如 2026 春夏）
+
+  startDate String // YYYY-MM-DD
+  endDate   String // YYYY-MM-DD
+
+  // 开发日历里程碑：开发→打样→确认→下单→生产→出货
+  calendar Json? // [{ key, label, startDate, endDate, note? }]
+
+  status String @default("Planning") // Planning | Active | Closed
+
+  // 季度回顾快照（PRD 14.1：季度结束后生成 接单量/出货量/毛利/客户分析）
+  // 真源为订单实时聚合，此字段为生成时点快照，可重生成
+  reviewJson Json? // { orderCount, shippedCount, revenue, cost, grossProfit, topCustomers, generatedAt }
+  reviewedAt BigInt?
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  trendTags  TrendTag[]
+  tradeShows TradeShow[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+// TrendTag：面料趋势标签（PRD 14.2）——类型封闭集 fabric|color|craft|composition
+model TrendTag {
+  id       String  @id // 格式：TRDT__${shortId}
+  seasonId String? // 关联季度（null = 跨季趋势）
+
+  type        String // fabric | color | craft | composition
+  name        String
+  description String?
+  source      String? // manual | trade_show
+  tradeShowId String? // 展会采集来源
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  season      Season?         @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  tradeShow   TradeShow?      @relation(fields: [tradeShowId], references: [id], onDelete: SetNull)
+  fabricLinks TrendTagFabric[]
+
+  @@index([seasonId])
+  @@index([type])
+}
+
+// TrendTagFabric：趋势 ↔ 面料档案关联（PRD 14.2：推荐时优先展示当季趋势面料）
+model TrendTagFabric {
+  id         String @id // 格式：TRTF__${shortId}
+  trendTagId String
+  fabricId   String
+
+  note      String?
+  createdAt BigInt
+
+  trendTag TrendTag      @relation(fields: [trendTagId], references: [id], onDelete: Cascade)
+  fabric   FabricProfile @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+
+  @@unique([trendTagId, fabricId])
+  @@index([fabricId])
+}
+
+// TradeShow：展会记录（PRD 14.3）
+model TradeShow {
+  id       String  @id // 格式：TRDS__${shortId}
+  seasonId String? // 归属季度（可空）
+
+  name      String
+  location  String?
+  startDate String // YYYY-MM-DD
+  endDate   String?
+  boothNo   String? // 展位号
+  attendees String[] // 参展人员
+
+  cost     Decimal? @db.Decimal(18, 4) // 展会费用（ROI 分母）
+  currency String?  @default("CNY")
+
+  status String @default("Planned") // Planned | Ongoing | Completed | Cancelled
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  season    Season?         @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  leads     TradeShowLead[]
+  trendTags TrendTag[]
+
+  @@index([seasonId])
+  @@index([startDate])
+  @@index([status])
+}
+
+// TradeShowLead：展会线索（PRD 14.3）——转化为 Relation 后订单归入展会 ROI
+model TradeShowLead {
+  id          String @id // 格式：TRDL__${shortId}
+  tradeShowId String
+
+  customerName String // 客户姓名
+  company      String?
+  country      String?
+  email        String?
+  phone        String?
+  demand       String? // 需求描述
+
+  status String @default("New") // New | Following | Converted | Lost
+
+  // 转化路径：线索 → Relation（客户）→ 订单（ROI 归因）
+  convertedRelationId String?
+  convertedAt         BigInt?
+
+  nextFollowUpAt String? // 下次跟进日期 YYYY-MM-DD
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  tradeShow TradeShow @relation(fields: [tradeShowId], references: [id], onDelete: Cascade)
+
+  @@index([tradeShowId])
+  @@index([status])
+  @@index([convertedRelationId])
 }
 
 // ============ Phase 2 B2: 库存管理 Inventory Management ============

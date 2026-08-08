@@ -67,6 +67,23 @@ import {
   FactoryCertificationInput,
   FactoryCapacity,
   FactoryOverview,
+  // 季节性与趋势管理（阶段 H H2）
+  Season,
+  SeasonInput,
+  SeasonPatch,
+  SeasonReview,
+  TrendTag,
+  TrendTagInput,
+  TrendTagPatch,
+  TrendTagFabricLink,
+  TrendingFabricItem,
+  TradeShow,
+  TradeShowInput,
+  TradeShowPatch,
+  TradeShowROI,
+  TradeShowLead,
+  TradeShowLeadInput,
+  TradeShowLeadPatch,
   // MES
   WorkStation,
   WorkStationInput,
@@ -1282,6 +1299,127 @@ export const apiService = {
       const data = await requestJson<FactoryOverview>(`/v1/suppliers/${encodeURIComponent(factoryId)}/overview`, { endpoint, method: 'GET' });
       return data;
     } catch { return null; }
+  },
+
+  // ── 阶段 H H2: 季节性与趋势管理 Season & Trend Management API ──
+  // Season 季度
+  async listSeasons(params?: { status?: string; search?: string }, endpoint?: string): Promise<{ items: Season[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    const data = await requestJson<{ items: Season[]; total: number }>(`/v1/seasons${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return { items: data.items ?? [], total: data.total ?? 0 };
+  },
+  async createSeason(input: SeasonInput, endpoint?: string): Promise<Season> {
+    const data = await requestJson<{ ok: boolean; item: Season }>(`/v1/seasons`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async getSeason(id: string, endpoint?: string): Promise<Season | null> {
+    try {
+      const data = await requestJson<{ item: Season }>(`/v1/seasons/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.item;
+    } catch { return null; }
+  },
+  async updateSeason(id: string, patch: SeasonPatch, endpoint?: string): Promise<Season> {
+    const data = await requestJson<{ ok: boolean; item: Season }>(`/v1/seasons/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteSeason(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/seasons/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async getSeasonReview(id: string, endpoint?: string): Promise<SeasonReview | null> {
+    try {
+      const data = await requestJson<{ review: SeasonReview | null }>(`/v1/seasons/${encodeURIComponent(id)}/review`, { endpoint, method: 'GET' });
+      return data.review;
+    } catch { return null; }
+  },
+  async generateSeasonReview(id: string, endpoint?: string): Promise<SeasonReview> {
+    const data = await requestJson<{ ok: boolean; review: SeasonReview }>(`/v1/seasons/${encodeURIComponent(id)}/review`, { endpoint, method: 'POST' });
+    return data.review;
+  },
+
+  // TrendTag 趋势标签
+  async listTrendTags(params?: { seasonId?: string; type?: string }, endpoint?: string): Promise<TrendTag[]> {
+    const query = new URLSearchParams();
+    if (params?.seasonId) query.set('seasonId', params.seasonId);
+    if (params?.type) query.set('type', params.type);
+    const qs = query.toString();
+    const data = await requestJson<{ items: TrendTag[]; total?: number }>(`/v1/seasons/trends${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createTrendTag(input: TrendTagInput, endpoint?: string): Promise<TrendTag> {
+    const data = await requestJson<{ ok: boolean; item: TrendTag }>(`/v1/seasons/trends`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateTrendTag(tagId: string, patch: TrendTagPatch, endpoint?: string): Promise<TrendTag> {
+    const data = await requestJson<{ ok: boolean; item: TrendTag }>(`/v1/seasons/trends/${encodeURIComponent(tagId)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteTrendTag(tagId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/seasons/trends/${encodeURIComponent(tagId)}`, { endpoint, method: 'DELETE' });
+  },
+  async linkTrendFabric(tagId: string, input: { fabricId: string; note?: string | null }, endpoint?: string): Promise<TrendTagFabricLink> {
+    const data = await requestJson<{ ok: boolean; item: TrendTagFabricLink }>(`/v1/seasons/trends/${encodeURIComponent(tagId)}/fabrics`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async unlinkTrendFabric(tagId: string, fabricId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/seasons/trends/${encodeURIComponent(tagId)}/fabrics/${encodeURIComponent(fabricId)}`, { endpoint, method: 'DELETE' });
+  },
+  async listTrendingFabrics(seasonId?: string, endpoint?: string): Promise<TrendingFabricItem[]> {
+    const qs = seasonId ? `?seasonId=${encodeURIComponent(seasonId)}` : '';
+    const data = await requestJson<{ items: TrendingFabricItem[] }>(`/v1/seasons/trending-fabrics${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+
+  // TradeShow 展会
+  async listTradeShows(params?: { seasonId?: string; status?: string }, endpoint?: string): Promise<TradeShow[]> {
+    const query = new URLSearchParams();
+    if (params?.seasonId) query.set('seasonId', params.seasonId);
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString();
+    const data = await requestJson<{ items: TradeShow[]; total?: number }>(`/v1/seasons/shows${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createTradeShow(input: TradeShowInput, endpoint?: string): Promise<TradeShow> {
+    const data = await requestJson<{ ok: boolean; item: TradeShow }>(`/v1/seasons/shows`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async getTradeShow(showId: string, endpoint?: string): Promise<{ item: TradeShow; roi: TradeShowROI } | null> {
+    try {
+      const data = await requestJson<{ item: TradeShow; roi: TradeShowROI }>(`/v1/seasons/shows/${encodeURIComponent(showId)}`, { endpoint, method: 'GET' });
+      return data;
+    } catch { return null; }
+  },
+  async updateTradeShow(showId: string, patch: TradeShowPatch, endpoint?: string): Promise<TradeShow> {
+    const data = await requestJson<{ ok: boolean; item: TradeShow }>(`/v1/seasons/shows/${encodeURIComponent(showId)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteTradeShow(showId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/seasons/shows/${encodeURIComponent(showId)}`, { endpoint, method: 'DELETE' });
+  },
+  async getTradeShowROI(showId: string, endpoint?: string): Promise<TradeShowROI | null> {
+    try {
+      const data = await requestJson<TradeShowROI>(`/v1/seasons/shows/${encodeURIComponent(showId)}/roi`, { endpoint, method: 'GET' });
+      return data;
+    } catch { return null; }
+  },
+
+  // TradeShowLead 展会线索
+  async addTradeShowLead(showId: string, input: TradeShowLeadInput, endpoint?: string): Promise<TradeShowLead> {
+    const data = await requestJson<{ ok: boolean; item: TradeShowLead }>(`/v1/seasons/shows/${encodeURIComponent(showId)}/leads`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateTradeShowLead(leadId: string, patch: TradeShowLeadPatch, endpoint?: string): Promise<TradeShowLead> {
+    const data = await requestJson<{ ok: boolean; item: TradeShowLead }>(`/v1/seasons/leads/${encodeURIComponent(leadId)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteTradeShowLead(leadId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/seasons/leads/${encodeURIComponent(leadId)}`, { endpoint, method: 'DELETE' });
+  },
+  async convertTradeShowLead(leadId: string, relationId: string, endpoint?: string): Promise<TradeShowLead> {
+    const data = await requestJson<{ ok: boolean; item: TradeShowLead }>(`/v1/seasons/leads/${encodeURIComponent(leadId)}/convert`, { endpoint, method: 'POST', body: JSON.stringify({ relationId }) });
+    return data.item;
   },
 
   async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {

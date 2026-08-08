@@ -1,5 +1,6 @@
 import {
   Building2,
+  CalendarRange,
   ClipboardList,
   Cog,
   Contact,
@@ -417,6 +418,17 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     permissions: getViewPermissionDefinition(View.Suppliers),
     runtime: desktopRuntime,
     entry: { current: 'components/SuppliersManager.tsx' },
+  },
+  {
+    id: 'seasons',
+    view: View.Seasons,
+    productLabel: '季节性与趋势',
+    internalName: 'Seasons',
+    icon: CalendarRange,
+    nav: { primary: true, order: 49.56 },
+    permissions: getViewPermissionDefinition(View.Seasons),
+    runtime: desktopRuntime,
+    entry: { current: 'components/SeasonsManager.tsx' },
   },
   {
     id: 'mes',
