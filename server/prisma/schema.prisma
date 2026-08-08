@@ -4206,3 +4206,71 @@ model TradeDocument {
   @@index([type])
   @@index([status])
 }
+
+// ════════════════════════════════════════════════════════════════════
+// A5 报表引擎 — ReportDefinition / ReportRun
+// ════════════════════════════════════════════════════════════════════
+// 设计决策：
+//   - 数据集白名单在服务端注册表（reporting/datasets.ts），definition 只存
+//     datasetKey + 维度/指标/过滤的字段名，执行时由引擎校验白名单（fail closed），
+//     杜绝客户端注入任意 Prisma 查询。
+//   - dimensions: string[]（字段名）；metrics: [{field, agg}]（agg ∈ sum|avg|min|max|count）；
+//     filters: [{field, op, value}]（op ∈ eq|ne|in|gte|lte|contains）。
+//   - 定时调度：schedule ∈ daily|weekly|monthly|null，幂等键 = definitionId:periodKey
+//     （daily=YYYY-MM-DD / weekly=YYYY-Www / monthly=YYYY-MM），同一周期重复触发
+//     靠 ReportRun.idempotencyKey unique 约束 fail closed。
+//   - 结果快照直接存 ReportRun.rows（上限 5000 行），导出 CSV 重放快照而非重查，
+//     保证导出内容与运行时刻一致（可审计）。
+//   - 软删（deletedAt）；定义删除后历史运行记录保留。
+// ════════════════════════════════════════════════════════════════════
+model ReportDefinition {
+  id          String  @id // 格式：RPD__${shortId}
+  name        String
+  description String?
+
+  // ─── 查询定义（白名单字段名，执行时由引擎校验） ───
+  datasetKey String // orders|invoices|paymentVouchers|shipments|vatInvoices|outwardRemittances|taxRefunds
+  dimensions Json    // string[]
+  metrics    Json    // Array<{ field: string; agg: 'sum'|'avg'|'min'|'max'|'count' }>
+  filters    Json?   // Array<{ field: string; op: 'eq'|'ne'|'in'|'gte'|'lte'|'contains'; value: unknown }>
+
+  // ─── 定时调度 ───
+  schedule String? // daily | weekly | monthly | null（null=仅手动）
+  enabled  Boolean @default(true)
+  lastRunAt BigInt?
+
+  createdBy String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([datasetKey])
+  @@index([enabled])
+}
+
+model ReportRun {
+  id             String  @id // 格式：RPR__${shortId}
+  definitionId   String // 关联定义（snapshot FK，定义可软删）
+  definitionName String // 冗余快照：定义改名后历史运行仍可读
+
+  status  String // Running | Success | Failed
+  trigger String // manual | schedule
+
+  // ─── 调度幂等键（definitionId:periodKey），手动运行为 null ───
+  idempotencyKey String? @unique
+
+  // ─── 结果快照 ───
+  rowCount     Int?
+  columns      Json? // string[]（列键）
+  columnLabels Json? // string[]（展示表头，与 columns 同序，导出 CSV 直接用）
+  rows         Json? // Array<Record<string, unknown>>（上限 5000 行快照）
+  error        String?
+
+  startedAt  BigInt
+  finishedAt BigInt?
+  createdAt  BigInt
+
+  @@index([definitionId])
+  @@index([status])
+  @@index([createdAt])
+}

@@ -26,6 +26,7 @@ import { createEntitiesRouter } from './entities/route';
 import { createBusinessProfilesRouter } from './business-profiles/route';
 import { createDevelopmentRouter } from './development/route';
 import { createFinanceRouter } from './finance/route';
+import { createReportingRouter } from './reporting/route';
 import { createShippingRouter } from './shipping/route';
 import { createDashboardRouter } from './dashboard/route';
 import { createQuotationRouter } from './quotations/quotationRoute';
@@ -504,6 +505,16 @@ app.use(
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 A5：报表引擎（数据集白名单 + 定义/运行/导出）
+app.use(
+    '/api/v1/reports',
+    (req, res, next) => createReportingRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
     })(req, res, next),
 );
 
