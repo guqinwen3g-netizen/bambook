@@ -60,6 +60,16 @@ export function initializeNotificationBindings(prisma: PrismaClient): Notificati
     'OpportunityClosedWon',
     'OpportunityClosedLost',
     'CustomerTierAssigned',
+    // C6 财务深化：关务 / 退税 / 外汇 / 增值税 / 信用证（发布点与模板既有，本轮补订阅断链）
+    'CustomsDeclarationCreated',
+    'CustomsDeclarationStatusChanged',
+    'CustomsCleared',
+    'TaxRefundCompleted',
+    'FxSettlementCreated',
+    'OutwardRemittanceCreated',
+    'VatInvoiceCreated',
+    'VatInvoiceStatusChanged',
+    'LcStatusChanged',
   ];
 
   for (const eventType of ALL_BUSINESS_EVENT_TYPES) {
