@@ -9,7 +9,7 @@
  *   - 行明细编辑（增删行、自动金额计算）
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -25,10 +25,11 @@ import {
   ChevronDown,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
-import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation } from '../types';
+import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -110,6 +111,12 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
   });
   const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // ── F4 价格生命周期：面料档案联动（PRD 19.5 报价编辑器 · 从档案选择面料，自动带出成分/历史价参考）──
+  const [fabricSuggestions, setFabricSuggestions] = useState<Record<string, ProductAsset[]>>({});
+  const [fabricSearching, setFabricSearching] = useState<Record<string, boolean>>({});
+  const [selectedFabrics, setSelectedFabrics] = useState<Record<string, ProductAsset>>({});
+  const fabricSearchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // ── 拉取数据 ──
   const fetchQuotations = useCallback(async () => {
@@ -229,9 +236,76 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
 
   const updateFormLine = (key: string, field: keyof DraftLine, value: string) => {
     setFormLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
+    if (field === 'fabricCode') searchFabricsForLine(key, value);
   };
   const addFormLine = () => setFormLines(prev => [...prev, createEmptyLine()]);
   const removeFormLine = (key: string) => setFormLines(prev => (prev.length > 1 ? prev.filter(l => l.key !== key) : prev));
+
+  // ── F4：面料档案搜索（防抖 300ms，≥2 字符触发）──
+  const searchFabricsForLine = useCallback((lineKey: string, q: string) => {
+    const timers = fabricSearchTimers.current;
+    if (timers[lineKey]) clearTimeout(timers[lineKey]);
+    // 输入变化即视为偏离已选档案，清掉旧参考，避免陈旧价格误导
+    setSelectedFabrics(prev => {
+      if (!prev[lineKey]) return prev;
+      const next = { ...prev };
+      delete next[lineKey];
+      return next;
+    });
+    const query = q.trim();
+    if (query.length < 2) {
+      setFabricSuggestions(prev => ({ ...prev, [lineKey]: [] }));
+      return;
+    }
+    timers[lineKey] = setTimeout(async () => {
+      setFabricSearching(prev => ({ ...prev, [lineKey]: true }));
+      try {
+        const items = await apiService.listProductAssets(undefined, { search: query, mainCategory: 'Fabric', limit: 6 });
+        setFabricSuggestions(prev => ({ ...prev, [lineKey]: items.filter(p => !p.deletedAt) }));
+      } catch {
+        setFabricSuggestions(prev => ({ ...prev, [lineKey]: [] }));
+      } finally {
+        setFabricSearching(prev => ({ ...prev, [lineKey]: false }));
+      }
+    }, 300);
+  }, []);
+
+  // ── F4：选中档案面料 → 带出 SKU/成分描述/历史价参考 ──
+  const handleSelectFabric = useCallback((lineKey: string, product: ProductAsset) => {
+    setSelectedFabrics(prev => ({ ...prev, [lineKey]: product }));
+    setFabricSuggestions(prev => ({ ...prev, [lineKey]: [] }));
+    setFormLines(prev => prev.map(l => {
+      if (l.key !== lineKey) return l;
+      const composition = (product.compositionLines || [])
+        .filter(cl => !cl.deletedAt)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(cl => `${cl.percentage}% ${cl.term?.chineseName || cl.term?.englishName || ''}`.trim())
+        .filter(Boolean)
+        .join(' + ');
+      const autoDesc = [product.name, composition].filter(Boolean).join(' ');
+      return {
+        ...l,
+        fabricCode: product.sku,
+        description: l.description || autoDesc,
+      };
+    }));
+  }, []);
+
+  // ── F4：历史价参考与偏差计算（PRD 19.5：偏离 >15% 黄标提示触发审批）──
+  const latestPriceOf = useCallback((product: ProductAsset | undefined, type: string): FabricPriceHistory | undefined => {
+    if (!product) return undefined;
+    return (product.fabricPrices || [])
+      .filter(p => p.priceType === type && !p.deletedAt)
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+  }, []);
+
+  const priceDeviationRatio = (unitPrice: string, ref?: FabricPriceHistory): number | null => {
+    if (!ref || !ref.amount) return null;
+    const p = parseFloat(unitPrice);
+    if (!Number.isFinite(p) || p <= 0) return null;
+    const ratio = (p - Number(ref.amount)) / Number(ref.amount);
+    return Math.abs(ratio) > 0.15 ? ratio : null;
+  };
 
   const formatAmount = (n: number, currency: string) =>
     `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
@@ -341,7 +415,28 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
                             )}
                           </div>
                           <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
-                            <input type="text" value={line.fabricCode} onChange={(e) => updateFormLine(line.key, 'fabricCode', e.target.value)} placeholder="面料编码" className={`${fieldClass} py-1.5 text-xs`} />
+                            <div className="relative">
+                              <input type="text" value={line.fabricCode} onChange={(e) => updateFormLine(line.key, 'fabricCode', e.target.value)} onBlur={() => setTimeout(() => setFabricSuggestions(prev => ({ ...prev, [line.key]: [] })), 150)} placeholder="面料编码（搜索档案）" className={`${fieldClass} py-1.5 text-xs`} />
+                              {fabricSearching[line.key] && (
+                                <Loader2 size={12} className={`absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                              )}
+                              {/* F4：档案面料搜索建议下拉 */}
+                              {(fabricSuggestions[line.key]?.length ?? 0) > 0 && (
+                                <div className={`absolute left-0 right-0 top-full mt-1 z-20 rounded-control border overflow-hidden ${isDarkMode ? 'bg-slate-900/95 border-white/10' : 'bg-white border-slate-200'}`}>
+                                  {fabricSuggestions[line.key].map(p => (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => handleSelectFabric(line.key, p)}
+                                      className={`w-full text-left px-3 py-2 text-xs font-light transition-colors ${isDarkMode ? 'hover:bg-white/5 text-white/80' : 'hover:bg-slate-50 text-slate-700'}`}
+                                    >
+                                      <span className="font-mono">{p.sku}</span>
+                                      <span className={isDarkMode ? 'text-white/45' : 'text-slate-500'}> · {p.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                             <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className={`${fieldClass} py-1.5 text-xs xl:col-span-2`} />
                             <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className={`${fieldClass} py-1.5 text-xs`} />
                             <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
@@ -349,6 +444,38 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
                             </select>
                             <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className={`${fieldClass} py-1.5 text-xs`} />
                           </div>
+                          {/* F4：历史价参考条 + 偏差黄标（PRD 19.5） */}
+                          {(() => {
+                            const fabric = selectedFabrics[line.key];
+                            if (!fabric) return null;
+                            const factoryRef = latestPriceOf(fabric, 'factory');
+                            const customerRef = latestPriceOf(fabric, 'customer');
+                            const deviation = priceDeviationRatio(line.unitPrice, customerRef);
+                            if (!factoryRef && !customerRef) {
+                              return (
+                                <div className={`mt-2 text-[10px] font-light ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  档案面料 {fabric.sku} 暂无历史价格记录
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-light ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <span>历史价参考：</span>
+                                {factoryRef && (
+                                  <span>工厂价 {factoryRef.currency} {Number(factoryRef.amount).toFixed(2)}{factoryRef.unit ? `/${factoryRef.unit}` : ''}{factoryRef.effectiveDate ? `（${factoryRef.effectiveDate}）` : ''}</span>
+                                )}
+                                {customerRef && (
+                                  <span>最近售价 {customerRef.currency} {Number(customerRef.amount).toFixed(2)}{customerRef.unit ? `/${customerRef.unit}` : ''}{customerRef.effectiveDate ? `（${customerRef.effectiveDate}）` : ''}</span>
+                                )}
+                                {deviation !== null && customerRef && (
+                                  <span className={`inline-flex items-center gap-1 ${statusSemanticText('warning', isDarkMode)}`}>
+                                    <AlertTriangle size={11} />
+                                    偏离最近售价 {deviation > 0 ? '+' : ''}{Math.round(deviation * 100)}%（&gt;15%，将触发审批）
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <div className={`mt-1 text-right text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                             金额: {formatAmount(calcLineAmount(line.quantity, line.unitPrice), form.currency)}
                           </div>

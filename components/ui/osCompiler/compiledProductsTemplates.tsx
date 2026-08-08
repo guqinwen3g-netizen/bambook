@@ -3659,8 +3659,42 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
 	                        <DetailItem label="起订量" value={selectedProduct.fabricProfile?.moqValue} />
 	                        <DetailItem label="工厂起订量" value={selectedProduct.fabricProfile?.factoryMoqValue} />
 	                        <DetailItem label="试样起订量" value={selectedProduct.fabricProfile?.sampleMoqValue} />
-	                      </DetailSection>
-	                      <DetailSection title="生产追溯与风险" icon={<ShieldCheck size={14} />}>
+                      </DetailSection>
+                      {/* F4 价格生命周期：价格历史时间线（PRD 19.17 面料 360° 价格历史 Tab） */}
+                      <section className="space-y-3">
+                        <h4 className={`text-xs font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>价格历史</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {(['factory', 'customer'] as const).map(type => (
+                            <div key={type} className={PRODUCT_DETAIL_HISTORY_PANEL_CLASS}>
+                              <div className={`text-[10px] font-light tracking-wide mb-3 ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>
+                                {type === 'factory' ? '工厂价格历史' : '售价历史'}
+                              </div>
+                              <div className="space-y-2">
+                                {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
+                                  <div key={price.id} className={`rounded-control px-3 py-2 ${isDarkMode ? 'bg-deep/40' : 'bg-white'}`}>
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className={`text-xs font-light ${isDarkMode ? 'text-white/80' : 'text-slate-800'}`}>
+                                        {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
+                                      </span>
+                                      <span className={`text-[10px] ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                                        {price.effectiveDate || new Date(price.updatedAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    {(price.note || price.sourceType) && (
+                                      <div className={`mt-1 text-[10px] font-light ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>
+                                        {[price.sourceType === 'order' ? '订单回溯' : price.sourceType === 'sample' ? '样品' : price.sourceType === 'manual' ? '手工录入' : null, price.note].filter(Boolean).join(' · ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                )) : (
+                                  <div className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>暂无历史价格</div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                      <DetailSection title="生产追溯与风险" icon={<ShieldCheck size={14} />}>
 	                        <DetailItem label="标样批号" value={selectedProduct.fabricProfile?.referenceBatch} />
 	                        <DetailItem label="认证许可" value={certificationText(selectedProduct)} wide />
 	                        <DetailItem label="品质风险" value={selectedProduct.fabricProfile?.riskNote} wide />
