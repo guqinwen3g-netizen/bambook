@@ -20,6 +20,10 @@ import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
 import AuditHistorySection from '../AuditHistorySection';
+import {
+    CrmContactsSection, CrmFollowUpsSection, CrmOpportunitiesSection,
+    CrmCreditLimitSection, CrmCustomerTierSection,
+} from './crm/crmRelationSections';
 
 interface DetailPanelProps {
     type: 'organization' | 'contact';
@@ -623,7 +627,12 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             </InfoSection>
                         )}
 
-                        {interactionHistorySection}
+                        {/* 阶段 C1：结构化 CRM 区块（组织布局）— 联系人名片 / 跟进管理 / 商机 / 信用额度 / 客户分层 */}
+                        <CrmContactsSection relationId={data.id} isDarkMode={isDarkMode} />
+                        <CrmFollowUpsSection relationId={data.id} isDarkMode={isDarkMode} />
+                        <CrmOpportunitiesSection relationId={data.id} isDarkMode={isDarkMode} />
+                        <CrmCreditLimitSection relationId={data.id} isDarkMode={isDarkMode} />
+                        <CrmCustomerTierSection relationId={data.id} isDarkMode={isDarkMode} />
 
                         {/* 阶段 P3b：品牌线（PRD 6.2，组织专属） */}
                         {brandLinesSection}

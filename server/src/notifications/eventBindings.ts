@@ -54,6 +54,12 @@ export function initializeNotificationBindings(prisma: PrismaClient): Notificati
     // C3 HR 深化：员工状态跃迁 / 请假审批结果
     'EmployeeStatusChanged',
     'LeaveRequestDecided',
+    // C1 CRM 深化：信用超额 / 商机阶段流转 / 商机成交 / 客户分层评定
+    'CreditLimitExceeded',
+    'OpportunityStageChanged',
+    'OpportunityClosedWon',
+    'OpportunityClosedLost',
+    'CustomerTierAssigned',
   ];
 
   for (const eventType of ALL_BUSINESS_EVENT_TYPES) {
