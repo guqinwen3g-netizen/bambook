@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Building2,
   CalendarRange,
   ClipboardCheck,
@@ -475,6 +476,22 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
       { id: 'profit-sheets', label: '利润表', localStateKey: 'pricingTab' },
       { id: 'tax-rates', label: '退税率', localStateKey: 'pricingTab' },
       { id: 'price-history', label: '价格历史', localStateKey: 'pricingTab' },
+      { id: 'commission-rules', label: '佣金规则', localStateKey: 'pricingTab' },
+    ],
+  },
+  {
+    id: 'marketing',
+    view: View.Marketing,
+    productLabel: '营销推广',
+    internalName: 'Marketing',
+    icon: BookOpen,
+    nav: { primary: true, order: 49.61 },
+    permissions: getViewPermissionDefinition(View.Marketing),
+    runtime: desktopRuntime,
+    entry: { current: 'components/MarketingManager.tsx' },
+    subViews: [
+      { id: 'lookbooks', label: '电子画册', localStateKey: 'marketingTab' },
+      { id: 'fabric-recommend', label: '面料推荐', localStateKey: 'marketingTab' },
     ],
   },
   {

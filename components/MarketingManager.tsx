@@ -1,0 +1,837 @@
+/**
+ * 营销推广 MarketingManager
+ * 阶段 P2：电子画册 Lookbook + 面料推荐 FabricRecommendation（PRD 6.2）
+ *
+ * 功能：
+ *   1. 电子画册 Lookbooks — 画册 CRUD + 条目管理（服务端档案真源快照）+
+ *      状态机流转（Draft → Published → Archived）+ 软删除
+ *   2. 面料推荐 Fabric Recommendation — 确定性打分（季节/预算/成分/克重/花型/现货），
+ *      criteria + results 快照落库，历史记录可回看
+ *
+ * 设计原则：
+ *   - 条目快照以服务端返回为准（sku/name/imageUrl 服务端重取，防客户端数据不一致）
+ *   - RDL flat 设计：statusSemanticClass 中性色阶，无阴影，大圆角
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  BookOpen,
+  Wand2,
+  Plus,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  Loader2,
+  X,
+  Upload,
+  Archive,
+  RotateCcw,
+  ListOrdered,
+  type LucideIcon,
+} from 'lucide-react';
+import { apiService } from '../services/apiService';
+import {
+  LookbookCatalog,
+  LookbookStatus,
+  LookbookItemInput,
+  FabricRecommendation,
+  RecommendCriteria,
+  ProductAsset,
+} from '../types';
+import { PageHeader } from './ui/PageHeader';
+import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
+
+// ==================== 常量 ====================
+
+type ModuleTab = 'lookbooks' | 'fabricRecommend';
+
+const MODULE_TABS: Array<{ id: ModuleTab; label: string; icon: LucideIcon }> = [
+  { id: 'lookbooks', label: '电子画册 Lookbooks', icon: BookOpen },
+  { id: 'fabricRecommend', label: '面料推荐 Fabric Recommend', icon: Wand2 },
+];
+
+const LOOKBOOK_STATUS_LABELS: Record<LookbookStatus, string> = {
+  Draft: '草稿',
+  Published: '已发布',
+  Archived: '已归档',
+};
+
+const LOOKBOOK_STATUS_SEMANTIC: Record<LookbookStatus, StatusSemantic> = {
+  Draft: 'neutral',
+  Published: 'success',
+  Archived: 'neutral',
+};
+
+function formatTs(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-CN', { hour12: false });
+}
+
+function formatMoney(value: number | null | undefined, currency = ''): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  const text = value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return currency ? `${currency} ${text}` : text;
+}
+
+function parseNum(raw: string): number | null {
+  const n = Number(raw);
+  return raw.trim() !== '' && Number.isFinite(n) ? n : null;
+}
+
+/** 推荐条件概要（历史列表展示用） */
+function summarizeCriteria(c: RecommendCriteria): string {
+  const parts: string[] = [];
+  if (c.season) parts.push(`季节 ${c.season}`);
+  if (c.budgetMin != null || c.budgetMax != null) {
+    parts.push(`预算 ${c.budgetMin ?? '—'}~${c.budgetMax ?? '—'} ${c.currency ?? 'USD'}`);
+  }
+  if (c.compositionKeywords && c.compositionKeywords.length > 0) parts.push(`成分 ${c.compositionKeywords.join('/')}`);
+  if (c.weightMin != null || c.weightMax != null) parts.push(`克重 ${c.weightMin ?? '—'}~${c.weightMax ?? '—'}`);
+  if (c.pattern) parts.push(`花型 ${c.pattern}`);
+  return parts.length > 0 ? parts.join(' · ') : '无条件（全量打分）';
+}
+
+// ==================== 共享样式 ====================
+
+const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
+const actionButtonClass = "flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-3">
+      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function ModalShell({ title, onClose, wide, children }: { title: string; onClose: () => void; wide?: boolean; children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className={`bg-surface-elevated rounded-panel w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[85vh] overflow-y-auto`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
+          <h2 className="text-sm font-medium text-text-primary">{title}</h2>
+          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
+      <p className="text-sm">{text}</p>
+    </div>
+  );
+}
+
+// ==================== 主组件 ====================
+
+interface MarketingManagerProps {
+  isDarkMode?: boolean;
+}
+
+export default function MarketingManager({ isDarkMode }: MarketingManagerProps) {
+  const [activeTab, setActiveTab] = useState<ModuleTab>('lookbooks');
+
+  return (
+    <div className="h-full flex flex-col">
+      <PageHeader title="营销推广" subtitle="Marketing" />
+
+      {/* 模块 Tab 栏 */}
+      <div className="px-7 flex items-center gap-1 border-b border-border-subtle shrink-0">
+        {MODULE_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
+                isActive
+                  ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
+                  : 'text-text-tertiary hover:text-text-secondary'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab 内容（切换即重挂载，保证数据新鲜） */}
+      <div className="flex-1 min-h-0 px-7 py-5 overflow-y-auto">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.15 }}
+            className="h-full min-h-0"
+          >
+            {activeTab === 'lookbooks' && <LookbooksPanel isDarkMode={isDarkMode} />}
+            {activeTab === 'fabricRecommend' && <FabricRecommendPanel isDarkMode={isDarkMode} />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+// ==================== 电子画册 Panel ====================
+
+function LookbooksPanel(_props: { isDarkMode?: boolean }) {
+  const [items, setItems] = useState<LookbookCatalog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<'' | LookbookStatus>('');
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<LookbookCatalog | null>(null);
+  const [itemsEditing, setItemsEditing] = useState<LookbookCatalog | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setItems(await apiService.listLookbooks(statusFilter ? { status: statusFilter } : undefined));
+    } catch (e) {
+      console.error('[MarketingManager] listLookbooks failed', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleTransition = async (item: LookbookCatalog, action: 'publish' | 'unpublish' | 'archive') => {
+    setUpdatingId(item.id);
+    try {
+      await apiService.transitionLookbook(item.id, action);
+      await load();
+    } catch (e) {
+      console.error('[MarketingManager] transitionLookbook failed', e);
+      alert(`操作失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确认删除该画册？')) return;
+    setUpdatingId(id);
+    try {
+      await apiService.deleteLookbook(id);
+      await load();
+    } catch (e) {
+      console.error('[MarketingManager] deleteLookbook failed', e);
+      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-surface-elevated rounded-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium text-text-primary">画册列表</h3>
+            {(['', 'Draft', 'Published', 'Archived'] as const).map((s) => (
+              <button
+                key={s || 'all'}
+                onClick={() => setStatusFilter(s)}
+                className={`px-2.5 py-1 text-xs rounded-control transition-colors ${
+                  statusFilter === s
+                    ? 'bg-surface-primary text-text-primary ring-1 ring-border-action'
+                    : 'text-text-tertiary hover:text-text-secondary'
+                }`}
+              >
+                {s === '' ? '全部' : LOOKBOOK_STATUS_LABELS[s]}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={load} className={actionButtonClass}>
+              <RefreshCw className="w-3.5 h-3.5" />
+              刷新
+            </button>
+            <button
+              onClick={() => { setEditing(null); setShowForm(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              新建画册
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-text-tertiary">
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </div>
+        ) : items.length === 0 ? (
+          <EmptyHint text="暂无画册，点击「新建画册」开始" />
+        ) : (
+          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+              <span className="col-span-3">标题</span>
+              <span className="col-span-1">条目</span>
+              <span className="col-span-1">状态</span>
+              <span className="col-span-2">发布时间</span>
+              <span className="col-span-2">更新时间</span>
+              <span className="col-span-3 text-right">操作</span>
+            </div>
+            {items.map((item) => (
+              <div key={item.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
+                <span className="col-span-3 text-text-primary truncate" title={item.description || undefined}>
+                  {item.title}
+                </span>
+                <span className="col-span-1 text-text-secondary">{item.items.length}</span>
+                <span className="col-span-1">
+                  <span className={`px-2 py-0.5 rounded-control ${statusSemanticClass(LOOKBOOK_STATUS_SEMANTIC[item.status])}`}>
+                    {LOOKBOOK_STATUS_LABELS[item.status]}
+                  </span>
+                </span>
+                <span className="col-span-2 text-text-secondary">{formatTs(item.publishedAt)}</span>
+                <span className="col-span-2 text-text-secondary">{formatTs(item.updatedAt)}</span>
+                <span className="col-span-3 flex items-center justify-end gap-1.5">
+                  <button
+                    onClick={() => setItemsEditing(item)}
+                    disabled={updatingId === item.id || item.status === 'Archived'}
+                    className={actionButtonClass}
+                    title={item.status === 'Archived' ? '已归档画册不可修改条目' : '管理条目'}
+                  >
+                    <ListOrdered className="w-3.5 h-3.5" />
+                    条目
+                  </button>
+                  <button
+                    onClick={() => { setEditing(item); setShowForm(true); }}
+                    disabled={updatingId === item.id || item.status === 'Archived'}
+                    className={actionButtonClass}
+                    title={item.status === 'Archived' ? '已归档画册不可编辑' : '编辑'}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  {item.status !== 'Published' ? (
+                    <button
+                      onClick={() => handleTransition(item, 'publish')}
+                      disabled={updatingId === item.id || item.status === 'Archived'}
+                      className={actionButtonClass}
+                      title="发布"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleTransition(item, 'unpublish')}
+                      disabled={updatingId === item.id}
+                      className={actionButtonClass}
+                      title="撤回为草稿"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {item.status !== 'Archived' && (
+                    <button
+                      onClick={() => handleTransition(item, 'archive')}
+                      disabled={updatingId === item.id}
+                      className={actionButtonClass}
+                      title="归档"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className={actionButtonClass} title="删除">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <LookbookForm
+            editing={editing}
+            onSave={async (input) => {
+              try {
+                if (editing) {
+                  await apiService.updateLookbook(editing.id, input);
+                } else {
+                  await apiService.createLookbook(input);
+                }
+                setShowForm(false);
+                await load();
+              } catch (e) {
+                console.error('[MarketingManager] saveLookbook failed', e);
+                alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+              }
+            }}
+            onClose={() => setShowForm(false)}
+          />
+        )}
+        {itemsEditing && (
+          <LookbookItemsEditor
+            lookbook={itemsEditing}
+            onClose={() => setItemsEditing(null)}
+            onSaved={async () => {
+              setItemsEditing(null);
+              await load();
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function LookbookForm({
+  editing,
+  onSave,
+  onClose,
+}: {
+  editing: LookbookCatalog | null;
+  onSave: (input: { title: string; description?: string | null }) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(editing?.title || '');
+  const [description, setDescription] = useState(editing?.description || '');
+
+  const handleSubmit = () => {
+    if (!title.trim()) {
+      alert('画册标题必填');
+      return;
+    }
+    onSave({ title: title.trim(), description: description.trim() || null });
+  };
+
+  return (
+    <ModalShell title={editing ? `编辑画册 ${editing.title}` : '新建画册'} onClose={onClose}>
+      <Field label="画册标题">
+        <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="如 2026AW 精纺羊毛画册" />
+      </Field>
+      <Field label="描述（可选）">
+        <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="目标客户 / 季节 / 用途说明" />
+      </Field>
+      <div className="flex justify-end gap-2 mt-4">
+        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button
+          onClick={handleSubmit}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+        >
+          保存
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/** 条目编辑器：本地维护条目数组，保存时整表替换（PUT /items，服务端重取快照） */
+function LookbookItemsEditor({
+  lookbook,
+  onClose,
+  onSaved,
+}: {
+  lookbook: LookbookCatalog;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [drafts, setDrafts] = useState<LookbookItemInput[]>(
+    lookbook.items.map((it) => ({
+      productAssetId: it.productAssetId,
+      price: it.price ?? null,
+      currency: it.currency ?? null,
+      description: it.description ?? null,
+      sortOrder: it.sortOrder,
+    })),
+  );
+  const [products, setProducts] = useState<ProductAsset[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [pickId, setPickId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setProductsLoading(true);
+      try {
+        const list = await apiService.listProductAssets(undefined, { limit: 500 });
+        if (!cancelled) setProducts(list);
+      } catch (e) {
+        console.error('[MarketingManager] listProductAssets failed', e);
+      } finally {
+        if (!cancelled) setProductsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const snapshotOf = (productAssetId: string) => lookbook.items.find((it) => it.productAssetId === productAssetId);
+  const pickedSet = new Set(drafts.map((d) => d.productAssetId));
+  const available = products.filter((p) => !pickedSet.has(p.id) && !p.deletedAt);
+
+  const handleAdd = () => {
+    if (!pickId || pickedSet.has(pickId)) return;
+    setDrafts([...drafts, { productAssetId: pickId, sortOrder: drafts.length }]);
+    setPickId('');
+  };
+
+  const handlePatch = (productAssetId: string, patch: Partial<LookbookItemInput>) => {
+    setDrafts(drafts.map((d) => (d.productAssetId === productAssetId ? { ...d, ...patch } : d)));
+  };
+
+  const handleRemove = (productAssetId: string) => {
+    setDrafts(drafts.filter((d) => d.productAssetId !== productAssetId));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiService.setLookbookItems(lookbook.id, drafts);
+      onSaved();
+    } catch (e) {
+      console.error('[MarketingManager] setLookbookItems failed', e);
+      alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell title={`管理条目 · ${lookbook.title}`} onClose={onClose} wide>
+      {/* 添加产品 */}
+      <div className="flex items-center gap-2 mb-4">
+        <select
+          className={inputClass}
+          value={pickId}
+          onChange={(e) => setPickId(e.target.value)}
+          disabled={productsLoading}
+        >
+          <option value="">{productsLoading ? '产品加载中…' : '选择产品加入画册'}</option>
+          {available.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.sku} · {p.name}
+            </option>
+          ))}
+        </select>
+        <button onClick={handleAdd} disabled={!pickId} className={actionButtonClass}>
+          <Plus className="w-3.5 h-3.5" />
+          添加
+        </button>
+      </div>
+
+      {drafts.length === 0 ? (
+        <EmptyHint text="暂无条目，从上方选择产品加入" />
+      ) : (
+        <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle mb-4">
+          <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+            <span className="col-span-4">产品</span>
+            <span className="col-span-2">展示价格</span>
+            <span className="col-span-1">币种</span>
+            <span className="col-span-4">展示描述</span>
+            <span className="col-span-1 text-right">操作</span>
+          </div>
+          {drafts.map((d) => {
+            const snap = snapshotOf(d.productAssetId);
+            const prod = products.find((p) => p.id === d.productAssetId);
+            const label = snap ? `${snap.sku} · ${snap.name}` : prod ? `${prod.sku} · ${prod.name}` : d.productAssetId;
+            return (
+              <div key={d.productAssetId} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
+                <span className="col-span-4 text-text-primary truncate" title={label}>{label}</span>
+                <span className="col-span-2">
+                  <input
+                    className={inputClass}
+                    value={d.price ?? ''}
+                    onChange={(e) => handlePatch(d.productAssetId, { price: parseNum(e.target.value) })}
+                    placeholder="留空不展示"
+                    inputMode="decimal"
+                  />
+                </span>
+                <span className="col-span-1">
+                  <select
+                    className={inputClass}
+                    value={d.currency ?? ''}
+                    onChange={(e) => handlePatch(d.productAssetId, { currency: e.target.value || null })}
+                  >
+                    <option value="">—</option>
+                    <option value="USD">USD</option>
+                    <option value="CNY">CNY</option>
+                    <option value="EUR">EUR</option>
+                  </select>
+                </span>
+                <span className="col-span-4">
+                  <input
+                    className={inputClass}
+                    value={d.description ?? ''}
+                    onChange={(e) => handlePatch(d.productAssetId, { description: e.target.value || null })}
+                    placeholder="面向客户的展示描述"
+                  />
+                </span>
+                <span className="col-span-1 flex justify-end">
+                  <button onClick={() => handleRemove(d.productAssetId)} className={actionButtonClass} title="移除">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="text-xs text-text-tertiary mb-3">
+        保存后服务端将按数字档案真源重新生成条目快照（SKU / 名称 / 主图），此处仅维护选择依据与展示参数。
+      </p>
+      <div className="flex justify-end gap-2">
+        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors disabled:opacity-50"
+        >
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          保存条目
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+// ==================== 面料推荐 Panel ====================
+
+function FabricRecommendPanel(_props: { isDarkMode?: boolean }) {
+  const [season, setSeason] = useState('');
+  const [budgetMin, setBudgetMin] = useState('');
+  const [budgetMax, setBudgetMax] = useState('');
+  const [currency, setCurrency] = useState('USD');
+  const [compositionText, setCompositionText] = useState('');
+  const [weightMin, setWeightMin] = useState('');
+  const [weightMax, setWeightMax] = useState('');
+  const [pattern, setPattern] = useState('');
+  const [limit, setLimit] = useState('10');
+
+  const [running, setRunning] = useState(false);
+  const [latest, setLatest] = useState<FabricRecommendation | null>(null);
+  const [history, setHistory] = useState<FabricRecommendation[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      setHistory(await apiService.listFabricRecommendations());
+    } catch (e) {
+      console.error('[MarketingManager] listFabricRecommendations failed', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  const handleRun = async () => {
+    const criteria: RecommendCriteria = {
+      season: season.trim() || null,
+      budgetMin: parseNum(budgetMin),
+      budgetMax: parseNum(budgetMax),
+      currency,
+      compositionKeywords: compositionText.split(/[,，、]/).map((s) => s.trim()).filter(Boolean),
+      weightMin: parseNum(weightMin),
+      weightMax: parseNum(weightMax),
+      pattern: pattern.trim() || null,
+      limit: parseNum(limit) ?? 10,
+    };
+    setRunning(true);
+    setLatest(null);
+    try {
+      const rec = await apiService.recommendFabrics(criteria);
+      setLatest(rec);
+      await loadHistory();
+    } catch (e) {
+      console.error('[MarketingManager] recommendFabrics failed', e);
+      alert(`推荐失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确认删除该推荐记录？')) return;
+    setDeletingId(id);
+    try {
+      await apiService.deleteFabricRecommendation(id);
+      if (latest?.id === id) setLatest(null);
+      await loadHistory();
+    } catch (e) {
+      console.error('[MarketingManager] deleteFabricRecommendation failed', e);
+      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* 推荐条件 */}
+      <div className="bg-surface-elevated rounded-card p-5">
+        <h3 className="text-sm font-medium text-text-primary mb-3">推荐条件</h3>
+        <div className="grid grid-cols-4 gap-3">
+          <Field label="季节">
+            <input className={inputClass} value={season} onChange={(e) => setSeason(e.target.value)} placeholder="如 2026AW" />
+          </Field>
+          <Field label="预算下限">
+            <input className={inputClass} value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} placeholder="如 5" inputMode="decimal" />
+          </Field>
+          <Field label="预算上限">
+            <input className={inputClass} value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} placeholder="如 8" inputMode="decimal" />
+          </Field>
+          <Field label="预算币种">
+            <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <option value="USD">USD</option>
+              <option value="CNY">CNY</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </Field>
+          <Field label="成分关键词（逗号分隔）">
+            <input className={inputClass} value={compositionText} onChange={(e) => setCompositionText(e.target.value)} placeholder="如 羊毛, 羊绒" />
+          </Field>
+          <Field label="克重下限">
+            <input className={inputClass} value={weightMin} onChange={(e) => setWeightMin(e.target.value)} placeholder="如 200" inputMode="decimal" />
+          </Field>
+          <Field label="克重上限">
+            <input className={inputClass} value={weightMax} onChange={(e) => setWeightMax(e.target.value)} placeholder="如 320" inputMode="decimal" />
+          </Field>
+          <Field label="花型">
+            <input className={inputClass} value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="如 格纹" />
+          </Field>
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-tertiary">返回条数</label>
+            <input className={`${inputClass} w-20`} value={limit} onChange={(e) => setLimit(e.target.value)} inputMode="numeric" />
+          </div>
+          <button
+            onClick={handleRun}
+            disabled={running}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors disabled:opacity-50"
+          >
+            {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            执行推荐
+          </button>
+        </div>
+      </div>
+
+      {/* 最新推荐结果 */}
+      {latest && (
+        <div className="bg-surface-elevated rounded-card p-5">
+          <h3 className="text-sm font-medium text-text-primary mb-1">
+            推荐结果（命中 {latest.results.length} 条）
+          </h3>
+          <p className="text-xs text-text-tertiary mb-3">{summarizeCriteria(latest.criteria)} · {formatTs(latest.createdAt)}</p>
+          {latest.results.length === 0 ? (
+            <EmptyHint text="无候选命中，请放宽条件" />
+          ) : (
+            <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
+              {latest.results.map((r) => (
+                <div key={r.productAssetId} className="px-3 py-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-text-primary font-medium">
+                      {r.sku} · {r.name}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-control text-xs ${statusSemanticClass(r.score >= 60 ? 'success' : r.score >= 30 ? 'warning' : 'neutral')}`}>
+                      {r.score} 分
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-text-tertiary">
+                    {r.millName && <span>{r.millName}</span>}
+                    {r.latestPrice != null && <span>{formatMoney(r.latestPrice, r.priceCurrency ?? '')}</span>}
+                    {r.weightValue != null && <span>{r.weightValue}{r.weightUnit ?? ''}</span>}
+                    {r.season && <span>{r.season}</span>}
+                  </div>
+                  {r.reasons.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {r.reasons.map((reason, i) => (
+                        <span key={i} className="px-2 py-0.5 text-xs rounded-control bg-surface-elevated text-text-secondary">
+                          {reason}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 历史记录 */}
+      <div className="bg-surface-elevated rounded-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium text-text-primary">推荐历史</h3>
+          <button onClick={loadHistory} className={actionButtonClass}>
+            <RefreshCw className="w-3.5 h-3.5" />
+            刷新
+          </button>
+        </div>
+        {historyLoading ? (
+          <div className="flex items-center justify-center py-12 text-text-tertiary">
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </div>
+        ) : history.length === 0 ? (
+          <EmptyHint text="暂无推荐记录" />
+        ) : (
+          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+              <span className="col-span-6">推荐条件</span>
+              <span className="col-span-1">命中</span>
+              <span className="col-span-3">时间</span>
+              <span className="col-span-2 text-right">操作</span>
+            </div>
+            {history.map((rec) => (
+              <div key={rec.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
+                <span className="col-span-6 text-text-secondary truncate" title={summarizeCriteria(rec.criteria)}>
+                  {summarizeCriteria(rec.criteria)}
+                </span>
+                <span className="col-span-1 text-text-primary">{rec.results.length}</span>
+                <span className="col-span-3 text-text-secondary">{formatTs(rec.createdAt)}</span>
+                <span className="col-span-2 flex items-center justify-end gap-1.5">
+                  <button onClick={() => setLatest(rec)} className={actionButtonClass} title="查看结果">
+                    查看
+                  </button>
+                  <button onClick={() => handleDelete(rec.id)} disabled={deletingId === rec.id} className={actionButtonClass} title="删除">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -23,6 +23,7 @@ import {
   Receipt,
   Percent,
   History,
+  Handshake,
   Plus,
   Pencil,
   Trash2,
@@ -47,19 +48,23 @@ import {
   MaterialPriceInput,
   MaterialPriceTrendPoint,
   MaterialPriceType,
+  CommissionRule,
+  CommissionRuleInput,
+  Relation,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ==================== 常量 ====================
 
-type ModuleTab = 'calculator' | 'profitSheets' | 'taxRates' | 'priceHistory';
+type ModuleTab = 'calculator' | 'profitSheets' | 'taxRates' | 'priceHistory' | 'commissionRules';
 
 const MODULE_TABS: Array<{ id: ModuleTab; label: string; icon: LucideIcon }> = [
   { id: 'calculator', label: '定价计算器 Calculator', icon: Calculator },
   { id: 'profitSheets', label: '利润表 Profit Sheets', icon: Receipt },
   { id: 'taxRates', label: '退税率 Tax Rates', icon: Percent },
   { id: 'priceHistory', label: '价格历史 Price History', icon: History },
+  { id: 'commissionRules', label: '佣金规则 Commission', icon: Handshake },
 ];
 
 const CALC_STATUS_LABELS: Record<PricingCalculationStatus, string> = {
@@ -216,6 +221,7 @@ export default function PricingManager({ isDarkMode }: PricingManagerProps) {
             {activeTab === 'profitSheets' && <ProfitSheetsPanel isDarkMode={isDarkMode} />}
             {activeTab === 'taxRates' && <TaxRatesPanel isDarkMode={isDarkMode} />}
             {activeTab === 'priceHistory' && <PriceHistoryPanel isDarkMode={isDarkMode} />}
+            {activeTab === 'commissionRules' && <CommissionRulesPanel isDarkMode={isDarkMode} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -232,6 +238,8 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
   const [exchangeRate, setExchangeRate] = useState('');
   const [profitMargin, setProfitMargin] = useState('');
   const [commissionRate, setCommissionRate] = useState('0');
+  const [commissionRuleId, setCommissionRuleId] = useState<string | null>(null);
+  const [commissionRules, setCommissionRules] = useState<CommissionRule[]>([]);
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -257,7 +265,34 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
 
   useEffect(() => {
     loadRecords();
+    let cancelled = false;
+    (async () => {
+      try {
+        const rules = await apiService.listCommissionRules();
+        if (!cancelled) setCommissionRules(rules);
+      } catch (e) {
+        console.error('[PricingManager] listCommissionRules failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [loadRecords]);
+
+  // 佣金选择：'' = 无佣金；'E5'/'E10' = 手工口径；rule.id = 规则快照
+  const handleCommissionSelect = (value: string) => {
+    setPreview(null);
+    if (value === '') {
+      setCommissionRuleId(null);
+      setCommissionRate('0');
+    } else if (value === 'E5' || value === 'E10') {
+      setCommissionRuleId(null);
+      setCommissionRate(value === 'E5' ? '5' : '10');
+    } else {
+      const rule = commissionRules.find((r) => r.id === value);
+      if (!rule) return;
+      setCommissionRuleId(rule.id);
+      setCommissionRate(String(rule.rate));
+    }
+  };
 
   const validInput = useMemo(() => {
     const cost = parseNum(purchaseCostCny);
@@ -343,6 +378,7 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
         exchangeRate: validInput.fx,
         profitMargin: validInput.margin,
         commissionRate: validInput.commission,
+        commissionRuleId,
         hsCode: hsCode.trim() || null,
         quantity: parseNum(quantity),
         notes: notes.trim() || null,
@@ -417,8 +453,21 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
           <Field label="利润率（%）">
             <input className={inputClass} value={profitMargin} onChange={(e) => { setProfitMargin(e.target.value); setPreview(null); }} placeholder="如 15" inputMode="decimal" />
           </Field>
-          <Field label="佣金率（%，0=无）">
-            <input className={inputClass} value={commissionRate} onChange={(e) => { setCommissionRate(e.target.value); setPreview(null); }} placeholder="0 / 5 / 10" inputMode="decimal" />
+          <Field label="佣金（无 / E5 / E10 / 规则快照）">
+            <select
+              className={inputClass}
+              value={commissionRuleId ?? (commissionRate === '5' ? 'E5' : commissionRate === '10' ? 'E10' : '')}
+              onChange={(e) => handleCommissionSelect(e.target.value)}
+            >
+              <option value="">无佣金（0%）</option>
+              <option value="E5">E5（5%）</option>
+              <option value="E10">E10（10%）</option>
+              {commissionRules.map((r) => (
+                <option key={r.id} value={r.id}>
+                  规则：{r.name}（{r.rate}%{r.intermediaryName ? ` · ${r.intermediaryName}` : ' · 默认'}）
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="数量（可选）">
             <input className={inputClass} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="如 800" inputMode="decimal" />
@@ -1339,6 +1388,241 @@ function MaterialPriceForm({
           <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="价格说明" />
         </Field>
       </div>
+      <div className="flex justify-end gap-2 mt-4">
+        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button
+          onClick={handleSubmit}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+        >
+          保存
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+// ==================== 佣金规则 Panel ====================
+
+function CommissionRulesPanel(_props: { isDarkMode?: boolean }) {
+  const [items, setItems] = useState<CommissionRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [includeInactive, setIncludeInactive] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<CommissionRule | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setItems(await apiService.listCommissionRules(includeInactive));
+    } catch (e) {
+      console.error('[PricingManager] listCommissionRules failed', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [includeInactive]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleToggleActive = async (item: CommissionRule) => {
+    setUpdatingId(item.id);
+    try {
+      await apiService.updateCommissionRule(item.id, { isActive: !item.isActive });
+      await load();
+    } catch (e) {
+      console.error('[PricingManager] updateCommissionRule failed', e);
+      alert(`更新失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确认删除该佣金规则？')) return;
+    setUpdatingId(id);
+    try {
+      await apiService.deleteCommissionRule(id);
+      await load();
+    } catch (e) {
+      console.error('[PricingManager] deleteCommissionRule failed', e);
+      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-surface-elevated rounded-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-medium text-text-primary">佣金规则</h3>
+            <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer">
+              <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+              显示已停用
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={load} className={actionButtonClass}>
+              <RefreshCw className="w-3.5 h-3.5" />
+              刷新
+            </button>
+            <button
+              onClick={() => { setEditing(null); setShowForm(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              新增规则
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-text-tertiary mb-3">
+          命中口径：定价计算器选择中间人时精确命中其启用规则；无精确命中时回退默认规则（中间人为空）。同一中间人仅允许一条启用规则。
+        </p>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-text-tertiary">
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </div>
+        ) : items.length === 0 ? (
+          <EmptyHint text="暂无佣金规则" />
+        ) : (
+          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+              <span className="col-span-3">规则名称</span>
+              <span className="col-span-2">佣金率</span>
+              <span className="col-span-2">中间人</span>
+              <span className="col-span-2">备注</span>
+              <span className="col-span-1">状态</span>
+              <span className="col-span-2 text-right">操作</span>
+            </div>
+            {items.map((item) => (
+              <div key={item.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
+                <span className="col-span-3 text-text-primary truncate">{item.name}</span>
+                <span className="col-span-2 text-text-primary">E{item.rate}（{item.rate}%）</span>
+                <span className="col-span-2 text-text-secondary truncate">{item.intermediaryName || '默认规则'}</span>
+                <span className="col-span-2 text-text-secondary truncate">{item.notes || '—'}</span>
+                <span className="col-span-1">
+                  <button
+                    onClick={() => handleToggleActive(item)}
+                    disabled={updatingId === item.id}
+                    className={`px-2 py-0.5 rounded-control ${statusSemanticClass(item.isActive ? 'success' : 'neutral')}`}
+                    title="点击切换启停"
+                  >
+                    {item.isActive ? '启用' : '停用'}
+                  </button>
+                </span>
+                <span className="col-span-2 flex items-center justify-end gap-1.5">
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className={actionButtonClass} title="编辑">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className={actionButtonClass} title="删除">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <CommissionRuleForm
+            editing={editing}
+            onSave={async (input) => {
+              try {
+                if (editing) {
+                  await apiService.updateCommissionRule(editing.id, input);
+                } else {
+                  await apiService.createCommissionRule(input);
+                }
+                setShowForm(false);
+                await load();
+              } catch (e) {
+                console.error('[PricingManager] saveCommissionRule failed', e);
+                alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+              }
+            }}
+            onClose={() => setShowForm(false)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function CommissionRuleForm({
+  editing,
+  onSave,
+  onClose,
+}: {
+  editing: CommissionRule | null;
+  onSave: (input: CommissionRuleInput) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(editing?.name || '');
+  const [rate, setRate] = useState(editing ? String(editing.rate) : '5');
+  const [intermediaryRelationId, setIntermediaryRelationId] = useState(editing?.intermediaryRelationId || '');
+  const [notes, setNotes] = useState(editing?.notes || '');
+  const [relations, setRelations] = useState<Relation[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listRelations();
+        if (cancelled) return;
+        setRelations(
+          list
+            .filter((r) => r.isOrganization && !r.deletedAt)
+            .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN')),
+        );
+      } catch (e) {
+        console.error('[PricingManager] listRelations failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSubmit = () => {
+    if (!name.trim()) {
+      alert('规则名称必填');
+      return;
+    }
+    onSave({
+      name: name.trim(),
+      rate: Number(rate),
+      intermediaryRelationId: intermediaryRelationId || null,
+      notes: notes.trim() || null,
+      isActive: editing?.isActive ?? true,
+    });
+  };
+
+  return (
+    <ModalShell title={editing ? `编辑佣金规则 ${editing.name}` : '新增佣金规则'} onClose={onClose}>
+      <Field label="规则名称">
+        <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 E10-品牌中介" />
+      </Field>
+      <Field label="佣金率">
+        <select className={inputClass} value={rate} onChange={(e) => setRate(e.target.value)}>
+          <option value="5">E5（5%）</option>
+          <option value="10">E10（10%）</option>
+        </select>
+      </Field>
+      <Field label="中间人（空 = 默认规则）">
+        <select className={inputClass} value={intermediaryRelationId} onChange={(e) => setIntermediaryRelationId(e.target.value)}>
+          <option value="">默认规则（不限中间人）</option>
+          {relations.map((r) => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="备注（可选）">
+        <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="适用场景说明" />
+      </Field>
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onClose} className={actionButtonClass}>取消</button>
         <button

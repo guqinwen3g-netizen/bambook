@@ -31,6 +31,7 @@ export enum View {
   HR = 'hr',
   QcWorkbench = 'qc-workbench',
   Pricing = 'pricing',
+  Marketing = 'marketing',
 }
 
 export interface WallpaperOption {
@@ -4038,6 +4039,7 @@ export interface PricingCalculation extends TrackBResult {
   productAssetId?: string | null;
   hsCode?: string | null;
   fxLockId?: string | null;
+  commissionRuleId?: string | null; // 佣金率来源规则（P2）；提供时 commissionRate 为规则值快照
   quantity?: number | null;
   status: PricingCalculationStatus;
   notes?: string | null;
@@ -4057,12 +4059,110 @@ export interface PricingCalculationInput {
   productAssetId?: string | null;
   hsCode?: string | null;
   fxLockId?: string | null;
+  commissionRuleId?: string | null;
   quantity?: number | null;
   status?: PricingCalculationStatus;
   notes?: string | null;
 }
 
 export type PricingCalculationPatch = Partial<PricingCalculationInput>;
+
+// ════════════════════════════════════════════════════════════════
+// 阶段 P2：佣金规则 / 电子画册 / 面料推荐
+// ════════════════════════════════════════════════════════════════
+
+/** CommissionRule：中间人佣金规则（E5/E10，配置真源） */
+export interface CommissionRule {
+  id: string;
+  name: string;
+  rate: number; // 5 = E5 | 10 = E10
+  intermediaryRelationId?: string | null; // 空 = 默认规则
+  intermediaryName?: string | null;
+  isActive: boolean;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CommissionRuleInput {
+  name: string;
+  rate: number;
+  intermediaryRelationId?: string | null;
+  notes?: string | null;
+  isActive?: boolean;
+}
+
+export type CommissionRulePatch = Partial<CommissionRuleInput>;
+
+/** LookbookCatalog：电子画册（条目为服务端档案真源快照） */
+export type LookbookStatus = 'Draft' | 'Published' | 'Archived';
+
+export interface LookbookItemSnapshot {
+  productAssetId: string;
+  sku: string;
+  name: string;
+  imageUrl?: string | null;
+  description?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  sortOrder: number;
+}
+
+export interface LookbookItemInput {
+  productAssetId: string;
+  price?: number | null;
+  currency?: string | null;
+  description?: string | null;
+  sortOrder?: number;
+}
+
+export interface LookbookCatalog {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: LookbookStatus;
+  items: LookbookItemSnapshot[];
+  publishedAt?: number | null;
+  createdBy?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** FabricRecommendation：面料推荐（确定性打分，criteria + results 快照） */
+export interface RecommendCriteria {
+  season?: string | null;
+  budgetMin?: number | null;
+  budgetMax?: number | null;
+  currency?: string | null;
+  compositionKeywords?: string[] | null;
+  weightMin?: number | null;
+  weightMax?: number | null;
+  pattern?: string | null;
+  limit?: number | null;
+}
+
+export interface RecommendResultItem {
+  productAssetId: string;
+  sku: string;
+  name: string;
+  score: number;
+  reasons: string[];
+  season?: string | null;
+  latestPrice?: number | null;
+  priceCurrency?: string | null;
+  weightValue?: number | null;
+  weightUnit?: string | null;
+  pattern?: string | null;
+  millName?: string | null;
+}
+
+export interface FabricRecommendation {
+  id: string;
+  criteria: RecommendCriteria;
+  results: RecommendResultItem[];
+  createdBy?: string | null;
+  createdAt: number;
+}
 
 /** 利润表明细行（归一化至 CNY） */
 export interface ProfitLineItem {

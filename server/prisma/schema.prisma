@@ -3068,6 +3068,7 @@ model PricingCalculation {
   productAssetId String?
   hsCode         String? // 退税率来源 HS Code（追溯）
   fxLockId       String? // 使用锁定汇率时关联 FxRateLock
+  commissionRuleId String? // 佣金率来源 CommissionRule（追溯；rate 已落库为快照）
 
   quantity Decimal? @db.Decimal(18, 4) // 数量（前端算总额用，不参与单价推导）
 
@@ -3139,6 +3140,70 @@ model MaterialPriceHistory {
 
   @@index([materialType, materialCode, priceDate])
   @@index([priceDate])
+}
+
+// ============ 阶段 P2：佣金规则 / 电子画册 / 面料推荐（PRD 6.2 P2 缺口） ============
+// 设计口径：
+//   - CommissionRule 是佣金率的配置真源；PricingCalculation.commissionRate 仍落库为数值快照
+//     （规则后续调整不回溯历史定价记录），commissionRuleId 记录来源规则以便追溯
+//   - LookbookCatalog.items 为 JSON 快照数组：服务端在写操作时从 ProductAsset 重取名称/图片/成本，
+//     客户端传入仅作选择依据——画册内容口径以档案真源为准
+//   - FabricRecommendation 持久化推荐请求与结果（criteria/results JSON），可审计可复用；
+//     打分为服务端确定性算法（非 LLM），同一 criteria 结果可重现
+
+// CommissionRule：中间人佣金规则（PRD 8.5 P2，E5/E10）
+// 匹配口径：intermediaryRelationId 精确命中优先；intermediaryRelationId 为空的记录为默认规则兜底
+model CommissionRule {
+  id   String @id // 格式：CR__${shortId}
+  name String // 规则名（如 "E5-某代理"）
+  rate Decimal @db.Decimal(8, 4) // 佣金率百分比（5 = E5 / 10 = E10）
+
+  intermediaryRelationId String? // 中间人 Relation snapshot FK（空 = 默认规则）
+  intermediaryName       String? // 中间人名称快照（列表展示用）
+
+  isActive Boolean @default(true)
+  notes    String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([intermediaryRelationId, isActive])
+  @@index([isActive])
+}
+
+// LookbookCatalog：电子画册（PRD 6.2 P2）——产品图片 + 描述 + 价格 → Web 预览/打印 PDF
+model LookbookCatalog {
+  id          String @id // 格式：LB__${shortId}
+  title       String
+  description String?
+
+  status      String  @default("Draft") // Draft | Published | Archived
+  items       Json    @default("[]") // [{ productAssetId, sku, name, description?, price?, currency?, imageUrl?, sortOrder }]
+  publishedAt BigInt?
+
+  createdBy String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// FabricRecommendation：面料推荐记录（PRD 6.2 P2）
+// criteria: { composition?, weightMin?, weightMax?, pattern?, priceMin?, priceMax?, quantity?, targetLeadDays?, limit? }
+// results:  [{ productAssetId, sku, name, score, breakdown: { composition, weight, pattern, price, moq, leadTime } }]
+model FabricRecommendation {
+  id       String @id // 格式：FR__${shortId}
+  criteria Json
+  results  Json
+
+  createdBy String?
+  createdAt BigInt
+  deletedAt BigInt?
+
+  @@index([createdAt])
 }
 
 // ============ Phase 2 B2: 库存管理 Inventory Management ============

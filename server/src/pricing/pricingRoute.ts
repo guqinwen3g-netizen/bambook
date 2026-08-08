@@ -26,6 +26,12 @@
  *   - GET    /material-prices/latest        — 最新价 ?materialType=&materialCode=
  *   - PATCH  /material-prices/:id           — 更新
  *   - DELETE /material-prices/:id           — 软删
+ *   佣金规则（P2）：
+ *   - GET    /commission-rules              — 列表（?includeInactive=true）
+ *   - POST   /commission-rules              — 创建（同中间人启用中规则唯一）
+ *   - GET    /commission-rules/lookup       — 命中查询 ?intermediaryRelationId=
+ *   - PATCH  /commission-rules/:id          — 更新
+ *   - DELETE /commission-rules/:id          — 软删
  *
  * 守卫口径与 businessLines/qc 模块一致：读走 JWT 或 API-Key，写必须 JWT。
  * 佣金字段（commissionRate/commissionAmount）涉管理层+财务可见域（PRD 9.6），
@@ -40,6 +46,7 @@ import { logger } from '../lib/logger';
 import { createPricingService, PricingCalculationInput, TaxRefundRateInput, TrackBInput } from './pricingService';
 import { createProfitSheetService } from './profitSheetService';
 import { createMaterialPriceService, MaterialPriceInput } from './materialPriceService';
+import { createCommissionService, CommissionRuleInput } from './commissionService';
 
 export interface PricingRouterOptions {
   prisma: PrismaClient;
@@ -67,6 +74,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   const pricing = createPricingService(prisma);
   const profitSheets = createProfitSheetService(prisma);
   const materialPrices = createMaterialPriceService(prisma);
+  const commissions = createCommissionService(prisma);
 
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
@@ -327,6 +335,59 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
       res.json({ ok: true });
     } catch (e: any) {
       handleError(res, e, 'MP_DELETE_FAILED');
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // 佣金规则（P2：E5/E10，中间人精确命中优先，默认规则兜底）
+  // ══════════════════════════════════════════════════════════════
+
+  router.get('/commission-rules', async (req: Request, res: Response) => {
+    try {
+      const result = await commissions.listCommissionRules({ includeInactive: req.query.includeInactive === 'true' });
+      res.json(serializeValue(result));
+    } catch (e: any) {
+      handleError(res, e, 'CR_LIST_FAILED');
+    }
+  });
+
+  router.post('/commission-rules', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const row = await commissions.createCommissionRule(req.body as CommissionRuleInput, actorIdFromRequest(req));
+      notify('create_commission_rule', [row.id]);
+      res.status(201).json(serializeValue({ ok: true, item: row }));
+    } catch (e: any) {
+      handleError(res, e, 'CR_CREATE_FAILED');
+    }
+  });
+
+  // 字面路由 lookup 须在 /:id 前；无命中返回 { hit: null }（= 无佣金）
+  router.get('/commission-rules/lookup', async (req: Request, res: Response) => {
+    try {
+      const hit = await commissions.lookupCommissionRate(req.query.intermediaryRelationId as string | undefined);
+      res.json(serializeValue({ hit }));
+    } catch (e: any) {
+      handleError(res, e, 'CR_LOOKUP_FAILED');
+    }
+  });
+
+  router.patch('/commission-rules/:id', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const row = await commissions.updateCommissionRule(req.params.id, req.body ?? {}, actorIdFromRequest(req));
+      notify('update_commission_rule', [row.id]);
+      res.json(serializeValue({ ok: true, item: row }));
+    } catch (e: any) {
+      handleError(res, e, 'CR_UPDATE_FAILED');
+    }
+  });
+
+  router.delete('/commission-rules/:id', requireWrite, async (req: Request, res: Response) => {
+    try {
+      await commissions.deleteCommissionRule(req.params.id, actorIdFromRequest(req));
+      notify('delete_commission_rule', [req.params.id]);
+      res.json({ ok: true });
+    } catch (e: any) {
+      handleError(res, e, 'CR_DELETE_FAILED');
     }
   });
 

@@ -172,6 +172,14 @@ import {
   MaterialPriceInput,
   MaterialPricePatch,
   MaterialPriceTrendPoint,
+  // 营销工具（阶段 P2）
+  CommissionRule,
+  CommissionRuleInput,
+  CommissionRulePatch,
+  LookbookCatalog,
+  LookbookItemInput,
+  FabricRecommendation,
+  RecommendCriteria,
 } from '../types';
 import { getApiBaseUrl, CORPORATE_MASTER_IP, normalizeDataCenterEndpoint } from './apiBase';
 
@@ -1771,6 +1779,67 @@ export const apiService = {
     if (params.to) query.set('to', params.to);
     const data = await requestJson<{ items: MaterialPriceTrendPoint[] }>(`/v1/pricing/material-prices/trend?${query.toString()}`, { endpoint, method: 'GET' });
     return data.items ?? [];
+  },
+
+  // ── 阶段 P2: 佣金规则 CommissionRule API ──
+  async listCommissionRules(includeInactive = false, endpoint?: string): Promise<CommissionRule[]> {
+    const qs = includeInactive ? '?includeInactive=true' : '';
+    const data = await requestJson<{ items: CommissionRule[]; total?: number }>(`/v1/pricing/commission-rules${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createCommissionRule(input: CommissionRuleInput, endpoint?: string): Promise<CommissionRule> {
+    const data = await requestJson<{ ok: boolean; item: CommissionRule }>(`/v1/pricing/commission-rules`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateCommissionRule(id: string, patch: CommissionRulePatch, endpoint?: string): Promise<CommissionRule> {
+    const data = await requestJson<{ ok: boolean; item: CommissionRule }>(`/v1/pricing/commission-rules/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteCommissionRule(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/pricing/commission-rules/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 阶段 P2: 电子画册 LookbookCatalog API ──
+  async listLookbooks(params?: { status?: string }, endpoint?: string): Promise<LookbookCatalog[]> {
+    const qs = params?.status ? `?status=${encodeURIComponent(params.status)}` : '';
+    const data = await requestJson<{ items: LookbookCatalog[]; total?: number }>(`/v1/lookbooks${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createLookbook(input: { title: string; description?: string | null }, endpoint?: string): Promise<LookbookCatalog> {
+    const data = await requestJson<{ ok: boolean; item: LookbookCatalog }>(`/v1/lookbooks`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async getLookbook(id: string, endpoint?: string): Promise<LookbookCatalog> {
+    const data = await requestJson<{ item: LookbookCatalog }>(`/v1/lookbooks/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+    return data.item;
+  },
+  async updateLookbook(id: string, patch: { title?: string; description?: string | null }, endpoint?: string): Promise<LookbookCatalog> {
+    const data = await requestJson<{ ok: boolean; item: LookbookCatalog }>(`/v1/lookbooks/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async setLookbookItems(id: string, items: LookbookItemInput[], endpoint?: string): Promise<LookbookCatalog> {
+    const data = await requestJson<{ ok: boolean; item: LookbookCatalog }>(`/v1/lookbooks/${encodeURIComponent(id)}/items`, { endpoint, method: 'PUT', body: JSON.stringify({ items }) });
+    return data.item;
+  },
+  async transitionLookbook(id: string, action: 'publish' | 'unpublish' | 'archive', endpoint?: string): Promise<LookbookCatalog> {
+    const data = await requestJson<{ ok: boolean; item: LookbookCatalog }>(`/v1/lookbooks/${encodeURIComponent(id)}/${action}`, { endpoint, method: 'POST' });
+    return data.item;
+  },
+  async deleteLookbook(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/lookbooks/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 阶段 P2: 面料推荐 FabricRecommendation API ──
+  async recommendFabrics(criteria: RecommendCriteria, endpoint?: string): Promise<FabricRecommendation> {
+    const data = await requestJson<{ ok: boolean; item: FabricRecommendation }>(`/v1/fabric-recommendations/recommend`, { endpoint, method: 'POST', body: JSON.stringify(criteria) });
+    return data.item;
+  },
+  async listFabricRecommendations(endpoint?: string): Promise<FabricRecommendation[]> {
+    const data = await requestJson<{ items: FabricRecommendation[]; total?: number }>(`/v1/fabric-recommendations`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async deleteFabricRecommendation(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/fabric-recommendations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
   async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {

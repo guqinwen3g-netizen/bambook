@@ -60,6 +60,7 @@ export interface PricingCalculationInput {
   productAssetId?: string | null;
   hsCode?: string | null;
   fxLockId?: string | null;
+  commissionRuleId?: string | null; // 佣金率来源规则（P2）；提供时 commissionRate 取规则值快照
   quantity?: number | null;
   status?: string;
   notes?: string | null;
@@ -259,23 +260,33 @@ export function createPricingService(prisma: PrismaClient) {
       exchangeRate = latest;
     }
 
+    // 佣金率：commissionRuleId 提供时以规则值为快照（规则是佣金配置真源），
+    // 否则取显式 commissionRate（默认 0）
+    let commissionRuleId = input.commissionRuleId ?? null;
+    let commissionRate = input.commissionRate ?? 0;
+    if (commissionRuleId) {
+      const rule = await db.commissionRule.findUnique({ where: { id: commissionRuleId } });
+      if (!rule || rule.deletedAt !== null || !rule.isActive) throw new Error('佣金规则非法或已停用');
+      commissionRate = Number(rule.rate);
+    }
+
     const derived = calculateTrackB({
       purchaseCostCny: input.purchaseCostCny,
       refundRate,
       exchangeRate,
       profitMargin: input.profitMargin,
-      commissionRate: input.commissionRate ?? 0,
+      commissionRate,
     });
 
     if (input.status !== undefined && !(CALC_STATUSES as readonly string[]).includes(input.status)) {
       throw new Error(`非法状态：${input.status}`);
     }
 
-    return { hsCode, refundRate, exchangeRate, derived };
+    return { hsCode, refundRate, exchangeRate, commissionRate, commissionRuleId, derived };
   }
 
   async function createCalculation(input: PricingCalculationInput, actorId: string): Promise<PricingCalculation> {
-    const { hsCode, refundRate, exchangeRate, derived } = await resolveCalculationData(input);
+    const { hsCode, refundRate, exchangeRate, commissionRate, commissionRuleId, derived } = await resolveCalculationData(input);
     const ts = now();
     const row = await db.pricingCalculation.create({
       data: {
@@ -284,7 +295,7 @@ export function createPricingService(prisma: PrismaClient) {
         refundRate,
         exchangeRate,
         profitMargin: input.profitMargin,
-        commissionRate: input.commissionRate ?? 0,
+        commissionRate,
         netUsdCost: derived.netUsdCost,
         profitAmount: derived.profitAmount,
         commissionAmount: derived.commissionAmount,
@@ -294,6 +305,7 @@ export function createPricingService(prisma: PrismaClient) {
         productAssetId: input.productAssetId ?? null,
         hsCode,
         fxLockId: input.fxLockId ?? null,
+        commissionRuleId,
         quantity: input.quantity ?? null,
         status: input.status ?? 'Draft',
         notes: input.notes ?? null,
@@ -339,10 +351,11 @@ export function createPricingService(prisma: PrismaClient) {
       exchangeRate: patch.exchangeRate ?? Number(row.exchangeRate),
       profitMargin: patch.profitMargin ?? Number(row.profitMargin),
       commissionRate: patch.commissionRate ?? Number(row.commissionRate),
+      commissionRuleId: patch.commissionRuleId !== undefined ? patch.commissionRuleId : row.commissionRuleId,
       hsCode: patch.hsCode !== undefined ? patch.hsCode : row.hsCode,
       status: patch.status,
     };
-    const { hsCode, refundRate, exchangeRate, derived } = await resolveCalculationData(merged);
+    const { hsCode, refundRate, exchangeRate, commissionRate, commissionRuleId, derived } = await resolveCalculationData(merged);
 
     const data: Record<string, unknown> = {
       updatedAt: BigInt(now()),
@@ -350,7 +363,8 @@ export function createPricingService(prisma: PrismaClient) {
       refundRate,
       exchangeRate,
       profitMargin: merged.profitMargin,
-      commissionRate: merged.commissionRate,
+      commissionRate,
+      commissionRuleId,
       hsCode,
       netUsdCost: derived.netUsdCost,
       profitAmount: derived.profitAmount,

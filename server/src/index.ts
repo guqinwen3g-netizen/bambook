@@ -39,6 +39,8 @@ import { createRiskRouter } from './risk/riskRoute';
 import { createBusinessLineRouter } from './businessLines/businessLineRoute';
 import { createQcRouter } from './qc/qcRoute';
 import { createPricingRouter } from './pricing/pricingRoute';
+import { createLookbookRouter } from './products/lookbookRoute';
+import { createFabricRecommendationRouter } from './products/fabricRecommendationRoute';
 import { createMesRouter } from './mes/mesRoute';
 import { createCustomsRouter } from './customs/customsRoute';
 import { createProductionRouter } from './production/route';
@@ -457,6 +459,28 @@ app.use(
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
         uploadDir: UPLOAD_DIR,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 P2：电子画册（PRD 6.2 P2 LookbookCatalog）
+app.use(
+    '/api/v1/lookbooks',
+    (req, res, next) => createLookbookRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 P2：面料推荐引擎（PRD 6.2 P2 FabricRecommendation，确定性打分）
+app.use(
+    '/api/v1/fabric-recommendations',
+    (req, res, next) => createFabricRecommendationRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
     })(req, res, next),
 );
