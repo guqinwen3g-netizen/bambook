@@ -48,6 +48,7 @@ import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
 import { createCrmService, ContactInput, CreditLimitInput, FollowUpInput, OpportunityInput, CustomerTierInput } from './crmService';
+import { createBrandLineService } from './brandLineService';
 
 export interface CrmRouterOptions {
   prisma: PrismaClient;
@@ -60,6 +61,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   const router = Router();
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createCrmService(prisma);
+  const brandLines = createBrandLineService(prisma);
 
   const authenticate = (req: Request, res: Response): boolean => {
     if (!requireAuth) return true;
@@ -74,6 +76,9 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   const notify = (entity: string, action: string, ids?: string[]) => {
     if (onDataChange) onDataChange({ entity, action, ids });
   };
+
+  // P3b 新端点统一从 JWT 提取操作者（旧端点 req.actorId 依赖全局挂载，不在本次扩散修改）
+  const actorOf = (req: Request): string => extractActorFromRequest(req)?.userId || 'api';
 
   // ══════════════════════════════════════════════════════════════
   // 1. 联系人 Contact
@@ -390,6 +395,116 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
       res.json({ ok: true });
     } catch (e: any) {
       res.status(400).json({ error: e?.message || 'failed to delete customer tier' });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // 6. 品牌线 BrandLine（阶段 P3b，PRD 6.2）
+  // ══════════════════════════════════════════════════════════════
+
+  router.get('/:relationId/brand-lines', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const includeInactive = req.query.includeInactive === '1' || req.query.includeInactive === 'true';
+      const result = await brandLines.listBrandLines(req.params.relationId, includeInactive);
+      res.json(result);
+    } catch (e: any) {
+      logger.error('[CrmRoute] GET brand-lines failed', { error: e?.message });
+      res.status(e?.message?.includes('不存在') ? 404 : 500).json({ error: e?.message || 'failed to list brand lines' });
+    }
+  });
+
+  router.post('/:relationId/brand-lines', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const item = await brandLines.createBrandLine(req.params.relationId, req.body ?? {}, actorOf(req));
+      notify('BrandLine', 'create', [item.id]);
+      res.status(201).json({ item });
+    } catch (e: any) {
+      logger.error('[CrmRoute] POST brand-line failed', { error: e?.message });
+      const msg = e?.message || '';
+      res.status(msg.includes('不存在') ? 404 : msg.includes('已存在') ? 409 : 400).json({ error: msg || 'failed to create brand line' });
+    }
+  });
+
+  router.put('/brand-lines/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const item = await brandLines.updateBrandLine(req.params.id, req.body ?? {}, actorOf(req));
+      notify('BrandLine', 'update', [item.id]);
+      res.json({ item });
+    } catch (e: any) {
+      logger.error('[CrmRoute] PUT brand-line failed', { error: e?.message });
+      const msg = e?.message || '';
+      res.status(msg.includes('不存在') ? 404 : msg.includes('已存在') ? 409 : 400).json({ error: msg || 'failed to update brand line' });
+    }
+  });
+
+  router.delete('/brand-lines/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      await brandLines.deleteBrandLine(req.params.id, actorOf(req));
+      notify('BrandLine', 'delete', [req.params.id]);
+      res.json({ ok: true });
+    } catch (e: any) {
+      logger.error('[CrmRoute] DELETE brand-line failed', { error: e?.message });
+      res.status(e?.message?.includes('不存在') ? 404 : 400).json({ error: e?.message || 'failed to delete brand line' });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // 7. 沟通日志 CommunicationLog（阶段 P3b，PRD 12.3）
+  // ══════════════════════════════════════════════════════════════
+
+  router.get('/:relationId/comm-logs', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const result = await brandLines.listCommunicationLogs(req.params.relationId, {
+        type: req.query.type as string | undefined,
+        direction: req.query.direction as string | undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        offset: req.query.offset ? Number(req.query.offset) : undefined,
+      });
+      res.json(result);
+    } catch (e: any) {
+      logger.error('[CrmRoute] GET comm-logs failed', { error: e?.message });
+      res.status(e?.message?.includes('不存在') ? 404 : 500).json({ error: e?.message || 'failed to list communication logs' });
+    }
+  });
+
+  router.post('/:relationId/comm-logs', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const item = await brandLines.createCommunicationLog(req.params.relationId, req.body ?? {}, actorOf(req));
+      notify('CommunicationLog', 'create', [item.id]);
+      res.status(201).json({ item });
+    } catch (e: any) {
+      logger.error('[CrmRoute] POST comm-log failed', { error: e?.message });
+      res.status(e?.message?.includes('不存在') ? 404 : 400).json({ error: e?.message || 'failed to create communication log' });
+    }
+  });
+
+  router.put('/comm-logs/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const item = await brandLines.updateCommunicationLog(req.params.id, req.body ?? {}, actorOf(req));
+      notify('CommunicationLog', 'update', [item.id]);
+      res.json({ item });
+    } catch (e: any) {
+      logger.error('[CrmRoute] PUT comm-log failed', { error: e?.message });
+      res.status(e?.message?.includes('不存在') ? 404 : 400).json({ error: e?.message || 'failed to update communication log' });
+    }
+  });
+
+  router.delete('/comm-logs/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      await brandLines.deleteCommunicationLog(req.params.id, actorOf(req));
+      notify('CommunicationLog', 'delete', [req.params.id]);
+      res.json({ ok: true });
+    } catch (e: any) {
+      logger.error('[CrmRoute] DELETE comm-log failed', { error: e?.message });
+      res.status(e?.message?.includes('不存在') ? 404 : 400).json({ error: e?.message || 'failed to delete communication log' });
     }
   });
 

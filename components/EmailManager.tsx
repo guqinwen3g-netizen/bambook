@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Email, KnowledgeItem, Order } from '../types';
+import { Email, KnowledgeItem, Order, EmailSignature } from '../types';
 import { EmailDB } from '../services/storageService'; // IndexedDB Import
 import {
   Mail, Trash2, Star, Archive, Flag,
@@ -10,7 +10,7 @@ import {
   Inbox, Send, FileText, AlertCircle,
   MoreHorizontal, CornerUpLeft, Reply, Forward, Plus, Edit, ChevronDown,
   Clock, CheckCircle2, ShieldAlert, ShieldCheck, Filter, List,
-  ReplyAll, MoreVertical, PanelLeftClose, PanelLeft
+  ReplyAll, MoreVertical, PanelLeftClose, PanelLeft, PenLine
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { emailSyncService } from '../services/emailSyncService';
@@ -25,6 +25,7 @@ import { getApiBaseUrl } from '../services/apiBase';
 import DOMPurify from 'dompurify';
 import { EmailList } from './email/EmailList';
 import { EmailEditor } from './email/EmailEditor';
+import SignatureManager from './email/SignatureManager';
 import { cleanHtmlSnippet } from '../utils/emailUtils';
 import { RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
 
@@ -103,6 +104,12 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<EmailTemplate | null>(null);
   const [templateVars, setTemplateVars] = useState<Record<string, string>>({});
+
+  // 阶段 P3b：邮件签名 State（PRD 12.1：Compose 插入签名 + 签名管理）
+  const [signaturePickerOpen, setSignaturePickerOpen] = useState(false);
+  const [emailSignatures, setEmailSignatures] = useState<EmailSignature[]>([]);
+  const [signaturesLoaded, setSignaturesLoaded] = useState(false);
+  const [signatureManagerOpen, setSignatureManagerOpen] = useState(false);
 
   // F5 意图可视化 State（PRD 19.3：列表自动分类标签；key = IMAP uid 字符串）
   const [intentByUid, setIntentByUid] = useState<Record<string, EmailIntentInfo>>({});
@@ -1254,6 +1261,30 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     return () => { cancelled = true; };
   }, [isComposing, templatesLoaded]);
 
+  // 阶段 P3b 签名库：Compose 打开时按需拉取一次（仅启用中的签名）
+  useEffect(() => {
+    if (!isComposing || signaturesLoaded) return;
+    let cancelled = false;
+    apiService.listEmailSignatures().then(items => {
+      if (cancelled) return;
+      setEmailSignatures(items);
+      setSignaturesLoaded(true);
+    }).catch(() => {
+      if (cancelled) return;
+      setEmailSignatures([]);
+      setSignaturesLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [isComposing, signaturesLoaded]);
+
+  /** 选择签名：渲染 {{variable}} 后追加到正文末尾（同语言默认签名优先展示由服务端排序保证） */
+  const handleSelectSignature = (sig: EmailSignature) => {
+    const autoVars = emailIntelligenceService.deriveTemplateVars({ to: composeTo });
+    const rendered = emailIntelligenceService.renderEmailTemplate(sig.content, autoVars);
+    setComposeBody(prev => (prev.trim() ? `${prev.replace(/\s+$/, '')}\n\n${rendered}` : rendered));
+    setSignaturePickerOpen(false);
+  };
+
   /** 选择模板：变量自动填充（收件人/日期等已知值），subject/body 实时渲染 */
   const handleSelectTemplate = (tpl: EmailTemplate) => {
     const autoVars = emailIntelligenceService.deriveTemplateVars({ to: composeTo });
@@ -1791,6 +1822,12 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   >
                     <FileText size={14} strokeWidth={1} className="text-blue-500" /> 模板
                   </RdlPill>
+                  <RdlPill
+                    onClick={() => setSignaturePickerOpen(v => !v)}
+                    className={`min-h-8 px-3 text-xs ${signaturePickerOpen ? (isDarkMode ? 'bg-white/10' : 'bg-white/50') : ''}`}
+                  >
+                    <PenLine size={14} strokeWidth={1} className="text-blue-500" /> 签名
+                  </RdlPill>
                   <RdlOverlayIconButton onClick={() => setIsComposing(false)} className="!h-9 !w-9">
                     <X size={20} />
                   </RdlOverlayIconButton>
@@ -1840,6 +1877,49 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                               {tpl.name}
                             </button>
                           ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 阶段 P3b 签名选择面板（PRD 12.1：统一公司签名格式，插入时渲染 {{variable}}） */}
+                  {signaturePickerOpen && (
+                    <div className={`rounded-control border p-3 space-y-2 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white/50'}`}>
+                      {!signaturesLoaded ? (
+                        <div className="flex items-center gap-2 text-xs font-light text-slate-400 px-1 py-2">
+                          <Loader2 size={12} className="animate-spin" /> 加载签名库...
+                        </div>
+                      ) : emailSignatures.length === 0 ? (
+                        <div className="flex items-center gap-2 text-xs font-light text-slate-400 px-1 py-2">
+                          <span>暂无可用签名</span>
+                          <button
+                            type="button"
+                            onClick={() => setSignatureManagerOpen(true)}
+                            className={`underline underline-offset-2 ${isDarkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
+                          >
+                            前往创建
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {emailSignatures.map(sig => (
+                            <button
+                              key={sig.id}
+                              type="button"
+                              onClick={() => handleSelectSignature(sig)}
+                              className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/[0.06] hover:bg-white/10 text-slate-200' : 'bg-white/70 hover:bg-white text-slate-700'}`}
+                            >
+                              {sig.isDefault && <Star size={10} className="inline mr-1 fill-current opacity-60" />}
+                              {sig.name}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setSignatureManagerOpen(true)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors border border-dashed ${isDarkMode ? 'border-white/15 text-slate-400 hover:text-slate-200 hover:border-white/25' : 'border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400'}`}
+                          >
+                            管理签名
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1904,6 +1984,12 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           </div>
         )
       }
+      {/* 阶段 P3b：签名管理弹窗（关闭后重置加载标记，下次 Compose 重新拉取） */}
+      <SignatureManager
+        isOpen={signatureManagerOpen}
+        onClose={() => { setSignatureManagerOpen(false); setSignaturesLoaded(false); }}
+        isDarkMode={isDarkMode}
+      />
       {/* Settings Modal */}
       {
         isConfiguring && (

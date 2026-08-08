@@ -7,14 +7,14 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Relation, FollowUpRecord } from '../../types';
+import { Relation, FollowUpRecord, BrandLine, CommunicationLog, CommunicationType } from '../../types';
 import { apiService } from '../../services/apiService';
 import {
     Building2, User, Globe, Mail, Phone, MapPin,
     CreditCard, DollarSign, Calendar, Clock, MessageCircle,
     Edit2, Trash2, Star, Tag, Briefcase, Factory,
     Warehouse, Navigation, Languages, Cake, FileText,
-    Hash, Banknote
+    Hash, Banknote, Plus, Loader2, MessagesSquare, Layers
 } from 'lucide-react';
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
@@ -121,6 +121,21 @@ const FOLLOW_UP_TYPE_LABELS: Record<string, string> = {
     Other: '其他',
 };
 
+// ── 阶段 P3b：沟通日志类型/方向可读化（PRD 12.3）──
+const COMM_TYPE_LABELS: Record<string, string> = {
+    Email: '邮件',
+    Call: '电话',
+    WeChat: '微信',
+    Visit: '拜访',
+    Meeting: '会议',
+    Other: '其他',
+};
+const COMM_TYPES: CommunicationType[] = ['Email', 'Call', 'WeChat', 'Visit', 'Meeting', 'Other'];
+const COMM_DIRECTION_LABELS: Record<string, string> = {
+    Inbound: '客户发起',
+    Outbound: '我方发起',
+};
+
 const DetailPanel: React.FC<DetailPanelProps> = ({
     type,
     data,
@@ -132,6 +147,15 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
     const isOrg = type === 'organization';
     const [followUps, setFollowUps] = useState<FollowUpRecord[] | null>(null);
 
+    // ── 阶段 P3b：品牌线（组织专属）与沟通日志（全渠道流水）状态 ──
+    const [brandLines, setBrandLines] = useState<BrandLine[] | null>(null);
+    const [commLogs, setCommLogs] = useState<CommunicationLog[] | null>(null);
+    const [brandLineForm, setBrandLineForm] = useState({ name: '', code: '' });
+    const [commLogForm, setCommLogForm] = useState({ type: 'Email' as CommunicationType, occurredAt: new Date().toISOString().slice(0, 10), summary: '' });
+    const [brandLineBusy, setBrandLineBusy] = useState(false);
+    const [commLogBusy, setCommLogBusy] = useState(false);
+    const [p3bError, setP3bError] = useState<string | null>(null);
+
     // 互动历史：CRM 跟进记录（FollowUpRecord）为单一真源，按当前 Relation 拉取
     useEffect(() => {
         let cancelled = false;
@@ -141,6 +165,91 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
             .catch(() => { if (!cancelled) setFollowUps([]); });
         return () => { cancelled = true; };
     }, [data.id]);
+
+    // 品牌线：仅组织布局拉取（PRD 6.2，客户 360° 品牌线档案）
+    useEffect(() => {
+        if (!isOrg) return;
+        let cancelled = false;
+        setBrandLines(null);
+        apiService.listBrandLines(data.id)
+            .then(items => { if (!cancelled) setBrandLines(items); })
+            .catch(() => { if (!cancelled) setBrandLines([]); });
+        return () => { cancelled = true; };
+    }, [data.id, isOrg]);
+
+    // 沟通日志：relation 级全渠道流水（PRD 12.3），组织/联系人布局共用
+    useEffect(() => {
+        let cancelled = false;
+        setCommLogs(null);
+        apiService.listCommLogs(data.id, { limit: 10 })
+            .then(items => { if (!cancelled) setCommLogs(items); })
+            .catch(() => { if (!cancelled) setCommLogs([]); });
+        return () => { cancelled = true; };
+    }, [data.id]);
+
+    const handleAddBrandLine = async () => {
+        const name = brandLineForm.name.trim();
+        if (!name || brandLineBusy) return;
+        setBrandLineBusy(true);
+        setP3bError(null);
+        try {
+            const item = await apiService.createBrandLine(data.id, { name, code: brandLineForm.code.trim() || undefined });
+            setBrandLines(prev => [item, ...(prev ?? [])]);
+            setBrandLineForm({ name: '', code: '' });
+        } catch (e: any) {
+            setP3bError(`品牌线添加失败：${e?.message || e}`);
+        } finally {
+            setBrandLineBusy(false);
+        }
+    };
+
+    const handleDeleteBrandLine = async (id: string) => {
+        if (brandLineBusy) return;
+        setBrandLineBusy(true);
+        setP3bError(null);
+        try {
+            await apiService.deleteBrandLine(id);
+            setBrandLines(prev => (prev ?? []).filter(bl => bl.id !== id));
+        } catch (e: any) {
+            setP3bError(`品牌线删除失败：${e?.message || e}`);
+        } finally {
+            setBrandLineBusy(false);
+        }
+    };
+
+    const handleAddCommLog = async () => {
+        const summary = commLogForm.summary.trim();
+        if (!summary || !commLogForm.occurredAt || commLogBusy) return;
+        setCommLogBusy(true);
+        setP3bError(null);
+        try {
+            const item = await apiService.createCommLog(data.id, {
+                type: commLogForm.type,
+                summary,
+                occurredAt: commLogForm.occurredAt,
+            });
+            setCommLogs(prev => [item, ...(prev ?? [])]);
+            setCommLogForm({ type: 'Email', occurredAt: new Date().toISOString().slice(0, 10), summary: '' });
+        } catch (e: any) {
+            setP3bError(`沟通日志添加失败：${e?.message || e}`);
+        } finally {
+            setCommLogBusy(false);
+        }
+    };
+
+    const handleDeleteCommLog = async (id: string) => {
+        if (commLogBusy) return;
+        setCommLogBusy(true);
+        setP3bError(null);
+        try {
+            await apiService.deleteCommLog(id);
+            setCommLogs(prev => (prev ?? []).filter(cl => cl.id !== id));
+        } catch (e: any) {
+            setP3bError(`沟通日志删除失败：${e?.message || e}`);
+        } finally {
+            setCommLogBusy(false);
+        }
+    };
 
     const actionButtonClass = isDarkMode
         ? BAMBOOK_OS.controls.actionControl.borderedDark
@@ -190,6 +299,138 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
             </div>
         </InfoSection>
     );
+
+    // ── 阶段 P3b：品牌线区块（PRD 6.2，仅组织布局）──
+    const brandLinesSection = isOrg ? (
+        <InfoSection title="品牌线" icon={<Layers size={14} />} isDarkMode={isDarkMode}>
+            <div className={`text-sm ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+                {brandLines === null ? (
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>加载中…</p>
+                ) : brandLines.length === 0 ? (
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>暂无品牌线档案</p>
+                ) : (
+                    <ul className="space-y-1.5">
+                        {brandLines.map(bl => (
+                            <li key={bl.id} className={`group flex items-center gap-1.5 text-xs leading-5 ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                                <span className="break-all">{bl.name}</span>
+                                {bl.code && (
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${dataChipClass}`}>{bl.code}</span>
+                                )}
+                                {!bl.isActive && (
+                                    <span className={`text-[10px] ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>已停用</span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteBrandLine(bl.id)}
+                                    disabled={brandLineBusy}
+                                    className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity ${isDarkMode ? 'text-white/30 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="删除品牌线"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {/* 内联添加表单（同客户下 name 唯一，服务端校验） */}
+                <div className="flex items-center gap-1.5 mt-2">
+                    <input
+                        value={brandLineForm.name}
+                        onChange={e => setBrandLineForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="品牌线名称"
+                        className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-white/30' : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400'}`}
+                    />
+                    <input
+                        value={brandLineForm.code}
+                        onChange={e => setBrandLineForm(prev => ({ ...prev, code: e.target.value }))}
+                        placeholder="编码(可选)"
+                        className={`w-20 px-2 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-white/30' : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400'}`}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAddBrandLine}
+                        disabled={brandLineBusy || !brandLineForm.name.trim()}
+                        className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 ${isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white/70' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+                        title="添加品牌线"
+                    >
+                        {brandLineBusy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                    </button>
+                </div>
+            </div>
+        </InfoSection>
+    ) : null;
+
+    // ── 阶段 P3b：沟通日志区块（PRD 12.3 全渠道沟通流水，组织/联系人布局共用）──
+    const commLogsSection = (
+        <InfoSection title="沟通日志" icon={<MessagesSquare size={14} />} isDarkMode={isDarkMode}>
+            <div className={`text-sm ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+                {commLogs === null ? (
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>加载中…</p>
+                ) : commLogs.length === 0 ? (
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>暂无沟通记录</p>
+                ) : (
+                    <ul className="space-y-1.5">
+                        {commLogs.map(cl => (
+                            <li key={cl.id} className={`group flex items-baseline gap-1.5 text-xs leading-5 ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] shrink-0 ${dataChipClass}`}>
+                                    {COMM_TYPE_LABELS[cl.type] ?? cl.type}
+                                </span>
+                                <span className={`shrink-0 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>{cl.occurredAt}</span>
+                                <span className="break-all">{cl.summary}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteCommLog(cl.id)}
+                                    disabled={commLogBusy}
+                                    className={`ml-auto self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ${isDarkMode ? 'text-white/30 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="删除沟通日志"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {/* 内联添加表单（类型 + 日期 + 摘要） */}
+                <div className="flex items-center gap-1.5 mt-2">
+                    <select
+                        value={commLogForm.type}
+                        onChange={e => setCommLogForm(prev => ({ ...prev, type: e.target.value as CommunicationType }))}
+                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white/60 border-slate-200 text-slate-800'}`}
+                    >
+                        {COMM_TYPES.map(t => (
+                            <option key={t} value={t}>{COMM_TYPE_LABELS[t]}</option>
+                        ))}
+                    </select>
+                    <input
+                        type="date"
+                        value={commLogForm.occurredAt}
+                        onChange={e => setCommLogForm(prev => ({ ...prev, occurredAt: e.target.value }))}
+                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white/60 border-slate-200 text-slate-800'}`}
+                    />
+                    <input
+                        value={commLogForm.summary}
+                        onChange={e => setCommLogForm(prev => ({ ...prev, summary: e.target.value }))}
+                        placeholder="沟通摘要"
+                        className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-white/30' : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400'}`}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAddCommLog}
+                        disabled={commLogBusy || !commLogForm.summary.trim()}
+                        className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 ${isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white/70' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+                        title="添加沟通日志"
+                    >
+                        {commLogBusy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                    </button>
+                </div>
+            </div>
+        </InfoSection>
+    );
+
+    // P3b 操作错误提示（品牌线/沟通日志共用，轻量行内提示）
+    const p3bErrorSection = p3bError ? (
+        <p className="text-xs text-os-adaptive-danger">{p3bError}</p>
+    ) : null;
 
     // 跨模块关联视图（EntityLink 图谱，组织/联系人两种布局共用）
     // 联系人双码合并：owned 链接挂在 relation.contact，订单角色链接指向 relation.person
@@ -384,6 +625,14 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
                         {interactionHistorySection}
 
+                        {/* 阶段 P3b：品牌线（PRD 6.2，组织专属） */}
+                        {brandLinesSection}
+
+                        {/* 阶段 P3b：沟通日志（PRD 12.3 全渠道流水） */}
+                        {commLogsSection}
+
+                        {p3bErrorSection}
+
                         {/* 跨模块关联视图（EntityLink 图谱） */}
                         {relatedEntitiesSection}
 
@@ -443,6 +692,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
                         {/* 互动历史（CRM 跟进记录） */}
                         {interactionHistorySection}
+
+                        {/* 阶段 P3b：沟通日志（PRD 12.3 全渠道流水） */}
+                        {commLogsSection}
+
+                        {p3bErrorSection}
 
                         {/* 跨模块关联视图（EntityLink 图谱） */}
                         {relatedEntitiesSection}

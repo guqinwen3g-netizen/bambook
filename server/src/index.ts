@@ -50,6 +50,7 @@ import { logger } from './lib/logger';
 import { attachPrismaSlowQueryLogger, createRequestTimingMiddleware } from './lib/requestTiming';
 import { createEmailRouter } from './email/route';
 import { createEmailTemplateRouter, seedStandardEmailTemplates } from './email/templateRoute';
+import { createEmailSignatureRouter } from './email/signatureRoute';
 import { addRealtimeClient, publishDataChange } from './realtime';
 import { createAiRuntime } from './ai/runtime';
 import { createAiRouter } from './ai/route';
@@ -905,6 +906,13 @@ app.use('/api/v1/email-templates', createEmailTemplateRouter({
     prisma,
     requireAuth: SDK_CONFIG.requireAuth,
     apiKeys: SDK_CONFIG.apiKeys,
+}));
+// 阶段 P3b：邮件签名管理（PRD 12.1 EmailSignature）
+app.use('/api/v1/email-signatures', createEmailSignatureRouter({
+    prisma,
+    requireAuth: SDK_CONFIG.requireAuth,
+    apiKeys: SDK_CONFIG.apiKeys,
+    onDataChange: publishDataChange,
 }));
 // Legacy IMAP proxy routes remain under /api/email for frontend compat
 app.use('/api/email', createEmailRouter({
