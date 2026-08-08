@@ -40,6 +40,7 @@ import { createTemplatesRouter } from './templates/route';
 import { logger } from './lib/logger';
 import { attachPrismaSlowQueryLogger, createRequestTimingMiddleware } from './lib/requestTiming';
 import { createEmailRouter } from './email/route';
+import { createEmailTemplateRouter, seedStandardEmailTemplates } from './email/templateRoute';
 import { addRealtimeClient, publishDataChange } from './realtime';
 import { createAiRuntime } from './ai/runtime';
 import { createAiRouter } from './ai/route';
@@ -79,6 +80,10 @@ if (runtimeDataSource.warning) {
 logger.info(`[data-source] kind=${runtimeDataSource.kind} host=${runtimeDataSource.host} database=${runtimeDataSource.name} businessTruth=${runtimeDataSource.isBusinessTruth}`);
 ensureDefaultAgentTools(prisma).catch(error => {
     logger.error('[agent-tools] failed to ensure default tools', { error: error?.message || String(error) });
+});
+// F5 邮件智能化：启动时幂等播种标准业务邮件模板库（报价/催款/交期/验货/问候），保证 Compose 模板库开箱有数
+seedStandardEmailTemplates(prisma).catch(error => {
+    logger.error('[email-templates] boot seed failed', { error: error?.message || String(error) });
 });
 // Phase 0 Sprint 1: 初始化业务事件总线 + 通知系统
 // 注入 prisma 到 businessEventBus，订阅所有业务事件 → notificationService
@@ -786,6 +791,12 @@ app.get('/api/fetch-url', async (req, res) => {
 // Email Service — extracted to server/src/email/route.ts (Phase 4a)
 // ------------------------------------------------------------------
 app.use('/api/v1/email', createEmailRouter({
+    prisma,
+    requireAuth: SDK_CONFIG.requireAuth,
+    apiKeys: SDK_CONFIG.apiKeys,
+}));
+// F5 邮件智能化：业务场景模板库（PRD 12.1）
+app.use('/api/v1/email-templates', createEmailTemplateRouter({
     prisma,
     requireAuth: SDK_CONFIG.requireAuth,
     apiKeys: SDK_CONFIG.apiKeys,

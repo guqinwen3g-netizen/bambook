@@ -689,6 +689,45 @@ export function createEmailRouter(options: EmailRouterOptions) {
   });
 
   /**
+   * GET /api/v1/email/intents — F5 意图可视化：按 mailbox+uids 聚合 AI 意图徽标
+   *
+   * 前端邮件列表为 IMAP 实时流（不含 DB 字段），本端点提供薄覆盖层：
+   * 已同步且已 AI 抽取的邮件返回 intent/customerSignal/summary，未抽取的不出现。
+   * Query: mailbox（必填，物理箱名）, uids（必填，逗号分隔 IMAP UID，上限 200）
+   */
+  router.get('/intents', async (req: Request, res: Response) => {
+    try {
+      const mailbox = typeof req.query.mailbox === 'string' ? req.query.mailbox : '';
+      const rawUids = typeof req.query.uids === 'string' ? req.query.uids : '';
+      if (!mailbox || !rawUids) {
+        return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'mailbox 与 uids 必填' } });
+      }
+      const uids = rawUids.split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n)).slice(0, 200);
+      if (uids.length === 0) return res.json({ ok: true, items: [] });
+
+      const rows = await (prisma as any).email.findMany({
+        where: { mailbox, uid: { in: uids }, deletedAt: null, aiExtractedJson: { not: null } },
+        select: { uid: true, aiExtractedJson: true },
+      });
+      const items = rows
+        .map((r: any) => {
+          const payload = r.aiExtractedJson as any;
+          return {
+            uid: r.uid,
+            intent: typeof payload?.intent === 'string' ? payload.intent : 'other',
+            customerSignal: typeof payload?.customerSignal === 'string' ? payload.customerSignal : null,
+            summary: typeof payload?.summary === 'string' ? payload.summary : null,
+          };
+        })
+        .filter((it: any) => it.uid !== null && it.uid !== undefined);
+      res.json({ ok: true, items });
+    } catch (e: any) {
+      logger.error('[email] intents error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'INTENTS_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  /**
    * GET /api/v1/email/:id — 查询单封邮件详情
    *
    * 注意：此通配路由必须放在所有具名 GET 路由（/attachment、/image 等）之后，

@@ -1,10 +1,15 @@
 import React from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { Loader2, Paperclip, Star, Flag } from 'lucide-react';
+import { Loader2, Paperclip, Star, Flag, AlertTriangle } from 'lucide-react';
 import { Email } from '../../types';
 import { format, isToday, isYesterday, isThisYear } from 'date-fns';
 import { cleanHtmlSnippet } from '../../utils/emailUtils';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
+import {
+    EmailIntentInfo,
+    EMAIL_INTENT_LABELS,
+    EMAIL_SIGNAL_LABELS,
+} from '../../services/emailIntelligenceService';
 
 const formatTime = (dateStr?: string | Date) => {
     if (!dateStr) return '';
@@ -32,6 +37,8 @@ interface EmailListProps {
     hasMore: boolean;
     isLoadingMore: boolean;
     isDarkMode?: boolean;
+    /** F5 意图徽标薄覆盖层：key = IMAP uid（字符串），仅已 AI 抽取的邮件有值 */
+    intentByUid?: Record<string, EmailIntentInfo>;
 }
 
 const getAvatarColor = (name: string) => {
@@ -53,6 +60,20 @@ const getInitials = (name: string) => {
     return clean.charAt(0).toUpperCase();
 };
 
+/**
+ * F5 意图 chip 样式（RDL flat 纪律：本文件禁语义彩色，意图区分靠文字而非颜色）。
+ * 信号 chip 前置 AlertTriangle 图标表达紧急/风险，保持中性色板。
+ */
+const INTENT_CHIP_CLASS = {
+  dark: 'bg-white/[0.07] text-slate-300',
+  light: 'bg-slate-500/[0.08] text-slate-500',
+};
+
+const SIGNAL_CHIP_CLASS = {
+  dark: 'bg-white/[0.10] text-slate-200',
+  light: 'bg-slate-500/[0.12] text-slate-700',
+};
+
 export const EmailList: React.FC<EmailListProps> = ({
     emails,
     selectedId,
@@ -61,7 +82,8 @@ export const EmailList: React.FC<EmailListProps> = ({
     loadMore,
     hasMore,
     isLoadingMore,
-    isDarkMode = false
+    isDarkMode = false,
+    intentByUid
 }) => {
     const actionControlClass = isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light;
     const selectedSurfaceClass = isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light;
@@ -101,6 +123,9 @@ export const EmailList: React.FC<EmailListProps> = ({
                     const isSelected = selectedId === email.id;
                     const initials = getInitials(email.sender);
                     const avatarColor = getAvatarColor(email.sender);
+                    const emailUid = email.uid || (email.id.includes('-') ? email.id.split('-').pop()! : email.id);
+                    const intentInfo = intentByUid?.[String(emailUid)];
+                    const signalLabel = intentInfo?.customerSignal ? EMAIL_SIGNAL_LABELS[intentInfo.customerSignal] : undefined;
 
                     return (
                         <div
@@ -144,6 +169,20 @@ export const EmailList: React.FC<EmailListProps> = ({
                                 </div>
 
                                 <div className="flex items-center gap-2 mt-2">
+                                    {intentInfo && intentInfo.intent !== 'other' && (
+                                        <span
+                                            title={intentInfo.summary || undefined}
+                                            className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? INTENT_CHIP_CLASS.dark : INTENT_CHIP_CLASS.light}`}
+                                        >
+                                            {EMAIL_INTENT_LABELS[intentInfo.intent]}
+                                        </span>
+                                    )}
+                                    {signalLabel && (
+                                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? SIGNAL_CHIP_CLASS.dark : SIGNAL_CHIP_CLASS.light}`}>
+                                            <AlertTriangle size={10} strokeWidth={1.5} />
+                                            {signalLabel}
+                                        </span>
+                                    )}
                                     {email.attachments && email.attachments.length > 0 && (
                                         <Paperclip size={12} strokeWidth={1} className="text-slate-400" />
                                     )}

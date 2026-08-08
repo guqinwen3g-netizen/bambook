@@ -2168,6 +2168,29 @@ model EmailAttachment {
   @@index([filename])
 }
 
+// EmailTemplate：业务场景邮件模板（F5 邮件智能化）
+// 报价/催款/交期通知/验货报告/节日问候等标准模板（PRD 12.1）。
+// subject/body 支持 {{variable}} 占位符，插入时由前端变量表单填充；
+// variables 冗余存储模板中出现的变量名，供 UI 直接生成填写项。
+model EmailTemplate {
+  id   String @id // 格式：EMTPL__${shortId}
+  type String // quote | payment_reminder | delivery_notice | inspection_report | greeting | general
+
+  name      String // 模板名称（如：标准报价函）
+  subject   String // 主题模板（支持 {{var}}）
+  body      String // 正文模板（支持 {{var}}）
+  variables String[] // 变量清单（如 ["customerName","quotationNo"]）
+
+  isActive Boolean @default(true)
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([type])
+  @@index([isActive])
+}
+
 // ════════════════════════════════════════════════════════════════════
 // End of Email Module
 // ════════════════════════════════════════════════════════════════════

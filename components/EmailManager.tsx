@@ -15,6 +15,12 @@ import {
 import { apiService } from '../services/apiService';
 import { emailSyncService } from '../services/emailSyncService';
 import { emailOutboxService } from '../services/emailOutboxService';
+import {
+  emailIntelligenceService,
+  EmailIntentInfo,
+  EmailTemplate,
+  EMAIL_TEMPLATE_TYPE_LABELS,
+} from '../services/emailIntelligenceService';
 import { getApiBaseUrl } from '../services/apiBase';
 import DOMPurify from 'dompurify';
 import { EmailList } from './email/EmailList';
@@ -90,6 +96,17 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   const [composeTo, setComposeTo] = useState('');
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
+
+  // F5 模板库 State（PRD 12.1/19.3：插入模板，变量自动填充）
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState<EmailTemplate | null>(null);
+  const [templateVars, setTemplateVars] = useState<Record<string, string>>({});
+
+  // F5 意图可视化 State（PRD 19.3：列表自动分类标签；key = IMAP uid 字符串）
+  const [intentByUid, setIntentByUid] = useState<Record<string, EmailIntentInfo>>({});
+  const intentFetchBoxRef = useRef('');
 
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -925,6 +942,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       setComposeTo('');
       setComposeSubject('');
       setComposeBody('');
+      setActiveTemplate(null);
+      setTemplateVars({});
+      setTemplatePickerOpen(false);
     } catch (e: any) {
       setOutboxError(e?.message || '邮件创建失败，请稍后重试');
     } finally {
@@ -1201,6 +1221,58 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     return result;
   }, [emails, currentBox, searchTerm, filterType, sortType]);
 
+  // F5 意图可视化：displayEmails 变化时批量拉取 AI 意图徽标（薄覆盖层，失败静默）
+  useEffect(() => {
+    const physicalBox = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox) ? 'INBOX' : currentBox;
+    // 切物理箱时清空：IMAP uid 仅在单箱内唯一，跨箱残留会错标
+    if (intentFetchBoxRef.current !== physicalBox) {
+      intentFetchBoxRef.current = physicalBox;
+      setIntentByUid({});
+      return;
+    }
+    const missingUids = displayEmails
+      .map(e => e.uid || (e.id.includes('-') ? e.id.split('-').pop()! : e.id))
+      .filter(uid => uid && /^\d+$/.test(String(uid)) && !(String(uid) in intentByUid));
+    if (missingUids.length === 0) return;
+    let cancelled = false;
+    emailIntelligenceService.fetchEmailIntents(physicalBox, missingUids).then(map => {
+      if (cancelled || Object.keys(map).length === 0) return;
+      setIntentByUid(prev => ({ ...prev, ...map }));
+    });
+    return () => { cancelled = true; };
+  }, [displayEmails, currentBox]);
+
+  // F5 模板库：Compose 打开时按需拉取一次
+  useEffect(() => {
+    if (!isComposing || templatesLoaded) return;
+    let cancelled = false;
+    emailIntelligenceService.fetchEmailTemplates().then(items => {
+      if (cancelled) return;
+      setEmailTemplates(items);
+      setTemplatesLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [isComposing, templatesLoaded]);
+
+  /** 选择模板：变量自动填充（收件人/日期等已知值），subject/body 实时渲染 */
+  const handleSelectTemplate = (tpl: EmailTemplate) => {
+    const autoVars = emailIntelligenceService.deriveTemplateVars({ to: composeTo });
+    setActiveTemplate(tpl);
+    setTemplateVars(autoVars);
+    setComposeSubject(emailIntelligenceService.renderEmailTemplate(tpl.subject, autoVars));
+    setComposeBody(emailIntelligenceService.renderEmailTemplate(tpl.body, autoVars));
+    setTemplatePickerOpen(false);
+  };
+
+  /** 变量输入联动：从原始模板重渲染（保留未填变量占位符） */
+  const handleTemplateVarChange = (name: string, value: string) => {
+    if (!activeTemplate) return;
+    const next = { ...templateVars, [name]: value };
+    setTemplateVars(next);
+    setComposeSubject(emailIntelligenceService.renderEmailTemplate(activeTemplate.subject, next));
+    setComposeBody(emailIntelligenceService.renderEmailTemplate(activeTemplate.body, next));
+  };
+
   return (
     <div
       data-email-workspace="full-bleed"
@@ -1448,6 +1520,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           isDarkMode={isDarkMode}
+          intentByUid={intentByUid}
         />
       </div>
 
@@ -1711,9 +1784,17 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   </RdlSurface>
                   New Message
                 </h3>
-                <RdlOverlayIconButton onClick={() => setIsComposing(false)} className="!h-9 !w-9">
-                  <X size={20} />
-                </RdlOverlayIconButton>
+                <div className="flex items-center gap-2">
+                  <RdlPill
+                    onClick={() => setTemplatePickerOpen(v => !v)}
+                    className={`min-h-8 px-3 text-xs ${templatePickerOpen ? (isDarkMode ? 'bg-white/10' : 'bg-white/50') : ''}`}
+                  >
+                    <FileText size={14} strokeWidth={1} className="text-blue-500" /> 模板
+                  </RdlPill>
+                  <RdlOverlayIconButton onClick={() => setIsComposing(false)} className="!h-9 !w-9">
+                    <X size={20} />
+                  </RdlOverlayIconButton>
+                </div>
               </div>
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="px-8 py-4 space-y-4 border-b border-white/40">
@@ -1736,6 +1817,60 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                       className={`flex-1 bg-transparent outline-none text-sm font-light placeholder:text-slate-300 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}
                     />
                   </div>
+
+                  {/* F5 模板选择面板（PRD 12.1：报价/催款/交期通知/验货报告/节日问候） */}
+                  {templatePickerOpen && (
+                    <div className={`rounded-control border p-3 space-y-2 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white/50'}`}>
+                      {!templatesLoaded ? (
+                        <div className="flex items-center gap-2 text-xs font-light text-slate-400 px-1 py-2">
+                          <Loader2 size={12} className="animate-spin" /> 加载模板库...
+                        </div>
+                      ) : emailTemplates.length === 0 ? (
+                        <div className="text-xs font-light text-slate-400 px-1 py-2">暂无可用模板，请先在服务端播种标准模板库</div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {emailTemplates.map(tpl => (
+                            <button
+                              key={tpl.id}
+                              type="button"
+                              onClick={() => handleSelectTemplate(tpl)}
+                              className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/[0.06] hover:bg-white/10 text-slate-200' : 'bg-white/70 hover:bg-white text-slate-700'}`}
+                            >
+                              <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>{EMAIL_TEMPLATE_TYPE_LABELS[tpl.type] || tpl.type} · </span>
+                              {tpl.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* F5 模板变量填写行（选中模板且含变量时显示，输入实时渲染） */}
+                  {activeTemplate && activeTemplate.variables.length > 0 && (
+                    <div className={`rounded-control border px-3 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white/50'}`}>
+                      <span className="text-[10px] font-light text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        {activeTemplate.name}
+                        <button
+                          type="button"
+                          onClick={() => setActiveTemplate(null)}
+                          className={`normal-case tracking-normal ${isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          解除联动
+                        </button>
+                      </span>
+                      {activeTemplate.variables.map(name => (
+                        <label key={name} className="flex items-center gap-1.5 text-xs font-light">
+                          <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>{name}</span>
+                          <input
+                            value={templateVars[name] || ''}
+                            onChange={e => handleTemplateVarChange(name, e.target.value)}
+                            placeholder={`{{${name}}}`}
+                            className={`w-32 px-2 py-1 rounded-control outline-none text-xs font-light ${isDarkMode ? 'bg-white/[0.06] text-slate-200 placeholder:text-slate-600' : 'bg-white/80 text-slate-800 placeholder:text-slate-300'}`}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <textarea
                   value={composeBody}
