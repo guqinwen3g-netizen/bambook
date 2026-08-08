@@ -68,6 +68,7 @@ import {
   TradeDocumentStatus,
   TradeDocumentType,
 } from './customsService';
+import { createDocumentTemplateService } from './documentTemplateService';
 
 export interface CustomsRouterOptions {
   prisma: PrismaClient;
@@ -92,6 +93,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
   const router = Router();
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createCustomsService(prisma);
+  const docTemplates = createDocumentTemplateService(prisma);
 
   const authenticate = (req: Request, res: Response): boolean => {
     if (!requireAuth) return true;
@@ -571,6 +573,45 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[CustomsRoute] POST trade-document transition failed', { error: e?.message });
       res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to transition trade-document' });
+    }
+  });
+
+  // ─── 单据版本留痕（阶段 P3a，PRD 11.3 DocumentVersion）───
+
+  router.get('/trade-documents/:id/versions', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const result = await docTemplates.listVersions(req.params.id);
+      res.json(result);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] GET trade-document versions failed', { error: e?.message });
+      res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to list document versions' });
+    }
+  });
+
+  router.get('/trade-documents/:id/versions/:version', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const version = Number(req.params.version);
+      if (!Number.isInteger(version) || version < 1) {
+        return res.status(400).json({ error: '非法版本号' });
+      }
+      const item = await docTemplates.getVersion(req.params.id, version);
+      res.json({ item });
+    } catch (e: any) {
+      logger.error('[CustomsRoute] GET trade-document version failed', { error: e?.message });
+      res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to get document version' });
+    }
+  });
+
+  router.post('/trade-documents/:id/versions', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const item = await docTemplates.createVersion(req.params.id, req.body ?? {}, actorOf(req));
+      onDataChange?.({ entity: 'TradeDocument', action: 'create_version', ids: [req.params.id] });
+      res.status(201).json({ item });
+    } catch (e: any) {
+      logger.error('[CustomsRoute] POST trade-document version failed', { error: e?.message });
+      res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to create document version' });
     }
   });
 

@@ -3206,6 +3206,135 @@ model FabricRecommendation {
   @@index([createdAt])
 }
 
+// ============ 阶段 P3a: 单据模板与版本（PRD 11.3） ============
+// 设计决策：
+//   - DocumentTemplate 为每类单据的标准模板（公司抬头/条款/格式），content 为 HTML，支持 {{var}} 占位符；
+//     variables 创建/更新时自动从 content 解析（与邮件模板同口径，共享 lib/templateVariables）
+//   - isDefault 同 type+language 下唯一（service 事务内清除其他默认），供自动生成草稿时选真源
+//   - DocumentVersion 为 TradeDocument 内容变更留痕：版本号按 documentId 单调递增（max+1），
+//     content 为变更后整行字段快照（Json），可审计可回溯；版本只增不删（随主单软删隐藏）
+
+// DocumentTemplate：单据模板（PRD 11.3 P1）
+model DocumentTemplate {
+  id   String @id // 格式：DTPL__${shortId}
+  type String // Quotation | SalesConfirmation | ProformaInvoice | CommercialInvoice | PackingList | BillOfLading | AirWaybill | CertificateOfOrigin | InsuranceCert | InspectionCert | InspectionReport | Statement | Other
+
+  name     String // 模板名称（如 "商业发票标准模板-中英"）
+  language String @default("bilingual") // zh | en | bilingual
+
+  content   String   // HTML 模板（支持 {{variable}} 占位符）
+  variables String[] // 变量清单（自动从 content 解析，冗余存储供 UI 生成填写项）
+
+  isDefault Boolean @default(false) // 同 type+language 下仅一个默认模板
+  isActive  Boolean @default(true)
+
+  notes     String?
+  createdBy String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([type, language])
+  @@index([isDefault])
+  @@index([isActive])
+}
+
+// DocumentVersion：单据版本留痕（PRD 11.3 P2）
+model DocumentVersion {
+  id         String @id // 格式：DVER__${shortId}
+  documentId String // 关联 TradeDocument（snapshot FK）
+  version    Int // 按 documentId 单调递增（1 起）
+
+  content      Json // 变更后单据字段快照
+  changeReason String? // 变更原因
+  changedBy    String? // 修改人
+
+  createdAt BigInt
+
+  @@unique([documentId, version])
+  @@index([documentId])
+}
+
+// ============ 阶段 P3b: 品牌线 / 沟通日志 / 邮件签名（PRD 6.2 / 12.1 / 12.3） ============
+// 设计决策：
+//   - BrandLine 挂 Relation（snapshot FK，不对 Relation 加反向字段，与 CommissionRule 同口径）；
+//     同客户下品牌线名称唯一（含软删记录占位，防复活冲突——与 CommissionRule 启用占位同思路）
+//   - CommunicationLog 与 FollowUpRecord 分工：FollowUpRecord 是跟进动作（含下次跟进计划/可转任务），
+//     CommunicationLog 是全渠道沟通流水（方向 Inbound/Outbound + 渠道 + 摘要 + 邮件/订单/报价关联），
+//     客户 360° 时间线由两者共同构成
+//   - EmailSignature 同 language 下 isDefault 唯一（service 事务内清除其他默认），
+//     content 支持 {{variable}}（共享 lib/templateVariables，与邮件/单据模板同口径）
+
+// BrandLine：客户品牌下的产品线（PRD 6.2 P1）——如某品牌 → 正装线/休闲线/设计师线
+model BrandLine {
+  id         String @id // 格式：BL__${shortId}
+  relationId String // 所属客户 Relation snapshot FK
+
+  name        String // 品牌线名称（同客户下唯一）
+  code        String? // 品牌线编码
+  description String?
+
+  isActive Boolean @default(true)
+  notes    String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([relationId])
+  @@index([isActive])
+}
+
+// CommunicationLog：沟通日志（PRD 12.3 P1）——全渠道沟通流水
+model CommunicationLog {
+  id         String @id // 格式：CL__${shortId}
+  relationId String // 关联客户 Relation snapshot FK
+  contactId  String? // 关联联系人
+
+  type       String // Email | Call | WeChat | Visit | Meeting | Other
+  direction  String @default("Outbound") // Inbound | Outbound
+  subject    String? // 主题
+  summary    String // 沟通摘要
+  occurredAt String // 沟通日期 YYYY-MM-DD
+
+  emailMessageId String? // 关联邮件消息（邮件渠道时）
+  orderId        String? // 关联订单
+  quotationId    String? // 关联报价
+
+  loggedBy  String? // 记录人
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([relationId])
+  @@index([contactId])
+  @@index([type])
+  @@index([occurredAt])
+}
+
+// EmailSignature：邮件签名（PRD 12.1 P2）——统一公司签名格式，含联系方式/地址/银行信息
+model EmailSignature {
+  id   String @id // 格式：ESIG__${shortId}
+  name String // 签名名称（如 "默认英文签名"）
+
+  language  String   @default("bilingual") // zh | en | bilingual
+  content   String // 签名内容（HTML/文本，支持 {{variable}} 如 {{senderName}}）
+  variables String[] // 自动从 content 解析（冗余存储供 UI 生成填写项）
+
+  isDefault Boolean @default(false) // 同 language 下仅一个默认签名
+  isActive  Boolean @default(true)
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([language])
+  @@index([isDefault])
+  @@index([isActive])
+}
+
 // ============ Phase 2 B2: 库存管理 Inventory Management ============
 
 model Warehouse {

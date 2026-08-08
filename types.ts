@@ -1727,6 +1727,155 @@ export interface QuotationInput {
   }>;
 }
 
+// ─── 阶段 P3c：历史报价导入（PRD 16.1/16.2）───
+/** 历史报价导入行（仅关键字段；历史归档数据无行明细，totalAmount 直写） */
+export interface HistoricalQuotationImportRow {
+  quotationNumber?: string;
+  customerName?: string;
+  amount?: number | string;
+  currency?: string;
+  issueDate?: string;
+  validUntil?: string;
+  status?: string;
+  salesperson?: string;
+  notes?: string;
+}
+
+export interface QuotationImportRowError {
+  row: number; // 1-based（对齐 Excel 行号语义，不含表头）
+  field: string;
+  message: string;
+}
+
+export interface QuotationImportResult {
+  mode: 'preview' | 'commit';
+  total: number;
+  valid: number;
+  created: number;
+  skipped: number;
+  errors: QuotationImportRowError[];
+}
+
+// ─── 阶段 P3b：品牌线 / 沟通日志 / 邮件签名（PRD 12.1/12.3）───
+/** 品牌线（客户 360° 下的品牌线档案，同客户下 name 唯一） */
+export interface BrandLine {
+  id: string;
+  relationId: string;
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  isActive: boolean;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface BrandLineInput {
+  name: string;
+  code?: string;
+  description?: string;
+  isActive?: boolean;
+  notes?: string;
+}
+
+export type CommunicationType = 'Email' | 'Call' | 'WeChat' | 'Visit' | 'Meeting' | 'Other';
+export type CommunicationDirection = 'Inbound' | 'Outbound';
+
+/** 沟通日志（全渠道沟通流水） */
+export interface CommunicationLog {
+  id: string;
+  relationId: string;
+  contactId?: string | null;
+  type: CommunicationType;
+  direction: CommunicationDirection;
+  subject?: string | null;
+  summary: string;
+  occurredAt: string; // YYYY-MM-DD
+  emailMessageId?: string | null;
+  orderId?: string | null;
+  quotationId?: string | null;
+  loggedBy?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface CommunicationLogInput {
+  contactId?: string;
+  type: CommunicationType;
+  direction?: CommunicationDirection;
+  subject?: string;
+  summary: string;
+  occurredAt: string;
+  emailMessageId?: string;
+  orderId?: string;
+  quotationId?: string;
+  notes?: string;
+}
+
+export type SignatureLanguage = 'zh' | 'en' | 'bilingual';
+
+/** 邮件签名（content 支持 {{variable}}，variables 服务端自动解析冗余存储） */
+export interface EmailSignature {
+  id: string;
+  name: string;
+  language: SignatureLanguage;
+  content: string;
+  variables: string[];
+  isDefault: boolean;
+  isActive: boolean;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface EmailSignatureInput {
+  name: string;
+  language?: SignatureLanguage;
+  content: string;
+  isDefault?: boolean;
+  isActive?: boolean;
+  notes?: string;
+}
+
+// ─── 阶段 P3a：单据模板（PRD 11.3 DocumentTemplate）───
+export type DocumentTemplateType =
+  | 'Quotation' | 'SalesConfirmation' | 'ProformaInvoice' | 'CommercialInvoice'
+  | 'PackingList' | 'BillOfLading' | 'AirWaybill' | 'CertificateOfOrigin'
+  | 'InsuranceCert' | 'InspectionCert' | 'InspectionReport' | 'Statement' | 'Other';
+
+export type DocumentTemplateLanguage = 'zh' | 'en' | 'bilingual';
+
+/** 单据模板（content 为 HTML，支持 {{variable}} 占位符，variables 服务端自动解析） */
+export interface DocumentTemplate {
+  id: string;
+  type: DocumentTemplateType;
+  name: string;
+  language: DocumentTemplateLanguage;
+  content: string;
+  variables: string[];
+  isDefault: boolean;
+  isActive: boolean;
+  notes?: string | null;
+  createdBy?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+export interface DocumentTemplateInput {
+  type: DocumentTemplateType;
+  name: string;
+  language?: DocumentTemplateLanguage;
+  content: string;
+  isDefault?: boolean;
+  isActive?: boolean;
+  notes?: string;
+}
+
 // ─── Phase 2 B1: 采购管理 ───
 export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Confirmed' | 'PartiallyReceived' | 'Received' | 'Closed' | 'Cancelled';
 

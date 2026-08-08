@@ -17,6 +17,10 @@ import crypto from 'crypto';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
+import { extractTemplateVariables } from '../lib/templateVariables';
+
+// 保持既有导出面（测试与外部引用兼容）；实现已共享至 lib/templateVariables
+export { extractTemplateVariables };
 
 export interface EmailTemplateRouterOptions {
   prisma: PrismaClient;
@@ -25,24 +29,6 @@ export interface EmailTemplateRouterOptions {
 }
 
 const TEMPLATE_TYPES = ['quote', 'payment_reminder', 'delivery_notice', 'inspection_report', 'greeting', 'general'] as const;
-
-/** 从模板文本解析 {{variable}} 占位符（去重、保序） */
-export function extractTemplateVariables(...texts: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const text of texts) {
-    if (!text) continue;
-    const re = /\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      if (!seen.has(m[1])) {
-        seen.add(m[1]);
-        out.push(m[1]);
-      }
-    }
-  }
-  return out;
-}
 
 function generateTemplateId(): string {
   return `EMTPL__${crypto.randomBytes(6).toString('base64url').toUpperCase()}`;

@@ -13,6 +13,16 @@ import {
   PaymentVoucher,
   Quotation,
   QuotationInput,
+  HistoricalQuotationImportRow,
+  QuotationImportResult,
+  BrandLine,
+  BrandLineInput,
+  CommunicationLog,
+  CommunicationLogInput,
+  EmailSignature,
+  EmailSignatureInput,
+  DocumentTemplate,
+  DocumentTemplateInput,
   PurchaseOrder,
   PurchaseOrderInput,
   MaterialReceipt,
@@ -265,6 +275,12 @@ const jsonHeaders = (): Record<string, string> => {
   const key = getApiKey();
   if (key) headers['X-Bambook-API-Key'] = key;
   return headers;
+};
+
+/** JWT 头（写操作需 JWT 的路由使用，如 email-signatures；token 取自登录态存储） */
+const jwtAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 const requestJson = async <T>(path: string, opts: RequestInit & { endpoint?: string } = {}): Promise<T> => {
@@ -703,6 +719,15 @@ export const apiService = {
       body: JSON.stringify(overrides || {}),
     });
     return data;
+  },
+
+  // ── 阶段 P3c：历史报价导入（PRD 16.1；preview 只校验，commit 导入合法行）──
+  async importHistoricalQuotations(rows: HistoricalQuotationImportRow[], mode: 'preview' | 'commit', endpoint?: string): Promise<QuotationImportResult> {
+    return requestJson<QuotationImportResult>('/v1/quotations/import', {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({ rows, mode }),
+    });
   },
 
   // ── Phase 2 B1: 采购管理 API ──
@@ -1190,6 +1215,90 @@ export const apiService = {
     const query = daysAhead != null ? `?daysAhead=${daysAhead}` : '';
     const data = await requestJson<{ overdue: FollowUpRecord[] }>(`/v1/crm/follow-ups/overdue${query}`, { endpoint, method: 'GET' });
     return data.overdue ?? [];
+  },
+
+  // ── 阶段 P3b：品牌线 BrandLine（PRD 6.2，客户 360°）──
+  async listBrandLines(relationId: string, opts?: { includeInactive?: boolean }, endpoint?: string): Promise<BrandLine[]> {
+    const qs = opts?.includeInactive ? '?includeInactive=1' : '';
+    const data = await requestJson<{ items: BrandLine[]; total: number }>(`/v1/crm/${encodeURIComponent(relationId)}/brand-lines${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createBrandLine(relationId: string, input: BrandLineInput, endpoint?: string): Promise<BrandLine> {
+    const data = await requestJson<{ item: BrandLine }>(`/v1/crm/${encodeURIComponent(relationId)}/brand-lines`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateBrandLine(id: string, input: Partial<BrandLineInput>, endpoint?: string): Promise<BrandLine> {
+    const data = await requestJson<{ item: BrandLine }>(`/v1/crm/brand-lines/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async deleteBrandLine(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/crm/brand-lines/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 阶段 P3b：沟通日志 CommunicationLog（PRD 12.3，全渠道沟通流水）──
+  async listCommLogs(relationId: string, opts?: { type?: string; direction?: string; limit?: number; offset?: number }, endpoint?: string): Promise<CommunicationLog[]> {
+    const query = new URLSearchParams();
+    if (opts?.type) query.set('type', opts.type);
+    if (opts?.direction) query.set('direction', opts.direction);
+    if (opts?.limit != null) query.set('limit', String(opts.limit));
+    if (opts?.offset != null) query.set('offset', String(opts.offset));
+    const qs = query.toString();
+    const data = await requestJson<{ items: CommunicationLog[]; total: number }>(`/v1/crm/${encodeURIComponent(relationId)}/comm-logs${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createCommLog(relationId: string, input: CommunicationLogInput, endpoint?: string): Promise<CommunicationLog> {
+    const data = await requestJson<{ item: CommunicationLog }>(`/v1/crm/${encodeURIComponent(relationId)}/comm-logs`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateCommLog(id: string, input: Partial<CommunicationLogInput>, endpoint?: string): Promise<CommunicationLog> {
+    const data = await requestJson<{ item: CommunicationLog }>(`/v1/crm/comm-logs/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async deleteCommLog(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/crm/comm-logs/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 阶段 P3b：邮件签名 EmailSignature（PRD 12.1；写操作需 JWT）──
+  async listEmailSignatures(opts?: { language?: string; includeInactive?: boolean }, endpoint?: string): Promise<EmailSignature[]> {
+    const query = new URLSearchParams();
+    if (opts?.language) query.set('language', opts.language);
+    if (opts?.includeInactive) query.set('includeInactive', '1');
+    const qs = query.toString();
+    const data = await requestJson<{ items: EmailSignature[]; total: number }>(`/v1/email-signatures${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createEmailSignature(input: EmailSignatureInput, endpoint?: string): Promise<EmailSignature> {
+    const data = await requestJson<{ item: EmailSignature }>(`/v1/email-signatures`, { endpoint, method: 'POST', headers: jwtAuthHeaders(), body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateEmailSignature(id: string, input: Partial<EmailSignatureInput>, endpoint?: string): Promise<EmailSignature> {
+    const data = await requestJson<{ item: EmailSignature }>(`/v1/email-signatures/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', headers: jwtAuthHeaders(), body: JSON.stringify(input) });
+    return data.item;
+  },
+  async deleteEmailSignature(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/email-signatures/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE', headers: jwtAuthHeaders() });
+  },
+
+  // ── 阶段 P3a：单据模板 DocumentTemplate（PRD 11.3；写操作需 JWT）──
+  async listDocumentTemplates(opts?: { type?: string; language?: string; includeInactive?: boolean }, endpoint?: string): Promise<DocumentTemplate[]> {
+    const query = new URLSearchParams();
+    if (opts?.type) query.set('type', opts.type);
+    if (opts?.language) query.set('language', opts.language);
+    if (opts?.includeInactive) query.set('includeInactive', '1');
+    const qs = query.toString();
+    const data = await requestJson<{ items: DocumentTemplate[]; total: number }>(`/v1/document-templates${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createDocumentTemplate(input: DocumentTemplateInput, endpoint?: string): Promise<DocumentTemplate> {
+    const data = await requestJson<{ item: DocumentTemplate }>(`/v1/document-templates`, { endpoint, method: 'POST', headers: jwtAuthHeaders(), body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateDocumentTemplate(id: string, input: Partial<DocumentTemplateInput>, endpoint?: string): Promise<DocumentTemplate> {
+    const data = await requestJson<{ item: DocumentTemplate }>(`/v1/document-templates/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', headers: jwtAuthHeaders(), body: JSON.stringify(input) });
+    return data.item;
+  },
+  async deleteDocumentTemplate(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/document-templates/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE', headers: jwtAuthHeaders() });
   },
 
   // Opportunity

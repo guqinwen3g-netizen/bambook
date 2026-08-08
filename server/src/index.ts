@@ -43,6 +43,7 @@ import { createLookbookRouter } from './products/lookbookRoute';
 import { createFabricRecommendationRouter } from './products/fabricRecommendationRoute';
 import { createMesRouter } from './mes/mesRoute';
 import { createCustomsRouter } from './customs/customsRoute';
+import { createDocumentTemplateRouter } from './customs/documentTemplateRoute';
 import { createProductionRouter } from './production/route';
 import { createTemplatesRouter } from './templates/route';
 import { logger } from './lib/logger';
@@ -670,6 +671,17 @@ app.use(
 app.use(
     '/api/v1/customs',
     (req, res, next) => createCustomsRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 P3a：单据模板（PRD 11.3 DocumentTemplate）
+app.use(
+    '/api/v1/document-templates',
+    (req, res, next) => createDocumentTemplateRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

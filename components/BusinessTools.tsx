@@ -22,6 +22,7 @@ import QuoteCalculator from './tools/QuoteCalculator';
 import PackingListGenerator from './tools/PackingListGenerator';
 import ContractGenerator from './tools/ContractGenerator';
 import ShipmentDocumentGenerator from './tools/ShipmentDocumentGenerator';
+import DocumentTemplateManager from './tools/DocumentTemplateManager';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -117,6 +118,14 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       icon: Layers,
       status: 'available',
       component: <ShipmentDocumentGenerator isDarkMode={isDarkMode} />
+    },
+    {
+      id: 'document-templates',
+      name: '单据模板管理',
+      description: '13 类外贸单据 HTML 模板 · 变量占位符 · 默认模板',
+      icon: FileText,
+      status: 'available',
+      component: <DocumentTemplateManager isDarkMode={isDarkMode} />
     },
     {
       id: 'quote-calculator',
