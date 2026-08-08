@@ -5,6 +5,7 @@ import { allocationService } from '../services/allocationService';
 import { fxSettlementService } from '../services/fxSettlementService';
 import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
+import { apiService } from '../services/apiService';
 import { BadgeCheck, Ban, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Send, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { RdlMetricCard, RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
@@ -22,6 +23,7 @@ import type {
   VatInvoiceStatus,
   VatInvoiceDirection,
   VatInvoiceType,
+  TaxRefund as TaxRefundEntity,
 } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { PageHeader } from './ui/PageHeader';
@@ -106,6 +108,20 @@ const VAT_TRANSITION_LABELS: Record<'Verified' | 'Declared' | 'RedFlushed', stri
   Declared: '申报退税',
   RedFlushed: '红冲',
 };
+
+/** C6 退税申报单状态文案（消费 /v1/customs/tax-refunds contract） */
+const TAX_REFUND_STATUS_LABELS: Record<string, string> = {
+  Draft: '草稿',
+  Submitted: '已申报',
+  Reviewing: '审核中',
+  Approved: '已批准',
+  Rejected: '已拒绝',
+  Refunded: '已退税',
+  Cancelled: '已取消',
+};
+
+/** 可挂接进项专票的退税申报单状态（Approved/Refunded/Cancelled 不再接受新票） */
+const VAT_DECLARABLE_REFUND_STATUSES = ['Draft', 'Submitted', 'Reviewing', 'Rejected'];
 
 /** C6 付汇用途选项（镜像后端 REMITTANCE_PURPOSES 契约枚举） */
 const REMITTANCE_PURPOSE_OPTIONS: Array<{ id: string; label: string }> = [
@@ -767,6 +783,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const [vatTransitionSaving, setVatTransitionSaving] = useState(false);
   const [vatTransitionError, setVatTransitionError] = useState<string | null>(null);
   const [vatMutatingId, setVatMutatingId] = useState<string | null>(null);
+  // 申报退税：可选退税申报单候选（Draft/Submitted/Reviewing/Rejected，终态不再接受新票）
+  const [vatRefundOptions, setVatRefundOptions] = useState<TaxRefundEntity[]>([]);
+  const [vatRefundOptionsLoading, setVatRefundOptionsLoading] = useState(false);
 
   const openVatTransition = (vat: VatInvoiceEntity, action: 'Verified' | 'Declared' | 'RedFlushed') => {
     const today = new Date().toISOString().slice(0, 10);
@@ -780,6 +799,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       redFlushDate: today,
     });
     setVatTransitionError(null);
+    if (action === 'Declared') {
+      setVatRefundOptionsLoading(true);
+      apiService.listTaxRefunds({ limit: 200 })
+        .then(result => {
+          const items = result.items || [];
+          const options = items.filter(r => VAT_DECLARABLE_REFUND_STATUSES.includes(r.status));
+          // 已挂接的申报单即使进入非候选状态也保留在选项中（避免显示空值）
+          if (vat.taxRefundId && !options.some(o => o.id === vat.taxRefundId)) {
+            const current = items.find(r => r.id === vat.taxRefundId);
+            if (current) options.unshift(current);
+          }
+          setVatRefundOptions(options);
+        })
+        .catch(() => setVatRefundOptions([]))
+        .finally(() => setVatRefundOptionsLoading(false));
+    } else {
+      setVatRefundOptions([]);
+    }
   };
 
   const handleVatTransition = async () => {
@@ -2329,10 +2366,22 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               )}
               {vatTransitionAction === 'Declared' && (
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 ID *</label>
-                  <input value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
-                    placeholder="关联已登记的退税申报单"
-                    className={formInputClass} />
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 *</label>
+                  <select value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
+                    disabled={vatRefundOptionsLoading}
+                    className={formSelectClass}>
+                    <option value="">{vatRefundOptionsLoading ? '加载退税申报单…' : '请选择退税申报单'}</option>
+                    {vatRefundOptions.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.refundNumber} · {TAX_REFUND_STATUS_LABELS[r.status] || r.status}{r.refundableVat != null ? ` · 可退 ${formatAmount(Number(r.refundableVat), 'CNY')}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {!vatRefundOptionsLoading && vatRefundOptions.length === 0 && (
+                    <div className={cx('mt-1 text-[10px] font-light', textSecondaryClass)}>
+                      暂无可用退税申报单，请先在 关务 → 出口退税 页签创建
+                    </div>
+                  )}
                 </div>
               )}
               {vatTransitionAction === 'RedFlushed' && (

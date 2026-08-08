@@ -50,7 +50,10 @@ import {
   TradeDocumentInput,
   TradeDocumentType,
   TradeDocumentStatus,
+  VatInvoice,
+  VatInvoiceStatus,
 } from '../types';
+import { vatInvoiceService } from '../services/vatInvoiceService';
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -112,6 +115,15 @@ const TAX_REFUND_STATUSES: Array<{ id: TaxRefundStatus; label: string; semantic:
   { id: 'Cancelled', label: '已取消', semantic: 'neutral' },
 ];
 
+// C6 勾稽：增值税发票状态文案（镜像 FinanceManager VAT_STATUS_LABELS 契约，不猜字符串）
+const VAT_INVOICE_STATUS_LABELS: Record<VatInvoiceStatus, string> = {
+  Received: '已收票',
+  Verified: '已认证',
+  Declared: '已申报退税',
+  RedFlushed: '已红冲',
+  Cancelled: '已作废',
+};
+
 const DOC_TYPES: Array<{ id: TradeDocumentType; label: string }> = [
   { id: 'CommercialInvoice', label: '商业发票' },
   { id: 'PackingList', label: '装箱单' },
@@ -159,6 +171,11 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
   const [lcTimelineId, setLcTimelineId] = useState<string | null>(null);
   const [lcEvents, setLcEvents] = useState<LcEvent[]>([]);
   const [lcEventsLoading, setLcEventsLoading] = useState(false);
+
+  // C6：退税申报单进项专票勾稽（消费 GET /v1/finance/vat-invoices?taxRefundId=）
+  const [trVatId, setTrVatId] = useState<string | null>(null);
+  const [trVatInvoices, setTrVatInvoices] = useState<VatInvoice[]>([]);
+  const [trVatLoading, setTrVatLoading] = useState(false);
 
   // 创建表单状态
   const [showForm, setShowForm] = useState(false);
@@ -340,6 +357,25 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
       setLcEventsLoading(false);
     }
   }, [lcTimelineId]);
+
+  // C6：展开/收起退税申报单进项专票勾稽（首次展开时按 taxRefundId 拉取专票）
+  const handleToggleTrVat = useCallback(async (id: string) => {
+    if (trVatId === id) {
+      setTrVatId(null);
+      setTrVatInvoices([]);
+      return;
+    }
+    setTrVatId(id);
+    setTrVatLoading(true);
+    try {
+      const data = await vatInvoiceService.listVatInvoices(undefined, { taxRefundId: id });
+      setTrVatInvoices(data.items);
+    } catch (e: any) {
+      setError(`加载进项专票勾稽失败：${e?.message || e}`);
+    } finally {
+      setTrVatLoading(false);
+    }
+  }, [trVatId]);
 
   const handleTransitionTaxRefund = useCallback(async (id: string, toStatus: TaxRefundStatus) => {
     setActionLoading(`tr_${id}_${toStatus}`);
@@ -718,6 +754,15 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
                                   })}
                                 </div>
                               )}
+                              {/* 跨模块关联视图（EntityLink 图谱）— 开证客户/关联订单（展开时才加载，对齐报关卡门控模式） */}
+                              <div className="mt-3">
+                                <RelatedEntitiesPanel
+                                  type="letterOfCredit"
+                                  id={lc.id}
+                                  isDarkMode={isDarkMode}
+                                  title="信用证关联视图"
+                                />
+                              </div>
                             </div>
                           )}
                         </div>
@@ -735,6 +780,11 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
                   ) : (
                     taxRefunds.map(tr => {
                       const si = taxRefundStatusInfo(tr.status);
+                      // C6 勾稽：仅统计有效（已申报退税）专票税额；红冲/作废票不参与勾稽
+                      const declaredVat = trVatId === tr.id ? trVatInvoices.filter(v => v.status === 'Declared') : [];
+                      const declaredVatTaxTotal = declaredVat.reduce((acc, v) => acc + Number(v.taxAmount || 0), 0);
+                      const refundableVat = tr.refundableVat != null ? Number(tr.refundableVat) : null;
+                      const vatReconciled = refundableVat != null && Math.abs(declaredVatTaxTotal - refundableVat) <= 0.01;
                       return (
                         <div key={tr.id} className={`${cardClass} p-3`}>
                           <div className="flex items-start justify-between gap-3">
@@ -773,7 +823,57 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
                             {tr.status === 'Approved' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Refunded')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light bg-green-500 text-white disabled:opacity-50">确认到账</button>}
                             {tr.status === 'Rejected' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Draft')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50">退回草稿</button>}
                             {(tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => handleDelete('taxRefunds', tr.id)} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light text-red-500 hover:bg-red-500/10 disabled:opacity-50 flex items-center gap-1"><Trash2 size={11} />删除</button>}
+                            <button onClick={() => handleToggleTrVat(tr.id)} className={`h-7 px-3 rounded-control text-[11px] font-light flex items-center gap-1 border ${isDarkMode ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                              <Receipt size={11} />{trVatId === tr.id ? '收起专票勾稽' : '专票勾稽'}
+                            </button>
                           </div>
+                          {/* C6：进项专票勾稽（退税申报单 ↔ VAT 专票，税额勾稽核对） */}
+                          {trVatId === tr.id && (
+                            <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+                              {trVatLoading ? (
+                                <div className={`flex items-center gap-2 py-2 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  <Loader2 size={12} className="animate-spin" />加载进项专票…
+                                </div>
+                              ) : trVatInvoices.length === 0 ? (
+                                <div className={`py-2 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  暂无关联进项专票（在 财务 → 增值税 页签执行「申报退税」时关联本申报单）
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="space-y-1">
+                                    {trVatInvoices.map(v => (
+                                      <div key={v.id} className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-inset text-xs ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
+                                        <div className="min-w-0 flex-1 truncate">
+                                          <span className="font-mono">{v.vatNumber}</span>
+                                          <span className={`ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{v.sellerName}</span>
+                                        </div>
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(v.status === 'Declared' ? 'info' : v.status === 'RedFlushed' ? 'warning' : 'neutral', isDarkMode)} ${statusSemanticText(v.status === 'Declared' ? 'info' : v.status === 'RedFlushed' ? 'warning' : 'neutral', isDarkMode)}`}>
+                                          {VAT_INVOICE_STATUS_LABELS[v.status] || v.status}
+                                        </span>
+                                        <span className="shrink-0 tabular-nums">税额 CNY {formatNum(v.taxAmount)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {/* 勾稽汇总：有效专票税额合计 vs 申报可退增值税 */}
+                                  <div className={`mt-2 p-2 rounded-inset text-xs ${statusSemanticClass(trVatInvoices.length === 0 ? 'neutral' : vatReconciled ? 'success' : 'warning', isDarkMode)}`}>
+                                    有效专票 {declaredVat.length} 张 · 税额合计 CNY {formatNum(declaredVatTaxTotal)}
+                                    {refundableVat != null
+                                      ? ` · 申报可退增值税 CNY ${formatNum(refundableVat)} · ${vatReconciled ? '勾稽一致' : `勾稽差异 CNY ${formatNum(declaredVatTaxTotal - refundableVat)}`}`
+                                      : ' · 本申报单未填可退增值税额'}
+                                  </div>
+                                </>
+                              )}
+                              {/* 跨模块关联视图（EntityLink 图谱）— 关联报关单/订单/客户（展开时才加载，对齐报关卡门控模式） */}
+                              <div className="mt-3">
+                                <RelatedEntitiesPanel
+                                  type="taxRefund"
+                                  id={tr.id}
+                                  isDarkMode={isDarkMode}
+                                  title="退税关联视图"
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })
