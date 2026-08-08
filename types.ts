@@ -32,6 +32,7 @@ export enum View {
   QcWorkbench = 'qc-workbench',
   Pricing = 'pricing',
   Marketing = 'marketing',
+  Reports = 'reports',
 }
 
 export interface WallpaperOption {

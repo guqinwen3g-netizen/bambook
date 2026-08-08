@@ -41,6 +41,7 @@ export const VIEW_PERMISSION_DEFINITIONS = {
   [View.QcWorkbench]: { policy: 'permission', required: 'orders:read' },
   [View.Pricing]: { policy: 'permission', required: 'finance:read' },
   [View.Marketing]: { policy: 'permission', required: 'products:read' },
+  [View.Reports]: { policy: 'permission', required: 'finance:read' },
 } satisfies Record<View, ViewPermissionDefinition>;
 
 export function getViewPermissionDefinition(view: View): ViewPermissionDefinition {

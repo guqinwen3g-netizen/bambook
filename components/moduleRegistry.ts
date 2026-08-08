@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   BookOpen,
   Building2,
   CalendarRange,
@@ -545,6 +546,17 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     compiler: compiler('paymentVouchers', 'provisional'),
     runtime: desktopRuntime,
     entry: { current: 'components/FinanceManager.tsx' },
+  },
+  {
+    id: 'reports',
+    view: View.Reports,
+    productLabel: '报表中心',
+    internalName: 'Reports',
+    icon: BarChart3,
+    nav: { primary: true, order: 56 },
+    permissions: getViewPermissionDefinition(View.Reports),
+    runtime: desktopRuntime,
+    entry: { current: 'components/ReportCenter.tsx' },
   },
   {
     id: 'shipments',

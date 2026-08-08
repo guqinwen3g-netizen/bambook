@@ -1,0 +1,210 @@
+/**
+ * A5 报表引擎 API service — /api/v1/reports
+ *
+ * 契约要点：
+ *   - 数据集/维度/指标/过滤字段均为服务端白名单，客户端只传字段名（注入不可能）
+ *   - 预览 ≤500 行不落库；运行落快照（≤5000 行）供 CSV 重放导出
+ *   - 定时调度幂等键 definitionId:periodKey，同周期重复触发被服务端跳过
+ */
+import { apiService } from './apiService';
+
+// ────────────────────────────────────────────────────────────────
+// 类型（与 server/src/reporting/datasets.ts + reportEngine.ts 对齐）
+// ────────────────────────────────────────────────────────────────
+
+export type ReportFieldType = 'string' | 'number' | 'date' | 'enum';
+
+export interface ReportFieldSpec {
+  key: string;
+  label: string;
+  type: ReportFieldType;
+  enumValues?: readonly string[];
+}
+
+export interface ReportDatasetSpec {
+  key: string;
+  label: string;
+  prismaModel: string;
+  description?: string;
+  dimensions: ReportFieldSpec[];
+  metrics: ReportFieldSpec[];
+  filterFields: ReportFieldSpec[];
+}
+
+export type ReportMetricAgg = 'sum' | 'avg' | 'min' | 'max' | 'count';
+export type ReportFilterOp = 'eq' | 'ne' | 'in' | 'gte' | 'lte' | 'contains';
+export type ReportSchedule = 'daily' | 'weekly' | 'monthly';
+
+export interface ReportMetricSpec {
+  field: string;
+  agg: ReportMetricAgg;
+}
+
+export interface ReportFilterSpec {
+  field: string;
+  op: ReportFilterOp;
+  value: unknown;
+}
+
+export interface ReportDefinition {
+  id: string;
+  name: string;
+  description?: string | null;
+  datasetKey: string;
+  dimensions: string[];
+  metrics: ReportMetricSpec[];
+  filters?: ReportFilterSpec[] | null;
+  schedule?: ReportSchedule | null;
+  enabled: boolean;
+  lastRunAt?: number | null;
+  createdBy?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ReportDefinitionInput {
+  name: string;
+  description?: string;
+  datasetKey: string;
+  dimensions: string[];
+  metrics: ReportMetricSpec[];
+  filters?: ReportFilterSpec[];
+  schedule?: ReportSchedule | null;
+  enabled?: boolean;
+}
+
+export interface ReportRun {
+  id: string;
+  definitionId: string;
+  definitionName: string;
+  status: 'Running' | 'Success' | 'Failed';
+  trigger: 'manual' | 'schedule';
+  idempotencyKey?: string | null;
+  rowCount?: number | null;
+  columns?: string[] | null;
+  columnLabels?: string[] | null;
+  rows?: Array<Record<string, string | number | null>> | null;
+  error?: string | null;
+  startedAt: number;
+  finishedAt?: number | null;
+  createdAt: number;
+}
+
+export interface ReportPreviewResult {
+  columns: string[];
+  columnLabels: string[];
+  rows: Array<Record<string, string | number | null>>;
+  truncated: boolean;
+}
+
+// ────────────────────────────────────────────────────────────────
+// HTTP 辅助
+// ────────────────────────────────────────────────────────────────
+
+function buildUrl(path: string, endpoint?: string): string {
+  const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+  return apiService.buildApiUrl(`/v1/reports${path}`, base);
+}
+
+function headers(): Record<string, string> {
+  const apiKey = apiService.getApiKey();
+  // 写/预览/运行端点要求 JWT（与 apiService.jwtAuthHeaders 同一口径：token 取自登录态存储）
+  const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+async function parseOrThrow<T>(res: Response, fallback: string): Promise<T> {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || `${fallback}: HTTP ${res.status}`);
+  return data as T;
+}
+
+// ────────────────────────────────────────────────────────────────
+// API
+// ────────────────────────────────────────────────────────────────
+
+export const reportService = {
+  async listDatasets(endpoint?: string): Promise<ReportDatasetSpec[]> {
+    const res = await fetch(buildUrl('/datasets', endpoint), { headers: headers() });
+    const data = await parseOrThrow<{ datasets: ReportDatasetSpec[] }>(res, 'listDatasets failed');
+    return Array.isArray(data.datasets) ? data.datasets : [];
+  },
+
+  async listDefinitions(endpoint?: string): Promise<ReportDefinition[]> {
+    const res = await fetch(buildUrl('/definitions', endpoint), { headers: headers() });
+    const data = await parseOrThrow<{ definitions: ReportDefinition[] }>(res, 'listDefinitions failed');
+    return Array.isArray(data.definitions) ? data.definitions : [];
+  },
+
+  async createDefinition(input: ReportDefinitionInput, endpoint?: string): Promise<ReportDefinition> {
+    const res = await fetch(buildUrl('/definitions', endpoint), {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(input),
+    });
+    return parseOrThrow<ReportDefinition>(res, 'createDefinition failed');
+  },
+
+  async updateDefinition(id: string, patch: Partial<ReportDefinitionInput>, endpoint?: string): Promise<ReportDefinition> {
+    const res = await fetch(buildUrl(`/definitions/${encodeURIComponent(id)}`, endpoint), {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify(patch),
+    });
+    return parseOrThrow<ReportDefinition>(res, 'updateDefinition failed');
+  },
+
+  async deleteDefinition(id: string, endpoint?: string): Promise<void> {
+    const res = await fetch(buildUrl(`/definitions/${encodeURIComponent(id)}`, endpoint), {
+      method: 'DELETE',
+      headers: headers(),
+    });
+    await parseOrThrow<{ ok: boolean }>(res, 'deleteDefinition failed');
+  },
+
+  /** 临时预览（不落库，≤500 行） */
+  async preview(input: Omit<ReportDefinitionInput, 'name'>, endpoint?: string): Promise<ReportPreviewResult> {
+    const res = await fetch(buildUrl('/preview', endpoint), {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(input),
+    });
+    return parseOrThrow<ReportPreviewResult>(res, 'preview failed');
+  },
+
+  /** 手动运行（落快照） */
+  async runDefinition(id: string, endpoint?: string): Promise<ReportRun> {
+    const res = await fetch(buildUrl(`/definitions/${encodeURIComponent(id)}/run`, endpoint), {
+      method: 'POST',
+      headers: headers(),
+    });
+    const data = await parseOrThrow<{ run: ReportRun }>(res, 'runDefinition failed');
+    return data.run;
+  },
+
+  async listRuns(definitionId?: string, limit = 50, endpoint?: string): Promise<ReportRun[]> {
+    const query = new URLSearchParams();
+    if (definitionId) query.set('definitionId', definitionId);
+    query.set('limit', String(limit));
+    const res = await fetch(buildUrl(`/runs?${query.toString()}`, endpoint), { headers: headers() });
+    const data = await parseOrThrow<{ runs: ReportRun[] }>(res, 'listRuns failed');
+    return Array.isArray(data.runs) ? data.runs : [];
+  },
+
+  async getRun(id: string, endpoint?: string): Promise<ReportRun> {
+    const res = await fetch(buildUrl(`/runs/${encodeURIComponent(id)}`, endpoint), { headers: headers() });
+    const data = await parseOrThrow<{ run: ReportRun }>(res, 'getRun failed');
+    return data.run;
+  },
+
+  /** CSV 导出地址（浏览器直接下载） */
+  exportCsvUrl(runId: string, endpoint?: string): string {
+    const url = buildUrl(`/runs/${encodeURIComponent(runId)}/export.csv`, endpoint);
+    const apiKey = apiService.getApiKey();
+    return apiKey ? `${url}?apiKey=${encodeURIComponent(apiKey)}` : url;
+  },
+};

@@ -172,6 +172,7 @@ import { BAMBOOK_OS } from './components/ui/bambookOsTokens';
 import { OS_MATERIAL } from './components/ui/osMaterial';
 import DevelopmentManager from './components/DevelopmentManager';
 import FinanceManager from './components/FinanceManager';
+import ReportCenter from './components/ReportCenter';
 import ShipmentManager from './components/ShipmentManager';
 import QuotationManager from './components/QuotationManager';
 import ProcurementManager from './components/ProcurementManager';
@@ -1539,6 +1540,9 @@ const App: React.FC = () => {
                 vouchers={paymentVouchers}
                 setVouchers={setPaymentVouchers}
               />,
+            )}
+            {activeView === View.Reports && (
+              <ReportCenter isDarkMode={isDarkMode} />
             )}
             {activeView === View.Shipments && renderMainCompilerSlot(
               compilerSurfaces.shipments,
