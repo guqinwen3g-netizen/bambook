@@ -377,6 +377,15 @@ export async function saveInspectionReport(prisma: PrismaClient, orderId: string
   if (data.result !== undefined && data.result !== null && !['pass', 'conditional', 'fail'].includes(data.result)) {
     throw Object.assign(new Error(`非法验货结论: ${data.result}`), { code: 'INVALID_RESULT' });
   }
+  // P3c：检验报告（含历史录入路径）必须挂靠有效订单；软删订单同样拒绝。
+  // 同时取出 millRelationId/poNumber 供下方 H1c 自动评分复用，避免二次查询。
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, deletedAt: null },
+    select: { id: true, millRelationId: true, poNumber: true },
+  });
+  if (!order) {
+    throw Object.assign(new Error(`订单 ${orderId} 不存在或已删除`), { code: 'ORDER_NOT_FOUND' });
+  }
   const now = BigInt(Date.now());
   // final 沿用历史 id 格式（迁移前数据 id=INR__${orderId}），保证 upsert 命中旧行
   const id = inspectionType === 'final' ? `INR__${orderId}` : `INR__${orderId}__${inspectionType}`;
@@ -435,8 +444,7 @@ export async function saveInspectionReport(prisma: PrismaClient, orderId: string
   // 评挂钩对象：订单的 millRelationId（面料厂/供应商身份真源在 Relation → FactoryProfile 1:1）
   if (result.result) {
     try {
-      const order = await prisma.order.findUnique({ where: { id: orderId }, select: { millRelationId: true, poNumber: true } });
-      if (order?.millRelationId) {
+      if (order.millRelationId) {
         const { createFactoryService, inspectionScoreForResult } = await import('../suppliers/factoryService');
         const factoryService = createFactoryService(prisma);
         const critical = result.criticalDefects ?? 0;

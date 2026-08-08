@@ -22,6 +22,7 @@ import { extractActorFromRequest } from '../auth/middleware';
 import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { createQuotationService, CreateQuotationInput, UpdateQuotationInput } from './quotationService';
+import { createQuotationImportService, HistoricalQuotationRow } from './quotationImportService';
 
 export interface QuotationRouterOptions {
   prisma: PrismaClient;
@@ -34,6 +35,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   const router = Router();
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createQuotationService(prisma);
+  const importService = createQuotationImportService(prisma);
 
   // ── 简易 apiKey 校验 ──
   const authenticate = (req: Request, res: Response): boolean => {
@@ -116,6 +118,30 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
     } catch (e: any) {
       logger.error('[QuotationRoute] POST create failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to create quotation' });
+    }
+  });
+
+  // ── POST /import — 历史报价导入（阶段 P3c，PRD 16.1；mode=preview 只校验，mode=commit 导入合法行）──
+  // 注意：须注册在 /:id 之前，避免 'import' 被 :id 捕获
+  router.post('/import', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const rows = req.body?.rows as HistoricalQuotationRow[];
+      const mode = req.body?.mode === 'commit' ? 'commit' : 'preview';
+      if (!Array.isArray(rows)) {
+        return res.status(400).json({ error: 'rows 须为数组' });
+      }
+      const result = await importService.importHistoricalQuotations(rows, mode, actor?.userId || 'system');
+      if (mode === 'commit' && result.created > 0) {
+        onDataChange?.({ entity: 'Quotation', action: 'import', ids: [] });
+      }
+      res.json(result);
+    } catch (e: any) {
+      logger.error('[QuotationRoute] POST import failed', { error: e?.message });
+      const msg = e?.message || '';
+      res.status(msg.includes('为空') || msg.includes('不可超过') || msg.includes('数组') ? 400 : 500)
+        .json({ error: msg || 'failed to import quotations' });
     }
   });
 

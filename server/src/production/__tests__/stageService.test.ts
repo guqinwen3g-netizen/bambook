@@ -181,13 +181,15 @@ describe('advanceStage: qc_shipped threshold gate', () => {
 });
 
 describe('saveInspectionReport: Phase B4 多类型 + QC 字段', () => {
+  const orderFound = { order: { findFirst: vi.fn().mockResolvedValue({ id: 'O1', millRelationId: null, poNumber: null }) } };
+
   it('中期与终期报告按 (orderId, inspectionType) 分别 upsert', async () => {
     const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => ({
       ...create,
       passRate: 0,
       defectRate: 0,
     }));
-    const prisma = { inspectionReport: { upsert: upsertMock } } as any;
+    const prisma = { ...orderFound, inspectionReport: { upsert: upsertMock } } as any;
     const { saveInspectionReport } = await import('../stageService');
 
     await saveInspectionReport(prisma, 'O1', { inspectionType: 'midline', totalUnits: 50, passedUnits: 48, aqlLevel: '2.5/4.0 II' });
@@ -212,10 +214,22 @@ describe('saveInspectionReport: Phase B4 多类型 + QC 字段', () => {
 
   it('未知 inspectionType 归一为 final', async () => {
     const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => create);
-    const prisma = { inspectionReport: { upsert: upsertMock } } as any;
+    const prisma = { ...orderFound, inspectionReport: { upsert: upsertMock } } as any;
     const { saveInspectionReport } = await import('../stageService');
     await saveInspectionReport(prisma, 'O1', { inspectionType: 'weird' });
     expect(upsertMock.mock.calls[0][0].create.inspectionType).toBe('final');
+  });
+
+  // P3c：历史检验报告录入必须挂靠有效订单
+  it('订单不存在或已软删 → ORDER_NOT_FOUND，且不落库', async () => {
+    const upsertMock = vi.fn();
+    const prisma = {
+      order: { findFirst: vi.fn().mockResolvedValue(null) },
+      inspectionReport: { upsert: upsertMock },
+    } as any;
+    const { saveInspectionReport } = await import('../stageService');
+    await expect(saveInspectionReport(prisma, 'O_GONE', { totalUnits: 10 })).rejects.toMatchObject({ code: 'ORDER_NOT_FOUND' });
+    expect(upsertMock).not.toHaveBeenCalled();
   });
 });
 

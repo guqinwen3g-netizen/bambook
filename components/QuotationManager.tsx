@@ -27,10 +27,12 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRight,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import QuotationImportWizard from './import/QuotationImportWizard';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -92,6 +94,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  // ── 阶段 P3c：历史报价导入向导（PRD 16.1/16.2）──
+  const [showImportWizard, setShowImportWizard] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
 
@@ -508,6 +512,9 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
                   <button onClick={() => setShowCreateForm(true)} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors">
                     <Plus size={14} /><span>新建报价单</span>
                   </button>
+                  <button onClick={() => setShowImportWizard(true)} className={`h-9 px-4 rounded-full border text-xs font-light flex items-center gap-1.5 transition-colors ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-300 hover:bg-white/[0.05] hover:text-white' : 'bg-white/45 border-black/[0.04] text-slate-600 hover:bg-white/70 hover:text-slate-900'}`}>
+                    <FileSpreadsheet size={14} /><span>导入历史报价</span>
+                  </button>
                   <div className="relative flex-1 max-w-xs">
                     <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className={`${fieldClass} pl-9`} />
@@ -713,6 +720,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* 阶段 P3c：历史报价导入向导 */}
+      <QuotationImportWizard
+        isOpen={showImportWizard}
+        onClose={() => setShowImportWizard(false)}
+        onImported={() => { setShowImportWizard(false); fetchQuotations(); }}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

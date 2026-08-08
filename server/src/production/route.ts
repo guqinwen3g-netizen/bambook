@@ -271,7 +271,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
       opts.onDataChange?.({ entity: 'production', action: 'inspection', ids: [req.params.orderId] });
       res.json({ ok: true, inspection: report });
     } catch (e: any) {
-      const code = e?.code === 'INVALID_RESULT' ? 400 : 500;
+      const code = e?.code === 'INVALID_RESULT' ? 400 : e?.code === 'ORDER_NOT_FOUND' ? 404 : 500;
       res.status(code).json({ ok: false, error: { code: e?.code || 'INSPECTION_SAVE_FAILED', message: String(e?.message ?? e) } });
     }
   });
