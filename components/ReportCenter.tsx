@@ -25,15 +25,20 @@ import {
   Download,
   ChevronDown,
   ChevronRight,
+  CornerDownRight,
+  ExternalLink,
   Save,
   type LucideIcon,
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
+import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { View } from '../types';
 import {
   reportService,
   ReportDatasetSpec,
   ReportDefinition,
+  ReportDrillResult,
   ReportFieldSpec,
   ReportFilterOp,
   ReportFilterSpec,
@@ -156,13 +161,49 @@ const EMPTY_DESIGNER: DesignerState = {
   schedule: '',
 };
 
+// ==================== A5d 下钻 ====================
+
+/** 下钻请求：报表查询规格 + 被点击聚合行的维度组约束 */
+interface DrillRequest {
+  input: {
+    datasetKey: string;
+    dimensions: string[];
+    metrics: ReportMetricSpec[];
+    filters: ReportFilterSpec[];
+  };
+  group: Record<string, string | null>;
+}
+
+/** 从聚合结果行提取维度组约束（维度列缺失/undefined 归一为 null，与服务端 groupBy 空值组口径一致） */
+function groupFromRow(dimensions: string[], row: Record<string, string | number | null>): Record<string, string | null> {
+  const group: Record<string, string | null> = {};
+  for (const d of dimensions) {
+    const v = row[d];
+    group[d] = v === null || v === undefined ? null : String(v);
+  }
+  return group;
+}
+
+/** 数据集 → 所属模块导航目标（tab 为模块内落点；模块不支持 tab 定位时仅跳转视图） */
+const DATASET_NAV_TARGETS: Record<string, { view: View; tab?: string }> = {
+  orders: { view: View.Orders },
+  invoices: { view: View.Invoices, tab: 'invoices' },
+  paymentVouchers: { view: View.PaymentVouchers, tab: 'vouchers' },
+  shipments: { view: View.Shipments },
+  vatInvoices: { view: View.Invoices, tab: 'vatInvoices' },
+  outwardRemittances: { view: View.PaymentVouchers, tab: 'vouchers' },
+  taxRefunds: { view: View.Customs, tab: 'taxRefunds' },
+};
+
 // ==================== 主组件 ====================
 
 interface ReportCenterProps {
   isDarkMode?: boolean;
+  /** A5d 下钻联动：跳转实体所属模块（view + 可选模块内 tab） */
+  onNavigate?: (view: View, tab?: string) => void;
 }
 
-export default function ReportCenter({ isDarkMode = false }: ReportCenterProps) {
+export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportCenterProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>('designer');
   const [datasets, setDatasets] = useState<ReportDatasetSpec[]>([]);
   const [definitions, setDefinitions] = useState<ReportDefinition[]>([]);
@@ -171,6 +212,7 @@ export default function ReportCenter({ isDarkMode = false }: ReportCenterProps) 
   const [error, setError] = useState<string | null>(null);
   const [designer, setDesigner] = useState<DesignerState>(EMPTY_DESIGNER);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [drill, setDrill] = useState<DrillRequest | null>(null);
 
   // ── 主题样式（与 CustomsManager 同一 token 口径） ──
   const cardClass = isDarkMode
@@ -288,6 +330,16 @@ export default function ReportCenter({ isDarkMode = false }: ReportCenterProps) 
     }
   }, []);
 
+  // ── A5d 下钻：聚合行 → 组成员实体明细抽屉 ──
+  const handleDrill = useCallback((input: DrillRequest['input'], row: Record<string, string | number | null>) => {
+    setDrill({ input, group: groupFromRow(input.dimensions, row) });
+  }, []);
+
+  const drillDataset = useMemo(
+    () => (drill ? datasets.find(d => d.key === drill.input.datasetKey) : undefined),
+    [drill, datasets],
+  );
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <PageHeader
@@ -348,6 +400,7 @@ export default function ReportCenter({ isDarkMode = false }: ReportCenterProps) 
                   labelClass={labelClass}
                   chipCls={chipCls}
                   textSecondary={textSecondary}
+                  onDrill={handleDrill}
                   onSaved={(def, isNew) => {
                     setDefinitions(prev => (isNew ? [def, ...prev] : prev.map(d => (d.id === def.id ? def : d))));
                     setDesigner(prev => ({ ...EMPTY_DESIGNER, datasetKey: prev.datasetKey }));
@@ -378,6 +431,7 @@ export default function ReportCenter({ isDarkMode = false }: ReportCenterProps) 
                   cardClass={cardClass}
                   fieldClass={fieldClass}
                   textSecondary={textSecondary}
+                  onDrill={handleDrill}
                   onRefresh={async (definitionId) => {
                     setRuns(await reportService.listRuns(definitionId || undefined, 100));
                   }}
@@ -388,6 +442,18 @@ export default function ReportCenter({ isDarkMode = false }: ReportCenterProps) 
           )}
         </div>
       </div>
+
+      {/* A5d 下钻抽屉 */}
+      {drill && drillDataset && (
+        <DrillDrawer
+          isDarkMode={isDarkMode}
+          dataset={drillDataset}
+          input={drill.input}
+          group={drill.group}
+          onClose={() => setDrill(null)}
+          onNavigate={onNavigate}
+        />
+      )}
     </div>
   );
 }
@@ -405,12 +471,13 @@ interface DesignerPanelProps {
   labelClass: string;
   chipCls: (active: boolean) => string;
   textSecondary: string;
+  onDrill: (input: DrillRequest['input'], row: Record<string, string | number | null>) => void;
   onSaved: (def: ReportDefinition, isNew: boolean) => void;
   onError: (msg: string | null) => void;
 }
 
 function DesignerPanel(props: DesignerPanelProps) {
-  const { isDarkMode, datasets, dataset, designer, setDesigner, cardClass, fieldClass, labelClass, chipCls, textSecondary, onSaved, onError } = props;
+  const { isDarkMode, datasets, dataset, designer, setDesigner, cardClass, fieldClass, labelClass, chipCls, textSecondary, onDrill, onSaved, onError } = props;
   const [preview, setPreview] = useState<ReportPreviewResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -728,6 +795,9 @@ function DesignerPanel(props: DesignerPanelProps) {
         <div className={`${cardClass} overflow-hidden`}>
           <div className={`px-4 py-2.5 border-b text-xs flex items-center justify-between ${isDarkMode ? 'border-white/5 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
             <span>预览结果 · {preview.rows.length} 行{preview.truncated ? '（已截断至 500 行，完整结果请保存后运行）' : ''}</span>
+            {designer.dimensions.length > 0 && preview.rows.length > 0 && (
+              <span className={`text-[10px] ${textSecondary}`}>点击行内「下钻」查看组成员实体</span>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -736,6 +806,9 @@ function DesignerPanel(props: DesignerPanelProps) {
                   {preview.columnLabels.map((c, i) => (
                     <th key={i} className={`px-3 py-2 text-left font-light whitespace-nowrap ${textSecondary}`}>{c}</th>
                   ))}
+                  {designer.dimensions.length > 0 && (
+                    <th className={`px-3 py-2 text-right font-light ${textSecondary}`}>下钻</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -746,10 +819,23 @@ function DesignerPanel(props: DesignerPanelProps) {
                         {formatCell(row[c])}
                       </td>
                     ))}
+                    {designer.dimensions.length > 0 && (
+                      <td className="px-3 py-1.5 text-right">
+                        <button
+                          onClick={() => onDrill(buildQueryInput(), row)}
+                          title="下钻查看组成员实体"
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors ${
+                            isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                          }`}
+                        >
+                          <CornerDownRight size={11} />明细
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {preview.rows.length === 0 && (
-                  <tr><td colSpan={preview.columns.length} className={`px-3 py-8 text-center ${textSecondary}`}>当前条件下无数据</td></tr>
+                  <tr><td colSpan={preview.columns.length + (designer.dimensions.length > 0 ? 1 : 0)} className={`px-3 py-8 text-center ${textSecondary}`}>当前条件下无数据</td></tr>
                 )}
               </tbody>
             </table>
@@ -868,11 +954,12 @@ interface RunsPanelProps {
   cardClass: string;
   fieldClass: string;
   textSecondary: string;
+  onDrill: (input: DrillRequest['input'], row: Record<string, string | number | null>) => void;
   onRefresh: (definitionId: string) => Promise<void>;
   onError: (msg: string | null) => void;
 }
 
-function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textSecondary, onRefresh, onError }: RunsPanelProps) {
+function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textSecondary, onDrill, onRefresh, onError }: RunsPanelProps) {
   const [filterDefId, setFilterDefId] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ReportRun | null>(null);
@@ -985,31 +1072,59 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                               运行失败：{detail.error || '未知错误'}
                             </div>
                           ) : detail && Array.isArray(detail.rows) && Array.isArray(detail.columns) ? (
-                            <div className="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
-                              <table className="w-full text-[11px]">
-                                <thead>
-                                  <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}>
-                                    {(detail.columnLabels ?? detail.columns).map((c, i) => (
-                                      <th key={i} className={`px-2 py-1.5 text-left font-light whitespace-nowrap ${textSecondary}`}>{c}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {detail.rows.map((row, ri) => (
-                                    <tr key={ri} className={isDarkMode ? 'border-t border-white/[0.04]' : 'border-t border-slate-100'}>
-                                      {detail.columns!.map((c, ci) => (
-                                        <td key={ci} className={`px-2 py-1 whitespace-nowrap tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                                          {formatCell(row[c])}
-                                        </td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                  {detail.rows.length === 0 && (
-                                    <tr><td colSpan={detail.columns.length} className={`px-2 py-6 text-center ${textSecondary}`}>本次运行无数据</td></tr>
+                            (() => {
+                              const runDef = definitions.find(d => d.id === detail.definitionId);
+                              const drillable = Boolean(runDef && runDef.dimensions.length > 0);
+                              return (
+                                <div className="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
+                                  {drillable && detail.rows.length > 0 && (
+                                    <div className={`px-1 pb-1 text-[10px] ${textSecondary}`}>快照为历史结果；点击行内「下钻」按当前实时数据查询组成员实体</div>
                                   )}
-                                </tbody>
-                              </table>
-                            </div>
+                                  <table className="w-full text-[11px]">
+                                    <thead>
+                                      <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}>
+                                        {(detail.columnLabels ?? detail.columns).map((c, i) => (
+                                          <th key={i} className={`px-2 py-1.5 text-left font-light whitespace-nowrap ${textSecondary}`}>{c}</th>
+                                        ))}
+                                        {drillable && (
+                                          <th className={`px-2 py-1.5 text-right font-light ${textSecondary}`}>下钻</th>
+                                        )}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {detail.rows.map((row, ri) => (
+                                        <tr key={ri} className={isDarkMode ? 'border-t border-white/[0.04]' : 'border-t border-slate-100'}>
+                                          {detail.columns!.map((c, ci) => (
+                                            <td key={ci} className={`px-2 py-1 whitespace-nowrap tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                                              {formatCell(row[c])}
+                                            </td>
+                                          ))}
+                                          {drillable && runDef && (
+                                            <td className="px-2 py-1 text-right">
+                                              <button
+                                                onClick={() => onDrill(
+                                                  { datasetKey: runDef.datasetKey, dimensions: runDef.dimensions, metrics: runDef.metrics, filters: runDef.filters ?? [] },
+                                                  row,
+                                                )}
+                                                title="下钻查看组成员实体（实时）"
+                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors ${
+                                                  isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                                                }`}
+                                              >
+                                                <CornerDownRight size={11} />明细
+                                              </button>
+                                            </td>
+                                          )}
+                                        </tr>
+                                      ))}
+                                      {detail.rows.length === 0 && (
+                                        <tr><td colSpan={detail.columns.length + (drillable ? 1 : 0)} className={`px-2 py-6 text-center ${textSecondary}`}>本次运行无数据</td></tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              );
+                            })()
                           ) : (
                             <div className={`py-3 text-xs ${textSecondary}`}>运行中，尚无结果</div>
                           )}
@@ -1023,6 +1138,169 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+// ==================== A5d 下钻抽屉 ====================
+
+interface DrillDrawerProps {
+  isDarkMode: boolean;
+  dataset: ReportDatasetSpec;
+  input: DrillRequest['input'];
+  group: Record<string, string | null>;
+  onClose: () => void;
+  onNavigate?: (view: View, tab?: string) => void;
+}
+
+/**
+ * 下钻抽屉：聚合组 → 组成员实体明细（实时查询，不落库）
+ * 联动链：报表聚合行 → 组成员实体 → RelatedEntitiesPanel 图谱 → 所属模块
+ */
+function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }: DrillDrawerProps) {
+  const [result, setResult] = useState<ReportDrillResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // input/group 由父组件在下钻打开时一次性构造，抽屉生命周期内不变
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    reportService
+      .drill({ ...input, group })
+      .then(r => { if (!cancelled) setResult(r); })
+      .catch(e => { if (!cancelled) setError(e?.message || String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  const navTarget = DATASET_NAV_TARGETS[dataset.key];
+  const groupEntries = input.dimensions.map(d => ({
+    label: dataset.dimensions.find(f => f.key === d)?.label ?? d,
+    value: group[d],
+  }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/35 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className={`h-full w-[760px] max-w-[92vw] flex flex-col border-l ${
+          isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200'
+        }`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* 头部：标题 + 组约束 + 关闭 */}
+        <div className={`px-5 pt-4 pb-3 border-b ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className={`text-sm font-light truncate ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>
+              下钻明细 · {dataset.label}
+            </div>
+            <button onClick={onClose} className={`p-1.5 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+              <X size={15} />
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            {groupEntries.length === 0 && (
+                              <span className={`text-[11px] ${textSecondary}`}>总计行 · 全部未删除记录</span>
+            )}
+            {groupEntries.map(g => (
+              <span
+                key={g.label}
+                className={`px-2 py-0.5 rounded-full text-[10px] ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}
+              >
+                {g.label}：{g.value ?? '（空）'}
+              </span>
+            ))}
+            {result && (
+              <span className={`ml-auto text-[10px] shrink-0 ${textSecondary}`}>
+                共 {result.total} 条{result.total > result.rows.length ? `，仅显示前 ${result.rows.length} 条` : ''} · 实时数据
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 主体：成员明细 + 选中实体联动 */}
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-4">
+          {loading ? (
+            <div className={`flex items-center justify-center gap-2 py-16 text-sm ${textSecondary}`}>
+              <Loader2 size={15} className="animate-spin" />查询组成员…
+            </div>
+          ) : error ? (
+            <div className={`p-3 rounded-inset border text-xs ${statusSemanticClass('danger', isDarkMode)}`}>
+              下钻查询失败：{error}
+            </div>
+          ) : result && result.rows.length === 0 ? (
+            <div className={`py-16 text-center text-sm ${textSecondary}`}>该组当前无成员记录（数据可能在快照后已变更）</div>
+          ) : result ? (
+            <>
+              {/* 成员明细表 */}
+              <div className={`rounded-card border overflow-hidden ${isDarkMode ? 'border-white/[0.055]' : 'border-slate-200'}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}>
+                        {result.columnLabels.map((c, i) => (
+                          <th key={i} className={`px-2.5 py-2 text-left font-light whitespace-nowrap ${textSecondary}`}>{c}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.rows.map((row, ri) => {
+                        const rowId = String(row[result.idField] ?? '');
+                        const selected = rowId && rowId === selectedId;
+                        return (
+                          <tr
+                            key={rowId || ri}
+                            onClick={() => setSelectedId(selected ? null : rowId)}
+                            className={`cursor-pointer transition-colors ${
+                              selected
+                                ? isDarkMode ? 'bg-white/[0.06]' : 'bg-slate-100'
+                                : isDarkMode ? 'border-t border-white/[0.04] hover:bg-white/[0.03]' : 'border-t border-slate-100 hover:bg-slate-50'
+                            }`}
+                          >
+                            {result.columns.map((c, ci) => (
+                              <td key={ci} className={`px-2.5 py-1.5 whitespace-nowrap tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                                {formatCell(row[c])}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 选中实体：图谱联动 + 模块导航 */}
+              {selectedId && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[11px] ${textSecondary}`}>已选中实体</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{selectedId}</span>
+                    {onNavigate && navTarget && (
+                      <button
+                        onClick={() => { onNavigate(navTarget.view, navTarget.tab); onClose(); }}
+                        className="ml-auto h-7 px-3 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-[11px] font-light inline-flex items-center gap-1 transition-colors"
+                      >
+                        <ExternalLink size={11} />打开所在模块
+                      </button>
+                    )}
+                  </div>
+                  <RelatedEntitiesPanel
+                    type={result.entityType}
+                    id={selectedId}
+                    isDarkMode={isDarkMode}
+                    limit={50}
+                  />
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

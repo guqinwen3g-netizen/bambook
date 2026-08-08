@@ -9,6 +9,7 @@
  *   PATCH  /definitions/:id             更新定义（高风险角色 + 审计）
  *   DELETE /definitions/:id             软删定义（高风险角色 + 审计）
  *   POST   /preview                     临时预览（不落库，≤500 行）
+ *   POST   /drill                       下钻（聚合组 → 组成员实体明细，不落库，≤200 行）
  *   POST   /definitions/:id/run         手动运行（落运行快照）
  *   GET    /runs?definitionId=          运行历史
  *   GET    /runs/:id                    运行详情
@@ -29,6 +30,7 @@ import { rowsToCsv } from './reportEngine';
 import {
   createReportDefinition,
   deleteReportDefinition,
+  drillReportQuery,
   previewReportQuery,
   runReportDefinition,
   updateReportDefinition,
@@ -66,6 +68,7 @@ const ERROR_STATUS: Record<string, number> = {
   INVALID_FILTER_OP: 400,
   INVALID_FILTER_VALUE: 400,
   INVALID_SCHEDULE: 400,
+  INVALID_DRILL_GROUP: 400,
   DEFINITION_INVALID: 409,
   DISABLED: 409,
   NOT_FOUND: 404,
@@ -165,6 +168,16 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   // ── 预览（不落库） ──
   router.post('/preview', requireWrite, async (req: Request, res: Response) => {
     const result = await previewReportQuery({ prisma, input: req.body });
+    if (!result.ok) {
+      sendError(res, result.error!);
+      return;
+    }
+    res.json(serialize(result.data));
+  });
+
+  // ── 下钻（不落库；返回业务明细行，与预览同级权限） ──
+  router.post('/drill', requireWrite, async (req: Request, res: Response) => {
+    const result = await drillReportQuery({ prisma, input: req.body });
     if (!result.ok) {
       sendError(res, result.error!);
       return;

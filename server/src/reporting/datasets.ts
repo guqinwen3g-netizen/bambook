@@ -31,6 +31,16 @@ export interface DatasetSpec {
   dimensions: readonly ReportFieldSpec[];
   metrics: readonly ReportFieldSpec[];
   filterFields: readonly ReportFieldSpec[];
+  /**
+   * A5d 下钻契约：
+   *   - entityType：EntityLink 图谱类型码（与 entities/sync.ts 的 ownerType/fromType 一致），
+   *     前端据此渲染关联图谱并导航到所属模块。
+   *   - idField：实体主键字段（默认 'id'），drill 查询 select/orderBy 使用。
+   *   - detailFields：下钻明细行展示的字段（须为模型上真实存在的标量字段）。
+   */
+  entityType: string;
+  idField: string;
+  detailFields: readonly ReportFieldSpec[];
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -55,6 +65,17 @@ export const REPORT_DATASETS: readonly DatasetSpec[] = [
     label: '订单',
     prismaModel: 'order',
     description: '生产订单（面料/成衣）',
+    entityType: 'order',
+    idField: 'id',
+    detailFields: [
+      s('poNumber', 'PO 号'),
+      s('customer', '客户'),
+      e('type', '订单类型', ['Fabric', 'Garment'] as const),
+      s('status', '状态'),
+      s('season', '季节'),
+      n('quantity', '数量'),
+      d('dueDate', '交期'),
+    ],
     dimensions: [
       e('type', '订单类型', ['Fabric', 'Garment'] as const),
       s('status', '状态'),
@@ -85,6 +106,18 @@ export const REPORT_DATASETS: readonly DatasetSpec[] = [
     label: '发票',
     prismaModel: 'invoice',
     description: '应收/应付业务发票',
+    entityType: 'invoice',
+    idField: 'id',
+    detailFields: [
+      s('invoiceNumber', '发票号'),
+      e('type', '发票类型', ['Receivable', 'Payable'] as const),
+      e('status', '状态', ['Draft', 'Issued', 'PartiallyPaid', 'Paid', 'Cancelled'] as const),
+      s('customerName', '结算对象'),
+      n('amount', '发票金额'),
+      s('currency', '币种'),
+      d('issueDate', '开票日期'),
+      d('dueDate', '到期日'),
+    ],
     dimensions: [
       e('type', '发票类型', ['Receivable', 'Payable'] as const),
       e('status', '状态', ['Draft', 'Issued', 'PartiallyPaid', 'Paid', 'Cancelled'] as const),
@@ -107,6 +140,17 @@ export const REPORT_DATASETS: readonly DatasetSpec[] = [
     label: '收付凭证',
     prismaModel: 'paymentVoucher',
     description: '收款/付款水单',
+    entityType: 'paymentVoucher',
+    idField: 'id',
+    detailFields: [
+      s('voucherNumber', '凭证号'),
+      e('type', '凭证类型', ['Receipt', 'Disbursement'] as const),
+      e('status', '核销状态', ['unreconciled', 'partially_reconciled', 'reconciled'] as const),
+      s('customerName', '交易对象'),
+      n('amount', '凭证金额'),
+      s('currency', '币种'),
+      d('paymentDate', '收付日期'),
+    ],
     dimensions: [
       e('type', '凭证类型', ['Receipt', 'Disbursement'] as const),
       e('status', '核销状态', ['unreconciled', 'partially_reconciled', 'reconciled'] as const),
@@ -133,6 +177,18 @@ export const REPORT_DATASETS: readonly DatasetSpec[] = [
     label: '运单',
     prismaModel: 'shipment',
     description: '出口/进口/内贸运单',
+    entityType: 'shipment',
+    idField: 'id',
+    detailFields: [
+      s('shipmentNumber', '运单号'),
+      e('type', '运单类型', ['Export', 'Import', 'Domestic'] as const),
+      s('status', '状态'),
+      e('shippingMethod', '运输方式', ['Sea', 'Air', 'Land', 'Rail', 'Courier'] as const),
+      s('customerName', '客户'),
+      d('etd', '预计离港'),
+      s('portOfLoading', '装货港'),
+      s('portOfDischarge', '卸货港'),
+    ],
     dimensions: [
       e('type', '运单类型', ['Export', 'Import', 'Domestic'] as const),
       s('status', '状态'),
@@ -166,6 +222,18 @@ export const REPORT_DATASETS: readonly DatasetSpec[] = [
     label: '增值税发票',
     prismaModel: 'vatInvoice',
     description: '进项/销项 VAT 发票',
+    entityType: 'vatInvoice',
+    idField: 'id',
+    detailFields: [
+      s('vatNumber', '发票号码'),
+      e('direction', '方向', ['Input', 'Output'] as const),
+      e('invoiceType', '票种', ['Special', 'Normal'] as const),
+      e('status', '状态', ['Received', 'Verified', 'Declared', 'RedFlushed', 'Cancelled'] as const),
+      s('sellerName', '销售方'),
+      s('buyerName', '购买方'),
+      n('totalAmount', '价税合计'),
+      d('issueDate', '开票日期'),
+    ],
     dimensions: [
       e('direction', '方向', ['Input', 'Output'] as const),
       e('invoiceType', '票种', ['Special', 'Normal'] as const),
@@ -195,6 +263,18 @@ export const REPORT_DATASETS: readonly DatasetSpec[] = [
     label: '付汇水单',
     prismaModel: 'outwardRemittance',
     description: '购付汇水单（付款侧外汇闭环）',
+    entityType: 'outwardRemittance',
+    idField: 'id',
+    detailFields: [
+      s('remittanceNumber', '水单号'),
+      s('currency', '币种'),
+      n('foreignAmount', '外币金额'),
+      n('cnyAmount', '折人民币'),
+      s('payeeName', '收款人'),
+      s('bank', '付汇银行'),
+      e('purpose', '付汇用途', ['GoodsPayment', 'Freight', 'Insurance', 'Commission', 'Other'] as const),
+      d('remitDate', '付汇日期'),
+    ],
     dimensions: [
       s('currency', '币种'),
       s('bank', '付汇银行'),
@@ -218,6 +298,17 @@ export const REPORT_DATASETS: readonly DatasetSpec[] = [
     label: '退税申报',
     prismaModel: 'taxRefund',
     description: '出口退税申报单',
+    entityType: 'taxRefund',
+    idField: 'id',
+    detailFields: [
+      s('refundNumber', '申报编号'),
+      e('status', '状态', ['Draft', 'Submitted', 'Reviewing', 'Approved', 'Rejected', 'Refunded', 'Cancelled'] as const),
+      n('exportAmountFob', '出口FOB金额'),
+      s('exportAmountFobCurrency', '出口币种'),
+      n('refundAmount', '实际退税额'),
+      d('exportDate', '出口日期'),
+      d('refundDate', '退税到账日期'),
+    ],
     dimensions: [
       e('status', '状态', ['Draft', 'Submitted', 'Reviewing', 'Approved', 'Rejected', 'Refunded', 'Cancelled'] as const),
       s('exportAmountFobCurrency', '出口币种'),

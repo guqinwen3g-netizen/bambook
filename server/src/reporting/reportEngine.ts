@@ -314,6 +314,104 @@ export async function executeReportQuery(
 }
 
 // ────────────────────────────────────────────────────────────────
+// 2.5 下钻执行（A5d：聚合组 → 组成员实体明细）
+// ────────────────────────────────────────────────────────────────
+
+/** 下钻组约束：维度字段 → 组值（groupBy 结果行中的维度值，string 或 null） */
+export type DrillGroup = Record<string, string | null>;
+
+export interface ReportDrillResult {
+  entityType: string;
+  idField: string;
+  columns: string[];
+  columnLabels: string[];
+  rows: Array<Record<string, unknown>>;
+  /** 组内成员总数（rows 受 limit 截断时用 total 提示） */
+  total: number;
+}
+
+/**
+ * 校验下钻组约束（fail closed）：
+ *   - group 必须恰好覆盖 spec.dimensions 的每个维度（不多不少）；
+ *   - 值为 string（≤200 字符）或 null（对应 groupBy 空值组）。
+ */
+export function validateDrillGroup(spec: ReportQuerySpec, group: unknown):
+  | { ok: true; group: DrillGroup }
+  | { ok: false; error: { code: string; message: string } } {
+  if (!group || typeof group !== 'object' || Array.isArray(group)) {
+    return { ok: false, error: { code: 'INVALID_DRILL_GROUP', message: 'group must be an object keyed by dimension' } };
+  }
+  const raw = group as Record<string, unknown>;
+  const dimSet = new Set(spec.dimensions);
+  for (const key of Object.keys(raw)) {
+    if (!dimSet.has(key)) {
+      return { ok: false, error: { code: 'INVALID_DRILL_GROUP', message: `group key not a dimension: ${key}` } };
+    }
+  }
+  const out: DrillGroup = {};
+  for (const d of spec.dimensions) {
+    const v = raw[d];
+    if (v === null || v === undefined) {
+      out[d] = null;
+      continue;
+    }
+    if (typeof v !== 'string' || v.length > MAX_STRING_VALUE) {
+      return { ok: false, error: { code: 'INVALID_DRILL_GROUP', message: `group value for '${d}' must be string ≤${MAX_STRING_VALUE} chars or null` } };
+    }
+    out[d] = v;
+  }
+  return { ok: true, group: out };
+}
+
+/**
+ * 执行下钻查询：原过滤 + 组内维度等值约束，返回组成员实体明细（非聚合）。
+ * 调用方必须先通过 validateReportQuery + validateDrillGroup。
+ * null 组值走 Prisma equals:null（匹配 groupBy 的空值组）。
+ */
+export async function executeReportDrill(
+  prisma: PrismaClient,
+  dataset: DatasetSpec,
+  spec: ReportQuerySpec,
+  group: DrillGroup,
+  limit: number,
+): Promise<ReportDrillResult> {
+  const delegate = (prisma as any)[dataset.prismaModel];
+  if (!delegate) {
+    throw new Error(`dataset model not available on prisma client: ${dataset.prismaModel}`);
+  }
+  const where = buildWhere(spec.filters);
+  for (const d of spec.dimensions) {
+    const cond = { equals: group[d] };
+    // 与同字段普通过滤合并（理论上维度等值与过滤冲突时结果为空，属调用方语义）
+    if (where[d] && typeof where[d] === 'object') {
+      where[d] = { ...(where[d] as object), ...cond };
+    } else {
+      where[d] = cond;
+    }
+  }
+  const select: Record<string, true> = { [dataset.idField]: true };
+  for (const f of dataset.detailFields) select[f.key] = true;
+
+  const [records, total] = await Promise.all([
+    delegate.findMany({ where, select, orderBy: { [dataset.idField]: 'asc' }, take: limit }),
+    delegate.count({ where }),
+  ]);
+
+  const columns = [dataset.idField, ...dataset.detailFields.map(f => f.key)];
+  const columnLabels = ['ID', ...dataset.detailFields.map(f => f.label)];
+  const rows = (records as Array<Record<string, unknown>>).map(r => {
+    const row: Record<string, unknown> = {};
+    for (const c of columns) {
+      const v = r[c];
+      // Decimal/Date 等非原子值统一字符串化，保证 JSON 序列化稳定
+      row[c] = v === null || v === undefined ? null : typeof v === 'object' ? String(v) : v;
+    }
+    return row;
+  });
+  return { entityType: dataset.entityType, idField: dataset.idField, columns, columnLabels, rows, total };
+}
+
+// ────────────────────────────────────────────────────────────────
 // 3. CSV 导出（重放运行快照，不重查）
 // ────────────────────────────────────────────────────────────────
 

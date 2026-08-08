@@ -171,7 +171,7 @@ import { CompiledInteractiveCard } from './components/ui/osCompiler/compiledPrim
 import { BAMBOOK_OS } from './components/ui/bambookOsTokens';
 import { OS_MATERIAL } from './components/ui/osMaterial';
 import DevelopmentManager from './components/DevelopmentManager';
-import FinanceManager from './components/FinanceManager';
+import FinanceManager, { type FinanceTabId } from './components/FinanceManager';
 import ReportCenter from './components/ReportCenter';
 import ShipmentManager from './components/ShipmentManager';
 import QuotationManager from './components/QuotationManager';
@@ -186,7 +186,7 @@ import QcWorkbenchManager from './components/QcWorkbenchManager';
 import PricingManager from './components/PricingManager';
 import MarketingManager from './components/MarketingManager';
 import MesManager from './components/MesManager';
-import CustomsManager from './components/CustomsManager';
+import CustomsManager, { type CustomsTabId } from './components/CustomsManager';
 import type { GlobeQualityMode, GlobeViewportCenter } from './components/ProductionGlobe';
 import {
   requestOsAdaptiveContrastRefresh,
@@ -1140,8 +1140,16 @@ const App: React.FC = () => {
       commitWallpaperAccentPalette(palette);
     });
   }, [commitWallpaperAccentPalette]);
+  // A5d 报表下钻联动：跳转目标模块并定位模块内 tab（FinanceManager/CustomsManager initialTab）
+  const [moduleTabOverrides, setModuleTabOverrides] = useState<Partial<Record<View, string>>>({});
   const handleViewChange = (view: View) => {
+    // 常规导航清除下钻落点覆盖（A5d），避免旧 tab 定位残留
+    setModuleTabOverrides({});
     setCurrentView(canAccessView(view) ? view : View.Dashboard);
+  };
+  const handleReportNavigate = (view: View, tab?: string) => {
+    setCurrentView(canAccessView(view) ? view : View.Dashboard);
+    setModuleTabOverrides(tab ? { [view]: tab } : {});
   };
 
   const settingsMode = resolveSettingsMode(activeView);
@@ -1534,7 +1542,7 @@ const App: React.FC = () => {
               'payment-vouchers',
               <FinanceManager
                 isDarkMode={isDarkMode}
-                initialTab={activeView === View.Invoices ? 'invoices' : 'vouchers'}
+                initialTab={(moduleTabOverrides[activeView] as FinanceTabId | undefined) ?? (activeView === View.Invoices ? 'invoices' : 'vouchers')}
                 invoices={invoices}
                 setInvoices={setInvoices}
                 vouchers={paymentVouchers}
@@ -1542,7 +1550,7 @@ const App: React.FC = () => {
               />,
             )}
             {activeView === View.Reports && (
-              <ReportCenter isDarkMode={isDarkMode} />
+              <ReportCenter isDarkMode={isDarkMode} onNavigate={handleReportNavigate} />
             )}
             {activeView === View.Shipments && renderMainCompilerSlot(
               compilerSurfaces.shipments,
@@ -1600,7 +1608,7 @@ const App: React.FC = () => {
             {activeView === View.Customs && renderMainCompilerSlot(
               compilerSurfaces.customs,
               'customs',
-              <CustomsManager isDarkMode={isDarkMode} />,
+              <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} />,
             )}
             {activeView === View.KnowledgeBase && renderMainCompilerSlot(
               compilerSurfaces.knowledgeBase,

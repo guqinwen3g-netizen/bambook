@@ -33,6 +33,9 @@ const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(
 
 type FinanceTabId = 'invoices' | 'vouchers' | 'vatInvoices' | 'reports';
 
+/** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
+export type { FinanceTabId };
+
 type InvoiceTypeId = 'all' | InvoiceType;
 type InvoiceStatusId = 'all' | InvoiceStatus;
 type VoucherTypeId = 'all' | VoucherType;

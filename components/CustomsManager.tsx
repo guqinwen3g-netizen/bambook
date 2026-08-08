@@ -64,6 +64,9 @@ import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 type TabId = 'declarations' | 'hsCodes' | 'lettersOfCredit' | 'taxRefunds' | 'tradeDocuments';
 
+/** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
+export type { TabId as CustomsTabId };
+
 const CUSTOMS_TYPES: Array<{ id: CustomsType; label: string }> = [
   { id: 'Export', label: '出口' },
   { id: 'Import', label: '进口' },
@@ -149,12 +152,18 @@ const TRADE_TERMS = ['FOB', 'CIF', 'EXW', 'DDP', 'FCA', 'CPT', 'CIP', 'DAP', 'DP
 
 interface CustomsManagerProps {
   isDarkMode: boolean;
+  /** A5d 报表下钻联动：指定落点 tab（如 taxRefunds），变更时响应式同步 */
+  initialTab?: TabId;
 }
 
 // ==================== 组件 ====================
 
-const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
-  const [activeTab, setActiveTab] = useState<TabId>('declarations');
+const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab }) => {
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'declarations');
+  // A5d：与 FinanceManager 同一口径 — initialTab 变更时响应式同步（下钻落点定位）
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
   const [declarations, setDeclarations] = useState<CustomsDeclaration[]>([]);
   const [hsCodes, setHsCodes] = useState<HsCode[]>([]);
   const [lettersOfCredit, setLettersOfCredit] = useState<LetterOfCredit[]>([]);

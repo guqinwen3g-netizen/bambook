@@ -16,12 +16,16 @@ import {
   ReportQuerySpec,
   REPORT_SCHEDULES,
   ReportSchedule,
+  executeReportDrill,
   executeReportQuery,
+  validateDrillGroup,
   validateReportQuery,
 } from './reportEngine';
 
 export const PREVIEW_LIMIT = 500;
 export const RUN_SNAPSHOT_LIMIT = 5000;
+/** A5d 下钻明细行数上限 */
+export const DRILL_LIMIT = 200;
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } };
 
@@ -250,6 +254,28 @@ export async function previewReportQuery(params: {
   } catch (e: any) {
     logger.error('[Reporting] preview failed', { error: e?.message });
     return { ok: false, error: { code: 'PREVIEW_FAILED', message: e?.message ?? 'preview failed' } };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
+// 2.5 下钻（A5d：聚合组 → 组成员实体明细，不落库）
+// ────────────────────────────────────────────────────────────────
+
+export async function drillReportQuery(params: {
+  prisma: PrismaClient;
+  input: unknown;
+}): Promise<Result<Awaited<ReturnType<typeof executeReportDrill>>>> {
+  const body = (params.input ?? {}) as Record<string, unknown>;
+  const check = validateReportQuery(params.input);
+  if (!check.ok) return { ok: false, error: check.error };
+  const groupCheck = validateDrillGroup(check.spec, body.group);
+  if (!groupCheck.ok) return { ok: false, error: groupCheck.error };
+  try {
+    const result = await executeReportDrill(params.prisma, check.dataset, check.spec, groupCheck.group, DRILL_LIMIT);
+    return { ok: true, data: result };
+  } catch (e: any) {
+    logger.error('[Reporting] drill failed', { error: e?.message });
+    return { ok: false, error: { code: 'DRILL_FAILED', message: e?.message ?? 'drill failed' } };
   }
 }
 

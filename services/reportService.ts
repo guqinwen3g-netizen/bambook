@@ -29,6 +29,12 @@ export interface ReportDatasetSpec {
   dimensions: ReportFieldSpec[];
   metrics: ReportFieldSpec[];
   filterFields: ReportFieldSpec[];
+  /** A5d 下钻契约：EntityLink 图谱类型码 */
+  entityType: string;
+  /** A5d 下钻契约：实体主键字段 */
+  idField: string;
+  /** A5d 下钻契约：明细行展示字段 */
+  detailFields: ReportFieldSpec[];
 }
 
 export type ReportMetricAgg = 'sum' | 'avg' | 'min' | 'max' | 'count';
@@ -95,6 +101,19 @@ export interface ReportPreviewResult {
   columnLabels: string[];
   rows: Array<Record<string, string | number | null>>;
   truncated: boolean;
+}
+
+/** A5d 下钻组约束：维度字段 → 组值（null 对应 groupBy 空值组） */
+export type ReportDrillGroup = Record<string, string | null>;
+
+export interface ReportDrillResult {
+  entityType: string;
+  idField: string;
+  columns: string[];
+  columnLabels: string[];
+  rows: Array<Record<string, string | number | null>>;
+  /** 组内成员总数（rows ≤200 截断时用 total 提示） */
+  total: number;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -174,6 +193,19 @@ export const reportService = {
       body: JSON.stringify(input),
     });
     return parseOrThrow<ReportPreviewResult>(res, 'preview failed');
+  },
+
+  /** A5d 下钻：聚合组 → 组成员实体明细（不落库，≤200 行，实时数据） */
+  async drill(
+    input: Omit<ReportDefinitionInput, 'name' | 'schedule'> & { group: ReportDrillGroup },
+    endpoint?: string,
+  ): Promise<ReportDrillResult> {
+    const res = await fetch(buildUrl('/drill', endpoint), {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(input),
+    });
+    return parseOrThrow<ReportDrillResult>(res, 'drill failed');
   },
 
   /** 手动运行（落快照） */

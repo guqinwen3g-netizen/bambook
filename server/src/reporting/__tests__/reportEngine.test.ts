@@ -5,11 +5,13 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
+  executeReportDrill,
   executeReportQuery,
   isoWeekAndYear,
   metricColumn,
   periodKeyFor,
   rowsToCsv,
+  validateDrillGroup,
   validateReportQuery,
 } from '../reportEngine';
 import { getDataset, listDatasets } from '../datasets';
@@ -119,6 +121,10 @@ describe('validateReportQuery', () => {
       const ds = getDataset(k)!;
       expect(ds.dimensions.length).toBeGreaterThan(0);
       expect(ds.metrics.length).toBeGreaterThan(0);
+      // A5d 下钻契约：实体类型码 / 主键 / 明细字段齐备
+      expect(ds.entityType).toBeTruthy();
+      expect(ds.idField).toBeTruthy();
+      expect(ds.detailFields.length).toBeGreaterThan(0);
     }
   });
 });
@@ -230,6 +236,92 @@ describe('executeReportQuery', () => {
     const r = await executeReportQuery(prisma, dataset, spec, 500);
     expect(metricColumn(spec.metrics[0])).toBe('count(amount)');
     expect(r.rows[0]['count(amount)']).toBe(2);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// 2.5 下钻（A5d：聚合组 → 组成员实体明细）
+// ────────────────────────────────────────────────────────────────
+describe('validateDrillGroup', () => {
+  const spec = { datasetKey: 'invoices', dimensions: ['type', 'currency'], metrics: [{ field: 'amount', agg: 'sum' as const }], filters: [] };
+
+  it('接受恰好覆盖维度的组约束（含 null 空值组）', () => {
+    const r = validateDrillGroup(spec, { type: 'Receivable', currency: null });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.group).toEqual({ type: 'Receivable', currency: null });
+  });
+
+  it('无维度报表接受空组（总计行下钻全表）', () => {
+    const r = validateDrillGroup({ ...spec, dimensions: [] }, {});
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.group).toEqual({});
+  });
+
+  it('拒绝非对象 / 维度外键 / 非法值类型', () => {
+    expect(validateDrillGroup(spec, null).ok).toBe(false);
+    expect(validateDrillGroup(spec, ['type']).ok).toBe(false);
+    const r1 = validateDrillGroup(spec, { type: 'Receivable', currency: 'USD', hack: 'x' });
+    expect(r1.ok).toBe(false);
+    if (!r1.ok) expect(r1.error.code).toBe('INVALID_DRILL_GROUP');
+    expect(validateDrillGroup(spec, { type: 123, currency: 'USD' }).ok).toBe(false);
+  });
+});
+
+describe('executeReportDrill', () => {
+  const dataset = getDataset('invoices')!;
+  const spec = {
+    datasetKey: 'invoices',
+    dimensions: ['type', 'currency'],
+    metrics: [{ field: 'amount', agg: 'sum' as const }],
+    filters: [{ field: 'issueDate', op: 'gte' as const, value: '2026-01-01' }],
+  };
+
+  it('注入软删过滤 + 普通过滤 + 维度等值（含 null）；select 主键+明细字段；返回 total', async () => {
+    const prisma = {
+      invoice: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'INV__1', invoiceNumber: 'INV-2026-001', type: 'Receivable', status: 'Issued', customerName: 'Acme', amount: { toString: () => '100.5' }, currency: 'USD', issueDate: '2026-01-10', dueDate: null },
+        ]),
+        count: vi.fn().mockResolvedValue(3),
+      },
+    } as any;
+    const r = await executeReportDrill(prisma, dataset, spec, { type: 'Receivable', currency: null }, 200);
+
+    const args = prisma.invoice.findMany.mock.calls[0][0];
+    expect(args.where).toEqual({
+      deletedAt: null,
+      issueDate: { gte: '2026-01-01' },
+      type: { equals: 'Receivable' },
+      currency: { equals: null },
+    });
+    expect(args.select).toEqual({
+      id: true, invoiceNumber: true, type: true, status: true,
+      customerName: true, amount: true, currency: true, issueDate: true, dueDate: true,
+    });
+    expect(args.orderBy).toEqual({ id: 'asc' });
+    expect(args.take).toBe(200);
+    expect(prisma.invoice.count).toHaveBeenCalledWith({ where: args.where });
+
+    expect(r.entityType).toBe('invoice');
+    expect(r.idField).toBe('id');
+    expect(r.total).toBe(3);
+    expect(r.columns[0]).toBe('id');
+    expect(r.columnLabels[0]).toBe('ID');
+    // Decimal 等对象值统一字符串化
+    expect(r.rows[0].amount).toBe('100.5');
+    expect(r.rows[0].dueDate).toBeNull();
+  });
+
+  it('维度等值与同字段普通过滤合并', async () => {
+    const prisma = { invoice: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) } } as any;
+    const merged = {
+      ...spec,
+      dimensions: ['type'],
+      filters: [{ field: 'type', op: 'ne' as const, value: 'Payable' }],
+    };
+    await executeReportDrill(prisma, dataset, merged, { type: 'Receivable' }, 200);
+    const args = prisma.invoice.findMany.mock.calls[0][0];
+    expect(args.where.type).toEqual({ not: 'Payable', equals: 'Receivable' });
   });
 });
 
