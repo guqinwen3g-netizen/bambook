@@ -14,6 +14,7 @@ export enum View {
   CRM = 'crm',
   Suppliers = 'suppliers',
   Seasons = 'seasons',
+  Risks = 'risks',
   MES = 'mes',
   Customs = 'customs',
   Invoices = 'invoices',
@@ -3102,6 +3103,146 @@ export interface TradeShowROI {
   orderCount: number;
   orderAmount: number;
   roi: number;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 阶段 H H3: 风险管理与合规 Risk & Compliance
+// 统一风险预警中心 / 汇率与锁定 / 客户信用评级 / 合规检查 / 质量疵点趋势
+// ════════════════════════════════════════════════════════════════
+
+export type RiskAlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat';
+export type RiskAlertLevel = 'info' | 'warning' | 'critical';
+export type RiskAlertStatus = 'Open' | 'Acknowledged' | 'Resolved';
+
+/** 统一风险预警（各维度预警落地于此，dedupKey 为幂等真源） */
+export interface RiskAlert {
+  id: string;
+  type: RiskAlertType;
+  level: RiskAlertLevel;
+  title: string;
+  content: string;
+  relatedType?: string | null;
+  relatedId?: string | null;
+  dedupKey: string;
+  status: RiskAlertStatus;
+  createdAt: number;
+  updatedAt: number;
+  resolvedAt?: number | null;
+}
+
+/** 风险总览（服务端聚合） */
+export interface RiskOverview {
+  openByType: Record<string, number>;
+  openByLevel: Record<string, number>;
+  recent: RiskAlert[];
+}
+
+export interface ExchangeRate {
+  id: string;
+  currency: string; // 归一化大写，如 USD | EUR | HKD
+  rate: number; // 1 单位外币兑 CNY
+  effectiveDate: string; // YYYY-MM-DD
+  source: string; // manual | api
+  note?: string | null;
+  createdAt: number;
+}
+
+export interface ExchangeRateInput {
+  currency: string;
+  rate: number;
+  effectiveDate?: string;
+  source?: string;
+  note?: string | null;
+}
+
+/** 各币种最新一条有效汇率 */
+export interface LatestFxRate {
+  currency: string;
+  rate: number;
+  effectiveDate: string;
+  source: string;
+}
+
+/** 大额订单汇率锁定（锁定期间不受波动影响） */
+export interface FxRateLock {
+  id: string;
+  orderId: string;
+  currency: string;
+  rate: number;
+  lockedAt: number;
+  lockedById?: string | null;
+  note?: string | null;
+  createdAt: number;
+}
+
+export interface FxRateLockInput {
+  orderId: string;
+  currency: string;
+  rate?: number; // 缺省取该币种最新汇率
+  note?: string | null;
+}
+
+export type CreditGrade = 'A' | 'B' | 'C' | 'D';
+
+/** 信用评级因子快照 */
+export interface CreditRatingFactors {
+  onTimeRate: number | null;
+  overdueCount: number;
+  maxDaysOverdue: number;
+  cooperationYears: number;
+  settledCount: number;
+}
+
+/** 信用评级（append-only 评估历史，最新一条为当前评级） */
+export interface CreditRating {
+  id: string;
+  relationId: string;
+  grade: CreditGrade;
+  score: number; // 0-100
+  factors: CreditRatingFactors;
+  evaluatedAt: number;
+  evaluatedBy?: string | null; // null = 系统自动评估
+}
+
+export type ComplianceCheckType = 'hs_code' | 'export_control' | 'origin_rule';
+export type ComplianceCheckResult = 'pass' | 'warn' | 'fail';
+
+/** 合规检查记录（HS Code / 出口管制 / 原产地规则） */
+export interface ComplianceCheck {
+  id: string;
+  type: ComplianceCheckType;
+  targetType: string; // CustomsDeclaration | Order | ProductAsset
+  targetId: string;
+  result: ComplianceCheckResult;
+  summary: string;
+  details?: Record<string, unknown> | null;
+  checkedById?: string | null; // null = 系统自动
+  checkedAt: number;
+}
+
+export interface ComplianceCheckInput {
+  type: ComplianceCheckType;
+  targetType: string;
+  targetId: string;
+  result: ComplianceCheckResult;
+  summary: string;
+  details?: Record<string, unknown> | null;
+}
+
+export interface DefectKeyword {
+  keyword: string;
+  count: number;
+}
+
+/** 疵点趋势聚合行（按工厂或季度分组） */
+export interface DefectTrendItem {
+  key: string;
+  reports: number;
+  failCount: number;
+  criticalDefects: number;
+  majorDefects: number;
+  minorDefects: number;
+  defectKeywords: DefectKeyword[];
 }
 
 // ════════════════════════════════════════════════════════════════

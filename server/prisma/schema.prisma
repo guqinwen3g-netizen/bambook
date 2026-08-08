@@ -2850,6 +2850,93 @@ model TradeShowLead {
   @@index([convertedRelationId])
 }
 
+// ============ 阶段 H H3: 风险管理与合规 Risk Management（PRD 15） ============
+// 设计口径：
+//   - 逾期天数沿用 receivableOverdueDetector 口径：effectiveDue = dueDate ?? issueDate + 30 天
+//   - RiskAlert.dedupKey @unique 为幂等真源：同键重复预警在 DB 层拒绝，不产生重复告警
+//   - 关联（Order/Relation/CustomsDeclaration）均为 snapshot FK 风格，不加 @relation
+
+// ExchangeRate：汇率档案（PRD 15.1）——currency → CNY 本位币，按 effectiveDate 取最新
+model ExchangeRate {
+  id            String  @id // 格式：FXR__${shortId}
+  currency      String // USD | EUR | HKD ...（归一化大写）
+  rate          Decimal @db.Decimal(18, 8) // 1 单位外币兑 CNY
+  effectiveDate String // 生效日期 YYYY-MM-DD
+  source        String  @default("manual") // manual | api
+  note          String?
+  createdAt     BigInt
+
+  @@index([currency, effectiveDate])
+}
+
+// FxRateLock：大额订单汇率锁定（PRD 15.1）——锁定期间不受波动影响
+model FxRateLock {
+  id         String  @id // 格式：FXL__${shortId}
+  orderId    String // 关联订单（snapshot FK）
+  currency   String // 锁定币种（归一化大写）
+  rate       Decimal @db.Decimal(18, 8) // 锁定汇率（外币 → CNY）
+  lockedAt   BigInt
+  lockedById String?
+  note       String?
+  createdAt  BigInt
+  deletedAt  BigInt?
+
+  @@index([orderId])
+}
+
+// CreditRating：信用评级（PRD 15.2）——append-only 评估历史，最新一条为当前评级
+// factors 记录评估因子快照：{ onTimeRate, overdueCount, maxDaysOverdue, cooperationYears, settledCount }
+model CreditRating {
+  id          String  @id // 格式：CDR__${shortId}
+  relationId  String // 关联客户（snapshot FK）
+  grade       String // A | B | C | D
+  score       Float // 0-100
+  factors     Json
+  evaluatedAt BigInt
+  evaluatedBy String? // null = 系统自动评估
+  createdAt   BigInt
+
+  @@index([relationId, evaluatedAt])
+}
+
+// ComplianceCheck：合规检查记录（PRD 15.3）——HS Code / 出口管制 / 原产地规则
+model ComplianceCheck {
+  id          String  @id // 格式：CPC__${shortId}
+  type        String // hs_code | export_control | origin_rule
+  targetType  String // CustomsDeclaration | Order | ProductAsset
+  targetId    String
+  result      String // pass | warn | fail
+  summary     String
+  details     Json?
+  checkedById String? // null = 系统自动
+  checkedAt   BigInt
+  createdAt   BigInt
+
+  @@index([type])
+  @@index([targetType, targetId])
+  @@index([result])
+}
+
+// RiskAlert：统一风险预警中心（PRD 15.5）——各维度预警统一落地此处
+model RiskAlert {
+  id          String  @id // 格式：RSKA__${shortId}
+  type        String // fx_volatility | credit_frozen | bad_debt | compliance_fail | quality_repeat
+  level       String // info | warning | critical
+  title       String
+  content     String
+  relatedType String?
+  relatedId   String?
+  dedupKey    String  @unique // 幂等真源：如 bad_debt:${invoiceId} / fx_volatility:${currency}:${date}
+  status      String  @default("Open") // Open | Acknowledged | Resolved
+  createdAt   BigInt
+  updatedAt   BigInt
+  resolvedAt  BigInt?
+
+  @@index([type])
+  @@index([status])
+  @@index([level])
+}
+
 // ============ Phase 2 B2: 库存管理 Inventory Management ============
 
 model Warehouse {

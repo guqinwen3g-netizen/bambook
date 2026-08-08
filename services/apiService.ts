@@ -84,6 +84,19 @@ import {
   TradeShowLead,
   TradeShowLeadInput,
   TradeShowLeadPatch,
+  // 风险管理与合规（阶段 H H3）
+  RiskAlert,
+  RiskAlertStatus,
+  RiskOverview,
+  ExchangeRate,
+  ExchangeRateInput,
+  LatestFxRate,
+  FxRateLock,
+  FxRateLockInput,
+  CreditRating,
+  ComplianceCheck,
+  ComplianceCheckInput,
+  DefectTrendItem,
   // MES
   WorkStation,
   WorkStationInput,
@@ -1420,6 +1433,112 @@ export const apiService = {
   async convertTradeShowLead(leadId: string, relationId: string, endpoint?: string): Promise<TradeShowLead> {
     const data = await requestJson<{ ok: boolean; item: TradeShowLead }>(`/v1/seasons/leads/${encodeURIComponent(leadId)}/convert`, { endpoint, method: 'POST', body: JSON.stringify({ relationId }) });
     return data.item;
+  },
+
+  // ── 阶段 H H3: 风险管理与合规 Risk & Compliance API ──
+  // 预警中心 RiskAlert
+  async getRiskOverview(endpoint?: string): Promise<RiskOverview> {
+    const data = await requestJson<RiskOverview>(`/v1/risk/overview`, { endpoint, method: 'GET' });
+    return { openByType: data.openByType ?? {}, openByLevel: data.openByLevel ?? {}, recent: data.recent ?? [] };
+  },
+  async listRiskAlerts(params?: { type?: string; level?: string; status?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: RiskAlert[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.type) query.set('type', params.type);
+    if (params?.level) query.set('level', params.level);
+    if (params?.status) query.set('status', params.status);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const data = await requestJson<{ items: RiskAlert[]; total: number }>(`/v1/risk/alerts${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return { items: data.items ?? [], total: data.total ?? 0 };
+  },
+  async updateRiskAlertStatus(id: string, status: RiskAlertStatus, endpoint?: string): Promise<RiskAlert> {
+    const data = await requestJson<{ ok: boolean; item: RiskAlert }>(`/v1/risk/alerts/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify({ status }) });
+    return data.item;
+  },
+
+  // ExchangeRate 汇率
+  async listExchangeRates(params?: { currency?: string; limit?: number }, endpoint?: string): Promise<ExchangeRate[]> {
+    const query = new URLSearchParams();
+    if (params?.currency) query.set('currency', params.currency);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const data = await requestJson<{ items: ExchangeRate[]; total?: number }>(`/v1/risk/fx-rates${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async getLatestFxRates(endpoint?: string): Promise<LatestFxRate[]> {
+    const data = await requestJson<{ items: LatestFxRate[] }>(`/v1/risk/fx-rates-latest`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async addExchangeRate(input: ExchangeRateInput, endpoint?: string): Promise<ExchangeRate> {
+    const data = await requestJson<{ ok: boolean; item: ExchangeRate }>(`/v1/risk/fx-rates`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  // FxRateLock 汇率锁定
+  async listFxLocks(orderId?: string, endpoint?: string): Promise<FxRateLock[]> {
+    const qs = orderId ? `?orderId=${encodeURIComponent(orderId)}` : '';
+    const data = await requestJson<{ items: FxRateLock[]; total?: number }>(`/v1/risk/fx-locks${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async lockFxRate(input: FxRateLockInput, endpoint?: string): Promise<FxRateLock> {
+    const data = await requestJson<{ ok: boolean; item: FxRateLock }>(`/v1/risk/fx-locks`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async deleteFxLock(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/risk/fx-locks/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // CreditRating 信用评级
+  async listCreditRatings(params?: { relationId?: string; latestOnly?: boolean }, endpoint?: string): Promise<CreditRating[]> {
+    const query = new URLSearchParams();
+    if (params?.relationId) query.set('relationId', params.relationId);
+    if (params?.latestOnly != null) query.set('latestOnly', String(params.latestOnly));
+    const qs = query.toString();
+    const data = await requestJson<{ items: CreditRating[]; total?: number }>(`/v1/risk/credit-ratings${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async evaluateCreditRating(relationId: string, endpoint?: string): Promise<CreditRating> {
+    const data = await requestJson<{ ok: boolean; item: CreditRating }>(`/v1/risk/credit-ratings/evaluate`, { endpoint, method: 'POST', body: JSON.stringify({ relationId }) });
+    return data.item;
+  },
+  async runCreditRiskScan(endpoint?: string): Promise<{ frozenCount: number; badDebtCount: number }> {
+    const data = await requestJson<{ ok: boolean; frozenCount: number; badDebtCount: number }>(`/v1/risk/credit-risk-scan`, { endpoint, method: 'POST' });
+    return { frozenCount: data.frozenCount ?? 0, badDebtCount: data.badDebtCount ?? 0 };
+  },
+
+  // ComplianceCheck 合规检查
+  async listComplianceChecks(params?: { type?: string; result?: string; targetType?: string; targetId?: string }, endpoint?: string): Promise<ComplianceCheck[]> {
+    const query = new URLSearchParams();
+    if (params?.type) query.set('type', params.type);
+    if (params?.result) query.set('result', params.result);
+    if (params?.targetType) query.set('targetType', params.targetType);
+    if (params?.targetId) query.set('targetId', params.targetId);
+    const qs = query.toString();
+    const data = await requestJson<{ items: ComplianceCheck[]; total?: number }>(`/v1/risk/compliance-checks${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async runHsCodeCheck(declarationId: string, endpoint?: string): Promise<ComplianceCheck> {
+    const data = await requestJson<{ ok: boolean; item: ComplianceCheck }>(`/v1/risk/compliance-checks/hs-code`, { endpoint, method: 'POST', body: JSON.stringify({ declarationId }) });
+    return data.item;
+  },
+  async runExportControlCheck(declarationId: string, endpoint?: string): Promise<ComplianceCheck> {
+    const data = await requestJson<{ ok: boolean; item: ComplianceCheck }>(`/v1/risk/compliance-checks/export-control`, { endpoint, method: 'POST', body: JSON.stringify({ declarationId }) });
+    return data.item;
+  },
+  async addComplianceCheck(input: ComplianceCheckInput, endpoint?: string): Promise<ComplianceCheck> {
+    const data = await requestJson<{ ok: boolean; item: ComplianceCheck }>(`/v1/risk/compliance-checks`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  // 质量 Quality 疵点趋势
+  async getDefectTrends(groupBy: 'factory' | 'quarter', endpoint?: string): Promise<DefectTrendItem[]> {
+    const data = await requestJson<{ items: DefectTrendItem[] }>(`/v1/risk/quality/defect-trends?groupBy=${encodeURIComponent(groupBy)}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async runQualityRepeatScan(endpoint?: string): Promise<{ alerted: number }> {
+    const data = await requestJson<{ ok: boolean; alerted: number }>(`/v1/risk/quality/repeat-scan`, { endpoint, method: 'POST' });
+    return { alerted: data.alerted ?? 0 };
   },
 
   async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {
