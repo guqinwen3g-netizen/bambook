@@ -12,6 +12,7 @@ export enum View {
   Inventory = 'inventory',
   BOM = 'bom',
   CRM = 'crm',
+  Suppliers = 'suppliers',
   MES = 'mes',
   Customs = 'customs',
   Invoices = 'invoices',
@@ -2801,6 +2802,125 @@ export interface CrmOverview {
   opportunities: Opportunity[];
   activeTier: CustomerTier | null;
   tierHistory: CustomerTier[];
+}
+
+// ════════════════════════════════════════════════════════════════
+// 阶段 H H1: 供应商管理 Supplier Management（PRD 13 / 19.18）
+// 身份真源在 Relation（category=Supplier），FactoryProfile 1:1 承载工厂属性
+// ════════════════════════════════════════════════════════════════
+
+export type FactoryPriceLevel = 'High' | 'Mid' | 'Low';
+export type FactoryEvaluationKind = 'inspection' | 'delivery';
+
+export interface FactoryProfile {
+  id: string;
+  relationId: string;
+  monthlyCapacity?: number | null;
+  capacityUnit?: string | null; // PC | M
+  equipmentList?: string | null;
+  workerCount?: number | null;
+  specialties: string[];
+  qualityScore: number; // 0-100 缓存分（真源 FactoryEvaluation）
+  deliveryScore: number; // 0-100 缓存分
+  priceLevel?: FactoryPriceLevel | null;
+  firstOrderAt?: string | null; // YYYY-MM-DD
+  totalOrders: number;
+  totalAmount: number;
+  bankName?: string | null;
+  bankAccount?: string | null;
+  bankSwift?: string | null;
+  blacklistedAt?: number | null;
+  blacklistReason?: string | null;
+  blacklistedById?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  relation?: Relation | null;
+  certifications?: FactoryCertification[];
+}
+
+export interface FactoryProfileInput {
+  relationId: string;
+  monthlyCapacity?: number | null;
+  capacityUnit?: string | null;
+  equipmentList?: string | null;
+  workerCount?: number | null;
+  specialties?: string[];
+  priceLevel?: FactoryPriceLevel | null;
+  firstOrderAt?: string | null;
+  bankName?: string | null;
+  bankAccount?: string | null;
+  bankSwift?: string | null;
+  notes?: string | null;
+}
+
+export type FactoryProfilePatch = Partial<Omit<FactoryProfileInput, 'relationId'>>;
+
+export interface FactoryEvaluation {
+  id: string;
+  factoryId: string;
+  kind: FactoryEvaluationKind;
+  score: number; // 0-100
+  sourceType?: string | null; // inspectionReport | shipment | purchaseOrder | manual
+  sourceId?: string | null;
+  evaluatedAt: string; // YYYY-MM-DD
+  note?: string | null;
+  actorId?: string | null;
+  createdAt: number;
+  deletedAt?: number | null;
+}
+
+export interface FactoryEvaluationInput {
+  kind: FactoryEvaluationKind;
+  score: number;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  evaluatedAt: string;
+  note?: string | null;
+}
+
+export interface FactoryCertification {
+  id: string;
+  factoryId: string;
+  type: string; // BSCI | SEDEX | WRAP | ISO9001 | ...
+  certificateNo?: string | null;
+  issuedAt?: string | null;
+  validUntil?: string | null; // null = 长期有效
+  attachmentPath?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  factory?: FactoryProfile | null;
+}
+
+export interface FactoryCertificationInput {
+  type: string;
+  certificateNo?: string | null;
+  issuedAt?: string | null;
+  validUntil?: string | null;
+  attachmentPath?: string | null;
+}
+
+export interface FactoryCapacity {
+  id: string;
+  factoryId: string;
+  month: string; // YYYY-MM
+  capacity: number;
+  unit?: string | null; // PC | M
+  note?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+  /** 服务层实时聚合：在手采购单占用量 */
+  occupied?: number;
+}
+
+export interface FactoryOverview {
+  profile: FactoryProfile;
+  evaluations: FactoryEvaluation[];
+  certifications: FactoryCertification[];
+  capacity: FactoryCapacity[];
 }
 
 // ════════════════════════════════════════════════════════════════

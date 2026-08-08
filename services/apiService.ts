@@ -57,6 +57,16 @@ import {
   CustomerTier,
   CustomerTierInput,
   CrmOverview,
+  // 供应商管理（阶段 H H1）
+  FactoryProfile,
+  FactoryProfileInput,
+  FactoryProfilePatch,
+  FactoryEvaluation,
+  FactoryEvaluationInput,
+  FactoryCertification,
+  FactoryCertificationInput,
+  FactoryCapacity,
+  FactoryOverview,
   // MES
   WorkStation,
   WorkStationInput,
@@ -1177,6 +1187,99 @@ export const apiService = {
   async getCrmOverview(relationId: string, endpoint?: string): Promise<CrmOverview | null> {
     try {
       const data = await requestJson<CrmOverview>(`/v1/crm/${encodeURIComponent(relationId)}/overview`, { endpoint, method: 'GET' });
+      return data;
+    } catch { return null; }
+  },
+
+  // ── 阶段 H H1: 供应商管理 Supplier Management API ──
+  // FactoryProfile 档案
+  async listFactoryProfiles(params?: { search?: string; blacklisted?: boolean; sort?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: FactoryProfile[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.blacklisted !== undefined) query.set('blacklisted', String(params.blacklisted));
+    if (params?.sort) query.set('sort', params.sort);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    const data = await requestJson<{ items: FactoryProfile[]; total: number }>(`/v1/suppliers${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return { items: data.items ?? [], total: data.total ?? 0 };
+  },
+  async getFactoryProfile(id: string, endpoint?: string): Promise<FactoryProfile | null> {
+    try {
+      const data = await requestJson<{ item: FactoryProfile }>(`/v1/suppliers/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      return data.item;
+    } catch { return null; }
+  },
+  async createFactoryProfile(input: FactoryProfileInput, endpoint?: string): Promise<FactoryProfile> {
+    const data = await requestJson<{ item: FactoryProfile }>(`/v1/suppliers`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateFactoryProfile(id: string, patch: FactoryProfilePatch, endpoint?: string): Promise<FactoryProfile> {
+    const data = await requestJson<{ item: FactoryProfile }>(`/v1/suppliers/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteFactoryProfile(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/suppliers/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async blacklistFactory(id: string, reason: string, endpoint?: string): Promise<FactoryProfile> {
+    const data = await requestJson<{ item: FactoryProfile }>(`/v1/suppliers/${encodeURIComponent(id)}/blacklist`, { endpoint, method: 'POST', body: JSON.stringify({ reason }) });
+    return data.item;
+  },
+  async unblacklistFactory(id: string, endpoint?: string): Promise<FactoryProfile> {
+    const data = await requestJson<{ item: FactoryProfile }>(`/v1/suppliers/${encodeURIComponent(id)}/blacklist`, { endpoint, method: 'DELETE' });
+    return data.item;
+  },
+
+  // FactoryEvaluation 评估
+  async listFactoryEvaluations(factoryId: string, kind?: string, endpoint?: string): Promise<FactoryEvaluation[]> {
+    const qs = kind ? `?kind=${encodeURIComponent(kind)}` : '';
+    const data = await requestJson<{ items: FactoryEvaluation[] }>(`/v1/suppliers/${encodeURIComponent(factoryId)}/evaluations${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async addFactoryEvaluation(factoryId: string, input: FactoryEvaluationInput, endpoint?: string): Promise<FactoryEvaluation> {
+    const data = await requestJson<{ item: FactoryEvaluation }>(`/v1/suppliers/${encodeURIComponent(factoryId)}/evaluations`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  // FactoryCertification 认证
+  async listFactoryCertifications(factoryId: string, endpoint?: string): Promise<FactoryCertification[]> {
+    const data = await requestJson<{ items: FactoryCertification[] }>(`/v1/suppliers/${encodeURIComponent(factoryId)}/certifications`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async addFactoryCertification(factoryId: string, input: FactoryCertificationInput, endpoint?: string): Promise<FactoryCertification> {
+    const data = await requestJson<{ item: FactoryCertification }>(`/v1/suppliers/${encodeURIComponent(factoryId)}/certifications`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateFactoryCertification(certId: string, patch: Partial<FactoryCertificationInput>, endpoint?: string): Promise<FactoryCertification> {
+    const data = await requestJson<{ item: FactoryCertification }>(`/v1/suppliers/certifications/${encodeURIComponent(certId)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteFactoryCertification(certId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/suppliers/certifications/${encodeURIComponent(certId)}`, { endpoint, method: 'DELETE' });
+  },
+  async listExpiringCertifications(days?: number, endpoint?: string): Promise<FactoryCertification[]> {
+    const qs = days != null ? `?days=${days}` : '';
+    const data = await requestJson<{ items: FactoryCertification[]; total: number }>(`/v1/suppliers/expiring-certifications${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+
+  // FactoryCapacity 产能日历
+  async listFactoryCapacity(factoryId: string, endpoint?: string): Promise<FactoryCapacity[]> {
+    const data = await requestJson<{ items: FactoryCapacity[] }>(`/v1/suppliers/${encodeURIComponent(factoryId)}/capacity`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async upsertFactoryCapacity(factoryId: string, month: string, input: { capacity: number; unit?: string | null; note?: string | null }, endpoint?: string): Promise<FactoryCapacity> {
+    const data = await requestJson<{ item: FactoryCapacity }>(`/v1/suppliers/${encodeURIComponent(factoryId)}/capacity/${encodeURIComponent(month)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async deleteFactoryCapacity(factoryId: string, month: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/suppliers/${encodeURIComponent(factoryId)}/capacity/${encodeURIComponent(month)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // 工厂 360° 总览
+  async getFactoryOverview(factoryId: string, endpoint?: string): Promise<FactoryOverview | null> {
+    try {
+      const data = await requestJson<FactoryOverview>(`/v1/suppliers/${encodeURIComponent(factoryId)}/overview`, { endpoint, method: 'GET' });
       return data;
     } catch { return null; }
   },

@@ -33,6 +33,7 @@ import { createProcurementRouter } from './procurement/procurementRoute';
 import { createInventoryRouter } from './inventory/inventoryRoute';
 import { createBOMRouter } from './bom/bomRoute';
 import { createCrmRouter } from './crm/crmRoute';
+import { createSupplierRouter } from './suppliers/factoryRoute';
 import { createMesRouter } from './mes/mesRoute';
 import { createCustomsRouter } from './customs/customsRoute';
 import { createProductionRouter } from './production/route';
@@ -567,6 +568,16 @@ app.use(
 app.use(
     '/api/v1/mes',
     (req, res, next) => createMesRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v1/suppliers',
+    (req, res, next) => createSupplierRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

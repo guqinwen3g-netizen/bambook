@@ -323,6 +323,7 @@ model Relation {
   followUpRecords FollowUpRecord[]
   opportunities   Opportunity[]
   customerTiers   CustomerTier[]
+  factoryProfile  FactoryProfile?
 
   @@index([category])
   @@index([isOrganization])
@@ -2592,6 +2593,122 @@ model MaterialReceipt {
   @@index([purchaseOrderId])
   @@index([status])
   @@index([receivedDate])
+}
+
+// ============ 阶段 H H1: 供应商管理 Supplier Management（PRD 13 / 19.18） ============
+// 身份真源在 Relation（category=Supplier），FactoryProfile 1:1 承载工厂属性；
+// 评分为事务内重算缓存（真源在 FactoryEvaluation 明细），禁止客户端直改。
+
+// FactoryProfile：工厂档案（PRD 13.1）
+model FactoryProfile {
+  id         String @id // 格式：FACP__${shortId}
+  relationId String @unique // 1:1 挂 Relation（供应商组织身份）
+
+  // ─── 产能 ───
+  monthlyCapacity Decimal? @db.Decimal(18, 4) // 月产能
+  capacityUnit    String? // PC | M（件/米）
+  equipmentList   String? // 设备清单
+  workerCount     Int? // 工人数量
+
+  // ─── 专长 ───
+  specialties String[] // 擅长品类（西装/大衣/衬衫/针织…）
+
+  // ─── 评分缓存（真源 FactoryEvaluation，事务内重算） ───
+  qualityScore  Float   @default(0) // 质量综合分 0-100
+  deliveryScore Float   @default(0) // 交期达成率 0-100
+  priceLevel    String? // High | Mid | Low
+
+  // ─── 合作历史 ───
+  firstOrderAt String? // 首次合作日期 YYYY-MM-DD
+  totalOrders  Int     @default(0) // 累计订单数
+  totalAmount  Decimal @default(0) @db.Decimal(18, 4) // 累计金额
+
+  // ─── 银行信息 ───
+  bankName    String? // 开户行
+  bankAccount String? // 收款账户
+  bankSwift   String? // SWIFT
+
+  // ─── 黑名单（拉黑后新建采购单禁选） ───
+  blacklistedAt    BigInt?
+  blacklistReason  String?
+  blacklistedById  String?
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  relation         Relation                @relation(fields: [relationId], references: [id], onDelete: Cascade)
+  evaluations      FactoryEvaluation[]
+  certifications   FactoryCertification[]
+  capacityCalendar FactoryCapacity[]
+
+  @@index([blacklistedAt])
+  @@index([qualityScore])
+}
+
+// FactoryEvaluation：工厂评估记录（PRD 13.2）——每次验货/交货的评分明细（append-only 真源）
+model FactoryEvaluation {
+  id        String @id // 格式：FAEV__${shortId}
+  factoryId String
+
+  kind        String // inspection（验货） | delivery（交期）
+  score       Float // 0-100
+  sourceType  String? // inspectionReport | shipment | purchaseOrder | manual
+  sourceId    String?
+  evaluatedAt String // 评定日期 YYYY-MM-DD
+  note        String?
+  actorId     String?
+
+  createdAt BigInt
+  deletedAt BigInt?
+
+  factory FactoryProfile @relation(fields: [factoryId], references: [id], onDelete: Cascade)
+
+  @@index([factoryId, kind])
+  @@index([sourceType, sourceId])
+}
+
+// FactoryCertification：工厂认证记录（PRD 13.1/15.3）——有效期为预警扫描对象
+model FactoryCertification {
+  id        String @id // 格式：FACR__${shortId}
+  factoryId String
+
+  type          String // BSCI | SEDEX | WRAP | ISO9001 | ...
+  certificateNo String?
+  issuedAt      String? // 签发日期 YYYY-MM-DD
+  validUntil    String? // 有效期至 YYYY-MM-DD（null = 长期有效）
+  attachmentPath String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  factory FactoryProfile @relation(fields: [factoryId], references: [id], onDelete: Cascade)
+
+  @@index([factoryId])
+  @@index([validUntil])
+}
+
+// FactoryCapacity：工厂产能日历（PRD 13.3）——capacity 为计划产能；
+// 占用量不落地，由服务层按在手采购单（expectedDeliveryDate 落月）实时聚合。
+model FactoryCapacity {
+  id        String @id // 格式：FACC__${shortId}
+  factoryId String
+
+  month    String // YYYY-MM
+  capacity Decimal @db.Decimal(18, 4) // 当月计划产能
+  unit     String? // PC | M
+  note     String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  factory FactoryProfile @relation(fields: [factoryId], references: [id], onDelete: Cascade)
+
+  @@unique([factoryId, month])
+  @@index([month])
 }
 
 // ============ Phase 2 B2: 库存管理 Inventory Management ============

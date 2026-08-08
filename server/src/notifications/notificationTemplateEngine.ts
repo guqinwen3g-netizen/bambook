@@ -293,6 +293,27 @@ const DEFAULT_TEMPLATES: Record<BusinessEventType, TemplateSpec> = {
     body: '信用证 {lcNumber} 从 {from} 流转至 {to}。',
     link: '/customs?tab=lettersOfCredit&id={lcId}',
   },
+  SupplierBlacklisted: {
+    type: 'supplier_blacklisted',
+    level: 'critical',
+    title: '供应商已被拉黑',
+    body: '工厂 {factoryId} 已被拉黑，原因：{reason}。新建采购单将被禁止选择该供应商。',
+    link: '/suppliers?id={factoryId}',
+  },
+  FactoryEvaluationAdded: {
+    type: 'factory_evaluation_added',
+    level: 'info',
+    title: '工厂评分已录入',
+    body: '工厂 {factoryId} 新增 {kind} 评分 {score} 分，综合分已重算。',
+    link: '/suppliers?id={factoryId}',
+  },
+  FactoryCertificationExpiring: {
+    type: 'factory_certification_expiring',
+    level: 'warning',
+    title: '工厂认证即将到期',
+    body: '工厂 {factoryName} 的 {certType} 认证将于 {validUntil} 到期，请及时安排复审。',
+    link: '/suppliers?id={factoryId}',
+  },
 };
 
 // ────────────────────────────────────────────────────────────────

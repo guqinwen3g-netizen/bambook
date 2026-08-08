@@ -134,6 +134,13 @@ function validateStatusTransition(from: string, to: PurchaseOrderStatus): void {
 export function createProcurementService(prisma: PrismaClient) {
   // ── 创建采购单（含行明细，事务） ──
   async function createPurchaseOrder(input: CreatePurchaseOrderInput, actorId: string): Promise<PurchaseOrderDetail> {
+    // PRD 13.1：被拉黑的工厂禁止新建采购单（身份真源 Relation → FactoryProfile 1:1）
+    if (input.supplierRelationId) {
+      const factory = await (prisma as any).factoryProfile?.findUnique?.({ where: { relationId: input.supplierRelationId } });
+      if (factory && factory.deletedAt === null && factory.blacklistedAt !== null) {
+        throw new Error(`该供应商已被拉黑（原因：${factory.blacklistReason || '未填写'}），禁止新建采购单`);
+      }
+    }
     const totalAmount = calcTotalAmount(input.lines);
     const now = Date.now();
     const purchaseOrderId = generatePurchaseOrderId();
@@ -716,6 +723,35 @@ export function createProcurementService(prisma: PrismaClient) {
     logger.info('[ProcurementService] material receipt created', {
       purchaseOrderId, receiptId, totalAccepted: input.totalAccepted, newStatus,
     });
+
+    // H1c：全部收齐 → 自动追加交期评分（幂等：同采购单只评一次；无档案供应商静默跳过）
+    if (newStatus === 'Received' && existing.supplierRelationId) {
+      try {
+        const { createFactoryService, deliveryScoreForDaysLate } = await import('../suppliers/factoryService');
+        const factoryService = createFactoryService(prisma);
+        const DAY_MS = 86_400_000;
+        const parse = (s?: string | null) => {
+          if (!s) return null;
+          const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+          return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime() : null;
+        };
+        const expectedMs = parse(existing.expectedDeliveryDate);
+        const actualMs = parse(input.receivedDate);
+        const daysLate = expectedMs !== null && actualMs !== null ? Math.round((actualMs - expectedMs) / DAY_MS) : null;
+        await factoryService.recordAutoEvaluation({
+          relationId: existing.supplierRelationId,
+          kind: 'delivery',
+          score: deliveryScoreForDaysLate(daysLate),
+          sourceType: 'purchaseOrder',
+          sourceId: purchaseOrderId,
+          evaluatedAt: input.receivedDate,
+          note: `采购单 ${existing.poNumber} 全部收齐${daysLate !== null ? `，交期偏差 ${daysLate} 天` : '（未约定交期）'}`,
+          actorId: actorId || 'system',
+        });
+      } catch (e: any) {
+        logger.warn('[ProcurementService] delivery auto-evaluation failed (non-blocking)', { error: e?.message });
+      }
+    }
 
     return result.receipt;
   }

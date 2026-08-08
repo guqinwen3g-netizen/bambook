@@ -1,4 +1,5 @@
 import {
+  Building2,
   ClipboardList,
   Cog,
   Contact,
@@ -405,6 +406,17 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     compiler: compiler('crm', 'provisional'),
     runtime: desktopRuntime,
     entry: { current: 'components/CrmManager.tsx' },
+  },
+  {
+    id: 'suppliers',
+    view: View.Suppliers,
+    productLabel: '供应商管理',
+    internalName: 'Suppliers',
+    icon: Building2,
+    nav: { primary: true, order: 49.55 },
+    permissions: getViewPermissionDefinition(View.Suppliers),
+    runtime: desktopRuntime,
+    entry: { current: 'components/SuppliersManager.tsx' },
   },
   {
     id: 'mes',

@@ -10,6 +10,7 @@
 import { PrismaClient } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import { logger } from '../lib/logger';
 
 export const PRODUCTION_STAGES = [
   { key: 'order_placed', seq: 1, label: '业务下单' },
@@ -429,6 +430,33 @@ export async function saveInspectionReport(prisma: PrismaClient, orderId: string
       updatedAt: now,
     },
   });
+
+  // H1c：验货结论 → 自动追加质量评分（幂等：同报告只评一次；无档案供应商静默跳过）
+  // 评挂钩对象：订单的 millRelationId（面料厂/供应商身份真源在 Relation → FactoryProfile 1:1）
+  if (result.result) {
+    try {
+      const order = await prisma.order.findUnique({ where: { id: orderId }, select: { millRelationId: true, poNumber: true } });
+      if (order?.millRelationId) {
+        const { createFactoryService, inspectionScoreForResult } = await import('../suppliers/factoryService');
+        const factoryService = createFactoryService(prisma);
+        const critical = result.criticalDefects ?? 0;
+        const score = inspectionScoreForResult(result.result, critical);
+        await factoryService.recordAutoEvaluation({
+          relationId: order.millRelationId,
+          kind: 'inspection',
+          score,
+          sourceType: 'inspectionReport',
+          sourceId: result.id,
+          evaluatedAt: result.inspectionDate || new Date().toISOString().slice(0, 10),
+          note: `验货报告 ${result.id}（订单 ${order.poNumber || orderId}）结论 ${result.result}${critical > 0 ? `，致命疵点 ${critical}` : ''}`,
+          actorId: data.inspectedBy || 'system',
+        });
+      }
+    } catch (e: any) {
+      logger.warn('[StageService] inspection auto-evaluation failed (non-blocking)', { error: e?.message });
+    }
+  }
+
   return {
     ...result,
     passRate: passRate(result.totalUnits, result.passedUnits),

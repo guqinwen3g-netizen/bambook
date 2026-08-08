@@ -108,7 +108,8 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
       res.status(201).json({ purchaseOrder });
     } catch (e: any) {
       logger.error('[ProcurementRoute] POST create failed', { error: e?.message });
-      res.status(500).json({ error: e?.message || 'failed to create purchase order' });
+      const status = e?.message?.includes('已被拉黑') ? 400 : 500;
+      res.status(status).json({ error: e?.message || 'failed to create purchase order' });
     }
   });
 
