@@ -719,6 +719,130 @@ export async function syncFxSettlementReferences(
   }
 }
 
+// ---------------------------------------------------------------------------
+// OutwardRemittance ↔ PaymentVoucher / Order / Relation sync（阶段 C6，镜像 fxSettlement）
+// linkKinds: paysVoucher / aboutOrder / billTo
+// ---------------------------------------------------------------------------
+
+type OutwardRemittanceLike = Record<string, any> & { id: string };
+
+export async function syncOutwardRemittanceReferences(
+  prisma: PrismaClient,
+  remittance: OutwardRemittanceLike,
+  options: { source: string; now?: () => number } = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!remittance?.id) return;
+  const now = options.now?.() ?? Date.now();
+  const ctx = tx || prisma;
+  const ops: any[] = [];
+
+  const push = (fieldKey: string, targetType: string, targetId: string, linkKind: string, extraSnapshot: Record<string, any> = {}) => {
+    const snapshot = compact({ targetId, fieldKey, remittanceNumber: remittance.remittanceNumber, ...extraSnapshot });
+    const referenceId = referenceIdFor('outwardRemittance', remittance.id, fieldKey, targetType, targetId);
+    const linkId = linkIdFor('outwardRemittance', remittance.id, targetType, targetId, linkKind);
+    ops.push(ctx.entityReference.upsert({
+      where: { id: referenceId },
+      update: { snapshot, confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: referenceId,
+        ownerType: 'outwardRemittance', ownerId: remittance.id,
+        fieldKey, targetType, targetId,
+        snapshot, confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+    ops.push(ctx.entityLink.upsert({
+      where: { id: linkId },
+      update: { confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: linkId,
+        fromType: 'outwardRemittance', fromId: remittance.id,
+        toType: targetType, toId: targetId,
+        linkKind, confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+  };
+
+  const voucherId = stringOrNull(remittance.voucherId);
+  if (voucherId) push('voucherId', 'paymentVoucher', voucherId, 'paysVoucher', { foreignAmount: remittance.foreignAmount, currency: remittance.currency });
+  const orderId = stringOrNull(remittance.orderId);
+  if (orderId) push('orderId', 'order', orderId, 'aboutOrder');
+  const relationId = stringOrNull(remittance.customerRelationId);
+  if (relationId) push('customerRelationId', 'relation.organization', relationId, 'billTo');
+
+  if (ops.length === 0) return;
+  if (tx) {
+    for (const op of ops) await op;
+  } else {
+    await (prisma as any).$transaction(ops);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// VatInvoice ↔ Invoice / Order / Relation / TaxRefund sync（阶段 C6）
+// linkKinds: settlesInvoice / aboutOrder / billTo / declaredInRefund
+// ---------------------------------------------------------------------------
+
+type VatInvoiceLike = Record<string, any> & { id: string };
+
+export async function syncVatInvoiceReferences(
+  prisma: PrismaClient,
+  vatInvoice: VatInvoiceLike,
+  options: { source: string; now?: () => number } = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!vatInvoice?.id) return;
+  const now = options.now?.() ?? Date.now();
+  const ctx = tx || prisma;
+  const ops: any[] = [];
+
+  const push = (fieldKey: string, targetType: string, targetId: string, linkKind: string, extraSnapshot: Record<string, any> = {}) => {
+    const snapshot = compact({ targetId, fieldKey, vatNumber: vatInvoice.vatNumber, ...extraSnapshot });
+    const referenceId = referenceIdFor('vatInvoice', vatInvoice.id, fieldKey, targetType, targetId);
+    const linkId = linkIdFor('vatInvoice', vatInvoice.id, targetType, targetId, linkKind);
+    ops.push(ctx.entityReference.upsert({
+      where: { id: referenceId },
+      update: { snapshot, confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: referenceId,
+        ownerType: 'vatInvoice', ownerId: vatInvoice.id,
+        fieldKey, targetType, targetId,
+        snapshot, confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+    ops.push(ctx.entityLink.upsert({
+      where: { id: linkId },
+      update: { confidence: 1, source: options.source, status: 'active', updatedAt: BigInt(now), deletedAt: null },
+      create: {
+        id: linkId,
+        fromType: 'vatInvoice', fromId: vatInvoice.id,
+        toType: targetType, toId: targetId,
+        linkKind, confidence: 1, source: options.source, status: 'active',
+        createdAt: BigInt(now), updatedAt: BigInt(now),
+      },
+    }));
+  };
+
+  const invoiceId = stringOrNull(vatInvoice.invoiceId);
+  if (invoiceId) push('invoiceId', 'invoice', invoiceId, 'settlesInvoice', { totalAmount: vatInvoice.totalAmount });
+  const orderId = stringOrNull(vatInvoice.orderId);
+  if (orderId) push('orderId', 'order', orderId, 'aboutOrder');
+  const relationId = stringOrNull(vatInvoice.relationId);
+  if (relationId) push('relationId', 'relation.organization', relationId, 'billTo');
+  const taxRefundId = stringOrNull(vatInvoice.taxRefundId);
+  if (taxRefundId) push('taxRefundId', 'taxRefund', taxRefundId, 'declaredInRefund');
+
+  if (ops.length === 0) return;
+  if (tx) {
+    for (const op of ops) await op;
+  } else {
+    await (prisma as any).$transaction(ops);
+  }
+}
+
 export function referenceIdFor(ownerType: string, ownerId: string, fieldKey: string, targetType: string, targetId: string): string {
   return ['REF', ownerType, ownerId, fieldKey, targetType, targetId].map(safeIdPart).join('__');
 }

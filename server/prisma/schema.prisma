@@ -1820,6 +1820,126 @@ model FxSettlement {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// OutwardRemittance — 付汇水单（阶段 C6，镜像 FxSettlement 付款侧）
+// ════════════════════════════════════════════════════════════════════
+// 业务语义：付款凭证（PaymentVoucher type=Disbursement，外币）→ 银行购汇/自有外汇 → 境外付汇。
+//   - 一笔外币付款可分次付汇（1 voucher : N remittances），未付余额 = voucher.amount - Σremittances.foreignAmount
+//   - cnyAmount 由服务端按 foreignAmount × fxRate 计算（round4），不接受客户端传入（防篡改）
+//   - CNY 凭证无付汇语义（fail closed）；Receipt 凭证走 FxSettlement 结汇路径
+//   - 软删（deletedAt），删除即回滚未付余额（无独立状态机——水单是事实记录）
+// ════════════════════════════════════════════════════════════════════
+model OutwardRemittance {
+  id               String @id // 格式：OWR__${shortId}
+  remittanceNumber String @unique // 付汇水单号（如 OWR-20260808-001）
+
+  // ─── 核销关联（snapshot FK） ───
+  voucherId          String  // 关联付款凭证（paysVoucher linkKind）
+  orderId            String? // 冗余关联订单（aboutOrder linkKind），便于按订单聚合
+  customerRelationId String? // 交易对象（billTo linkKind）
+
+  // ─── 付汇信息 ───
+  remitDate     String  // 付汇日期 YYYY-MM-DD
+  foreignAmount Decimal @db.Decimal(18, 4) // 付汇外币金额（≤ 凭证未付余额，币种须与凭证一致）
+  currency      String  // 外币币种（与凭证币种一致；CNY 凭证无付汇语义，fail closed）
+  fxRate        Decimal @db.Decimal(18, 8) // 购汇汇率（外币 → CNY）
+  cnyAmount     Decimal @db.Decimal(18, 4) // 折合人民币（服务端计算 = foreignAmount × fxRate）
+
+  // ─── 境外收款方 ───
+  payeeName  String? // 收款人名称
+  payeeBank  String? // 收款行
+  payeeSwift String? // SWIFT 代码
+  purpose    String? // GoodsPayment(货款) | Freight(运费) | Insurance(保费) | Commission(佣金) | Other
+
+  // ─── 银行信息 ───
+  bank       String? // 付汇银行
+  slipNumber String? // 银行水单号
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([voucherId])
+  @@index([orderId])
+  @@index([customerRelationId])
+  @@index([remitDate])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// VatInvoice — 增值税发票（阶段 C6，退税合规硬前提）
+// ════════════════════════════════════════════════════════════════════
+// 业务语义：外贸企业「免退」办法下，出口退税 = 进项专票注明金额 × 退税率，
+//   无增值税专用发票无退税。本模型管理专票全生命周期：
+//   收票(Received) → 勾选认证(Verified) → 申报退税(Declared) → 红冲(RedFlushed) / 作废(Cancelled)
+// 设计决策：
+//   - 金额三栏服务端校验：totalAmount == round4(netAmount + taxAmount) 精确一致；
+//     taxAmount vs round4(netAmount × taxRate/100) 容差 0.02（开票尾差）
+//   - 退税联动：→Declared 强制 direction=Input + invoiceType=Special + taxRefundId 有效（未软删）
+//   - 唯一性：(vatCode, vatNumber) 复合唯一；全电票 vatCode 为 NULL（PG NULL 不参与唯一冲突），
+//     由应用层事务内查重兜底（fail closed）
+//   - 红冲/作废为终态；Declared 不可删除（税务留痕），仅可红冲
+// ════════════════════════════════════════════════════════════════════
+model VatInvoice {
+  id String @id // 格式：VAT__${shortId}
+
+  // ─── 税务标识 ───
+  vatCode   String? // 发票代码（纸质 10/12 位；全电票无代码）
+  vatNumber String // 发票号码（纸质 8 位；全电票 20 位）
+
+  // ─── 类型/状态 ───
+  direction   String @default("Input") // Input(进项-采购取得) | Output(销项-内销开出)
+  invoiceType String @default("Special") // Special(专票) | Normal(普票)
+  status      String @default("Received") // Received | Verified | Declared | RedFlushed | Cancelled
+
+  // ─── 开票方/受票方 ───
+  sellerName  String  // 销售方名称
+  sellerTaxNo String? // 销售方纳税人识别号
+  buyerName   String  // 购买方名称
+  buyerTaxNo  String? // 购买方纳税人识别号
+
+  // ─── 金额（专票三栏拆分） ───
+  issueDate   String  // 开票日期 YYYY-MM-DD
+  netAmount   Decimal @db.Decimal(18, 4) // 不含税金额
+  taxRate     Decimal @db.Decimal(6, 4) // 税率(%)，如 13.0000
+  taxAmount   Decimal @db.Decimal(18, 4) // 税额
+  totalAmount Decimal @db.Decimal(18, 4) // 价税合计 = netAmount + taxAmount
+  currency    String  @default("CNY")
+
+  // ─── 认证/勾选 ───
+  verifiedDate    String? // 勾选认证日期 YYYY-MM-DD
+  deductionPeriod String? // 勾选所属期 YYYY-MM
+
+  // ─── 退税联动 ───
+  taxRefundId String? // 关联退税申报（→Declared 必填；declaredInRefund linkKind）
+
+  // ─── 红冲 ───
+  redFlushNumber String? // 红字发票号码
+  redFlushDate   String? // 红冲日期 YYYY-MM-DD
+
+  // ─── 关联（snapshot FK） ───
+  invoiceId  String? // 关联业务发票（应付/应收 Invoice；settlesInvoice linkKind）
+  orderId    String? // 关联订单（aboutOrder linkKind）
+  relationId String? // 供应商/客户（billTo linkKind）
+
+  // ─── 备注 / 附件 ───
+  notes       String?
+  attachments Json?
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@unique([vatCode, vatNumber])
+  @@index([status])
+  @@index([direction])
+  @@index([relationId])
+  @@index([taxRefundId])
+  @@index([invoiceId])
+  @@index([issueDate])
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Shipping Module — 货运与报关
 // ════════════════════════════════════════════════════════════════════
 // 设计决策：

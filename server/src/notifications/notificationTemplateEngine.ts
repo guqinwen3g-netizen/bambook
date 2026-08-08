@@ -286,6 +286,27 @@ const DEFAULT_TEMPLATES: Record<BusinessEventType, TemplateSpec> = {
     body: '结汇 {foreignAmount} {currency}，汇率 {fxRate}，折人民币 {cnyAmount} 元。',
     link: '/finance?tab=vouchers',
   },
+  OutwardRemittanceCreated: {
+    type: 'outward_remittance_created',
+    level: 'info',
+    title: '付汇水单 {remittanceNumber} 已登记',
+    body: '付汇 {foreignAmount} {currency}，汇率 {fxRate}，折人民币 {cnyAmount} 元。',
+    link: '/finance?tab=vouchers',
+  },
+  VatInvoiceCreated: {
+    type: 'vat_invoice_created',
+    level: 'info',
+    title: '增值税发票 {vatNumber} 已登记',
+    body: '价税合计 {totalAmount} 元，待勾选认证。',
+    link: '/finance?tab=vatInvoices',
+  },
+  VatInvoiceStatusChanged: {
+    type: 'vat_invoice_status_changed',
+    level: 'info',
+    title: '增值税发票 {vatNumber} 状态更新',
+    body: '发票 {vatNumber} 从 {from} 流转至 {to}。',
+    link: '/finance?tab=vatInvoices',
+  },
   LcStatusChanged: {
     type: 'lc_status_changed',
     level: 'info',

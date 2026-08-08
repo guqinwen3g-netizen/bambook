@@ -25,6 +25,8 @@ import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMuta
 import { createInvoice, updateInvoice } from './invoiceMutationService';
 import { getAgingReport, getCustomerStatement, getFxGainLoss } from './reportService';
 import { createFxSettlement, deleteFxSettlement, getFxLedger, getVoucherSettlementSummary } from './fxSettlementService';
+import { createOutwardRemittance, deleteOutwardRemittance, getVoucherRemittanceSummary, listOutwardRemittances } from './outwardRemittanceService';
+import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteVatInvoice, listVatInvoices, getVatInvoice } from './vatInvoiceService';
 
 export interface FinanceRouterOptions {
   prisma: PrismaClient;
@@ -441,6 +443,191 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       return;
     }
     res.json(serializeFinanceValue(result.data));
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // 付汇水单（OutwardRemittance） — /api/v1/finance/outward-remittances
+  // 阶段 C6：付款凭证 → 购汇/自有外汇 → 境外付汇（镜像 fx-settlements 付款侧）
+  // ⚠️ 字面路由必须在参数路由 /:id 之前注册。
+  // ────────────────────────────────────────────────────────────────
+
+  // GET /api/v1/finance/outward-remittances — list / search
+  router.get('/outward-remittances', async (req: Request, res: Response) => {
+    try {
+      const result = await listOutwardRemittances(prisma, {
+        voucherId: req.query.voucherId ? String(req.query.voucherId) : undefined,
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      res.json(serializeFinanceValue(result));
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /api/v1/finance/outward-remittances — create（余额校验 + cnyAmount 服务端计算）
+  router.post('/outward-remittances', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await createOutwardRemittance({
+      prisma,
+      input: req.body,
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        INVALID_INPUT: 400, INVALID_AMOUNT: 400, INVALID_DATE: 400, INVALID_PURPOSE: 400,
+        VOUCHER_NOT_FOUND: 404, NOT_A_DISBURSEMENT: 400, CNY_VOUCHER_NO_REMITTANCE: 400,
+        CURRENCY_MISMATCH: 400, OVER_REMITTANCE: 409, CREATE_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    const created = result.data!.remittance;
+    onDataChange?.({ entity: 'finance.outward-remittances', action: 'create', ids: [created.id] });
+    res.status(201).json(serializeFinanceValue(created));
+  });
+
+  // DELETE /api/v1/finance/outward-remittances/:id — 软删（回滚未付余额）
+  router.delete('/outward-remittances/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await deleteOutwardRemittance({
+      prisma,
+      remittanceId: req.params.id,
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = { REMITTANCE_NOT_FOUND: 404, DELETE_FAILED: 500 };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ ok: false, error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'finance.outward-remittances', action: 'delete', ids: [req.params.id] });
+    res.json({ ok: true });
+  });
+
+  // GET /api/v1/finance/vouchers/:id/remittances — 凭证付汇摘要（已付汇/余额/明细）
+  router.get('/vouchers/:id/remittances', async (req: Request, res: Response) => {
+    const result = await getVoucherRemittanceSummary(prisma, req.params.id);
+    if (!result.ok) {
+      res.status(result.error!.code === 'VOUCHER_NOT_FOUND' ? 404 : 500).json({ error: result.error });
+      return;
+    }
+    res.json(serializeFinanceValue(result.data));
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // 增值税发票（VatInvoice） — /api/v1/finance/vat-invoices
+  // 阶段 C6：专票全生命周期（收票→认证→申报退税→红冲/作废）
+  // ────────────────────────────────────────────────────────────────
+
+  // GET /api/v1/finance/vat-invoices — list / search
+  router.get('/vat-invoices', async (req: Request, res: Response) => {
+    try {
+      const result = await listVatInvoices(prisma, {
+        status: req.query.status ? String(req.query.status) : undefined,
+        direction: req.query.direction ? String(req.query.direction) : undefined,
+        relationId: req.query.relationId ? String(req.query.relationId) : undefined,
+        taxRefundId: req.query.taxRefundId ? String(req.query.taxRefundId) : undefined,
+        invoiceId: req.query.invoiceId ? String(req.query.invoiceId) : undefined,
+        orderId: req.query.orderId ? String(req.query.orderId) : undefined,
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      res.json(serializeFinanceValue(result));
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /api/v1/finance/vat-invoices — create（金额三栏校验 + 查重）
+  router.post('/vat-invoices', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await createVatInvoice({
+      prisma,
+      input: req.body,
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        INVALID_INPUT: 400, INVALID_AMOUNT: 400, INVALID_DATE: 400,
+        AMOUNT_MISMATCH: 400, TAX_MISMATCH: 400,
+        DUPLICATE_VAT_INVOICE: 409, CREATE_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    const created = result.data!.vatInvoice;
+    onDataChange?.({ entity: 'finance.vat-invoices', action: 'create', ids: [created.id] });
+    res.status(201).json(serializeFinanceValue(created));
+  });
+
+  // GET /api/v1/finance/vat-invoices/:id
+  router.get('/vat-invoices/:id', async (req: Request, res: Response) => {
+    const result = await getVatInvoice(prisma, req.params.id);
+    if (!result.ok) {
+      res.status(result.error!.code === 'NOT_FOUND' ? 404 : 500).json({ error: result.error });
+      return;
+    }
+    res.json(serializeFinanceValue(result.data.vatInvoice));
+  });
+
+  // PATCH /api/v1/finance/vat-invoices/:id — 票面修正（Declared/RedFlushed/Cancelled 不可改）
+  router.patch('/vat-invoices/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await updateVatInvoice({
+      prisma,
+      vatInvoiceId: req.params.id,
+      patch: req.body ?? {},
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        NOT_FOUND: 404, INVALID_STATUS: 409, INVALID_INPUT: 400, INVALID_AMOUNT: 400,
+        INVALID_DATE: 400, AMOUNT_MISMATCH: 400, TAX_MISMATCH: 400, UPDATE_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'finance.vat-invoices', action: 'update', ids: [req.params.id] });
+    res.json(serializeFinanceValue(result.data!.vatInvoice));
+  });
+
+  // POST /api/v1/finance/vat-invoices/:id/transition — 状态机（认证/申报退税/红冲/作废）
+  router.post('/vat-invoices/:id/transition', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await transitionVatInvoiceStatus({
+      prisma,
+      vatInvoiceId: req.params.id,
+      input: req.body ?? {},
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        NOT_FOUND: 404, INVALID_STATUS: 400, INVALID_TRANSITION: 409, INVALID_DATE: 400,
+        NOT_INPUT_SPECIAL: 400, TAX_REFUND_REQUIRED: 400, TAX_REFUND_NOT_FOUND: 404,
+        TRANSITION_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'finance.vat-invoices', action: 'transition', ids: [req.params.id] });
+    res.json(serializeFinanceValue(result.data!.vatInvoice));
+  });
+
+  // DELETE /api/v1/finance/vat-invoices/:id — 软删（Declared 禁删，仅可红冲）
+  router.delete('/vat-invoices/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await deleteVatInvoice({
+      prisma,
+      vatInvoiceId: req.params.id,
+      actorId: actorIdFromRequest(req),
+      ip: req.ip || null,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, DELETE_FORBIDDEN: 409, DELETE_FAILED: 500 };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ ok: false, error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'finance.vat-invoices', action: 'delete', ids: [req.params.id] });
+    res.json({ ok: true });
   });
 
   // task ERP-P1: POST /:id/cancel — Invoice 作废（调 voidDeleteService）
