@@ -3,7 +3,9 @@ import { paymentVoucherService } from '../services/paymentVoucherService';
 import { invoiceService } from '../services/invoiceService';
 import { allocationService } from '../services/allocationService';
 import { fxSettlementService } from '../services/fxSettlementService';
-import { CreditCard, FileText, Landmark, Link2, Pencil, Plus, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
+import { outwardRemittanceService } from '../services/outwardRemittanceService';
+import { vatInvoiceService } from '../services/vatInvoiceService';
+import { BadgeCheck, Ban, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Send, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { RdlMetricCard, RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import type {
@@ -15,6 +17,11 @@ import type {
   VoucherStatus,
   VoucherType,
   VoucherSettlementSummary,
+  VoucherRemittanceSummary,
+  VatInvoice as VatInvoiceEntity,
+  VatInvoiceStatus,
+  VatInvoiceDirection,
+  VatInvoiceType,
 } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { PageHeader } from './ui/PageHeader';
@@ -22,7 +29,7 @@ import { PageHeader } from './ui/PageHeader';
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-type FinanceTabId = 'invoices' | 'vouchers' | 'reports';
+type FinanceTabId = 'invoices' | 'vouchers' | 'vatInvoices' | 'reports';
 
 type InvoiceTypeId = 'all' | InvoiceType;
 type InvoiceStatusId = 'all' | InvoiceStatus;
@@ -57,9 +64,64 @@ const VOUCHER_STATUSES: Array<{ id: VoucherStatusId; label: string }> = [
 const invoiceTypeLabel = (t: InvoiceType) => (t === 'Receivable' ? '应收' : '应付');
 const voucherTypeLabel = (t: VoucherType) => (t === 'Receipt' ? '收款' : '付款');
 
+// ── C6 增值税发票常量 ───
+type VatDirectionId = 'all' | VatInvoiceDirection;
+type VatStatusId = 'all' | VatInvoiceStatus;
+
+const VAT_DIRECTIONS: Array<{ id: VatDirectionId; label: string }> = [
+  { id: 'all', label: '全部方向' },
+  { id: 'Input', label: '进项' },
+  { id: 'Output', label: '销项' },
+];
+const VAT_STATUSES: Array<{ id: VatStatusId; label: string }> = [
+  { id: 'all', label: '全部状态' },
+  { id: 'Received', label: '已收票' },
+  { id: 'Verified', label: '已认证' },
+  { id: 'Declared', label: '已申报退税' },
+  { id: 'RedFlushed', label: '已红冲' },
+  { id: 'Cancelled', label: '已作废' },
+];
+const VAT_STATUS_LABELS: Record<VatInvoiceStatus, string> = {
+  Received: '已收票',
+  Verified: '已认证',
+  Declared: '已申报退税',
+  RedFlushed: '已红冲',
+  Cancelled: '已作废',
+};
+const vatDirectionLabel = (d: VatInvoiceDirection) => (d === 'Input' ? '进项' : '销项');
+const vatTypeLabel = (t: VatInvoiceType) => (t === 'Special' ? '专票' : '普票');
+
+/** 增值税发票状态说明 + 下一步指引（消费后端稳定状态机，不猜字符串） */
+const VAT_STATUS_GUIDE: Record<VatInvoiceStatus, string> = {
+  Received: '发票已登记收票。下一步：勾选认证（认证后才可抵扣/申报退税），或作废处理。',
+  Verified: '发票已认证。进项专票下一步：挂退税申报单后申报退税；如发票有误可红冲。',
+  Declared: '发票已申报出口退税。申报后不可编辑/删除；如需调整，请先红冲。',
+  RedFlushed: '发票已红冲（红字冲销），不再参与抵扣与退税。状态终态。',
+  Cancelled: '发票已作废，不再参与抵扣与退税。状态终态。',
+};
+
+/** C6 增值税发票流转动作文案（消费后端状态机，不猜字符串） */
+const VAT_TRANSITION_LABELS: Record<'Verified' | 'Declared' | 'RedFlushed', string> = {
+  Verified: '勾选认证',
+  Declared: '申报退税',
+  RedFlushed: '红冲',
+};
+
+/** C6 付汇用途选项（镜像后端 REMITTANCE_PURPOSES 契约枚举） */
+const REMITTANCE_PURPOSE_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: 'GoodsPayment', label: '货款' },
+  { id: 'Freight', label: '运费' },
+  { id: 'Insurance', label: '保险费' },
+  { id: 'Commission', label: '佣金' },
+  { id: 'Other', label: '其他' },
+];
+const remittancePurposeLabel = (p?: string | null) =>
+  REMITTANCE_PURPOSE_OPTIONS.find(o => o.id === p)?.label || p || '—';
+
 const FINANCE_TABS: Array<{ id: FinanceTabId; label: string; icon: typeof FileText }> = [
   { id: 'invoices', label: '发票', icon: FileText },
   { id: 'vouchers', label: '收付款', icon: CreditCard },
+  { id: 'vatInvoices', label: '增值税', icon: Receipt },
   { id: 'reports', label: '报表', icon: BarChart3 },
 ];
 
@@ -115,6 +177,10 @@ const invoiceStatusTone = (status: InvoiceStatus, isDarkMode: boolean) =>
   status === 'Cancelled' ? financeInactiveStatusTone(isDarkMode) : financeStatusTone(isDarkMode);
 
 const voucherStatusTone = (_status: VoucherStatus, isDarkMode: boolean) => financeStatusTone(isDarkMode);
+
+/** C6 增值税发票状态 tone：终态（红冲/作废）降为 inactive，其余中性（Finance 页面禁用语义色族） */
+const vatStatusTone = (status: VatInvoiceStatus, isDarkMode: boolean) =>
+  status === 'RedFlushed' || status === 'Cancelled' ? financeInactiveStatusTone(isDarkMode) : financeStatusTone(isDarkMode);
 
 const financeAlertTone = (isDarkMode: boolean) =>
   isDarkMode ? 'bg-white/[0.055] text-white/72' : 'bg-white/48 text-slate-700/78';
@@ -390,6 +456,107 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     }
   };
 
+  // ── C6 付汇闭环：付汇 modal state（消费 /v1/finance/outward-remittances contract，镜像结汇付款侧）───
+  const [remittanceVoucher, setRemittanceVoucher] = useState<VoucherEntity | null>(null);
+  const [remittanceSummary, setRemittanceSummary] = useState<VoucherRemittanceSummary | null>(null);
+  const [remittanceLoading, setRemittanceLoading] = useState(false);
+  const [remittanceSaving, setRemittanceSaving] = useState(false);
+  const [remittanceDeletingId, setRemittanceDeletingId] = useState<string | null>(null);
+  const [remittanceError, setRemittanceError] = useState<string | null>(null);
+  const [remittanceForm, setRemittanceForm] = useState({ remitDate: '', foreignAmount: '', fxRate: '', purpose: 'GoodsPayment', payeeName: '', bank: '', slipNumber: '', notes: '' });
+
+  const loadRemittanceSummary = async (voucherId: string) => {
+    setRemittanceLoading(true);
+    setRemittanceError(null);
+    try {
+      setRemittanceSummary(await outwardRemittanceService.getVoucherRemittanceSummary(voucherId));
+    } catch (e: any) {
+      setRemittanceError(`付汇摘要加载失败：${e?.message ?? e}`);
+    } finally {
+      setRemittanceLoading(false);
+    }
+  };
+
+  const openRemittanceModal = (voucher: VoucherEntity) => {
+    setRemittanceVoucher(voucher);
+    setRemittanceSummary(null);
+    setRemittanceError(null);
+    setRemittanceForm({ remitDate: new Date().toISOString().slice(0, 10), foreignAmount: '', fxRate: '', purpose: 'GoodsPayment', payeeName: '', bank: '', slipNumber: '', notes: '' });
+    loadRemittanceSummary(voucher.id);
+  };
+
+  const handleCreateRemittance = async () => {
+    if (!remittanceVoucher || remittanceSaving) return;
+    const foreignAmount = Number(remittanceForm.foreignAmount);
+    const fxRate = Number(remittanceForm.fxRate);
+    if (!remittanceForm.remitDate) {
+      setRemittanceError('付汇日期为必填项');
+      return;
+    }
+    if (!Number.isFinite(foreignAmount) || foreignAmount <= 0) {
+      setRemittanceError('付汇外币金额必须是大于 0 的有效数字');
+      return;
+    }
+    if (!Number.isFinite(fxRate) || fxRate <= 0) {
+      setRemittanceError('付汇汇率必须是大于 0 的有效数字');
+      return;
+    }
+    setRemittanceSaving(true);
+    setRemittanceError(null);
+    let mutationOk = false;
+    try {
+      await outwardRemittanceService.createOutwardRemittance({
+        voucherId: remittanceVoucher.id,
+        remitDate: remittanceForm.remitDate,
+        foreignAmount,
+        fxRate,
+        purpose: remittanceForm.purpose || undefined,
+        payeeName: remittanceForm.payeeName || undefined,
+        bank: remittanceForm.bank || undefined,
+        slipNumber: remittanceForm.slipNumber || undefined,
+        notes: remittanceForm.notes || undefined,
+      });
+      mutationOk = true;
+      setRemittanceForm({ remitDate: new Date().toISOString().slice(0, 10), foreignAmount: '', fxRate: '', purpose: 'GoodsPayment', payeeName: '', bank: '', slipNumber: '', notes: '' });
+    } catch (e: any) {
+      // mutation 失败——真实未落库（超付/币种不一致等服务端阻断原因透出）
+      setRemittanceError(`付汇登记失败：${e?.message ?? e}`);
+    } finally {
+      setRemittanceSaving(false);
+    }
+    // ✅ mutation 成功后以服务端摘要为真源刷新（含 cnyAmount 服务端计算结果）
+    if (mutationOk) {
+      try {
+        await loadRemittanceSummary(remittanceVoucher.id);
+      } catch {
+        window.alert('付汇已登记，但摘要刷新失败，请关闭后重开查看最新数据。');
+      }
+    }
+  };
+
+  const handleDeleteRemittance = async (remittanceId: string, remittanceNumber: string) => {
+    if (!remittanceVoucher || remittanceDeletingId) return;
+    if (!window.confirm(`删除付汇水单 ${remittanceNumber}？\n删除后该凭证未付汇余额将回滚。`)) return;
+    setRemittanceDeletingId(remittanceId);
+    setRemittanceError(null);
+    let mutationOk = false;
+    try {
+      await outwardRemittanceService.deleteOutwardRemittance(remittanceId);
+      mutationOk = true;
+    } catch (e: any) {
+      setRemittanceError(`删除失败：${e?.message ?? e}`);
+    } finally {
+      setRemittanceDeletingId(null);
+    }
+    if (mutationOk) {
+      try {
+        await loadRemittanceSummary(remittanceVoucher.id);
+      } catch {
+        window.alert('已删除，但摘要刷新失败，请关闭后重开查看最新数据。');
+      }
+    }
+  };
+
   // ── P0 invoice manual UI: 创建/编辑发票 modal state ───
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<InvoiceEntity | null>(null);
@@ -469,6 +636,207 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setInvoiceError(`保存失败：${e?.message ?? e}`);
     } finally {
       setInvoiceSaving(false);
+    }
+  };
+
+  // ── C6 增值税发票：列表 state（tab 激活时自包含加载，本地过滤与发票/凭证 tab 一致）───
+  const [vatInvoices, setVatInvoices] = useState<VatInvoiceEntity[]>([]);
+  const [vatLoading, setVatLoading] = useState(false);
+  const [vatListError, setVatListError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 'vatInvoices') return;
+    let cancelled = false;
+    setVatLoading(true);
+    setVatListError(null);
+    vatInvoiceService.listVatInvoices()
+      .then(r => { if (!cancelled) setVatInvoices(r.items); })
+      .catch((e: any) => { if (!cancelled) setVatListError(`增值税发票加载失败：${e?.message ?? e}`); })
+      .finally(() => { if (!cancelled) setVatLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab]);
+
+  // ── C6 增值税发票：创建/编辑 modal state ───
+  const emptyVatForm = { vatNumber: '', vatCode: '', direction: 'Input' as VatInvoiceDirection, invoiceType: 'Special' as VatInvoiceType, sellerName: '', sellerTaxNo: '', buyerName: '', buyerTaxNo: '', issueDate: '', netAmount: '', taxRate: '13', taxAmount: '', totalAmount: '', deductionPeriod: '', notes: '' };
+  const [showVatModal, setShowVatModal] = useState(false);
+  const [editingVat, setEditingVat] = useState<VatInvoiceEntity | null>(null);
+  const [vatForm, setVatForm] = useState(emptyVatForm);
+  const [vatSaving, setVatSaving] = useState(false);
+  const [vatError, setVatError] = useState<string | null>(null);
+
+  const openCreateVat = () => {
+    setEditingVat(null);
+    setVatForm({ ...emptyVatForm, issueDate: new Date().toISOString().slice(0, 10) });
+    setVatError(null);
+    setShowVatModal(true);
+  };
+
+  const openEditVat = (vat: VatInvoiceEntity) => {
+    setEditingVat(vat);
+    setVatForm({
+      vatNumber: vat.vatNumber || '',
+      vatCode: vat.vatCode || '',
+      direction: vat.direction || 'Input',
+      invoiceType: vat.invoiceType || 'Special',
+      sellerName: vat.sellerName || '',
+      sellerTaxNo: vat.sellerTaxNo || '',
+      buyerName: vat.buyerName || '',
+      buyerTaxNo: vat.buyerTaxNo || '',
+      issueDate: vat.issueDate || '',
+      netAmount: String(vat.netAmount ?? ''),
+      taxRate: String(vat.taxRate ?? ''),
+      taxAmount: String(vat.taxAmount ?? ''),
+      totalAmount: String(vat.totalAmount ?? ''),
+      deductionPeriod: vat.deductionPeriod || '',
+      notes: vat.notes || '',
+    });
+    setVatError(null);
+    setShowVatModal(true);
+  };
+
+  const handleSaveVat = async () => {
+    if (vatSaving) return;
+    const netAmount = Number(vatForm.netAmount);
+    const taxRate = Number(vatForm.taxRate);
+    const taxAmount = Number(vatForm.taxAmount);
+    const totalAmount = Number(vatForm.totalAmount);
+    if (!vatForm.vatNumber.trim() || !vatForm.sellerName.trim() || !vatForm.buyerName.trim()) {
+      setVatError('发票号码、销售方、购买方为必填项');
+      return;
+    }
+    if (!vatForm.issueDate) {
+      setVatError('开票日期为必填项');
+      return;
+    }
+    if (![netAmount, taxRate, taxAmount, totalAmount].every(Number.isFinite) || netAmount <= 0 || totalAmount <= 0) {
+      setVatError('金额三栏与税率必须是有效数字（金额大于 0）');
+      return;
+    }
+    setVatSaving(true);
+    setVatError(null);
+    try {
+      if (editingVat) {
+        // 编辑：PATCH 票面修正（vatNumber/direction/invoiceType 服务端不可变，不提交）
+        const updated = await vatInvoiceService.updateVatInvoice(editingVat.id, {
+          vatCode: vatForm.vatCode.trim() || undefined,
+          sellerName: vatForm.sellerName.trim(),
+          sellerTaxNo: vatForm.sellerTaxNo.trim() || undefined,
+          buyerName: vatForm.buyerName.trim(),
+          buyerTaxNo: vatForm.buyerTaxNo.trim() || undefined,
+          issueDate: vatForm.issueDate,
+          netAmount,
+          taxRate,
+          taxAmount,
+          totalAmount,
+          deductionPeriod: vatForm.deductionPeriod.trim() || undefined,
+          notes: vatForm.notes.trim() || undefined,
+        });
+        setVatInvoices(prev => prev.map(v => v.id === editingVat.id ? { ...v, ...updated } : v));
+      } else {
+        const created = await vatInvoiceService.createVatInvoice({
+          vatNumber: vatForm.vatNumber.trim(),
+          vatCode: vatForm.vatCode.trim() || undefined,
+          direction: vatForm.direction,
+          invoiceType: vatForm.invoiceType,
+          sellerName: vatForm.sellerName.trim(),
+          sellerTaxNo: vatForm.sellerTaxNo.trim() || undefined,
+          buyerName: vatForm.buyerName.trim(),
+          buyerTaxNo: vatForm.buyerTaxNo.trim() || undefined,
+          issueDate: vatForm.issueDate,
+          netAmount,
+          taxRate,
+          taxAmount,
+          totalAmount,
+          notes: vatForm.notes.trim() || undefined,
+        });
+        setVatInvoices(prev => [created, ...prev]);
+      }
+      setShowVatModal(false);
+    } catch (e: any) {
+      // 失败：金额三栏校验/查重等服务端阻断原因透出
+      setVatError(`保存失败：${e?.message ?? e}`);
+    } finally {
+      setVatSaving(false);
+    }
+  };
+
+  // ── C6 增值税发票：状态机流转 modal state（认证 / 申报退税 / 红冲）───
+  const [vatTransitionTarget, setVatTransitionTarget] = useState<VatInvoiceEntity | null>(null);
+  const [vatTransitionAction, setVatTransitionAction] = useState<'Verified' | 'Declared' | 'RedFlushed'>('Verified');
+  const [vatTransitionForm, setVatTransitionForm] = useState({ verifiedDate: '', deductionPeriod: '', taxRefundId: '', redFlushNumber: '', redFlushDate: '' });
+  const [vatTransitionSaving, setVatTransitionSaving] = useState(false);
+  const [vatTransitionError, setVatTransitionError] = useState<string | null>(null);
+  const [vatMutatingId, setVatMutatingId] = useState<string | null>(null);
+
+  const openVatTransition = (vat: VatInvoiceEntity, action: 'Verified' | 'Declared' | 'RedFlushed') => {
+    const today = new Date().toISOString().slice(0, 10);
+    setVatTransitionTarget(vat);
+    setVatTransitionAction(action);
+    setVatTransitionForm({
+      verifiedDate: today,
+      deductionPeriod: vat.deductionPeriod || '',
+      taxRefundId: vat.taxRefundId || '',
+      redFlushNumber: '',
+      redFlushDate: today,
+    });
+    setVatTransitionError(null);
+  };
+
+  const handleVatTransition = async () => {
+    if (!vatTransitionTarget || vatTransitionSaving) return;
+    if (vatTransitionAction === 'Declared' && !vatTransitionForm.taxRefundId.trim()) {
+      setVatTransitionError('申报退税必须关联退税申报单 ID');
+      return;
+    }
+    setVatTransitionSaving(true);
+    setVatTransitionError(null);
+    try {
+      const updated = await vatInvoiceService.transitionVatInvoice(vatTransitionTarget.id, {
+        toStatus: vatTransitionAction,
+        verifiedDate: vatTransitionAction === 'Verified' ? (vatTransitionForm.verifiedDate || undefined) : undefined,
+        deductionPeriod: vatTransitionAction === 'Verified' ? (vatTransitionForm.deductionPeriod.trim() || undefined) : undefined,
+        taxRefundId: vatTransitionAction === 'Declared' ? vatTransitionForm.taxRefundId.trim() : undefined,
+        redFlushNumber: vatTransitionAction === 'RedFlushed' ? (vatTransitionForm.redFlushNumber.trim() || undefined) : undefined,
+        redFlushDate: vatTransitionAction === 'RedFlushed' ? (vatTransitionForm.redFlushDate || undefined) : undefined,
+      });
+      // ✅ 消费后端返回的完整实体更新本地（不伪造状态）
+      setVatInvoices(prev => prev.map(v => v.id === vatTransitionTarget.id ? { ...v, ...updated } : v));
+      setVatTransitionTarget(null);
+    } catch (e: any) {
+      setVatTransitionError(`流转失败：${e?.message ?? e}`);
+    } finally {
+      setVatTransitionSaving(false);
+    }
+  };
+
+  const handleVatCancel = async (vat: VatInvoiceEntity) => {
+    if (vatMutatingId) return;
+    if (!window.confirm(`作废增值税发票 ${vat.vatNumber}？\n作废后不可恢复，仅收票状态可作废。`)) return;
+    setVatMutatingId(vat.id);
+    setVatListError(null);
+    try {
+      const updated = await vatInvoiceService.transitionVatInvoice(vat.id, { toStatus: 'Cancelled' });
+      setVatInvoices(prev => prev.map(v => v.id === vat.id ? { ...v, ...updated } : v));
+    } catch (e: any) {
+      setVatListError(`作废失败：${e?.message ?? e}`);
+    } finally {
+      setVatMutatingId(null);
+    }
+  };
+
+  const handleVatDelete = async (vat: VatInvoiceEntity) => {
+    if (vatMutatingId) return;
+    if (!window.confirm(`删除增值税发票 ${vat.vatNumber}？\n已申报退税的发票不可删除（仅可红冲）。`)) return;
+    setVatMutatingId(vat.id);
+    setVatListError(null);
+    try {
+      await vatInvoiceService.deleteVatInvoice(vat.id);
+      setVatInvoices(prev => prev.filter(v => v.id !== vat.id));
+      setSelectedId(null);
+    } catch (e: any) {
+      setVatListError(`删除失败：${e?.message ?? e}`);
+    } finally {
+      setVatMutatingId(null);
     }
   };
 
@@ -685,13 +1053,31 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     return result;
   }, [vouchers, selectedType, selectedStatus, searchTerm]);
 
-  const activeList = activeTab === 'invoices' ? filteredInvoices : filteredVouchers;
+  // C6 增值税发票：本地过滤（方向 → type chips / 状态 → status chips，与发票/凭证 tab 同一交互范式）
+  const filteredVatInvoices = useMemo(() => {
+    let result = vatInvoices;
+    if (selectedType !== 'all') result = result.filter(v => v.direction === selectedType);
+    if (selectedStatus !== 'all') result = result.filter(v => v.status === selectedStatus);
+    if (searchTerm.trim()) {
+      const q = searchTerm.trim().toLowerCase();
+      result = result.filter(v =>
+        v.vatNumber?.toLowerCase().includes(q) ||
+        v.sellerName?.toLowerCase().includes(q) ||
+        v.buyerName?.toLowerCase().includes(q),
+      );
+    }
+    return result;
+  }, [vatInvoices, selectedType, selectedStatus, searchTerm]);
+
+  const activeList: Array<InvoiceEntity | VoucherEntity | VatInvoiceEntity> =
+    activeTab === 'invoices' ? filteredInvoices : activeTab === 'vatInvoices' ? filteredVatInvoices : filteredVouchers;
   const selectedItem = activeList.find(item => item.id === selectedId) || activeList[0];
 
   const isInvoiceContext = activeTab === 'invoices';
 
-  // 选中 invoice/voucher 时加载其 allocations（消费 GET /allocations）
+  // 选中 invoice/voucher 时加载其 allocations（消费 GET /allocations）；增值税发票无核销语义，跳过
   useEffect(() => {
+    if (activeTab === 'vatInvoices') { setAllocations([]); return; }
     if (!selectedItem?.id) { setAllocations([]); return; }
     setAllocLoading(true);
     const params = isInvoiceContext ? { invoiceId: selectedItem.id } : { voucherId: selectedItem.id };
@@ -728,7 +1114,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const columnHeaders =
     activeTab === 'invoices'
       ? [{ key: 'invoice', label: '发票' }, { key: 'typeStatus', label: '类型/状态' }, { key: 'partner', label: '伙伴' }, { key: 'amount', label: '金额' }]
-      : [{ key: 'voucher', label: '凭证' }, { key: 'typeStatus', label: '类型/状态' }, { key: 'partner', label: '伙伴' }, { key: 'amount', label: '金额' }];
+      : activeTab === 'vatInvoices'
+        ? [{ key: 'vatNumber', label: '发票号码' }, { key: 'status', label: '状态' }, { key: 'partner', label: '购销方' }, { key: 'amount', label: '价税合计' }]
+        : [{ key: 'voucher', label: '凭证' }, { key: 'typeStatus', label: '类型/状态' }, { key: 'partner', label: '伙伴' }, { key: 'amount', label: '金额' }];
 
   // ── Render helpers for the two tab table rows ───
   const renderInvoiceRow = (item: InvoiceEntity) => {
@@ -809,21 +1197,205 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     );
   };
 
+  // ── C6 增值税发票表格行（镜像发票/凭证行范式）───
+  const renderVatRow = (item: VatInvoiceEntity) => {
+    const active = selectedItem?.id === item.id;
+    const partnerName = item.direction === 'Input' ? item.sellerName : item.buyerName;
+    return (
+      <button
+        type="button"
+        key={item.id}
+        data-rdl-component="data-row"
+        data-interactive="true"
+        data-selected={active ? 'true' : 'false'}
+        onClick={() => setSelectedId(item.id)}
+        className={cx(
+          'rdl-data-row',
+          TABLE_GRID_CLASS,
+          'w-full text-left text-xs',
+          active && (isDarkMode ? 'bg-white/[0.075]' : 'bg-white/50'),
+        )}
+      >
+        <div className="min-w-0 px-1 py-1">
+          <div className={cx('truncate font-light', textPrimaryClass)}>{item.vatNumber}</div>
+          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(item.direction)} · {vatTypeLabel(item.invoiceType)}</div>
+        </div>
+        <div className="min-w-0 px-1 py-1">
+          <span className={cx('inline-flex rounded-full px-3 py-1 text-[11px] font-light tracking-wide', vatStatusTone(item.status, isDarkMode))}>
+            {VAT_STATUS_LABELS[item.status] || item.status}
+          </span>
+          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(item.direction)}</div>
+        </div>
+        <div className="min-w-0 px-1 py-1">
+          <div className={cx('truncate font-light', textPrimaryClass)}>{partnerName || '—'}</div>
+          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.orderId ? `订单 ${item.orderId.slice(-8)}` : item.taxRefundId ? `退税 ${item.taxRefundId.slice(-8)}` : '无关联单据'}</div>
+        </div>
+        <div className="min-w-0 px-1 py-1">
+          <div className={cx('truncate font-light tabular-nums', textPrimaryClass)}>{formatAmount(Number(item.totalAmount), item.currency)}</div>
+          <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{item.issueDate || '—'}</div>
+        </div>
+      </button>
+    );
+  };
+
   // ── Side panel detail rendering ───
-  const activeSearchPlaceholder = activeTab === 'invoices' ? '发票号 / 伙伴' : '凭证号 / 伙伴';
+  const activeSearchPlaceholder =
+    activeTab === 'invoices' ? '发票号 / 伙伴' : activeTab === 'vatInvoices' ? '发票号码 / 购销方' : '凭证号 / 伙伴';
 
   const renderEmptyState = () => (
     <div className={cx('flex h-56 flex-col items-center justify-center text-center', textSecondaryClass)}>
       {activeTab === 'invoices'
         ? <FileText size={28} strokeWidth={1} className="mb-3 opacity-45" />
-        : <CreditCard size={28} strokeWidth={1} className="mb-3 opacity-45" />}
+        : activeTab === 'vatInvoices'
+          ? <Receipt size={28} strokeWidth={1} className="mb-3 opacity-45" />
+          : <CreditCard size={28} strokeWidth={1} className="mb-3 opacity-45" />}
       <div className="text-sm font-light">
-        {activeTab === 'invoices' ? '暂无匹配发票' : '暂无匹配凭证'}
+        {vatLoading && activeTab === 'vatInvoices'
+          ? '加载中…'
+          : activeTab === 'invoices'
+            ? '暂无匹配发票'
+            : activeTab === 'vatInvoices'
+              ? '暂无匹配增值税发票'
+              : '暂无匹配凭证'}
       </div>
     </div>
   );
 
+  // ── C6 增值税发票侧栏（字段 + 状态机流转入口 + 关联视图）───
+  const renderVatSidePanel = () => {
+    const vat = (selectedItem as VatInvoiceEntity | undefined) || undefined;
+    if (!vat) {
+      return (
+        <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondaryClass)}>
+          <Receipt size={28} strokeWidth={1} className="mb-3 opacity-45" />
+          <div className="text-sm font-light">请选择增值税发票</div>
+        </div>
+      );
+    }
+
+    const canEdit = vat.status === 'Received' || vat.status === 'Verified';
+    const canVerify = vat.status === 'Received';
+    const canDeclare = vat.status === 'Verified' && vat.direction === 'Input' && vat.invoiceType === 'Special';
+    const canRedFlush = vat.status === 'Verified' || vat.status === 'Declared';
+    const canCancel = vat.status === 'Received';
+    const canDelete = vat.status !== 'Declared';
+
+    const fieldRows = [
+      { label: '发票号码', value: vat.vatNumber },
+      { label: '发票代码', value: vat.vatCode || '—' },
+      { label: '票种', value: `${vatDirectionLabel(vat.direction)} · ${vatTypeLabel(vat.invoiceType)}` },
+      { label: '销售方', value: vat.sellerName || '—' },
+      { label: '销售方税号', value: vat.sellerTaxNo || '—' },
+      { label: '购买方', value: vat.buyerName || '—' },
+      { label: '购买方税号', value: vat.buyerTaxNo || '—' },
+      { label: '开票日期', value: vat.issueDate || '—' },
+      { label: '不含税金额', value: formatAmount(Number(vat.netAmount), vat.currency) },
+      { label: '税率', value: `${vat.taxRate}%` },
+      { label: '税额', value: formatAmount(Number(vat.taxAmount), vat.currency) },
+      { label: '认证日期', value: vat.verifiedDate || '—' },
+      { label: '抵扣所属期', value: vat.deductionPeriod || '—' },
+      { label: '退税申报', value: vat.taxRefundId ? `申报 ${vat.taxRefundId.slice(-8)}` : '—' },
+      { label: '红字发票号', value: vat.redFlushNumber || '—' },
+      { label: '红冲日期', value: vat.redFlushDate || '—' },
+      { label: '关联订单', value: vat.orderId ? `订单 ${vat.orderId.slice(-8)}` : '—' },
+      { label: '备注', value: vat.notes || '—' },
+    ];
+
+    return (
+      <>
+        {vatListError && (
+          <div className={cx('shrink-0 px-4 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>
+            {vatListError}
+          </div>
+        )}
+        <div className="shrink-0 px-5 py-5">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>当前增值税发票</div>
+              <div className={cx('mt-2 truncate text-base font-light', textPrimaryClass)}>{vat.vatNumber}</div>
+              <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(vat.direction)}{vatTypeLabel(vat.invoiceType)} · {vat.currency || 'CNY'}</div>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <span className={cx('mt-0.5 inline-flex rounded-full px-3 py-1 text-[11px] font-light tracking-wide', vatStatusTone(vat.status, isDarkMode))}>
+                {VAT_STATUS_LABELS[vat.status] || vat.status}
+              </span>
+              {canEdit && (
+                <RdlPill type="button" onClick={() => openEditVat(vat)} className="min-h-8 px-2.5 text-[10.5px]">
+                  <Pencil size={10} strokeWidth={1.3} />
+                  编辑
+                </RdlPill>
+              )}
+              {canVerify && (
+                <RdlPill type="button" onClick={() => openVatTransition(vat, 'Verified')} className="min-h-8 px-2.5 text-[10.5px]">
+                  <BadgeCheck size={10} strokeWidth={1.3} />
+                  认证
+                </RdlPill>
+              )}
+              {canDeclare && (
+                <RdlPill type="button" onClick={() => openVatTransition(vat, 'Declared')} className="min-h-8 px-2.5 text-[10.5px]">
+                  <Landmark size={10} strokeWidth={1.3} />
+                  申报退税
+                </RdlPill>
+              )}
+              {canRedFlush && (
+                <RdlPill type="button" onClick={() => openVatTransition(vat, 'RedFlushed')} className="min-h-8 px-2.5 text-[10.5px]">
+                  <RotateCcw size={10} strokeWidth={1.3} />
+                  红冲
+                </RdlPill>
+              )}
+              {canCancel && (
+                <RdlPill type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatCancel(vat)} className="min-h-8 px-2.5 text-[10.5px]">
+                  {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Ban size={10} strokeWidth={1.3} />}
+                  作废
+                </RdlPill>
+              )}
+              {canDelete && (
+                <RdlPill type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatDelete(vat)} className="min-h-8 px-2.5 text-[10.5px]">
+                  {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
+                  删除
+                </RdlPill>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+          <div className="space-y-1">
+            {fieldRows.map(row => (
+              <div key={row.label} className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-2 py-1">
+                <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>{row.label}</div>
+                <div className={cx('truncate text-xs font-light', textPrimaryClass)}>{row.value}</div>
+              </div>
+            ))}
+          </div>
+          <RdlSurface tone="inset" padding="compact" className="mt-3">
+            <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>状态说明</div>
+            <div className={cx('mt-1 text-[11px] font-light leading-relaxed', textPrimaryClass)}>
+              {VAT_STATUS_LABELS[vat.status] || vat.status}：{VAT_STATUS_GUIDE[vat.status] || '请检查发票状态。'}
+            </div>
+          </RdlSurface>
+          <div className={cx('my-4 h-px w-full', isDarkMode ? 'bg-white/[0.055]' : 'bg-slate-200/55')} />
+          <RdlSurface tone="inset" padding="regular">
+            <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>价税合计</div>
+            <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimaryClass)}>{formatAmount(Number(vat.totalAmount), vat.currency)}</div>
+            <div className={cx('mt-1 text-[11px] font-light tabular-nums', textSecondaryClass)}>
+              不含税 {formatAmount(Number(vat.netAmount), vat.currency)} + 税额 {formatAmount(Number(vat.taxAmount), vat.currency)}
+            </div>
+          </RdlSurface>
+          <div className="mt-4">
+            <RelatedEntitiesPanel
+              type="vatInvoice"
+              id={vat.id}
+              isDarkMode={isDarkMode}
+              title="增值税发票关联视图"
+            />
+          </div>
+        </div>
+      </>
+    );
+  };
+
   const renderSidePanel = () => {
+    if (activeTab === 'vatInvoices') return renderVatSidePanel();
     if (!selectedItem) {
       return (
         <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondaryClass)}>
@@ -980,6 +1552,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   结汇
                 </RdlPill>
               )}
+              {/* C6 付汇闭环：付汇入口（仅外币付款凭证有付汇语义，镜像结汇付款侧） */}
+              {!isInvoice && voucher && voucher.type === 'Disbursement' && voucher.currency !== 'CNY' && (
+                <RdlPill
+                  type="button"
+                  onClick={() => openRemittanceModal(voucher)}
+                  className="min-h-8 px-2.5 text-[10.5px]"
+                >
+                  <Send size={10} strokeWidth={1.3} />
+                  付汇
+                </RdlPill>
+              )}
               {/* voucher 作废入口（非 cancelled 状态可作废） */}
               {!isInvoice && voucher && voucher.status !== 'cancelled' && (
                 <RdlPill
@@ -1119,15 +1702,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   };
 
   // ── Active tab toolbar chips ───
-  const activeTypeOptions = activeTab === 'invoices' ? INVOICE_TYPES : VOUCHER_TYPES;
-  const activeStatusOptions = activeTab === 'invoices' ? INVOICE_STATUSES : VOUCHER_STATUSES;
+  const activeTypeOptions = activeTab === 'invoices' ? INVOICE_TYPES : activeTab === 'vatInvoices' ? VAT_DIRECTIONS : VOUCHER_TYPES;
+  const activeStatusOptions = activeTab === 'invoices' ? INVOICE_STATUSES : activeTab === 'vatInvoices' ? VAT_STATUSES : VOUCHER_STATUSES;
 
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
       <PageHeader
         title="财务管理"
         subtitle="Invoices / Vouchers / Reconciliation"
-        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'reports' ? 'Finance Reports' : 'Voucher Desk'}
+        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : 'Voucher Desk'}
         isDarkMode={isDarkMode}
       />
 
@@ -1161,7 +1744,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
               {activeTab === 'reports'
                 ? '账龄 / 对账单 / 汇率损益 / 外汇台账'
-                : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : '张凭证'}`}
+                : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
             </div>
           </div>
 
@@ -1230,6 +1813,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   新建发票
                 </RdlPill>
               )}
+              {/* C6 增值税发票：手动登记入口 */}
+              {activeTab === 'vatInvoices' && (
+                <RdlPill
+                  type="button"
+                  onClick={openCreateVat}
+                  active
+                  tone="accent"
+                  className="min-h-8 shrink-0 px-3 text-[11px]"
+                >
+                  <Plus size={12} strokeWidth={1.4} />
+                  新建增值税票
+                </RdlPill>
+              )}
           </RdlToolbar>
 
           {/* Table + side panel */}
@@ -1244,7 +1840,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 {activeList.length > 0
                   ? (activeTab === 'invoices'
                       ? (activeList as InvoiceEntity[]).map((item) => renderInvoiceRow(item))
-                      : (activeList as VoucherEntity[]).map((item) => renderVoucherRow(item)))
+                      : activeTab === 'vatInvoices'
+                        ? (activeList as VatInvoiceEntity[]).map((item) => renderVatRow(item))
+                        : (activeList as VoucherEntity[]).map((item) => renderVoucherRow(item)))
                   : renderEmptyState()}
               </div>
             </RdlSurface>
@@ -1572,6 +2170,341 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <RdlPill type="button" disabled={settlementSaving || settlementLoading} onClick={handleCreateSettlement}
                   active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
                   {settlementSaving ? '登记中…' : '登记结汇'}
+                </RdlPill>
+              )}
+            </div>
+          </RdlSurface>
+        </div>
+      )}
+
+      {/* C6 增值税发票：创建/编辑 modal（编辑时 vatNumber/direction/invoiceType 服务端不可变，仅票面修正） */}
+      {showVatModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !vatSaving && setShowVatModal(false)}>
+          <RdlSurface tone="floating" padding="regular" className="flex max-h-[85vh] w-full max-w-lg flex-col" onClick={e => e.stopPropagation()}>
+            <h2 className={cx('mb-3 shrink-0 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+              {editingVat ? `编辑增值税发票 · ${editingVat.vatNumber}` : '新建增值税发票'}
+            </h2>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票号码 *</label>
+                  <input value={vatForm.vatNumber} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, vatNumber: e.target.value }))}
+                    placeholder="02345678"
+                    className={cx(formInputClass, editingVat && 'opacity-50')} />
+                </div>
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票代码（纸质票）</label>
+                  <input value={vatForm.vatCode} onChange={e => setVatForm(f => ({ ...f, vatCode: e.target.value }))}
+                    placeholder="可选"
+                    className={formInputClass} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>方向</label>
+                  <select value={vatForm.direction} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, direction: e.target.value as VatInvoiceDirection }))}
+                    className={cx(formSelectClass, editingVat && 'opacity-50')}>
+                    <option value="Input">进项</option>
+                    <option value="Output">销项</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>票种</label>
+                  <select value={vatForm.invoiceType} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, invoiceType: e.target.value as VatInvoiceType }))}
+                    className={cx(formSelectClass, editingVat && 'opacity-50')}>
+                    <option value="Special">专票</option>
+                    <option value="Normal">普票</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>销售方 *</label>
+                  <input value={vatForm.sellerName} onChange={e => setVatForm(f => ({ ...f, sellerName: e.target.value }))}
+                    className={formInputClass} />
+                </div>
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>销售方税号</label>
+                  <input value={vatForm.sellerTaxNo} onChange={e => setVatForm(f => ({ ...f, sellerTaxNo: e.target.value }))}
+                    placeholder="可选"
+                    className={formInputClass} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>购买方 *</label>
+                  <input value={vatForm.buyerName} onChange={e => setVatForm(f => ({ ...f, buyerName: e.target.value }))}
+                    className={formInputClass} />
+                </div>
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>购买方税号</label>
+                  <input value={vatForm.buyerTaxNo} onChange={e => setVatForm(f => ({ ...f, buyerTaxNo: e.target.value }))}
+                    placeholder="可选"
+                    className={formInputClass} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>开票日期 *</label>
+                  <input type="date" value={vatForm.issueDate} onChange={e => setVatForm(f => ({ ...f, issueDate: e.target.value }))}
+                    className={formInputClass} />
+                </div>
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
+                  <input value={vatForm.deductionPeriod} onChange={e => setVatForm(f => ({ ...f, deductionPeriod: e.target.value }))}
+                    placeholder="2026-08"
+                    className={formInputClass} />
+                </div>
+              </div>
+              {/* 金额三栏 + 税率：服务端校验 totalAmount ≈ netAmount + taxAmount（容忍 ±0.01） */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>不含税金额 *</label>
+                  <input type="number" step="0.0001" value={vatForm.netAmount} onChange={e => setVatForm(f => ({ ...f, netAmount: e.target.value }))}
+                    className={formInputClass} />
+                </div>
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>税率（%）*</label>
+                  <input type="number" step="0.01" value={vatForm.taxRate} onChange={e => setVatForm(f => ({ ...f, taxRate: e.target.value }))}
+                    placeholder="13"
+                    className={formInputClass} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>税额 *</label>
+                  <input type="number" step="0.0001" value={vatForm.taxAmount} onChange={e => setVatForm(f => ({ ...f, taxAmount: e.target.value }))}
+                    className={formInputClass} />
+                </div>
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>价税合计 *</label>
+                  <input type="number" step="0.0001" value={vatForm.totalAmount} onChange={e => setVatForm(f => ({ ...f, totalAmount: e.target.value }))}
+                    className={formInputClass} />
+                </div>
+              </div>
+              <div>
+                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>备注</label>
+                <input value={vatForm.notes} onChange={e => setVatForm(f => ({ ...f, notes: e.target.value }))}
+                  className={formInputClass} />
+              </div>
+              {vatError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{vatError}</div>}
+            </div>
+            <div className="mt-3 flex shrink-0 justify-end gap-2">
+              <RdlPill type="button" disabled={vatSaving} onClick={() => setShowVatModal(false)}
+                className="min-h-8 px-4 text-xs">取消</RdlPill>
+              <RdlPill type="button" disabled={vatSaving} onClick={handleSaveVat}
+                active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+                {vatSaving ? '保存中…' : '保存'}
+              </RdlPill>
+            </div>
+          </RdlSurface>
+        </div>
+      )}
+
+      {/* C6 增值税发票：状态机流转 modal（认证 / 申报退税 / 红冲，消费后端稳定状态机） */}
+      {vatTransitionTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !vatTransitionSaving && setVatTransitionTarget(null)}>
+          <RdlSurface tone="floating" padding="regular" className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h2 className={cx('mb-1 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+              {VAT_TRANSITION_LABELS[vatTransitionAction]} · {vatTransitionTarget.vatNumber}
+            </h2>
+            <div className={cx('mb-4 text-[11px] font-light', textSecondaryClass)}>
+              {VAT_STATUS_LABELS[vatTransitionTarget.status]} → {VAT_STATUS_LABELS[vatTransitionAction]}
+            </div>
+            <div className="space-y-3">
+              {vatTransitionAction === 'Verified' && (
+                <>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>勾选认证日期</label>
+                    <input type="date" value={vatTransitionForm.verifiedDate} onChange={e => setVatTransitionForm(f => ({ ...f, verifiedDate: e.target.value }))}
+                      className={formInputClass} />
+                  </div>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
+                    <input value={vatTransitionForm.deductionPeriod} onChange={e => setVatTransitionForm(f => ({ ...f, deductionPeriod: e.target.value }))}
+                      placeholder="2026-08"
+                      className={formInputClass} />
+                  </div>
+                </>
+              )}
+              {vatTransitionAction === 'Declared' && (
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 ID *</label>
+                  <input value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
+                    placeholder="关联已登记的退税申报单"
+                    className={formInputClass} />
+                </div>
+              )}
+              {vatTransitionAction === 'RedFlushed' && (
+                <>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>红字发票号</label>
+                    <input value={vatTransitionForm.redFlushNumber} onChange={e => setVatTransitionForm(f => ({ ...f, redFlushNumber: e.target.value }))}
+                      placeholder="可选"
+                      className={formInputClass} />
+                  </div>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>红冲日期</label>
+                    <input type="date" value={vatTransitionForm.redFlushDate} onChange={e => setVatTransitionForm(f => ({ ...f, redFlushDate: e.target.value }))}
+                      className={formInputClass} />
+                  </div>
+                </>
+              )}
+              {vatTransitionError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{vatTransitionError}</div>}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <RdlPill type="button" disabled={vatTransitionSaving} onClick={() => setVatTransitionTarget(null)}
+                className="min-h-8 px-4 text-xs">取消</RdlPill>
+              <RdlPill type="button" disabled={vatTransitionSaving} onClick={handleVatTransition}
+                active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+                {vatTransitionSaving ? '流转中…' : `确认${VAT_TRANSITION_LABELS[vatTransitionAction]}`}
+              </RdlPill>
+            </div>
+          </RdlSurface>
+        </div>
+      )}
+
+      {/* C6 付汇闭环：付汇核销 modal（镜像结汇 modal，消费 /v1/finance/outward-remittances contract） */}
+      {remittanceVoucher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !remittanceSaving && setRemittanceVoucher(null)}>
+          <RdlSurface tone="floating" padding="regular" className="flex max-h-[85vh] w-full max-w-lg flex-col" onClick={e => e.stopPropagation()}>
+            <h2 className={cx('mb-3 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+              付汇核销 · {remittanceVoucher.voucherNumber}
+              <span className={cx('ml-2 text-[11px]', textSecondaryClass)}>{remittanceVoucher.customerName || '—'}</span>
+            </h2>
+
+            {/* 付汇摘要（服务端真源） */}
+            <div className="grid shrink-0 grid-cols-3 gap-2">
+              {([
+                { label: '凭证金额', value: remittanceSummary ? formatAmount(Number(remittanceSummary.voucherAmount), remittanceSummary.currency) : '—' },
+                { label: '已付汇', value: remittanceSummary ? formatAmount(Number(remittanceSummary.remittedAmount), remittanceSummary.currency) : '—' },
+                { label: '未付汇余额', value: remittanceSummary ? formatAmount(Number(remittanceSummary.remainingAmount), remittanceSummary.currency) : '—', accent: true },
+              ]).map(card => (
+                <RdlSurface key={card.label} tone="inset" padding="compact">
+                  <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>{card.label}</div>
+                  {/* 中性材质对比表达强调（Finance 页面禁用语义色族）：未付清用主色，付清降为次级 */}
+                  <div className={cx('mt-1 text-sm font-light tabular-nums', card.accent && remittanceSummary?.fullyRemitted ? textSecondaryClass : textPrimaryClass)}>
+                    {remittanceLoading ? '加载中…' : card.value}
+                  </div>
+                </RdlSurface>
+              ))}
+            </div>
+
+            <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+              {/* 付汇记录 */}
+              <div>
+                <div className={cx('mb-1.5 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>
+                  付汇记录{remittanceSummary ? `（${remittanceSummary.remittances.length} 笔）` : ''}
+                </div>
+                {remittanceSummary && remittanceSummary.remittances.length === 0 && (
+                  <div className={cx('py-3 text-center text-[11px] font-light', textSecondaryClass)}>暂无付汇记录</div>
+                )}
+                <div className="space-y-1">
+                  {remittanceSummary?.remittances.map(r => (
+                    <div key={r.id} className={cx('flex items-center gap-2 rounded-control px-3 py-2', isDarkMode ? 'bg-white/[0.035]' : 'bg-white/40')}>
+                      <div className="min-w-0 flex-1">
+                        <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                          {r.remitDate}
+                          <span className={cx('ml-2 text-[10px]', textSecondaryClass)}>{r.remittanceNumber}</span>
+                        </div>
+                        <div className={cx('mt-0.5 truncate text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                          {formatAmount(Number(r.foreignAmount), r.currency)} × {Number(r.fxRate)} = {formatAmount(Number(r.cnyAmount), 'CNY')}
+                          {r.purpose ? ` · ${remittancePurposeLabel(r.purpose)}` : ''}{r.bank ? ` · ${r.bank}` : ''}{r.slipNumber ? ` · 水单 ${r.slipNumber}` : ''}
+                        </div>
+                      </div>
+                      <RdlOverlayIconButton
+                        type="button"
+                        disabled={remittanceDeletingId === r.id}
+                        onClick={() => handleDeleteRemittance(r.id, r.remittanceNumber)}
+                        title="删除付汇水单（回滚未付汇余额）"
+                      >
+                        {remittanceDeletingId === r.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
+                      </RdlOverlayIconButton>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 登记付汇表单 */}
+              {(!remittanceSummary || !remittanceSummary.fullyRemitted) && (
+                <div className={cx('rounded-field border p-3', isDarkMode ? 'border-white/8' : 'border-slate-300/30')}>
+                  <div className={cx('mb-2 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>登记付汇</div>
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇日期 *</label>
+                        <input type="date" value={remittanceForm.remitDate} onChange={e => setRemittanceForm(f => ({ ...f, remitDate: e.target.value }))}
+                          className={formInputClass} />
+                      </div>
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇外币金额（{remittanceVoucher.currency}）*</label>
+                        <input type="number" step="0.0001" value={remittanceForm.foreignAmount} onChange={e => setRemittanceForm(f => ({ ...f, foreignAmount: e.target.value }))}
+                          placeholder={remittanceSummary ? `未付汇 ${remittanceSummary.remainingAmount}` : ''}
+                          className={formInputClass} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇汇率（{remittanceVoucher.currency} → CNY）*</label>
+                        <input type="number" step="0.00000001" value={remittanceForm.fxRate} onChange={e => setRemittanceForm(f => ({ ...f, fxRate: e.target.value }))}
+                          placeholder="7.12345678"
+                          className={formInputClass} />
+                      </div>
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇用途</label>
+                        <select value={remittanceForm.purpose} onChange={e => setRemittanceForm(f => ({ ...f, purpose: e.target.value }))}
+                          className={formSelectClass}>
+                          {REMITTANCE_PURPOSE_OPTIONS.map(o => (
+                            <option key={o.id} value={o.id}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>收款人名称</label>
+                        <input value={remittanceForm.payeeName} onChange={e => setRemittanceForm(f => ({ ...f, payeeName: e.target.value }))}
+                          className={formInputClass} />
+                      </div>
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇银行</label>
+                        <input value={remittanceForm.bank} onChange={e => setRemittanceForm(f => ({ ...f, bank: e.target.value }))}
+                          placeholder="中国银行"
+                          className={formInputClass} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>银行水单号</label>
+                        <input value={remittanceForm.slipNumber} onChange={e => setRemittanceForm(f => ({ ...f, slipNumber: e.target.value }))}
+                          className={formInputClass} />
+                      </div>
+                      <div>
+                        <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>备注</label>
+                        <input value={remittanceForm.notes} onChange={e => setRemittanceForm(f => ({ ...f, notes: e.target.value }))}
+                          className={formInputClass} />
+                      </div>
+                    </div>
+                    {/* 折人民币预览（本地估算，真源以服务端计算为准） */}
+                    {Number(remittanceForm.foreignAmount) > 0 && Number(remittanceForm.fxRate) > 0 && (
+                      <div className={cx('text-[11px] font-light tabular-nums', textSecondaryClass)}>
+                        折人民币约 {formatAmount(Number(remittanceForm.foreignAmount) * Number(remittanceForm.fxRate), 'CNY')}（以服务端计算为准）
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {remittanceError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{remittanceError}</div>}
+            </div>
+
+            <div className="mt-3 flex shrink-0 justify-end gap-2">
+              <RdlPill type="button" disabled={remittanceSaving} onClick={() => setRemittanceVoucher(null)}
+                className="min-h-8 px-4 text-xs">关闭</RdlPill>
+              {(!remittanceSummary || !remittanceSummary.fullyRemitted) && (
+                <RdlPill type="button" disabled={remittanceSaving || remittanceLoading} onClick={handleCreateRemittance}
+                  active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+                  {remittanceSaving ? '登记中…' : '登记付汇'}
                 </RdlPill>
               )}
             </div>

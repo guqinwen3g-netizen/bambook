@@ -2416,6 +2416,83 @@ export interface FxLedger {
   unsettledVouchers: FxLedgerUnsettledVoucher[];
 }
 
+// ── Phase C6: 付汇水单（OutwardRemittance，消费 /v1/finance/outward-remittances contract）──
+// 镜像 FxSettlement 付款侧：仅 Disbursement 外币凭证可付汇；cnyAmount 服务端计算；Decimal 序列化为 string
+export type OutwardRemittancePurpose = 'GoodsPayment' | 'Freight' | 'Insurance' | 'Commission' | 'Other';
+
+export interface OutwardRemittance {
+  id: string; // 格式：OWR__${shortId}
+  remittanceNumber: string; // 付汇水单号
+  voucherId: string;
+  orderId?: string | null;
+  customerRelationId?: string | null;
+  remitDate: string; // YYYY-MM-DD
+  foreignAmount: string; // 付汇外币金额
+  currency: string;
+  fxRate: string; // 付汇汇率（外币 → CNY）
+  cnyAmount: string; // 折合人民币（服务端计算）
+  payeeName?: string | null;
+  payeeBank?: string | null;
+  payeeSwift?: string | null;
+  purpose?: OutwardRemittancePurpose | null;
+  bank?: string | null;
+  slipNumber?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+/** GET /v1/finance/vouchers/:id/remittances 响应——凭证付汇摘要 */
+export interface VoucherRemittanceSummary {
+  voucherId: string;
+  voucherNumber: string;
+  voucherAmount: string;
+  currency: string;
+  remittedAmount: string;
+  remainingAmount: string;
+  fullyRemitted: boolean;
+  remittances: OutwardRemittance[];
+}
+
+// ── Phase C6: 增值税发票（VatInvoice，消费 /v1/finance/vat-invoices contract）──
+// 专票全生命周期：Received → Verified → Declared（挂退税申报）→ RedFlushed；Received → Cancelled
+export type VatInvoiceStatus = 'Received' | 'Verified' | 'Declared' | 'RedFlushed' | 'Cancelled';
+export type VatInvoiceDirection = 'Input' | 'Output';
+export type VatInvoiceType = 'Special' | 'Normal';
+
+export interface VatInvoice {
+  id: string; // 格式：VAT__${shortId}
+  vatCode?: string | null; // 发票代码（纸质票）
+  vatNumber: string; // 发票号码
+  direction: VatInvoiceDirection;
+  invoiceType: VatInvoiceType;
+  status: VatInvoiceStatus;
+  sellerName: string;
+  sellerTaxNo?: string | null;
+  buyerName: string;
+  buyerTaxNo?: string | null;
+  issueDate: string; // YYYY-MM-DD
+  netAmount: string; // 不含税金额
+  taxRate: string; // 税率（%，如 13）
+  taxAmount: string; // 税额
+  totalAmount: string; // 价税合计（= netAmount + taxAmount，服务端校验）
+  currency: string;
+  verifiedDate?: string | null; // 勾选认证日期
+  deductionPeriod?: string | null; // 抵扣所属期 YYYY-MM
+  taxRefundId?: string | null; // 关联退税申报（Declared 必填）
+  redFlushNumber?: string | null; // 红字发票号
+  redFlushDate?: string | null;
+  invoiceId?: string | null; // 关联业务发票
+  orderId?: string | null;
+  relationId?: string | null;
+  notes?: string | null;
+  attachments?: unknown;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
 // ── Phase C1: 经营驾驶舱（消费 /v1/dashboard/cockpit contract）──
 export interface SalesLeaderboardRow {
   salesPerson: string;
