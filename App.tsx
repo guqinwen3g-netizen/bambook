@@ -182,6 +182,7 @@ import SuppliersManager from './components/SuppliersManager';
 import SeasonsManager from './components/SeasonsManager';
 import RisksManager from './components/RisksManager';
 import QcWorkbenchManager from './components/QcWorkbenchManager';
+import PricingManager from './components/PricingManager';
 import MesManager from './components/MesManager';
 import CustomsManager from './components/CustomsManager';
 import type { GlobeQualityMode, GlobeViewportCenter } from './components/ProductionGlobe';
@@ -1579,6 +1580,9 @@ const App: React.FC = () => {
             )}
             {activeView === View.QcWorkbench && (
               <QcWorkbenchManager isDarkMode={isDarkMode} />
+            )}
+            {activeView === View.Pricing && (
+              <PricingManager isDarkMode={isDarkMode} />
             )}
             {activeView === View.MES && renderMainCompilerSlot(
               compilerSurfaces.mes,

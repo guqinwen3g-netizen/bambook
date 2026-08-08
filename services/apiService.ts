@@ -158,6 +158,20 @@ import {
   CustomerStatement,
   FxGainLossReport,
   BusinessCockpit,
+  // 定价与利润（阶段 P1）
+  TaxRefundRate,
+  TaxRefundRateInput,
+  TaxRefundRatePatch,
+  TrackBInput,
+  TrackBResult,
+  PricingCalculation,
+  PricingCalculationInput,
+  PricingCalculationPatch,
+  OrderProfitSheet,
+  MaterialPriceHistory,
+  MaterialPriceInput,
+  MaterialPricePatch,
+  MaterialPriceTrendPoint,
 } from '../types';
 import { getApiBaseUrl, CORPORATE_MASTER_IP, normalizeDataCenterEndpoint } from './apiBase';
 
@@ -1658,6 +1672,105 @@ export const apiService = {
         status: u.status ?? null,
         department: u.department ?? null,
       }));
+  },
+
+  // ── 阶段 P1: 退税率表 TaxRefundRate API ──
+  async listTaxRefundRates(includeInactive = false, endpoint?: string): Promise<TaxRefundRate[]> {
+    const qs = includeInactive ? '?includeInactive=true' : '';
+    const data = await requestJson<{ items: TaxRefundRate[]; total?: number }>(`/v1/pricing/tax-refund-rates${qs}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createTaxRefundRate(input: TaxRefundRateInput, endpoint?: string): Promise<TaxRefundRate> {
+    const data = await requestJson<{ ok: boolean; item: TaxRefundRate }>(`/v1/pricing/tax-refund-rates`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateTaxRefundRate(id: string, patch: TaxRefundRatePatch, endpoint?: string): Promise<TaxRefundRate> {
+    const data = await requestJson<{ ok: boolean; item: TaxRefundRate }>(`/v1/pricing/tax-refund-rates/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteTaxRefundRate(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/pricing/tax-refund-rates/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async lookupTaxRefundRate(hsCode: string, endpoint?: string): Promise<{ hsCode: string; rate: number } | null> {
+    const data = await requestJson<{ hit: { hsCode: string; rate: number } | null }>(`/v1/pricing/tax-refund-rates/lookup?hsCode=${encodeURIComponent(hsCode)}`, { endpoint, method: 'GET' });
+    return data.hit ?? null;
+  },
+
+  // ── 阶段 P1: 轨道 B 定价 PricingCalculation API ──
+  async previewTrackB(input: TrackBInput, endpoint?: string): Promise<TrackBResult> {
+    return requestJson<TrackBResult>(`/v1/pricing/track-b-preview`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+  },
+  async listPricingCalculations(params?: { orderId?: string; quotationId?: string; status?: string }, endpoint?: string): Promise<PricingCalculation[]> {
+    const query = new URLSearchParams();
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.quotationId) query.set('quotationId', params.quotationId);
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString();
+    const data = await requestJson<{ items: PricingCalculation[]; total?: number }>(`/v1/pricing/calculations${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createPricingCalculation(input: PricingCalculationInput, endpoint?: string): Promise<PricingCalculation> {
+    const data = await requestJson<{ ok: boolean; item: PricingCalculation }>(`/v1/pricing/calculations`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updatePricingCalculation(id: string, patch: PricingCalculationPatch, endpoint?: string): Promise<PricingCalculation> {
+    const data = await requestJson<{ ok: boolean; item: PricingCalculation }>(`/v1/pricing/calculations/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deletePricingCalculation(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/pricing/calculations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 阶段 P1: 订单利润表 OrderProfitSheet API ──
+  async listProfitSheets(endpoint?: string): Promise<OrderProfitSheet[]> {
+    const data = await requestJson<{ items: OrderProfitSheet[]; total?: number }>(`/v1/pricing/profit-sheets`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async generateProfitSheet(orderId: string, endpoint?: string): Promise<OrderProfitSheet> {
+    const data = await requestJson<{ ok: boolean; item: OrderProfitSheet }>(`/v1/pricing/profit-sheets/generate/${encodeURIComponent(orderId)}`, { endpoint, method: 'POST' });
+    return data.item;
+  },
+  async getProfitSheetByOrder(orderId: string, endpoint?: string): Promise<OrderProfitSheet | null> {
+    try {
+      const data = await requestJson<{ item: OrderProfitSheet }>(`/v1/pricing/profit-sheets/order/${encodeURIComponent(orderId)}`, { endpoint, method: 'GET' });
+      return data.item ?? null;
+    } catch {
+      return null;
+    }
+  },
+  async deleteProfitSheet(orderId: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/pricing/profit-sheets/order/${encodeURIComponent(orderId)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── 阶段 P1: 原材料价格 MaterialPriceHistory API ──
+  async listMaterialPrices(params?: { materialType?: string; materialCode?: string; from?: string; to?: string }, endpoint?: string): Promise<MaterialPriceHistory[]> {
+    const query = new URLSearchParams();
+    if (params?.materialType) query.set('materialType', params.materialType);
+    if (params?.materialCode) query.set('materialCode', params.materialCode);
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const qs = query.toString();
+    const data = await requestJson<{ items: MaterialPriceHistory[]; total?: number }>(`/v1/pricing/material-prices${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+  async createMaterialPrice(input: MaterialPriceInput, endpoint?: string): Promise<MaterialPriceHistory> {
+    const data = await requestJson<{ ok: boolean; item: MaterialPriceHistory }>(`/v1/pricing/material-prices`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+  async updateMaterialPrice(id: string, patch: MaterialPricePatch, endpoint?: string): Promise<MaterialPriceHistory> {
+    const data = await requestJson<{ ok: boolean; item: MaterialPriceHistory }>(`/v1/pricing/material-prices/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.item;
+  },
+  async deleteMaterialPrice(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/pricing/material-prices/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+  async getMaterialPriceTrend(params: { materialType: string; materialCode?: string; from?: string; to?: string }, endpoint?: string): Promise<MaterialPriceTrendPoint[]> {
+    const query = new URLSearchParams({ materialType: params.materialType });
+    if (params.materialCode) query.set('materialCode', params.materialCode);
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    const data = await requestJson<{ items: MaterialPriceTrendPoint[] }>(`/v1/pricing/material-prices/trend?${query.toString()}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
   },
 
   async listDevelopmentCases(endpoint?: string): Promise<DevelopmentCase[]> {

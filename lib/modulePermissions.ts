@@ -39,6 +39,7 @@ export const VIEW_PERMISSION_DEFINITIONS = {
   [View.AdminPanel]: { policy: 'permission', required: 'users:read' },
   [View.HR]: { policy: 'permission', required: 'users:read' },
   [View.QcWorkbench]: { policy: 'permission', required: 'orders:read' },
+  [View.Pricing]: { policy: 'permission', required: 'finance:read' },
 } satisfies Record<View, ViewPermissionDefinition>;
 
 export function getViewPermissionDefinition(view: View): ViewPermissionDefinition {

@@ -38,6 +38,7 @@ import { createSeasonRouter } from './seasons/seasonRoute';
 import { createRiskRouter } from './risk/riskRoute';
 import { createBusinessLineRouter } from './businessLines/businessLineRoute';
 import { createQcRouter } from './qc/qcRoute';
+import { createPricingRouter } from './pricing/pricingRoute';
 import { createMesRouter } from './mes/mesRoute';
 import { createCustomsRouter } from './customs/customsRoute';
 import { createProductionRouter } from './production/route';
@@ -624,6 +625,17 @@ app.use(
 app.use(
     '/api/v1/qc',
     (req, res, next) => createQcRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// 阶段 P1：退税率表 / 退税美元定价（轨道 B）/ 订单利润表 / 原材料价格（PRD 8 / 6.2 P1）
+app.use(
+    '/api/v1/pricing',
+    (req, res, next) => createPricingRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

@@ -3022,6 +3022,125 @@ model QCAssignment {
   @@index([dueDate])
 }
 
+// ============ 阶段 P1：定价与利润（PRD 8 双轨制 / 6.2 P1 缺口） ============
+// 设计口径：
+//   - 轨道 A 估算载体为既有 CostEstimate（BOM 模块），本批次不重复建模
+//   - 轨道 B 派生值（netUsdCost/profit/commission/finalUnitPrice）一律服务端重算，不接受客户端传入
+//   - 汇率/退税率默认值分别取自 ExchangeRate（H3 getLatestRates）与 TaxRefundRate 最长前缀命中
+//   - OrderProfitSheet 一单一张（orderId @unique），重生成=覆盖更新，幂等真源为 orderId
+
+// TaxRefundRate：出口退税率表（PRD 8.5 P1）——HS Code → 退税率映射，查询按最长前缀命中
+model TaxRefundRate {
+  id     String @id // 格式：TRR__${shortId}
+  hsCode String @unique // 支持 2/4/6/8/10 位编码
+  rate   Decimal @db.Decimal(8, 4) // 退税率百分比（13 = 13%）
+
+  description String?
+  isActive    Boolean @default(true)
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([isActive])
+}
+
+// PricingCalculation：退税美元定价记录（轨道 B，PRD 8.2/8.6）
+model PricingCalculation {
+  id String @id // 格式：PRC__${shortId}
+
+  // ─── 输入项 ───
+  purchaseCostCny Decimal @db.Decimal(18, 4) // 人民币成本单价（工厂采购价）
+  refundRate      Decimal @db.Decimal(8, 4) // 退税率百分比（0-16）
+  exchangeRate    Decimal @db.Decimal(18, 8) // CNY per USD（¥/$）
+  profitMargin    Decimal @db.Decimal(8, 4) // 利润率百分比
+  commissionRate  Decimal @default(0) @db.Decimal(8, 4) // 中间人佣金率（0=无 / 5=E5 / 10=E10）
+
+  // ─── 派生项（服务端重算） ───
+  netUsdCost       Decimal @db.Decimal(18, 4) // 退税后美元成本 = purchaseCostCny × (1 - refundRate%) ÷ exchangeRate
+  profitAmount     Decimal @db.Decimal(18, 4) // = netUsdCost × profitMargin%
+  commissionAmount Decimal @db.Decimal(18, 4) // = netUsdCost × commissionRate%
+  finalUnitPrice   Decimal @db.Decimal(18, 4) // 终价美元单价 = netUsdCost + profit + commission
+
+  // ─── 关联（snapshot FK，不强制约束） ───
+  orderId        String?
+  quotationId    String?
+  productAssetId String?
+  hsCode         String? // 退税率来源 HS Code（追溯）
+  fxLockId       String? // 使用锁定汇率时关联 FxRateLock
+
+  quantity Decimal? @db.Decimal(18, 4) // 数量（前端算总额用，不参与单价推导）
+
+  status    String  @default("Draft") // Draft | Confirmed | Archived
+  notes     String?
+  createdBy String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([orderId])
+  @@index([quotationId])
+  @@index([status])
+}
+
+// OrderProfitSheet：订单级利润表（PRD 6.2 P1 / 8.3 订单利润分析）
+// 聚合口径（归一化至 baseCurrency=CNY）：
+//   销售收入 = Σ 应收发票（type=Receivable，非 Cancelled）amount × 汇率快照
+//   采购成本 = Σ 采购单（非 Cancelled）totalAmount × 汇率快照
+//   运费     = Σ 运单（非 Cancelled）freight+insurance+customs+otherCharges（按最新汇率折算）
+//   杂费     = Σ 付款凭证（type=Disbursement，orderId 匹配，未核销发票）amount × 汇率快照
+//   无可用汇率的外币行不计入合计，列入 details.unconverted 透明披露
+model OrderProfitSheet {
+  id      String @id // 格式：OPS__${shortId}
+  orderId String @unique // 一单一张，重生成=覆盖更新（幂等真源）
+
+  baseCurrency String  @default("CNY")
+  salesRevenue Decimal @default(0) @db.Decimal(18, 4)
+  purchaseCost Decimal @default(0) @db.Decimal(18, 4)
+  freightCost  Decimal @default(0) @db.Decimal(18, 4)
+  miscCost     Decimal @default(0) @db.Decimal(18, 4)
+  grossProfit  Decimal @default(0) @db.Decimal(18, 4)
+  grossMargin  Decimal? @db.Decimal(8, 4) // 毛利率 %（salesRevenue=0 时 null）
+
+  details Json // { sales: [...], purchases: [...], freight: [...], misc: [...], unconverted: [...] }
+
+  version     Int @default(1) // 每次重生成 +1
+  generatedAt BigInt
+
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@index([generatedAt])
+}
+
+// MaterialPriceHistory：原材料价格历史（PRD 8.5 P1，轨道 A 估算校准数据源）
+model MaterialPriceHistory {
+  id           String @id // 格式：MPH__${shortId}
+  materialType String // yarn | fabric | trimming
+  materialCode String? // 物料编码（面料/辅料编码，可空=通用行情）
+  name         String // 物料名称
+  specification String? // 规格描述
+
+  price    Decimal @db.Decimal(18, 4)
+  unit     String // M | YD | KG | PC
+  currency String  @default("CNY")
+
+  priceDate String // 价格生效日 YYYY-MM-DD
+  source    String @default("manual") // manual | purchase-order | quotation
+
+  supplierRelationId String?
+  supplierName       String?
+
+  notes     String?
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([materialType, materialCode, priceDate])
+  @@index([priceDate])
+}
+
 // ============ Phase 2 B2: 库存管理 Inventory Management ============
 
 model Warehouse {

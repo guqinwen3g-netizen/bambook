@@ -30,6 +30,7 @@ export enum View {
   AdminPanel = 'admin-panel',
   HR = 'hr',
   QcWorkbench = 'qc-workbench',
+  Pricing = 'pricing',
 }
 
 export interface WallpaperOption {
@@ -3979,4 +3980,180 @@ export interface UserAccountOption {
   email?: string | null;
   status?: string | null;
   department?: string | null;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 阶段 P1: 定价与利润（PRD 8 双轨制 / 6.2 P1）
+// TaxRefundRate 退税率表 / PricingCalculation 轨道 B / OrderProfitSheet 利润表 / MaterialPriceHistory 价格历史
+// ════════════════════════════════════════════════════════════════
+
+/** TaxRefundRate：出口退税率表（HS Code → 退税率映射，最长前缀命中） */
+export interface TaxRefundRate {
+  id: string;
+  hsCode: string; // 2/4/6/8/10 位
+  rate: number; // 退税率百分比（13 = 13%）
+  description?: string | null;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TaxRefundRateInput {
+  hsCode: string;
+  rate: number;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+export type TaxRefundRatePatch = Partial<Omit<TaxRefundRateInput, 'hsCode'>>;
+
+/** 轨道 B 试算结果（派生值一律服务端重算） */
+export interface TrackBResult {
+  netUsdCost: number; // 退税后美元成本
+  profitAmount: number;
+  commissionAmount: number;
+  finalUnitPrice: number; // 终价美元单价
+}
+
+export interface TrackBInput {
+  purchaseCostCny: number;
+  refundRate: number;
+  exchangeRate: number;
+  profitMargin: number;
+  commissionRate?: number; // 0=无 | 5=E5 | 10=E10
+}
+
+export type PricingCalculationStatus = 'Draft' | 'Confirmed' | 'Archived';
+
+/** PricingCalculation：退税美元定价记录（轨道 B） */
+export interface PricingCalculation extends TrackBResult {
+  id: string;
+  purchaseCostCny: number;
+  refundRate: number;
+  exchangeRate: number;
+  profitMargin: number;
+  commissionRate: number;
+  orderId?: string | null;
+  quotationId?: string | null;
+  productAssetId?: string | null;
+  hsCode?: string | null;
+  fxLockId?: string | null;
+  quantity?: number | null;
+  status: PricingCalculationStatus;
+  notes?: string | null;
+  createdBy?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PricingCalculationInput {
+  purchaseCostCny: number;
+  refundRate?: number;
+  exchangeRate?: number;
+  profitMargin: number;
+  commissionRate?: number;
+  orderId?: string | null;
+  quotationId?: string | null;
+  productAssetId?: string | null;
+  hsCode?: string | null;
+  fxLockId?: string | null;
+  quantity?: number | null;
+  status?: PricingCalculationStatus;
+  notes?: string | null;
+}
+
+export type PricingCalculationPatch = Partial<PricingCalculationInput>;
+
+/** 利润表明细行（归一化至 CNY） */
+export interface ProfitLineItem {
+  id: string;
+  label: string;
+  amount: number;
+  currency: string;
+  rate: number;
+  rateSource: 'snapshot' | 'base' | 'latest-rate';
+  cnyAmount: number;
+}
+
+export interface UnconvertedLine {
+  id: string;
+  label: string;
+  kind: 'sales' | 'purchase' | 'freight' | 'misc';
+  amount: number;
+  currency: string;
+  reason: string;
+}
+
+export interface ProfitSheetDetails {
+  sales: ProfitLineItem[];
+  purchases: ProfitLineItem[];
+  freight: ProfitLineItem[];
+  misc: ProfitLineItem[];
+  unconverted: UnconvertedLine[];
+}
+
+/** OrderProfitSheet：订单级利润表（一单一张，重生成覆盖） */
+export interface OrderProfitSheet {
+  id: string;
+  orderId: string;
+  baseCurrency: string;
+  salesRevenue: number;
+  purchaseCost: number;
+  freightCost: number;
+  miscCost: number;
+  grossProfit: number;
+  grossMargin?: number | null;
+  details: ProfitSheetDetails;
+  version: number;
+  generatedAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type MaterialPriceType = 'yarn' | 'fabric' | 'trimming';
+export type MaterialPriceSource = 'manual' | 'purchase-order' | 'quotation';
+
+/** MaterialPriceHistory：原材料价格历史（轨道 A 估算校准数据源） */
+export interface MaterialPriceHistory {
+  id: string;
+  materialType: MaterialPriceType;
+  materialCode?: string | null;
+  name: string;
+  specification?: string | null;
+  price: number;
+  unit: string;
+  currency: string;
+  priceDate: string; // YYYY-MM-DD
+  source: MaterialPriceSource;
+  supplierRelationId?: string | null;
+  supplierName?: string | null;
+  notes?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface MaterialPriceInput {
+  materialType: MaterialPriceType;
+  materialCode?: string | null;
+  name: string;
+  specification?: string | null;
+  price: number;
+  unit: string;
+  currency?: string;
+  priceDate: string;
+  source?: MaterialPriceSource;
+  supplierRelationId?: string | null;
+  supplierName?: string | null;
+  notes?: string | null;
+}
+
+export type MaterialPricePatch = Partial<MaterialPriceInput>;
+
+export interface MaterialPriceTrendPoint {
+  priceDate: string;
+  price: number;
+  unit: string;
+  currency: string;
+  source: MaterialPriceSource;
+  supplierName?: string | null;
 }
