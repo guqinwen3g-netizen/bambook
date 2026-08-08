@@ -674,7 +674,9 @@ async function deployUploadedPackage(req: Request, res: Response) {
         env: process.env,
       }));
       if (fs.existsSync(path.join(SERVER_ROOT, 'prisma'))) {
-        mainLogs.push(await execFileAsync('/usr/bin/env', ['npx', 'prisma', 'db', 'push'], {
+        // 与 run-main-data-api.sh 启动路径约定一致：schema 变更在开发侧已评审，
+        // 部署路径非交互执行必须带 --accept-data-loss，否则唯一约束等变更会阻断整个部署。
+        mainLogs.push(await execFileAsync('/usr/bin/env', ['npx', 'prisma', 'db', 'push', '--accept-data-loss'], {
           cwd: SERVER_ROOT,
           timeout: 120_000,
           maxBuffer: 1024 * 1024 * 2,
