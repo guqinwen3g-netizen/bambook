@@ -3195,6 +3195,28 @@ model LetterOfCredit {
   @@index([lcNumber])
 }
 
+// LcEvent：信用证节点事件（F1 lifecycle 深化）
+// 每次状态机转换在事务内追加一条节点事件，形成可回溯的
+// 开证→交单→承兑/不符点→结清/过期/作废 业务时间轴（独立于通用 auditLog，
+// 面向业务查询与前端时间轴渲染；append-only，无软删）。
+model LcEvent {
+  id   String @id // 格式：LCE__${shortId}
+  lcId String // 关联信用证
+
+  // ─── 节点信息 ───
+  fromNode String? // 上一节点（首节点为 null）
+  toNode   String // 到达节点（取值与信用证状态一致：Issued | Presented | Accepted | Discrepant | Settled | Expired | Cancelled）
+
+  eventDate String // 节点业务日期 YYYY-MM-DD（默认当日，可按银行实际日期回填）
+  note      String? // 节点备注（不符点内容 / 银行参考号等）
+  actorId   String? // 操作人
+
+  createdAt BigInt
+
+  @@index([lcId])
+  @@index([toNode])
+}
+
 model TaxRefund {
   id           String @id // 格式：TR_${shortId}
   refundNumber String @unique // 退税申报编号

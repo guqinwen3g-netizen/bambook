@@ -27,6 +27,7 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  History,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import {
@@ -41,6 +42,7 @@ import {
   LetterOfCreditInput,
   LetterOfCreditType,
   LetterOfCreditStatus,
+  LcEvent,
   TaxRefund,
   TaxRefundInput,
   TaxRefundStatus,
@@ -152,6 +154,11 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
   const [statusFilter, setStatusFilter] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // F1：信用证节点时间轴
+  const [lcTimelineId, setLcTimelineId] = useState<string | null>(null);
+  const [lcEvents, setLcEvents] = useState<LcEvent[]>([]);
+  const [lcEventsLoading, setLcEventsLoading] = useState(false);
 
   // 创建表单状态
   const [showForm, setShowForm] = useState(false);
@@ -303,12 +310,36 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
     try {
       const updated = await apiService.transitionLetterOfCreditStatus(id, toStatus);
       setLettersOfCredit(prev => prev.map(d => (d.id === id ? updated : d)));
+      // F1：若该信用证时间轴已展开，流转后同步刷新节点
+      if (lcTimelineId === id) {
+        const data = await apiService.listLetterOfCreditEvents(id);
+        setLcEvents(data.items);
+      }
     } catch (e: any) {
       setError(`状态转换失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [lcTimelineId]);
+
+  // F1：展开/收起信用证节点时间轴（首次展开时拉取 LcEvent）
+  const handleToggleLcTimeline = useCallback(async (id: string) => {
+    if (lcTimelineId === id) {
+      setLcTimelineId(null);
+      setLcEvents([]);
+      return;
+    }
+    setLcTimelineId(id);
+    setLcEventsLoading(true);
+    try {
+      const data = await apiService.listLetterOfCreditEvents(id);
+      setLcEvents(data.items);
+    } catch (e: any) {
+      setError(`加载节点时间轴失败：${e?.message || e}`);
+    } finally {
+      setLcEventsLoading(false);
+    }
+  }, [lcTimelineId]);
 
   const handleTransitionTaxRefund = useCallback(async (id: string, toStatus: TaxRefundStatus) => {
     setActionLoading(`tr_${id}_${toStatus}`);
@@ -647,8 +678,48 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode }) => {
                             {lc.status === 'Presented' && <button onClick={() => handleTransitionLc(lc.id, 'Accepted')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light bg-green-500 text-white disabled:opacity-50">承兑</button>}
                             {lc.status === 'Accepted' && <button onClick={() => handleTransitionLc(lc.id, 'Settled')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light bg-green-500 text-white disabled:opacity-50">结算</button>}
                             {(lc.status === 'Issued' || lc.status === 'Presented' || lc.status === 'Accepted') && <button onClick={() => handleTransitionLc(lc.id, 'Cancelled')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50">取消</button>}
+                            <button onClick={() => handleToggleLcTimeline(lc.id)} className={`h-7 px-3 rounded-control text-[11px] font-light flex items-center gap-1 border ${isDarkMode ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                              <History size={11} />{lcTimelineId === lc.id ? '收起时间轴' : '节点时间轴'}
+                            </button>
                             {(lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => handleDelete('lettersOfCredit', lc.id)} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light text-red-500 hover:bg-red-500/10 disabled:opacity-50 flex items-center gap-1"><Trash2 size={11} />删除</button>}
                           </div>
+                          {/* F1：节点时间轴（LcEvent 开证→交单→承兑/不符点→结清/过期/作废） */}
+                          {lcTimelineId === lc.id && (
+                            <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+                              {lcEventsLoading ? (
+                                <div className={`flex items-center gap-2 py-2 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  <Loader2 size={12} className="animate-spin" />加载节点时间轴…
+                                </div>
+                              ) : lcEvents.length === 0 ? (
+                                <div className={`py-2 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>暂无节点记录</div>
+                              ) : (
+                                <div className="space-y-0">
+                                  {lcEvents.map((ev, idx) => {
+                                    const evStatus = lcStatusInfo(ev.toNode);
+                                    const isLast = idx === lcEvents.length - 1;
+                                    return (
+                                      <div key={ev.id} className="flex gap-2.5">
+                                        <div className="flex flex-col items-center shrink-0 w-3 pt-1">
+                                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusSemanticClass(evStatus.semantic, isDarkMode)}`} />
+                                          {!isLast && <span className={`flex-1 w-px ${isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`} />}
+                                        </div>
+                                        <div className={`flex-1 min-w-0 ${isLast ? 'pb-1' : 'pb-3'}`}>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className={`text-xs font-medium ${statusSemanticText(evStatus.semantic, isDarkMode)}`}>{evStatus.label}</span>
+                                            <span className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{formatDate(ev.eventDate)}</span>
+                                            {ev.actorId && <span className={`text-[10px] ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>操作人: {ev.actorId}</span>}
+                                          </div>
+                                          {ev.note && (
+                                            <div className={`mt-1 px-2 py-1 rounded-inset text-[11px] ${isDarkMode ? 'bg-white/[0.02] text-slate-400' : 'bg-slate-50 text-slate-500'}`}>{ev.note}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })

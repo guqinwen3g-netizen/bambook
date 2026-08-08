@@ -286,6 +286,13 @@ const DEFAULT_TEMPLATES: Record<BusinessEventType, TemplateSpec> = {
     body: '结汇 {foreignAmount} {currency}，汇率 {fxRate}，折人民币 {cnyAmount} 元。',
     link: '/finance?tab=vouchers',
   },
+  LcStatusChanged: {
+    type: 'lc_status_changed',
+    level: 'info',
+    title: '信用证 {lcNumber} 节点更新',
+    body: '信用证 {lcNumber} 从 {from} 流转至 {to}。',
+    link: '/customs?tab=lettersOfCredit&id={lcId}',
+  },
 };
 
 // ────────────────────────────────────────────────────────────────

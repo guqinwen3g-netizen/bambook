@@ -90,6 +90,7 @@ import {
   LetterOfCreditInput,
   LetterOfCreditType,
   LetterOfCreditStatus,
+  LcEvent,
   TaxRefund,
   TaxRefundInput,
   TaxRefundReviewInput,
@@ -1770,6 +1771,11 @@ export const apiService = {
     if (discrepancies !== undefined) body.discrepancies = discrepancies;
     const data = await requestJson<{ item: LetterOfCredit }>(`/v1/customs/letters-of-credit/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify(body) });
     return data.item;
+  },
+
+  /** F1：信用证节点时间轴 */
+  async listLetterOfCreditEvents(id: string, endpoint?: string): Promise<{ items: LcEvent[]; total: number }> {
+    return requestJson<{ items: LcEvent[]; total: number }>(`/v1/customs/letters-of-credit/${encodeURIComponent(id)}/events`, { endpoint, method: 'GET' });
   },
 
   // TaxRefund（出口退税）

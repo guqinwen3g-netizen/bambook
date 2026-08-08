@@ -59,6 +59,10 @@ function makePrisma(overrides: Record<string, any> = {}) {
       findMany: vi.fn().mockResolvedValue([]),
       delete: vi.fn().mockImplementation(async ({ where }: any) => ({ id: where.id })),
     },
+    lcEvent: {
+      create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data })),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     taxRefund: {
       create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data, deletedAt: null })),
       update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
@@ -115,6 +119,7 @@ function makePrisma(overrides: Record<string, any> = {}) {
       update: tx.letterOfCredit.update,
       count: vi.fn().mockResolvedValue(0),
     },
+    lcEvent: { ...tx.lcEvent },
     taxRefund: {
       ...tx.taxRefund,
       findFirst: overrides.trFindFirst ?? vi.fn().mockResolvedValue(null),
@@ -342,6 +347,72 @@ describe('CustomsService', () => {
       await expect(
         service.transitionLcStatus('lc_1', 'Issued', 'user_1'),
       ).rejects.toThrow('非法信用证状态转换');
+    });
+
+    // ── F1：LcEvent 节点跟踪 + 事件发布 ──
+
+    it('appends first LcEvent (null → Issued) on create', async () => {
+      prisma.letterOfCredit.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'lc_1', lcNumber: 'LC-2026-002', type: 'Irrevocable', status: 'Issued', deletedAt: null });
+      const service = createCustomsService(prisma);
+      await service.createLetterOfCredit({
+        lcNumber: 'LC-2026-002', type: 'Irrevocable', amount: 5000, issueDate: '2026-08-01',
+      }, 'user_1');
+      expect(prisma.lcEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ fromNode: null, toNode: 'Issued', eventDate: '2026-08-01', actorId: 'user_1' }),
+        }),
+      );
+    });
+
+    it('appends LcEvent with from/to nodes and publishes LcStatusChanged on transition', async () => {
+      prisma.letterOfCredit.findFirst.mockResolvedValueOnce({ id: 'lc_1', lcNumber: 'LC-1', status: 'Issued', deletedAt: null });
+      const service = createCustomsService(prisma);
+      await service.transitionLcStatus('lc_1', 'Presented', 'user_1');
+      expect(prisma.lcEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ lcId: 'lc_1', fromNode: 'Issued', toNode: 'Presented', note: null }),
+        }),
+      );
+      expect(publishSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'LcStatusChanged',
+          sourceEntityType: 'LetterOfCredit',
+          sourceEntityId: 'lc_1',
+          payload: expect.objectContaining({ from: 'Issued', to: 'Presented' }),
+        }),
+      );
+    });
+
+    it('records discrepancies into LcEvent note when transitioning to Discrepant', async () => {
+      prisma.letterOfCredit.findFirst.mockResolvedValueOnce({ id: 'lc_1', lcNumber: 'LC-1', status: 'Presented', deletedAt: null });
+      const service = createCustomsService(prisma);
+      await service.transitionLcStatus('lc_1', 'Discrepant', 'user_1', '单证不符：提单日期晚于装运期');
+      expect(prisma.lcEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ toNode: 'Discrepant', note: '单证不符：提单日期晚于装运期' }),
+        }),
+      );
+    });
+
+    it('listLcEvents returns events ordered and throws for missing LC', async () => {
+      const service = createCustomsService(prisma);
+      prisma.letterOfCredit.findFirst.mockResolvedValueOnce(null);
+      await expect(service.listLcEvents('lc_x')).rejects.toThrow('不存在');
+      prisma.letterOfCredit.findFirst.mockResolvedValueOnce({ id: 'lc_1' });
+      prisma.lcEvent.findMany.mockResolvedValueOnce([
+        { id: 'e1', lcId: 'lc_1', fromNode: null, toNode: 'Issued', eventDate: '2026-08-01' },
+      ]);
+      const result = await service.listLcEvents('lc_1');
+      expect(result.total).toBe(1);
+      expect(result.items[0].toNode).toBe('Issued');
+      expect(prisma.lcEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { lcId: 'lc_1' },
+          orderBy: [{ eventDate: 'asc' }, { createdAt: 'asc' }],
+        }),
+      );
     });
   });
 

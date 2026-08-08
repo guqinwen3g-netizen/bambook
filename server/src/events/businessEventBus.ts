@@ -80,7 +80,8 @@ export type BusinessEventType =
   | 'CustomsDeclarationStatusChanged'
   | 'CustomsCleared'
   | 'TaxRefundCompleted'
-  | 'FxSettlementCreated';
+  | 'FxSettlementCreated'
+  | 'LcStatusChanged';
 
 export interface BusinessEvent<T extends Record<string, unknown> = Record<string, unknown>> {
   /** 事件唯一 ID，用于幂等持久化与重放去重 */

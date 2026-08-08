@@ -3248,6 +3248,18 @@ export interface LetterOfCredit {
   deletedAt?: number | null;
 }
 
+/** F1：信用证节点事件（时间轴渲染，append-only） */
+export interface LcEvent {
+  id: string;
+  lcId: string;
+  fromNode?: LetterOfCreditStatus | null;
+  toNode: LetterOfCreditStatus;
+  eventDate: string;
+  note?: string | null;
+  actorId?: string | null;
+  createdAt: number;
+}
+
 export interface LetterOfCreditInput {
   lcNumber: string;
   relationId?: string;

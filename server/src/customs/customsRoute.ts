@@ -24,6 +24,7 @@
  *   PUT    /letters-of-credit/:id      — 更新信用证（仅 Issued）
  *   DELETE /letters-of-credit/:id      — 软删除信用证（仅 Issued/Cancelled）
  *   POST   /letters-of-credit/:id/transition — 状态流转
+ *   GET    /letters-of-credit/:id/events    — 节点时间轴（F1 LcEvent 升序全量）
  *
  *   ── 出口退税 TaxRefund ──
  *   GET    /tax-refunds                — 退税列表（支持 status/declarationId/orderId/relationId/search 过滤）
@@ -353,6 +354,18 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[CustomsRoute] POST letter-of-credit transition failed', { error: e?.message });
       res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to transition letter-of-credit' });
+    }
+  });
+
+  // F1：信用证节点时间轴（LcEvent 全量升序）
+  router.get('/letters-of-credit/:id/events', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const result = await service.listLcEvents(req.params.id);
+      res.json(result);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] GET letter-of-credit events failed', { error: e?.message });
+      res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to list lc events' });
     }
   });
 

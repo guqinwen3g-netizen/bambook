@@ -1126,6 +1126,32 @@ export async function syncTaxRefundReferences(
   await runEntitySyncOps(prisma, ops, tx);
 }
 
+type LetterOfCreditLike = Record<string, any> & { id: string };
+
+/** LetterOfCredit → Relation(creditOpenedBy 开证客户) / Order(aboutOrder)（F1 图谱收口） */
+export async function syncLetterOfCreditReferences(
+  prisma: PrismaClient,
+  lc: LetterOfCreditLike,
+  options: SyncOptions = { source: 'manual' },
+  tx?: any,
+): Promise<void> {
+  if (!lc?.id) return;
+  const ctx = tx || prisma;
+  const ops = buildEntitySyncOps(ctx, 'letterOfCredit', lc.id, [
+    {
+      fieldKey: 'relationId', label: lc.lcNumber,
+      targetType: 'relation.organization', targetId: lc.relationId, linkKind: 'creditOpenedBy',
+      snapshotExtra: { lcNumber: lc.lcNumber, status: lc.status },
+    },
+    {
+      fieldKey: 'orderId', label: lc.lcNumber,
+      targetType: 'order', targetId: lc.orderId, linkKind: 'aboutOrder',
+      snapshotExtra: { lcNumber: lc.lcNumber, status: lc.status },
+    },
+  ], options);
+  await runEntitySyncOps(prisma, ops, tx);
+}
+
 type OpportunityLike = Record<string, any> & { id: string };
 
 /** Opportunity → Relation(opportunityFor) / Order(convertedToOrder，成交后) */

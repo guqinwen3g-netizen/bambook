@@ -19,7 +19,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
-import { deactivateEntityLinks, syncCustomsDeclarationReferences, syncTaxRefundReferences } from '../entities/sync';
+import { deactivateEntityLinks, syncCustomsDeclarationReferences, syncLetterOfCreditReferences, syncTaxRefundReferences } from '../entities/sync';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -799,6 +799,20 @@ export function createCustomsService(prisma: PrismaClient) {
           detail: { lcNumber: letter.lcNumber, type: letter.type, amount: input.amount },
         },
       });
+      // F1：首节点事件（开证登记）+ 图谱入链，同事务保证节点可追溯
+      await tx.lcEvent.create({
+        data: {
+          id: generateId('LCE'),
+          lcId: letter.id,
+          fromNode: null,
+          toNode: 'Issued',
+          eventDate: input.issueDate ?? new Date().toISOString().slice(0, 10),
+          note: null,
+          actorId,
+          createdAt: ts,
+        },
+      });
+      await syncLetterOfCreditReferences(prisma, letter, { source: 'api:customs' }, tx);
       return letter;
     });
 
@@ -856,6 +870,8 @@ export function createCustomsService(prisma: PrismaClient) {
           targetId: id,
         },
       });
+      // F1：关联（relationId/orderId）可能变更，事务内重建图谱链接
+      await syncLetterOfCreditReferences(prisma, lc, { source: 'api:customs' }, tx);
       return lc;
     });
 
@@ -887,6 +903,8 @@ export function createCustomsService(prisma: PrismaClient) {
           targetId: id,
         },
       });
+      // F1：软删同步停用图谱链接（LcEvent 节点历史保留，append-only 不删）
+      await deactivateEntityLinks(tx, 'letterOfCredit', id, ts);
     });
 
     logger.info('[CustomsService] letterOfCredit deleted', { id, actorId });
@@ -979,11 +997,52 @@ export function createCustomsService(prisma: PrismaClient) {
           detail: { from: existing.status, to: toStatus },
         },
       });
+      // F1：节点事件入时间轴（同事务）；不符点内容落入 note，便于时间轴直接展示
+      await tx.lcEvent.create({
+        data: {
+          id: generateId('LCE'),
+          lcId: id,
+          fromNode: existing.status,
+          toNode: toStatus,
+          eventDate: new Date().toISOString().slice(0, 10),
+          note: toStatus === 'Discrepant' ? (discrepancies ?? existing.discrepancies ?? null) : null,
+          actorId,
+          createdAt: ts,
+        },
+      });
       return lc;
     });
 
+    // F1：状态变更事件（事务提交后发布，fire-and-forget 不阻断业务）
+    try {
+      businessEventBus.publish({
+        type: 'LcStatusChanged',
+        sourceEntityType: 'LetterOfCredit',
+        sourceEntityId: id,
+        actorId,
+        payload: { lcId: id, lcNumber: existing.lcNumber, from: existing.status, to: toStatus },
+        timestamp: Date.now(),
+      } as any);
+    } catch (e) {
+      logger.warn('[CustomsService] event publish failed', { error: (e as Error)?.message });
+    }
+
     logger.info('[CustomsService] letterOfCredit transition', { id, from: existing.status, to: toStatus, actorId });
     return updated;
+  }
+
+  /** F1：信用证节点时间轴（按业务日期 + 创建时间升序，append-only 全量返回） */
+  async function listLcEvents(lcId: string) {
+    const lc = await prisma.letterOfCredit.findFirst({
+      where: { id: lcId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!lc) throw new Error(`信用证 ${lcId} 不存在`);
+    const items = await prisma.lcEvent.findMany({
+      where: { lcId },
+      orderBy: [{ eventDate: 'asc' }, { createdAt: 'asc' }],
+    });
+    return { items, total: items.length };
   }
 
   // ────────────────────────────────────────────────────────────
@@ -1654,6 +1713,7 @@ export function createCustomsService(prisma: PrismaClient) {
     getLetterOfCredit,
     getLetterOfCreditByNumber,
     transitionLcStatus,
+    listLcEvents,
     // TaxRefund
     createTaxRefund,
     updateTaxRefund,
