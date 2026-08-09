@@ -14,7 +14,7 @@ import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { syncInvoiceReferences, syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { cancelInvoice, cancelVoucher, deleteInvoice, deleteVoucher } from './voidDeleteService';
@@ -98,7 +98,10 @@ function serializeFinanceValue<T>(value: T): T {
   if (typeof value === 'bigint') return Number(value) as T;
   if (Array.isArray(value)) return value.map(serializeFinanceValue) as T;
   if (value && typeof value === 'object') {
-    if (typeof (value as any).toString === 'function' && (value as any).constructor?.name === 'Decimal') return (value as any).toString() as T;
+    // instanceof 判定（constructor.name 在打包压缩后不可靠）；与 index.ts 全局
+    // Decimal.prototype.toJSON=Number 补丁对齐 —— GET 直出路径金额均为 number，
+    // 此处统一序列化契约为 number，避免创建/更新响应与列表响应类型分裂。
+    if (value instanceof Prisma.Decimal) return Number(value) as T;
     const out: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(value)) out[key] = serializeFinanceValue(item as any);
     return out as T;

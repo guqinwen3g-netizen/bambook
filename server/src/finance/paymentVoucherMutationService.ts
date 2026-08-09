@@ -7,6 +7,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import crypto from 'crypto';
 
 export const VALID_PAYMENT_VOUCHER_STATUS = ['unreconciled', 'partially_reconciled', 'reconciled'] as const;
 export type PaymentVoucherStatus = typeof VALID_PAYMENT_VOUCHER_STATUS[number];
@@ -43,6 +44,18 @@ export const PAYMENT_VOUCHER_PATCH_FIELDS = [
 ] as const;
 
 const DECIMAL_FIELDS = new Set(['amount', 'bankFee', 'exchangeRate', 'appliedAmount']);
+
+function generateId(prefix: string): string {
+  return `${prefix}__${crypto.randomBytes(6).toString('base64url').toUpperCase()}`;
+}
+
+/** 服务器本地日期 YYYY-MM-DD（voucher.paymentDate 为 schema 必填，缺省默认收/付款当天） */
+function localToday(): string {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${mm}-${dd}`;
+}
 
 function isValidPaymentVoucherStatus(status: string): status is PaymentVoucherStatus {
   return (VALID_PAYMENT_VOUCHER_STATUS as readonly string[]).includes(status);
@@ -92,6 +105,10 @@ function normalizeCreateInput(input: PaymentVoucherMutationInput): { ok: true; d
     voucherStatus = input.status;
   }
   data.status = voucherStatus;
+  // schema 必填兜底：paymentDate 缺省/空串时默认收/付款当天（前端日期可空，业务语义=创建日）
+  if (data.paymentDate === undefined || data.paymentDate === null || data.paymentDate === '') {
+    data.paymentDate = localToday();
+  }
   if (!isValidDecimalInput(data.amount)) {
     return { ok: false, error: { code: 'INVALID_AMOUNT', message: 'amount must be a valid decimal' } };
   }
@@ -130,7 +147,8 @@ export async function createPaymentVoucher(params: {
   try {
     const result = await (prisma as any).$transaction(async (tx: any) => {
       const now = BigInt(Date.now());
-      const data = { ...normalized.data, voucherNumber: input.voucherNumber, createdAt: now, updatedAt: now };
+      const id = generateId('PAY');
+      const data = { id, ...normalized.data, voucherNumber: input.voucherNumber, createdAt: now, updatedAt: now };
       const voucher = await tx.paymentVoucher.create({ data });
       await syncPaymentVoucherReferences(prisma, voucher, { source: 'route:voucher:create' }, tx);
       const auditId = await writeRouteAuditLog({

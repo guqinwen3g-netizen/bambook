@@ -158,14 +158,15 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     if (tab === 'fx-ledger' && !ledger) loadLedger();
     if (tab === 'statement' && relations.length === 0) {
       apiService.listRelations(endpoint).then(list => {
-        const customers = list.filter(r => r.type === 'Customer' && !r.deletedAt);
+        // 方向分组以 category 为准（type 是自由文本子类，如 Fabric Mill）；保留 type 回退兼容旧档案
+        const customers = list.filter(r => !r.deletedAt && (r.category === 'Customer' || r.type === 'Customer'));
         setRelations(customers);
         if (customers.length > 0 && !customerId) setCustomerId(customers[0].id);
       }).catch(() => {});
     }
     if (tab === 'supplier-statement' && supplierRelations.length === 0) {
       apiService.listRelations(endpoint).then(list => {
-        const suppliers = list.filter(r => r.type === 'Supplier' && !r.deletedAt);
+        const suppliers = list.filter(r => !r.deletedAt && (r.category === 'Supplier' || r.type === 'Supplier'));
         setSupplierRelations(suppliers);
         if (suppliers.length > 0 && !supplierId) setSupplierId(suppliers[0].id);
       }).catch(() => {});
