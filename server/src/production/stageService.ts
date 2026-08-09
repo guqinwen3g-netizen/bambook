@@ -114,11 +114,27 @@ export async function getProductionBoard(prisma: PrismaClient): Promise<{ items:
     orderBy: { dueDate: 'asc' },
     take: 500,
   });
-  const stages = await prisma.productionStage.findMany({
-    where: { orderId: { in: orders.map(o => o.id) } },
+  const orderIds = orders.map(o => o.id);
+  let stages = await prisma.productionStage.findMany({
+    where: { orderId: { in: orderIds } },
     select: { orderId: true, stageKey: true, stageSeq: true, status: true },
     orderBy: { stageSeq: 'asc' },
   });
+  // 自愈回填：历史种子/直写库订单未经 create 路由，缺 10 阶段行；看板是在手订单
+  // 的唯一全景入口，缺阶段的订单泳道会整体空白。initProductionStages 幂等
+  // （upsert + update:{}），仅对零阶段订单触发，随后重查一次。
+  const withStages = new Set(stages.map(s => s.orderId));
+  const missing = orderIds.filter(id => !withStages.has(id));
+  if (missing.length > 0) {
+    for (const orderId of missing) {
+      await initProductionStages(prisma, orderId).catch(() => {});
+    }
+    stages = await prisma.productionStage.findMany({
+      where: { orderId: { in: orderIds } },
+      select: { orderId: true, stageKey: true, stageSeq: true, status: true },
+      orderBy: { stageSeq: 'asc' },
+    });
+  }
   const stagesByOrder = new Map<string, Array<{ stageKey: string; stageSeq: number; status: string }>>();
   for (const s of stages) {
     const arr = stagesByOrder.get(s.orderId) ?? [];
