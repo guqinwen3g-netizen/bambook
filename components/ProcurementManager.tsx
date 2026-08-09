@@ -27,6 +27,7 @@ import {
   Loader2,
   AlertCircle,
   Package,
+  FileText,
   X,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -38,7 +39,9 @@ import {
   MaterialReceipt,
   MaterialReceiptInput,
   Relation,
+  View,
 } from '../types';
+import { primeFinanceInvoiceCreate } from './FinanceManager';
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -137,6 +140,8 @@ const RECEIPT_STATUS_LABELS: Record<MaterialReceipt['status'], string> = {
 
 interface ProcurementManagerProps {
   isDarkMode: boolean;
+  /** 跨模块跳转（如「生成应付发票」→ 财务发票模块） */
+  onNavigate?: (view: View) => void;
 }
 
 let lineCounter = 0;
@@ -166,7 +171,7 @@ const createEmptyLine = (): DraftLine => ({
   notes: '',
 });
 
-const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) => {
+const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onNavigate }) => {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -852,6 +857,25 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) =
                                       <button onClick={() => handleAction(po.id, 'close')} disabled={actionLoading === `${po.id}_close`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
                                         {actionLoading === `${po.id}_close` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                         <span>关闭采购单</span>
+                                      </button>
+                                    )}
+                                    {/* 采购 → 财务联动：采购事实成立后即可生成应付发票（prime+navigate，预填供应商/币种/金额） */}
+                                    {onNavigate && ['Confirmed', 'PartiallyReceived', 'Received', 'Closed'].includes(po.status) && (
+                                      <button
+                                        onClick={() => {
+                                          primeFinanceInvoiceCreate({
+                                            supplierRelationId: po.supplierRelationId || undefined,
+                                            supplierName: po.supplierName || undefined,
+                                            currency: po.currency,
+                                            amount: Number(po.totalAmount),
+                                            notes: `关联采购单 ${po.poNumber}`,
+                                          });
+                                          onNavigate(View.Invoices);
+                                        }}
+                                        className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                      >
+                                        <FileText size={12} />
+                                        <span>生成应付发票</span>
                                       </button>
                                     )}
                                     {po.status === 'Closed' && (

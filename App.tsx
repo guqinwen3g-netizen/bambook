@@ -1624,7 +1624,7 @@ const App: React.FC = () => {
             {activeView === View.Procurement && renderMainCompilerSlot(
               compilerSurfaces.procurement,
               'procurement',
-              <ProcurementManager isDarkMode={isDarkMode} />,
+              <ProcurementManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />,
             )}
             {activeView === View.Inventory && renderMainCompilerSlot(
               compilerSurfaces.inventory,

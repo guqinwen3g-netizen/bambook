@@ -32,6 +32,45 @@ import { PageHeader } from './ui/PageHeader';
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
+// ── 跨模块 prime：采购单 → 生成应付发票（与 ProcurementCreatePrime 同模式，sessionStorage 传递） ──
+const FINANCE_INVOICE_PRIME_KEY = 'bambook_finance_invoice_prime';
+
+export interface FinanceInvoicePrime {
+  supplierRelationId?: string;
+  supplierName?: string;
+  currency?: string;
+  amount?: number;
+  notes?: string;
+}
+
+export const primeFinanceInvoiceCreate = (prime: FinanceInvoicePrime) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(FINANCE_INVOICE_PRIME_KEY, JSON.stringify(prime));
+  } catch {
+    // Cross-module continuity only; ignore storage failures.
+  }
+};
+
+const readFinanceInvoicePrime = (): FinanceInvoicePrime | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(FINANCE_INVOICE_PRIME_KEY);
+    return raw ? (JSON.parse(raw) as FinanceInvoicePrime) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearFinanceInvoicePrime = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(FINANCE_INVOICE_PRIME_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 type FinanceTabId = 'invoices' | 'vouchers' | 'vatInvoices' | 'reports';
 
 /** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
@@ -597,6 +636,25 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', type: 'Receivable' as 'Receivable' | 'Payable', status: 'Draft' as InvoiceStatus, amount: '', currency: 'USD', customerName: '', customerRelationId: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '' });
   const [invoiceSaving, setInvoiceSaving] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+
+  // ── 跨模块 prime 消费：采购单 → 生成应付发票（预填供应商/币种/金额并直接开新建 modal）───
+  useEffect(() => {
+    const prime = readFinanceInvoicePrime();
+    if (!prime) return;
+    clearFinanceInvoicePrime();
+    setActiveTab('invoices');
+    setEditingInvoice(null);
+    setInvoiceForm({
+      invoiceNumber: '', type: 'Payable', status: 'Draft',
+      amount: prime.amount != null ? String(prime.amount) : '',
+      currency: prime.currency || 'USD',
+      customerName: prime.supplierName || '',
+      customerRelationId: prime.supplierRelationId || '',
+      issueDate: '', dueDate: '', notes: prime.notes || '', orderId: '', exchangeRate: '',
+    });
+    setInvoiceError(null);
+    setShowInvoiceModal(true);
+  }, []);
 
   const openCreateInvoice = () => {
     setEditingInvoice(null);
