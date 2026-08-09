@@ -11,6 +11,7 @@ import {
   type OrderCandidate,
   type RelationCandidate,
 } from './emailLinkService';
+import { classifyEmailByRules } from './emailClassificationService';
 
 export type EmailSyncErrorCode =
   | 'MISSING_CREDENTIALS'
@@ -171,13 +172,21 @@ export async function syncEmailsFromImap(params: EmailSyncParams): Promise<Email
             orderCandidates,
           );
 
+          // C8 智能分类：规则层内联（零 LLM 成本），新邮件落库即带业务标签；
+          // AI 增强由分类端点按需触发，不在批量同步路径调用
+          const ruleLabels = classifyEmailByRules({
+            direction, fromAddress, subject, snippet,
+            relationId: linkUpdates.relationId ?? null,
+            hasAttachments: false,
+          });
+
           await (prisma as any).$transaction(async (tx: any) => {
             const createdEmail = await tx.email.create({
               data: {
                 id: emailId, messageId, direction, status, fromAddress, fromName, toAddresses, ccAddresses, bccAddresses,
                 subject, bodyText: '', bodyHtml: null, snippet,
                 mailbox: physicalBoxFinal, uid, uidValidity: null, threadId, sentAt: dateStr, receivedAt: dateStr,
-                hasAttachments: false, attachmentCount: 0, createdAt: now, updatedAt: now, syncedAt: now,
+                hasAttachments: false, attachmentCount: 0, labels: ruleLabels, createdAt: now, updatedAt: now, syncedAt: now,
                 ...linkUpdates,
               },
             });

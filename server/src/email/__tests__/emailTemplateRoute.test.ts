@@ -44,8 +44,7 @@ function makeMockPrisma() {
       return rows.filter(r =>
         r.mailbox === where.mailbox &&
         where.uid.in.includes(r.uid) &&
-        r.deletedAt === null &&
-        r.aiExtractedJson !== null,
+        r.deletedAt === null,
       );
     },
     _rows: [] as any[],
@@ -158,22 +157,27 @@ describe('F5 · GET /api/v1/email/intents 意图聚合', () => {
   beforeEach(() => {
     prisma = makeMockPrisma();
     prisma.email._rows = [
-      { uid: 11, mailbox: 'INBOX', deletedAt: null, aiExtractedJson: { intent: 'inquiry', customerSignal: 'positive', summary: '询价 3 款' } },
-      { uid: 12, mailbox: 'INBOX', deletedAt: null, aiExtractedJson: { intent: 'complaint' } },
-      { uid: 13, mailbox: 'INBOX', deletedAt: null, aiExtractedJson: null }, // 未抽取不出现
-      { uid: 14, mailbox: 'Sent Messages', deletedAt: null, aiExtractedJson: { intent: 'order' } }, // 不同 mailbox 不匹配
+      { id: 'EML__A', uid: 11, mailbox: 'INBOX', deletedAt: null, labels: ['inquiry'], relationId: 'REL_1', orderId: null, aiExtractedJson: { intent: 'inquiry', customerSignal: 'positive', summary: '询价 3 款' } },
+      { id: 'EML__B', uid: 12, mailbox: 'INBOX', deletedAt: null, labels: [], relationId: null, orderId: null, aiExtractedJson: { intent: 'complaint' } },
+      // C8 合约演进：已同步但未抽取的邮件也出现（intent=null），携带 DB id/labels/链接供前端操作
+      { id: 'EML__C', uid: 13, mailbox: 'INBOX', deletedAt: null, labels: [], relationId: null, orderId: null, aiExtractedJson: null },
+      { id: 'EML__D', uid: 14, mailbox: 'Sent Messages', deletedAt: null, labels: [], relationId: null, orderId: null, aiExtractedJson: { intent: 'order' } }, // 不同 mailbox 不匹配
     ];
   });
 
-  it('按 mailbox+uids 返回已抽取意图，未抽取/跨箱不出现', async () => {
+  it('按 mailbox+uids 返回已同步覆盖层：已抽取带意图，未抽取 intent=null', async () => {
     const res = await request(makeApp(prisma)).get('/api/v1/email/intents?mailbox=INBOX&uids=11,12,13,14').set(auth());
     expect(res.status).toBe(200);
-    expect(res.body.items).toHaveLength(2);
+    expect(res.body.items).toHaveLength(3);
     const byUid = Object.fromEntries(res.body.items.map((i: any) => [i.uid, i]));
     expect(byUid[11].intent).toBe('inquiry');
     expect(byUid[11].customerSignal).toBe('positive');
+    expect(byUid[11].id).toBe('EML__A');
+    expect(byUid[11].labels).toEqual(['inquiry']);
+    expect(byUid[11].relationId).toBe('REL_1');
     expect(byUid[12].intent).toBe('complaint');
-    expect(byUid[13]).toBeUndefined();
+    expect(byUid[13].intent).toBeNull();
+    expect(byUid[13].id).toBe('EML__C');
     expect(byUid[14]).toBeUndefined();
   });
 

@@ -2594,6 +2594,10 @@ model EmailTemplate {
   body      String // 正文模板（支持 {{var}}）
   variables String[] // 变量清单（如 ["customerName","quotationNo"]）
 
+  // ─── C8 模板智能化：使用统计 ───
+  usageCount Int     @default(0) // 被插入使用的累计次数
+  lastUsedAt BigInt? // 最近一次使用时间 epoch ms
+
   isActive Boolean @default(true)
 
   createdAt BigInt

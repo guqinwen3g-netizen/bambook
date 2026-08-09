@@ -18,6 +18,7 @@ import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { extractTemplateVariables } from '../lib/templateVariables';
+import { createDefaultEmailLlm, type LlmCompleter } from './aiExtract';
 
 // 保持既有导出面（测试与外部引用兼容）；实现已共享至 lib/templateVariables
 export { extractTemplateVariables };
@@ -26,6 +27,8 @@ export interface EmailTemplateRouterOptions {
   prisma: PrismaClient;
   requireAuth: boolean;
   apiKeys: Set<string>;
+  /** C8：AI 生成模板用 LLM 调用器（测试注入 mock；缺省走 ARK 网关） */
+  llm?: LlmCompleter;
 }
 
 const TEMPLATE_TYPES = ['quote', 'payment_reminder', 'delivery_notice', 'inspection_report', 'greeting', 'general'] as const;
@@ -179,15 +182,21 @@ export function createEmailTemplateRouter(options: EmailTemplateRouterOptions) {
 
   const db = prisma as any;
 
-  // GET /api/v1/email-templates — 列表（?type=quote&includeInactive=1）
+  // GET /api/v1/email-templates — 列表（?type=quote&includeInactive=1&sort=usage）
   router.get('/', async (req: Request, res: Response) => {
     try {
       const type = typeof req.query.type === 'string' ? req.query.type : undefined;
       const includeInactive = req.query.includeInactive === '1' || req.query.includeInactive === 'true';
+      const sortByUsage = req.query.sort === 'usage';
       const where: any = { deletedAt: null };
       if (type) where.type = type;
       if (!includeInactive) where.isActive = true;
-      const items = await db.emailTemplate.findMany({ where, orderBy: [{ type: 'asc' }, { updatedAt: 'desc' }] });
+      const items = await db.emailTemplate.findMany({
+        where,
+        orderBy: sortByUsage
+          ? [{ usageCount: 'desc' }, { updatedAt: 'desc' }]
+          : [{ type: 'asc' }, { updatedAt: 'desc' }],
+      });
       res.json({ ok: true, items: serializeBigInts(items), total: items.length });
     } catch (e: any) {
       logger.error('[email-templates] list error', { error: e?.message || String(e) });
@@ -257,6 +266,94 @@ export function createEmailTemplateRouter(options: EmailTemplateRouterOptions) {
     } catch (e: any) {
       logger.error('[email-templates] update error', { error: e?.message || String(e) });
       res.status(500).json({ ok: false, error: { code: 'UPDATE_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  // POST /api/v1/email-templates/:id/use — C8 使用统计：前端插入模板时上报（计数 + 最近使用时间）
+  // 低风险计数端点，守卫口径同读（JWT 或 API-Key），不强制 JWT 写。
+  router.post('/:id/use', async (req: Request, res: Response) => {
+    try {
+      const existing = await db.emailTemplate.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!existing) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: '模板不存在' } });
+      const now = Date.now();
+      const item = await db.emailTemplate.update({
+        where: { id: req.params.id },
+        data: { usageCount: (existing.usageCount || 0) + 1, lastUsedAt: BigInt(now), updatedAt: BigInt(now) },
+      });
+      res.json({ ok: true, usageCount: item.usageCount, lastUsedAt: now });
+    } catch (e: any) {
+      logger.error('[email-templates] use error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'USE_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  // POST /api/v1/email-templates/ai-generate — C8 模板智能化：按场景描述 AI 生成模板草稿
+  // body: { scenario: string（必填）, type?, language?: 'zh'|'en'|'auto', tone?, hints? }
+  // 只返回草稿（不落库），用户确认后走 POST / 保存；variables 由服务端从生成文本解析。
+  router.post('/ai-generate', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const body = req.body || {};
+      const scenario = String(body.scenario || '').trim();
+      if (!scenario) {
+        return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'scenario 必填' } });
+      }
+      const type = String(body.type || 'general').trim();
+      if (!TEMPLATE_TYPES.includes(type as any)) {
+        return res.status(400).json({ ok: false, error: { code: 'INVALID_TYPE', message: `type 须为 ${TEMPLATE_TYPES.join('/')}` } });
+      }
+      const language = ['zh', 'en', 'auto'].includes(String(body.language)) ? String(body.language) : 'auto';
+      const tone = String(body.tone || '').trim().slice(0, 100);
+      const hints = String(body.hints || '').trim().slice(0, 500);
+
+      const systemPrompt = [
+        '你是 Bambook 外贸 ERP 的邮件模板生成器。',
+        '根据用户的业务场景描述，生成一封可复用的业务邮件模板，输出严格 JSON：{"name": string, "subject": string, "body": string}',
+        '规则：',
+        '- name 为中文模板名（≤20字）；subject/body 中变化的信息必须用 {{variable}} 占位符（camelCase 英文变量名）',
+        '- 常见变量：customerName/quotationNo/orderNo/invoiceNo/amount/dueDate/deliveryDate/senderName/companyName',
+        '- body 为纯文本商务邮件（英文除非用户要求中文），语气专业简洁，不超过 200 词',
+        '- 必须是合法 JSON，不要 markdown 围栏，不要解释',
+      ].join('\n');
+      const userPrompt = [
+        `业务场景：${scenario}`,
+        `模板类型：${type}`,
+        language !== 'auto' ? `语言：${language === 'zh' ? '中文' : '英文'}` : '',
+        tone ? `语气：${tone}` : '',
+        hints ? `补充要求：${hints}` : '',
+      ].filter(Boolean).join('\n');
+
+      const llm = options.llm || createDefaultEmailLlm();
+      const raw = await llm({
+        systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        temperature: 0.4,
+        jsonMode: true,
+        signal: new AbortController().signal,
+      });
+
+      let parsed: any = null;
+      try { parsed = JSON.parse(raw); } catch {
+        const m = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (m) { try { parsed = JSON.parse(m[1]); } catch { /* fallthrough */ } }
+        if (!parsed) {
+          const start = raw.indexOf('{');
+          const end = raw.lastIndexOf('}');
+          if (start >= 0 && end > start) { try { parsed = JSON.parse(raw.slice(start, end + 1)); } catch { /* fallthrough */ } }
+        }
+      }
+      const name = String(parsed?.name || '').trim().slice(0, 50);
+      const subject = String(parsed?.subject || '').trim();
+      const draftBody = String(parsed?.body || '').trim();
+      if (!name || !subject || !draftBody) {
+        return res.status(502).json({ ok: false, error: { code: 'AI_GENERATE_INVALID', message: 'AI 返回内容不完整，请调整场景描述后重试' } });
+      }
+      res.json({
+        ok: true,
+        draft: { name, type, subject, body: draftBody, variables: extractTemplateVariables(subject, draftBody) },
+      });
+    } catch (e: any) {
+      logger.error('[email-templates] ai-generate error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'AI_GENERATE_FAILED', message: String(e?.message ?? e) } });
     }
   });
 

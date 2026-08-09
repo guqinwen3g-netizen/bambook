@@ -169,7 +169,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                                 </div>
 
                                 <div className="flex items-center gap-2 mt-2">
-                                    {intentInfo && intentInfo.intent !== 'other' && (
+                                    {intentInfo && intentInfo.intent && intentInfo.intent !== 'other' && (
                                         <span
                                             title={intentInfo.summary || undefined}
                                             className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? INTENT_CHIP_CLASS.dark : INTENT_CHIP_CLASS.light}`}

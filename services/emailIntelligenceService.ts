@@ -5,10 +5,43 @@
  *   1. 意图可视化：GET /api/v1/email/intents 聚合 AI 抽取的意图徽标（薄覆盖层，叠加在 IMAP 实时流上）
  *   2. 业务场景模板：GET /api/v1/email-templates 拉取模板库 + 纯函数变量渲染（{{var}} 替换）
  *
- * 两个端点均为 GET，模块守卫允许 API-Key 通过（写操作才强制 JWT）。
+ * C8 邮件深化扩展：
+ *   3. /intents 覆盖层合约演进：已同步邮件（无论是否抽取）都返回，携带 DB id/labels/客户与订单链接；
+ *      intent 为 null 表示尚未 AI 抽取（前端只渲染非空意图徽标）。
+ *   4. 智能分类：POST /:id/classify（规则+AI 打标，投诉/紧急自动建跟进）
+ *   5. 任务关联自动化：POST /:id/create-followup（幂等生成 CRM 跟进任务）
+ *   6. 模板智能化：POST /:id/use 使用统计 + POST /ai-generate AI 生成模板草稿
+ *
+ * 读端点守卫允许 API-Key 通过；写端点（classify/create-followup/ai-generate）必须 JWT。
  */
 
 import { apiService } from './apiService';
+
+/** JWT 头（写端点必须 JWT；与 apiService jwtAuthHeaders 同口径：token 取自登录态存储） */
+const jwtAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+/** 写端点统一 POST（JWT + JSON），非 2xx 抛错（message 取服务端） */
+async function postWithJwt<T>(path: string, body: unknown, endpoint?: string): Promise<T> {
+  const url = apiService.buildApiUrl(path, endpoint);
+  const apiKey = apiService.getApiKey();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
+      ...jwtAuthHeaders(),
+    },
+    body: JSON.stringify(body ?? {}),
+  });
+  const json: any = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json?.error?.message || `HTTP ${res.status}`);
+  }
+  return json as T;
+}
 
 // ─── 意图可视化 ─────────────────────────────────────────────
 
@@ -19,10 +52,21 @@ export type EmailIntent =
 
 export type EmailCustomerSignal = 'positive' | 'neutral' | 'urgent' | 'risk' | 'unknown';
 
+/**
+ * C8 覆盖层信息：已同步邮件的 DB 投影。
+ * intent 为 null = 已同步但未 AI 抽取（不渲染意图徽标，但可用 DB id 调分类/跟进端点）。
+ */
 export interface EmailIntentInfo {
-  intent: EmailIntent;
+  intent: EmailIntent | null;
   customerSignal: EmailCustomerSignal | null;
   summary: string | null;
+  /** C8：DB 邮件 id（EML__xx），调用 classify/create-followup 端点需要 */
+  id: string | null;
+  /** C8：业务标签（智能分类结果） */
+  labels: string[];
+  /** C8：已归档客户/订单链接 */
+  relationId: string | null;
+  orderId: string | null;
 }
 
 /** 意图中文标签（PRD 19.3：询价/订单确认/投诉/催款/一般 + AI 全值域扩展） */
@@ -43,9 +87,24 @@ export const EMAIL_SIGNAL_LABELS: Partial<Record<EmailCustomerSignal, string>> =
   risk: '风险',
 };
 
+/** C8 业务标签中文映射（智能分类 chips 展示） */
+export const EMAIL_LABEL_LABELS: Record<string, string> = {
+  inquiry: '询价',
+  quotation: '报价',
+  order: '订单',
+  shipment_notice: '出运',
+  invoice: '发票',
+  complaint: '投诉',
+  follow_up: '跟进',
+  urgent: '紧急',
+  risk: '风险',
+  customer: '客户',
+  bulk: '群发',
+};
+
 /**
- * 按 mailbox + IMAP uids 批量拉取意图徽标。
- * 仅已同步且已 AI 抽取的邮件会出现在结果中；其余静默缺席（列表无标签）。
+ * 按 mailbox + IMAP uids 批量拉取 DB 覆盖层（意图徽标 + C8 操作上下文）。
+ * 仅已同步邮件出现在结果中；未同步的静默缺席（列表无覆盖层）。
  */
 export async function fetchEmailIntents(
   mailbox: string,
@@ -66,7 +125,7 @@ export async function fetchEmailIntents(
   const res = await fetch(url, {
     headers: { ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
   });
-  if (!res.ok) return {}; // 意图是增强层，失败不阻断列表
+  if (!res.ok) return {}; // 覆盖层是增强层，失败不阻断列表
   const json: any = await res.json().catch(() => null);
   if (!json?.ok || !Array.isArray(json.items)) return {};
 
@@ -74,12 +133,49 @@ export async function fetchEmailIntents(
   for (const item of json.items) {
     if (item?.uid === null || item?.uid === undefined) continue;
     map[String(item.uid)] = {
-      intent: (item.intent || 'other') as EmailIntent,
+      intent: item.intent ? (item.intent as EmailIntent) : null,
       customerSignal: item.customerSignal ?? null,
       summary: item.summary ?? null,
+      id: item.id ? String(item.id) : null,
+      labels: Array.isArray(item.labels) ? item.labels.map(String) : [],
+      relationId: item.relationId ?? null,
+      orderId: item.orderId ?? null,
     };
   }
   return map;
+}
+
+// ─── C8 智能分类 + 任务关联自动化 ──────────────────────────────
+
+export interface EmailClassifyResult {
+  changed: boolean;
+  added: string[];
+  labels: string[];
+  followUp: { created: boolean; followUpId?: string };
+}
+
+/** 智能分类（规则+AI 打标；默认投诉/紧急自动建跟进任务）。必须 JWT。 */
+export async function classifyEmail(
+  emailId: string,
+  opts: { withAi?: boolean; autoFollowUp?: boolean } = {},
+  endpoint?: string,
+): Promise<EmailClassifyResult> {
+  return postWithJwt<EmailClassifyResult>(`/v1/email/${encodeURIComponent(emailId)}/classify`, opts, endpoint);
+}
+
+export interface EmailFollowUpResult {
+  reused: boolean;
+  followUpId?: string;
+  nextFollowUpAt?: string | null;
+}
+
+/** 邮件一键生成 CRM 跟进任务（幂等；无客户链接服务端返回 409）。必须 JWT。 */
+export async function createFollowUpFromEmail(
+  emailId: string,
+  overrides: { content?: string; nextFollowUpAt?: string; nextFollowUpTopic?: string } = {},
+  endpoint?: string,
+): Promise<EmailFollowUpResult> {
+  return postWithJwt<EmailFollowUpResult>(`/v1/email/${encodeURIComponent(emailId)}/create-followup`, overrides, endpoint);
 }
 
 // ─── 业务场景模板 ───────────────────────────────────────────
@@ -91,6 +187,9 @@ export interface EmailTemplate {
   subject: string;
   body: string;
   variables: string[];
+  /** C8 使用统计 */
+  usageCount: number;
+  lastUsedAt: number | null;
 }
 
 /** 模板类型中文标签（PRD 12.1：报价/催款/交期通知/验货报告/节日问候） */
@@ -103,8 +202,8 @@ export const EMAIL_TEMPLATE_TYPE_LABELS: Record<string, string> = {
   general: '通用',
 };
 
-export async function fetchEmailTemplates(endpoint?: string): Promise<EmailTemplate[]> {
-  const url = apiService.buildApiUrl('/v1/email-templates', endpoint);
+export async function fetchEmailTemplates(endpoint?: string, opts: { sort?: 'usage' } = {}): Promise<EmailTemplate[]> {
+  const url = apiService.buildApiUrl(`/v1/email-templates${opts.sort === 'usage' ? '?sort=usage' : ''}`, endpoint);
   const apiKey = apiService.getApiKey();
   const res = await fetch(url, {
     headers: { ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
@@ -119,7 +218,43 @@ export async function fetchEmailTemplates(endpoint?: string): Promise<EmailTempl
     subject: String(t.subject || ''),
     body: String(t.body || ''),
     variables: Array.isArray(t.variables) ? t.variables.map(String) : [],
+    usageCount: Number(t.usageCount) || 0,
+    lastUsedAt: typeof t.lastUsedAt === 'number' ? t.lastUsedAt : null,
   }));
+}
+
+/** C8：上报模板使用（插入时调用一次；API-Key 可用的低风险计数端点） */
+export async function markEmailTemplateUsed(id: string, endpoint?: string): Promise<void> {
+  const url = apiService.buildApiUrl(`/v1/email-templates/${encodeURIComponent(id)}/use`, endpoint);
+  const apiKey = apiService.getApiKey();
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
+        ...jwtAuthHeaders(),
+      },
+      body: '{}',
+    });
+  } catch { /* 使用统计失败不阻断发信主流程 */ }
+}
+
+export interface AiTemplateDraft {
+  name: string;
+  type: string;
+  subject: string;
+  body: string;
+  variables: string[];
+}
+
+/** C8：AI 生成模板草稿（不落库；确认后走既有 POST / 保存）。必须 JWT。 */
+export async function generateEmailTemplateWithAI(
+  input: { scenario: string; type?: string; language?: 'zh' | 'en' | 'auto'; tone?: string; hints?: string },
+  endpoint?: string,
+): Promise<AiTemplateDraft> {
+  const res = await postWithJwt<{ ok: boolean; draft: AiTemplateDraft }>('/v1/email-templates/ai-generate', input, endpoint);
+  return res.draft;
 }
 
 /** 从模板文本提取 {{var}} 变量（与后端 extractTemplateVariables 同口径） */

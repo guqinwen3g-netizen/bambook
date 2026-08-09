@@ -28,6 +28,8 @@ import nodemailer from 'nodemailer';
 import { sendOutboxEmail } from './outboxSend';
 import { syncEmailsFromImap } from './emailSyncService';
 import { autoLinkEmailById, backfillEmailLinks } from './emailLinkService';
+import { applyEmailClassification, backfillEmailClassification } from './emailClassificationService';
+import { autoFollowUpForClassifiedEmail, createFollowUpFromEmail } from './emailFollowUpService';
 import { createOutboxEmail, createReplyOutboxEmail } from './emailOutboxMutationService';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
@@ -265,6 +267,87 @@ export function createEmailRouter(options: EmailRouterOptions) {
     } catch (e: any) {
       logger.error('[email] auto-link error', { error: e?.message || String(e) });
       res.status(500).json({ ok: false, error: { code: 'AUTO_LINK_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  /**
+   * POST /api/v1/email/:id/classify — C8 单封智能分类（规则 + AI 增强）
+   * body: { withAi?: boolean = true, autoFollowUp?: boolean = true }
+   * 并集打标（不删用户标签）；命中 complaint/urgent 且已关联客户时幂等自动建跟进任务。
+   */
+  router.post('/:id/classify', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const actorId = actorIdFromRequest(req);
+      const withAi = req.body?.withAi !== false;
+      const autoFollowUp = req.body?.autoFollowUp !== false;
+      const result = await applyEmailClassification(prisma, req.params.id, {
+        actorId, source: 'route:email:classify', withAi,
+      });
+      if ('error' in result) {
+        return res.status(404).json({ ok: false, error: { code: result.error, message: 'Email not found' } });
+      }
+      let followUp: { created: boolean; followUpId?: string } = { created: false };
+      if (autoFollowUp) {
+        followUp = await autoFollowUpForClassifiedEmail(prisma, req.params.id, result.labels, {
+          actorId, source: 'route:email:classify:auto-followup',
+        });
+      }
+      res.json({ ok: true, ...result, followUp });
+    } catch (e: any) {
+      logger.error('[email] classify error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'CLASSIFY_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  /**
+   * POST /api/v1/email/classify-backfill — C8 批量智能分类回填（owner/admin/manager）
+   * body: { limit?: number, mailbox?: string, withAi?: boolean = false, autoFollowUp?: boolean = true }
+   * 扫描 labels 为空的邮件打标；withAi=true 时对未抽取邮件先做 AI 抽取（有 LLM 成本，默认关）。
+   */
+  router.post('/classify-backfill', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    try {
+      const actorId = actorIdFromRequest(req);
+      const { limit, mailbox, withAi = false, autoFollowUp = true } = req.body || {};
+      const result = await backfillEmailClassification(prisma, { limit, mailbox, withAi, actorId });
+      let followUpsCreated = 0;
+      if (autoFollowUp) {
+        for (const emailId of result.followUpEmails) {
+          const r = await autoFollowUpForClassifiedEmail(prisma, emailId, ['urgent'], {
+            actorId, source: 'route:email:classify-backfill:auto-followup',
+          });
+          if (r.created) followUpsCreated += 1;
+        }
+      }
+      res.json({ ok: true, ...result, followUpsCreated });
+    } catch (e: any) {
+      logger.error('[email] classify-backfill error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'CLASSIFY_BACKFILL_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  /**
+   * POST /api/v1/email/:id/create-followup — C8 邮件一键生成 CRM 跟进任务
+   * body: { content?, nextFollowUpAt?, nextFollowUpTopic? }（缺省取 AI 摘要/最早 deadline）
+   * 幂等：同邮件重复调用返回已建记录（reused=true）。无客户链接返回 409。
+   */
+  router.post('/:id/create-followup', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const { content, nextFollowUpAt, nextFollowUpTopic } = req.body || {};
+      const result = await createFollowUpFromEmail(prisma, req.params.id, {
+        actorId: actorIdFromRequest(req),
+        source: 'route:email:create-followup',
+        overrides: { content, nextFollowUpAt, nextFollowUpTopic },
+      });
+      if (!result.ok) {
+        const status = result.error === 'NOT_FOUND' ? 404 : 409;
+        const message = result.error === 'NOT_FOUND' ? 'Email not found' : '邮件未关联客户，无法生成跟进任务（请先归档）';
+        return res.status(status).json({ ok: false, error: { code: result.error, message } });
+      }
+      const { ok: _discarded, ...followUpResult } = result;
+      res.status(result.reused ? 200 : 201).json({ ok: true, ...followUpResult });
+    } catch (e: any) {
+      logger.error('[email] create-followup error', { error: e?.message || String(e) });
+      res.status(500).json({ ok: false, error: { code: 'CREATE_FOLLOWUP_FAILED', message: String(e?.message ?? e) } });
     }
   });
 
@@ -693,6 +776,8 @@ export function createEmailRouter(options: EmailRouterOptions) {
    *
    * 前端邮件列表为 IMAP 实时流（不含 DB 字段），本端点提供薄覆盖层：
    * 已同步且已 AI 抽取的邮件返回 intent/customerSignal/summary，未抽取的不出现。
+   * C8：已同步邮件（无论是否抽取）额外返回 DB id/labels/relationId/orderId，
+   * 供详情 pane 的智能分类/生成跟进按钮与标签 chips 使用。
    * Query: mailbox（必填，物理箱名）, uids（必填，逗号分隔 IMAP UID，上限 200）
    */
   router.get('/intents', async (req: Request, res: Response) => {
@@ -706,15 +791,19 @@ export function createEmailRouter(options: EmailRouterOptions) {
       if (uids.length === 0) return res.json({ ok: true, items: [] });
 
       const rows = await (prisma as any).email.findMany({
-        where: { mailbox, uid: { in: uids }, deletedAt: null, aiExtractedJson: { not: null } },
-        select: { uid: true, aiExtractedJson: true },
+        where: { mailbox, uid: { in: uids }, deletedAt: null },
+        select: { id: true, uid: true, labels: true, relationId: true, orderId: true, aiExtractedJson: true },
       });
       const items = rows
         .map((r: any) => {
           const payload = r.aiExtractedJson as any;
           return {
             uid: r.uid,
-            intent: typeof payload?.intent === 'string' ? payload.intent : 'other',
+            id: r.id,
+            labels: Array.isArray(r.labels) ? r.labels : [],
+            relationId: r.relationId ?? null,
+            orderId: r.orderId ?? null,
+            intent: typeof payload?.intent === 'string' ? payload.intent : null,
             customerSignal: typeof payload?.customerSignal === 'string' ? payload.customerSignal : null,
             summary: typeof payload?.summary === 'string' ? payload.summary : null,
           };

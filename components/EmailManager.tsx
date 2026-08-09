@@ -10,7 +10,8 @@ import {
   Inbox, Send, FileText, AlertCircle,
   MoreHorizontal, CornerUpLeft, Reply, Forward, Plus, Edit, ChevronDown,
   Clock, CheckCircle2, ShieldAlert, ShieldCheck, Filter, List,
-  ReplyAll, MoreVertical, PanelLeftClose, PanelLeft, PenLine
+  ReplyAll, MoreVertical, PanelLeftClose, PanelLeft, PenLine,
+  Tags, CalendarPlus
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { emailSyncService } from '../services/emailSyncService';
@@ -20,6 +21,10 @@ import {
   EmailIntentInfo,
   EmailTemplate,
   EMAIL_TEMPLATE_TYPE_LABELS,
+  EMAIL_LABEL_LABELS,
+  classifyEmail,
+  createFollowUpFromEmail,
+  markEmailTemplateUsed,
 } from '../services/emailIntelligenceService';
 import { getApiBaseUrl } from '../services/apiBase';
 import DOMPurify from 'dompurify';
@@ -114,6 +119,11 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   // F5 意图可视化 State（PRD 19.3：列表自动分类标签；key = IMAP uid 字符串）
   const [intentByUid, setIntentByUid] = useState<Record<string, EmailIntentInfo>>({});
   const intentFetchBoxRef = useRef('');
+
+  // C8 邮件深化 State（智能分类 / 一键建跟进；反馈复用工具栏展示区）
+  const [classifyBusy, setClassifyBusy] = useState(false);
+  const [followUpBusy, setFollowUpBusy] = useState(false);
+  const [c8Feedback, setC8Feedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1189,6 +1199,50 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
   const selectedEmail = emails.find(e => e.id === selectedId);
 
+  // C8：从 IMAP uid 取 DB 覆盖层（含 DB id / labels / 客户与订单链接），与 EmailList 提取口径一致
+  const selectedEmailUid = selectedEmail
+    ? String(selectedEmail.uid || (selectedEmail.id.includes('-') ? selectedEmail.id.split('-').pop()! : selectedEmail.id))
+    : null;
+  const selectedIntentInfo = selectedEmailUid ? intentByUid[selectedEmailUid] : undefined;
+
+  /** C8 智能分类：规则+AI 打标（投诉/紧急服务端自动建跟进），结果回写列表覆盖层 */
+  const handleClassifyEmail = async () => {
+    if (!selectedIntentInfo?.id || classifyBusy) return;
+    setClassifyBusy(true);
+    setC8Feedback(null);
+    try {
+      const result = await classifyEmail(selectedIntentInfo.id, { withAi: true });
+      if (selectedEmailUid) {
+        setIntentByUid(prev => {
+          const cur = prev[selectedEmailUid];
+          return cur ? { ...prev, [selectedEmailUid]: { ...cur, labels: result.labels } } : prev;
+        });
+      }
+      const addedText = result.added.map(l => EMAIL_LABEL_LABELS[l] || l).join('、');
+      const followUpText = result.followUp?.created ? '；已自动创建跟进任务' : '';
+      setC8Feedback({ kind: 'ok', text: result.changed ? `分类完成：${addedText}${followUpText}` : `标签已是最新${followUpText}` });
+    } catch (e: any) {
+      setC8Feedback({ kind: 'err', text: `分类失败：${e?.message || e}` });
+    } finally {
+      setClassifyBusy(false);
+    }
+  };
+
+  /** C8 一键建跟进：幂等生成 CRM 跟进任务（无客户链接服务端返回 409） */
+  const handleCreateFollowUp = async () => {
+    if (!selectedIntentInfo?.id || followUpBusy) return;
+    setFollowUpBusy(true);
+    setC8Feedback(null);
+    try {
+      const result = await createFollowUpFromEmail(selectedIntentInfo.id);
+      setC8Feedback({ kind: 'ok', text: result.reused ? '跟进任务已存在（幂等复用）' : '已创建跟进任务' });
+    } catch (e: any) {
+      setC8Feedback({ kind: 'err', text: `建跟进失败：${e?.message || e}` });
+    } finally {
+      setFollowUpBusy(false);
+    }
+  };
+
   // Filtered & Sorted emails
   const displayEmails = React.useMemo(() => {
     let result = emails.filter(e => {
@@ -1285,7 +1339,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     setSignaturePickerOpen(false);
   };
 
-  /** 选择模板：变量自动填充（收件人/日期等已知值），subject/body 实时渲染 */
+  /** 选择模板：变量自动填充（收件人/日期等已知值），subject/body 实时渲染；C8 上报使用统计 */
   const handleSelectTemplate = (tpl: EmailTemplate) => {
     const autoVars = emailIntelligenceService.deriveTemplateVars({ to: composeTo });
     setActiveTemplate(tpl);
@@ -1293,6 +1347,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     setComposeSubject(emailIntelligenceService.renderEmailTemplate(tpl.subject, autoVars));
     setComposeBody(emailIntelligenceService.renderEmailTemplate(tpl.body, autoVars));
     setTemplatePickerOpen(false);
+    void markEmailTemplateUsed(tpl.id);
   };
 
   /** 变量输入联动：从原始模板重渲染（保留未填变量占位符） */
@@ -1636,6 +1691,44 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 >
                   <Mail size={16} strokeWidth={1} />
                 </RdlOverlayIconButton>
+
+                {/* C8 邮件深化：智能分类 + 一键建跟进（仅已同步邮件有 DB id 可操作） */}
+                {selectedIntentInfo?.id && (
+                  <>
+                    <div className={`w-px h-4 mx-2 self-center ${isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`}></div>
+                    <RdlPill
+                      onClick={handleClassifyEmail}
+                      disabled={classifyBusy}
+                      className="min-h-8 px-3 text-xs"
+                      title="规则 + AI 自动打标（投诉/紧急自动建跟进）"
+                    >
+                      {classifyBusy
+                        ? <Loader2 size={14} strokeWidth={1} className="animate-spin text-slate-400" />
+                        : <Tags size={14} strokeWidth={1} className="text-blue-500" />}
+                      {classifyBusy ? '分类中...' : '智能分类'}
+                    </RdlPill>
+                    <RdlPill
+                      onClick={handleCreateFollowUp}
+                      disabled={followUpBusy}
+                      className="min-h-8 px-3 text-xs"
+                      title="幂等生成 CRM 跟进任务"
+                    >
+                      {followUpBusy
+                        ? <Loader2 size={14} strokeWidth={1} className="animate-spin text-slate-400" />
+                        : <CalendarPlus size={14} strokeWidth={1} className="text-blue-500" />}
+                      {followUpBusy ? '创建中...' : '建跟进'}
+                    </RdlPill>
+                  </>
+                )}
+                {/* C8 操作反馈（成功中性色 / 失败警示色，与 outboxError 同区展示） */}
+                {c8Feedback && (
+                  <span className={`flex items-center gap-1 px-2 py-1 text-[11px] ${c8Feedback.kind === 'err'
+                    ? (isDarkMode ? 'text-rose-400' : 'text-rose-600')
+                    : (isDarkMode ? 'text-slate-300' : 'text-slate-500')}`}>
+                    {c8Feedback.kind === 'err' && <AlertCircle size={12} strokeWidth={1} />}
+                    {c8Feedback.text}
+                  </span>
+                )}
               </RdlToolbar>
 
               <div className="flex gap-2 relative group">
@@ -1654,6 +1747,30 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             <div className="flex-1 overflow-y-auto p-8 scroll-smooth">
               <div className="max-w-4xl mx-auto">
                 <h1 className={`text-2xl font-light mb-6 leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedEmail.subject}</h1>
+
+                {/* C8 分类标签 + 业务关联标记（已同步邮件的 DB 投影；RDL flat 中性色板） */}
+                {selectedIntentInfo && (selectedIntentInfo.labels.length > 0 || selectedIntentInfo.relationId || selectedIntentInfo.orderId) && (
+                  <div className="flex flex-wrap items-center gap-2 mb-6 -mt-3">
+                    {selectedIntentInfo.labels.map(l => (
+                      <span
+                        key={l}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? 'bg-white/[0.07] text-slate-300' : 'bg-slate-500/[0.08] text-slate-500'}`}
+                      >
+                        {EMAIL_LABEL_LABELS[l] || l}
+                      </span>
+                    ))}
+                    {selectedIntentInfo.relationId && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? 'bg-white/[0.10] text-slate-200' : 'bg-slate-500/[0.12] text-slate-700'}`}>
+                        已关联客户
+                      </span>
+                    )}
+                    {selectedIntentInfo.orderId && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? 'bg-white/[0.10] text-slate-200' : 'bg-slate-500/[0.12] text-slate-700'}`}>
+                        已关联订单
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className={`flex items-center justify-between mb-8 pb-6 border-b ${isDarkMode ? 'border-white/10' : 'border-slate-100'}`}>
                   <div className="flex items-center gap-4">
