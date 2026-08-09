@@ -1,7 +1,10 @@
 import React from 'react';
+import { Archive, Loader2, Send, Sparkles } from 'lucide-react';
 import SidePanelContainer from './ui/SidePanelContainer';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
+import { PageHeader } from './ui/PageHeader';
 import { apiService } from '../services/apiService';
+import { KnowledgeCitation } from '../types';
 
 type TwinTool = 'select' | 'wall' | 'door' | 'station' | 'server' | 'rack';
 type DeviceKind = 'desktop' | 'laptop';
@@ -100,6 +103,19 @@ type LayoutSnapshot = {
   objects: TwinObject[];
   selectedId: string;
 };
+
+/** 数据中心双 tab：看板（RAG 智能问答为主）+ 数字孪生布局编辑器 */
+type DataCenterTab = 'overview' | 'twin';
+
+/** 问答归档分类（与策略文库 KnowledgeItem.category 同一枚举语义） */
+const QA_ARCHIVE_CATEGORIES = ['Company', 'Policy', 'Production', 'Product', 'Customer', 'Supplier'] as const;
+
+/** 数据看板快捷提问：面向纺织外贸主业务的示例问题，点击填入提问框 */
+const QA_SUGGESTED_QUESTIONS = [
+  '面料尾期验货的抽样标准是什么？',
+  '产前样需要哪两方签字确认？',
+  'T/T 30 天付款条款在合同里怎么表述？',
+] as const;
 
 const CANVAS_W = 820;
 const CANVAS_H = 620;
@@ -624,6 +640,17 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
   const [undoStack, setUndoStack] = React.useState<LayoutSnapshot[]>([]);
   const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
 
+  // 数据看板 tab（默认）：RAG 智能问答状态
+  const [activeTab, setActiveTab] = React.useState<DataCenterTab>('overview');
+  const [qaQuestion, setQaQuestion] = React.useState('');
+  const [qaAnswer, setQaAnswer] = React.useState('');
+  const [qaCitations, setQaCitations] = React.useState<KnowledgeCitation[]>([]);
+  const [qaBusy, setQaBusy] = React.useState(false);
+  const [qaError, setQaError] = React.useState<string | null>(null);
+  const [qaArchiveCategory, setQaArchiveCategory] = React.useState<string>('Company');
+  const [qaArchived, setQaArchived] = React.useState(false);
+  const [qaArchiving, setQaArchiving] = React.useState(false);
+
   const officeFrameRef = React.useRef(officeFrame);
   const roomsRef = React.useRef(rooms);
   const wallsRef = React.useRef(walls);
@@ -737,6 +764,55 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
   const fitLayoutView = React.useCallback(() => {
     setViewBox(getLayoutFitViewBox(officeFrameRef.current, roomsRef.current, wallsRef.current, doorsRef.current, objectsRef.current, isEditingLayout));
   }, [isEditingLayout]);
+
+  /** 切换 tab：离开孪生画布时退出编辑态，避免隐藏的 Delete/Undo 键盘捕获与误保存 */
+  const switchTab = React.useCallback((next: DataCenterTab) => {
+    setActiveTab(next);
+    if (next === 'overview') {
+      setIsEditingLayout(false);
+      setTool('select');
+      setWallStart(null);
+      setDrag(null);
+    }
+  }, []);
+
+  /** RAG 智能问答：引用检索与流式回答并行（与策略文库 QA 同一 knowledge_api 契约） */
+  const handleAsk = React.useCallback(async () => {
+    const q = qaQuestion.trim();
+    if (!q || qaBusy) return;
+    setQaBusy(true);
+    setQaError(null);
+    setQaAnswer('');
+    setQaCitations([]);
+    setQaArchived(false);
+    try {
+      const searchPromise = apiService.searchKnowledgeBase(q).then(setQaCitations).catch(() => setQaCitations([]));
+      await apiService.askKnowledgeBase(q, (piece) => setQaAnswer((prev) => prev + piece));
+      await searchPromise;
+    } catch (error: any) {
+      setQaError(error?.message || '问答服务暂不可用，请稍后重试');
+    } finally {
+      setQaBusy(false);
+    }
+  }, [qaBusy, qaQuestion]);
+
+  /** 问答归档：沉淀为知识文档进入检索语料，反哺后续问答 */
+  const handleArchiveQa = React.useCallback(async () => {
+    const q = qaQuestion.trim();
+    const a = qaAnswer.trim();
+    if (!q || !a || qaArchiving || qaArchived) return;
+    setQaArchiving(true);
+    setQaError(null);
+    try {
+      const title = `问答：${q.slice(0, 40)}${q.length > 40 ? '…' : ''}`;
+      await apiService.ingestKnowledgeText({ title, text: `问题：${q}\n\n回答：${a}`, category: qaArchiveCategory, sourceType: 'qa' });
+      setQaArchived(true);
+    } catch (error: any) {
+      setQaError(error?.message || '归档失败，请稍后重试');
+    } finally {
+      setQaArchiving(false);
+    }
+  }, [qaAnswer, qaArchived, qaArchiving, qaArchiveCategory, qaQuestion]);
 
   const deleteSelected = React.useCallback(() => {
     const id = selectedIdRef.current;
@@ -1078,52 +1154,174 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
     setRooms((items) => items.map((item) => item.id === selectedRoom.id ? { ...item, ...patch } : item));
   };
 
-  return (
-    <div className={`relative h-full overflow-hidden px-10 pb-7 pt-7 ${isDarkMode ? 'text-slate-100' : 'text-deep-alt'}`}>
-      <header className="pointer-events-none absolute left-12 right-12 top-8 z-30 flex h-12 items-center justify-between gap-5">
-        <div className="flex items-center gap-3">
-          <h1 className="text-[30px] font-light tracking-tight">数据<span>中心</span></h1>
-          <span className={isDarkMode ? 'text-sm font-light text-slate-400' : 'text-sm font-light text-slate-500'}>公司数字孪生 · Digital Twin</span>
-        </div>
-        <div className="pointer-events-auto flex items-center gap-2">
-          {isEditingLayout && (
-            <>
-              <button
-                onClick={fitLayoutView}
-                className={buttonCls}
-              >
-                适配视图
-              </button>
-              <button
-                onClick={saveLayout}
-                className={buttonCls}
-              >
-                {saveState === 'saving' ? '同步中' : saveState === 'saved' ? '已同步' : saveState === 'failed' ? '同步失败' : '保存布局'}
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => {
-              setIsEditingLayout((current) => {
-                const next = !current;
-                if (next) {
-                  window.requestAnimationFrame(() => {
-                    setViewBox(getLayoutFitViewBox(officeFrameRef.current, roomsRef.current, wallsRef.current, doorsRef.current, objectsRef.current, true));
-                  });
-                }
-                return next;
-              });
-              setTool('select');
-              setWallStart(null);
-            }}
-            className={buttonCls}
-          >
-            {isEditingLayout ? '完成布局' : '编辑布局'}
-          </button>
-        </div>
-      </header>
+  const tabButtonClass = (tab: DataCenterTab) =>
+    `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-all ${activeTab === tab ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : (isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700')}`;
 
-      <div className="relative h-full min-h-0">
+  return (
+    <div className={`w-full h-full flex flex-col bg-transparent overflow-hidden ${isDarkMode ? 'text-slate-100' : 'text-deep-alt'}`}>
+      <PageHeader
+        title="数据中心"
+        subtitle="Data Center"
+        contextLabel="Data Hub"
+        isDarkMode={isDarkMode}
+        actions={activeTab === 'twin' ? (
+          <div className="flex items-center gap-2">
+            {isEditingLayout && (
+              <>
+                <button
+                  onClick={fitLayoutView}
+                  className={buttonCls}
+                >
+                  适配视图
+                </button>
+                <button
+                  onClick={saveLayout}
+                  className={buttonCls}
+                >
+                  {saveState === 'saving' ? '同步中' : saveState === 'saved' ? '已同步' : saveState === 'failed' ? '同步失败' : '保存布局'}
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => {
+                setIsEditingLayout((current) => {
+                  const next = !current;
+                  if (next) {
+                    window.requestAnimationFrame(() => {
+                      setViewBox(getLayoutFitViewBox(officeFrameRef.current, roomsRef.current, wallsRef.current, doorsRef.current, objectsRef.current, true));
+                    });
+                  }
+                  return next;
+                });
+                setTool('select');
+                setWallStart(null);
+              }}
+              className={buttonCls}
+            >
+              {isEditingLayout ? '完成布局' : '编辑布局'}
+            </button>
+          </div>
+        ) : undefined}
+      />
+
+      <div className={`${BAMBOOK_OS.layout.desktopSinglePanelBodyClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`}>
+        {/* Tab Bar */}
+        <div className={`${BAMBOOK_OS.layout.desktopSubtoolbarClass} justify-center bg-transparent`}>
+          <div className={`inline-flex p-1 rounded-full ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+            <button onClick={() => switchTab('overview')} className={tabButtonClass('overview')}>数据看板</button>
+            <button onClick={() => switchTab('twin')} className={tabButtonClass('twin')}>数字孪生</button>
+          </div>
+        </div>
+
+        {activeTab === 'overview' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-6">
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+              {/* 看板简介 */}
+              <div className="flex items-start gap-3 px-1">
+                <Sparkles size={18} strokeWidth={1.2} className={`mt-0.5 shrink-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+                <div className="min-w-0">
+                  <h2 className={`text-base font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>企业知识智能问答</h2>
+                  <p className={`mt-1 text-[11px] font-light leading-relaxed ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    向量检索企业知识语料（邮件 / 文档 / SOP / 历史问答），LLM 流式生成回答并列出命中片段；有价值的一键归档回知识库。
+                  </p>
+                </div>
+              </div>
+
+              {/* 提问区 */}
+              <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
+                <textarea
+                  rows={3}
+                  value={qaQuestion}
+                  onChange={(e) => setQaQuestion(e.target.value)}
+                  placeholder="向企业知识库提问，如：面料尾期验货的抽样标准是什么？"
+                  className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {QA_SUGGESTED_QUESTIONS.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => setQaQuestion(q)}
+                      className={`px-3 py-1.5 rounded-full border text-[10px] font-light tracking-wide transition-all ${isDarkMode ? 'border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5' : 'border-slate-200/70 text-slate-500 hover:text-slate-700 hover:bg-white/60'}`}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>向量检索知识语料 + LLM 流式回答，命中片段在下方列出</span>
+                  <button
+                    onClick={handleAsk}
+                    disabled={qaBusy || !qaQuestion.trim()}
+                    className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+                  >
+                    {qaBusy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} strokeWidth={1.2} />}
+                    {qaBusy ? '检索回答中…' : '提问'}
+                  </button>
+                </div>
+              </div>
+
+              {qaError && (
+                <div className={`px-5 py-3 rounded-control border text-xs font-light ${isDarkMode ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-500'}`}>{qaError}</div>
+              )}
+
+              {/* 回答区 */}
+              {(qaAnswer || qaBusy) && (
+                <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
+                  <div className={`mb-3 text-[10px] font-light tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>回答</div>
+                  <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                    {qaAnswer}
+                    {qaBusy && <span className="inline-block w-2 h-4 ml-0.5 align-middle animate-pulse bg-current opacity-40" />}
+                  </p>
+                  {!qaBusy && qaAnswer.trim() && (
+                    <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 ${isDarkMode ? 'border-white/10' : 'border-white/30'}`}>
+                      {qaArchived ? (
+                        <span className={`text-[11px] font-light ${isDarkMode ? 'text-emerald-300/80' : 'text-emerald-600'}`}>已归档到企业知识库</span>
+                      ) : (
+                        <>
+                          <select
+                            value={qaArchiveCategory}
+                            onChange={(e) => setQaArchiveCategory(e.target.value)}
+                            className={`px-3 py-2 border rounded-control outline-none text-[11px] font-light appearance-none ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                          >
+                            {QA_ARCHIVE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <button
+                            onClick={handleArchiveQa}
+                            disabled={qaArchiving}
+                            className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+                          >
+                            {qaArchiving ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} strokeWidth={1.2} />}
+                            归档此问答
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 引用片段 */}
+              {qaCitations.length > 0 && (
+                <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
+                  <div className={`mb-3 text-[10px] font-light tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>命中片段 ({qaCitations.length})</div>
+                  <div className="space-y-3">
+                    {qaCitations.map((c) => (
+                      <div key={c.id} className={`rounded-control border px-4 py-3 ${isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/40'}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className={`text-[11px] font-light truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{c.title}</span>
+                          <span className={`shrink-0 text-[9px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{Math.round(c.score * 100)}%</span>
+                        </div>
+                        <p className={`mt-1 line-clamp-2 text-[11px] font-light leading-relaxed ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{c.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+        <div className="relative flex-1 min-h-0 px-5 pb-5">
+        <div className="relative h-full min-h-0">
         <div className="absolute inset-0">
           <svg
             viewBox={`${displayViewBox.x} ${displayViewBox.y} ${displayViewBox.width} ${displayViewBox.height}`}
@@ -1326,7 +1524,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
 
         {isEditingLayout && (
           <>
-            <SidePanelContainer isDarkMode={isDarkMode} spotlight className="absolute left-0 top-20 z-20 w-[184px] rounded-inset p-3 bambook-outer-panel" contentClassName="relative z-10 flex min-h-0 flex-col">
+            <SidePanelContainer isDarkMode={isDarkMode} spotlight className="absolute left-0 top-2 z-20 w-[184px] rounded-inset p-3 bambook-outer-panel" contentClassName="relative z-10 flex min-h-0 flex-col">
               <h2 className="mb-2 px-2 text-[10px] font-normal uppercase tracking-[0.16em] text-slate-500">绘制组件</h2>
               <div className="space-y-1.5">
                 {toolLabels.map((item) => (
@@ -1449,6 +1647,9 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
             </SidePanelContainer>
             </div>
           </>
+        )}
+        </div>
+        </div>
         )}
       </div>
     </div>

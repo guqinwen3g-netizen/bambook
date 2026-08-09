@@ -958,7 +958,7 @@ type ToolManifestSafety = {
 | HRManager.tsx | 1364 | apiService HR 通道 | 中-高 | 组织架构/团队/项目/分配 |
 | AdminPanel.tsx | 1258 | 真实 API | 高 | 完整 RBAC |
 | KnowledgeBase.tsx | 281 | 真实 API | 中 | handleEditSave 未走 API |
-| DataCenter.tsx | 1598 | 真实 API + localStorage | 中 | 偏可视化玩具 |
+| DataCenter.tsx | 1801 | 真实 API + localStorage | 中 | 双 tab：数据看板（RAG 问答）+ 数字孪生 |
 | ProductionPipeline.tsx | 293 | 真实 API | 高 | 嵌入式组件 |
 | ProductionAlerts.tsx | 97 | 真实 API（60 秒轮询） | 中 | 仅显示无操作 |
 | Settings.tsx | 1596 | 真实 API | 高 | 8 tab |
@@ -1157,11 +1157,11 @@ type ToolManifestSafety = {
 - ✅ Admin 模块（用户/角色/权限/审批/审计/工具权限）
 - ✅ 生产管线前端（OrderManager 内嵌 ProductionPipeline，读 `/api/v1/production/:orderId` 真实阶段数据）
 - ✅ 出运制单（ShipmentDocumentGenerator 读真实运单生成 CI/PL/CO/BL 成套单据；4 个制单小组件接真实订单/关系数据）
+- ✅ 数据中心业务强化（DataCenter.tsx 双 tab：数据看板为主——RAG 智能问答（向量检索引用 + LLM 流式回答 + 一键归档回语料）；数字孪生布局编辑器保留为次 tab）
 
 ### 8.2 进行中 / 半成品
 
 - 🟡 KnowledgeBase.tsx：handleEditSave 仅本地修改未走 API（移动端 PWA 组件，按交付优先级推迟）
-- 🟡 DataCenter.tsx：偏可视化玩具，业务关联弱
 
 ### 8.3 缺失 / 未开工
 
