@@ -11,7 +11,7 @@
 // The Express backend (server/) and IPC handlers will be wired in B5/B8.
 // This file deliberately stays minimal so the skeleton is auditable.
 
-import { app, BrowserWindow, ipcMain, screen, shell, type Rectangle } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, screen, shell, type Rectangle } from 'electron';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
@@ -603,6 +603,26 @@ ipcMain.handle('agent-os:focus-view', (_event, view: 'assistant' | 'system-setti
     focusMainWindow();
     mainWindow?.webContents.send('agent-os:focus-view', view);
     return { ok: Boolean(mainWindow && !mainWindow.isDestroyed()) };
+});
+
+// D2 主动提醒引擎 — 桌面原生推送：warning/critical 预警在窗口不可见时
+// 通过 OS 通知中心触达；点击回到主窗口并跳转到通知携带的业务链接。
+ipcMain.handle('notification:show-native', (_event, payload: { title?: string; body?: string; link?: string }) => {
+    if (!Notification.isSupported()) return { ok: false, reason: 'unsupported' };
+    const title = typeof payload?.title === 'string' ? payload.title.slice(0, 120) : '';
+    const body = typeof payload?.body === 'string' ? payload.body.slice(0, 300) : '';
+    const link = typeof payload?.link === 'string' ? payload.link : undefined;
+    if (!title) return { ok: false, reason: 'missing-title' };
+
+    const notification = new Notification({ title, body });
+    notification.on('click', () => {
+        focusMainWindow();
+        if (link && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('notification:open-link', link);
+        }
+    });
+    notification.show();
+    return { ok: true };
 });
 
 function moveAgentPetWindowBy(sourceWindow: BrowserWindow | null, delta: { dx?: number; dy?: number }) {

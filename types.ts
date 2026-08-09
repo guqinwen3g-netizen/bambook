@@ -2872,6 +2872,20 @@ export interface NotificationStats {
   byType: Record<string, number>;
 }
 
+// ── D2 主动提醒引擎：偏好 + 类型目录 ──
+export interface NotificationPreferenceItem {
+  notificationType: string;
+  label: string;
+  isEnabled: boolean;
+}
+
+export interface NotificationTypeCatalogItem {
+  type: string;
+  label: string;
+  isEnabled: boolean;
+  seenCount: number;
+}
+
 // ── 自动化规则 ──
 export interface AutomationRule {
   id: string;

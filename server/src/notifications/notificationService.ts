@@ -40,6 +40,105 @@ export type NotificationStats = {
 };
 
 // ────────────────────────────────────────────────────────────────
+// D2 主动提醒引擎：类型目录 + 用户偏好（静音）
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * 已知通知类型的中文标签注册表。
+ * 键与 scheduler/tasks/* 及 notificationTemplateEngine 实际使用的 type 字符串逐一核对；
+ * 目录兜底为原始 type 字符串（未知类型自描述，不阻断）。
+ */
+export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  // 调度器预警（scheduler/tasks/*）
+  receivable_overdue: '应收逾期',
+  inventory_alert: '库存预警',
+  production_deadline: '生产超期',
+  shipment_delay: '出运延误',
+  tax_refund_stall: '退税滞留',
+  tax_refund_deadline: '退税截止',
+  lc_maturity: '信用证到期',
+  lc_expiry: '信用证有效期',
+  lc_shipment_deadline: '信用证装运截止',
+  lc_presentation_deadline: '信用证交单截止',
+  crm_follow_up_overdue: '跟进逾期',
+  hr_lifecycle: '人事生命周期',
+  sample_deadline: '样品节点',
+  factory_certification_expiring: '工厂认证到期',
+  stuck_order: '订单卡滞',
+  stuck_shipment: '发货卡滞',
+  stuck_voucher: '凭证卡滞',
+  daily_briefing: '每日简报',
+  weekly_briefing: '每周简报',
+  // 业务事件（notificationTemplateEngine）
+  order_created: '订单创建',
+  order_confirmed: '订单确认',
+  quotation_issued: '报价发出',
+  quotation_accepted: '报价接受',
+  purchase_order_sent: '采购单发出',
+  purchase_order_confirmed: '采购单确认',
+  material_received: '物料入库',
+  order_status_changed: '订单状态变更',
+  production_stage_advanced: '生产阶段推进',
+  production_completed: '生产完成',
+  shipment_created: '发货单创建',
+  shipment_completed: '发货完成',
+  shipment_status_changed: '发货状态变更',
+  invoice_issued: '发票开具',
+  invoice_cancelled: '发票作废',
+  payment_voucher_created: '收付凭证创建',
+  payment_received: '收款到账',
+  allocation_reconciled: '核销完成',
+  development_converted: '开发案转化',
+  relation_onboarded: '客户建档',
+  stock_low_alarm: '库存低位',
+  stock_overstock_alarm: '库存超储',
+  bom_confirmed: 'BOM 确认',
+  bom_cost_calculated: 'BOM 成本核算',
+  credit_limit_exceeded: '信用额度超限',
+  agent_message: '智能体消息',
+};
+
+export type NotificationTypeCatalogItem = {
+  type: string;
+  label: string;
+  /** 本人是否启用（默认 true；false = 静音，该类型不再为本人落库） */
+  isEnabled: boolean;
+  /** 本人历史收到过该类型的条数（0 表示目录仅来自注册表） */
+  seenCount: number;
+};
+
+export type NotificationPreferenceView = {
+  notificationType: string;
+  label: string;
+  isEnabled: boolean;
+};
+
+/**
+ * 从候选接收人中剔除把该类型静音（isEnabled=false）的用户。
+ * 未设偏好 = 默认启用（Sprint 1 语义不变：全员接收）。
+ */
+export async function filterMutedRecipients(
+  prisma: PrismaClient,
+  userIds: string[],
+  type: string,
+): Promise<string[]> {
+  if (userIds.length === 0) return userIds;
+  try {
+    const muted = await prisma.notificationPreference.findMany({
+      where: { notificationType: type, isEnabled: false, userId: { in: userIds } },
+      select: { userId: true },
+    });
+    if (muted.length === 0) return userIds;
+    const mutedSet = new Set(muted.map((m) => m.userId));
+    return userIds.filter((id) => !mutedSet.has(id));
+  } catch (e: any) {
+    // 偏好查询失败不阻断通知投递（降级为全员接收）
+    logger.error('[NotificationService] filterMutedRecipients failed', { error: e?.message, type });
+    return userIds;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
 // 通知服务
 // ────────────────────────────────────────────────────────────────
 
@@ -95,6 +194,12 @@ export interface NotificationService {
   markAllAsRead(userId: string): Promise<{ ok: boolean; count: number }>;
   /** 删除通知（仅本人） */
   deleteNotification(userId: string, notificationId: string): Promise<{ ok: boolean }>;
+  /** D2：列出本人通知类型偏好 */
+  getPreferences(userId: string): Promise<NotificationPreferenceView[]>;
+  /** D2：设置某类型对本人的启用/静音（幂等 upsert） */
+  upsertPreference(userId: string, notificationType: string, isEnabled: boolean): Promise<NotificationPreferenceView>;
+  /** D2：类型目录 = 注册表已知类型 ∪ 本人实际收到过的类型，合并本人启用状态 */
+  getTypeCatalog(userId: string): Promise<NotificationTypeCatalogItem[]>;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -108,7 +213,11 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
         const content = renderNotification(event);
         // 接收人解析：单租户场景，所有 active 用户都收到
         // Phase 1+ 可改为按事件类型+订单关联人细粒度路由
-        const recipients = await resolveRecipients(prisma, event);
+        const recipients = await filterMutedRecipients(
+          prisma,
+          await resolveRecipients(prisma, event),
+          content.type,
+        );
         if (recipients.length === 0) {
           logger.warn('[NotificationService] no recipients for event', {
             eventType: event.type,
@@ -186,7 +295,11 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
     },
 
     async broadcastNotification(params): Promise<{ count: number }> {
-      const recipients = await resolveRecipients(prisma, null as any);
+      const recipients = await filterMutedRecipients(
+        prisma,
+        await resolveRecipients(prisma, null as any),
+        params.type,
+      );
       if (recipients.length === 0) {
         logger.warn('[NotificationService] broadcast: no active recipients');
         return { count: 0 };
@@ -221,6 +334,9 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
 
     async sendToUser(params): Promise<Notification | null> {
       try {
+        // D2：用户已静音该类型 → 不落库（幂等语义：返回 null 与创建失败同路径，调用方本就不依赖返回值）
+        const allowed = await filterMutedRecipients(prisma, [params.userId], params.type);
+        if (allowed.length === 0) return null;
         const id = `ntf_user_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const notification = await prisma.notification.create({
           data: {
@@ -260,13 +376,14 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
           select: { userId: true },
         });
         const userIds = [...new Set(usersWithRole.map(ur => ur.userId))];
-        if (userIds.length === 0) {
+        const allowedIds = await filterMutedRecipients(prisma, userIds, params.type);
+        if (allowedIds.length === 0) {
           logger.warn('[NotificationService] broadcastToRole: no users with role', { role: params.role });
           return { count: 0 };
         }
         const baseId = `ntf_role_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const created = await prisma.notification.createMany({
-          data: userIds.map((userId) => ({
+          data: allowedIds.map((userId) => ({
             id: `${baseId}_${userId}`,
             userId,
             type: params.type,
@@ -287,9 +404,9 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
           link: params.link,
           eventId: baseId,
           eventType: params.type,
-          recipientIds: userIds,
+          recipientIds: allowedIds,
         });
-        logger.info('[NotificationService] broadcastToRole delivered', { role: params.role, recipients: userIds.length });
+        logger.info('[NotificationService] broadcastToRole delivered', { role: params.role, recipients: allowedIds.length });
         return { count: created.count };
       } catch (e: any) {
         logger.error('[NotificationService] broadcastToRole failed', { error: e?.message, role: params.role });
@@ -355,6 +472,65 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
         where: { id: notificationId, userId },
       });
       return { ok: result.count > 0 };
+    },
+
+    async getPreferences(userId: string): Promise<NotificationPreferenceView[]> {
+      const rows = await prisma.notificationPreference.findMany({
+        where: { userId },
+        orderBy: { notificationType: 'asc' },
+      });
+      return rows.map((r) => ({
+        notificationType: r.notificationType,
+        label: NOTIFICATION_TYPE_LABELS[r.notificationType] ?? r.notificationType,
+        isEnabled: r.isEnabled,
+      }));
+    },
+
+    async upsertPreference(
+      userId: string,
+      notificationType: string,
+      isEnabled: boolean,
+    ): Promise<NotificationPreferenceView> {
+      await prisma.notificationPreference.upsert({
+        where: { userId_notificationType: { userId, notificationType } },
+        create: { userId, notificationType, isEnabled, channels: ['in_app'] },
+        update: { isEnabled },
+      });
+      return {
+        notificationType,
+        label: NOTIFICATION_TYPE_LABELS[notificationType] ?? notificationType,
+        isEnabled,
+      };
+    },
+
+    async getTypeCatalog(userId: string): Promise<NotificationTypeCatalogItem[]> {
+      const [seen, prefs] = await Promise.all([
+        prisma.notification.groupBy({
+          by: ['type'],
+          where: { userId },
+          _count: { type: true },
+        }),
+        prisma.notificationPreference.findMany({
+          where: { userId },
+          select: { notificationType: true, isEnabled: true },
+        }),
+      ]);
+      const seenMap = new Map(seen.map((s) => [s.type, s._count.type]));
+      const prefMap = new Map(prefs.map((p) => [p.notificationType, p.isEnabled]));
+      // 目录 = 注册表已知类型 ∪ 本人实际见过的类型（注册表未收录的新类型自动浮现）
+      const types = new Set([...Object.keys(NOTIFICATION_TYPE_LABELS), ...seenMap.keys()]);
+      return [...types]
+        .sort((a, b) => {
+          // 实际见过的排前面（按条数降序），其余按 type 字典序
+          const diff = (seenMap.get(b) ?? 0) - (seenMap.get(a) ?? 0);
+          return diff !== 0 ? diff : a.localeCompare(b);
+        })
+        .map((type) => ({
+          type,
+          label: NOTIFICATION_TYPE_LABELS[type] ?? type,
+          isEnabled: prefMap.get(type) ?? true,
+          seenCount: seenMap.get(type) ?? 0,
+        }));
     },
   };
 }

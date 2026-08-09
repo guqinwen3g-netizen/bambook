@@ -7,12 +7,17 @@
  *   POST   /v1/notifications/:id/read      标记单条已读
  *   POST   /v1/notifications/read-all      标记全部已读
  *   DELETE /v1/notifications/:id           删除通知
+ *   GET    /v1/notifications/preferences   D2：本人通知类型偏好清单
+ *   PUT    /v1/notifications/preferences/:type  D2：启用/静音某类型（幂等 upsert）
+ *   GET    /v1/notifications/catalog       D2：类型目录（注册表 ∪ 本人见过，合并启用状态）
+ *   POST   /v1/notifications/:id/convert-to-followup  D2：通知转 CRM 跟进任务（幂等）
  *
  * 鉴权：从 req.actor.userId 解析当前用户（cookie JWT 或 API key actor）
  */
 
 import { Router, Request, Response } from 'express';
-import { getNotificationService } from './eventBindings';
+import { getNotificationService, getNotificationPrisma } from './eventBindings';
+import { convertNotificationToFollowUp } from './notificationFollowUpService';
 
 export function createNotificationsRouter(): Router {
   const router = Router();
@@ -113,6 +118,80 @@ export function createNotificationsRouter(): Router {
     } catch (e: any) {
       res.status(500).json({
         error: 'DELETE_FAILED',
+        message: String(e?.message ?? e),
+      });
+    }
+  });
+
+  // ─── D2 主动提醒引擎：偏好控制面 + 转跟进闭环 ───
+
+  // GET /v1/notifications/preferences — 本人通知类型偏好清单
+  router.get('/preferences', requireUser, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).notificationUserId as string;
+      const service = getNotificationService();
+      const items = await service.getPreferences(userId);
+      res.json({ items });
+    } catch (e: any) {
+      res.status(500).json({
+        error: 'PREFERENCES_FAILED',
+        message: String(e?.message ?? e),
+      });
+    }
+  });
+
+  // PUT /v1/notifications/preferences/:type — 启用/静音某类型（幂等 upsert）
+  router.put('/preferences/:type', requireUser, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).notificationUserId as string;
+      const isEnabled = (req.body as any)?.isEnabled;
+      if (typeof isEnabled !== 'boolean') {
+        return res.status(400).json({ error: 'INVALID_BODY', message: 'isEnabled (boolean) is required.' });
+      }
+      const service = getNotificationService();
+      const item = await service.upsertPreference(userId, req.params.type, isEnabled);
+      res.json({ ok: true, item });
+    } catch (e: any) {
+      res.status(500).json({
+        error: 'PREFERENCE_UPSERT_FAILED',
+        message: String(e?.message ?? e),
+      });
+    }
+  });
+
+  // GET /v1/notifications/catalog — 类型目录（注册表 ∪ 本人见过，合并启用状态）
+  router.get('/catalog', requireUser, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).notificationUserId as string;
+      const service = getNotificationService();
+      const items = await service.getTypeCatalog(userId);
+      res.json({ items });
+    } catch (e: any) {
+      res.status(500).json({
+        error: 'CATALOG_FAILED',
+        message: String(e?.message ?? e),
+      });
+    }
+  });
+
+  // POST /v1/notifications/:id/convert-to-followup — 通知转 CRM 跟进任务（幂等）
+  router.post('/:id/convert-to-followup', requireUser, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).notificationUserId as string;
+      const result = await convertNotificationToFollowUp(getNotificationPrisma(), req.params.id, {
+        actorId: userId,
+        source: 'api:notifications',
+      });
+      if (!result.ok) {
+        if (result.error === 'NO_RELATION') {
+          return res.status(409).json({ error: 'NO_RELATION', message: '通知未关联客户档案，无法创建跟进任务。' });
+        }
+        return res.status(404).json({ error: 'NOT_FOUND', message: 'Notification not found.' });
+      }
+      res.json({ ok: true, reused: result.reused ?? false, followUpId: result.followUpId, nextFollowUpAt: result.nextFollowUpAt ?? null });
+    } catch (e: any) {
+      res.status(500).json({
+        error: 'CONVERT_FAILED',
         message: String(e?.message ?? e),
       });
     }

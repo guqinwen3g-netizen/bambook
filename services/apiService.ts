@@ -57,6 +57,7 @@ import {
   PdmlMapResult,
   NotificationItem,
   NotificationStats,
+  NotificationTypeCatalogItem,
   AutomationRule,
   WorkflowDefinition,
   WorkflowInstance,
@@ -2784,6 +2785,29 @@ export const apiService = {
 
   async deleteNotification(notificationId: string, endpoint?: string): Promise<void> {
     await requestJson<{ ok: boolean }>(`/v1/notifications/${encodeURIComponent(notificationId)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── D2 主动提醒引擎：偏好控制面 + 转跟进闭环 ──
+  async getNotificationTypeCatalog(endpoint?: string): Promise<NotificationTypeCatalogItem[]> {
+    const data = await requestJson<{ items: NotificationTypeCatalogItem[] }>('/v1/notifications/catalog', { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async upsertNotificationPreference(notificationType: string, isEnabled: boolean, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/notifications/preferences/${encodeURIComponent(notificationType)}`, {
+      endpoint,
+      method: 'PUT',
+      body: JSON.stringify({ isEnabled }),
+    });
+  },
+
+  async convertNotificationToFollowUp(notificationId: string, endpoint?: string): Promise<{ reused: boolean; followUpId?: string; nextFollowUpAt?: string | null }> {
+    const data = await requestJson<{ ok: boolean; reused?: boolean; followUpId?: string; nextFollowUpAt?: string | null; error?: string; message?: string }>(
+      `/v1/notifications/${encodeURIComponent(notificationId)}/convert-to-followup`,
+      { endpoint, method: 'POST' },
+    );
+    if (!data.ok) throw new Error(data.message || data.error || '转跟进失败');
+    return { reused: data.reused ?? false, followUpId: data.followUpId, nextFollowUpAt: data.nextFollowUpAt ?? null };
   },
 
   // ── 自动化规则 ──

@@ -17,6 +17,7 @@ import { logger } from '../lib/logger';
 
 let initialized = false;
 let notificationService: NotificationService | null = null;
+let boundPrisma: PrismaClient | null = null;
 
 /**
  * 初始化通知系统的事件订阅。
@@ -30,6 +31,7 @@ export function initializeNotificationBindings(prisma: PrismaClient): Notificati
 
   // 注入 prisma 到事件总线（用于持久化事件到 AgentJob）
   businessEventBus.setPrisma(prisma);
+  boundPrisma = prisma;
 
   // 创建通知服务
   notificationService = createNotificationService(prisma);
@@ -110,10 +112,22 @@ export function getNotificationService(): NotificationService {
 }
 
 /**
+ * 获取绑定时的 PrismaClient（D2：路由层组合服务用，如通知转跟进）。
+ * 与 getNotificationService 同生命周期。
+ */
+export function getNotificationPrisma(): PrismaClient {
+  if (!boundPrisma) {
+    throw new Error('[NotificationBindings] not initialized, call initializeNotificationBindings first');
+  }
+  return boundPrisma;
+}
+
+/**
  * 重置绑定（仅供测试使用）
  */
 export function resetNotificationBindingsForTest(): void {
   businessEventBus.reset();
   notificationService = null;
+  boundPrisma = null;
   initialized = false;
 }

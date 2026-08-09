@@ -31,6 +31,10 @@ function makeMockPrisma(overrides: Record<string, any> = {}) {
       groupBy: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({}),
     },
+    notificationPreference: {
+      findMany: vi.fn().mockResolvedValue([]),
+      upsert: vi.fn().mockResolvedValue({}),
+    },
     userAccount: {
       findMany: vi.fn().mockResolvedValue([]),
     },
@@ -360,6 +364,141 @@ describe('NotificationService', () => {
 
       const callArg = prisma.notification.create.mock.calls[0][0];
       expect(callArg.data.level).toBe('info');
+    });
+  });
+
+  // ── D2 主动提醒引擎：偏好静音过滤 ──
+  describe('D2 偏好静音过滤', () => {
+    it('broadcastNotification 剔除静音该类型的用户', async () => {
+      prisma.userAccount.findMany.mockResolvedValue([{ id: 'user_1' }, { id: 'user_2' }]);
+      prisma.notificationPreference.findMany.mockResolvedValue([{ userId: 'user_2' }]);
+      prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.broadcastNotification({
+        type: 'receivable_overdue',
+        title: '逾期',
+        body: '正文',
+      });
+
+      expect(result.count).toBe(1);
+      const callArg = prisma.notification.createMany.mock.calls[0][0];
+      expect(callArg.data).toHaveLength(1);
+      expect(callArg.data[0].userId).toBe('user_1');
+      // 过滤查询带正确类型
+      const prefQuery = prisma.notificationPreference.findMany.mock.calls[0][0];
+      expect(prefQuery.where.notificationType).toBe('receivable_overdue');
+      expect(prefQuery.where.isEnabled).toBe(false);
+    });
+
+    it('无偏好记录 → 全员接收（Sprint 1 默认语义不变）', async () => {
+      prisma.userAccount.findMany.mockResolvedValue([{ id: 'user_1' }, { id: 'user_2' }]);
+      prisma.notificationPreference.findMany.mockResolvedValue([]);
+      prisma.notification.createMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.broadcastNotification({ type: 'daily_briefing', title: 't', body: 'b' });
+
+      expect(result.count).toBe(2);
+      expect(prisma.notification.createMany.mock.calls[0][0].data).toHaveLength(2);
+    });
+
+    it('偏好查询失败 → 降级全员接收，不阻断投递', async () => {
+      prisma.userAccount.findMany.mockResolvedValue([{ id: 'user_1' }]);
+      prisma.notificationPreference.findMany.mockRejectedValue(new Error('db down'));
+      prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.broadcastNotification({ type: 'daily_briefing', title: 't', body: 'b' });
+
+      expect(result.count).toBe(1);
+    });
+
+    it('notifyFromEvent 剔除静音该事件通知类型的用户', async () => {
+      prisma.userAccount.findMany.mockResolvedValue([{ id: 'user_1' }, { id: 'user_2' }]);
+      prisma.notificationPreference.findMany.mockResolvedValue([{ userId: 'user_1' }]);
+      prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+      await service.notifyFromEvent(makeMockEvent('OrderConfirmed'));
+
+      const callArg = prisma.notification.createMany.mock.calls[0][0];
+      expect(callArg.data).toHaveLength(1);
+      expect(callArg.data[0].userId).toBe('user_2');
+    });
+
+    it('sendToUser 目标用户已静音 → 不落库返回 null', async () => {
+      prisma.notificationPreference.findMany.mockResolvedValue([{ userId: 'user_1' }]);
+
+      const result = await service.sendToUser({
+        userId: 'user_1',
+        type: 'agent_message',
+        title: 't',
+        body: 'b',
+      });
+
+      expect(result).toBeNull();
+      expect(prisma.notification.create).not.toHaveBeenCalled();
+    });
+
+    it('全部接收人均静音 → broadcast 返回 count 0 且不落库', async () => {
+      prisma.userAccount.findMany.mockResolvedValue([{ id: 'user_1' }]);
+      prisma.notificationPreference.findMany.mockResolvedValue([{ userId: 'user_1' }]);
+
+      const result = await service.broadcastNotification({ type: 'daily_briefing', title: 't', body: 'b' });
+
+      expect(result.count).toBe(0);
+      expect(prisma.notification.createMany).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── D2 主动提醒引擎：偏好 CRUD 与类型目录 ──
+  describe('D2 偏好 CRUD 与类型目录', () => {
+    it('upsertPreference 幂等：create/update 走同一 upsert 通道', async () => {
+      await service.upsertPreference('user_1', 'daily_briefing', false);
+
+      const callArg = prisma.notificationPreference.upsert.mock.calls[0][0];
+      expect(callArg.where).toEqual({ userId_notificationType: { userId: 'user_1', notificationType: 'daily_briefing' } });
+      expect(callArg.create).toEqual({ userId: 'user_1', notificationType: 'daily_briefing', isEnabled: false, channels: ['in_app'] });
+      expect(callArg.update).toEqual({ isEnabled: false });
+    });
+
+    it('upsertPreference 返回带中文标签的视图', async () => {
+      const view = await service.upsertPreference('user_1', 'receivable_overdue', true);
+      expect(view).toEqual({ notificationType: 'receivable_overdue', label: '应收逾期', isEnabled: true });
+    });
+
+    it('getPreferences 映射标签，未知类型回退原始字符串', async () => {
+      prisma.notificationPreference.findMany.mockResolvedValue([
+        { notificationType: 'daily_briefing', isEnabled: false },
+        { notificationType: 'brand_new_type', isEnabled: true },
+      ]);
+
+      const items = await service.getPreferences('user_1');
+
+      expect(items).toEqual([
+        { notificationType: 'daily_briefing', label: '每日简报', isEnabled: false },
+        { notificationType: 'brand_new_type', label: 'brand_new_type', isEnabled: true },
+      ]);
+    });
+
+    it('getTypeCatalog 合并注册表与实见类型，静音状态并入，实见优先排序', async () => {
+      prisma.notification.groupBy.mockResolvedValue([
+        { type: 'receivable_overdue', _count: { type: 5 } },
+        { type: 'unregistered_type', _count: { type: 2 } },
+      ]);
+      prisma.notificationPreference.findMany.mockResolvedValue([
+        { notificationType: 'receivable_overdue', isEnabled: false },
+      ]);
+
+      const items = await service.getTypeCatalog('user_1');
+
+      const receivable = items.find((i: any) => i.type === 'receivable_overdue');
+      expect(receivable).toEqual({ type: 'receivable_overdue', label: '应收逾期', isEnabled: false, seenCount: 5 });
+      // 注册表未收录但实见过的类型自动浮现
+      const unregistered = items.find((i: any) => i.type === 'unregistered_type');
+      expect(unregistered).toEqual({ type: 'unregistered_type', label: 'unregistered_type', isEnabled: true, seenCount: 2 });
+      // 注册表已知但未见过的类型也在目录中（可预先静音）
+      const briefing = items.find((i: any) => i.type === 'daily_briefing');
+      expect(briefing).toEqual({ type: 'daily_briefing', label: '每日简报', isEnabled: true, seenCount: 0 });
+      // 实见类型排在未见过类型前
+      expect(items.indexOf(receivable)).toBeLessThan(items.indexOf(briefing));
     });
   });
 });

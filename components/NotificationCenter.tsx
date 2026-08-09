@@ -16,10 +16,21 @@ import {
   Bell, X, Check, CheckCheck, Trash2,
   PackageCheck, Package, Factory, Truck, FileText, FileX,
   Receipt, DollarSign, CheckCircle, AlertTriangle, Clock,
-  MessageSquare, ClipboardList, Info,
+  MessageSquare, ClipboardList, Info, Settings2, ArrowLeft, UserPlus,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
-import { NotificationItem, NotificationStats } from '../types';
+import { NotificationItem, NotificationStats, NotificationTypeCatalogItem } from '../types';
+
+// D2 主动提醒引擎 — Electron 原生推送桥（preload.ts exposeInMainWorld）。
+// Web 浏览器环境下为 undefined，相关能力自动降级为仅应用内提醒。
+declare global {
+  interface Window {
+    bambookNotification?: {
+      showNative: (payload: { title: string; body?: string; link?: string }) => Promise<{ ok: boolean; reason?: string }>;
+      onOpenLink: (cb: (link: string) => void) => () => void;
+    };
+  }
+}
 
 // ── 通知类型 → 图标映射 ──
 const TYPE_ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
@@ -98,6 +109,12 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // D2: 偏好面板视图 + 类型目录
+  const [view, setView] = useState<'list' | 'prefs'>('list');
+  const [catalog, setCatalog] = useState<NotificationTypeCatalogItem[] | null>(null);
+  const [prefsLoading, setPrefsLoading] = useState(false);
+  // D2: 转跟进行内反馈（notificationId → 提示文案）
+  const [followUpFeedback, setFollowUpFeedback] = useState<Record<string, string>>({});
   const drawerRef = useRef<HTMLDivElement>(null);
   // 用 ref 跟踪抽屉开关状态，避免 SSE 订阅因 isOpen 变化而重建连接
   const isOpenRef = useRef(false);
@@ -152,6 +169,23 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
         },
       } : prev);
 
+      // D2 桌面原生推送：warning/critical 预警在窗口不可见时通过 OS 通知中心
+      // 触达（窗口可见时应用内徽章/抽屉已足够，避免双重打扰）。Web 环境桥不
+      // 存在，自动跳过。
+      if (
+        sseEvent.level !== 'info'
+        && typeof document !== 'undefined'
+        && document.hidden
+        && typeof window !== 'undefined'
+        && window.bambookNotification
+      ) {
+        window.bambookNotification.showNative({
+          title: sseEvent.title,
+          body: sseEvent.body,
+          link: sseEvent.link,
+        }).catch(() => { /* 推送失败不影响应用内链路 */ });
+      }
+
       // 若抽屉已打开，将新通知增量插入列表头部（通过 ref 读取最新值，避免闭包陈旧）
       if (isOpenRef.current) {
         const newItem: NotificationItem = {
@@ -171,6 +205,14 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
     });
     return unsubscribe;
   }, [endpoint]);
+
+  // ── D2 原生推送点击回跳：主进程聚焦窗口后回发 link，此处执行路由跳转 ──
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.bambookNotification) return;
+    return window.bambookNotification.onOpenLink((link) => {
+      if (link) window.location.hash = link;
+    });
+  }, []);
 
   // ── 抽屉打开时获取列表 ──
   useEffect(() => {
@@ -240,6 +282,41 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
     }
   }, [handleMarkAsRead]);
 
+  // ── D2 偏好面板：进入时加载类型目录 ──
+  useEffect(() => {
+    if (!isOpen || view !== 'prefs') return;
+    setPrefsLoading(true);
+    apiService.getNotificationTypeCatalog(endpoint)
+      .then(setCatalog)
+      .catch(() => setCatalog([]))
+      .finally(() => setPrefsLoading(false));
+  }, [isOpen, view, endpoint]);
+
+  // ── D2 偏好面板：启用/静音某类型（乐观更新，失败回滚）──
+  const handleTogglePreference = useCallback(async (type: string, nextEnabled: boolean) => {
+    const prev = catalog;
+    setCatalog(cur => cur ? cur.map(c => c.type === type ? { ...c, isEnabled: nextEnabled } : c) : cur);
+    try {
+      await apiService.upsertNotificationPreference(type, nextEnabled, endpoint);
+    } catch {
+      setCatalog(prev);
+    }
+  }, [catalog, endpoint]);
+
+  // ── D2 通知转 CRM 跟进任务（幂等；NO_RELATION 时行内提示）──
+  const handleConvertToFollowUp = useCallback(async (item: NotificationItem) => {
+    setFollowUpFeedback(prev => ({ ...prev, [item.id]: '创建中...' }));
+    try {
+      const result = await apiService.convertNotificationToFollowUp(item.id, endpoint);
+      setFollowUpFeedback(prev => ({
+        ...prev,
+        [item.id]: result.reused ? '已建过跟进任务' : `已创建跟进（${result.nextFollowUpAt ?? '明天'}再跟进）`,
+      }));
+    } catch (e: any) {
+      setFollowUpFeedback(prev => ({ ...prev, [item.id]: String(e?.message || '转跟进失败') }));
+    }
+  }, [endpoint]);
+
   const hasUnread = unreadCount > 0;
 
   return (
@@ -299,15 +376,25 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
             {/* ── 头部 ── */}
             <div className="flex shrink-0 items-center justify-between px-6 pb-4 pt-7">
               <div className="flex items-baseline gap-3">
-                <h2 className="text-lg font-light tracking-tight">通知</h2>
-                {hasUnread && (
+                {view === 'prefs' && (
+                  <button
+                    type="button"
+                    onClick={() => setView('list')}
+                    className="mr-1 flex h-7 w-7 items-center justify-center self-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+                    aria-label="返回通知列表"
+                  >
+                    <ArrowLeft size={15} strokeWidth={1.5} />
+                  </button>
+                )}
+                <h2 className="text-lg font-light tracking-tight">{view === 'prefs' ? '提醒偏好' : '通知'}</h2>
+                {view === 'list' && hasUnread && (
                   <span className="text-xs font-light text-white/50">
                     {unreadCount} 条未读
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-1">
-                {hasUnread && (
+                {view === 'list' && hasUnread && (
                   <button
                     type="button"
                     onClick={handleMarkAllRead}
@@ -316,6 +403,17 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                   >
                     <CheckCheck size={14} strokeWidth={1.4} />
                     全部已读
+                  </button>
+                )}
+                {view === 'list' && (
+                  <button
+                    type="button"
+                    onClick={() => setView('prefs')}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+                    aria-label="提醒偏好设置"
+                    title="提醒偏好设置"
+                  >
+                    <Settings2 size={16} strokeWidth={1.5} />
                   </button>
                 )}
                 <button
@@ -329,7 +427,66 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
               </div>
             </div>
 
+            {/* ── D2 偏好面板 ── */}
+            {view === 'prefs' && (
+              <div className="flex-1 overflow-y-auto px-4 pb-6 scroll-smooth">
+                <p className="mb-3 px-2 text-[11px] font-light leading-relaxed text-white/40">
+                  关闭的类型将不再为你生成通知（不影响其他成员）。
+                </p>
+                {prefsLoading && !catalog ? (
+                  <div className="flex h-40 items-center justify-center">
+                    <div className="text-sm font-light text-white/40">加载中...</div>
+                  </div>
+                ) : !catalog || catalog.length === 0 ? (
+                  <div className="flex h-40 flex-col items-center justify-center gap-3">
+                    <Bell size={24} strokeWidth={1} className="text-white/20" />
+                    <div className="text-sm font-light text-white/40">暂无通知类型</div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {catalog.map((entry) => {
+                      const Icon = TYPE_ICON_MAP[entry.type] || Info;
+                      return (
+                        <div
+                          key={entry.type}
+                          className="flex items-center gap-3 rounded-control px-4 py-3 transition-colors duration-200 hover:bg-white/4"
+                        >
+                          <div className={`shrink-0 ${entry.isEnabled ? 'text-white/70' : 'text-white/25'}`}>
+                            <Icon size={17} strokeWidth={1.3} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className={`text-sm ${entry.isEnabled ? 'font-light text-white/90' : 'font-light text-white/40'}`}>
+                              {entry.label}
+                            </div>
+                            <div className="mt-0.5 text-[10px] font-light text-white/30">
+                              {entry.seenCount > 0 ? `已收到 ${entry.seenCount} 条` : '暂未收到过'}
+                            </div>
+                          </div>
+                          {/* 开关 */}
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={entry.isEnabled}
+                            aria-label={`${entry.label}通知开关`}
+                            onClick={() => handleTogglePreference(entry.type, !entry.isEnabled)}
+                            className={`relative h-5.5 w-10 shrink-0 rounded-full transition-colors duration-200
+                              ${entry.isEnabled ? 'bg-link/70' : 'bg-white/12'}`}
+                          >
+                            <span
+                              className={`absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white transition-transform duration-200
+                                ${entry.isEnabled ? 'translate-x-[18px]' : 'translate-x-0.5'}`}
+                            />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ── 列表 ── */}
+            {view === 'list' && (
             <div className="flex-1 overflow-y-auto px-4 pb-6 scroll-smooth">
               {loading && items.length === 0 ? (
                 <div className="flex h-40 items-center justify-center">
@@ -391,10 +548,30 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                           <div className="mt-1.5 text-[10px] font-light text-white/30">
                             {formatRelativeTime(item.createdAt)}
                           </div>
+                          {/* D2 转跟进行内反馈 */}
+                          {followUpFeedback[item.id] && (
+                            <div className="mt-1 text-[10px] font-light text-link/80">
+                              {followUpFeedback[item.id]}
+                            </div>
+                          )}
                         </div>
 
                         {/* 操作按钮（hover 显示） */}
                         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                          {/* D2 转跟进：仅当 metadata 携带可解析的客户线索时显示 */}
+                          {Boolean(item.metadata?.relationId || item.metadata?.orderId || item.metadata?.entityId) && !followUpFeedback[item.id] && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConvertToFollowUp(item);
+                              }}
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-link"
+                              title="转为跟进任务"
+                            >
+                              <UserPlus size={13} strokeWidth={1.5} />
+                            </button>
+                          )}
                           {isUnread && (
                             <button
                               type="button"
@@ -426,6 +603,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                 </div>
               )}
             </div>
+            )}
           </div>
         </>
       )}

@@ -48,6 +48,19 @@ contextBridge.exposeInMainWorld('bambookInvoice', {
         ipcRenderer.invoke('invoice:save-pdf', { html, filename }) as Promise<{ path: string }>,
 });
 
+// D2 主动提醒引擎 — 桌面原生推送桥。渲染进程在窗口不可见且收到
+// warning/critical 预警时调用 showNative；点击 OS 通知后主进程回发
+// notification:open-link，渲染端订阅后执行路由跳转。
+contextBridge.exposeInMainWorld('bambookNotification', {
+    showNative: (payload: { title: string; body?: string; link?: string }) =>
+        ipcRenderer.invoke('notification:show-native', payload) as Promise<{ ok: boolean; reason?: string }>,
+    onOpenLink: (cb: (link: string) => void) => {
+        const handler = (_e: unknown, link: string) => cb(link);
+        ipcRenderer.on('notification:open-link', handler);
+        return () => ipcRenderer.removeListener('notification:open-link', handler);
+    },
+});
+
 
 
 // 后端健康检查 & 内嵌启动（给前端设置页用）
@@ -233,6 +246,11 @@ export type BambookWindowBridge = {
 
 export type BambookInvoiceBridge = {
     savePdf: (html: string, filename: string) => Promise<{ path: string }>;
+};
+
+export type BambookNotificationBridge = {
+    showNative: (payload: { title: string; body?: string; link?: string }) => Promise<{ ok: boolean; reason?: string }>;
+    onOpenLink: (cb: (link: string) => void) => () => void;
 };
 
 export type BambookDbBridge = {
