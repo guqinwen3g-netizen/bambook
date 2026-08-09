@@ -1,11 +1,4 @@
-import React, { useRef, useEffect } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-
-// Polyfill for react-quill in Vite
-if (typeof window !== 'undefined' && !(window as any).global) {
-  (window as any).global = window;
-}
+import React from 'react';
 
 interface EmailEditorProps {
   value: string;
@@ -14,25 +7,12 @@ interface EmailEditorProps {
   isDarkMode?: boolean;
 }
 
+/**
+ * 邮件正文编辑器 — 纯文本通道（发送管道 bodyText，无 HTML 路径）。
+ * 历史遗留的 react-quill 富文本接线已移除：发送链路不消费 HTML，
+ * 且 quill.snow.css 与 flat 设计系统冲突。
+ */
 export const EmailEditor: React.FC<EmailEditorProps> = ({ value, onChange, placeholder, isDarkMode = false }) => {
-  // Custom toolbar options
-  const modules = {
-    toolbar: [
-      [{ 'header': [1, 2, false] }],
-      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-      ['link', 'image'],
-      ['clean']
-    ],
-  };
-
-  const formats = [
-    'header',
-    'bold', 'italic', 'underline', 'strike', 'blockquote',
-    'list', 'bullet', 'indent',
-    'link', 'image'
-  ];
-
   return (
     <div className="h-full flex flex-col">
       <textarea

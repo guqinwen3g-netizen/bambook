@@ -955,14 +955,14 @@ type ToolManifestSafety = {
 | ShipmentManager.tsx | 769 | 真实 API | 中-高 | 无报关单据/装箱单生成 |
 | EmailManager.tsx | 1873 | 真实 API + IndexedDB | 高 | react-virtuoso 虚拟列表 |
 | DevelopmentManager.tsx | 912 | 真实 API | 中-高 | 缺寄样追踪 |
-| HRManager.tsx | 1364 | 直接 fetch（风格不统一） | 中-高 | 应改专用 service |
+| HRManager.tsx | 1364 | apiService HR 通道 | 中-高 | 组织架构/团队/项目/分配 |
 | AdminPanel.tsx | 1258 | 真实 API | 高 | 完整 RBAC |
 | KnowledgeBase.tsx | 281 | 真实 API | 中 | handleEditSave 未走 API |
 | DataCenter.tsx | 1598 | 真实 API + localStorage | 中 | 偏可视化玩具 |
 | ProductionPipeline.tsx | 293 | 真实 API | 高 | 嵌入式组件 |
 | ProductionAlerts.tsx | 97 | 真实 API（60 秒轮询） | 中 | 仅显示无操作 |
 | Settings.tsx | 1596 | 真实 API | 高 | 8 tab |
-| BusinessTools.tsx | 262 | 部分真实 | 中 | 4 个 coming-soon |
+| BusinessTools.tsx | 262 | 真实组件 + 跳转卡 | 中 | 4 制单组件 + 6 收编跳转卡 |
 | Assistant.tsx | 3221 | 真实 API + STT/TTS | 高 | 全项目最大文件 |
 
 **结论：18 个 Manager 全部对接真实 API，无 mock 数据残留**。
@@ -1009,7 +1009,7 @@ type ToolManifestSafety = {
 - RelationCombobox.tsx (177 行)：可搜索关系 combobox，双值设计（FK + name 快照）
 
 #### components/email/（2 个）
-- EmailEditor.tsx (48 行)：⚠️ 半成品（引入 react-quill 但实际渲染 textarea）
+- EmailEditor.tsx (28 行)：纯文本编辑器（与发送管道 bodyText 对齐；react-quill 死引用已移除）
 - EmailList.tsx (164 行)：react-virtuoso 虚拟列表
 
 #### components/import/（4 个 ImportWizard 流程）
@@ -1164,8 +1164,6 @@ type ToolManifestSafety = {
 - 🟡 银企对账：手工对账可用，自动导入待补
 - 🟡 KnowledgeBase.tsx：handleEditSave 仅本地修改未走 API
 - 🟡 DataCenter.tsx：偏可视化玩具，业务关联弱
-- 🟡 EmailEditor.tsx：半成品（引入 react-quill 但实际渲染 textarea）
-- 🟡 BusinessTools.tsx：4 个 coming-soon 占位
 
 ### 8.3 缺失 / 未开工
 

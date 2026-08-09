@@ -17,7 +17,6 @@ import {
   TrendingUp,
   ArrowRight,
   ChevronRight,
-  Lock,
   LucideIcon,
   Ship,
   Upload,
@@ -49,7 +48,6 @@ interface Tool {
   name: string;
   description: string;
   icon: LucideIcon;
-  status: 'available' | 'coming-soon';
   component?: React.ReactNode;
   /** 设置了 targetView 的卡片点击后跳转对应视图（而非打开内嵌面板） */
   targetView?: View;
@@ -75,7 +73,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: 'PO 文件导入',
       description: '跳转订单管理页，使用 PO 导入向导',
       icon: Upload,
-      status: 'available',
       targetView: View.Orders,
     },
     {
@@ -83,7 +80,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '生产执行 MES',
       description: '工位排产 · 工时 · 计件 · 外协加工（可选模块，非核心流程）',
       icon: Cog,
-      status: 'available',
       targetView: View.MES,
     },
     {
@@ -91,7 +87,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '样品发票生成器',
       description: '生成 Panda 面料样品发票',
       icon: Receipt,
-      status: 'available',
       component: <FabricSampleInvoiceGenerator isDarkMode={isDarkMode} relations={relations} />
     },
     {
@@ -99,7 +94,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '发货通知生成器',
       description: '从订单生成发货通知 Excel',
       icon: Ship,
-      status: 'available',
       component: <ShippingNoticeGenerator isDarkMode={isDarkMode} relations={relations} orders={orders} />
     },
     {
@@ -107,7 +101,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '合同生成器',
       description: '采购/销售合同模板 · PDF 打印',
       icon: FileText,
-      status: 'available',
       component: <ContractGenerator isDarkMode={isDarkMode} relations={relations} orders={orders} />
     },
     {
@@ -115,7 +108,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '装箱单生成器',
       description: '生成出口装箱明细单 · PDF 打印',
       icon: Package,
-      status: 'available',
       component: <PackingListGenerator isDarkMode={isDarkMode} relations={relations} orders={orders} />
     },
     {
@@ -123,7 +115,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '出运制单引擎',
       description: '已收编至 外贸与报关 · 出运制单：运单一键生成 CI/PL/CO/BL 成套单据',
       icon: Layers,
-      status: 'available',
       targetView: View.Customs,
       targetTab: 'docGenerator',
     },
@@ -132,7 +123,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '单据模板管理',
       description: '已收编至 外贸与报关 · 单据模板：13 类外贸单据 HTML 模板 · 变量占位符',
       icon: FileText,
-      status: 'available',
       targetView: View.Customs,
       targetTab: 'docTemplates',
     },
@@ -141,7 +131,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '报价计算器',
       description: '已收编至 定价与利润 · 定价计算器：退税美元定价试算 · 记录保存',
       icon: Calculator,
-      status: 'available',
       targetView: View.Pricing,
       targetTab: 'calculator',
     },
@@ -150,7 +139,6 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       name: '退税核算汇率',
       description: '已收编至 定价与利润 · 退税率：HS Code 退税率表 · 前缀命中测试',
       icon: TrendingUp,
-      status: 'available',
       targetView: View.Pricing,
       targetTab: 'taxRates',
     }
@@ -161,9 +149,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       onNavigate?.(tool.targetView, tool.targetTab);
       return;
     }
-    if (tool.status === 'available') {
-      setSelectedTool(tool.id);
-    }
+    setSelectedTool(tool.id);
   };
 
   const handleBack = () => {
@@ -237,20 +223,18 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                     >
                       <CompiledInteractiveCard
                         as="div"
-                        onClick={tool.status === 'available' ? () => handleToolClick(tool) : undefined}
+                        onClick={() => handleToolClick(tool)}
                         spotlightColor={isDarkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(14, 165, 233, 0.12)'}
                         spotlightSize={isDarkMode ? 320 : 260}
-                        liquidSpotlight={tool.status === 'available'}
+                        liquidSpotlight
                         liquidSpotlightTone={isDarkMode ? 'dark' : 'light'}
                         idleSpotlightOpacity={0}
                         activeSpotlightOpacity={1}
                         className={`
                           group relative isolate overflow-hidden flex flex-col items-start text-left
                           p-6 h-[220px] rounded-card-lg border transition-all duration-200 select-none
+                          cursor-pointer hover:-translate-y-1
                           ${isDarkMode ? cardDarkClass : cardLightClass}
-                          ${tool.status === 'available'
-                            ? 'cursor-pointer hover:-translate-y-1'
-                            : 'cursor-not-allowed opacity-45 filter grayscale-[40%]' }
                         `}
                         data-glass-edge-mask
                       >
@@ -275,29 +259,12 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         </p>
 
                         {/* Bottom Action Section (Footer) */}
-                        <div className={`relative z-10 mt-auto pt-4 border-t w-full flex justify-between items-center ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}>
-                          <span className={`
-                            text-[10px] font-light tracking-wider px-2 py-0.5 rounded-full
-                            ${tool.status === 'available'
-                              ? 'bg-black/[0.05] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300'
-                              : 'bg-black/[0.04] dark:bg-white/[0.04] text-slate-400 dark:text-slate-500'}
-                          `}>
-                            {tool.status === 'available' ? '可用' : '即将上线'}
-                          </span>
-
-                          {tool.status === 'available' ? (
-                            <ArrowRight
-                              size={14}
-                              strokeWidth={1.5}
-                              className={`transition-transform duration-300 group-hover:translate-x-1 ${isDarkMode ? 'text-white/30' : 'text-slate-300'}`}
-                            />
-                          ) : (
-                            <Lock
-                              size={12}
-                              strokeWidth={1.5}
-                              className="text-slate-400 dark:text-slate-500"
-                            />
-                          )}
+                        <div className={`relative z-10 mt-auto pt-4 border-t w-full flex justify-end items-center ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}>
+                          <ArrowRight
+                            size={14}
+                            strokeWidth={1.5}
+                            className={`transition-transform duration-300 group-hover:translate-x-1 ${isDarkMode ? 'text-white/30' : 'text-slate-300'}`}
+                          />
                         </div>
                       </CompiledInteractiveCard>
                     </motion.div>

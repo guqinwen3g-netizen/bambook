@@ -306,6 +306,16 @@ const requestJson = async <T>(path: string, opts: RequestInit & { endpoint?: str
   return data as T;
 };
 
+/** HR 模块统一通道：复用 requestJson 的 endpoint 解析 / API key / 错误信封；JWT Bearer 优先，无 token 时回退 cookie 会话。 */
+const hrRequest = async <T>(path: string, opts: RequestInit & { endpoint?: string } = {}): Promise<T> => {
+  const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
+  return requestJson<T>(`/hr/${path.replace(/^\/+/, '')}`, {
+    ...opts,
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(opts.headers || {}) },
+    credentials: token ? 'omit' : 'include',
+  });
+};
+
 const postData = async (url: string, data: any) => {
   try {
     const response = await fetch(url, {
@@ -1783,19 +1793,22 @@ export const apiService = {
     return { assigned: data.assigned ?? [], inProgress: data.inProgress ?? [], completed: data.completed ?? [] };
   },
 
+  // ── HR 模块（组织架构/团队/项目/工作分配）统一通道 ──
+  async hrGet<T>(path: string, endpoint?: string): Promise<T> {
+    return hrRequest<T>(path, { endpoint, method: 'GET' });
+  },
+
+  async hrSend<T>(path: string, body: unknown, method: 'POST' | 'PATCH' | 'DELETE' = 'POST', endpoint?: string): Promise<T> {
+    return hrRequest<T>(path, { endpoint, method, body: JSON.stringify(body) });
+  },
+
   // QC 人员选择器：最小方法，复用已挂载的 /api/hr/personnel（UserAccount 聚合视图）
   // 该端点要求 owner/admin 角色；调用方需在失败时降级为手工录入 qcUserId
   async listUserAccounts(endpoint?: string): Promise<UserAccountOption[]> {
-    const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
-    const data = await requestJson<{
+    const data = await hrRequest<{
       ok: boolean;
       personnel?: Array<{ id: string; displayName: string; email?: string | null; status?: string | null; department?: string | null }>;
-    }>(`/hr/personnel`, {
-      endpoint,
-      method: 'GET',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      credentials: token ? 'omit' : 'include',
-    });
+    }>('personnel', { endpoint, method: 'GET' });
     const personnel = Array.isArray(data.personnel) ? data.personnel : [];
     return personnel
       .filter((u) => u && u.id && u.status !== 'disabled')

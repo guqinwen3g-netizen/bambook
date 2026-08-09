@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { getApiBaseUrl } from '../services/apiBase';
+import { apiService } from '../services/apiService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RdlToolbar, RdlPill, RdlSurface, RdlSearch } from './ui/RDLPrimitives';
 import {
@@ -109,6 +109,12 @@ interface AssignmentInfo {
   createdAt: string;
   updatedAt: string;
 }
+
+// ── HR API 响应信封（apiService.hrGet 泛型实参）──
+interface HrPersonnelResponse { personnel?: PersonnelMember[]; departments?: DeptInfo[]; positions?: PositionInfo[] }
+interface HrTeamsResponse { teams?: TeamInfo[] }
+interface HrProjectsResponse { projects?: ProjectInfo[] }
+interface HrAssignmentsResponse { assignments?: AssignmentInfo[] }
 
 // ── Org tree node types ──
 interface ProjectNode { kind: 'project'; project: ProjectInfo; headcount: number; }
@@ -271,35 +277,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     return `rounded-full px-2 py-0.5 text-[10px] font-light ${statusSemanticClass(semanticMap[priority] || 'neutral', isDarkMode)}`;
   };
 
-  // ── API helpers ──
-  const apiBase = getApiBaseUrl().replace(/\/$/, '');
-  const authToken = () => localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
-  const authHeaders = (extra: Record<string, string> = {}) => {
-    const token = authToken();
-    return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
-  };
-
-  const fetchHR = useCallback(async (path: string) => {
-    const res = await fetch(`${apiBase}/hr/${path}`, {
-      headers: authHeaders(),
-      credentials: authToken() ? 'omit' : 'include',
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
-    return data;
-  }, [apiBase]);
-
-  const sendHR = useCallback(async (path: string, body: any, method = 'POST') => {
-    const res = await fetch(`${apiBase}/hr/${path}`, {
-      method,
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      credentials: authToken() ? 'omit' : 'include',
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || data.error || 'Operation failed');
-    return data;
-  }, [apiBase]);
+  // ── API helpers（统一走 apiService HR 通道：endpoint 解析 / API key / JWT / 错误信封）──
 
   // ── Data loading: one-shot load of all HR data ──
   const loadAll = useCallback(async () => {
@@ -307,10 +285,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setLoadError('');
     try {
       const [personnelData, teamsData, projectsData, assignmentsData] = await Promise.all([
-        fetchHR('personnel'),
-        fetchHR('teams'),
-        fetchHR('projects'),
-        fetchHR('assignments'),
+        apiService.hrGet<HrPersonnelResponse>('personnel'),
+        apiService.hrGet<HrTeamsResponse>('teams'),
+        apiService.hrGet<HrProjectsResponse>('projects'),
+        apiService.hrGet<HrAssignmentsResponse>('assignments'),
       ]);
       setPersonnel(personnelData.personnel || []);
       setDepartments(personnelData.departments || []);
@@ -323,7 +301,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     } finally {
       setLoading(false);
     }
-  }, [fetchHR]);
+  }, []);
 
   useEffect(() => {
     loadAll();
@@ -404,9 +382,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setActionBusy(true);
     try {
       if (editingTeamId) {
-        await sendHR(`teams/${editingTeamId}`, teamForm, 'PATCH');
+        await apiService.hrSend(`teams/${editingTeamId}`, teamForm, 'PATCH');
       } else {
-        await sendHR('teams', teamForm);
+        await apiService.hrSend('teams', teamForm);
       }
       closeTeamForm();
       await loadAll();
@@ -422,7 +400,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     if (!window.confirm('确认删除该团队？此操作不可撤销。')) return;
     setActionBusy(true);
     try {
-      await sendHR(`teams/${id}`, {}, 'DELETE');
+      await apiService.hrSend(`teams/${id}`, {}, 'DELETE');
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '删除团队失败');
@@ -437,9 +415,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setActionBusy(true);
     try {
       if (editingProjectId) {
-        await sendHR(`projects/${editingProjectId}`, projectForm, 'PATCH');
+        await apiService.hrSend(`projects/${editingProjectId}`, projectForm, 'PATCH');
       } else {
-        await sendHR('projects', projectForm);
+        await apiService.hrSend('projects', projectForm);
       }
       closeProjectForm();
       await loadAll();
@@ -455,7 +433,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     if (!window.confirm('确认删除该项目？此操作不可撤销。')) return;
     setActionBusy(true);
     try {
-      await sendHR(`projects/${id}`, {}, 'DELETE');
+      await apiService.hrSend(`projects/${id}`, {}, 'DELETE');
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '删除项目失败');
@@ -470,9 +448,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setActionBusy(true);
     try {
       if (editingAssignmentId) {
-        await sendHR(`assignments/${editingAssignmentId}`, assignmentForm, 'PATCH');
+        await apiService.hrSend(`assignments/${editingAssignmentId}`, assignmentForm, 'PATCH');
       } else {
-        await sendHR('assignments', assignmentForm);
+        await apiService.hrSend('assignments', assignmentForm);
       }
       closeAssignmentForm();
       await loadAll();
@@ -488,7 +466,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     if (!window.confirm('确认删除该工作分配？此操作不可撤销。')) return;
     setActionBusy(true);
     try {
-      await sendHR(`assignments/${id}`, {}, 'DELETE');
+      await apiService.hrSend(`assignments/${id}`, {}, 'DELETE');
       await loadAll();
     } catch (e: any) {
       setLoadError(e?.message || '删除工作分配失败');
