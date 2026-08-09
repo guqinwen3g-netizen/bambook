@@ -30,9 +30,12 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
-import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory } from '../types';
+import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import QuotationImportWizard from './import/QuotationImportWizard';
+import { TrackAPanel } from './pricing/TrackAPanel';
+import { TrackBPanel } from './pricing/TrackBPanel';
+import { DeviationBadge } from './pricing/DeviationBadge';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -157,6 +160,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   });
   const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // ── 双轨成本面板（PRD 8.6）：轨道 A 中位估算 + 轨道 B 终价 → 偏差黄/红标（仅内部参考）──
+  const [showDualTrack, setShowDualTrack] = useState(true);
+  const [trackAMedian, setTrackAMedian] = useState<{ usd: number; unit: 'PC' | 'M' } | null>(null);
+  const [trackBResult, setTrackBResult] = useState<TrackBResult | null>(null);
 
   // 阶段 IA-3：开发案「发起报价」prime —— 挂载时自动打开创建表单并预填客户/明细
   useEffect(() => {
@@ -289,6 +297,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         salesperson: '', inquiryRef: '', notes: '',
       });
       setFormLines([createEmptyLine()]);
+      setTrackAMedian(null);
+      setTrackBResult(null);
       await fetchQuotations();
     } catch (e: any) {
       setFormError(`创建失败：${e?.message || e}`);
@@ -456,6 +466,32 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                         <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className={fieldClass} />
                       </div>
                     </div>
+                  </div>
+
+                  {/* 双轨成本面板（PRD 8.6 · 仅内部参考，不对客户展示） */}
+                  <div className={`p-4 rounded-card ${cardClass}`}>
+                    <button
+                      type="button"
+                      onClick={() => setShowDualTrack(v => !v)}
+                      className={`w-full flex items-center justify-between text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'} transition-colors`}
+                    >
+                      <span>双轨成本面板（轨道 A 估算 + 轨道 B 退税定价 · 仅内部）</span>
+                      <ChevronDown size={14} className={`transition-transform ${showDualTrack ? '' : '-rotate-90'}`} />
+                    </button>
+                    {showDualTrack && (
+                      <div className="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
+                        <TrackAPanel onMedianUsdChange={(usd, unit) => setTrackAMedian(usd !== null && unit ? { usd, unit } : null)} />
+                        <div className="space-y-3">
+                          <TrackBPanel onResultChange={setTrackBResult} />
+                          <DeviationBadge
+                            finalUsd={trackBResult?.finalUnitPrice ?? null}
+                            medianUsd={trackAMedian?.usd ?? null}
+                            medianUnit={trackAMedian?.unit}
+                            isDarkMode={isDarkMode}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 报价行 */}

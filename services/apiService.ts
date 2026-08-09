@@ -184,6 +184,8 @@ import {
   TaxRefundRatePatch,
   TrackBInput,
   TrackBResult,
+  TrackAInput,
+  TrackAResult,
   PricingCalculation,
   PricingCalculationInput,
   PricingCalculationPatch,
@@ -1861,6 +1863,11 @@ export const apiService = {
   async lookupTaxRefundRate(hsCode: string, endpoint?: string): Promise<{ hsCode: string; rate: number } | null> {
     const data = await requestJson<{ hit: { hsCode: string; rate: number } | null }>(`/v1/pricing/tax-refund-rates/lookup?hsCode=${encodeURIComponent(hsCode)}`, { endpoint, method: 'GET' });
     return data.hit ?? null;
+  },
+
+  // ── 阶段 P2: 轨道 A 系统估算 API（PRD 8.1/8.6） ──
+  async previewTrackA(input: TrackAInput, endpoint?: string): Promise<TrackAResult> {
+    return requestJson<TrackAResult>(`/v1/pricing/track-a-preview`, { endpoint, method: 'POST', body: JSON.stringify(input) });
   },
 
   // ── 阶段 P1: 轨道 B 定价 PricingCalculation API ──

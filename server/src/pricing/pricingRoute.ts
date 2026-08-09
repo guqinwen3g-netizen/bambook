@@ -8,6 +8,8 @@
  *   - GET    /tax-refund-rates/lookup       — 最长前缀命中查询 ?hsCode=
  *   - PATCH  /tax-refund-rates/:id          — 更新（hsCode 不可改）
  *   - DELETE /tax-refund-rates/:id          — 软删
+ *   轨道 A 估算：
+ *   - POST   /track-a-preview               — 纯试算（不落库；面料/纱线价可按编号命中价格历史）
  *   轨道 B 定价：
  *   - POST   /track-b-preview               — 纯试算（不落库）
  *   - GET    /calculations                  — 列表（?orderId=&quotationId=&status=）
@@ -43,7 +45,7 @@ import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
-import { createPricingService, PricingCalculationInput, TaxRefundRateInput, TrackBInput } from './pricingService';
+import { createPricingService, PricingCalculationInput, TaxRefundRateInput, TrackAPreviewInput, TrackBInput } from './pricingService';
 import { createProfitSheetService } from './profitSheetService';
 import { createMaterialPriceService, MaterialPriceInput } from './materialPriceService';
 import { createCommissionService, CommissionRuleInput } from './commissionService';
@@ -147,6 +149,19 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
       res.json({ ok: true });
     } catch (e: any) {
       handleError(res, e, 'TRR_DELETE_FAILED');
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // 轨道 A 估算（纯试算，不落库；守卫口径同 track-b-preview）
+  // ══════════════════════════════════════════════════════════════
+
+  router.post('/track-a-preview', async (req: Request, res: Response) => {
+    try {
+      const result = await pricing.estimateTrackA(req.body as TrackAPreviewInput);
+      res.json(serializeValue(result));
+    } catch (e: any) {
+      handleError(res, e, 'TRACK_A_PREVIEW_FAILED');
     }
   });
 

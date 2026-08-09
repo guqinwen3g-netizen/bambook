@@ -3,8 +3,11 @@
  * 阶段 P1：定价与利润前端（PRD 8 双轨制）
  *
  * 功能：
- *   1. 定价计算器 Calculator — 轨道 B（退税美元定价）试算：HS Code 查退税率、
- *      最新汇率一键带入、实时预览（派生值服务端重算）、保存定价记录、记录状态流转
+ *   1. 定价计算器 Calculator — 双轨制（PRD 8）：
+ *      轨道 A（系统推荐估算）：按品类拆解成本（逐项可调实时重算），
+ *        输出估算售价区间（下限/中位/上限）+ 来源标签（价格历史/行业基准/手工）；
+ *      轨道 B（退税美元定价）试算：HS Code 查退税率、
+ *        最新汇率一键带入、实时预览（派生值服务端重算）、保存定价记录、记录状态流转
  *   2. 利润表 Profit Sheets — 订单级利润表生成/查看：收入·采购·运费·杂费四维聚合、
  *      毛利与毛利率、未折算明细透明披露
  *   3. 退税率 Tax Rates — HS Code 退税率表 CRUD + 最长前缀命中测试
@@ -54,6 +57,9 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
+import { TrackAPanel } from './pricing/TrackAPanel';
+import { TrackBPanel, TrackBValidInputs } from './pricing/TrackBPanel';
+import { DeviationBadge } from './pricing/DeviationBadge';
 
 // ==================== 常量 ====================
 
@@ -240,21 +246,15 @@ export default function PricingManager({ isDarkMode, initialTab }: PricingManage
 // ==================== 定价计算器 Panel ====================
 
 function CalculatorPanel(_props: { isDarkMode?: boolean }) {
-  const [purchaseCostCny, setPurchaseCostCny] = useState('');
-  const [hsCode, setHsCode] = useState('');
-  const [refundRate, setRefundRate] = useState('');
-  const [exchangeRate, setExchangeRate] = useState('');
-  const [profitMargin, setProfitMargin] = useState('');
-  const [commissionRate, setCommissionRate] = useState('0');
-  const [commissionRuleId, setCommissionRuleId] = useState<string | null>(null);
-  const [commissionRules, setCommissionRules] = useState<CommissionRule[]>([]);
+  // 轨道 B 附加字段（保存定价记录用；试算本体在共享 TrackBPanel 内）
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
-
-  const [preview, setPreview] = useState<TrackBResult | null>(null);
-  const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [lookupHint, setLookupHint] = useState<string | null>(null);
+
+  // 双轨联动校验（PRD 8.6）：轨道 A 中位估算 + 轨道 B 终价 → 偏差黄/红标
+  const [trackAMedian, setTrackAMedian] = useState<{ usd: number; unit: 'PC' | 'M' } | null>(null);
+  const [trackBInputs, setTrackBInputs] = useState<TrackBValidInputs | null>(null);
+  const [trackBResult, setTrackBResult] = useState<TrackBResult | null>(null);
 
   const [records, setRecords] = useState<PricingCalculation[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
@@ -273,121 +273,23 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
 
   useEffect(() => {
     loadRecords();
-    let cancelled = false;
-    (async () => {
-      try {
-        const rules = await apiService.listCommissionRules();
-        if (!cancelled) setCommissionRules(rules);
-      } catch (e) {
-        console.error('[PricingManager] listCommissionRules failed', e);
-      }
-    })();
-    return () => { cancelled = true; };
   }, [loadRecords]);
 
-  // 佣金选择：'' = 无佣金；'E5'/'E10' = 手工口径；rule.id = 规则快照
-  const handleCommissionSelect = (value: string) => {
-    setPreview(null);
-    if (value === '') {
-      setCommissionRuleId(null);
-      setCommissionRate('0');
-    } else if (value === 'E5' || value === 'E10') {
-      setCommissionRuleId(null);
-      setCommissionRate(value === 'E5' ? '5' : '10');
-    } else {
-      const rule = commissionRules.find((r) => r.id === value);
-      if (!rule) return;
-      setCommissionRuleId(rule.id);
-      setCommissionRate(String(rule.rate));
-    }
-  };
-
-  const validInput = useMemo(() => {
-    const cost = parseNum(purchaseCostCny);
-    const refund = parseNum(refundRate);
-    const fx = parseNum(exchangeRate);
-    const margin = parseNum(profitMargin);
-    if (cost === null || cost <= 0) return null;
-    if (refund === null || refund < 0) return null;
-    if (fx === null || fx <= 0) return null;
-    if (margin === null) return null;
-    return { cost, refund, fx, margin, commission: parseNum(commissionRate) ?? 0 };
-  }, [purchaseCostCny, refundRate, exchangeRate, profitMargin, commissionRate]);
-
-  const handleLookupRate = async () => {
-    const code = hsCode.trim();
-    if (!code) {
-      alert('请输入 HS Code');
-      return;
-    }
-    setLookupHint(null);
-    try {
-      const hit = await apiService.lookupTaxRefundRate(code);
-      if (hit) {
-        setRefundRate(String(hit.rate));
-        setLookupHint(`命中 HS ${hit.hsCode}，退税率 ${hit.rate}%`);
-      } else {
-        setLookupHint('未命中退税率，请手工录入');
-      }
-    } catch (e) {
-      console.error('[PricingManager] lookupTaxRefundRate failed', e);
-      setLookupHint('查询失败，请手工录入');
-    }
-  };
-
-  const handleFetchLatestFx = async () => {
-    try {
-      const rates = await apiService.getLatestFxRates();
-      const usd = rates.find((r) => r.currency === 'USD');
-      if (usd) {
-        setExchangeRate(String(usd.rate));
-      } else {
-        alert('未找到 USD 最新汇率');
-      }
-    } catch (e) {
-      console.error('[PricingManager] getLatestFxRates failed', e);
-      alert('获取最新汇率失败');
-    }
-  };
-
-  const handlePreview = async () => {
-    if (!validInput) {
-      alert('请完整填写采购成本 / 退税率 / 汇率 / 利润率');
-      return;
-    }
-    setPreviewing(true);
-    try {
-      const result = await apiService.previewTrackB({
-        purchaseCostCny: validInput.cost,
-        refundRate: validInput.refund,
-        exchangeRate: validInput.fx,
-        profitMargin: validInput.margin,
-        commissionRate: validInput.commission,
-      });
-      setPreview(result);
-    } catch (e) {
-      console.error('[PricingManager] previewTrackB failed', e);
-      alert(`试算失败: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setPreviewing(false);
-    }
-  };
-
   const handleSave = async () => {
-    if (!validInput) {
+    if (!trackBInputs) {
       alert('请完整填写采购成本 / 退税率 / 汇率 / 利润率');
       return;
     }
     setSaving(true);
     try {
       await apiService.createPricingCalculation({
-        purchaseCostCny: validInput.cost,
-        refundRate: validInput.refund,
-        exchangeRate: validInput.fx,
-        profitMargin: validInput.margin,
-        commissionRate: validInput.commission,
-        commissionRuleId,
-        hsCode: hsCode.trim() || null,
+        purchaseCostCny: trackBInputs.purchaseCostCny,
+        refundRate: trackBInputs.refundRate,
+        exchangeRate: trackBInputs.exchangeRate,
+        profitMargin: trackBInputs.profitMargin,
+        commissionRate: trackBInputs.commissionRate,
+        commissionRuleId: trackBInputs.commissionRuleId,
+        hsCode: trackBInputs.hsCode || null,
         quantity: parseNum(quantity),
         notes: notes.trim() || null,
       });
@@ -430,102 +332,35 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-      {/* 左：试算表单 */}
-      <div className="bg-surface-elevated rounded-card p-5">
-        <h3 className="text-sm font-medium text-text-primary mb-4">轨道 B 试算（退税美元定价）</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="采购成本（CNY 单价）">
-            <input className={inputClass} value={purchaseCostCny} onChange={(e) => { setPurchaseCostCny(e.target.value); setPreview(null); }} placeholder="如 32.50" inputMode="decimal" />
-          </Field>
-          <Field label="HS Code（可查退税率）">
-            <div className="flex gap-2">
-              <input className={inputClass} value={hsCode} onChange={(e) => setHsCode(e.target.value)} placeholder="如 5407520000" />
-              <button onClick={handleLookupRate} className={actionButtonClass} title="按最长前缀命中退税率">
-                <Search className="w-3.5 h-3.5" />
-                查税率
-              </button>
-            </div>
-          </Field>
-          <Field label="退税率（%）">
-            <input className={inputClass} value={refundRate} onChange={(e) => { setRefundRate(e.target.value); setPreview(null); }} placeholder="如 13" inputMode="decimal" />
-          </Field>
-          <Field label="汇率（CNY/USD）">
-            <div className="flex gap-2">
-              <input className={inputClass} value={exchangeRate} onChange={(e) => { setExchangeRate(e.target.value); setPreview(null); }} placeholder="如 7.10" inputMode="decimal" />
-              <button onClick={handleFetchLatestFx} className={actionButtonClass} title="带入最新 USD 汇率">
-                <RefreshCw className="w-3.5 h-3.5" />
-                最新
-              </button>
-            </div>
-          </Field>
-          <Field label="利润率（%）">
-            <input className={inputClass} value={profitMargin} onChange={(e) => { setProfitMargin(e.target.value); setPreview(null); }} placeholder="如 15" inputMode="decimal" />
-          </Field>
-          <Field label="佣金（无 / E5 / E10 / 规则快照）">
-            <select
-              className={inputClass}
-              value={commissionRuleId ?? (commissionRate === '5' ? 'E5' : commissionRate === '10' ? 'E10' : '')}
-              onChange={(e) => handleCommissionSelect(e.target.value)}
+      {/* 左：双轨试算（轨道 A 估算 + 轨道 B 退税定价 + 偏差校验） */}
+      <div className="space-y-5">
+        <TrackAPanel onMedianUsdChange={(usd, unit) => setTrackAMedian(usd !== null && unit ? { usd, unit } : null)} />
+        <TrackBPanel
+          onResultChange={setTrackBResult}
+          onInputsChange={setTrackBInputs}
+          actions={
+            <button
+              onClick={handleSave}
+              disabled={saving || !trackBInputs}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50"
             >
-              <option value="">无佣金（0%）</option>
-              <option value="E5">E5（5%）</option>
-              <option value="E10">E10（10%）</option>
-              {commissionRules.map((r) => (
-                <option key={r.id} value={r.id}>
-                  规则：{r.name}（{r.rate}%{r.intermediaryName ? ` · ${r.intermediaryName}` : ' · 默认'}）
-                </option>
-              ))}
-            </select>
-          </Field>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              保存定价记录
+            </button>
+          }
+        >
           <Field label="数量（可选）">
             <input className={inputClass} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="如 800" inputMode="decimal" />
           </Field>
           <Field label="备注（可选）">
             <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="定价说明" />
           </Field>
-        </div>
-        {lookupHint && <p className="text-xs text-text-tertiary mb-3">{lookupHint}</p>}
-
-        <div className="flex items-center gap-2 mt-1">
-          <button
-            onClick={handlePreview}
-            disabled={previewing || !validInput}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors disabled:opacity-50"
-          >
-            {previewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
-            试算预览
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !validInput}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            保存定价记录
-          </button>
-        </div>
-
-        {/* 试算结果（服务端重算值） */}
-        {preview && (
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <div className="bg-surface-primary rounded-inset p-3">
-              <p className="text-xs text-text-tertiary">退税后美元成本</p>
-              <p className="text-lg font-medium text-text-primary">${preview.netUsdCost.toFixed(4)}</p>
-            </div>
-            <div className="bg-surface-primary rounded-inset p-3">
-              <p className="text-xs text-text-tertiary">利润额</p>
-              <p className="text-lg font-medium text-text-primary">${preview.profitAmount.toFixed(4)}</p>
-            </div>
-            <div className="bg-surface-primary rounded-inset p-3">
-              <p className="text-xs text-text-tertiary">佣金额</p>
-              <p className="text-lg font-medium text-text-primary">${preview.commissionAmount.toFixed(4)}</p>
-            </div>
-            <div className="bg-surface-primary rounded-inset p-3 border border-border-action">
-              <p className="text-xs text-text-tertiary">终价美元单价</p>
-              <p className="text-lg font-medium text-text-primary">${preview.finalUnitPrice.toFixed(4)}</p>
-            </div>
-          </div>
-        )}
+        </TrackBPanel>
+        <DeviationBadge
+          finalUsd={trackBResult?.finalUnitPrice ?? null}
+          medianUsd={trackAMedian?.usd ?? null}
+          medianUnit={trackAMedian?.unit}
+        />
       </div>
 
       {/* 右：定价记录 */}

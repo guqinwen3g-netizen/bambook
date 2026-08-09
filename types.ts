@@ -4396,6 +4396,60 @@ export interface TrackBResult {
   finalUnitPrice: number; // 终价美元单价
 }
 
+// ── 轨道 A 系统推荐估算（PRD 8.1/8.6） ──
+
+export type TrackACategory = 'garment' | 'fabric';
+export type TrackASource = 'price_history' | 'industry_benchmark' | 'manual';
+export type TrackADataQuality = 'full_history' | 'partial' | 'benchmark_only';
+export type PriceDeviationLevel = 'ok' | 'warn' | 'block';
+
+export interface TrackACostLine {
+  key: string; // fabric | trimming | cmt | packaging | yarn | weaving | dyeing
+  label: string;
+  amountCny: number;
+  source: TrackASource;
+  adjusted?: boolean;
+}
+
+export interface TrackAInput {
+  category: TrackACategory;
+  fabricPriceCny?: number;
+  fabricConsumptionM?: number;
+  fabricLossRate?: number;
+  trimmingCostCny?: number;
+  cmtCostCny?: number;
+  complexity?: 'simple' | 'standard' | 'complex';
+  packagingCostCny?: number;
+  yarnPriceCnyPerKg?: number;
+  weightGsm?: number;
+  widthM?: number;
+  weavingCostCny?: number;
+  weaveType?: 'plain' | 'twill' | 'jacquard';
+  dyeingCostCny?: number;
+  profitBenchmark?: number;
+  exchangeRate?: number;
+  quantity?: number;
+  lines?: TrackACostLine[];
+  fabricCode?: string; // 命中 MaterialPriceHistory(fabric) 最新价
+  yarnCode?: string; // 命中 MaterialPriceHistory(yarn) 最新价
+}
+
+export interface TrackAResult {
+  category: TrackACategory;
+  unit: 'PC' | 'M';
+  lines: TrackACostLine[];
+  costTotalCny: number;
+  profitBenchmark: number;
+  priceMedianCny: number;
+  priceLowCny: number;
+  priceHighCny: number;
+  priceMedianUsd: number | null;
+  priceLowUsd: number | null;
+  priceHighUsd: number | null;
+  spreadPercent: number;
+  dataQuality: TrackADataQuality;
+}
+
 export interface TrackBInput {
   purchaseCostCny: number;
   refundRate: number;

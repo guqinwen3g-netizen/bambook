@@ -20,6 +20,7 @@
 import { PrismaClient, TaxRefundRate, PricingCalculation } from '@prisma/client';
 import { logger } from '../lib/logger';
 import crypto from 'crypto';
+import { calculateTrackA, TrackAInput, TrackAResult } from './trackAEstimator';
 
 // ────────────────────────────────────────────────────────────────
 // 类型定义
@@ -74,6 +75,12 @@ export interface CalculationListQuery {
   status?: string;
   limit?: number;
   offset?: number;
+}
+
+/** 轨道 A 预览输入（服务层）：在纯函数输入上扩展价格历史命中键 */
+export interface TrackAPreviewInput extends TrackAInput {
+  fabricCode?: string; // garment：面料编号 → MaterialPriceHistory(fabric) 最新价命中
+  yarnCode?: string; // fabric：纱线编号 → MaterialPriceHistory(yarn) 最新价命中
 }
 
 const HS_CODE_RE = /^(\d{2}|\d{4}|\d{6}|\d{8}|\d{10})$/;
@@ -388,6 +395,42 @@ export function createPricingService(prisma: PrismaClient) {
     logger.info('[PricingService] calculation soft-deleted', { id: row.id, actorId });
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // 2.5 轨道 A 估算（PRD 8.1/8.6）：价格历史命中解析 + 纯函数汇总
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * 轨道 A 估算预览：显式价格优先（manual）；未提供时按 fabricCode/yarnCode
+   * 命中 MaterialPriceHistory 最新价（price_history）；均未命中走行业基准。
+   * 不落库（PRD 8.4 轨道 A 仅内部使用，试算口径与 track-b-preview 一致）。
+   */
+  async function estimateTrackA(input: TrackAPreviewInput): Promise<TrackAResult> {
+    const sources: TrackAInput['sources'] = { ...(input.sources ?? {}) };
+    const resolved: TrackAInput = { ...input, sources };
+
+    if (input.category === 'garment' && input.fabricPriceCny === undefined && input.fabricCode?.trim()) {
+      const hit = await db.materialPriceHistory.findFirst({
+        where: { deletedAt: null, materialType: 'fabric', materialCode: input.fabricCode.trim() },
+        orderBy: [{ priceDate: 'desc' }, { createdAt: 'desc' }],
+      });
+      if (hit) {
+        resolved.fabricPriceCny = Number(hit.price);
+        sources.fabric = 'price_history';
+      }
+    }
+    if (input.category === 'fabric' && input.yarnPriceCnyPerKg === undefined && input.yarnCode?.trim()) {
+      const hit = await db.materialPriceHistory.findFirst({
+        where: { deletedAt: null, materialType: 'yarn', materialCode: input.yarnCode.trim() },
+        orderBy: [{ priceDate: 'desc' }, { createdAt: 'desc' }],
+      });
+      if (hit) {
+        resolved.yarnPriceCnyPerKg = Number(hit.price);
+        sources.yarn = 'price_history';
+      }
+    }
+    return calculateTrackA(resolved);
+  }
+
   return {
     // 退税率表
     createTaxRefundRate,
@@ -395,6 +438,8 @@ export function createPricingService(prisma: PrismaClient) {
     updateTaxRefundRate,
     deleteTaxRefundRate,
     lookupRefundRate,
+    // 轨道 A
+    estimateTrackA,
     // 轨道 B
     calculateTrackB: (input: TrackBInput) => calculateTrackB(input),
     createCalculation,
