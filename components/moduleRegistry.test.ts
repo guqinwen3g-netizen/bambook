@@ -34,7 +34,7 @@ describe('moduleRegistry 阶段 IA 导航分组契约（PRD 第二十四章）',
       // 客户与市场
       View.Relations, View.CRM, View.Suppliers, View.Emails, View.Seasons, View.Marketing,
       // 订单履约
-      View.Products, View.Development, View.Quotations, View.Orders, View.Procurement,
+      View.Products, View.Development, View.Quotations, View.Orders, View.ProductionBoard, View.Procurement,
       View.Inventory, View.QcWorkbench, View.Shipments, View.Customs, View.DocumentCenter,
       // 财务与成本
       View.PaymentVouchers, View.Pricing, View.BOM, View.Risks,

@@ -16,6 +16,7 @@ export const VIEW_PERMISSION_DEFINITIONS = {
   [View.Products]: { policy: 'permission', required: 'products:read' },
   [View.DataCenter]: { policy: 'permission', required: 'knowledge:read' },
   [View.Orders]: { policy: 'permission', required: 'orders:read' },
+  [View.ProductionBoard]: { policy: 'permission', required: 'orders:read' },
   [View.Quotations]: { policy: 'permission', required: 'orders:read' },
   [View.Procurement]: { policy: 'permission', required: 'orders:read' },
   [View.Inventory]: { policy: 'permission', required: 'orders:read' },

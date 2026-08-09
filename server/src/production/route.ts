@@ -1,6 +1,7 @@
 /**
  * Production Pipeline REST API — /api/v1/production
  *
+ * GET    /board                      → 在手订单 × 10 阶段泳道看板聚合（PRD 19.8）
  * GET    /:orderId                    → get full pipeline (stages + checklist + inspection)
  * POST   /:orderId/advance/:stageKey  → advance a stage (with gate checks)
  * PUT    /:orderId/checklist           → save PreCutChecklist
@@ -9,7 +10,7 @@
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { advanceStage, getProductionPipeline, savePreCutChecklist, saveInspectionReport, signStage, parseStageKey } from './stageService';
+import { advanceStage, getProductionBoard, getProductionPipeline, savePreCutChecklist, saveInspectionReport, signStage, parseStageKey } from './stageService';
 
 export interface ProductionRouterOptions {
   prisma: PrismaClient;
@@ -188,6 +189,16 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
       res.json({ ok: true, alerts, total: alerts.length });
     } catch (e: any) {
       res.status(500).json({ ok: false, error: { code: 'ALERT_SCAN_FAILED', message: String(e?.message ?? e) } });
+    }
+  });
+
+  // GET /board — 生产跟单泳道看板聚合（PRD 19.8；必须在 /:orderId 之前注册）
+  router.get('/board', async (req: Request, res: Response) => {
+    try {
+      const board = await getProductionBoard(opts.prisma);
+      res.json({ ok: true, ...board });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: { code: 'BOARD_FAILED', message: String(e?.message ?? e) } });
     }
   });
 

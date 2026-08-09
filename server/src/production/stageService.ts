@@ -81,6 +81,63 @@ export async function initProductionStages(prisma: PrismaClient, orderId: string
   }
 }
 
+export interface ProductionBoardItem {
+  order: {
+    id: string;
+    poNumber: string | null;
+    customer: string;
+    quantity: number;
+    status: string;
+    dueDate: string;
+    businessLine: string | null;
+    merchandiser: string | null;
+    millName: string | null;
+  };
+  stages: Array<{ stageKey: string; stageSeq: number; status: string }>;
+  /** 第一个非 done 阶段（全部完成时为 null） */
+  currentStageKey: string | null;
+  blockedCount: number;
+}
+
+/**
+ * 生产跟单看板聚合（PRD 19.8）：全部在手订单 × 10 阶段泳道。
+ * 在手口径：未软删且未交付/未取消（含 Alert 异常单——跟单员最需看见）。
+ * 只读聚合，直接查表（与 D3 getOrderContext 同一双轨制原则）。
+ */
+export async function getProductionBoard(prisma: PrismaClient): Promise<{ items: ProductionBoardItem[] }> {
+  const orders = await prisma.order.findMany({
+    where: { deletedAt: null, status: { notIn: ['Delivered', 'Cancelled'] } },
+    select: {
+      id: true, poNumber: true, customer: true, quantity: true, status: true,
+      dueDate: true, businessLine: true, merchandiser: true, millName: true,
+    },
+    orderBy: { dueDate: 'asc' },
+    take: 500,
+  });
+  const stages = await prisma.productionStage.findMany({
+    where: { orderId: { in: orders.map(o => o.id) } },
+    select: { orderId: true, stageKey: true, stageSeq: true, status: true },
+    orderBy: { stageSeq: 'asc' },
+  });
+  const stagesByOrder = new Map<string, Array<{ stageKey: string; stageSeq: number; status: string }>>();
+  for (const s of stages) {
+    const arr = stagesByOrder.get(s.orderId) ?? [];
+    arr.push({ stageKey: s.stageKey, stageSeq: s.stageSeq, status: s.status });
+    stagesByOrder.set(s.orderId, arr);
+  }
+  const items: ProductionBoardItem[] = orders.map(o => {
+    const orderStages = stagesByOrder.get(o.id) ?? [];
+    const current = orderStages.find(s => s.status !== 'done') ?? null;
+    return {
+      order: o,
+      stages: orderStages,
+      currentStageKey: current?.stageKey ?? null,
+      blockedCount: orderStages.filter(s => s.status === 'blocked').length,
+    };
+  });
+  return { items };
+}
+
 export async function getProductionPipeline(prisma: PrismaClient, orderId: string) {
   const stages = await prisma.productionStage.findMany({
     where: { orderId },

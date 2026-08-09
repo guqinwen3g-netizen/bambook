@@ -7,6 +7,7 @@ export enum View {
   Products = 'products',
   DataCenter = 'data-center',
   Orders = 'orders',
+  ProductionBoard = 'production-board',
   Quotations = 'quotations',
   Procurement = 'procurement',
   Inventory = 'inventory',

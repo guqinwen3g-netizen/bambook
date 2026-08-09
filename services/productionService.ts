@@ -83,7 +83,36 @@ export interface OutsourcingProgress {
   qualityRejectedQty: number;
 }
 
+/** PRD 19.8：生产跟单泳道看板聚合项（GET /v1/production/board） */
+export interface ProductionBoardItem {
+  order: {
+    id: string;
+    poNumber: string | null;
+    customer: string;
+    quantity: number;
+    status: string;
+    dueDate: string;
+    businessLine: string | null;
+    merchandiser: string | null;
+    millName: string | null;
+  };
+  stages: Array<{ stageKey: string; stageSeq: number; status: string }>;
+  currentStageKey: string | null;
+  blockedCount: number;
+}
+
 export const productionService = {
+  async getBoard(endpoint?: string): Promise<ProductionBoardItem[]> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl(`/v1/production/board`, base);
+    const res = await fetch(url, {
+      headers: apiService.getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data?.error?.message || `getBoard failed: HTTP ${res.status}`);
+    return data.items || [];
+  },
+
   async getPipeline(orderId: string, endpoint?: string): Promise<ProductionPipeline> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/production/${encodeURIComponent(orderId)}`, base);

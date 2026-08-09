@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { advanceStage, PRODUCTION_STAGES, initProductionStages } from '../stageService';
+import { advanceStage, PRODUCTION_STAGES, initProductionStages, getProductionBoard } from '../stageService';
 
 vi.mock('../../audit/routeAudit', () => ({
   writeRouteAuditLog: vi.fn().mockResolvedValue('audit_test_id'),
@@ -253,5 +253,76 @@ describe('initProductionStages', () => {
     expect(upsertMock.mock.calls[0][0].create.status).toBe('done');
     expect(upsertMock.mock.calls[0][0].create.stageKey).toBe('order_placed');
     expect(upsertMock.mock.calls[1][0].create.status).toBe('pending');
+  });
+});
+
+describe('getProductionBoard（PRD 19.8 泳道看板聚合）', () => {
+  function makeBoardPrisma(orders: any[], stages: any[]) {
+    return {
+      order: { findMany: vi.fn().mockResolvedValue(orders) },
+      productionStage: { findMany: vi.fn().mockResolvedValue(stages) },
+    } as any;
+  }
+
+  const baseOrder = {
+    id: 'O1', poNumber: 'PO-1', customer: 'Client A', quantity: 800,
+    status: 'Production', dueDate: '2026-09-01', businessLine: 'garment',
+    merchandiser: 'Alice', millName: 'Mill A',
+  };
+
+  it('排除已交付/已取消/软删订单（在手口径）', async () => {
+    const prisma = makeBoardPrisma([baseOrder], []);
+    await getProductionBoard(prisma);
+    expect(prisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { deletedAt: null, status: { notIn: ['Delivered', 'Cancelled'] } },
+    }));
+  });
+
+  it('推导当前阶段为第一个非 done 阶段；统计 blocked', async () => {
+    const stages = [
+      { orderId: 'O1', stageKey: 'order_placed', stageSeq: 1, status: 'done' },
+      { orderId: 'O1', stageKey: 'materials_confirmed', stageSeq: 2, status: 'done' },
+      { orderId: 'O1', stageKey: 'production_planned', stageSeq: 3, status: 'blocked' },
+      { orderId: 'O1', stageKey: 'in_production', stageSeq: 4, status: 'pending' },
+    ];
+    const prisma = makeBoardPrisma([baseOrder], stages);
+    const { items } = await getProductionBoard(prisma);
+    expect(items).toHaveLength(1);
+    expect(items[0].currentStageKey).toBe('production_planned');
+    expect(items[0].blockedCount).toBe(1);
+    expect(items[0].stages).toHaveLength(4);
+    expect(items[0].order.poNumber).toBe('PO-1');
+  });
+
+  it('全部阶段完成时 currentStageKey 为 null', async () => {
+    const stages = PRODUCTION_STAGES.map(s => ({ orderId: 'O1', stageKey: s.key, stageSeq: s.seq, status: 'done' }));
+    const prisma = makeBoardPrisma([baseOrder], stages);
+    const { items } = await getProductionBoard(prisma);
+    expect(items[0].currentStageKey).toBeNull();
+    expect(items[0].blockedCount).toBe(0);
+  });
+
+  it('无阶段记录的订单返回空 stages 与 null 当前阶段', async () => {
+    const prisma = makeBoardPrisma([baseOrder], []);
+    const { items } = await getProductionBoard(prisma);
+    expect(items[0].stages).toEqual([]);
+    expect(items[0].currentStageKey).toBeNull();
+  });
+
+  it('多订单按 id 正确归组阶段', async () => {
+    const orders = [baseOrder, { ...baseOrder, id: 'O2', poNumber: 'PO-2' }];
+    const stages = [
+      { orderId: 'O2', stageKey: 'order_placed', stageSeq: 1, status: 'in_progress' },
+      { orderId: 'O1', stageKey: 'order_placed', stageSeq: 1, status: 'done' },
+      { orderId: 'O1', stageKey: 'materials_confirmed', stageSeq: 2, status: 'in_progress' },
+    ];
+    const prisma = makeBoardPrisma(orders, stages);
+    const { items } = await getProductionBoard(prisma);
+    const o1 = items.find(i => i.order.id === 'O1')!;
+    const o2 = items.find(i => i.order.id === 'O2')!;
+    expect(o1.stages).toHaveLength(2);
+    expect(o1.currentStageKey).toBe('materials_confirmed');
+    expect(o2.stages).toHaveLength(1);
+    expect(o2.currentStageKey).toBe('order_placed');
   });
 });

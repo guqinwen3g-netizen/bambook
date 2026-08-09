@@ -24,6 +24,7 @@ import {
   Shield,
   ShieldAlert,
   Sparkles,
+  SquareKanban,
   TrendingUp,
   Truck,
   Users,
@@ -377,6 +378,19 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
       { id: 'fabric-orders', label: '面料订单', localStateKey: 'orderType' },
       { id: 'garment-orders', label: '成衣订单', localStateKey: 'orderType' },
     ],
+  },
+  {
+    id: 'production-board',
+    view: View.ProductionBoard,
+    productLabel: '生产跟单',
+    internalName: 'ProductionBoard',
+    icon: SquareKanban,
+    // PRD 19.8 + 24.2（2026-08-10 升格）：全部在手订单的 10 阶段泳道看板，独立一级入口，
+    // 紧挨订单管理（order 46）之后。只读聚合（GET /v1/production/board），无 compiler 双路径。
+    nav: { primary: true, order: 47, group: 'fulfillment' },
+    permissions: getViewPermissionDefinition(View.ProductionBoard),
+    runtime: desktopRuntime,
+    entry: { current: 'components/ProductionBoard.tsx' },
   },
   {
     id: 'quotations',
