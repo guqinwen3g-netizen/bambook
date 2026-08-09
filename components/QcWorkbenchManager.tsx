@@ -98,6 +98,39 @@ function formatTs(value: number | null | undefined): string {
   return d.toLocaleString('zh-CN', { hour12: false });
 }
 
+// ── 阶段 IA-3：订单详情下游动作 prime（发起验货预填订单，与 Suppliers preview 同模式） ──
+const QC_ASSIGNMENT_PRIME_KEY = 'bambook_qc_assignment_prime';
+
+export const primeQcAssignmentFromOrder = (orderId: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(QC_ASSIGNMENT_PRIME_KEY, JSON.stringify({ orderId }));
+  } catch {
+    // Dev-preview continuity only; ignore storage failures.
+  }
+};
+
+const readQcAssignmentPrime = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(QC_ASSIGNMENT_PRIME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { orderId?: unknown };
+    return typeof parsed.orderId === 'string' && parsed.orderId ? parsed.orderId : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearQcAssignmentPrime = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(QC_ASSIGNMENT_PRIME_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
   return value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
@@ -225,6 +258,17 @@ function AssignmentsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
 
   const [showForm, setShowForm] = useState(false);
   const [completingAssignment, setCompletingAssignment] = useState<QCAssignment | null>(null);
+
+  // 阶段 IA-3：订单详情「发起验货」prime —— 挂载时自动打开新建任务表单并预选订单
+  const [primedOrderId, setPrimedOrderId] = useState<string | null>(() => {
+    const orderId = readQcAssignmentPrime();
+    if (orderId) clearQcAssignmentPrime();
+    return orderId;
+  });
+
+  useEffect(() => {
+    if (primedOrderId) setShowForm(true);
+  }, [primedOrderId]);
 
   // ── 加载 QC 人员列表（选择器数据源；无权限时降级为手工录入） ──
   useEffect(() => {
@@ -478,8 +522,9 @@ function AssignmentsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
           <AssignmentForm
             users={users}
             usersLoadFailed={usersLoadFailed}
+            initialOrderId={primedOrderId}
             onSave={handleCreate}
-            onClose={() => setShowForm(false)}
+            onClose={() => { setShowForm(false); setPrimedOrderId(null); }}
           />
         )}
         {completingAssignment && (
@@ -500,11 +545,13 @@ function AssignmentsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
 function AssignmentForm({
   users,
   usersLoadFailed,
+  initialOrderId,
   onSave,
   onClose,
 }: {
   users: UserAccountOption[];
   usersLoadFailed: boolean;
+  initialOrderId?: string | null;
   onSave: (input: QCAssignmentInput) => void;
   onClose: () => void;
 }) {
@@ -524,7 +571,15 @@ function AssignmentForm({
     (async () => {
       try {
         const list = await apiService.listOrders();
-        if (!cancelled) setOrders(list.filter((o) => !o.deletedAt));
+        if (!cancelled) {
+          const active = list.filter((o) => !o.deletedAt);
+          setOrders(active);
+          // 阶段 IA-3：prime 订单预选（订单详情「发起验货」直达）
+          if (initialOrderId) {
+            const hit = active.find((o) => o.id === initialOrderId);
+            if (hit) setSelectedOrder(hit);
+          }
+        }
       } catch (e) {
         console.error('[QcWorkbenchManager] load orders failed', e);
       } finally {
@@ -540,7 +595,7 @@ function AssignmentForm({
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [initialOrderId]);
 
   const filteredOrders = useMemo(() => {
     const q = orderQuery.trim().toLowerCase();

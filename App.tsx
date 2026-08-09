@@ -1169,6 +1169,32 @@ const App: React.FC = () => {
     setModuleTabOverrides(tab ? { [view]: tab } : {});
   };
 
+  // 阶段 IA-3：报价转订单/开发案转订单后「查看订单」直达 —— 切订单页 → 刷新列表 → 选中目标订单
+  const handleOpenOrderById = useCallback(async (orderId: string) => {
+    const selectFrom = (list: Order[]) => {
+      const hit = list.find(o => o.id === orderId && !o.deletedAt);
+      if (!hit) return false;
+      setOrderType(hit.type === 'Garment' ? 'garment' : 'fabric');
+      setSelectedOrder(hit);
+      return true;
+    };
+    handleViewChange(View.Orders);
+    if (selectFrom(orders)) return;
+    try {
+      const rows = await dataHubService.loadOrders(config.cloudEndpoint);
+      const converted = rows.map((r: any) => {
+        if (r.customer && !r.poNumber) return r as Order;
+        try { return savedRowToOrder(r); } catch { return r as Order; }
+      });
+      const active = converted.filter((o: any) => !o.deletedAt);
+      setOrders(active);
+      void storageService.saveCachedOrders(active);
+      selectFrom(active);
+    } catch {
+      // 导航已发生；订单列表加载失败时由常规加载路径兜底
+    }
+  }, [orders, config.cloudEndpoint]);
+
   const settingsMode = resolveSettingsMode(activeView);
   const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.KnowledgeBase || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
 
@@ -1568,7 +1594,7 @@ const App: React.FC = () => {
             {activeView === View.Development && renderMainCompilerSlot(
               compilerSurfaces.development,
               'development',
-              <DevelopmentManager isDarkMode={isDarkMode} cases={developmentCases} setCases={setDevelopmentCases} />,
+              <DevelopmentManager isDarkMode={isDarkMode} cases={developmentCases} setCases={setDevelopmentCases} onNavigate={handleViewChange} />,
             )}
             {(activeView === View.Invoices || activeView === View.PaymentVouchers) && renderMainCompilerSlot(
               compilerSurfaces.paymentVouchers,
@@ -1593,7 +1619,7 @@ const App: React.FC = () => {
             {activeView === View.Quotations && renderMainCompilerSlot(
               compilerSurfaces.quotations,
               'quotations',
-              <QuotationManager isDarkMode={isDarkMode} />,
+              <QuotationManager isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} />,
             )}
             {activeView === View.Procurement && renderMainCompilerSlot(
               compilerSurfaces.procurement,

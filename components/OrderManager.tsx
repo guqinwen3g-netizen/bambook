@@ -9,7 +9,7 @@ import {
   Trash2, Edit2, Save, Calendar, User, Package, Hash,
   CloudUpload, Trash, AlertTriangle,
   Globe, List, MoreVertical, Activity, Shirt, Database, RefreshCw,
-  Upload
+  Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2
 } from 'lucide-react';
 import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
@@ -29,7 +29,11 @@ import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import AuditHistorySection from './AuditHistorySection';
 import OrderContextSection from './order/OrderContextSection';
 import { fieldsForDetail, fieldsForManualForm, requiredKeysForManual, computeAutoFillPatch, fieldMetaByKey, ORDER_CLUSTERS } from '../lib/orderSchema';
+import type { RoleFkTarget } from '../lib/orderSchema';
 import { flattenOrderLines, getNextItemNo } from '../lib/orderLineItems';
+import { primeProcurementCreateFromOrder } from './ProcurementManager';
+import { primeQcAssignmentFromOrder } from './QcWorkbenchManager';
+import { primeShipmentCreateFromOrder } from './ShipmentManager';
 
 /**
  * Convert a row returned by `POST /api/v1/orders/import` into the rich
@@ -104,7 +108,7 @@ interface OrderManagerProps {
   /** Relations list — drives the Customer / Mill / Consignee / Bill-to comboboxes. */
   relations?: Relation[];
   /** Optional: invoked when a combobox asks to create a brand-new Relation. */
-  onCreateRelation?: (typedName: string, fkTarget: 'customer' | 'mill' | 'consignee' | 'billTo') => Promise<{ id: string; name: string } | null> | { id: string; name: string } | null;
+  onCreateRelation?: (typedName: string, fkTarget: RoleFkTarget) => Promise<{ id: string; name: string } | null> | { id: string; name: string } | null;
   allowGlobeView?: boolean;
   onFullscreenOpenChange?: (open: boolean) => void;
   /** 阶段 D / D3：全链路区块点击卡片跳转对应模块 */
@@ -133,6 +137,25 @@ const ORDER_TABLE_HEADERS = [
 const ORDER_TYPE_LABELS: Record<'fabric' | 'garment', string> = {
   fabric: '面料',
   garment: '成衣',
+};
+
+// ── 阶段 IA-3：订单履约状态机（镜像后端 orderLifecycleService ORDER_TRANSITIONS；唯一状态真源仍是后端，前端仅做可行动性提示） ──
+const ORDER_FLOW_STEPS = ['Pending', 'Confirmed', 'Production', 'Shipping', 'Delivered'] as const;
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  Pending: '待确认',
+  Confirmed: '已确认',
+  Production: '生产中',
+  Shipping: '出运中',
+  Delivered: '已交付',
+  Alert: '异常',
+};
+const ORDER_ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
+  Pending: ['Confirmed', 'Alert'],
+  Confirmed: ['Production', 'Alert'],
+  Production: ['Shipping', 'Alert'],
+  Shipping: ['Delivered', 'Alert'],
+  Delivered: [],
+  Alert: ['Pending', 'Confirmed', 'Production', 'Shipping'],
 };
 
 const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, isMobile = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange, onNavigate }) => {
@@ -186,6 +209,36 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       }
     } catch { /* ignore */ }
   }, [selectedOrder?.id, orders, setOrders, onSelectOrder]);
+
+  // 阶段 IA-3：订单详情下游动作区 —— prime 目标模块创建表单后跳转（复用后端 L1-L10 联动，前端补触发点）
+  const handlePrimeProcurement = useCallback(() => {
+    if (!selectedOrder || !onNavigate) return;
+    const firstLine = selectedOrder.lines?.[0];
+    primeProcurementCreateFromOrder({
+      orderId: selectedOrder.id,
+      poNumber: selectedOrder.poNumber,
+      materialCode: selectedLineItem?.materialCode ?? firstLine?.materialCode ?? selectedOrder.fabricCode,
+      description: selectedLineItem?.description ?? firstLine?.description ?? selectedOrder.fabricContent ?? selectedOrder.product,
+      quantity: selectedLineItem?.quantity ?? firstLine?.quantity ?? selectedOrder.quantity,
+      unit: selectedLineItem?.unit ?? firstLine?.unit ?? undefined,
+    });
+    onNavigate(View.Procurement);
+  }, [selectedOrder, selectedLineItem, onNavigate]);
+
+  const handlePrimeQc = useCallback(() => {
+    if (!selectedOrder || !onNavigate) return;
+    primeQcAssignmentFromOrder(selectedOrder.id);
+    onNavigate(View.QcWorkbench);
+  }, [selectedOrder, onNavigate]);
+
+  const handlePrimeShipment = useCallback(() => {
+    if (!selectedOrder || !onNavigate) return;
+    primeShipmentCreateFromOrder({
+      orderId: selectedOrder.id,
+      customerName: selectedOrder.consignee || selectedOrder.customer,
+    });
+    onNavigate(View.Shipments);
+  }, [selectedOrder, onNavigate]);
 
   useGlassSurfaceEdgeMasks({
     scrollRef: orderDetailScrollRef,
@@ -1115,6 +1168,38 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       </div>
                     </CompiledSurfacePanel>
 
+                    {/* 阶段 IA-3：履约动作区 —— 订单下游一键触发（采购/验货/出运），prime 目标模块创建表单 */}
+                    {onNavigate && !isEditing && (
+                      <CompiledSurfacePanel
+                        isDarkMode={isDarkMode}
+                        as="section"
+                        materialRole="raisedCard"
+                        edgeFadeItem
+                        spotlight
+                        className={overlayFormPanelClass}
+                        contentClassName="relative z-10"
+                        spotlightSizing="width"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${overlayKickerClass}`}>Fulfillment Actions</p>
+                            <h3 className={`mt-1 text-base font-light tracking-wide ${overlayTitleClass}`}>履约动作</h3>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={handlePrimeProcurement} className={overlayActionClass} title="跳转到采购管理并预填本订单明细">
+                              <ShoppingCart size={14} strokeWidth={1.5} />生成采购单
+                            </button>
+                            <button type="button" onClick={handlePrimeQc} className={overlayActionClass} title="跳转到 QC 工作台并预选本订单">
+                              <ClipboardCheck size={14} strokeWidth={1.5} />发起验货
+                            </button>
+                            <button type="button" onClick={handlePrimeShipment} className={overlayActionClass} title="跳转到出运管理并预填本订单">
+                              <Ship size={14} strokeWidth={1.5} />创建出运
+                            </button>
+                          </div>
+                        </div>
+                      </CompiledSurfacePanel>
+                    )}
+
                     {/* Production Timeline Card */}
                     <CompiledSurfacePanel
                       id="order-detail-timeline"
@@ -1132,24 +1217,65 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${overlayKickerClass}`}>Production Timeline</p>
                           <h3 className={`mt-1 text-base font-light tracking-wide ${overlayTitleClass}`}>生产进度时间线</h3>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {/* Quick status push buttons */}
-                          {(['Confirmed', 'Production', 'Shipping', 'Delivered'] as const).map(s => (
-                            <button
-                              key={s}
-                              onClick={() => handleStatusTransition(s)}
-                              disabled={selectedOrder.status === s}
-                              className={`rounded-full border px-2.5 py-1 text-[9px] font-light tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                                selectedOrder.status === s
-                                  ? isDarkMode ? 'border-white/[0.10] text-white/80 bg-white/[0.06]' : 'border-slate-400 text-slate-700 bg-slate-200/60'
-                                  : isDarkMode ? 'border-white/[0.06] text-white/62 hover:bg-white/[0.03]' : 'border-slate-200/45 text-slate-500 hover:bg-slate-50'
-                              }`}
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
                       </div>
+
+                      {/* 阶段 IA-3：履约状态步骤条（6 态机镜像；点击合法下一态复用 handleStatusTransition，后端契约校验，不引入第二状态源） */}
+                      {(() => {
+                        const currentStatus = selectedOrder.status || 'Pending';
+                        const isAlert = currentStatus === 'Alert';
+                        const currentIdx = isAlert ? -1 : ORDER_FLOW_STEPS.indexOf(currentStatus as typeof ORDER_FLOW_STEPS[number]);
+                        const allowed = ORDER_ALLOWED_TRANSITIONS[currentStatus] ?? [];
+                        return (
+                          <div className="mb-4 flex flex-wrap items-center gap-1">
+                            {ORDER_FLOW_STEPS.map((step, idx) => {
+                              const isDone = !isAlert && idx < currentIdx;
+                              const isCurrent = step === currentStatus;
+                              const isActionable = !isEditing && allowed.includes(step);
+                              return (
+                                <React.Fragment key={step}>
+                                  {idx > 0 && (
+                                    <span className={`h-px w-4 shrink-0 ${isDone || isCurrent ? (isDarkMode ? 'bg-white/25' : 'bg-slate-400/60') : (isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-200')}`} />
+                                  )}
+                                  <button
+                                    type="button"
+                                    disabled={!isActionable}
+                                    onClick={() => handleStatusTransition(step)}
+                                    title={isActionable ? `推进到「${ORDER_STATUS_LABELS[step]}」` : ORDER_STATUS_LABELS[step]}
+                                    className={`flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-light tracking-wide transition-all ${
+                                      isCurrent
+                                        ? isDarkMode ? 'border-white/[0.14] bg-white/[0.08] text-white/88' : 'border-slate-400/70 bg-slate-200/70 text-slate-800'
+                                        : isDone
+                                          ? isDarkMode ? 'border-white/[0.08] text-white/55' : 'border-slate-200/60 text-slate-500'
+                                          : isActionable
+                                            ? isDarkMode ? 'border-white/[0.10] text-white/70 hover:bg-white/[0.05]' : 'border-slate-300/70 text-slate-600 hover:bg-slate-100/70'
+                                            : isDarkMode ? 'border-white/[0.05] text-white/25 cursor-not-allowed' : 'border-slate-200/40 text-slate-300 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    {isDone && <CheckCircle2 size={11} strokeWidth={1.5} className={isDarkMode ? 'text-white/55' : 'text-slate-500'} />}
+                                    {ORDER_STATUS_LABELS[step]}
+                                  </button>
+                                </React.Fragment>
+                              );
+                            })}
+                            {/* Alert 异常态：非终态可标记异常；异常中可恢复到任一非终态（点击上方步骤） */}
+                            <span className={`h-px w-4 shrink-0 ${isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-200'}`} />
+                            <button
+                              type="button"
+                              disabled={isEditing || (!isAlert && !allowed.includes('Alert'))}
+                              onClick={() => !isAlert && handleStatusTransition('Alert')}
+                              title={isAlert ? '异常中：点击左侧步骤恢复到对应阶段' : '标记为异常'}
+                              className={`flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-light tracking-wide transition-all ${
+                                isAlert
+                                  ? isDarkMode ? 'border-white/[0.14] bg-white/[0.08] text-white/88' : 'border-slate-400/70 bg-slate-200/70 text-slate-800'
+                                  : isDarkMode ? 'border-white/[0.06] text-white/45 hover:bg-white/[0.03]' : 'border-slate-200/50 text-slate-400 hover:bg-slate-50'
+                              } ${isEditing ? 'cursor-not-allowed opacity-40' : ''}`}
+                            >
+                              <AlertTriangle size={11} strokeWidth={1.5} />
+                              {ORDER_STATUS_LABELS.Alert}
+                            </button>
+                          </div>
+                        );
+                      })()}
 
                       {statusTimeline.length === 0 ? (
                         <p className={`text-xs font-light ${overlayMutedClass}`}>暂无状态变更记录</p>

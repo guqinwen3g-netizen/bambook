@@ -59,8 +59,48 @@ const STATUS_LABELS: Record<QuotationStatus, string> = {
 const CURRENCIES = ['USD', 'CNY', 'EUR'];
 const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
 
+// ── 阶段 IA-3：开发案「发起报价」prime（预填创建表单，与 Suppliers preview 同模式） ──
+const QUOTATION_CREATE_PRIME_KEY = 'bambook_quotation_create_prime';
+
+export interface QuotationCreatePrime {
+  customerName?: string;
+  description?: string;
+  inquiryRef?: string;
+}
+
+export const primeQuotationCreateFromDevCase = (prime: QuotationCreatePrime) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(QUOTATION_CREATE_PRIME_KEY, JSON.stringify(prime));
+  } catch {
+    // Dev-preview continuity only; ignore storage failures.
+  }
+};
+
+const readQuotationCreatePrime = (): QuotationCreatePrime | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(QUOTATION_CREATE_PRIME_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as QuotationCreatePrime;
+  } catch {
+    return null;
+  }
+};
+
+const clearQuotationCreatePrime = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(QUOTATION_CREATE_PRIME_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 interface QuotationManagerProps {
   isDarkMode: boolean;
+  /** 阶段 IA-3：报价转订单成功后「查看订单」直达跳转 */
+  onOpenOrder?: (orderId: string) => void;
 }
 
 let lineCounter = 0;
@@ -86,10 +126,12 @@ const createEmptyLine = (): DraftLine => ({
   notes: '',
 });
 
-const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
+const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenOrder }) => {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // 阶段 IA-3：转单成功订单 id（成功横幅 + 「查看订单」直达）
+  const [convertedOrderId, setConvertedOrderId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | QuotationStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -115,6 +157,22 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
   });
   const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // 阶段 IA-3：开发案「发起报价」prime —— 挂载时自动打开创建表单并预填客户/明细
+  useEffect(() => {
+    const prime = readQuotationCreatePrime();
+    if (!prime) return;
+    clearQuotationCreatePrime();
+    setShowCreateForm(true);
+    setForm(prev => ({
+      ...prev,
+      customerName: prime.customerName ?? prev.customerName,
+      inquiryRef: prime.inquiryRef ?? prev.inquiryRef,
+    }));
+    if (prime.description) {
+      setFormLines([{ ...createEmptyLine(), description: prime.description }]);
+    }
+  }, []);
 
   // ── F4 价格生命周期：面料档案联动（PRD 19.5 报价编辑器 · 从档案选择面料，自动带出成分/历史价参考）──
   const [fabricSuggestions, setFabricSuggestions] = useState<Record<string, ProductAsset[]>>({});
@@ -172,6 +230,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
   // ── 状态转换操作 ──
   const handleAction = useCallback(async (id: string, action: 'send' | 'accept' | 'reject' | 'delete' | 'convert') => {
     setActionLoading(`${id}_${action}`);
+    setConvertedOrderId(null);
     try {
       if (action === 'send') await apiService.sendQuotation(id);
       else if (action === 'accept') await apiService.acceptQuotation(id);
@@ -179,7 +238,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
       else if (action === 'delete') await apiService.deleteQuotation(id);
       else if (action === 'convert') {
         const result = await apiService.convertQuotationToOrder(id);
-        setError(`已转为订单 ${result.orderId}，可在生产管理中查看`);
+        setConvertedOrderId(result.orderId);
       }
       await fetchQuotations();
     } catch (e: any) {
@@ -545,6 +604,23 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
                   </div>
                 )}
 
+                {/* 阶段 IA-3：转单成功横幅 —— 「查看订单」直达跳转 */}
+                {convertedOrderId && (
+                  <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('success', isDarkMode)}`}>
+                    <CheckCircle2 size={16} className={statusSemanticText('success', isDarkMode)} />
+                    <span className="text-sm flex-1 min-w-0 truncate">已转为订单 {convertedOrderId}</span>
+                    {onOpenOrder && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenOrder(convertedOrderId)}
+                        className="flex items-center gap-1 text-sm shrink-0 hover:underline"
+                      >
+                        查看订单 <ArrowRight size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* 列表 */}
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
@@ -687,7 +763,18 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode }) => {
                                       {qt.status === 'Accepted' && qt.convertedOrderId && (
                                         <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                                           <CheckCircle2 size={12} />
-                                          <span>已转订单 {qt.convertedOrderId}</span>
+                                          <span>已转订单</span>
+                                          {onOpenOrder ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => onOpenOrder(qt.convertedOrderId!)}
+                                              className="flex items-center gap-0.5 hover:underline text-[var(--os-vnext-brand-blue-soft)]"
+                                            >
+                                              {qt.convertedOrderId} <ArrowRight size={10} />
+                                            </button>
+                                          ) : (
+                                            <span>{qt.convertedOrderId}</span>
+                                          )}
                                         </div>
                                       )}
                                       {(qt.status === 'Rejected' || qt.status === 'Expired') && (

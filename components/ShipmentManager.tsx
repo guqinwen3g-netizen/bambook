@@ -17,6 +17,44 @@ import type { OnTimeStats, MethodStats } from '../services/shipmentService';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { statusSemanticBg, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 
+// ── 阶段 IA-3：订单详情下游动作 prime（创建出运预填订单，与 Suppliers preview 同模式） ──
+const SHIPMENT_CREATE_PRIME_KEY = 'bambook_shipment_create_prime';
+
+export interface ShipmentCreatePrime {
+  orderId: string;
+  customerName?: string;
+}
+
+export const primeShipmentCreateFromOrder = (prime: ShipmentCreatePrime) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(SHIPMENT_CREATE_PRIME_KEY, JSON.stringify(prime));
+  } catch {
+    // Dev-preview continuity only; ignore storage failures.
+  }
+};
+
+const readShipmentCreatePrime = (): ShipmentCreatePrime | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(SHIPMENT_CREATE_PRIME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ShipmentCreatePrime>;
+    return typeof parsed.orderId === 'string' && parsed.orderId ? (parsed as ShipmentCreatePrime) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearShipmentCreatePrime = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(SHIPMENT_CREATE_PRIME_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 interface ShipmentManagerProps {
   isDarkMode: boolean;
   shipments: ShipmentType[];
@@ -241,6 +279,17 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // 阶段 IA-3：订单详情「创建出运」prime —— 挂载时自动打开新建运单并预填订单/客户
+  useEffect(() => {
+    const prime = readShipmentCreatePrime();
+    if (!prime) return;
+    clearShipmentCreatePrime();
+    setEditingShipment(null);
+    setFormDraft({ ...createEmptyDraft(), orderId: prime.orderId, customerName: prime.customerName ?? '' });
+    setErrorMessage('');
+    setShowFormModal(true);
+  }, []);
 
   // Phase B3 — 准交率统计（只读；挂载时拉取一次，失败静默不影响主流程）
   const [onTimeStats, setOnTimeStats] = useState<OnTimeStats | null>(null);

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { ChevronLeft, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, FileText, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import {
@@ -21,13 +21,17 @@ import type {
   DevelopmentStage as DevStage,
   SampleType,
 } from '../types';
+import { View } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { SampleNodesPanel } from './development/SampleNodesPanel';
+import { primeQuotationCreateFromDevCase } from './QuotationManager';
 
 interface DevelopmentManagerProps {
   isDarkMode: boolean;
   cases: DevCase[];
   setCases: React.Dispatch<React.SetStateAction<DevCase[]>>;
+  /** 阶段 IA-3：开发案详情「发起报价」跳转报价管理 */
+  onNavigate?: (view: View) => void;
 }
 
 type DevelopmentTypeId = 'all' | DevType;
@@ -173,7 +177,7 @@ const buildInitialForm = (editingCase: DevCase | null): DevFormState => {
   };
 };
 
-const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cases, setCases }) => {
+const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cases, setCases, onNavigate }) => {
   const [selectedType, setSelectedType] = useState<DevelopmentTypeId>('all');
   const [selectedStage, setSelectedStage] = useState<DevelopmentStageId>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -513,6 +517,29 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                           {stageLabelMap[selectedCase.stage]}
                         </span>
                         <div className="flex items-center gap-1.5">
+                          {onNavigate && selectedCase.stage !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                primeQuotationCreateFromDevCase({
+                                  customerName: selectedCase.customerName || undefined,
+                                  description: `${selectedCase.productName || selectedCase.name}（开发案 ${selectedCase.code}）`,
+                                  inquiryRef: selectedCase.code,
+                                });
+                                onNavigate(View.Quotations);
+                              }}
+                              title="跳转到报价管理并预填本开发案客户/产品"
+                              className={cx(
+                                'h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors',
+                                isDarkMode
+                                  ? 'border-white/10 text-white/64 hover:bg-white/8 hover:text-white/88'
+                                  : 'border-slate-300/40 text-slate-500 hover:bg-white/60 hover:text-slate-800',
+                              )}
+                            >
+                              <FileText size={11} strokeWidth={1.4} />
+                              发起报价
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={openEditModal}

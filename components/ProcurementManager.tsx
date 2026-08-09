@@ -46,6 +46,49 @@ import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
+
+// ── 阶段 IA-3：订单详情下游动作 prime（生成采购单预填，与 Suppliers preview 同模式） ──
+const PROCUREMENT_CREATE_PRIME_KEY = 'bambook_procurement_create_prime';
+
+export interface ProcurementCreatePrime {
+  orderId: string;
+  poNumber?: string;
+  materialCode?: string;
+  description?: string;
+  quantity?: number;
+  unit?: string;
+}
+
+export const primeProcurementCreateFromOrder = (prime: ProcurementCreatePrime) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(PROCUREMENT_CREATE_PRIME_KEY, JSON.stringify(prime));
+  } catch {
+    // Dev-preview continuity only; ignore storage failures.
+  }
+};
+
+const readProcurementCreatePrime = (): ProcurementCreatePrime | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(PROCUREMENT_CREATE_PRIME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ProcurementCreatePrime>;
+    return typeof parsed.orderId === 'string' && parsed.orderId ? (parsed as ProcurementCreatePrime) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearProcurementCreatePrime = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(PROCUREMENT_CREATE_PRIME_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 type StatusTab = 'all' | PurchaseOrderStatus;
 
 const STATUS_TABS: Array<{ id: StatusTab; label: string }> = [
@@ -152,6 +195,29 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) =
   });
   const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // 阶段 IA-3：订单详情「生成采购单」prime —— 挂载时自动打开创建表单并预填
+  const [createPrime, setCreatePrime] = useState<ProcurementCreatePrime | null>(() => {
+    const prime = readProcurementCreatePrime();
+    if (prime) clearProcurementCreatePrime();
+    return prime;
+  });
+
+  useEffect(() => {
+    if (!createPrime) return;
+    setShowCreateForm(true);
+    setForm(prev => ({
+      ...prev,
+      notes: prev.notes || `关联订单 ${createPrime.poNumber || createPrime.orderId}`,
+    }));
+    setFormLines([{
+      ...createEmptyLine(),
+      materialCode: createPrime.materialCode ?? '',
+      description: createPrime.description ?? '',
+      quantity: createPrime.quantity != null ? String(createPrime.quantity) : '',
+      unit: createPrime.unit ?? 'YD',
+    }]);
+  }, [createPrime]);
 
   // 来料检验表单状态
   const [receiptForm, setReceiptForm] = useState({
@@ -272,6 +338,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) =
         deliveryTerms: form.deliveryTerms || undefined,
         paymentTerms: form.paymentTerms || undefined,
         shipToAddress: form.shipToAddress || undefined,
+        orderId: createPrime?.orderId,
         buyer: form.buyer || undefined,
         notes: form.notes || undefined,
         lines: validLines.map(l => ({
@@ -295,13 +362,14 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) =
         shipToAddress: '', buyer: '', notes: '',
       });
       setFormLines([createEmptyLine()]);
+      setCreatePrime(null);
       await fetchPurchaseOrders();
     } catch (e: any) {
       setFormError(`创建失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
-  }, [form, formLines, fetchPurchaseOrders]);
+  }, [form, formLines, createPrime, fetchPurchaseOrders]);
 
   // ── 创建来料检验记录 ──
   const handleCreateReceipt = useCallback(async (poId: string) => {
@@ -378,8 +446,23 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) =
               <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 {/* 创建表单 */}
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建采购单</h2>
-                  <button onClick={() => setShowCreateForm(false)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]' : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <h2 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建采购单</h2>
+                    {createPrime && (
+                      <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-light ${isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/60' : 'border-slate-200/60 bg-slate-50 text-slate-500'}`}>
+                        关联订单 {createPrime.poNumber || createPrime.orderId}
+                        <button
+                          type="button"
+                          onClick={() => setCreatePrime(null)}
+                          className={`rounded-full p-0.5 transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-900'}`}
+                          title="取消订单关联"
+                        >
+                          <X size={10} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]' : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}>
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
