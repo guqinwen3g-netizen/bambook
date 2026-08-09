@@ -4,7 +4,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_common.sh"
 
 log "Removing duplicate cloudflared processes for current user"
-mapfile -t pids < <(pgrep -f 'cloudflared tunnel' || true)
+# macOS 自带 bash 3.2 无 mapfile，用 while-read 兼容写法
+pids=()
+while IFS= read -r pid; do
+  [[ -n "$pid" ]] && pids+=("$pid")
+done < <(pgrep -f 'cloudflared tunnel' || true)
 if (( ${#pids[@]} > 1 )); then
   keep="${pids[0]}"
   for pid in "${pids[@]}"; do

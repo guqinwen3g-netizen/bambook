@@ -59,8 +59,16 @@ if [[ -d dist/wallpapers && -x /usr/bin/sips ]]; then
 fi
 
 # 2) 打包 dist 内容（不含 dist 目录本身这层，方便服务器端直接展开为 webapp/）
+# 轻量模式（BAMBOOK_WEB_LIGHT=1）：不打包 data/ 与 wallpapers/（3D 地图瓦片+壁纸，内容稳定），
+# 服务器端 deploy-webapp 会自动从上一版本沿用这些目录。用于隧道质量差时把 ~90MB 包降到 ~4MB。
 echo "==> 打包 dist/ → $ARCHIVE"
-tar --exclude='*.map' -czf "$ARCHIVE" -C dist .
+TAR_EXCLUDES=(--exclude='*.map')
+if [[ "${BAMBOOK_WEB_LIGHT:-0}" == "1" ]]; then
+  # data/wallpapers 为目录级沿用；assets 下 woff/woff2 字体（content-hash 命名，~35MB）文件级沿用
+  TAR_EXCLUDES+=(--exclude='./data' --exclude='./wallpapers' --exclude='*.woff' --exclude='*.woff2')
+  echo "==> 轻量模式：跳过 dist/data、dist/wallpapers 与字体文件（服务器沿用现有版本）"
+fi
+tar "${TAR_EXCLUDES[@]}" -czf "$ARCHIVE" -C dist .
 SIZE=$(stat -f%z "$ARCHIVE" 2>/dev/null || stat -c%s "$ARCHIVE")
 SIZE_MB=$(awk -v b="$SIZE" 'BEGIN{ printf "%.2f", b/1024/1024 }')
 echo "==> 包大小: ${SIZE_MB} MB"

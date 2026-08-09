@@ -778,6 +778,36 @@ async function deployUploadedWebapp(req: Request, res: Response) {
     fs.mkdirSync(webappDir, { recursive: true });
     await execFileAsync('/bin/cp', ['-R', `${extractDir}/.`, webappDir], { timeout: 60_000 });
 
+    // 大体量静态资源（3D 地图瓦片 data/、壁纸 wallpapers/）内容稳定、极少变更。
+    // 轻量部署包可省略这些目录以降低上传体积；此处从上一版本自动沿用，避免被全量替换语义误删。
+    for (const heavyDir of ['data', 'wallpapers']) {
+      const inPackage = path.join(extractDir, heavyDir);
+      const inPrev = path.join(prevDir, heavyDir);
+      if (!fs.existsSync(inPackage) && fs.existsSync(inPrev)) {
+        await execFileAsync('/bin/cp', ['-R', inPrev, path.join(webappDir, heavyDir)], { timeout: 120_000 });
+        appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', dir: heavyDir });
+      }
+    }
+
+    // 字体文件级沿用：assets/*.woff2|woff 均为 content-hash 命名（584+ 个子集，约 35MB，
+    // 已压缩无法再 gzip），轻量包省略后按文件名从上一版本补齐；新字体会以新 hash 出现在全量包中。
+    const prevAssets = path.join(prevDir, 'assets');
+    const newAssets = path.join(webappDir, 'assets');
+    if (fs.existsSync(prevAssets) && fs.existsSync(newAssets)) {
+      let carriedFonts = 0;
+      for (const f of fs.readdirSync(prevAssets)) {
+        if (!/\.(woff2?|ttf|otf)$/i.test(f)) continue;
+        const target = path.join(newAssets, f);
+        if (!fs.existsSync(target)) {
+          fs.copyFileSync(path.join(prevAssets, f), target);
+          carriedFonts += 1;
+        }
+      }
+      if (carriedFonts > 0) {
+        appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', dir: 'assets/fonts', files: carriedFonts });
+      }
+    }
+
     appendActionLog({ action: 'deployUploadedWebapp', status: 'ok', bytes: req.body.length });
 
     // Bounce the main API so the static-mount probe (fs.existsSync at startup)
@@ -1616,6 +1646,7 @@ async function getDataMap() {
     memories,
     knowledgeItems,
     insights,
+    sopTemplates,
     classifications,
     customerCodes,
     priceRows,
@@ -1639,6 +1670,7 @@ async function getDataMap() {
     countWhere('ProjectMemory'),
     countWhere('KnowledgeItem'),
     countWhere('Insight'),
+    countWhere('SopTemplate', '"deletedAt" IS NULL AND status = \'active\''),
     countWhere('ProductClassification'),
     countWhere('FabricCustomerCode'),
     countWhere('FabricPriceHistory'),
@@ -1706,6 +1738,7 @@ async function getDataMap() {
           { label: '项目记忆', value: memories },
           { label: '知识条目', value: knowledgeItems },
           { label: '洞察', value: insights },
+          { label: 'SOP 模板', value: sopTemplates },
         ],
         distribution: [],
         secondary: [],
