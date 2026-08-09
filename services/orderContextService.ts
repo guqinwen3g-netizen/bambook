@@ -101,10 +101,9 @@ export interface OrderContext {
 export const orderContextService = {
   async getOrderContext(orderId: string, endpoint?: string): Promise<OrderContext> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
-    const apiKey = apiService.getApiKey();
     const url = apiService.buildApiUrl(`/v1/orders/${encodeURIComponent(orderId)}/context`, base);
     const res = await fetch(url, {
-      headers: { ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data?.message || data?.error || `getOrderContext failed: HTTP ${res.status}`);

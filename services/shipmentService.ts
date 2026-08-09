@@ -91,13 +91,8 @@ export const shipmentService = {
     if (params?.offset) query.set('offset', String(params.offset));
 
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listShipments failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -107,13 +102,8 @@ export const shipmentService = {
   async getShipment(id: string, endpoint?: string): Promise<Shipment> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`getShipment failed: HTTP ${res.status}`);
     let data: any;
@@ -124,14 +114,9 @@ export const shipmentService = {
   async createShipment(input: Partial<Shipment>, endpoint?: string): Promise<Shipment> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/shipping', base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     let data: any;
@@ -145,14 +130,9 @@ export const shipmentService = {
   async updateShipment(id: string, input: Partial<Shipment>, endpoint?: string): Promise<Shipment> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     let data: any;
@@ -166,14 +146,9 @@ export const shipmentService = {
   async deleteShipment(id: string, endpoint?: string): Promise<void> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -185,13 +160,8 @@ export const shipmentService = {
   async listShipmentEvents(id: string, endpoint?: string): Promise<ShipmentEvent[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/events`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listShipmentEvents failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -206,13 +176,8 @@ export const shipmentService = {
     if (params?.from) query.set('from', params.from);
     if (params?.to) query.set('to', params.to);
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`getOnTimeStats failed: HTTP ${res.status}`);
     return res.json();
@@ -226,9 +191,8 @@ export const shipmentService = {
   async listShipmentLines(id: string, endpoint?: string): Promise<ShipmentLine[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/lines`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listShipmentLines failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -239,10 +203,9 @@ export const shipmentService = {
   async replaceShipmentLines(id: string, lines: ShipmentLineInput[], endpoint?: string): Promise<ShipmentLine[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/lines`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({ lines }),
     });
     const data = await res.json().catch(() => ({}));
@@ -254,10 +217,9 @@ export const shipmentService = {
   async pullLinesFromOrder(id: string, endpoint?: string): Promise<ShipmentLine[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/lines/pull-from-order`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({}),
     });
     const data = await res.json().catch(() => ({}));
@@ -269,9 +231,8 @@ export const shipmentService = {
   async listShipmentCartons(id: string, endpoint?: string): Promise<ShipmentCarton[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/cartons`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listShipmentCartons failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -282,10 +243,9 @@ export const shipmentService = {
   async replaceShipmentCartons(id: string, cartons: ShipmentCartonInput[], endpoint?: string): Promise<ShipmentCarton[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/shipping/${encodeURIComponent(id)}/cartons`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({ cartons }),
     });
     const data = await res.json().catch(() => ({}));
@@ -301,9 +261,8 @@ export const shipmentService = {
     if (params?.from) query.set('from', params.from);
     if (params?.to) query.set('to', params.to);
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
     const res = await fetch(fullUrl, {
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`getMethodStats failed: HTTP ${res.status}`);
     return res.json();

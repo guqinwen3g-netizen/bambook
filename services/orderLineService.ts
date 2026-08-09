@@ -5,9 +5,8 @@ export async function createOrderLine(
   line: Partial<OrderLineLite> & { poNumber: string; customer?: string; salesCurrency?: string; purchaseCurrency?: string },
   opts: { apiKey?: string; signal?: AbortSignal } = {},
 ): Promise<{ ok: boolean; line: OrderLineItem }> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = opts.apiKey || apiService.getApiKey();
-  if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+  const headers = apiService.getAuthHeaders();
+  if (opts.apiKey) headers['X-Bambook-API-Key'] = opts.apiKey;
 
   const res = await fetch(apiService.buildApiUrl('/v1/order-lines'), {
     method: 'POST',
@@ -34,9 +33,8 @@ export async function updateOrderLineFields(
   opts: { apiKey?: string; signal?: AbortSignal } = {},
 ): Promise<{ ok: boolean; line: OrderLineItem }> {
   if (!id) throw new Error('updateOrderLineFields: id required');
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = opts.apiKey || apiService.getApiKey();
-  if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+  const headers = apiService.getAuthHeaders();
+  if (opts.apiKey) headers['X-Bambook-API-Key'] = opts.apiKey;
 
   const res = await fetch(apiService.buildApiUrl(`/v1/order-lines/${encodeURIComponent(id)}`), {
     method: 'PUT',

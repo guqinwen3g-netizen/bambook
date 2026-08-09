@@ -17,23 +17,12 @@
 
 import { apiService } from './apiService';
 
-/** JWT 头（写端点必须 JWT；与 apiService jwtAuthHeaders 同口径：token 取自登录态存储） */
-const jwtAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-/** 写端点统一 POST（JWT + JSON），非 2xx 抛错（message 取服务端） */
+/** 写端点统一 POST（统一认证头：API key + 登录会话 JWT + JSON），非 2xx 抛错（message 取服务端） */
 async function postWithJwt<T>(path: string, body: unknown, endpoint?: string): Promise<T> {
   const url = apiService.buildApiUrl(path, endpoint);
-  const apiKey = apiService.getApiKey();
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      ...jwtAuthHeaders(),
-    },
+    headers: apiService.getAuthHeaders(),
     body: JSON.stringify(body ?? {}),
   });
   const json: any = await res.json().catch(() => ({}));
@@ -121,9 +110,8 @@ export async function fetchEmailIntents(
     `/v1/email/intents?mailbox=${encodeURIComponent(mailbox)}&uids=${numericUids.join(',')}`,
     endpoint,
   );
-  const apiKey = apiService.getApiKey();
   const res = await fetch(url, {
-    headers: { ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+    headers: apiService.getAuthHeaders(),
   });
   if (!res.ok) return {}; // 覆盖层是增强层，失败不阻断列表
   const json: any = await res.json().catch(() => null);
@@ -204,9 +192,8 @@ export const EMAIL_TEMPLATE_TYPE_LABELS: Record<string, string> = {
 
 export async function fetchEmailTemplates(endpoint?: string, opts: { sort?: 'usage' } = {}): Promise<EmailTemplate[]> {
   const url = apiService.buildApiUrl(`/v1/email-templates${opts.sort === 'usage' ? '?sort=usage' : ''}`, endpoint);
-  const apiKey = apiService.getApiKey();
   const res = await fetch(url, {
-    headers: { ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+    headers: apiService.getAuthHeaders(),
   });
   if (!res.ok) return [];
   const json: any = await res.json().catch(() => null);
@@ -226,15 +213,10 @@ export async function fetchEmailTemplates(endpoint?: string, opts: { sort?: 'usa
 /** C8：上报模板使用（插入时调用一次；API-Key 可用的低风险计数端点） */
 export async function markEmailTemplateUsed(id: string, endpoint?: string): Promise<void> {
   const url = apiService.buildApiUrl(`/v1/email-templates/${encodeURIComponent(id)}/use`, endpoint);
-  const apiKey = apiService.getApiKey();
   try {
     await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-        ...jwtAuthHeaders(),
-      },
+      headers: apiService.getAuthHeaders(),
       body: '{}',
     });
   } catch { /* 使用统计失败不阻断发信主流程 */ }

@@ -44,13 +44,8 @@ export const developmentService = {
     if (params?.offset) query.set('offset', String(params.offset));
 
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listDevelopmentCases failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -63,13 +58,8 @@ export const developmentService = {
   async getDevelopmentCase(id: string, endpoint?: string): Promise<DevelopmentCase> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`getDevelopmentCase failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -82,14 +72,9 @@ export const developmentService = {
   async createDevelopmentCase(input: DevelopmentCaseCreateInput, endpoint?: string): Promise<DevelopmentCase> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/development', base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {
@@ -106,14 +91,9 @@ export const developmentService = {
   async updateDevelopmentCase(id: string, input: DevelopmentCaseUpdateInput, endpoint?: string): Promise<DevelopmentCase> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {
@@ -130,14 +110,9 @@ export const developmentService = {
   async updateStage(id: string, stage: DevelopmentStage, nextAction?: string, endpoint?: string): Promise<DevelopmentCase> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(id)}/stage`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({ stage, nextAction }),
     });
     if (!res.ok) {
@@ -174,14 +149,9 @@ export const developmentService = {
   ): Promise<{ case: DevelopmentCase; order: any | null }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(id)}/convert`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -198,14 +168,9 @@ export const developmentService = {
   async deleteDevelopmentCase(id: string, endpoint?: string): Promise<void> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`deleteDevelopmentCase failed: HTTP ${res.status}`);
   },
@@ -215,11 +180,7 @@ export const developmentService = {
   /** 获取三级样衣节点（若无则自动 ensure 创建） */
   async listSampleNodes(caseId: string, endpoint?: string): Promise<SampleNode[]> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
-    const apiKey = apiService.getApiKey();
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-    };
+    const headers = apiService.getAuthHeaders();
     // 写权限接口 ensure 幂等创建 + 返回最新列表（一次往返）
     const res = await fetch(apiService.buildApiUrl(`/v1/development/${encodeURIComponent(caseId)}/sample-nodes/ensure`, base), {
       method: 'POST',
@@ -250,13 +211,9 @@ export const developmentService = {
   ): Promise<SampleNode> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(caseId)}/sample-nodes/${encodeURIComponent(level)}`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {

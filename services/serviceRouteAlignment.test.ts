@@ -5,6 +5,7 @@ vi.mock('./apiService', () => ({
   apiService: {
     getStoredConfig: () => ({ cloudEndpoint: 'https://test.example.com' }),
     getApiKey: () => 'test-api-key',
+    getAuthHeaders: () => ({ 'Content-Type': 'application/json', 'X-Bambook-API-Key': 'test-api-key' }),
     buildApiUrl: (path: string, base: string) => `${base}/api${path}`,
   },
 }));

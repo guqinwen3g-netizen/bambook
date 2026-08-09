@@ -24,13 +24,9 @@ export interface EmailSyncResult {
 export const emailSyncService = {
   async syncToErp(input: EmailSyncInput, endpoint?: string): Promise<EmailSyncResult> {
     const url = apiService.buildApiUrl('/v1/email/sync', endpoint);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({
         email: input.email,
         password: input.password,

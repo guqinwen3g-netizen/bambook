@@ -126,14 +126,8 @@ function buildUrl(path: string, endpoint?: string): string {
 }
 
 function headers(): Record<string, string> {
-  const apiKey = apiService.getApiKey();
-  // 写/预览/运行端点要求 JWT（与 apiService.jwtAuthHeaders 同一口径：token 取自登录态存储）
-  const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
-  return {
-    'Content-Type': 'application/json',
-    ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  // 统一认证头：Content-Type + API key + 登录会话 JWT（写/预览/运行端点必须 JWT）
+  return apiService.getAuthHeaders();
 }
 
 async function parseOrThrow<T>(res: Response, fallback: string): Promise<T> {

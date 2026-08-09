@@ -286,16 +286,23 @@ const jsonHeaders = (): Record<string, string> => {
 
 /** JWT 头（写操作需 JWT 的路由使用，如 email-signatures；token 取自登录态存储） */
 const jwtAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  try {
+    const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
 };
 
 const requestJson = async <T>(path: string, opts: RequestInit & { endpoint?: string } = {}): Promise<T> => {
   const { endpoint, headers, ...init } = opts;
+  // 已登录会话携带 JWT：后端写操作审计（AuditLog.actorId 外键）要求真实用户身份，
+  // 仅 API key 时 actor 回退 'system' 会触发外键冲突；JWT 优先于 API key。
   const response = await fetch(buildApiUrl(path, endpoint), {
     ...init,
     headers: {
       ...jsonHeaders(),
+      ...jwtAuthHeaders(),
       ...(headers || {}),
     },
   });
@@ -547,6 +554,8 @@ export const apiService = {
 
   buildApiUrl,
   getApiKey,
+  /** 统一认证头：Content-Type + API key + 登录会话 JWT（写操作必需，后端审计/角色校验依赖真实用户身份） */
+  getAuthHeaders: (): Record<string, string> => ({ ...jsonHeaders(), ...jwtAuthHeaders() }),
 
   subscribeToDataChanges(endpoint: string | undefined, onChange: (event: { entity: string; action: string; ids?: string[]; timestamp: number }) => void): () => void {
     if (typeof EventSource === 'undefined') return () => {};

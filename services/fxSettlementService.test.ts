@@ -25,6 +25,7 @@ describe('fxSettlementService（F2 外汇核销闭环 contract）', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
     vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
   });
 
   it('createFxSettlement POST 到 /v1/finance/fx-settlements，且绝不发送 cnyAmount（服务端计算不变量）', async () => {

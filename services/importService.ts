@@ -20,9 +20,9 @@ export async function uploadPdfsForParsing(
   const fd = new FormData();
   for (const f of files) fd.append('files', f);
 
-  const headers: Record<string, string> = {};
-  const apiKey = opts.apiKey || apiService.getApiKey();
-  if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+  // FormData 上传不能设 Content-Type（浏览器自动带 multipart boundary），仅取认证头
+  const { 'Content-Type': _ct, ...headers } = apiService.getAuthHeaders();
+  if (opts.apiKey) headers['X-Bambook-API-Key'] = opts.apiKey;
 
   const res = await fetch(apiService.buildApiUrl('/v1/import/order'), {
     method: 'POST',
@@ -56,9 +56,8 @@ export async function saveParsedOrders(
   if (orders.length === 0) {
     throw new Error('No orders to save');
   }
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = opts.apiKey || apiService.getApiKey();
-  if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+  const headers = apiService.getAuthHeaders();
+  if (opts.apiKey) headers['X-Bambook-API-Key'] = opts.apiKey;
 
   const res = await fetch(apiService.buildApiUrl('/v1/orders/import'), {
     method: 'POST',
@@ -90,9 +89,8 @@ export async function createManualOrder(
   order: Partial<Order>,
   opts: { apiKey?: string; signal?: AbortSignal } = {},
 ): Promise<{ ok: boolean; order: Order }> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = opts.apiKey || apiService.getApiKey();
-  if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+  const headers = apiService.getAuthHeaders();
+  if (opts.apiKey) headers['X-Bambook-API-Key'] = opts.apiKey;
 
   const res = await fetch(apiService.buildApiUrl('/v1/orders'), {
     method: 'POST',
@@ -126,9 +124,8 @@ export async function updateOrderFields(
   opts: { apiKey?: string; signal?: AbortSignal } = {},
 ): Promise<{ ok: boolean; order: Order }> {
   if (!id) throw new Error('updateOrderFields: id required');
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = opts.apiKey || apiService.getApiKey();
-  if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+  const headers = apiService.getAuthHeaders();
+  if (opts.apiKey) headers['X-Bambook-API-Key'] = opts.apiKey;
 
   const res = await fetch(apiService.buildApiUrl(`/v1/orders/${encodeURIComponent(id)}`), {
     method: 'PUT',
@@ -154,9 +151,8 @@ export async function deleteOrder(
   opts: { apiKey?: string; signal?: AbortSignal } = {},
 ): Promise<{ ok: boolean; order: Order }> {
   if (!id) throw new Error('deleteOrder: id required');
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = opts.apiKey || apiService.getApiKey();
-  if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+  const headers = apiService.getAuthHeaders();
+  if (opts.apiKey) headers['X-Bambook-API-Key'] = opts.apiKey;
 
   const res = await fetch(apiService.buildApiUrl(`/v1/orders/${encodeURIComponent(id)}`), {
     method: 'DELETE',

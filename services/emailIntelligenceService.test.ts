@@ -22,6 +22,7 @@ describe('emailIntelligenceService · F5 意图可视化', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
     vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
   });
 
   it('fetchEmailIntents 按 mailbox+uids 聚合为 uid→info 映射', async () => {
@@ -78,6 +79,7 @@ describe('emailIntelligenceService · F5 模板引擎', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
     vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
   });
 
   it('fetchEmailTemplates 归一化字段并兜底非数组 variables', async () => {

@@ -25,6 +25,7 @@ describe('apiService product reads', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
     vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
   });
 
   it('does not convert a failed v1 product request into an empty legacy product list', async () => {

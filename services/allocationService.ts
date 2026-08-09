@@ -22,13 +22,8 @@ export const allocationService = {
     if (params?.limit) query.set('limit', String(params.limit));
 
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listAllocations failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -38,14 +33,9 @@ export const allocationService = {
   async createAllocation(input: { invoiceId: string; voucherId: string; appliedAmount: number; appliedDate?: string }, endpoint?: string): Promise<AllocationResult> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance/allocations', base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     const data = await res.json().catch(() => ({}));
@@ -59,14 +49,9 @@ export const allocationService = {
   async updateAllocation(id: string, input: { appliedAmount?: number; appliedDate?: string }, endpoint?: string): Promise<AllocationResult> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/allocations/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     const data = await res.json().catch(() => ({}));
@@ -80,14 +65,9 @@ export const allocationService = {
   async deleteAllocation(id: string, endpoint?: string): Promise<AllocationDeleteResult> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/allocations/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {

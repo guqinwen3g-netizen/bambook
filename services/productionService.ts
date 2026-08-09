@@ -87,9 +87,8 @@ export const productionService = {
   async getPipeline(orderId: string, endpoint?: string): Promise<ProductionPipeline> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/production/${encodeURIComponent(orderId)}`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
-      headers: { ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data?.error?.message || `getPipeline failed: HTTP ${res.status}`);
@@ -99,10 +98,9 @@ export const productionService = {
   async advanceStage(orderId: string, stageKey: string, note?: string, endpoint?: string): Promise<PipelineStage> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/production/${encodeURIComponent(orderId)}/advance/${encodeURIComponent(stageKey)}`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({ note }),
     });
     const data = await res.json();
@@ -113,10 +111,9 @@ export const productionService = {
   async saveChecklist(orderId: string, data: Partial<PreCutChecklist>, endpoint?: string): Promise<PreCutChecklist> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/production/${encodeURIComponent(orderId)}/checklist`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(data),
     });
     const json = await res.json();
@@ -127,10 +124,9 @@ export const productionService = {
   async saveInspection(orderId: string, data: Partial<InspectionReport>, endpoint?: string): Promise<InspectionReport> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/production/${encodeURIComponent(orderId)}/inspection`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(data),
     });
     const json = await res.json();
@@ -141,10 +137,9 @@ export const productionService = {
   async signStage(orderId: string, stageKey: string, signType: 'production' | 'business', signerId?: string, endpoint?: string): Promise<PipelineStage> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/production/${encodeURIComponent(orderId)}/sign/${encodeURIComponent(stageKey)}`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({ signType, signerId }),
     });
     const json = await res.json();

@@ -48,13 +48,8 @@ export const fxSettlementService = {
     if (params?.offset) query.set('offset', String(params.offset));
 
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listFxSettlements failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -65,13 +60,8 @@ export const fxSettlementService = {
   async getVoucherSettlementSummary(voucherId: string, endpoint?: string): Promise<VoucherSettlementSummary> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vouchers/${encodeURIComponent(voucherId)}/settlements`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `getVoucherSettlementSummary failed: HTTP ${res.status}`);
@@ -86,13 +76,8 @@ export const fxSettlementService = {
     if (params?.from) query.set('from', params.from);
     if (params?.to) query.set('to', params.to);
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `getFxLedger failed: HTTP ${res.status}`);
@@ -103,14 +88,9 @@ export const fxSettlementService = {
   async createFxSettlement(input: FxSettlementCreateInput, endpoint?: string): Promise<FxSettlement> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance/fx-settlements', base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     const data = await res.json().catch(() => ({}));
@@ -122,11 +102,9 @@ export const fxSettlementService = {
   async deleteFxSettlement(id: string, endpoint?: string): Promise<{ ok: boolean }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/fx-settlements/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: { ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `deleteFxSettlement failed: HTTP ${res.status}`);

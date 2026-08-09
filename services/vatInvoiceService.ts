@@ -77,13 +77,8 @@ export const vatInvoiceService = {
     const url = apiService.buildApiUrl('/v1/finance/vat-invoices', base);
     const qs = buildQuery(params);
     const fullUrl = qs ? `${url}?${qs}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listVatInvoices failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -93,13 +88,8 @@ export const vatInvoiceService = {
   async getVatInvoice(id: string, endpoint?: string): Promise<VatInvoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vat-invoices/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `getVatInvoice failed: HTTP ${res.status}`);
@@ -110,14 +100,9 @@ export const vatInvoiceService = {
   async createVatInvoice(input: VatInvoiceCreateInput, endpoint?: string): Promise<VatInvoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance/vat-invoices', base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     const data = await res.json().catch(() => ({}));
@@ -129,14 +114,9 @@ export const vatInvoiceService = {
   async updateVatInvoice(id: string, patch: VatInvoicePatchInput, endpoint?: string): Promise<VatInvoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vat-invoices/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(patch),
     });
     const data = await res.json().catch(() => ({}));
@@ -148,14 +128,9 @@ export const vatInvoiceService = {
   async transitionVatInvoice(id: string, input: VatInvoiceTransitionInput, endpoint?: string): Promise<VatInvoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vat-invoices/${encodeURIComponent(id)}/transition`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     const data = await res.json().catch(() => ({}));
@@ -167,11 +142,9 @@ export const vatInvoiceService = {
   async deleteVatInvoice(id: string, endpoint?: string): Promise<{ ok: boolean }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vat-invoices/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: { ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `deleteVatInvoice failed: HTTP ${res.status}`);

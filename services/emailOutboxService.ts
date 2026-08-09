@@ -22,14 +22,9 @@ export const emailOutboxService = {
   async sendOutboxEmail(emailId: string, credentials: OutboxSendCredentials, endpoint?: string): Promise<OutboxSendResult> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/email/outbox/${encodeURIComponent(emailId)}/send`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({
         email: credentials.user,
         password: credentials.pass,
@@ -53,13 +48,9 @@ export const emailOutboxService = {
   async createOutboxEmail(input: { fromAddress: string; to: string[]; subject: string; bodyText: string; fromName?: string; threadId?: string }, endpoint?: string): Promise<{ ok: true; emailId: string; mailbox: string; direction: string; auditId: string }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/email/outbox', base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({
         fromAddress: input.fromAddress,
         fromName: input.fromName,
@@ -83,13 +74,9 @@ export const emailOutboxService = {
   async createReplyOutboxEmail(input: { originalEmailId: string; fromAddress: string; to: string[]; subject: string; bodyText: string; fromName?: string; threadId?: string }, endpoint?: string): Promise<{ ok: true; emailId: string; mailbox: string; direction: string; auditId: string }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/email/replies', base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({
         originalEmailId: input.originalEmailId,
         fromAddress: input.fromAddress,

@@ -51,12 +51,7 @@ export interface LinksResponse {
   snapshots?: Record<string, Record<string, unknown> | null>;
 }
 
-const headers = (): Record<string, string> => {
-  const h: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = apiService.getApiKey();
-  if (apiKey) h['X-Bambook-API-Key'] = apiKey;
-  return h;
-};
+const headers = (): Record<string, string> => apiService.getAuthHeaders();
 
 export const entityLinksService = {
   /**

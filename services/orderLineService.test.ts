@@ -1,7 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createOrderLine, updateOrderLineFields } from './orderLineService';
 
+function createStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      values.set(key, value);
+    }),
+    removeItem: vi.fn((key: string) => {
+      values.delete(key);
+    }),
+    clear: vi.fn(() => {
+      values.clear();
+    }),
+  };
+}
+
 beforeEach(() => {
+  vi.stubGlobal('localStorage', createStorage());
+  vi.stubGlobal('sessionStorage', createStorage());
   vi.stubGlobal('fetch', vi.fn(async () => ({
     ok: true,
     json: async () => ({ ok: true, line: { id: 'L1', itemNo: '0010' } }),

@@ -29,13 +29,9 @@ export const paymentVoucherService = {
     if (params?.offset) query.set('offset', String(params.offset));
 
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listPaymentVouchers failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -45,13 +41,9 @@ export const paymentVoucherService = {
   async getPaymentVoucher(id: string, endpoint?: string): Promise<PaymentVoucher> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vouchers/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`getPaymentVoucher failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -61,14 +53,10 @@ export const paymentVoucherService = {
   async createPaymentVoucher(input: Partial<PaymentVoucher>, endpoint?: string): Promise<PaymentVoucher> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance/vouchers', base);
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {
@@ -82,14 +70,10 @@ export const paymentVoucherService = {
   async updatePaymentVoucher(id: string, input: Partial<PaymentVoucher>, endpoint?: string): Promise<PaymentVoucher> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vouchers/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {
@@ -105,10 +89,9 @@ export const paymentVoucherService = {
   async deletePaymentVoucher(id: string, endpoint?: string): Promise<{ ok: boolean }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vouchers/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: { ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || data?.error?.code || `deletePaymentVoucher failed: HTTP ${res.status}`);
@@ -119,13 +102,9 @@ export const paymentVoucherService = {
   async cancelVoucher(id: string, reason?: string, endpoint?: string): Promise<PaymentVoucher> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vouchers/${encodeURIComponent(id)}/cancel`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({ reason }),
     });
     let data: any;

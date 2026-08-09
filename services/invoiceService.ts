@@ -29,13 +29,9 @@ export const invoiceService = {
     if (params?.offset) query.set('offset', String(params.offset));
 
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listInvoices failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -45,13 +41,9 @@ export const invoiceService = {
   async getInvoice(id: string, endpoint?: string): Promise<Invoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`getInvoice failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -61,14 +53,10 @@ export const invoiceService = {
   async createInvoice(input: Partial<Invoice>, endpoint?: string): Promise<Invoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance', base);
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {
@@ -82,14 +70,10 @@ export const invoiceService = {
   async updateInvoice(id: string, input: Partial<Invoice>, endpoint?: string): Promise<Invoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
 
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {
@@ -105,10 +89,9 @@ export const invoiceService = {
   async cancelInvoice(id: string, reason?: string, endpoint?: string): Promise<any> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/${encodeURIComponent(id)}/cancel`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify({ reason }),
     });
     const data = await res.json().catch(() => ({}));
@@ -120,10 +103,9 @@ export const invoiceService = {
   async deleteInvoice(id: string, endpoint?: string): Promise<{ ok: boolean }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: { ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || data?.error?.code || `deleteInvoice failed: HTTP ${res.status}`);

@@ -42,13 +42,8 @@ export const outwardRemittanceService = {
     if (params?.to) query.set('to', params.to);
 
     const fullUrl = query.toString() ? `${url}?${query.toString()}` : url;
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(fullUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`listOutwardRemittances failed: HTTP ${res.status}`);
     const data = await res.json();
@@ -59,13 +54,8 @@ export const outwardRemittanceService = {
   async getVoucherRemittanceSummary(voucherId: string, endpoint?: string): Promise<VoucherRemittanceSummary> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vouchers/${encodeURIComponent(voucherId)}/remittances`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `getVoucherRemittanceSummary failed: HTTP ${res.status}`);
@@ -76,14 +66,9 @@ export const outwardRemittanceService = {
   async createOutwardRemittance(input: OutwardRemittanceCreateInput, endpoint?: string): Promise<OutwardRemittance> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance/outward-remittances', base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'x-bambook-api-key': apiKey } : {}),
-      },
+      headers: apiService.getAuthHeaders(),
       body: JSON.stringify(input),
     });
     const data = await res.json().catch(() => ({}));
@@ -95,11 +80,9 @@ export const outwardRemittanceService = {
   async deleteOutwardRemittance(id: string, endpoint?: string): Promise<{ ok: boolean }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/outward-remittances/${encodeURIComponent(id)}`, base);
-    const apiKey = apiService.getApiKey();
-
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: { ...(apiKey ? { 'X-Bambook-API-Key': apiKey } : {}) },
+      headers: apiService.getAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message || `deleteOutwardRemittance failed: HTTP ${res.status}`);

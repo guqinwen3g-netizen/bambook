@@ -26,9 +26,8 @@ describe('QA [emailSyncService]: POST /v1/email/sync', () => {
     expect(SYNC_SVC_SRC).toContain('export interface EmailSyncError extends Error');
     expect(SYNC_SVC_SRC).toContain('err.code = json?.error?.code');
   });
-  it('带 x-bambook-api-key（getApiKey + header，远端 API key 环境）', () => {
-    expect(SYNC_SVC_SRC).toContain('apiService.getApiKey()');
-    expect(SYNC_SVC_SRC).toContain("'x-bambook-api-key'");
+  it('带统一认证头（apiService.getAuthHeaders：API key + 登录 JWT，远端 API key 环境）', () => {
+    expect(SYNC_SVC_SRC).toContain('apiService.getAuthHeaders()');
   });
   it('成功返回 synced/skipped/errors/accountMasked/auditIds', () => {
     expect(SYNC_SVC_SRC).toContain('synced');

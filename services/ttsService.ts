@@ -4,6 +4,8 @@ export type TTSProvider = 'browser' | 'custom';
 // through the Bambook data-center API; the renderer should not call model/TTS
 // providers directly.
 
+import { apiService } from './apiService';
+
 export const ttsService = {
     provider: 'custom' as TTSProvider,
     authToken: '',
@@ -662,11 +664,8 @@ export const ttsService = {
         const rateStr = `${pct >= 0 ? '+' : ''}${pct}%`;
         const response = await fetch(customUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
-                ...(this.customApiKey ? { 'X-Bambook-API-Key': this.customApiKey } : {})
-            },
+            // 统一认证头：Content-Type + API key + 登录会话 JWT（与 apiService 同口径）
+            headers: apiService.getAuthHeaders(),
             credentials: 'include',
             body: JSON.stringify({
                 input: segment,

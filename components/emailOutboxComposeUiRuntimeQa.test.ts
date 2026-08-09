@@ -28,9 +28,8 @@ describe('QA [service]: createOutboxEmail + createReplyOutboxEmail', () => {
   it('失败保留 error.code', () => {
     expect(OUTBOX_SVC_SRC).toContain('err.code =');
   });
-  it('带 x-bambook-api-key', () => {
-    expect(OUTBOX_SVC_SRC).toContain('apiService.getApiKey()');
-    expect(OUTBOX_SVC_SRC).toContain("'x-bambook-api-key'");
+  it('带统一认证头（apiService.getAuthHeaders：API key + 登录 JWT）', () => {
+    expect(OUTBOX_SVC_SRC).toContain('apiService.getAuthHeaders()');
   });
   it('成功返回 emailId/mailbox/direction/auditId', () => {
     expect(OUTBOX_SVC_SRC).toContain('emailId: json.emailId');
