@@ -163,7 +163,7 @@ order_placed → materials_confirmed → production_planned → in_production �
 
 1. **Prisma 7 迁移**：创建 `prisma.config.ts`，将 `DATABASE_URL` 从 schema 移至配置文件
 2. **Agent 能力扩展**：signStage 双签流程 E2E、savePreCutChecklist E2E
-3. **生产管线 UI**：ProductionPipeline / ProductionAlerts 组件已在主线，需接入实际数据
+3. **生产管线 UI**：ProductionPipeline 已内嵌 OrderManager 并接真实数据（productionService → `/api/v1/production/:orderId`）
 4. **Agent 开放式场景评估**：扩展 open-ended business scenario eval 覆盖更多自然语言路径
 5. **worktree merge 常态化**：当前 ahead 50+ commit 已收拢，后续定期 merge
 

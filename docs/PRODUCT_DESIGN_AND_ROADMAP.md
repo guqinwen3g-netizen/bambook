@@ -1155,14 +1155,12 @@ type ToolManifestSafety = {
 - ✅ Agent 对话窗口（Assistant.tsx 3221 行 + 19 个响应渲染器）
 - ✅ HR 模块（人员/部门/岗位/团队/项目/工作分配）
 - ✅ Admin 模块（用户/角色/权限/审批/审计/工具权限）
+- ✅ 生产管线前端（OrderManager 内嵌 ProductionPipeline，读 `/api/v1/production/:orderId` 真实阶段数据）
+- ✅ 出运制单（ShipmentDocumentGenerator 读真实运单生成 CI/PL/CO/BL 成套单据；4 个制单小组件接真实订单/关系数据）
 
 ### 8.2 进行中 / 半成品
 
-- 🟡 生产管线前端：ProductionPipeline 组件已就绪，需接实际数据
-- 🟡 Agent 对话窗口：状态条已有，完整对话 UI 待打磨
-- 🟡 单证生成：发票/装箱单模板有 sample，未接入订单数据自动生成
-- 🟡 银企对账：手工对账可用，自动导入待补
-- 🟡 KnowledgeBase.tsx：handleEditSave 仅本地修改未走 API
+- 🟡 KnowledgeBase.tsx：handleEditSave 仅本地修改未走 API（移动端 PWA 组件，按交付优先级推迟）
 - 🟡 DataCenter.tsx：偏可视化玩具，业务关联弱
 
 ### 8.3 缺失 / 未开工
@@ -1171,6 +1169,7 @@ type ToolManifestSafety = {
 |------|------|--------|
 | 采购管理（独立采购单 + 供应商对账） | 资金闭环不完整 | 高 |
 | 仓库管理（出入库 + 盘点 + 库位） | 库存黑盒 | 高 |
+| 银企对账自动导入（银行流水文件解析 + 自动匹配核销） | 对账全靠手工 | 中 |
 | 关务管理（报关单据 + 退税） | 报关手工 | 中 |
 | 成本核算（订单级成本归集 + 利润分析） | 利润不可见 | 高 |
 | 生产排程（产能日历 + 工序排产） | 排产靠经验 | 中 |
@@ -1218,8 +1217,8 @@ type ToolManifestSafety = {
 | 任务 | 交付物 | 验收标准 | 优先级 |
 |------|-------|---------|--------| 高 |
 | Prisma 7 迁移 | prisma.config.ts + migrate 可用 | `npx prisma migrate status` 无报错 | 高 |
-| 生产管线前端接数据 | ProductionPipeline 组件读真实订单 | 老板能看到任一订单的 10 阶段进度 | 高 |
-| Agent 对话窗口 MVP | 完整对话 UI + 工具调用可视化 | 用户可用自然语言推进订单阶段 | 高 |
+| ~~生产管线前端接数据~~ ✅ 已完成（内嵌 OrderManager，productionService 真实 API） | ProductionPipeline 组件读真实订单 | 老板能看到任一订单的 10 阶段进度 | 高 |
+| ~~Agent 对话窗口 MVP~~ ✅ 已完成（Assistant.tsx 3221 行 + 19 渲染器） | 完整对话 UI + 工具调用可视化 | 用户可用自然语言推进订单阶段 | 高 |
 | 生产预警接入 | ProductionAlerts 读真实数据 | 阶段超期自动报警 | 高 |
 | 修复 4 个 production 工具审批 enforcement | approvalRoles 设置或改 commit 注册 | 审批一致 | 高 |
 | Templates 模块加 auth guard | router.use(guard) | 模板端点需鉴权 | 高 |
@@ -1382,8 +1381,8 @@ type ToolManifestSafety = {
 ### 12.1 本周（P0 高优先级）
 
 1. **Prisma 7 迁移** — 创建 `server/prisma.config.ts`，迁移 schema `url` 到配置文件，恢复 `migrate status` 可用
-2. **生产管线前端接数据** — [ProductionPipeline.tsx](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/components/ProductionPipeline.tsx) 调用 `/api/v1/production/:orderId`，展示真实订单阶段
-3. **Agent 对话窗口 MVP** — 打磨 [Assistant.tsx](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/components/Assistant.tsx)，支持用户输入 + Agent 工具调用可视化
+2. ~~生产管线前端接数据~~ ✅ 已完成 — [ProductionPipeline.tsx](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/components/ProductionPipeline.tsx) 内嵌 OrderManager，调用 `/api/v1/production/:orderId` 展示真实订单阶段
+3. ~~Agent 对话窗口 MVP~~ ✅ 已完成 — [Assistant.tsx](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/components/Assistant.tsx) 完整对话 UI + 工具调用可视化（19 个响应渲染器）
 4. **修复 4 个 production 工具审批 enforcement** — `production.advance_stage / save_checklist / save_inspection / sign_stage` 的 approvalRoles 设置或改 commit 注册
 5. **Templates 模块加 auth guard** — `createTemplatesRouter` 内调用 `router.use(guard)`
 
