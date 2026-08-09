@@ -199,8 +199,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       try {
         const timeline = await apiService.getOrderTimeline(selectedOrder.id!);
         setStatusTimeline(timeline);
-      } catch { /* ignore */ }
-    } catch { /* ignore */ }
+      } catch { /* 时间线刷新失败非关键：状态已可见更新，保持静默 */ }
+    } catch (e: any) {
+      // IA 残留收口：推进失败必须用户可见（191.6 登记体验债），沿用本模块 window.alert 反馈惯例
+      window.alert(`状态推进失败：${e?.message ?? e}\n\n订单状态未变更，请稍后重试。`);
+    }
   }, [selectedOrder?.id, orders, setOrders, onSelectOrder]);
 
   // 阶段 IA-3：订单详情下游动作区 —— prime 目标模块创建表单后跳转（复用后端 L1-L10 联动，前端补触发点）
