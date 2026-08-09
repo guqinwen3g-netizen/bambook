@@ -65,7 +65,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
 
   const authenticate = (req: Request, res: Response): boolean => {
     if (!requireAuth) return true;
-    const apiKey = req.query.apiKey as string || req.headers['x-api-key'] as string;
+    const apiKey = (req.query.apiKey as string) || (req.headers['x-bambook-api-key'] as string) || (req.headers['x-api-key'] as string);
     if (apiKey && apiKeys.has(apiKey)) return true;
     const actor = extractActorFromRequest(req);
     if (actor?.userId) return true;
