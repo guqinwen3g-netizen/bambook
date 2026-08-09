@@ -673,7 +673,7 @@ function AssignmentForm({
               </div>
             )}
             {!ordersLoading && orders.length === 0 && (
-              <div className="text-[11px] text-text-tertiary mt-1">暂无可选订单，请先在「生产管理」创建订单</div>
+              <div className="text-[11px] text-text-tertiary mt-1">暂无可选订单，请先在「订单管理」创建订单</div>
             )}
           </>
         )}

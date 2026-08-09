@@ -1668,7 +1668,7 @@ const App: React.FC = () => {
             {activeView === View.Customs && renderMainCompilerSlot(
               compilerSurfaces.customs,
               'customs',
-              <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} />,
+              <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} onOpenDocumentCenter={() => handleViewChange(View.DocumentCenter)} />,
             )}
             {activeView === View.DocumentCenter && (
               <DocumentCenter isDarkMode={isDarkMode} />

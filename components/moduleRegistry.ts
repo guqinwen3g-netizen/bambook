@@ -365,7 +365,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
   {
     id: 'orders',
     view: View.Orders,
-    productLabel: '生产管理',
+    productLabel: '订单管理',
     internalName: 'Orders',
     icon: Factory,
     nav: { primary: true, order: 46, group: 'fulfillment' },
