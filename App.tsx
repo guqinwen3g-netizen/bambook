@@ -184,7 +184,7 @@ import SuppliersManager from './components/SuppliersManager';
 import SeasonsManager from './components/SeasonsManager';
 import RisksManager from './components/RisksManager';
 import QcWorkbenchManager from './components/QcWorkbenchManager';
-import PricingManager from './components/PricingManager';
+import PricingManager, { type PricingTabId } from './components/PricingManager';
 import MarketingManager from './components/MarketingManager';
 import MesManager from './components/MesManager';
 import CustomsManager, { type CustomsTabId } from './components/CustomsManager';
@@ -1502,7 +1502,7 @@ const App: React.FC = () => {
               relationsReady
                 ? (
                   compilerSurfaces.relations
-                    ? <CompiledRelationsPage relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} cloudEndpoint={config.cloudEndpoint} />
+                    ? <CompiledRelationsPage relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} cloudEndpoint={config.cloudEndpoint} onNavigate={handleViewChange} />
                     : <RelationsManager relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} />
                 )
                 : <div className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>关系智库正在读取数据中心...</div>
@@ -1613,10 +1613,10 @@ const App: React.FC = () => {
             {activeView === View.CRM && renderMainCompilerSlot(
               compilerSurfaces.crm,
               'crm',
-              <CrmManager isDarkMode={isDarkMode} />,
+              <CrmManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />,
             )}
             {activeView === View.Suppliers && (
-              <SuppliersManager isDarkMode={isDarkMode} />
+              <SuppliersManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
             )}
             {activeView === View.Seasons && (
               <SeasonsManager isDarkMode={isDarkMode} />
@@ -1628,7 +1628,7 @@ const App: React.FC = () => {
               <QcWorkbenchManager isDarkMode={isDarkMode} />
             )}
             {activeView === View.Pricing && (
-              <PricingManager isDarkMode={isDarkMode} />
+              <PricingManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Pricing] as PricingTabId | undefined} />
             )}
             {activeView === View.Marketing && (
               <MarketingManager isDarkMode={isDarkMode} />
@@ -1738,7 +1738,7 @@ const App: React.FC = () => {
             {activeView === View.BusinessTools && renderMainCompilerSlot(
               compilerSurfaces.businessTools,
               'business-tools',
-              <BusinessTools isDarkMode={isDarkMode} relations={relationsReady ? relations : []} orders={ordersReady ? orders : []} onNavigate={handleViewChange} />,
+              <BusinessTools isDarkMode={isDarkMode} relations={relationsReady ? relations : []} orders={ordersReady ? orders : []} onNavigate={handleReportNavigate} />,
             )}
             {activeView === View.AdminPanel && renderMainCompilerSlot(
               compilerSurfaces.adminPanel,

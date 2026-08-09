@@ -8,6 +8,8 @@
  *   - 信用证管理（CRUD + 状态机 + 不符点记录）
  *   - 出口退税（CRUD + 状态机 + 审核 + 自动退税额计算）
  *   - 贸易单据（CRUD + 状态机 + 附件管理）
+ *   - 出运制单（阶段 IA-2 自业务工具收编：运单一键生成 CI/PL/CO/BL 成套单据）
+ *   - 单据模板（阶段 IA-2 自业务工具收编：13 类外贸单据 HTML 模板管理）
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -28,8 +30,12 @@ import {
   ChevronDown,
   ChevronRight,
   History,
+  Layers,
+  LayoutTemplate,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import ShipmentDocumentGenerator from './tools/ShipmentDocumentGenerator';
+import DocumentTemplateManager from './tools/DocumentTemplateManager';
 import {
   CustomsDeclaration,
   CustomsDeclarationInput,
@@ -62,10 +68,13 @@ import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
 
-type TabId = 'declarations' | 'hsCodes' | 'lettersOfCredit' | 'taxRefunds' | 'tradeDocuments';
+type TabId = 'declarations' | 'hsCodes' | 'lettersOfCredit' | 'taxRefunds' | 'tradeDocuments' | 'docGenerator' | 'docTemplates';
 
 /** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
 export type { TabId as CustomsTabId };
+
+/** 阶段 IA-2：制单工具 tab（本地工具面板，不走列表数据拉取/搜索/状态筛选） */
+const TOOL_TAB_IDS: ReadonlySet<TabId> = new Set(['docGenerator', 'docTemplates']);
 
 const CUSTOMS_TYPES: Array<{ id: CustomsType; label: string }> = [
   { id: 'Export', label: '出口' },
@@ -273,6 +282,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
   }, [searchQuery, statusFilter]);
 
   useEffect(() => {
+    if (TOOL_TAB_IDS.has(activeTab)) { setLoading(false); return; }
     if (activeTab === 'declarations') fetchDeclarations();
     if (activeTab === 'hsCodes') fetchHsCodes();
     if (activeTab === 'lettersOfCredit') fetchLettersOfCredit();
@@ -316,6 +326,8 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
     { id: 'lettersOfCredit', label: '信用证', icon: <CreditCard size={12} />, count: lettersOfCredit.length },
     { id: 'taxRefunds', label: '出口退税', icon: <Receipt size={12} />, count: taxRefunds.length },
     { id: 'tradeDocuments', label: '贸易单据', icon: <FileText size={12} />, count: tradeDocuments.length },
+    { id: 'docGenerator', label: '出运制单', icon: <Layers size={12} /> },
+    { id: 'docTemplates', label: '单据模板', icon: <LayoutTemplate size={12} /> },
   ];
 
   // ── 状态转换 ──
@@ -457,12 +469,14 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
         contextLabel="Customs Desk"
         isDarkMode={isDarkMode}
         actions={
-          <button
-            onClick={() => setShowForm(true)}
-            className="h-8 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors"
-          >
-            <Plus size={14} /><span>新增</span>
-          </button>
+          TOOL_TAB_IDS.has(activeTab) ? undefined : (
+            <button
+              onClick={() => setShowForm(true)}
+              className="h-8 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors"
+            >
+              <Plus size={14} /><span>新增</span>
+            </button>
+          )
         }
       />
 
@@ -481,7 +495,8 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
             ))}
           </div>
 
-          {/* 工具栏 */}
+          {/* 工具栏（制单工具 tab 为本地面板，无列表工具栏） */}
+          {!TOOL_TAB_IDS.has(activeTab) && (
           <div className="flex items-center gap-3 mb-4 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">
               <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -510,6 +525,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
               <RefreshCw size={12} />刷新
             </button>
           </div>
+          )}
 
           {error && (
             <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('danger', isDarkMode)}`}>
@@ -944,6 +960,18 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
                 </motion.div>
               )}
             </>
+          )}
+
+          {/* ════════ 出运制单 / 单据模板 Tab（阶段 IA-2 自业务工具收编，独立 loading 分支外） ════════ */}
+          {activeTab === 'docGenerator' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <ShipmentDocumentGenerator isDarkMode={isDarkMode} />
+            </motion.div>
+          )}
+          {activeTab === 'docTemplates' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <DocumentTemplateManager isDarkMode={isDarkMode} />
+            </motion.div>
           )}
         </div>
       </div>

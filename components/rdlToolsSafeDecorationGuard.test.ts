@@ -4,7 +4,6 @@ const path = require('path');
 
 const FABRIC = fs.readFileSync(path.resolve(__dirname, 'tools/FabricSampleInvoiceGenerator.tsx'), 'utf8');
 const SHIPPING = fs.readFileSync(path.resolve(__dirname, 'tools/ShippingNoticeGenerator.tsx'), 'utf8');
-const EXCHANGE = fs.readFileSync(path.resolve(__dirname, 'tools/ExchangeRateTool.tsx'), 'utf8');
 
 // ═══ Part 1: safe decoration 已清理 ═══
 describe('RDL tools safe decoration [已清理]', () => {
@@ -18,12 +17,6 @@ describe('RDL tools safe decoration [已清理]', () => {
   it('Shipping 无 #3B7BD4 硬编码', () => {
     expect(SHIPPING).not.toContain('#3B7BD4');
   });
-  it('ExchangeRateTool 无 light raw blue 装饰 (blue-50/100/200/400)', () => {
-    expect(EXCHANGE).not.toContain('from-blue-50');
-    expect(EXCHANGE).not.toContain('border-blue-100');
-    expect(EXCHANGE).not.toContain('bg-blue-50');
-    expect(EXCHANGE).not.toContain('text-blue-400');
-  });
   it('Shipping 无 hover shadow', () => {
     expect(SHIPPING).not.toContain('hover:shadow');
   });
@@ -35,11 +28,6 @@ describe('RDL tools safe decoration [已清理]', () => {
 
 // ═══ Part 2: 业务语义色未被误清（冻结项保留）═══
 describe('RDL tools safe decoration [业务语义保留]', () => {
-  it('ExchangeRateTool 退税概念语义保留（经 rdlBusinessStatusTokens 中性 token）', () => {
-    expect(EXCHANGE).toContain('REBATE_RATE');
-    expect(EXCHANGE).toContain("statusSemanticText('rebate'");
-    expect(EXCHANGE).toContain("statusSemanticClass('rebate'");
-  });
   it('Fabric status banner/destructive 保留 (emerald/rose)', () => {
     expect(FABRIC).toContain('bg-emerald-500/10');
     expect(FABRIC).toContain('bg-rose-500/10');

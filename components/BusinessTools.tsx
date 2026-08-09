@@ -1,3 +1,12 @@
+/**
+ * 业务工具箱 BusinessTools
+ * 阶段 IA-2 收编后定位：只保留「真正无主」的工具——
+ *   · 报价计算器 / 退税汇率 → 已收编至 定价与利润（Pricing）对应 tab，此处为跳转卡
+ *   · 出运制单 / 单据模板   → 已收编至 外贸与报关（Customs）对应 tab，此处为跳转卡
+ *   · 样品发票 / 发货通知 / 合同 / 装箱单生成器 → 以订单/关系为输入的制单小组件，暂留本页
+ *   · PO 导入 / MES → 跳转卡
+ */
+
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -17,12 +26,8 @@ import {
 } from 'lucide-react';
 import FabricSampleInvoiceGenerator from './tools/FabricSampleInvoiceGenerator';
 import ShippingNoticeGenerator from './tools/ShippingNoticeGenerator';
-import ExchangeRateTool from './tools/ExchangeRateTool';
-import QuoteCalculator from './tools/QuoteCalculator';
 import PackingListGenerator from './tools/PackingListGenerator';
 import ContractGenerator from './tools/ContractGenerator';
-import ShipmentDocumentGenerator from './tools/ShipmentDocumentGenerator';
-import DocumentTemplateManager from './tools/DocumentTemplateManager';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -48,13 +53,15 @@ interface Tool {
   component?: React.ReactNode;
   /** 设置了 targetView 的卡片点击后跳转对应视图（而非打开内嵌面板） */
   targetView?: View;
+  /** 阶段 IA-2：跳转落点模块内 tab（经 moduleTabOverrides 深链） */
+  targetTab?: string;
 }
 
 interface BusinessToolsProps {
   isDarkMode: boolean;
   relations?: Relation[];
   orders?: Order[];
-  onNavigate?: (view: View) => void;
+  onNavigate?: (view: View, tab?: string) => void;
 }
 
 const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [], orders = [], onNavigate }) => {
@@ -114,40 +121,44 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
     {
       id: 'shipment-documents',
       name: '出运制单引擎',
-      description: '运单一键生成 CI/PL/CO/BL 成套单据',
+      description: '已收编至 外贸与报关 · 出运制单：运单一键生成 CI/PL/CO/BL 成套单据',
       icon: Layers,
       status: 'available',
-      component: <ShipmentDocumentGenerator isDarkMode={isDarkMode} />
+      targetView: View.Customs,
+      targetTab: 'docGenerator',
     },
     {
       id: 'document-templates',
       name: '单据模板管理',
-      description: '13 类外贸单据 HTML 模板 · 变量占位符 · 默认模板',
+      description: '已收编至 外贸与报关 · 单据模板：13 类外贸单据 HTML 模板 · 变量占位符',
       icon: FileText,
       status: 'available',
-      component: <DocumentTemplateManager isDarkMode={isDarkMode} />
+      targetView: View.Customs,
+      targetTab: 'docTemplates',
     },
     {
       id: 'quote-calculator',
       name: '报价计算器',
-      description: '成本测算 · 利润分析 · FOB/CIF 报价',
+      description: '已收编至 定价与利润 · 定价计算器：退税美元定价试算 · 记录保存',
       icon: Calculator,
       status: 'available',
-      component: <QuoteCalculator isDarkMode={isDarkMode} />
+      targetView: View.Pricing,
+      targetTab: 'calculator',
     },
     {
       id: 'exchange-rate',
       name: '退税核算汇率',
-      description: '退税换算 · 实时汇率 · 快速算成本',
+      description: '已收编至 定价与利润 · 退税率：HS Code 退税率表 · 前缀命中测试',
       icon: TrendingUp,
       status: 'available',
-      component: <ExchangeRateTool isDarkMode={isDarkMode} />
+      targetView: View.Pricing,
+      targetTab: 'taxRates',
     }
   ];
 
   const handleToolClick = (tool: Tool) => {
     if (tool.targetView) {
-      onNavigate?.(tool.targetView);
+      onNavigate?.(tool.targetView, tool.targetTab);
       return;
     }
     if (tool.status === 'available') {

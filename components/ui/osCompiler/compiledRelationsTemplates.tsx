@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Relation, RelationCategory } from '../../../types';
+import { Relation, RelationCategory, View } from '../../../types';
 import {
   Users, Search, Plus, Building2, User,
   MoreHorizontal, Edit2, Trash2, X, Save,
@@ -15,6 +15,7 @@ import { PageHeader } from '../PageHeader';
 import { motion } from 'framer-motion';
 import { resolveCoordinates, extractAddressFromRelation, type ResolvedCoordinates } from '../../../utils/geoResolveService';
 import { apiService } from '../../../services/apiService';
+import { primeSuppliersFactoryPreview } from '../../SuppliersManager';
 import {
   SIDEBAR_ACTIVE_DARK_CLASS,
   SIDEBAR_ACTIVE_LIGHT_CLASS,
@@ -61,6 +62,8 @@ export interface CompiledRelationsPageProps {
   sidebarCollapsed?: boolean;
   /** 数据中心 API 入口，用于删除等写入操作直连后端 */
   cloudEndpoint?: string;
+  /** 跨模块导航（供应商组织详情「工厂档案」直达供应商管理） */
+  onNavigate?: (view: View) => void;
 }
 
 type RelationFormSectionId = 'basic' | 'contact' | 'address' | 'finance' | 'personal' | 'notes';
@@ -413,7 +416,7 @@ export const RelationsTitleSpotlightButton: React.FC<RelationsTitleSpotlightButt
   </CompiledInteractiveCard>
 );
 
-export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ relations, onUpdate = () => undefined, isDarkMode = false, isMobile = false, sidebarCollapsed = false, cloudEndpoint }) => {
+export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ relations, onUpdate = () => undefined, isDarkMode = false, isMobile = false, sidebarCollapsed = false, cloudEndpoint, onNavigate }) => {
   const blueprint = useMemo(() => compileRelationsPage(), []);
   const [previewState] = useState(readRelationsPreviewState);
   // Navigation State
@@ -1206,6 +1209,20 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
         )}
         actions={(
         <div className="flex h-full items-center gap-2 shrink-0">
+          {/* 阶段 IA 全局收编：供应商组织详情直达「供应商管理」工厂档案（评分/认证/产能） */}
+          {navLevel === 'detail' && selectedOrganization?.category === 'Supplier' && onNavigate && (
+            <RelationsTitleSpotlightButton
+              isDarkMode={isDarkMode}
+              type="button"
+              onClick={() => {
+                primeSuppliersFactoryPreview(selectedOrganization.id);
+                onNavigate(View.Suppliers);
+              }}
+              wrapperClassName={`${RELATIONS_TITLE_ACTION_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TITLE_BUTTON_DARK_CLASS : RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
+            >
+              <Building2 size={14} strokeWidth={1.5} /> 工厂档案
+            </RelationsTitleSpotlightButton>
+          )}
           {/* 新增按钮：分类页不展示 */}
           {(navLevel === 'organizations' || navLevel === 'detail') && (
             <RelationsTitleSpotlightButton

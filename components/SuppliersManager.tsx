@@ -34,11 +34,13 @@ import {
   Pencil,
   AlertTriangle,
   Award,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import {
   Relation,
+  View,
   FactoryProfile,
   FactoryProfileInput,
   FactoryProfilePatch,
@@ -53,6 +55,48 @@ import {
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, statusSemanticBg, StatusSemantic } from './rdlBusinessStatusTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { primeRelationsOrgDetailPreview } from './RelationsManager';
+
+// ==================== 跨模块落点（阶段 IA 全局收编） ====================
+
+const SUPPLIERS_PREVIEW_STATE_KEY = 'bambook_suppliers_preview_state';
+
+type SuppliersPreviewState = { relationId?: string | null };
+
+const readSuppliersPreviewState = (): SuppliersPreviewState => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = sessionStorage.getItem(SUPPLIERS_PREVIEW_STATE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as SuppliersPreviewState;
+    return { relationId: typeof parsed.relationId === 'string' ? parsed.relationId : null };
+  } catch {
+    return {};
+  }
+};
+
+const clearSuppliersPreviewState = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(SUPPLIERS_PREVIEW_STATE_KEY);
+  } catch {
+    // 落点连续性仅作增强；存储失败忽略。
+  }
+};
+
+/**
+ * 阶段 IA 全局收编：关系智库 → 供应商管理跨模块跳转。
+ * 调用方在触发视图切换（onNavigate(View.Suppliers)）前调用，
+ * SuppliersManager 挂载时按 relationId 解析对应工厂档案并选中（含黑名单工厂）。
+ */
+export const primeSuppliersFactoryPreview = (relationId: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(SUPPLIERS_PREVIEW_STATE_KEY, JSON.stringify({ relationId } satisfies SuppliersPreviewState));
+  } catch {
+    // 落点连续性仅作增强；存储失败忽略。
+  }
+};
 
 // ==================== 常量 ====================
 
@@ -148,11 +192,13 @@ function certSemantic(daysLeft: number | null): StatusSemantic {
 
 interface SuppliersManagerProps {
   isDarkMode?: boolean;
+  /** 跨模块导航（详情头部「关系档案」直达关系智库组织详情） */
+  onNavigate?: (view: View) => void;
 }
 
 // ==================== 主组件 ====================
 
-export default function SuppliersManager({ isDarkMode }: SuppliersManagerProps) {
+export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersManagerProps) {
   const [activeTab, setActiveTab] = useState<SupplierTab>('overview');
   const [profiles, setProfiles] = useState<FactoryProfile[]>([]);
   const [total, setTotal] = useState(0);
@@ -162,6 +208,35 @@ export default function SuppliersManager({ isDarkMode }: SuppliersManagerProps) 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('quality');
   const [filter, setFilter] = useState<FilterId>('active');
+
+  // ── 跨模块落点解析：关系智库供应商组织 → 对应工厂档案 ──
+  const [primedRelationId, setPrimedRelationId] = useState<string | null>(
+    () => readSuppliersPreviewState().relationId ?? null,
+  );
+
+  useEffect(() => {
+    if (!primedRelationId) return;
+    let cancelled = false;
+    void apiService.listFactoryProfiles({ limit: 500 })
+      .then((result) => {
+        if (cancelled) return;
+        const hit = result.items.find((p) => p.relationId === primedRelationId);
+        if (hit) {
+          // 黑名单工厂不在默认「正常」过滤内，切「全部」保证落点可见
+          setFilter('all');
+          setSearch('');
+          setActiveTab('overview');
+          setSelectedId(hit.id);
+        }
+        clearSuppliersPreviewState();
+        setPrimedRelationId(null);
+      })
+      .catch(() => {
+        clearSuppliersPreviewState();
+        setPrimedRelationId(null);
+      });
+    return () => { cancelled = true; };
+  }, [primedRelationId]);
 
   // 选中工厂数据
   const [detail, setDetail] = useState<FactoryProfile | null>(null);
@@ -603,6 +678,19 @@ export default function SuppliersManager({ isDarkMode }: SuppliersManagerProps) 
                     <Pencil className="w-3.5 h-3.5" />
                     编辑档案
                   </button>
+                  {onNavigate && (
+                    <button
+                      onClick={() => {
+                        primeRelationsOrgDetailPreview(selectedProfile.relationId);
+                        onNavigate(View.Relations);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                      title="在关系智库中查看该供应商的组织档案、联系人与跟进记录"
+                    >
+                      关系档案
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null ? (
                     <button
                       onClick={() => handleUnblacklist(detail ?? selectedProfile)}

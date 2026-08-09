@@ -76,6 +76,29 @@ export type ModuleRuntimeSurface =
 
 export type ModulePermissionPolicy = ViewPermissionPolicy;
 
+/**
+ * 阶段 IA（信息架构）导航分组 — PRD 第二十四章权威定义。
+ * order 组段分配（防 49.x 补丁式插值回退）：
+ *   overview 10-19 / customer 20-39 / fulfillment 40-69 / finance 70-89 / platform 90-119
+ */
+export type BambookNavGroup = 'overview' | 'customer' | 'fulfillment' | 'finance' | 'platform';
+
+export const BAMBOOK_NAV_GROUP_ORDER: Record<BambookNavGroup, number> = {
+  overview: 10,
+  customer: 20,
+  fulfillment: 40,
+  finance: 70,
+  platform: 90,
+};
+
+export const BAMBOOK_NAV_GROUP_LABELS: Record<BambookNavGroup, string> = {
+  overview: '经营总览',
+  customer: '客户与市场',
+  fulfillment: '订单履约',
+  finance: '财务与成本',
+  platform: '平台',
+};
+
 export type MainCompilerSurfaceConfig = {
   queryKey: string;
   storageKey: string;
@@ -99,6 +122,7 @@ export type BambookModuleDefinition = {
     primary: boolean;
     adminOnly?: boolean;
     order: number;
+    group: BambookNavGroup;
   };
   permissions: {
     policy: ModulePermissionPolicy;
@@ -269,7 +293,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '全景看板',
     internalName: 'Dashboard',
     icon: LayoutDashboard,
-    nav: { primary: true, order: 10 },
+    nav: { primary: true, order: 10, group: 'overview' },
     permissions: getViewPermissionDefinition(View.Dashboard),
     compiler: compiler('dashboard', 'accepted'),
     runtime: desktopRuntime,
@@ -285,7 +309,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '经营驾驶舱',
     internalName: 'Cockpit',
     icon: Gauge,
-    nav: { primary: true, order: 12 },
+    nav: { primary: true, order: 12, group: 'overview' },
     permissions: getViewPermissionDefinition(View.Cockpit),
     runtime: desktopRuntime,
     entry: { current: 'components/CockpitManager.tsx' },
@@ -296,7 +320,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: 'AI 助手',
     internalName: 'Assistant',
     icon: Sparkles,
-    nav: { primary: true, order: 20 },
+    nav: { primary: true, order: 90, group: 'platform' },
     permissions: getViewPermissionDefinition(View.Assistant),
     compiler: compiler('assistant', 'provisional'),
     runtime: desktopRuntime,
@@ -308,7 +332,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '关系智库',
     internalName: 'Relations',
     icon: Users,
-    nav: { primary: true, order: 30 },
+    nav: { primary: true, order: 20, group: 'customer' },
     permissions: getViewPermissionDefinition(View.Relations),
     compiler: compiler('relations', 'accepted'),
     runtime: desktopRuntime,
@@ -324,7 +348,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '数字档案',
     internalName: 'Products',
     icon: Library,
-    nav: { primary: true, order: 40 },
+    nav: { primary: true, order: 40, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Products),
     compiler: compiler('products', 'accepted'),
     runtime: desktopRuntime,
@@ -343,7 +367,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '生产管理',
     internalName: 'Orders',
     icon: Factory,
-    nav: { primary: true, order: 50 },
+    nav: { primary: true, order: 46, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Orders),
     compiler: compiler('orders', 'provisional'),
     runtime: desktopRuntime,
@@ -359,7 +383,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '报价管理',
     internalName: 'Quotations',
     icon: FileSignature,
-    nav: { primary: true, order: 49 },
+    nav: { primary: true, order: 44, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Quotations),
     compiler: compiler('quotations', 'provisional'),
     runtime: desktopRuntime,
@@ -371,7 +395,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '采购管理',
     internalName: 'Procurement',
     icon: PackageCheck,
-    nav: { primary: true, order: 49.5 },
+    nav: { primary: true, order: 48, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Procurement),
     compiler: compiler('procurement', 'provisional'),
     runtime: desktopRuntime,
@@ -383,7 +407,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '库存管理',
     internalName: 'Inventory',
     icon: Boxes,
-    nav: { primary: true, order: 49.6 },
+    nav: { primary: true, order: 50, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Inventory),
     compiler: compiler('inventory', 'provisional'),
     runtime: desktopRuntime,
@@ -395,7 +419,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: 'BOM 成本核算',
     internalName: 'BOM',
     icon: Calculator,
-    nav: { primary: true, order: 49.7 },
+    nav: { primary: true, order: 74, group: 'finance' },
     permissions: getViewPermissionDefinition(View.BOM),
     compiler: compiler('bom', 'provisional'),
     runtime: desktopRuntime,
@@ -407,7 +431,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '客户关系管理',
     internalName: 'CRM',
     icon: Contact,
-    nav: { primary: true, order: 49.8 },
+    nav: { primary: true, order: 22, group: 'customer' },
     permissions: getViewPermissionDefinition(View.CRM),
     compiler: compiler('crm', 'provisional'),
     runtime: desktopRuntime,
@@ -419,7 +443,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '供应商管理',
     internalName: 'Suppliers',
     icon: Building2,
-    nav: { primary: true, order: 49.55 },
+    nav: { primary: true, order: 24, group: 'customer' },
     permissions: getViewPermissionDefinition(View.Suppliers),
     runtime: desktopRuntime,
     entry: { current: 'components/SuppliersManager.tsx' },
@@ -430,7 +454,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '季节性与趋势',
     internalName: 'Seasons',
     icon: CalendarRange,
-    nav: { primary: true, order: 49.56 },
+    nav: { primary: true, order: 28, group: 'customer' },
     permissions: getViewPermissionDefinition(View.Seasons),
     runtime: desktopRuntime,
     entry: { current: 'components/SeasonsManager.tsx' },
@@ -441,7 +465,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '风险管理与合规',
     internalName: 'Risks',
     icon: ShieldAlert,
-    nav: { primary: true, order: 49.57 },
+    nav: { primary: true, order: 76, group: 'finance' },
     permissions: getViewPermissionDefinition(View.Risks),
     runtime: desktopRuntime,
     entry: { current: 'components/RisksManager.tsx' },
@@ -452,7 +476,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: 'QC 工作台',
     internalName: 'QcWorkbench',
     icon: ClipboardCheck,
-    nav: { primary: true, order: 49.58 },
+    nav: { primary: true, order: 52, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.QcWorkbench),
     runtime: desktopRuntime,
     entry: { current: 'components/QcWorkbenchManager.tsx' },
@@ -468,7 +492,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '定价与利润',
     internalName: 'Pricing',
     icon: TrendingUp,
-    nav: { primary: true, order: 49.59 },
+    nav: { primary: true, order: 72, group: 'finance' },
     permissions: getViewPermissionDefinition(View.Pricing),
     runtime: desktopRuntime,
     entry: { current: 'components/PricingManager.tsx' },
@@ -486,7 +510,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '营销推广',
     internalName: 'Marketing',
     icon: BookOpen,
-    nav: { primary: true, order: 49.61 },
+    nav: { primary: true, order: 30, group: 'customer' },
     permissions: getViewPermissionDefinition(View.Marketing),
     runtime: desktopRuntime,
     entry: { current: 'components/MarketingManager.tsx' },
@@ -505,7 +529,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     // 的必要工作流，降级为可选模块 —— 不进主导航，经「业务工具」页进入；外协加工
     // （OutsourcingOrder）属贸易侧能力，仍由该模块承载。后续若接入合作/自有工厂
     // 数据可重新评估。
-    nav: { primary: false, order: 49.9 },
+    nav: { primary: false, order: 97, group: 'platform' },
     permissions: getViewPermissionDefinition(View.MES),
     compiler: compiler('mes', 'provisional'),
     runtime: desktopRuntime,
@@ -517,7 +541,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '外贸与报关',
     internalName: 'Customs',
     icon: FileCheck,
-    nav: { primary: true, order: 49.95 },
+    nav: { primary: true, order: 56, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Customs),
     compiler: compiler('customs', 'provisional'),
     runtime: desktopRuntime,
@@ -529,7 +553,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '发票管理',
     internalName: 'Invoices',
     icon: FileText,
-    nav: { primary: false, order: 52 },
+    nav: { primary: false, order: 71, group: 'finance' },
     permissions: getViewPermissionDefinition(View.Invoices),
     compiler: compiler('invoices', 'provisional'),
     runtime: desktopRuntime,
@@ -541,7 +565,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '财务管理',
     internalName: 'PaymentVouchers',
     icon: CreditCard,
-    nav: { primary: true, order: 54 },
+    nav: { primary: true, order: 70, group: 'finance' },
     permissions: getViewPermissionDefinition(View.PaymentVouchers),
     compiler: compiler('paymentVouchers', 'provisional'),
     runtime: desktopRuntime,
@@ -553,7 +577,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '报表中心',
     internalName: 'Reports',
     icon: BarChart3,
-    nav: { primary: true, order: 56 },
+    nav: { primary: true, order: 14, group: 'overview' },
     permissions: getViewPermissionDefinition(View.Reports),
     runtime: desktopRuntime,
     entry: { current: 'components/ReportCenter.tsx' },
@@ -564,7 +588,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '货运管理',
     internalName: 'Shipments',
     icon: Truck,
-    nav: { primary: true, order: 58 },
+    nav: { primary: true, order: 54, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Shipments),
     compiler: compiler('shipments', 'provisional'),
     runtime: desktopRuntime,
@@ -576,7 +600,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '开发管理',
     internalName: 'Development',
     icon: ClipboardList,
-    nav: { primary: true, order: 60 },
+    nav: { primary: true, order: 42, group: 'fulfillment' },
     permissions: getViewPermissionDefinition(View.Development),
     compiler: compiler('development', 'provisional'),
     runtime: desktopRuntime,
@@ -588,7 +612,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '智能邮箱',
     internalName: 'Emails',
     icon: Mail,
-    nav: { primary: true, order: 46 },
+    nav: { primary: true, order: 26, group: 'customer' },
     permissions: getViewPermissionDefinition(View.Emails),
     compiler: compiler('emails', 'provisional'),
     runtime: desktopRuntime,
@@ -600,7 +624,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '数据中心',
     internalName: 'KnowledgeBase',
     icon: Database,
-    nav: { primary: true, order: 80 },
+    nav: { primary: true, order: 92, group: 'platform' },
     permissions: getViewPermissionDefinition(View.KnowledgeBase),
     compiler: compiler('knowledgeBase', 'provisional'),
     runtime: desktopRuntime,
@@ -616,7 +640,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '设置',
     internalName: 'Settings',
     icon: Shield,
-    nav: { primary: false, order: 90 },
+    nav: { primary: false, order: 118, group: 'platform' },
     permissions: getViewPermissionDefinition(View.Settings),
     compiler: compiler('settings', 'accepted'),
     runtime: desktopRuntime,
@@ -636,7 +660,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '业务工具',
     internalName: 'BusinessTools',
     icon: Wrench,
-    nav: { primary: true, order: 100 },
+    nav: { primary: true, order: 96, group: 'platform' },
     permissions: getViewPermissionDefinition(View.BusinessTools),
     compiler: compiler('businessTools', 'provisional'),
     runtime: desktopRuntime,
@@ -648,7 +672,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '管理后台',
     internalName: 'AdminPanel',
     icon: Shield,
-    nav: { primary: true, adminOnly: true, order: 110 },
+    nav: { primary: true, adminOnly: true, order: 110, group: 'platform' },
     permissions: getViewPermissionDefinition(View.AdminPanel),
     compiler: compiler('adminPanel', 'provisional'),
     runtime: desktopRuntime,
@@ -663,7 +687,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     productLabel: '人事管理',
     internalName: 'HR',
     icon: UserCog,
-    nav: { primary: true, order: 105 },
+    nav: { primary: true, order: 94, group: 'platform' },
     permissions: getViewPermissionDefinition(View.HR),
     compiler: compiler('hr', 'provisional'),
     runtime: desktopRuntime,
@@ -703,6 +727,35 @@ export function getPrimaryNavigationModules(options: {
     .filter(moduleDefinition => !allowedViewSet || allowedViewSet.has(moduleDefinition.view))
     .slice()
     .sort((a, b) => a.nav.order - b.nav.order);
+}
+
+export type PrimaryNavigationSection = {
+  group: BambookNavGroup;
+  label: string;
+  modules: BambookModuleDefinition[];
+};
+
+/**
+ * 阶段 IA：把已排序的一级导航模块按 nav.group 切段（组序 = BAMBOOK_NAV_GROUP_ORDER）。
+ * 仅侧栏展开态使用；CommandPalette 等扁平消费方继续用 getPrimaryNavigationModules。
+ */
+export function groupPrimaryNavigationModules(
+  modules: readonly BambookModuleDefinition[],
+): PrimaryNavigationSection[] {
+  const byGroup = new Map<BambookNavGroup, BambookModuleDefinition[]>();
+  for (const moduleDefinition of modules) {
+    const list = byGroup.get(moduleDefinition.nav.group);
+    if (list) list.push(moduleDefinition);
+    else byGroup.set(moduleDefinition.nav.group, [moduleDefinition]);
+  }
+  return (Object.keys(BAMBOOK_NAV_GROUP_ORDER) as BambookNavGroup[])
+    .sort((a, b) => BAMBOOK_NAV_GROUP_ORDER[a] - BAMBOOK_NAV_GROUP_ORDER[b])
+    .filter(group => byGroup.has(group))
+    .map(group => ({
+      group,
+      label: BAMBOOK_NAV_GROUP_LABELS[group],
+      modules: byGroup.get(group) as BambookModuleDefinition[],
+    }));
 }
 
 export function getCompilerSurfaceForView(view: View): MainCompilerSurface | undefined {

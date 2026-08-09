@@ -1,4 +1,11 @@
 
+/**
+ * 全景看板 Dashboard
+ * 阶段 IA 定位（PRD 24.2）：全局概览入口——订单/邮件/市场情报/AI 简报的「今日工作台」。
+ * 与 经营驾驶舱（预警：AR/AP/敞口/毛利）、报表中心（明细与台账）定位分化，互不渗透。
+ * 注意：看板 UI 现状冻结，仅做专项设计优化，不在自动化批次改动范围内。
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { Order, Email, View, Insight } from '../types';

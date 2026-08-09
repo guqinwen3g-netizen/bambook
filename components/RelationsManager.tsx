@@ -120,6 +120,21 @@ const writeRelationsPreviewState = (state: RelationsPreviewState) => {
   }
 };
 
+/**
+ * 阶段 IA-2：跨模块跳转关系智库指定组织详情。
+ * 调用方在触发视图切换（onNavigate(View.Relations)）前调用，
+ * Relations 挂载时经 preview state 直接落在该组织详情的联系人 Tab。
+ */
+export const primeRelationsOrgDetailPreview = (orgId: string) => {
+  writeRelationsPreviewState({
+    ...readRelationsPreviewState(),
+    navLevel: 'detail',
+    selectedOrgId: orgId,
+    selectedContactId: null,
+    activeTab: 'contacts',
+  });
+};
+
 const relationSortOptions: Array<{ value: RelationSortMode; label: string }> = [
   { value: 'recent', label: '最近互动' },
   { value: 'rating', label: 'Tier 高到低' },

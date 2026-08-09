@@ -59,6 +59,9 @@ import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 
 type ModuleTab = 'calculator' | 'profitSheets' | 'taxRates' | 'priceHistory' | 'commissionRules';
 
+/** 阶段 IA-2 / A5d 同款深链：允许外部（业务工具跳转卡 / 报表下钻）按 id 指定落点 tab */
+export type { ModuleTab as PricingTabId };
+
 const MODULE_TABS: Array<{ id: ModuleTab; label: string; icon: LucideIcon }> = [
   { id: 'calculator', label: '定价计算器 Calculator', icon: Calculator },
   { id: 'profitSheets', label: '利润表 Profit Sheets', icon: Receipt },
@@ -173,12 +176,17 @@ function EmptyHint({ text }: { text: string }) {
 
 interface PricingManagerProps {
   isDarkMode?: boolean;
+  /** 阶段 IA-2：跳转卡/下钻落点 tab，变更时响应式同步（与 CustomsManager initialTab 同口径） */
+  initialTab?: ModuleTab;
 }
 
 // ==================== 主组件 ====================
 
-export default function PricingManager({ isDarkMode }: PricingManagerProps) {
-  const [activeTab, setActiveTab] = useState<ModuleTab>('calculator');
+export default function PricingManager({ isDarkMode, initialTab }: PricingManagerProps) {
+  const [activeTab, setActiveTab] = useState<ModuleTab>(initialTab ?? 'calculator');
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
   return (
     <div className="h-full flex flex-col">

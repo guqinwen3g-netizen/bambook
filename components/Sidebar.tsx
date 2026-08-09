@@ -11,7 +11,7 @@ import {
   Settings
 } from 'lucide-react';
 import { canAccessView, getAuthState, hasRole, subscribe } from '../services/authService';
-import { getPrimaryNavigationModules } from './moduleRegistry';
+import { getPrimaryNavigationModules, groupPrimaryNavigationModules } from './moduleRegistry';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import UserAvatar from './ui/UserAvatar';
 
@@ -62,11 +62,22 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
     triggerViewChange(tab === 'account' ? View.AccountSettings : View.SystemSettings);
   };
 
-  const activeNavItems = getPrimaryNavigationModules({ isAdmin, canAccessView, allowedViews })
+  const primaryNavModules = getPrimaryNavigationModules({ isAdmin, canAccessView, allowedViews });
+  const activeNavItems = primaryNavModules
     .map(moduleDefinition => ({
       id: moduleDefinition.view,
       icon: moduleDefinition.icon,
       label: moduleDefinition.productLabel,
+    }));
+  const groupedNavSections = groupPrimaryNavigationModules(primaryNavModules)
+    .map(section => ({
+      group: section.group,
+      label: section.label,
+      items: section.modules.map(moduleDefinition => ({
+        id: moduleDefinition.view,
+        icon: moduleDefinition.icon,
+        label: moduleDefinition.productLabel,
+      })),
     }));
   const accountName = authUser?.displayName || authUser?.email || 'Bambook 用户';
   const accountMeta = authUser?.email || authUser?.roles?.[0] || '账号设置';
@@ -152,45 +163,56 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
             </button>
 
             {/* Nav Items */}
+            {/* 阶段 IA：按业务流分组渲染，组序见 moduleRegistry BAMBOOK_NAV_GROUP_ORDER */}
             <div data-sidebar-nav-scroll className="bambook-sidebar-nav-scroll-viewport px-4 pb-3.5 pt-14 space-y-1.5 overflow-y-auto no-scrollbar flex-1 relative z-10">
-              {activeNavItems.map((item) => {
-                const isActive = currentView === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => triggerViewChange(item.id)}
-                    data-sidebar-nav-item
-                    data-sidebar-nav-active={isActive ? 'true' : 'false'}
-                    className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
-                      ${isActive
-                        ? (isDarkMode ? 'text-white' : 'text-deep-alt')
-                        : `${isDarkMode ? SIDEBAR_IDLE_TEXT_DARK_CLASS : SIDEBAR_IDLE_TEXT_LIGHT_CLASS} ${isDarkMode ? SIDEBAR_HOVER_DARK_CLASS : SIDEBAR_HOVER_LIGHT_CLASS}`}
-                      ${isDarkMode ? SIDEBAR_PRESS_DARK_CLASS : SIDEBAR_PRESS_LIGHT_CLASS}`}
+              {groupedNavSections.map((section, sectionIndex) => (
+                <React.Fragment key={section.group}>
+                  <div
+                    data-sidebar-nav-group-label={section.group}
+                    className={`select-none pl-[19px] pr-4 text-xs font-light tracking-wider text-os-adaptive-subtitle opacity-60 ${sectionIndex === 0 ? '' : 'pt-3'}`}
                   >
-                    {/* OS-level spring active sliding indicator */}
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeNavIndicator"
-                        className={`absolute inset-0 rounded-control z-0
-                          ${isDarkMode ? SIDEBAR_ACTIVE_DARK_CLASS : SIDEBAR_ACTIVE_LIGHT_CLASS}`}
-                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                      />
-                    )}
+                    {section.label}
+                  </div>
+                  {section.items.map((item) => {
+                    const isActive = currentView === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => triggerViewChange(item.id)}
+                        data-sidebar-nav-item
+                        data-sidebar-nav-active={isActive ? 'true' : 'false'}
+                        className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
+                          ${isActive
+                            ? (isDarkMode ? 'text-white' : 'text-deep-alt')
+                            : `${isDarkMode ? SIDEBAR_IDLE_TEXT_DARK_CLASS : SIDEBAR_IDLE_TEXT_LIGHT_CLASS} ${isDarkMode ? SIDEBAR_HOVER_DARK_CLASS : SIDEBAR_HOVER_LIGHT_CLASS}`}
+                          ${isDarkMode ? SIDEBAR_PRESS_DARK_CLASS : SIDEBAR_PRESS_LIGHT_CLASS}`}
+                      >
+                        {/* OS-level spring active sliding indicator */}
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeNavIndicator"
+                            className={`absolute inset-0 rounded-control z-0
+                              ${isDarkMode ? SIDEBAR_ACTIVE_DARK_CLASS : SIDEBAR_ACTIVE_LIGHT_CLASS}`}
+                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                          />
+                        )}
 
-                    <div className="relative z-10 flex items-center gap-[15px] pointer-events-none">
-                      <item.icon
-                        size={20}
-                        strokeWidth={1}
-                        data-sidebar-nav-icon
-                        className={`transition-colors duration-300 ${isActive ? (isDarkMode ? SIDEBAR_ACTIVE_ICON_DARK_CLASS : SIDEBAR_ACTIVE_ICON_LIGHT_CLASS) : (isDarkMode ? SIDEBAR_IDLE_ICON_DARK_CLASS : SIDEBAR_IDLE_ICON_LIGHT_CLASS)}`}
-                      />
-                      <span data-sidebar-nav-label className={`text-sm font-light tracking-tight transition-[color,opacity] duration-300 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
-                        {item.label}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+                        <div className="relative z-10 flex items-center gap-[15px] pointer-events-none">
+                          <item.icon
+                            size={20}
+                            strokeWidth={1}
+                            data-sidebar-nav-icon
+                            className={`transition-colors duration-300 ${isActive ? (isDarkMode ? SIDEBAR_ACTIVE_ICON_DARK_CLASS : SIDEBAR_ACTIVE_ICON_LIGHT_CLASS) : (isDarkMode ? SIDEBAR_IDLE_ICON_DARK_CLASS : SIDEBAR_IDLE_ICON_LIGHT_CLASS)}`}
+                          />
+                          <span data-sidebar-nav-label className={`text-sm font-light tracking-tight transition-[color,opacity] duration-300 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
+                            {item.label}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </div>
 
             {/* Bottom Utility Bar */}

@@ -5,7 +5,7 @@
  * 功能（5 个 Tab）：
  *   1. 商机管线（Opportunities）— 销售管线阶段流转、成交/流失
  *   2. 跟进记录（Follow-ups）— 销售跟进日志、逾期提醒
- *   3. 联系人（Contacts）— 多联系人管理、主联系人/决策人标记
+ *   3. 联系人（Contacts）— 只读视图（阶段 IA-2：档案唯一权威源在关系智库，点击跳转编辑）
  *   4. 信用额度（Credit Limits）— 信用额度管理、用量跟踪
  *   5. 客户分层（Customer Tiers）— 客户分层评定、权益管理
  *
@@ -46,7 +46,6 @@ import { apiService } from '../services/apiService';
 import {
   Relation,
   Contact,
-  ContactInput,
   CreditLimit,
   CreditLimitInput,
   FollowUpRecord,
@@ -57,7 +56,9 @@ import {
   CustomerTier,
   CustomerTierInput,
   CustomerTierLevel,
+  View,
 } from '../types';
+import { primeRelationsOrgDetailPreview } from './RelationsManager';
 import { PageHeader } from './ui/PageHeader';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -136,11 +137,12 @@ function formatDate(dateStr: string | null | undefined): string {
 
 interface CrmManagerProps {
   isDarkMode?: boolean;
+  onNavigate?: (view: View) => void;
 }
 
 // ==================== 主组件 ====================
 
-export default function CrmManager({ isDarkMode }: CrmManagerProps) {
+export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) {
   const [activeTab, setActiveTab] = useState<CrmTab>('opportunities');
   const [relations, setRelations] = useState<Relation[]>([]);
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null);
@@ -162,8 +164,6 @@ export default function CrmManager({ isDarkMode }: CrmManagerProps) {
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState<FollowUpRecord | null>(null);
-  const [showContactForm, setShowContactForm] = useState(false);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showCreditForm, setShowCreditForm] = useState(false);
   const [showTierForm, setShowTierForm] = useState(false);
 
@@ -297,33 +297,13 @@ export default function CrmManager({ isDarkMode }: CrmManagerProps) {
   };
 
   // ══════════════════════════════════════════════════════════════
-  // 联系人操作
+  // 联系人（阶段 IA-2：只读。写路径统一收口在关系智库 DetailPanel 联系人名片区块）
   // ══════════════════════════════════════════════════════════════
 
-  const handleSaveContact = async (input: ContactInput, id?: string) => {
+  const handleManageContactsInRelations = () => {
     if (!selectedRelationId) return;
-    try {
-      if (id) {
-        await apiService.updateContact(id, input);
-      } else {
-        await apiService.createContact(selectedRelationId, input);
-      }
-      setShowContactForm(false);
-      setEditingContact(null);
-      await loadCrmData();
-    } catch (e: any) {
-      alert(`保存联系人失败：${e?.message || e}`);
-    }
-  };
-
-  const handleDeleteContact = async (id: string) => {
-    if (!confirm('确认删除此联系人？')) return;
-    try {
-      await apiService.deleteContact(id);
-      await loadCrmData();
-    } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
-    }
+    primeRelationsOrgDetailPreview(selectedRelationId);
+    onNavigate?.(View.Relations);
   };
 
   // ══════════════════════════════════════════════════════════════
@@ -485,9 +465,7 @@ export default function CrmManager({ isDarkMode }: CrmManagerProps) {
                 <ContactsTab
                   contacts={contacts}
                   selectedRelation={selectedRelation}
-                  onCreate={() => { setEditingContact(null); setShowContactForm(true); }}
-                  onEdit={(c) => { setEditingContact(c); setShowContactForm(true); }}
-                  onDelete={handleDeleteContact}
+                  onManageInRelations={handleManageContactsInRelations}
                 />
               )}
               {activeTab === 'credit' && (
@@ -539,13 +517,6 @@ export default function CrmManager({ isDarkMode }: CrmManagerProps) {
             opportunities={opportunities}
             onSave={handleSaveFollowUp}
             onClose={() => { setShowFollowUpForm(false); setEditingFollowUp(null); }}
-          />
-        )}
-        {showContactForm && (
-          <ContactForm
-            contact={editingContact}
-            onSave={handleSaveContact}
-            onClose={() => { setShowContactForm(false); setEditingContact(null); }}
           />
         )}
         {showCreditForm && (
@@ -805,26 +776,25 @@ function FollowUpsTab({
 function ContactsTab({
   contacts,
   selectedRelation,
-  onCreate,
-  onEdit,
-  onDelete,
+  onManageInRelations,
 }: {
   contacts: Contact[];
   selectedRelation: Relation;
-  onCreate: () => void;
-  onEdit: (c: Contact) => void;
-  onDelete: (id: string) => void;
+  onManageInRelations: () => void;
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text-secondary">联系人 ({contacts.length})</h3>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-medium text-text-secondary">联系人 ({contacts.length})</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">档案由关系智库统一维护，此处只读</p>
+        </div>
         <button
-          onClick={onCreate}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:bg-surface-hover transition-colors"
+          onClick={onManageInRelations}
+          className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:bg-surface-hover transition-colors"
         >
-          <Plus className="w-4 h-4" />
-          新建联系人
+          在关系智库中维护
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
@@ -832,14 +802,13 @@ function ContactsTab({
         {contacts.length === 0 && (
           <div className="col-span-full text-center py-10 text-text-tertiary text-sm">
             <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            暂无联系人
+            暂无联系人，可到关系智库为「{selectedRelation.name}」建立联系人档案
           </div>
         )}
         {contacts.map((c) => (
           <div
             key={c.id}
-            className="bg-surface-elevated rounded-card p-3 cursor-pointer hover:ring-1 hover:ring-border-action transition-all"
-            onClick={() => onEdit(c)}
+            className="bg-surface-elevated rounded-card p-3"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
@@ -867,12 +836,6 @@ function ContactsTab({
                   {c.wechat && <span>微信：{c.wechat}</span>}
                 </div>
               </div>
-              <button
-                className="text-text-tertiary hover:text-danger transition-colors"
-                onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
             </div>
           </div>
         ))}
@@ -1333,102 +1296,6 @@ function FollowUpForm({
       </Field>
       <Field label="备注">
         <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </Field>
-      <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-4 py-2 text-sm rounded-control text-text-secondary hover:bg-surface-primary">取消</button>
-        <button onClick={handleSubmit} className="px-4 py-2 text-sm rounded-control bg-border-action text-white hover:opacity-90">保存</button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function ContactForm({
-  contact,
-  onSave,
-  onClose,
-}: {
-  contact: Contact | null;
-  onSave: (input: ContactInput, id?: string) => void;
-  onClose: () => void;
-}) {
-  const [name, setName] = useState(contact?.name ?? '');
-  const [title, setTitle] = useState(contact?.title ?? '');
-  const [department, setDepartment] = useState(contact?.department ?? '');
-  const [email, setEmail] = useState(contact?.email ?? '');
-  const [mobile, setMobile] = useState(contact?.mobile ?? '');
-  const [phone, setPhone] = useState(contact?.phone ?? '');
-  const [wechat, setWechat] = useState(contact?.wechat ?? '');
-  const [isPrimary, setIsPrimary] = useState(contact?.isPrimary ?? false);
-  const [isDecisionMaker, setIsDecisionMaker] = useState(contact?.isDecisionMaker ?? false);
-  const [birthday, setBirthday] = useState(contact?.birthday ?? '');
-  const [personalNote, setPersonalNote] = useState(contact?.personalNote ?? '');
-
-  const handleSubmit = () => {
-    if (!name.trim()) {
-      alert('请填写联系人姓名');
-      return;
-    }
-    onSave({
-      name: name.trim(),
-      title: title || undefined,
-      department: department || undefined,
-      email: email || undefined,
-      mobile: mobile || undefined,
-      phone: phone || undefined,
-      wechat: wechat || undefined,
-      isPrimary,
-      isDecisionMaker,
-      birthday: birthday || undefined,
-      personalNote: personalNote || undefined,
-    }, contact?.id);
-  };
-
-  return (
-    <ModalShell title={contact ? '编辑联系人' : '新建联系人'} onClose={onClose}>
-      <Field label="姓名 *">
-        <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="职位">
-          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
-        </Field>
-        <Field label="部门">
-          <input className={inputClass} value={department} onChange={(e) => setDepartment(e.target.value)} />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="邮箱">
-          <input className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} />
-        </Field>
-        <Field label="手机">
-          <input className={inputClass} value={mobile} onChange={(e) => setMobile(e.target.value)} />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="电话">
-          <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </Field>
-        <Field label="微信">
-          <input className={inputClass} value={wechat} onChange={(e) => setWechat(e.target.value)} />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="生日">
-          <input type="date" className={inputClass} value={birthday} onChange={(e) => setBirthday(e.target.value)} />
-        </Field>
-        <div className="flex flex-col gap-2 mt-4">
-          <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-            <input type="checkbox" checked={isPrimary} onChange={(e) => setIsPrimary(e.target.checked)} />
-            主联系人
-          </label>
-          <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-            <input type="checkbox" checked={isDecisionMaker} onChange={(e) => setIsDecisionMaker(e.target.checked)} />
-            决策人
-          </label>
-        </div>
-      </div>
-      <Field label="个人备注">
-        <textarea className={inputClass} rows={2} value={personalNote} onChange={(e) => setPersonalNote(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onClose} className="px-4 py-2 text-sm rounded-control text-text-secondary hover:bg-surface-primary">取消</button>
