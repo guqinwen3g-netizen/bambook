@@ -137,6 +137,61 @@ export interface KnowledgeItem {
   sourceUrl?: string;
 }
 
+// ─── C7 知识库深化 ───
+
+/** SOP 结构化步骤 */
+export interface SopStep {
+  title: string;
+  detail?: string;
+}
+
+/** SOP 标准作业程序模板（server/src/knowledge/sopTemplateService.ts 契约） */
+export interface SopTemplate {
+  id: string;
+  title: string;
+  category: string;
+  summary?: string | null;
+  content: string;
+  steps: SopStep[];
+  version: number;
+  status: 'active' | 'archived';
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** 知识文档 → 业务实体关联（KnowledgeRelation 视图） */
+export interface KnowledgeRelationView {
+  id: string;
+  documentId?: string | null;
+  documentTitle?: string | null;
+  chunkId?: string | null;
+  relationType: string;
+  targetType: string;
+  targetId: string;
+  confidence: number;
+  createdAt: number;
+}
+
+/** 业务实体 ↔ 业务实体链接（EntityLink 视图） */
+export interface EntityLinkView {
+  id: string;
+  fromType: string;
+  fromId: string;
+  toType: string;
+  toId: string;
+  linkKind: string;
+  confidence?: number | null;
+  source?: string | null;
+}
+
+/** 向量检索命中片段（Python knowledge_api /v1/knowledge/search 契约） */
+export interface KnowledgeCitation {
+  id: string;
+  title: string;
+  content: string;
+  score: number;
+}
+
 export type RelationCategory = 'Supplier' | 'Customer' | 'Agent' | 'Partner' | 'Government' | 'Internal' | 'Other';
 
 export interface Relation {

@@ -58,6 +58,8 @@ import { createAiRouter } from './ai/route';
 import { createMacMiniChatRunner } from './ai/runner';
 import { prewarmMeloTts, getMeloPrewarmStatus } from './ai/tts';
 import { createKnowledgeDocumentsRouter } from './ai/knowledgeDocumentsRoute';
+import { createKnowledgeRouter } from './knowledge/knowledgeRoute';
+import { ensureSopTemplateSeed } from './knowledge/sopTemplateService';
 import { createAgentRouter } from './agent/route';
 import { ensureDefaultAgentTools } from './agent/tools';
 import { createAuthRouter } from './auth/route';
@@ -96,6 +98,12 @@ ensureDefaultAgentTools(prisma).catch(error => {
 seedStandardEmailTemplates(prisma).catch(error => {
     logger.error('[email-templates] boot seed failed', { error: error?.message || String(error) });
 });
+// C7 知识库深化：启动时幂等播种纺织外贸核心 SOP 模板（大货跟单/验货/出运/报关），仅当表为空时写入
+ensureSopTemplateSeed(prisma)
+    .then(seeded => { if (seeded) logger.info('[knowledge] SOP template seed applied'); })
+    .catch(error => {
+        logger.error('[knowledge] SOP template seed failed', { error: error?.message || String(error) });
+    });
 // Phase 0 Sprint 1: 初始化业务事件总线 + 通知系统
 // 注入 prisma 到 businessEventBus，订阅所有业务事件 → notificationService
 initializeNotificationBindings(prisma);
@@ -378,6 +386,14 @@ app.use('/api/v1/knowledge-documents', createKnowledgeDocumentsRouter({
     requireAuth: SDK_CONFIG.requireAuth,
     apiKeys: SDK_CONFIG.apiKeys,
     prisma,
+    onDataChange: publishDataChange,
+}));
+
+// C7 知识库深化：SOP 模板 + 知识关联（图谱）只读
+app.use('/api/v1/knowledge', createKnowledgeRouter({
+    prisma,
+    requireAuth: SDK_CONFIG.requireAuth,
+    apiKeys: SDK_CONFIG.apiKeys,
     onDataChange: publishDataChange,
 }));
 

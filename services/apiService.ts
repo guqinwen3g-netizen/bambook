@@ -1,6 +1,11 @@
 
 import {
   KnowledgeItem,
+  SopTemplate,
+  SopStep,
+  KnowledgeRelationView,
+  EntityLinkView,
+  KnowledgeCitation,
   Order,
   OrderStatusTransition,
   SystemConfig,
@@ -2353,14 +2358,15 @@ export const apiService = {
     return Array.isArray(data.documents) ? data.documents.filter(d => d.origin === 'erp') : [];
   },
 
-  async ingestKnowledgeText(input: { title: string; text: string; category: string }, endpoint?: string): Promise<{ documentId: string; checksum: string; chunkCount: number; auditId: string }> {
+  async ingestKnowledgeText(input: { title: string; text: string; category: string; sourceType?: string; sourceUri?: string }, endpoint?: string): Promise<{ documentId: string; checksum: string; chunkCount: number; auditId: string }> {
     return requestJson('/v1/knowledge-documents/ingest-text', {
       endpoint,
       method: 'POST',
       body: JSON.stringify({
         title: input.title,
         text: input.text,
-        sourceType: 'manual',
+        sourceType: input.sourceType || 'manual',
+        sourceUri: input.sourceUri || undefined,
         scopes: ['company'],
         metadata: { category: input.category },
       }),
@@ -2384,6 +2390,121 @@ export const apiService = {
       endpoint,
       method: 'DELETE',
     });
+  },
+
+  // ========== C7 知识库深化：SOP 模板 / 知识关联 / 智能问答 ==========
+
+  async listSopTemplates(params?: { category?: string; status?: string }, endpoint?: string): Promise<SopTemplate[]> {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString();
+    const data = await requestJson<{ ok: boolean; items: SopTemplate[] }>(`/v1/knowledge/sop-templates${qs ? `?${qs}` : ''}`, {
+      endpoint,
+      method: 'GET',
+    });
+    return data.items || [];
+  },
+
+  async createSopTemplate(input: { title: string; category: string; summary?: string; content: string; steps?: SopStep[] }, endpoint?: string): Promise<SopTemplate> {
+    const data = await requestJson<{ ok: boolean; item: SopTemplate }>('/v1/knowledge/sop-templates', {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return data.item;
+  },
+
+  async updateSopTemplate(id: string, input: Partial<{ title: string; category: string; summary: string | null; content: string; steps: SopStep[]; status: string }>, endpoint?: string): Promise<SopTemplate> {
+    const data = await requestJson<{ ok: boolean; item: SopTemplate }>(`/v1/knowledge/sop-templates/${encodeURIComponent(id)}`, {
+      endpoint,
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+    return data.item;
+  },
+
+  async deleteSopTemplate(id: string, endpoint?: string): Promise<void> {
+    await requestJson(`/v1/knowledge/sop-templates/${encodeURIComponent(id)}`, {
+      endpoint,
+      method: 'DELETE',
+    });
+  },
+
+  /** SOP 实例化：模板 → 知识文档（服务端渲染 + ingest 管线，sourceType='sop'） */
+  async instantiateSopTemplate(id: string, endpoint?: string): Promise<{ documentId: string; checksum: string; chunkCount: number; templateVersion: number }> {
+    return requestJson(`/v1/knowledge/sop-templates/${encodeURIComponent(id)}/instantiate`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
+  /** 知识文档的实体关联（正向） */
+  async listKnowledgeDocumentRelations(docId: string, endpoint?: string): Promise<KnowledgeRelationView[]> {
+    const data = await requestJson<{ ok: boolean; items: KnowledgeRelationView[] }>(`/v1/knowledge/graph/document/${encodeURIComponent(docId)}/relations`, {
+      endpoint,
+      method: 'GET',
+    });
+    return data.items || [];
+  },
+
+  /** 业务实体的知识关联 + 实体链接（反向） */
+  async listKnowledgeEntityRelations(targetType: string, targetId: string, endpoint?: string): Promise<{ knowledge: KnowledgeRelationView[]; entityLinks: EntityLinkView[] }> {
+    return requestJson(`/v1/knowledge/graph/entity/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}/relations`, {
+      endpoint,
+      method: 'GET',
+    });
+  },
+
+  /** 向量检索（Python knowledge_api 直调，Bearer 鉴权）— 问答引用片段 */
+  async searchKnowledgeBase(query: string, topK?: number): Promise<KnowledgeCitation[]> {
+    const config = this.getStoredConfig();
+    const base = (config.knowledgeApiEndpoint || '').replace(/\/$/, '');
+    const res = await fetch(`${base}/v1/knowledge/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.knowledgeApiKey ? { Authorization: `Bearer ${config.knowledgeApiKey}` } : {}),
+      },
+      body: JSON.stringify({ query, top_k: topK }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.detail || `knowledge search failed: HTTP ${res.status}`);
+    const results = Array.isArray(data?.results) ? data.results : [];
+    return results.map((r: any) => ({
+      id: String(r?.id ?? ''),
+      title: String(r?.source_title ?? '未命名片段'),
+      content: String(r?.content ?? ''),
+      score: typeof r?.score === 'number' ? r.score : 0,
+    }));
+  },
+
+  /** 智能问答（Python knowledge_api /v1/chat，RAG + DeepSeek 流式）；onChunk 逐段回调 */
+  async askKnowledgeBase(message: string, onChunk: (piece: string) => void): Promise<void> {
+    const config = this.getStoredConfig();
+    const base = (config.knowledgeApiEndpoint || '').replace(/\/$/, '');
+    const res = await fetch(`${base}/v1/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.knowledgeApiKey ? { Authorization: `Bearer ${config.knowledgeApiKey}` } : {}),
+      },
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.detail || `knowledge chat failed: HTTP ${res.status}`);
+    }
+    if (!res.body) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const piece = decoder.decode(value, { stream: true });
+      if (piece) onChunk(piece);
+    }
   },
 
   // ========== PO 订单数据库 ==========

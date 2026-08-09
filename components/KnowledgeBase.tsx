@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { KnowledgeItem, Insight } from '../types';
+import { KnowledgeItem, Insight, SopTemplate, SopStep, KnowledgeRelationView, KnowledgeCitation } from '../types';
 import {
   Plus, Search, Trash2, X, Database, Edit2, Save,
-  AlertTriangle
+  AlertTriangle, Send, Loader2, ListChecks, Link2, Archive, FileText
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
@@ -15,6 +15,8 @@ type KbCategory = KnowledgeItem['category'];
 const toKbCategory = (value: string | null | undefined): KbCategory =>
   (KB_CATEGORIES as readonly string[]).includes(value || '') ? (value as KbCategory) : 'Product';
 
+type KbTab = 'official' | 'memory' | 'qa' | 'sop';
+
 interface KBProps {
   knowledge: KnowledgeItem[];
   setKnowledge: (k: KnowledgeItem[], addedOrModified?: KnowledgeItem) => void;
@@ -24,7 +26,7 @@ interface KBProps {
 }
 
 const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, setInsights, isDarkMode = false }) => {
-  const [activeTab, setActiveTab] = useState<'official' | 'memory'>('official');
+  const [activeTab, setActiveTab] = useState<KbTab>('official');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<KnowledgeItem | null>(null);
@@ -32,6 +34,34 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [knowledgeBusy, setKnowledgeBusy] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // C7 — 文档详情 + 实体关联（图谱只读视图）
+  const [viewingItem, setViewingItem] = useState<KnowledgeItem | null>(null);
+  const [viewingRelations, setViewingRelations] = useState<KnowledgeRelationView[]>([]);
+  const [relationsLoading, setRelationsLoading] = useState(false);
+
+  // C7 — 智能问答（Python knowledge_api /v1/chat 流式 + /v1/knowledge/search 引用）
+  const [qaQuestion, setQaQuestion] = useState('');
+  const [qaAnswer, setQaAnswer] = useState('');
+  const [qaCitations, setQaCitations] = useState<KnowledgeCitation[]>([]);
+  const [qaBusy, setQaBusy] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
+  const [qaArchiveCategory, setQaArchiveCategory] = useState<KbCategory>('Company');
+  const [qaArchived, setQaArchived] = useState(false);
+  const [qaArchiving, setQaArchiving] = useState(false);
+
+  // C7 — SOP 模板
+  const [sopTemplates, setSopTemplates] = useState<SopTemplate[]>([]);
+  const [sopLoading, setSopLoading] = useState(false);
+  const [sopError, setSopError] = useState<string | null>(null);
+  const [sopBusy, setSopBusy] = useState(false);
+  const [sopDetail, setSopDetail] = useState<SopTemplate | null>(null);
+  const [sopEditing, setSopEditing] = useState<SopTemplate | null>(null);
+  const [sopShowNew, setSopShowNew] = useState(false);
+  const [sopDeleteId, setSopDeleteId] = useState<string | null>(null);
+  const [sopInstantiatedMsg, setSopInstantiatedMsg] = useState('');
+  const emptySopDraft = () => ({ title: '', category: 'Production' as string, summary: '', content: '', steps: [] as SopStep[] });
+  const [sopDraft, setSopDraft] = useState(emptySopDraft);
 
   // 挂载时从服务端真源（Prisma KnowledgeDocument）拉取列表并与本地快照合并：
   // 服务端条目为准，本地独有条目（未同步/离线创建）保留。离线时静默降级为本地视图。
@@ -61,6 +91,31 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // C7 — SOP tab 首次进入时加载（失败显式提示，区别于知识列表的静默降级：SOP 无本地快照可降）
+  const sopLoadedRef = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'sop' || sopLoadedRef.current) return;
+    sopLoadedRef.current = true;
+    setSopLoading(true);
+    apiService.listSopTemplates()
+      .then(setSopTemplates)
+      .catch(e => setSopError(e?.message || 'SOP 模板加载失败'))
+      .finally(() => setSopLoading(false));
+  }, [activeTab]);
+
+  // C7 — 详情打开时加载实体关联（仅 ERP 真源文档有图谱数据；失败静默为空区块）
+  const viewingItemId = viewingItem?.id;
+  useEffect(() => {
+    if (!viewingItemId) { setViewingRelations([]); return; }
+    let cancelled = false;
+    setRelationsLoading(true);
+    apiService.listKnowledgeDocumentRelations(viewingItemId)
+      .then(r => { if (!cancelled) setViewingRelations(r); })
+      .catch(() => { if (!cancelled) setViewingRelations([]); })
+      .finally(() => { if (!cancelled) setRelationsLoading(false); });
+    return () => { cancelled = true; };
+  }, [viewingItemId]);
 
   const isNotFoundError = (e: any) => /not_found|not found|HTTP 404/i.test(String(e?.message || e || ''));
 
@@ -148,12 +203,171 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
     setShowAddModal(true);
   };
 
+  // ─── C7 智能问答 ───
+
+  const handleAsk = async () => {
+    const q = qaQuestion.trim();
+    if (!q || qaBusy) return;
+    setQaBusy(true);
+    setQaError(null);
+    setQaAnswer('');
+    setQaCitations([]);
+    setQaArchived(false);
+    try {
+      // 引用检索与流式回答并行：search 出引用片段，chat 流式出答案（两次嵌入可接受，零服务端改动）
+      const searchPromise = apiService.searchKnowledgeBase(q).then(setQaCitations).catch(() => setQaCitations([]));
+      await apiService.askKnowledgeBase(q, piece => setQaAnswer(prev => prev + piece));
+      await searchPromise;
+    } catch (e: any) {
+      setQaError(e?.message || '问答服务暂不可用，请稍后重试');
+    } finally {
+      setQaBusy(false);
+    }
+  };
+
+  const handleArchiveQa = async () => {
+    const q = qaQuestion.trim();
+    const a = qaAnswer.trim();
+    if (!q || !a || qaArchiving || qaArchived) return;
+    setQaArchiving(true);
+    setQaError(null);
+    try {
+      const title = `问答：${q.slice(0, 40)}${q.length > 40 ? '…' : ''}`;
+      const text = `问题：${q}\n\n回答：${a}`;
+      const json = await apiService.ingestKnowledgeText({ title, text, category: qaArchiveCategory, sourceType: 'qa' });
+      const item: KnowledgeItem = {
+        id: json.documentId,
+        title,
+        content: text,
+        category: qaArchiveCategory,
+        updatedAt: Date.now(),
+        sourceUrl: `checksum:${json.checksum}|chunks:${json.chunkCount}|audit:${json.auditId}`,
+      };
+      setKnowledge([item, ...knowledgeRef.current], item);
+      setQaArchived(true);
+    } catch (e: any) {
+      setQaError(e?.message || '归档失败，请稍后重试');
+    } finally {
+      setQaArchiving(false);
+    }
+  };
+
+  // ─── C7 SOP 模板 ───
+
+  const openNewSop = () => {
+    setSopEditing(null);
+    setSopDraft(emptySopDraft());
+    setSopShowNew(true);
+    setSopError(null);
+  };
+
+  const openEditSop = (tpl: SopTemplate) => {
+    setSopEditing(tpl);
+    setSopDraft({
+      title: tpl.title,
+      category: tpl.category,
+      summary: tpl.summary || '',
+      content: tpl.content,
+      steps: tpl.steps.map(s => ({ ...s })),
+    });
+    setSopShowNew(true);
+    setSopError(null);
+  };
+
+  const handleSaveSop = async () => {
+    if (sopBusy) return;
+    const title = sopDraft.title.trim();
+    const content = sopDraft.content.trim();
+    if (!title || !content) { setSopError('标题与正文为必填项'); return; }
+    const steps = sopDraft.steps
+      .map(s => ({ title: s.title.trim(), ...(s.detail?.trim() ? { detail: s.detail.trim() } : {}) }))
+      .filter(s => s.title);
+    setSopBusy(true);
+    setSopError(null);
+    try {
+      if (sopEditing) {
+        const updated = await apiService.updateSopTemplate(sopEditing.id, {
+          title,
+          category: sopDraft.category,
+          summary: sopDraft.summary.trim() || null,
+          content,
+          steps,
+        });
+        setSopTemplates(prev => prev.map(t => (t.id === updated.id ? updated : t)));
+        if (sopDetail?.id === updated.id) setSopDetail(updated);
+      } else {
+        const created = await apiService.createSopTemplate({
+          title,
+          category: sopDraft.category,
+          summary: sopDraft.summary.trim() || undefined,
+          content,
+          steps,
+        });
+        setSopTemplates(prev => [created, ...prev]);
+      }
+      setSopShowNew(false);
+      setSopEditing(null);
+    } catch (e: any) {
+      setSopError(e?.message || 'SOP 保存失败');
+    } finally {
+      setSopBusy(false);
+    }
+  };
+
+  const handleDeleteSop = async () => {
+    if (!sopDeleteId || sopBusy) return;
+    setSopBusy(true);
+    setSopError(null);
+    try {
+      await apiService.deleteSopTemplate(sopDeleteId);
+      setSopTemplates(prev => prev.filter(t => t.id !== sopDeleteId));
+      if (sopDetail?.id === sopDeleteId) setSopDetail(null);
+      setSopDeleteId(null);
+    } catch (e: any) {
+      setSopError(e?.message || 'SOP 删除失败');
+    } finally {
+      setSopBusy(false);
+    }
+  };
+
+  const handleInstantiateSop = async (tpl: SopTemplate) => {
+    if (sopBusy) return;
+    setSopBusy(true);
+    setSopError(null);
+    setSopInstantiatedMsg('');
+    try {
+      const r = await apiService.instantiateSopTemplate(tpl.id);
+      // 本地同步知识列表（渲染规则与服务端 renderSopTemplateText 保持一致：摘要 + 编号步骤 + 正文）
+      const stepsText = tpl.steps.length > 0
+        ? tpl.steps.map((s, i) => `${i + 1}. ${s.title}${s.detail ? `\n   ${s.detail}` : ''}`).join('\n')
+        : '';
+      const text = [tpl.summary?.trim(), stepsText, tpl.content.trim()].filter(Boolean).join('\n\n');
+      const item: KnowledgeItem = {
+        id: r.documentId,
+        title: `SOP：${tpl.title}`,
+        content: text,
+        category: toKbCategory(tpl.category),
+        updatedAt: Date.now(),
+        sourceUrl: `checksum:${r.checksum}|chunks:${r.chunkCount}`,
+      };
+      setKnowledge([item, ...knowledgeRef.current], item);
+      setSopInstantiatedMsg(`已入库为知识文档（v${r.templateVersion}，${r.chunkCount} 个分块）`);
+    } catch (e: any) {
+      setSopError(e?.message || '实例化失败（同一模板同一版本仅可入库一次）');
+    } finally {
+      setSopBusy(false);
+    }
+  };
+
   const filteredOfficial = knowledge.filter(k =>
     !k.deletedAt && (
       k.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       k.content.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+
+  const tabButtonClass = (tab: KbTab) =>
+    `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-all ${activeTab === tab ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : (isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700')}`;
 
   return (
     <div className="w-full h-full flex flex-col bg-transparent overflow-hidden">
@@ -184,19 +398,21 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       {/* Tab Bar - Fixed Height */}
       <div className={`${BAMBOOK_OS.layout.desktopSubtoolbarClass} justify-center bg-transparent`}>
         <div className={`inline-flex p-1 rounded-full ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
-          <button onClick={() => setActiveTab('official')} className={`px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-all ${activeTab === 'official' ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : (isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700')}`}>官方知识库 ({filteredOfficial.length})</button>
-          <button onClick={() => setActiveTab('memory')} className={`px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-all ${activeTab === 'memory' ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : (isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700')}`}>智脑神经记忆 ({insights.length})</button>
+          <button onClick={() => setActiveTab('official')} className={tabButtonClass('official')}>官方知识库 ({filteredOfficial.length})</button>
+          <button onClick={() => setActiveTab('memory')} className={tabButtonClass('memory')}>智脑神经记忆 ({insights.length})</button>
+          <button onClick={() => setActiveTab('qa')} className={tabButtonClass('qa')}>智能问答</button>
+          <button onClick={() => setActiveTab('sop')} className={tabButtonClass('sop')}>SOP 模板 ({sopTemplates.length})</button>
         </div>
       </div>
 
       {/* Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-        {activeTab === 'official' ? (
+        {activeTab === 'official' && (
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
             {filteredOfficial.map(item => (
-              <motion.div layout key={item.id} data-os-adaptive-container="1" className={`shrink-0 w-[340px] p-6 flex flex-col group relative overflow-hidden ${BAMBOOK_OS.material.cardLight} transition-all duration-300 ${isDarkMode ? 'bg-deep/48' : 'bg-white/46 hover:bg-white/56'}`}>
+              <motion.div layout key={item.id} data-os-adaptive-container="1" onClick={() => setViewingItem(item)} className={`shrink-0 w-[340px] p-6 flex flex-col group relative overflow-hidden cursor-pointer ${BAMBOOK_OS.material.cardLight} transition-all duration-300 ${isDarkMode ? 'bg-deep/48' : 'bg-white/46 hover:bg-white/56'}`}>
                 <div className="absolute top-5 right-5 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                  <button onClick={() => setEditingItem(item)} className={`p-2.5 border rounded-control transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                  <button onClick={(e) => { e.stopPropagation(); setEditingItem(item); }} className={`p-2.5 border rounded-control transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
                     <Edit2 size={14} />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className={`p-2.5 border rounded-control transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light} hover:text-red-500`}>
@@ -223,7 +439,9 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
             )}
           </motion.div>
-        ) : (
+        )}
+
+        {activeTab === 'memory' && (
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
             {insights.map(insight => (
               <motion.div layout key={insight.id} className={`shrink-0 w-[340px] p-6 flex flex-col ${BAMBOOK_OS.material.cardLight} transition-all duration-300 ${isDarkMode ? 'bg-deep/48' : 'bg-white/46 hover:bg-white/56'}`}>
@@ -240,10 +458,139 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             ))}
           </motion.div>
         )}
+
+        {activeTab === 'qa' && (
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+            {/* 提问区 */}
+            <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
+              <textarea
+                rows={3}
+                value={qaQuestion}
+                onChange={(e) => setQaQuestion(e.target.value)}
+                placeholder="向知识库提问，如：面料尾期验货的抽样标准是什么？"
+                className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+              />
+              <div className="mt-4 flex items-center justify-between">
+                <span className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>向量检索知识语料 + LLM 流式回答，命中片段在下方列出</span>
+                <button
+                  onClick={handleAsk}
+                  disabled={qaBusy || !qaQuestion.trim()}
+                  className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+                >
+                  {qaBusy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} strokeWidth={1.2} />}
+                  {qaBusy ? '检索回答中…' : '提问'}
+                </button>
+              </div>
+            </div>
+
+            {qaError && (
+              <div className={`px-5 py-3 rounded-control border text-xs font-light ${isDarkMode ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-500'}`}>{qaError}</div>
+            )}
+
+            {/* 回答区 */}
+            {(qaAnswer || qaBusy) && (
+              <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
+                <div className={`mb-3 text-[10px] font-light tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>回答</div>
+                <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  {qaAnswer}
+                  {qaBusy && <span className="inline-block w-2 h-4 ml-0.5 align-middle animate-pulse bg-current opacity-40" />}
+                </p>
+                {!qaBusy && qaAnswer.trim() && (
+                  <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 ${isDarkMode ? 'border-white/10' : 'border-white/30'}`}>
+                    {qaArchived ? (
+                      <span className={`text-[11px] font-light ${isDarkMode ? 'text-emerald-300/80' : 'text-emerald-600'}`}>已归档到官方知识库</span>
+                    ) : (
+                      <>
+                        <select
+                          value={qaArchiveCategory}
+                          onChange={(e) => setQaArchiveCategory(e.target.value as KbCategory)}
+                          className={`px-3 py-2 border rounded-control outline-none text-[11px] font-light appearance-none ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                        >
+                          {KB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <button
+                          onClick={handleArchiveQa}
+                          disabled={qaArchiving}
+                          className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+                        >
+                          {qaArchiving ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} strokeWidth={1.2} />}
+                          归档此问答
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 引用片段 */}
+            {qaCitations.length > 0 && (
+              <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
+                <div className={`mb-3 text-[10px] font-light tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>命中片段 ({qaCitations.length})</div>
+                <div className="space-y-3">
+                  {qaCitations.map(c => (
+                    <div key={c.id} className={`rounded-control border px-4 py-3 ${isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/40'}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={`text-[11px] font-light truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{c.title}</span>
+                        <span className={`shrink-0 text-[9px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{Math.round(c.score * 100)}%</span>
+                      </div>
+                      <p className={`mt-1 line-clamp-2 text-[11px] font-light leading-relaxed ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{c.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'sop' && (
+          <div className="mx-auto w-full max-w-5xl">
+            <div className="mb-5 flex items-center justify-between">
+              <span className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>标准作业程序模板，可一键实例化为知识文档进入检索语料</span>
+              <button onClick={openNewSop} className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                <Plus size={13} strokeWidth={1} /> 新建模板
+              </button>
+            </div>
+            {sopError && (
+              <div className={`mb-4 px-5 py-3 rounded-control border text-xs font-light ${isDarkMode ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-500'}`}>{sopError}</div>
+            )}
+            {sopLoading ? (
+              <div className={`py-16 flex items-center justify-center gap-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                <Loader2 size={16} className="animate-spin" />
+                <span className="text-xs font-light">模板加载中…</span>
+              </div>
+            ) : (
+              <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 justify-center content-start">
+                {sopTemplates.map(tpl => (
+                  <motion.div layout key={tpl.id} onClick={() => { setSopDetail(tpl); setSopInstantiatedMsg(''); setSopError(null); }} className={`shrink-0 w-[340px] p-6 flex flex-col cursor-pointer ${BAMBOOK_OS.material.cardLight} transition-all duration-300 ${isDarkMode ? 'bg-deep/48' : 'bg-white/46 hover:bg-white/56'}`}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className={`px-2.5 py-1 text-[9px] font-light tracking-wide rounded-full border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>{tpl.category}</span>
+                      <span className={`text-[9px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>v{tpl.version}</span>
+                    </div>
+                    <h4 className={`text-base font-light mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{tpl.title}</h4>
+                    <p className={`text-[12px] line-clamp-3 font-light leading-relaxed flex-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{tpl.summary || tpl.content}</p>
+                    <div className={`mt-5 pt-4 border-t flex items-center justify-between ${isDarkMode ? 'border-white/10' : 'border-white/30'}`}>
+                      <span className={`flex items-center gap-1.5 text-[10px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <ListChecks size={12} strokeWidth={1.2} /> {tpl.steps.length} 步骤
+                      </span>
+                      <span className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{new Date(tpl.updatedAt).toLocaleDateString()}</span>
+                    </div>
+                  </motion.div>
+                ))}
+                {sopTemplates.length === 0 && !sopLoading && (
+                  <div className={`w-full py-20 flex flex-col items-center justify-center ${isDarkMode ? 'text-slate-600' : 'text-slate-300'}`}>
+                    <ListChecks size={60} strokeWidth={1} className="opacity-10 mb-4" />
+                    <p className="text-xs font-light tracking-wide">暂无 SOP 模板</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </div>
+        )}
       </div>
       </div>
 
-      {/* 新增/编辑 Modal */}
+      {/* 新增/编辑知识 Modal */}
       {(showAddModal || editingItem) && (
         <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${isDarkMode ? 'bg-deep/72' : 'bg-white/64'} w-full max-w-xl overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
@@ -304,6 +651,242 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
           </div>
         </div>
       )}
+
+      {/* C7 — 知识文档详情 + 实体关联 Modal */}
+      {viewingItem && (
+        <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setViewingItem(null); }}>
+          <div className={`${BAMBOOK_OS.material.glassColor} ${isDarkMode ? 'bg-deep/72' : 'bg-white/64'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
+            <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-white/[0.055]' : 'border-white/35'}`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={`shrink-0 px-2.5 py-1 text-[9px] font-light tracking-wide rounded-full border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>{viewingItem.category}</span>
+                <h3 className={`text-lg font-light truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{viewingItem.title}</h3>
+              </div>
+              <button onClick={() => setViewingItem(null)} className={`p-2 rounded-full shrink-0 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}><X size={18} /></button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-10 py-6 space-y-6">
+              <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{viewingItem.content}</p>
+              <div>
+                <div className={`mb-3 flex items-center gap-2 text-[10px] font-light tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <Link2 size={12} strokeWidth={1.2} /> 实体关联
+                </div>
+                {relationsLoading ? (
+                  <div className={`flex items-center gap-2 py-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span className="text-[11px] font-light">关联加载中…</span>
+                  </div>
+                ) : viewingRelations.length > 0 ? (
+                  <div className="space-y-2">
+                    {viewingRelations.map(rel => (
+                      <div key={rel.id} className={`flex items-center justify-between gap-3 rounded-control border px-4 py-2.5 ${isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/40'}`}>
+                        <div className="flex items-center gap-2 min-w-0 text-[11px] font-light">
+                          <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{rel.relationType}</span>
+                          <span className={isDarkMode ? 'text-slate-600' : 'text-slate-300'}>→</span>
+                          <span className={`truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{rel.targetType} / {rel.targetId}</span>
+                        </div>
+                        <span className={`shrink-0 text-[9px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{Math.round(rel.confidence * 100)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={`text-[11px] font-light ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>暂无实体关联记录（关联由知识抽取管线自动建立）</p>
+                )}
+              </div>
+            </div>
+            <div className={`px-10 py-5 shrink-0 flex items-center justify-between ${isDarkMode ? 'bg-white/[0.025]' : 'bg-white/24'}`}>
+              <span className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>更新于 {new Date(viewingItem.updatedAt).toLocaleDateString()}</span>
+              <button onClick={() => { setEditingItem(viewingItem); setViewingItem(null); }} className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                <Edit2 size={12} /> 编辑
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* C7 — SOP 详情 Modal */}
+      {sopDetail && !sopShowNew && (
+        <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm z-[70] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={(e) => { if (e.target === e.currentTarget) setSopDetail(null); }}>
+          <div className={`${BAMBOOK_OS.material.glassColor} ${isDarkMode ? 'bg-deep/72' : 'bg-white/64'} w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
+            <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-white/[0.055]' : 'border-white/35'}`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={`shrink-0 px-2.5 py-1 text-[9px] font-light tracking-wide rounded-full border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>{sopDetail.category}</span>
+                <h3 className={`text-lg font-light truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{sopDetail.title}</h3>
+                <span className={`shrink-0 text-[9px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>v{sopDetail.version}</span>
+              </div>
+              <button onClick={() => setSopDetail(null)} className={`p-2 rounded-full shrink-0 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}><X size={18} /></button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-10 py-6 space-y-6">
+              {sopDetail.summary && (
+                <p className={`text-[13px] font-light leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{sopDetail.summary}</p>
+              )}
+              {sopDetail.steps.length > 0 && (
+                <div className="space-y-3">
+                  {sopDetail.steps.map((step, i) => (
+                    <div key={i} className={`rounded-control border px-4 py-3 ${isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/40'}`}>
+                      <div className={`text-[12px] font-light ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{i + 1}. {step.title}</div>
+                      {step.detail && <div className={`mt-1 text-[11px] font-light leading-relaxed ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{step.detail}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{sopDetail.content}</p>
+            </div>
+            <div className={`px-10 py-5 shrink-0 flex items-center justify-end gap-3 ${isDarkMode ? 'bg-white/[0.025]' : 'bg-white/24'}`}>
+              {sopInstantiatedMsg && <span className={`mr-auto text-[11px] font-light ${isDarkMode ? 'text-emerald-300/80' : 'text-emerald-600'}`}>{sopInstantiatedMsg}</span>}
+              {sopError && <span className="mr-auto text-[11px] font-light text-red-500">{sopError}</span>}
+              <button onClick={() => setSopDeleteId(sopDetail.id)} className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light} hover:text-red-500`}>
+                <Trash2 size={12} /> 删除
+              </button>
+              <button onClick={() => openEditSop(sopDetail)} className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                <Edit2 size={12} /> 编辑
+              </button>
+              <button
+                onClick={() => handleInstantiateSop(sopDetail)}
+                disabled={sopBusy}
+                className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+              >
+                {sopBusy ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} strokeWidth={1.2} />}
+                实例化入库
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* C7 — SOP 新建/编辑 Modal */}
+      {sopShowNew && (
+        <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className={`${BAMBOOK_OS.material.glassColor} ${isDarkMode ? 'bg-deep/72' : 'bg-white/64'} w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden scale-in-center rounded-card border border-transparent shadow-none backdrop-saturate-[104%]`}>
+            <div className={`px-10 py-6 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-white/[0.055]' : 'border-white/35'}`}>
+              <h3 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{sopEditing ? '编辑 SOP 模板' : '新建 SOP 模板'}</h3>
+              <button onClick={() => { setSopShowNew(false); setSopEditing(null); }} className={`p-2 rounded-full ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}><X size={18} /></button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-10 py-6 space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">模板标题 *</label>
+                  <input
+                    type="text"
+                    value={sopDraft.title}
+                    onChange={(e) => setSopDraft({ ...sopDraft, title: e.target.value })}
+                    placeholder="如：大货跟单标准流程"
+                    className={`w-full px-5 py-3 border rounded-control outline-none font-light text-sm transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">分类 *</label>
+                  <select
+                    value={sopDraft.category}
+                    onChange={(e) => setSopDraft({ ...sopDraft, category: e.target.value })}
+                    className={`w-full px-5 py-3 border rounded-control outline-none font-light text-sm appearance-none transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                  >
+                    {KB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">摘要</label>
+                <input
+                  type="text"
+                  value={sopDraft.summary}
+                  onChange={(e) => setSopDraft({ ...sopDraft, summary: e.target.value })}
+                  placeholder="一句话说明适用范围与目标"
+                  className={`w-full px-5 py-3 border rounded-control outline-none font-light text-sm transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">结构化步骤</label>
+                  <button onClick={() => setSopDraft({ ...sopDraft, steps: [...sopDraft.steps, { title: '' }] })} className={`px-3 py-1 rounded-full text-[10px] font-light tracking-wide transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                    + 添加步骤
+                  </button>
+                </div>
+                {sopDraft.steps.length === 0 && (
+                  <p className={`text-[11px] font-light ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>可选。步骤将以编号列表渲染进知识文档。</p>
+                )}
+                <div className="space-y-2">
+                  {sopDraft.steps.map((step, i) => (
+                    <div key={i} className={`flex items-start gap-2 rounded-control border p-3 ${isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/40'}`}>
+                      <span className={`shrink-0 pt-2 text-[10px] font-light w-5 text-center ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{i + 1}</span>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          value={step.title}
+                          onChange={(e) => setSopDraft({ ...sopDraft, steps: sopDraft.steps.map((s, j) => (j === i ? { ...s, title: e.target.value } : s)) })}
+                          placeholder="步骤标题"
+                          className={`w-full px-3 py-2 border rounded-control outline-none font-light text-xs transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                        />
+                        <input
+                          type="text"
+                          value={step.detail || ''}
+                          onChange={(e) => setSopDraft({ ...sopDraft, steps: sopDraft.steps.map((s, j) => (j === i ? { ...s, detail: e.target.value } : s)) })}
+                          placeholder="步骤细节（可选）"
+                          className={`w-full px-3 py-2 border rounded-control outline-none font-light text-xs transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                        />
+                      </div>
+                      <button onClick={() => setSopDraft({ ...sopDraft, steps: sopDraft.steps.filter((_, j) => j !== i) })} className={`shrink-0 p-1.5 rounded-control transition-all ${isDarkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500'}`}>
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">正文 *</label>
+                <textarea
+                  rows={6}
+                  value={sopDraft.content}
+                  onChange={(e) => setSopDraft({ ...sopDraft, content: e.target.value })}
+                  placeholder="适用范围、判定标准、责任要点等完整说明"
+                  className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                />
+              </div>
+            </div>
+            <div className={`px-10 py-5 shrink-0 flex justify-end gap-4 ${isDarkMode ? 'bg-white/[0.025]' : 'bg-white/24'}`}>
+              {sopError && <span className="mr-auto text-[11px] font-light text-red-500">{sopError}</span>}
+              <button
+                onClick={handleSaveSop}
+                disabled={sopBusy}
+                className={`px-8 py-3 text-[11px] font-light tracking-wide rounded-full flex items-center gap-2 border transition-all disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+              >
+                {sopBusy ? <Loader2 size={13} className="animate-spin" /> : <Save size={14} strokeWidth={1} />}
+                {sopEditing ? '保存修改' : '创建模板'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* C7 — SOP 删除确认 */}
+      {sopDeleteId && (
+        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className={`${BAMBOOK_OS.material.glassColor} ${isDarkMode ? 'bg-deep/72 border border-transparent' : 'bg-white/64 border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
+            <div className="p-10 text-center space-y-6">
+              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${isDarkMode ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-red-50 text-red-500 border-red-100'}`}>
+                <AlertTriangle size={32} strokeWidth={1} />
+              </div>
+              <div className="space-y-2">
+                <h3 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>删除 SOP 模板？</h3>
+                <p className="text-sm text-slate-400 font-light leading-relaxed">模板将被移除（已实例化入库的知识文档不受影响）。</p>
+              </div>
+              <div className="flex flex-col gap-3 pt-4">
+                {sopError && <div className="text-xs text-red-500">{sopError}</div>}
+                <button
+                  onClick={handleDeleteSop}
+                  disabled={sopBusy}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all shadow-none ${sopBusy ? 'opacity-50 cursor-not-allowed ' : ''}${isDarkMode ? 'bg-slate-500 text-white hover:bg-slate-600' : 'bg-slate-500 text-white hover:bg-slate-600'}`}
+                >
+                  {sopBusy ? '处理中…' : '确认删除'}
+                </button>
+                <button onClick={() => setSopDeleteId(null)} className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all border ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 知识删除确认 */}
       {deleteConfirmId && (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${isDarkMode ? 'bg-deep/72 border border-transparent' : 'bg-white/64 border border-transparent'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>

@@ -1632,6 +1632,24 @@ model KnowledgeAcl {
   @@index([scope])
 }
 
+// C7 知识库深化：SOP 标准作业程序模板（可实例化为知识文档入库检索）
+model SopTemplate {
+  id        String  @id
+  title     String
+  category  String
+  summary   String?
+  content   String
+  steps     Json?
+  version   Int     @default(1)
+  status    String  @default("active") // active | archived
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([category])
+  @@index([status])
+}
+
 model AgentTool {
   id          String   @id
   name        String
