@@ -795,6 +795,9 @@ export interface Order {
   // 订单行明细：从后端 OrderLine 拿来的，用于列表里"按行展开"渲染。
   // 一个 PO 可能有多个 line，每个 line 在订单列表里独立成一行。
   lines?: OrderLineLite[];
+
+  /** 业务线快照（fabric | garment | capsule；BusinessLine.code）。Capsule 子视图筛选依据。 */
+  businessLine?: string | null;
 }
 
 export type OrderLineStatus = 'Pending' | 'Confirmed' | 'Production' | 'Shipping' | 'Delivered' | 'Alert';
@@ -1647,6 +1650,7 @@ export interface SavedOrderRow {
   source?: string | null;
   importedAt?: number | null;
   updatedAt?: number | null;
+  businessLine?: string | null;
   lines: Array<{
     id: string;
     lineNumber: number;

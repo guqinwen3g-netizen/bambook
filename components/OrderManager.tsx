@@ -76,6 +76,8 @@ export function savedRowToOrder(row: SavedOrderRow): Order {
     paymentMethod: row.paymentTerms ?? undefined,
     contractAmount: row.totalActual ?? undefined,
     consignee: row.deliverTo ?? undefined,
+    // 业务线快照（条件展开：避免导入合并路径把既有标记覆盖为 undefined）
+    ...(row.businessLine != null ? { businessLine: row.businessLine } : {}),
     // 行明细整体带过来，订单列表里要按行展开。
     lines: row.lines ?? [],
   };
@@ -326,12 +328,22 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
 
 
   // 只显示未删除且类型与当前 Tab 匹配的订单
-  const filteredOrders = orders.filter(o => !o.deletedAt && o.type === (orderType === 'garment' ? 'Garment' : 'Fabric'));
+  // Capsule 子视图：成衣 Tab 下的业务线透镜（capsuleOnly 仅 garment 生效；未标记订单归大货）
+  const [capsuleOnly, setCapsuleOnly] = useState(false);
+  const capsuleActive = orderType === 'garment' && capsuleOnly;
+  const filteredOrders = orders.filter(o =>
+    !o.deletedAt &&
+    o.type === (orderType === 'garment' ? 'Garment' : 'Fabric') &&
+    (!capsuleActive || o.businessLine === 'capsule'),
+  );
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [orderFilterStatus, setOrderFilterStatus] = useState<string>('all');
 
   const lineItems = useMemo(() => {
     let items = flattenOrderLines(orders).filter(item => item.order?.type === (orderType === 'garment' ? 'Garment' : 'Fabric'));
+    if (capsuleActive) {
+      items = items.filter(item => item.order?.businessLine === 'capsule');
+    }
     if (orderFilterStatus !== 'all') {
       items = items.filter(item => item.order?.status === orderFilterStatus);
     }
@@ -346,7 +358,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       );
     }
     return items;
-  }, [orders, orderType, orderSearchTerm, orderFilterStatus]);
+  }, [orders, orderType, capsuleActive, orderSearchTerm, orderFilterStatus]);
 
   const mergeLineIntoOrders = (line: OrderLineItem, sourceOrders: Order[] = orders): Order[] => {
     const parent = line.order;
@@ -667,6 +679,49 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const detailSections = fieldsForDetail();
   const manualSections = fieldsForManualForm();
 
+  // Capsule 子视图：三路订单类型切换（面料 / 成衣 / Capsule）。Capsule = 成衣 + businessLine==='capsule' 透镜；
+  // 未标记业务线的成衣订单归大货透镜（businessLine null 语义）。
+  const renderOrderTypeSwitcher = (buttonClass: (active: boolean) => string) => (
+    <>
+      {(['fabric', 'garment'] as const).map((type) => (
+        <button
+          key={type}
+          type="button"
+          onClick={() => { setCapsuleOnly(false); onOrderTypeChange?.(type); }}
+          className={buttonClass(orderType === type && !capsuleActive)}
+        >
+          {ORDER_TYPE_LABELS[type]}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => { onOrderTypeChange?.('garment'); setCapsuleOnly(true); }}
+        className={buttonClass(capsuleActive)}
+      >
+        Capsule
+      </button>
+    </>
+  );
+
+  // 业务线标记（成衣订单：大货 ⇄ Capsule）——走 businessLines 专用端点（注册表存在/启用校验 + 审计），
+  // 成功后同步本地列表与选中订单；失败沿用本模块 window.alert 反馈惯例。
+  const [businessLineSaving, setBusinessLineSaving] = useState(false);
+  const handleSetBusinessLine = async (code: 'garment' | 'capsule') => {
+    if (!selectedOrder || businessLineSaving) return;
+    const current = selectedOrder.businessLine === 'capsule' ? 'capsule' : 'garment';
+    if (current === code) return;
+    setBusinessLineSaving(true);
+    try {
+      await apiService.setOrderBusinessLine(selectedOrder.id, code);
+      setOrders(orders.map(o => (o.id === selectedOrder.id ? { ...o, businessLine: code } : o)));
+      onSelectOrder({ ...selectedOrder, businessLine: code });
+    } catch (e: any) {
+      window.alert(`业务线标记失败：${e?.message ?? e}\n请稍后重试。`);
+    } finally {
+      setBusinessLineSaving(false);
+    }
+  };
+
   useEffect(() => {
     onFullscreenOpenChange?.(desktopFullscreenOpen);
     return () => onFullscreenOpenChange?.(false);
@@ -686,16 +741,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
             <div className={`${BAMBOOK_OS.controls.toolbar.content} !gap-2 !px-2`}>
               <div className="flex h-8 min-w-0 items-center gap-0.5">
-                {(['fabric', 'garment'] as const).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => onOrderTypeChange?.(type)}
-                    className={`h-8 rounded-full px-2.5 text-[10px] font-light tracking-wide transition-all ${orderType === type ? toolbarSelectedClass : toolbarControlClass}`}
-                  >
-                    {ORDER_TYPE_LABELS[type]}
-                  </button>
-                ))}
+                {renderOrderTypeSwitcher((active) => `h-8 rounded-full px-2.5 text-[10px] font-light tracking-wide transition-all ${active ? toolbarSelectedClass : toolbarControlClass}`)}
               </div>
               <div className={`h-3.5 w-px shrink-0 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300/40'}`} />
               <input
@@ -810,17 +856,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       {effectiveViewMode === 'list' && !desktopFullscreenOpen && isMobile && (
         <div className={`h-12 px-5 flex items-center justify-start border-b pointer-events-auto ${isDarkMode ? 'bg-transparent border-white/5' : 'bg-transparent border-white/10'} ${isMobile ? 'overflow-x-auto px-4 no-scrollbar' : ''}`}>
           <div className="flex gap-2">
-            {/* Fabric/Garment Tab Switcher */}
-            {(['fabric', 'garment'] as const).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => onOrderTypeChange?.(t)}
-                className={`h-8 shrink-0 rounded-full px-4 text-[10px] font-light tracking-wide transition-all ${orderType === t ? toolbarSelectedClass : toolbarControlClass}`}
-              >
-                {ORDER_TYPE_LABELS[t]}
-              </button>
-            ))}
+            {/* Fabric/Garment/Capsule Tab Switcher */}
+            {renderOrderTypeSwitcher((active) => `h-8 shrink-0 rounded-full px-4 text-[10px] font-light tracking-wide transition-all ${active ? toolbarSelectedClass : toolbarControlClass}`)}
           </div>
         </div>
       )}
@@ -836,20 +873,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             */}
             <div className="w-full h-full bg-transparent"></div>
 
-            {/* Floating Fabric/Garment Tab for Globe Mode */}
-            <div className={`absolute top-6 left-1/2 z-10 block w-[188px] -translate-x-1/2 pointer-events-auto md:hidden ${BAMBOOK_OS.controls.toolbar.base} ${toolbarSurfaceClass}`}>
+            {/* Floating Fabric/Garment/Capsule Tab for Globe Mode */}
+            <div className={`absolute top-6 left-1/2 z-10 block w-[252px] -translate-x-1/2 pointer-events-auto md:hidden ${BAMBOOK_OS.controls.toolbar.base} ${toolbarSurfaceClass}`}>
               <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
               <div className={BAMBOOK_OS.controls.toolbar.content}>
-                {(['fabric', 'garment'] as const).map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => onOrderTypeChange?.(t)}
-                    className={`h-8 flex-1 rounded-full px-3 text-[10px] font-light tracking-wide transition-all ${orderType === t ? toolbarSelectedClass : toolbarControlClass}`}
-                  >
-                    {ORDER_TYPE_LABELS[t]}
-                  </button>
-                ))}
+                {renderOrderTypeSwitcher((active) => `h-8 flex-1 rounded-full px-3 text-[10px] font-light tracking-wide transition-all ${active ? toolbarSelectedClass : toolbarControlClass}`)}
               </div>
             </div>
           </div>
@@ -879,6 +907,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           <div className="flex items-center gap-2 mb-1">
                             <div className={`w-2 h-2 rounded-full ${order.type === 'Fabric' ? 'bg-[var(--os-vnext-brand-blue)]' : 'bg-[var(--os-vnext-brand-blue)]'}`}></div>
                             <span className={`text-[10px] font-light uppercase tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-400'}`}>{order.type}</span>
+                            {order.businessLine === 'capsule' && (
+                              <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-light leading-none tracking-wide ${isDarkMode ? 'border-white/[0.10] text-white/55' : 'border-slate-300/70 text-slate-500'}`}>Capsule</span>
+                            )}
                           </div>
                           <span className={`text-lg font-light font-mono tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{order.id}</span>
                         </div>
@@ -1000,7 +1031,12 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         >
                           <span className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px ${orderTableRowSeparatorClass}`} aria-hidden="true" />
                           <div className={cellClass}>
-                            <p className={primaryText}>{item.displayId}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className={`${primaryText} min-w-0`}>{item.displayId}</p>
+                              {item.order.businessLine === 'capsule' && (
+                                <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-light leading-none tracking-wide ${isDarkMode ? 'border-white/[0.10] text-white/55' : 'border-slate-300/70 text-slate-500'}`}>Capsule</span>
+                              )}
+                            </div>
                             <p className={secondaryText}>{item.customer || '-'}</p>
                           </div>
                           <div className={cellClass}>
@@ -1151,6 +1187,35 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           </div>
                         ))}
                       </div>
+                      {/* Capsule 子视图：成衣订单业务线标记（大货 ⇄ Capsule），编辑模式下隐藏防误触 */}
+                      {selectedOrder.type === 'Garment' && !isEditing && (
+                        <div className={`mt-2 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-3 ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/45'}`}>
+                          <div className="min-w-0">
+                            <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${overlayKickerClass}`}>Business Line</p>
+                            <p className={`mt-0.5 text-xs font-light ${overlayMutedClass}`}>业务线（Capsule = 设计师小单业务）</p>
+                          </div>
+                          <div className="flex items-center gap-0.5">
+                            {([
+                              { code: 'garment' as const, label: '成衣大货' },
+                              { code: 'capsule' as const, label: 'Capsule' },
+                            ]).map(opt => {
+                              const active = (selectedOrder.businessLine === 'capsule' ? 'capsule' : 'garment') === opt.code;
+                              return (
+                                <button
+                                  key={opt.code}
+                                  type="button"
+                                  disabled={businessLineSaving}
+                                  onClick={() => handleSetBusinessLine(opt.code)}
+                                  title={active ? undefined : `标记为${opt.label}`}
+                                  className={`h-7 rounded-full px-3 text-[10px] font-light tracking-wide transition-all ${active ? toolbarSelectedClass : toolbarControlClass} ${businessLineSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </CompiledSurfacePanel>
 
                     {/* 阶段 IA-3：履约动作区 —— 订单下游一键触发（采购/验货/出运），prime 目标模块创建表单 */}
