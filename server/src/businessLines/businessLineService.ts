@@ -219,3 +219,93 @@ export function createBusinessLineService(prisma: PrismaClient) {
 }
 
 export type BusinessLineService = ReturnType<typeof createBusinessLineService>;
+
+// ────────────────────────────────────────────────────────────────
+// 启动种子：三大默认业务线（PRD 6.2）
+//   fabric  面料大货 — MOQ 800M / 70 天生产周期 / T/T 30 天
+//   garment 成衣大货 — T/T 60 天
+//   capsule 成衣 Capsule — 设计师小单业务（主业务组成部分，不拆分独立模块）
+// 幂等口径与 seedStandardEmailTemplates 一致：按 code 查重，存在即跳过。
+// ────────────────────────────────────────────────────────────────
+
+const DEFAULT_BUSINESS_LINES: Array<{
+  code: string;
+  name: string;
+  description: string;
+  moqValue: number | null;
+  moqUnit: string | null;
+  productionCycleDays: number | null;
+  paymentTermsHint: string | null;
+  sortOrder: number;
+}> = [
+  {
+    code: 'fabric',
+    name: '面料大货',
+    description: '面料大货订单业务线，按单生产',
+    moqValue: 800,
+    moqUnit: 'M',
+    productionCycleDays: 70,
+    paymentTermsHint: 'T/T 30 天',
+    sortOrder: 10,
+  },
+  {
+    code: 'garment',
+    name: '成衣大货',
+    description: '成衣大货订单业务线',
+    moqValue: null,
+    moqUnit: 'PC',
+    productionCycleDays: null,
+    paymentTermsHint: 'T/T 60 天',
+    sortOrder: 20,
+  },
+  {
+    code: 'capsule',
+    name: '成衣 Capsule',
+    description: '设计师小单 / Capsule 业务线（主业务组成部分）',
+    moqValue: null,
+    moqUnit: 'PC',
+    productionCycleDays: null,
+    paymentTermsHint: null,
+    sortOrder: 30,
+  },
+];
+
+export async function ensureBusinessLineSeed(
+  prisma: PrismaClient,
+  actorId?: string,
+): Promise<{ created: number; skipped: number; total: number }> {
+  const db = prisma as any;
+  const now = Date.now();
+  let created = 0;
+  let skipped = 0;
+  for (const line of DEFAULT_BUSINESS_LINES) {
+    // code 为 @unique 注册真源：含软删记录在内存在即跳过，避免撞唯一约束
+    const existing = await db.businessLine.findUnique({ where: { code: line.code } });
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+    await db.businessLine.create({
+      data: {
+        id: generateId('BL'),
+        code: line.code,
+        name: line.name,
+        description: line.description,
+        moqValue: line.moqValue,
+        moqUnit: line.moqUnit,
+        productionCycleDays: line.productionCycleDays,
+        paymentTermsHint: line.paymentTermsHint,
+        isActive: true,
+        sortOrder: line.sortOrder,
+        createdAt: BigInt(now),
+        updatedAt: BigInt(now),
+        deletedAt: null,
+      },
+    });
+    created += 1;
+  }
+  if (created > 0) {
+    logger.info('[BusinessLineService] default business lines seeded', { created, skipped, actorId });
+  }
+  return { created, skipped, total: DEFAULT_BUSINESS_LINES.length };
+}

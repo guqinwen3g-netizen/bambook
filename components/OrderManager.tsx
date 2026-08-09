@@ -992,7 +992,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     {lineItems.length === 0 ? (
                       <div className={`flex min-h-[360px] flex-col items-center justify-center gap-4 px-6 text-center ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
                         <Package size={44} strokeWidth={1} className={isDarkMode ? 'text-white/24' : 'text-slate-300'} />
-                        <p className="text-xs font-light tracking-wide">无匹配生产任务数据</p>
+                        {capsuleActive ? (
+                          <>
+                            <p className="text-xs font-light tracking-wide">暂无 Capsule 订单</p>
+                            <p className={`text-[11px] font-light leading-relaxed ${isDarkMode ? 'text-white/28' : 'text-slate-400'}`}>在成衣订单详情中将业务线标记为 Capsule 后，订单将在此子视图集中呈现</p>
+                          </>
+                        ) : (
+                          <p className="text-xs font-light tracking-wide">无匹配生产任务数据</p>
+                        )}
                       </div>
                     ) : lineItems.map((item, idx) => {
                       const clientCode = item.materialCode || item.order.clientCode || '-';
@@ -1073,7 +1080,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               {isMobile && filteredOrders.length === 0 && (
                 <div className="p-20 text-center flex flex-col items-center justify-center gap-4">
                   <Package size={60} strokeWidth={1} className="text-slate-100" />
-                  <p className="text-xs font-light text-slate-300 uppercase tracking-widest">无匹配生产任务数据</p>
+                  <p className="text-xs font-light text-slate-300 uppercase tracking-widest">{capsuleActive ? '暂无 Capsule 订单' : '无匹配生产任务数据'}</p>
                 </div>
               )}
             </div>

@@ -38,6 +38,7 @@ import { createSupplierRouter } from './suppliers/factoryRoute';
 import { createSeasonRouter } from './seasons/seasonRoute';
 import { createRiskRouter } from './risk/riskRoute';
 import { createBusinessLineRouter } from './businessLines/businessLineRoute';
+import { ensureBusinessLineSeed } from './businessLines/businessLineService';
 import { createQcRouter } from './qc/qcRoute';
 import { createPricingRouter } from './pricing/pricingRoute';
 import { createLookbookRouter } from './products/lookbookRoute';
@@ -104,6 +105,11 @@ ensureSopTemplateSeed(prisma)
     .catch(error => {
         logger.error('[knowledge] SOP template seed failed', { error: error?.message || String(error) });
     });
+// PRD 6.2 业务线注册表：启动时幂等播种三大默认业务线（fabric/garment/capsule），
+// 保证订单业务线标记（Capsule 子视图等）开箱可用，不再依赖手工注册
+ensureBusinessLineSeed(prisma).catch(error => {
+    logger.error('[business-lines] boot seed failed', { error: error?.message || String(error) });
+});
 // Phase 0 Sprint 1: 初始化业务事件总线 + 通知系统
 // 注入 prisma 到 businessEventBus，订阅所有业务事件 → notificationService
 initializeNotificationBindings(prisma);
