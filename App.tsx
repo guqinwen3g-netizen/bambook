@@ -150,6 +150,7 @@ import { CompiledDashboardPage } from './components/ui/osCompiler/compiledDashbo
 import Assistant, { assistantRuntimeStore, type AssistantRuntimeSnapshot } from './components/Assistant';
 import DataTwinCenter from './components/DataTwinCenter';
 import OrderManager, { savedRowToOrder } from './components/OrderManager';
+import CommandPalette from './components/CommandPalette';
 import GarmentOrders from './components/GarmentOrders';
 import EmailManager from './components/EmailManager';
 import Settings, { WALLPAPER_PRESETS } from './components/Settings';
@@ -396,6 +397,9 @@ const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'pushing' | 'pulling' | 'repairing' | 'blocked'>('idle');
   const [orderViewMode, setOrderViewMode] = useState<'globe' | 'list'>(() => uiState.orderViewMode);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // D1 全局工作台：命令面板开关（Cmd/Ctrl+K）
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [orderFullscreenOpen, setOrderFullscreenOpen] = useState(false);
   const [renderGlobe, setRenderGlobe] = useState(false);
   const [orderType, setOrderType] = useState<'fabric' | 'garment'>('fabric'); // Fabric/Garment 切换
@@ -755,6 +759,19 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleDesignTunerShortcut);
     return () => window.removeEventListener('keydown', handleDesignTunerShortcut);
+  }, []);
+
+  // D1 全局工作台：Cmd/Ctrl+K 唤起命令面板（输入框内也可用，与 OS 全局搜索惯例一致）
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePaletteShortcut = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'k') return;
+      if (!event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      setPaletteOpen((current) => !current);
+    };
+    window.addEventListener('keydown', handlePaletteShortcut);
+    return () => window.removeEventListener('keydown', handlePaletteShortcut);
   }, []);
 
   useEffect(() => {
@@ -1396,6 +1413,22 @@ const App: React.FC = () => {
       )}
 
       <div className="app-reveal-underlay-material" aria-hidden="true" />
+
+      {/* D1 全局工作台：命令面板（Cmd/Ctrl+K；订单记录直开详情，其余记录跳转所属模块） */}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        isDarkMode={isDarkMode}
+        relations={relations}
+        orders={orders}
+        products={products}
+        invoices={invoices}
+        shipments={shipments}
+        knowledge={knowledge}
+        emails={emails}
+        onNavigate={(view) => { setPaletteOpen(false); handleViewChange(view); }}
+        onOpenOrder={(order) => { setPaletteOpen(false); setSelectedOrder(order); handleViewChange(View.Orders); }}
+      />
 
       {compilerSurfaces.sidebar ? (
         <CompiledSidebar
