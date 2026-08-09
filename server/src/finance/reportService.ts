@@ -141,10 +141,10 @@ export async function getAgingReport(
 
 export interface StatementTransaction {
   date: string;
-  kind: 'invoice' | 'receipt';
+  kind: 'invoice' | 'receipt' | 'payment';
   number: string;
-  debit: number;  // 发票增加应收
-  credit: number; // 收款减少应收
+  debit: number;  // 发票增加应收/应付
+  credit: number; // 收款减少应收；付款减少应付
   balance: number; //  running balance
 }
 
@@ -231,6 +231,90 @@ export async function getCustomerStatement(
   }
 
   return { customerRelationId, customerName, from: from ?? null, to: to ?? null, sections };
+}
+
+// ────────────────────────────────────────────────────────────────
+// 2b. 供应商对账单（Supplier Statement）— 客户对账的应付侧镜像
+// ────────────────────────────────────────────────────────────────
+// 语义：Invoice.customerRelationId 承载交易对象（billTo linkKind），应付发票的
+// 交易对象即供应商。借方 = 供应商开票（应付增加），贷方 = 付款凭证（应付减少）。
+
+export interface SupplierStatement {
+  supplierRelationId: string;
+  supplierName: string | null;
+  from: string | null;
+  to: string | null;
+  sections: StatementSection[];
+}
+
+export async function getSupplierStatement(
+  prisma: PrismaClient,
+  params: { supplierRelationId: string; from?: string; to?: string },
+): Promise<SupplierStatement> {
+  const { supplierRelationId, from, to } = params;
+
+  const [invoices, vouchers] = await Promise.all([
+    prisma.invoice.findMany({
+      where: {
+        customerRelationId: supplierRelationId,
+        type: 'Payable',
+        status: { not: 'Cancelled' },
+        deletedAt: null,
+      },
+      select: { invoiceNumber: true, amount: true, currency: true, issueDate: true, customerName: true },
+    }),
+    prisma.paymentVoucher.findMany({
+      where: { customerRelationId: supplierRelationId, type: 'Disbursement', deletedAt: null },
+      select: { voucherNumber: true, amount: true, currency: true, paymentDate: true, customerName: true },
+    }),
+  ]);
+
+  const supplierName = invoices[0]?.customerName ?? vouchers[0]?.customerName ?? null;
+
+  // 按币种分组构建 section（与客户对账同一算法）
+  const currencies = [...new Set([...invoices.map(i => i.currency), ...vouchers.map(v => v.currency)])].sort();
+  const sections: StatementSection[] = [];
+
+  for (const currency of currencies) {
+    const curInvoices = invoices.filter(i => i.currency === currency);
+    const curVouchers = vouchers.filter(v => v.currency === currency);
+
+    // 期初余额：from 之前的收票 - 付款
+    let opening = 0;
+    if (from) {
+      for (const inv of curInvoices) if (inv.issueDate < from) opening += Number(inv.amount);
+      for (const voc of curVouchers) if (voc.paymentDate < from) opening -= Number(voc.amount);
+    }
+
+    type Raw = { date: string; kind: 'invoice' | 'payment'; number: string; debit: number; credit: number };
+    const raws: Raw[] = [];
+    for (const inv of curInvoices) {
+      if (from && inv.issueDate < from) continue;
+      if (to && inv.issueDate > to) continue;
+      raws.push({ date: inv.issueDate, kind: 'invoice', number: inv.invoiceNumber, debit: Number(inv.amount), credit: 0 });
+    }
+    for (const voc of curVouchers) {
+      if (from && voc.paymentDate < from) continue;
+      if (to && voc.paymentDate > to) continue;
+      raws.push({ date: voc.paymentDate, kind: 'payment', number: voc.voucherNumber, debit: 0, credit: Number(voc.amount) });
+    }
+    raws.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
+
+    let balance = round4(opening);
+    const transactions: StatementTransaction[] = raws.map(r => {
+      balance = round4(balance + r.debit - r.credit);
+      return { ...r, debit: round4(r.debit), credit: round4(r.credit), balance };
+    });
+
+    sections.push({
+      currency,
+      openingBalance: round4(opening),
+      closingBalance: balance,
+      transactions,
+    });
+  }
+
+  return { supplierRelationId, supplierName, from: from ?? null, to: to ?? null, sections };
 }
 
 // ────────────────────────────────────────────────────────────────

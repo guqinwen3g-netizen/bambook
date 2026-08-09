@@ -1,11 +1,12 @@
 /**
  * FinanceReportsPanel — 财务报表面板（Phase B2 + 阶段 F / F2）
  *
- * 四个子视图：
+ * 五个子视图：
  *   1. 账龄分析 Aging — 应收/应付五桶（未到期/1-30/31-60/61-90/90+），按客户×币种分组
  *   2. 客户对账单 Statement — 期初余额 + 开票/收款流水 + running balance，多币种分节
- *   3. 汇率损益 FX Gain/Loss — 核销维度（收款汇率 vs 开票汇率），收益/损失汇总
- *   4. 外汇台账 FX Ledger — 收汇/已结汇/未结汇按币种聚合 + 未结汇凭证清单（F2 外汇核销闭环）
+ *   3. 供应商对账单 Supplier Statement — 应付侧镜像：收票（借）/付款（贷）流水 + running balance
+ *   4. 汇率损益 FX Gain/Loss — 核销维度（收款汇率 vs 开票汇率），收益/损失汇总
+ *   5. 外汇台账 FX Ledger — 收汇/已结汇/未结汇按币种聚合 + 未结汇凭证清单（F2 外汇核销闭环）
  *
  * 数据源：GET /v1/finance/reports/* + GET /v1/finance/fx-settlements/ledger（只读报表，多币种不折算汇总）
  * 设计：flat 无阴影、RDL 原语、tabular-nums 数字对齐
@@ -16,15 +17,16 @@ import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle } from 'lucid
 import { apiService } from '../../services/apiService';
 import { fxSettlementService } from '../../services/fxSettlementService';
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
-import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Relation } from '../../types';
+import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Relation, StatementSection, SupplierStatement } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-type ReportTabId = 'aging' | 'statement' | 'fx' | 'fx-ledger';
+type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-ledger';
 
 const REPORT_TABS: Array<{ id: ReportTabId; label: string; en: string }> = [
   { id: 'aging', label: '账龄分析', en: 'Aging' },
   { id: 'statement', label: '客户对账单', en: 'Statement' },
+  { id: 'supplier-statement', label: '供应商对账单', en: 'Supplier' },
   { id: 'fx', label: '汇率损益', en: 'FX Gain/Loss' },
   { id: 'fx-ledger', label: '外汇台账', en: 'FX Ledger' },
 ];
@@ -63,6 +65,13 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   const [stmtFrom, setStmtFrom] = useState(firstDayOfMonth());
   const [stmtTo, setStmtTo] = useState(today());
   const [statement, setStatement] = useState<CustomerStatement | null>(null);
+
+  // ── 供应商对账单（应付侧镜像）──
+  const [supplierRelations, setSupplierRelations] = useState<Relation[]>([]);
+  const [supplierId, setSupplierId] = useState('');
+  const [supFrom, setSupFrom] = useState(firstDayOfMonth());
+  const [supTo, setSupTo] = useState(today());
+  const [supplierStatement, setSupplierStatement] = useState<SupplierStatement | null>(null);
 
   // ── 汇率损益 ──
   const [fxFrom, setFxFrom] = useState(firstDayOfMonth());
@@ -105,6 +114,19 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     }
   }, [customerId, stmtFrom, stmtTo, endpoint]);
 
+  const loadSupplierStatement = useCallback(async () => {
+    if (!supplierId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setSupplierStatement(await apiService.getSupplierStatement({ supplierRelationId: supplierId, from: supFrom || undefined, to: supTo || undefined }, endpoint));
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }, [supplierId, supFrom, supTo, endpoint]);
+
   const loadFx = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -141,12 +163,24 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         if (customers.length > 0 && !customerId) setCustomerId(customers[0].id);
       }).catch(() => {});
     }
-  }, [tab, aging, fx, ledger, relations.length, customerId, endpoint, loadAging, loadFx, loadLedger]);
+    if (tab === 'supplier-statement' && supplierRelations.length === 0) {
+      apiService.listRelations(endpoint).then(list => {
+        const suppliers = list.filter(r => r.type === 'Supplier' && !r.deletedAt);
+        setSupplierRelations(suppliers);
+        if (suppliers.length > 0 && !supplierId) setSupplierId(suppliers[0].id);
+      }).catch(() => {});
+    }
+  }, [tab, aging, fx, ledger, relations.length, supplierRelations.length, customerId, supplierId, endpoint, loadAging, loadFx, loadLedger]);
 
   // 客户选定后自动加载对账单
   useEffect(() => {
     if (tab === 'statement' && customerId) loadStatement();
   }, [tab, customerId, loadStatement]);
+
+  // 供应商选定后自动加载对账单
+  useEffect(() => {
+    if (tab === 'supplier-statement' && supplierId) loadSupplierStatement();
+  }, [tab, supplierId, loadSupplierStatement]);
 
   const inputCls = cx(
     'h-8 rounded-field border bg-transparent px-2.5 text-[11px] font-light outline-none tabular-nums',
@@ -212,50 +246,81 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     );
   };
 
-  // ── 对账单视图 ──
+  // ── 对账单视图（客户/供应商共用，仅借贷列文案与流水类型标签不同）──
+  const renderStatementSections = (opts: {
+    partyName: string | null;
+    partyFallback: string;
+    sections: StatementSection[];
+    debitLabel: string;
+    creditLabel: string;
+    creditKindLabel: string;
+    emptyText: string;
+  }) => (
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+      {opts.sections.map(sec => (
+        <RdlSurface key={sec.currency} tone="panel" padding="compact" className="flex flex-col">
+          <div className={cx('flex items-baseline justify-between border-b px-4 pb-2 pt-2', divider)}>
+            <div className={cx('text-xs font-light', textPrimary)}>{opts.partyName ?? opts.partyFallback} · {sec.currency}</div>
+            <div className={cx('text-[10px] font-light tabular-nums', textSecondary)}>
+              期初 {formatAmount(sec.openingBalance, sec.currency)} → 期末 <span className={textPrimary}>{formatAmount(sec.closingBalance, sec.currency)}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] px-4 pb-1 pt-1.5 text-[10px] font-light tracking-[0.14em]">
+            <div className={textSecondary}>日期</div>
+            <div className={textSecondary}>单号</div>
+            <div className={cx('text-right', textSecondary)}>{opts.debitLabel}</div>
+            <div className={cx('text-right', textSecondary)}>{opts.creditLabel}</div>
+            <div className={cx('text-right', textSecondary)}>余额</div>
+          </div>
+          <div className="space-y-0.5 px-1 pb-2 text-xs">
+            {sec.transactions.length === 0 && (
+              <div className={cx('py-4 text-center font-light', textFaint)}>该期间无流水</div>
+            )}
+            {sec.transactions.map((t, i) => (
+              <div key={`${t.number}-${i}`} className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] items-center rounded-control px-3 py-1.5">
+                <div className={cx('font-light tabular-nums', textSecondary)}>{t.date}</div>
+                <div className={cx('truncate font-light', textPrimary)}>
+                  {t.number}
+                  <span className={cx('ml-2 text-[10px]', textFaint)}>{t.kind === 'invoice' ? '发票' : opts.creditKindLabel}</span>
+                </div>
+                <div className={cx('text-right font-light tabular-nums', textPrimary)}>{t.debit > 0 ? formatAmount(t.debit, sec.currency) : '—'}</div>
+                <div className={cx('text-right font-light tabular-nums', textPrimary)}>{t.credit > 0 ? formatAmount(t.credit, sec.currency) : '—'}</div>
+                <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(t.balance, sec.currency)}</div>
+              </div>
+            ))}
+          </div>
+        </RdlSurface>
+      ))}
+      {opts.sections.length === 0 && (
+        <div className={cx('py-6 text-center text-xs font-light', textFaint)}>{opts.emptyText}</div>
+      )}
+    </div>
+  );
+
   const renderStatement = () => {
     if (!statement) return null;
-    return (
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
-        {statement.sections.map(sec => (
-          <RdlSurface key={sec.currency} tone="panel" padding="compact" className="flex flex-col">
-            <div className={cx('flex items-baseline justify-between border-b px-4 pb-2 pt-2', divider)}>
-              <div className={cx('text-xs font-light', textPrimary)}>{statement.customerName ?? '客户'} · {sec.currency}</div>
-              <div className={cx('text-[10px] font-light tabular-nums', textSecondary)}>
-                期初 {formatAmount(sec.openingBalance, sec.currency)} → 期末 <span className={textPrimary}>{formatAmount(sec.closingBalance, sec.currency)}</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] px-4 pb-1 pt-1.5 text-[10px] font-light tracking-[0.14em]">
-              <div className={textSecondary}>日期</div>
-              <div className={textSecondary}>单号</div>
-              <div className={cx('text-right', textSecondary)}>开票</div>
-              <div className={cx('text-right', textSecondary)}>收款</div>
-              <div className={cx('text-right', textSecondary)}>余额</div>
-            </div>
-            <div className="space-y-0.5 px-1 pb-2 text-xs">
-              {sec.transactions.length === 0 && (
-                <div className={cx('py-4 text-center font-light', textFaint)}>该期间无流水</div>
-              )}
-              {sec.transactions.map((t, i) => (
-                <div key={`${t.number}-${i}`} className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] items-center rounded-control px-3 py-1.5">
-                  <div className={cx('font-light tabular-nums', textSecondary)}>{t.date}</div>
-                  <div className={cx('truncate font-light', textPrimary)}>
-                    {t.number}
-                    <span className={cx('ml-2 text-[10px]', textFaint)}>{t.kind === 'invoice' ? '发票' : '收款'}</span>
-                  </div>
-                  <div className={cx('text-right font-light tabular-nums', textPrimary)}>{t.debit > 0 ? formatAmount(t.debit, sec.currency) : '—'}</div>
-                  <div className={cx('text-right font-light tabular-nums', textPrimary)}>{t.credit > 0 ? formatAmount(t.credit, sec.currency) : '—'}</div>
-                  <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(t.balance, sec.currency)}</div>
-                </div>
-              ))}
-            </div>
-          </RdlSurface>
-        ))}
-        {statement.sections.length === 0 && (
-          <div className={cx('py-6 text-center text-xs font-light', textFaint)}>该客户暂无发票/收款记录</div>
-        )}
-      </div>
-    );
+    return renderStatementSections({
+      partyName: statement.customerName,
+      partyFallback: '客户',
+      sections: statement.sections,
+      debitLabel: '开票',
+      creditLabel: '收款',
+      creditKindLabel: '收款',
+      emptyText: '该客户暂无发票/收款记录',
+    });
+  };
+
+  const renderSupplierStatement = () => {
+    if (!supplierStatement) return null;
+    return renderStatementSections({
+      partyName: supplierStatement.supplierName,
+      partyFallback: '供应商',
+      sections: supplierStatement.sections,
+      debitLabel: '收票',
+      creditLabel: '付款',
+      creditKindLabel: '付款',
+      emptyText: '该供应商暂无应付发票/付款记录',
+    });
   };
 
   // ── 汇率损益视图 ──
@@ -427,6 +492,18 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <RdlPill type="button" active tone="accent" onClick={loadStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
             </>
           )}
+          {tab === 'supplier-statement' && (
+            <>
+              <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className={cx(inputCls, 'min-w-[160px]')} aria-label="选择供应商">
+                {supplierRelations.length === 0 && <option value="">加载供应商...</option>}
+                {supplierRelations.map(r => <option key={r.id} value={r.id}>{r.chineseName || r.name}</option>)}
+              </select>
+              <input type="date" value={supFrom} onChange={e => setSupFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
+              <span className={cx('text-[10px]', textFaint)}>至</span>
+              <input type="date" value={supTo} onChange={e => setSupTo(e.target.value)} className={inputCls} aria-label="结束日期" />
+              <RdlPill type="button" active tone="accent" onClick={loadSupplierStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
+            </>
+          )}
           {tab === 'fx' && (
             <>
               <input type="date" value={fxFrom} onChange={e => setFxFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
@@ -460,6 +537,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         <>
           {tab === 'aging' && renderAging()}
           {tab === 'statement' && renderStatement()}
+          {tab === 'supplier-statement' && renderSupplierStatement()}
           {tab === 'fx' && renderFx()}
           {tab === 'fx-ledger' && renderFxLedger()}
         </>

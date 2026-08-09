@@ -24,6 +24,7 @@ import type {
   VatInvoiceDirection,
   VatInvoiceType,
   TaxRefund as TaxRefundEntity,
+  Relation,
 } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { PageHeader } from './ui/PageHeader';
@@ -285,9 +286,20 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   // ── Filter state (one flat set; resets on tab change) ───
   const [searchTerm, setSearchTerm] = useState('');
 
+  // ── 交易对象档案（发票/凭证表单关联 Relation 档案，支撑客户/供应商对账单数据链路）───
+  const [relationOptions, setRelationOptions] = useState<Relation[]>([]);
+  useEffect(() => {
+    let alive = true;
+    apiService.listRelations().then(list => { if (alive) setRelationOptions(list); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const relationOptionsFor = (direction: 'Customer' | 'Supplier') =>
+    relationOptions.filter(r => r.type === direction && !r.deletedAt);
+  const relationDisplayName = (r: Relation) => r.chineseName || r.name;
+
   // ── P0 payment manual path: 创建凭证 modal state ───
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [voucherForm, setVoucherForm] = useState({ voucherNumber: '', type: 'Receipt' as 'Receipt' | 'Disbursement', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '' });
+  const [voucherForm, setVoucherForm] = useState({ voucherNumber: '', type: 'Receipt' as 'Receipt' | 'Disbursement', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
   const [voucherCreating, setVoucherCreating] = useState(false);
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<VoucherEntity | null>(null);
@@ -302,6 +314,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       paymentDate: voucher.paymentDate || '',
       paymentMethod: voucher.paymentMethod || 'TT',
       customerName: voucher.customerName || '',
+      customerRelationId: voucher.customerRelationId || '',
     });
     setVoucherError(null);
     setShowCreateVoucher(true);
@@ -329,11 +342,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         paymentDate: voucherForm.paymentDate || new Date().toISOString().slice(0, 10),
         paymentMethod: voucherForm.paymentMethod,
         customerName: voucherForm.customerName || undefined,
+        customerRelationId: voucherForm.customerRelationId || undefined,
       });
       setVouchers(prev => prev.map(v => v.id === editingVoucher.id ? { ...v, ...updated } : v));
       setShowCreateVoucher(false);
       setEditingVoucher(null);
-      setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '' });
+      setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
     } catch (e: any) {
       setVoucherError(e?.message || '凭证保存失败');
     } finally {
@@ -362,12 +376,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         paymentDate: voucherForm.paymentDate || new Date().toISOString().slice(0, 10),
         paymentMethod: voucherForm.paymentMethod,
         customerName: voucherForm.customerName || undefined,
+        customerRelationId: voucherForm.customerRelationId || undefined,
       });
       // 成功：刷新服务端事实源（追加到本地列表，保持一致）
       setVouchers(prev => [created, ...prev]);
       setShowCreateVoucher(false);
       setEditingVoucher(null);
-      setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '' });
+      setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
     } catch (e: any) {
       // 失败：保留原数据，显示可执行反馈
       setVoucherError(`创建失败：${e?.message ?? e}`);
@@ -579,13 +594,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   // ── P0 invoice manual UI: 创建/编辑发票 modal state ───
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<InvoiceEntity | null>(null);
-  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', type: 'Receivable' as 'Receivable' | 'Payable', status: 'Draft' as InvoiceStatus, amount: '', currency: 'USD', customerName: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '' });
+  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', type: 'Receivable' as 'Receivable' | 'Payable', status: 'Draft' as InvoiceStatus, amount: '', currency: 'USD', customerName: '', customerRelationId: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '' });
   const [invoiceSaving, setInvoiceSaving] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   const openCreateInvoice = () => {
     setEditingInvoice(null);
-    setInvoiceForm({ invoiceNumber: '', type: 'Receivable', status: 'Draft', amount: '', currency: 'USD', customerName: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '' });
+    setInvoiceForm({ invoiceNumber: '', type: 'Receivable', status: 'Draft', amount: '', currency: 'USD', customerName: '', customerRelationId: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '' });
     setInvoiceError(null);
     setShowInvoiceModal(true);
   };
@@ -599,6 +614,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       amount: String(inv.amount ?? ''),
       currency: inv.currency || 'USD',
       customerName: inv.customerName || '',
+      customerRelationId: inv.customerRelationId || '',
       issueDate: inv.issueDate || '',
       dueDate: inv.dueDate || '',
       notes: inv.notes || '',
@@ -634,6 +650,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         amount: invoiceAmount,
         currency: invoiceForm.currency,
         customerName: invoiceForm.customerName || undefined,
+        customerRelationId: invoiceForm.customerRelationId || undefined,
         issueDate: invoiceForm.issueDate || undefined,
         dueDate: invoiceForm.dueDate || undefined,
         notes: invoiceForm.notes || undefined,
@@ -1834,7 +1851,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   active
                   tone="accent"
                   className="min-h-8 shrink-0 px-3 text-[11px]"
-                  onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
+                  onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
                 >
                   <Plus size={12} strokeWidth={1.4} />
                   新建凭证
@@ -1911,7 +1928,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement' }))}
+                  <select value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '' }))}
                     className={formSelectClass}>
                     <option value="Receipt">收款</option>
                     <option value="Disbursement">付款</option>
@@ -1938,10 +1955,26 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
               </div>
               <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象</label>
-                <input value={voucherForm.customerName} onChange={e => setVoucherForm(f => ({ ...f, customerName: e.target.value }))}
-                  className={formInputClass} />
+                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象档案</label>
+                <select value={voucherForm.customerRelationId} onChange={e => {
+                    const rid = e.target.value;
+                    const rel = relationOptions.find(r => r.id === rid);
+                    setVoucherForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
+                  }}
+                  className={formSelectClass}>
+                  <option value="">手动输入（不关联档案）</option>
+                  {relationOptionsFor(voucherForm.type === 'Receipt' ? 'Customer' : 'Supplier').map(r => (
+                    <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
+                  ))}
+                </select>
               </div>
+              {!voucherForm.customerRelationId && (
+                <div>
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象名称</label>
+                  <input value={voucherForm.customerName} onChange={e => setVoucherForm(f => ({ ...f, customerName: e.target.value }))}
+                    className={formInputClass} />
+                </div>
+              )}
               {voucherError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{voucherError}</div>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
@@ -1971,7 +2004,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value as 'Receivable' | 'Payable' }))}
+                  <select value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value as 'Receivable' | 'Payable', customerRelationId: '' }))}
                     className={formSelectClass}>
                     <option value="Receivable">应收</option>
                     <option value="Payable">应付</option>
@@ -1990,10 +2023,26 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     className={formInputClass} />
                 </div>
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>客户</label>
-                  <input value={invoiceForm.customerName} onChange={e => setInvoiceForm(f => ({ ...f, customerName: e.target.value }))}
-                    className={formInputClass} />
+                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商档案' : '客户档案'}</label>
+                  <select value={invoiceForm.customerRelationId} onChange={e => {
+                      const rid = e.target.value;
+                      const rel = relationOptions.find(r => r.id === rid);
+                      setInvoiceForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
+                    }}
+                    className={formSelectClass}>
+                    <option value="">手动输入（不关联档案）</option>
+                    {relationOptionsFor(invoiceForm.type === 'Receivable' ? 'Customer' : 'Supplier').map(r => (
+                      <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
+                    ))}
+                  </select>
                 </div>
+                {!invoiceForm.customerRelationId && (
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商名称' : '客户名称'}</label>
+                    <input value={invoiceForm.customerName} onChange={e => setInvoiceForm(f => ({ ...f, customerName: e.target.value }))}
+                      className={formInputClass} />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

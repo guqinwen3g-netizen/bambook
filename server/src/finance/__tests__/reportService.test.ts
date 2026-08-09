@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { getAgingReport, getCustomerStatement, getFxGainLoss } from '../reportService';
+import { getAgingReport, getCustomerStatement, getSupplierStatement, getFxGainLoss } from '../reportService';
 
 vi.mock('../../lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -27,6 +27,8 @@ function makePrisma(opts: {
         // reportService 的查询模式：按 id in 过滤（FX）或按业务 where 过滤（aging/statement）
         if (where?.id?.in) return rows.filter(r => where.id.in.includes(r.id));
         if (where?.customerRelationId) rows = rows.filter(r => r.customerRelationId === where.customerRelationId);
+        // type 过滤仅在行数据携带 type 字段时生效（既有用例行无 type，不破坏存量断言）
+        if (where?.type) rows = rows.filter(r => r.type == null || r.type === where.type);
         return rows;
       }),
     },
@@ -35,6 +37,7 @@ function makePrisma(opts: {
         let rows = opts.vouchers ?? [];
         if (where?.id?.in) return rows.filter(r => where.id.in.includes(r.id));
         if (where?.customerRelationId) rows = rows.filter(r => r.customerRelationId === where.customerRelationId);
+        if (where?.type) rows = rows.filter(r => r.type == null || r.type === where.type);
         return rows;
       }),
     },
@@ -147,6 +150,53 @@ describe('getCustomerStatement', () => {
     expect(usd.transactions).toHaveLength(4);
     // 10000 - 4000 + 5000 - 2000 = 9000
     expect(usd.closingBalance).toBe(9000);
+  });
+});
+
+describe('getSupplierStatement', () => {
+  // 供应商对账 = 应付侧镜像：Payable 发票（借，应付增加）+ Disbursement 凭证（贷，应付减少）
+  const invoices = [
+    { invoiceNumber: 'INV-S01', type: 'Payable', amount: 8000, currency: 'CNY', issueDate: '2026-05-10', customerRelationId: 'REL_S', customerName: '宏远纺织' },
+    { invoiceNumber: 'INV-S02', type: 'Payable', amount: 6000, currency: 'CNY', issueDate: '2026-07-05', customerRelationId: 'REL_S', customerName: '宏远纺织' },
+    // 同一供应商的应收侧发票不得混入（如供应商同时为客户的双向场景）
+    { invoiceNumber: 'INV-R01', type: 'Receivable', amount: 9999, currency: 'CNY', issueDate: '2026-07-06', customerRelationId: 'REL_S', customerName: '宏远纺织' },
+  ];
+  const vouchers = [
+    { voucherNumber: 'PAY-S01', type: 'Disbursement', amount: 3000, currency: 'CNY', paymentDate: '2026-06-15', customerRelationId: 'REL_S', customerName: '宏远纺织' },
+    { voucherNumber: 'PAY-S02', type: 'Disbursement', amount: 4000, currency: 'CNY', paymentDate: '2026-07-20', customerRelationId: 'REL_S', customerName: '宏远纺织' },
+    { voucherNumber: 'PAY-R01', type: 'Receipt', amount: 8888, currency: 'CNY', paymentDate: '2026-07-21', customerRelationId: 'REL_S', customerName: '宏远纺织' },
+  ];
+
+  it('builds payable-side sections: invoices debit, disbursements credit, excludes receivable side', async () => {
+    const prisma = makePrisma({ invoices, vouchers });
+    const stmt = await getSupplierStatement(prisma, { supplierRelationId: 'REL_S', from: '2026-07-01', to: '2026-07-31' });
+
+    expect(stmt.supplierName).toBe('宏远纺织');
+    const cny = stmt.sections.find(s => s.currency === 'CNY')!;
+    // 期初 = 5月收票 8000 - 6月付款 3000 = 5000
+    expect(cny.openingBalance).toBe(5000);
+    // 期间仅 7/5 收票 + 7/20 付款；应收发票与收款凭证被排除
+    expect(cny.transactions).toHaveLength(2);
+    expect(cny.transactions[0]).toMatchObject({ kind: 'invoice', number: 'INV-S02', debit: 6000, balance: 11000 });
+    expect(cny.transactions[1]).toMatchObject({ kind: 'payment', number: 'PAY-S02', credit: 4000, balance: 7000 });
+    expect(cny.closingBalance).toBe(7000);
+  });
+
+  it('returns full payable history when no date range given', async () => {
+    const prisma = makePrisma({ invoices, vouchers });
+    const stmt = await getSupplierStatement(prisma, { supplierRelationId: 'REL_S' });
+    const cny = stmt.sections.find(s => s.currency === 'CNY')!;
+    expect(cny.openingBalance).toBe(0);
+    // 8000 - 3000 + 6000 - 4000 = 7000
+    expect(cny.transactions).toHaveLength(4);
+    expect(cny.closingBalance).toBe(7000);
+  });
+
+  it('returns empty sections for supplier without payable records', async () => {
+    const prisma = makePrisma({ invoices, vouchers });
+    const stmt = await getSupplierStatement(prisma, { supplierRelationId: 'REL_NONE' });
+    expect(stmt.supplierName).toBeNull();
+    expect(stmt.sections).toHaveLength(0);
   });
 });
 

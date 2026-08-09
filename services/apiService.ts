@@ -172,6 +172,7 @@ import {
   // Finance Reports (Phase B2)
   AgingReport,
   CustomerStatement,
+  SupplierStatement,
   FxGainLossReport,
   BusinessCockpit,
   // 定价与利润（阶段 P1）
@@ -653,6 +654,13 @@ export const apiService = {
     if (params.from) query.set('from', params.from);
     if (params.to) query.set('to', params.to);
     return requestJson<CustomerStatement>(`/v1/finance/reports/statement?${query.toString()}`, { endpoint, method: 'GET' });
+  },
+
+  async getSupplierStatement(params: { supplierRelationId: string; from?: string; to?: string }, endpoint?: string): Promise<SupplierStatement> {
+    const query = new URLSearchParams({ supplierRelationId: params.supplierRelationId });
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    return requestJson<SupplierStatement>(`/v1/finance/reports/supplier-statement?${query.toString()}`, { endpoint, method: 'GET' });
   },
 
   async getFxGainLoss(params?: { from?: string; to?: string }, endpoint?: string): Promise<FxGainLossReport> {

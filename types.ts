@@ -2368,7 +2368,7 @@ export interface AgingReport {
 
 export interface StatementTransaction {
   date: string;
-  kind: 'invoice' | 'receipt';
+  kind: 'invoice' | 'receipt' | 'payment';
   number: string;
   debit: number;
   credit: number;
@@ -2385,6 +2385,15 @@ export interface StatementSection {
 export interface CustomerStatement {
   customerRelationId: string;
   customerName: string | null;
+  from: string | null;
+  to: string | null;
+  sections: StatementSection[];
+}
+
+/** 供应商对账单（应付侧镜像：Payable 发票为借，Disbursement 凭证为贷） */
+export interface SupplierStatement {
+  supplierRelationId: string;
+  supplierName: string | null;
   from: string | null;
   to: string | null;
   sections: StatementSection[];
