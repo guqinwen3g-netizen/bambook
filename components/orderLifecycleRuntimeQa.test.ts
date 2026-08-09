@@ -15,6 +15,7 @@ const SERVICE_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/order
 const ROUTE_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/orders/route.ts'), 'utf-8');
 const TOOL_RUNTIME_SRC = fs.readFileSync(path.resolve(__dirname, '../server/src/agent/toolRuntime.ts'), 'utf-8');
 const ORDER_MGR_SRC = fs.readFileSync(path.resolve(__dirname, 'OrderManager.tsx'), 'utf-8');
+const API_SVC_SRC = fs.readFileSync(path.resolve(__dirname, '../services/apiService.ts'), 'utf-8');
 
 // ═══ Part 1: Agent flow — order.status_transition ProcessDraft 六字段 ═══
 describe('runtime QA [Agent flow]: buildOrderStatusTransitionDraft 六字段', () => {
@@ -213,28 +214,26 @@ describe('runtime QA [route]: 错误反馈 statusCode map', () => {
 
 // ═══ Part 8: OrderManager UI — 手动 status-transition 路径 ═══
 describe('runtime QA [OrderManager UI]: status-transition 路径', () => {
-  it('consume POST /api/v1/orders/:id/status-transition', () => {
-    expect(ORDER_MGR_SRC).toMatch(/\/api\/v1\/orders\/\$\{[^}]+\}\/status-transition/);
-    expect(ORDER_MGR_SRC).toMatch(/method: 'POST'/);
+  it('consume POST /api/v1/orders/:id/status-transition（经 apiService 统一通道）', () => {
+    expect(ORDER_MGR_SRC).toMatch(/apiService\.transitionOrderStatus\(/);
+    expect(API_SVC_SRC).toMatch(/\/v1\/orders\/\$\{[^}]+\}\/status-transition/);
   });
-  it('成功消费 data.order 更新本地（不伪造状态）', () => {
-    expect(ORDER_MGR_SRC).toMatch(/data\.ok && data\.order/);
-    expect(ORDER_MGR_SRC).toMatch(/o\.id === data\.order\.id \? data\.order/);
+  it('成功消费后端返回 order 更新本地（不伪造状态）', () => {
+    expect(ORDER_MGR_SRC).toMatch(/o\.id === updated\.id \? updated/);
   });
   it('transition 后 refresh timeline（GET /timeline）', () => {
-    expect(ORDER_MGR_SRC).toMatch(/\/timeline/);
+    expect(ORDER_MGR_SRC).toMatch(/apiService\.getOrderTimeline\(/);
     expect(ORDER_MGR_SRC).toMatch(/setStatusTimeline/);
   });
 });
 
 // ═══ Part 9: OrderManager UI — 软删路径 ═══
 describe('runtime QA [OrderManager UI]: 软删路径', () => {
-  it('consume DELETE /api/v1/orders/:id', () => {
-    expect(ORDER_MGR_SRC).toMatch(/\/api\/v1\/orders\/\$\{[^}]+\}/);
-    expect(ORDER_MGR_SRC).toMatch(/method: 'DELETE'/);
+  it('consume DELETE /api/v1/orders/:id（经 apiService 统一通道）', () => {
+    expect(ORDER_MGR_SRC).toMatch(/apiService\.deleteOrderRemote\(/);
+    expect(API_SVC_SRC).toMatch(/method: 'DELETE'/);
   });
   it('成功消费后端返回的 order（tombstone 含 deletedAt）更新本地（不本地移除）', () => {
-    expect(ORDER_MGR_SRC).toMatch(/data\.order as Order/);
     expect(ORDER_MGR_SRC).toMatch(/tombstone/);
   });
   it('失败显示用户可见反馈（window.alert）', () => {

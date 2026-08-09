@@ -573,7 +573,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode }) =
                   )}
 
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => setShowCreateForm(false)} className={`h-9 px-4 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className={`h-9 px-4 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                       取消
                     </button>
                     <button onClick={handleCreate} disabled={actionLoading === 'create'} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors disabled:opacity-50">

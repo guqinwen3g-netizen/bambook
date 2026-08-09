@@ -595,13 +595,24 @@ export const apiService = {
     return Array.isArray(data.timeline) ? data.timeline : [];
   },
 
-  async transitionOrderStatus(orderId: string, toStatus: string, operator: string, endpoint?: string): Promise<Order> {
+  async transitionOrderStatus(orderId: string, toStatus: string, operator: string, note?: string, endpoint?: string): Promise<Order> {
     const data = await requestJson<{ ok: boolean; order?: Order; error?: { message?: string } }>(`/v1/orders/${encodeURIComponent(orderId)}/status-transition`, {
       endpoint,
       method: 'POST',
-      body: JSON.stringify({ toStatus, operator }),
+      headers: jwtAuthHeaders(),
+      body: JSON.stringify({ toStatus, operator, ...(note ? { note } : {}) }),
     });
     if (!data.ok || !data.order) throw new Error(data.error?.message || '状态变更失败');
+    return data.order;
+  },
+
+  async deleteOrderRemote(orderId: string, endpoint?: string): Promise<Order> {
+    const data = await requestJson<{ ok: boolean; order?: Order; error?: { message?: string } }>(`/v1/orders/${encodeURIComponent(orderId)}`, {
+      endpoint,
+      method: 'DELETE',
+      headers: jwtAuthHeaders(),
+    });
+    if (!data.ok || !data.order) throw new Error(data.error?.message || '订单删除失败');
     return data.order;
   },
 

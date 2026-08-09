@@ -181,9 +181,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     if (!selectedOrder?.id) { setStatusTimeline([]); return; }
     (async () => {
       try {
-        const res = await fetch(`/api/v1/orders/${selectedOrder.id}/timeline`);
-        const data = await res.json();
-        if (data.ok) setStatusTimeline(data.timeline);
+        const timeline = await apiService.getOrderTimeline(selectedOrder.id!);
+        setStatusTimeline(timeline);
       } catch { /* ignore */ }
     })();
   }, [selectedOrder?.id]);
@@ -192,21 +191,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const handleStatusTransition = useCallback(async (toStatus: string, note?: string) => {
     if (!selectedOrder?.id) return;
     try {
-      const res = await fetch(`/api/v1/orders/${selectedOrder.id}/status-transition`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toStatus, note, operator: 'desktop-user' }),
-      });
-      const data = await res.json();
-      if (data.ok && data.order) {
-        const nextOrders = orders.map(o => o.id === data.order.id ? data.order : o);
-        setOrders(nextOrders, data.order);
-        onSelectOrder(data.order);
-        // Refresh timeline
-        const tlRes = await fetch(`/api/v1/orders/${selectedOrder.id}/timeline`);
-        const tlData = await tlRes.json();
-        if (tlData.ok) setStatusTimeline(tlData.timeline);
-      }
+      const updated = await apiService.transitionOrderStatus(selectedOrder.id, toStatus, 'desktop-user', note);
+      const nextOrders = orders.map(o => o.id === updated.id ? updated : o);
+      setOrders(nextOrders, updated);
+      onSelectOrder(updated);
+      // Refresh timeline
+      try {
+        const timeline = await apiService.getOrderTimeline(selectedOrder.id!);
+        setStatusTimeline(timeline);
+      } catch { /* ignore */ }
     } catch { /* ignore */ }
   }, [selectedOrder?.id, orders, setOrders, onSelectOrder]);
 
@@ -526,27 +519,16 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const handleDeleteOrder = async () => {
     if (!selectedOrder?.id) return;
     try {
-      const res = await fetch(`/api/v1/orders/${encodeURIComponent(selectedOrder.id)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        const reason = data?.error?.message || data?.error || `HTTP ${res.status}`;
-        window.alert(`订单删除失败：${reason}\n\n订单未从列表移除，请稍后重试。`);
-        setShowDeleteConfirm(false);
-        return;
-      }
       // 成功：用后端返回的 order（含 deletedAt）更新本地状态，保持与后端一致
       // 不传 modified 第二参——本函数已直接调后端 DELETE，传 modified 会触发
       // App.handleUpdateOrders 的二次 deleteOrder（modified.deletedAt 分支）。
-      const tombstone = data.order as Order;
+      const tombstone = await apiService.deleteOrderRemote(selectedOrder.id);
       const updatedOrders = orders.map(o => o.id === tombstone.id ? tombstone : o);
       setOrders(updatedOrders);
       onSelectOrder(null);
       setShowDeleteConfirm(false);
     } catch (e: any) {
-      window.alert(`订单删除失败（网络错误）：${e?.message ?? e}\n\n订单未从列表移除，请稍后重试。`);
+      window.alert(`订单删除失败：${e?.message ?? e}\n\n订单未从列表移除，请稍后重试。`);
       setShowDeleteConfirm(false);
     }
   };
@@ -1499,20 +1481,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     onClick={async () => {
                       if (showOptionsSheet) {
                         try {
-                          const res = await fetch(`/api/v1/orders/${showOptionsSheet.id}/status-transition`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ toStatus: st, operator: 'mobile-user' }),
-                          });
-                          const data = await res.json();
-                          if (data.ok && data.order) {
-                            const nextOrders = orders.map(o => o.id === data.order.id ? data.order : o);
-                            setOrders(nextOrders, data.order);
-                          } else {
-                            alert(data?.error?.message || `状态变更失败：${res.status}`);
-                          }
+                          const updated = await apiService.transitionOrderStatus(showOptionsSheet.id, st, 'mobile-user');
+                          const nextOrders = orders.map(o => o.id === updated.id ? updated : o);
+                          setOrders(nextOrders, updated);
                         } catch (e: any) {
-                          alert(`网络错误：${e?.message || e}`);
+                          alert(e?.message || '状态变更失败');
                         }
                         setShowOptionsSheet(null);
                       }

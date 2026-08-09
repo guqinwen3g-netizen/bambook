@@ -162,7 +162,7 @@ describe('orders delete real-sync: 防回归——setOrders 调用契约', () =>
     }
   });
 
-  it('handleDeleteOrder 直接调用后端 DELETE（源码含 fetch DELETE）', () => {
+  it('handleDeleteOrder 经 apiService 统一通道调后端 DELETE（禁相对路径裸 fetch）', () => {
     const fs = require('fs');
     const path = require('path');
     const src = fs.readFileSync(
@@ -171,6 +171,9 @@ describe('orders delete real-sync: 防回归——setOrders 调用契约', () =>
     );
     const m = src.match(/const handleDeleteOrder[\s\S]*?^  };/m);
     const fnBody = m![0];
-    expect(fnBody).toMatch(/fetch\(`\/api\/v1\/orders\/[^`]+`[^)]*method:\s*'DELETE'/);
+    // 统一通道：apiService.deleteOrderRemote（buildApiUrl + API key + JWT 头）；
+    // 相对路径裸 fetch 在 Electron（dev 5173 / 生产 file://）下不可达，属死路径。
+    expect(fnBody).toMatch(/apiService\.deleteOrderRemote\(/);
+    expect(fnBody).not.toMatch(/fetch\(`\/api\//);
   });
 });
