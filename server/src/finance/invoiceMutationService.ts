@@ -28,6 +28,14 @@ function generateId(prefix: string): string {
   return `${prefix}__${crypto.randomBytes(6).toString('base64url').toUpperCase()}`;
 }
 
+/** 服务器本地日期 YYYY-MM-DD（invoice.issueDate 为 schema 必填，缺省默认开票当天） */
+function localToday(): string {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${mm}-${dd}`;
+}
+
 function decimalString(v: any): string | null {
   if (v === undefined || v === null) return null;
   return typeof v?.toString === 'function' ? v.toString() : String(v);
@@ -66,6 +74,10 @@ function normalizeCreateInput(input: InvoiceMutationInput): { ok: true; data: Re
   const transition = validateStatusTransition('Invoice', 'Draft', status);
   if (!transition.ok) return { ok: false, error: { code: transition.error as InvoiceMutationErrorCode, message: transition.message! } };
   data.status = status;
+  // schema 必填兜底：issueDate 缺省/空串时默认开票当天（前端日期可空，业务语义=创建日）
+  if (data.issueDate === undefined || data.issueDate === null || data.issueDate === '') {
+    data.issueDate = localToday();
+  }
   if (!Object.prototype.hasOwnProperty.call(input || {}, 'amount') || input.amount === undefined || input.amount === null || !isValidDecimalInput(data.amount)) {
     return { ok: false, error: { code: 'INVALID_AMOUNT', message: 'amount must be a valid decimal' } };
   }
