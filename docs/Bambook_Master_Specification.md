@@ -242,13 +242,14 @@ Bambook 采用了前沿的 **磨砂玻璃态 (Glassmorphism)** 视觉语言，�
   2. **业务发票生成定位**：现有的“发票生成工具”在业务流程上主要**供业务员/销售使用**，用于向客户或供应商快速生成临时/预售发票（Proforma Invoice）以收款或付款；真正的税务/法税发票在公司外部的独立财务系统中进行开具与审计；
   3. **向核心板块的归纳演进 [计划实施]**：一旦某些工具在工具箱中运行稳定、使用高频，且对应的核心功能板块也开发完毕，这些临时插件将会被系统性地归类并迁移至正式模块（例如：将业务员常用的“发票生成”流程未来挪至 `Finance` 财务管理或大货订单中做原生整合）。
 
-## 3.7 数据中心 (DataCenter) [计划实施 - 概念已确定，等待代码底层 View.KnowledgeBase 重构对齐]
+## 3.7 数据中心 (DataCenter) [已落地 - 命名已统一]
 
 * **概念**: 企业级知识与数据检索的统一看板（统一替代原 KnowledgeBase / DataTwin 命名）。
 * **核心职责**:
   * **统一数据入口**：汇聚企业主数据、SOP、工艺规范、质量审计和决策报告；
   * **Agent RAG 支持**：提供向量级别（Chroma/火山引擎）的数据检索，帮助 LLM 在回答复杂供应链问题时引入事实参考；
-  * **归档处理**：已正式弃用移动端的旧 `KnowledgeBase` 界面，桌面端统一使用编译化 `DataTwinCenter.tsx` 面板进行数据检索。
+  * **命名收口 [已完成]**：`View.KnowledgeBase` → `View.DataCenter`（值 `data-center`），`DataTwinCenter.tsx` → `DataCenter.tsx`，compiler surface `knowledgeBase` → `dataCenter`；`DATA_TWIN_LAYOUT_*` 为服务端持久化存储契约键，保持不变。
+* **剩余技术债**: 移动端 PWA 在同一视图下仍渲染旧 `KnowledgeBase` 组件，后续收编至统一数据中心面板。
 
 ---
 

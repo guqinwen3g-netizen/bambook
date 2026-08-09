@@ -606,7 +606,7 @@ const MobileWebApp: React.FC = () => {
     apiService.saveConfig(nextConfig);
   };
 
-  const isFullBleedView = currentView === View.Dashboard || currentView === View.Relations || currentView === View.Products || currentView === View.Orders || currentView === View.Development || currentView === View.Assistant || currentView === View.KnowledgeBase || currentView === View.Settings || currentView === View.BusinessTools || currentView === View.AdminPanel;
+  const isFullBleedView = currentView === View.Dashboard || currentView === View.Relations || currentView === View.Products || currentView === View.Orders || currentView === View.Development || currentView === View.Assistant || currentView === View.DataCenter || currentView === View.Settings || currentView === View.BusinessTools || currentView === View.AdminPanel;
 
   // Views that render the ProductionGlobe as an underlay. We must let pointer
   // events pass THROUGH the main / wrapper divs to the canvas underneath; the
@@ -765,7 +765,7 @@ const MobileWebApp: React.FC = () => {
             )}
             {currentView === View.Products && <ProductsManager products={products} productCategories={productCategories} onUpdateProducts={handleUpdateProducts} onUpdateCategories={handleUpdateProductCategories} cloudEndpoint={config.cloudEndpoint} isDarkMode={isDarkMode} isMobile />}
             {currentView === View.Development && <DevelopmentManager isDarkMode={isDarkMode} cases={developmentCases} setCases={setDevelopmentCases} />}
-            {currentView === View.KnowledgeBase && <KnowledgeBase knowledge={knowledge} setKnowledge={handleUpdateKnowledge} insights={insights} setInsights={handleUpdateInsights} isDarkMode={isDarkMode} />}
+            {currentView === View.DataCenter && <KnowledgeBase knowledge={knowledge} setKnowledge={handleUpdateKnowledge} insights={insights} setInsights={handleUpdateInsights} isDarkMode={isDarkMode} />}
             {currentView === View.Orders && orderType === 'fabric' && (
               ordersReady
                 ? (

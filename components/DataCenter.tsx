@@ -87,7 +87,7 @@ type DragState =
   | { kind: 'pan'; startClientX: number; startClientY: number; startViewBox: ViewBoxState }
   | null;
 
-type DataTwinCenterProps = {
+type DataCenterProps = {
   isDarkMode?: boolean;
   dataCenterEndpoint?: string;
 };
@@ -603,7 +603,7 @@ const toolLabels: Array<{ id: TwinTool; label: string; hint: string }> = [
   { id: 'rack', label: '货架 / 样品点', hint: '点击放置仓库对象' },
 ];
 
-const DataTwinCenter: React.FC<DataTwinCenterProps> = ({ isDarkMode = false, dataCenterEndpoint }) => {
+const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterEndpoint }) => {
   const buttonCls = `h-9 rounded-control px-4 text-xs font-light transition-all flex items-center justify-center border ${
     isDarkMode
       ? BAMBOOK_OS.controls.actionControl.dark
@@ -679,7 +679,7 @@ const DataTwinCenter: React.FC<DataTwinCenterProps> = ({ isDarkMode = false, dat
         cacheLayoutSnapshot(snapshot);
       })
       .catch((error) => {
-        console.warn('[DataTwin] layout sync failed:', error?.message ?? error);
+        console.warn('[DataCenter] layout sync failed:', error?.message ?? error);
       });
     return () => {
       cancelled = true;
@@ -728,7 +728,7 @@ const DataTwinCenter: React.FC<DataTwinCenterProps> = ({ isDarkMode = false, dat
       cacheLayoutSnapshot(snapshot);
       setSaveState('saved');
     } catch (error) {
-      console.warn('[DataTwin] layout save failed:', error?.message ?? error);
+      console.warn('[DataCenter] layout save failed:', error?.message ?? error);
       setSaveState('failed');
     }
     window.setTimeout(() => setSaveState('idle'), 1600);
@@ -1597,4 +1597,4 @@ function RackSvg({ label }: { label: string }) {
   );
 }
 
-export default DataTwinCenter;
+export default DataCenter;

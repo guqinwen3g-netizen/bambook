@@ -14,7 +14,7 @@ export const VIEW_PERMISSION_DEFINITIONS = {
   [View.Assistant]: { policy: 'permission', required: 'ai:chat' },
   [View.Relations]: { policy: 'permission', required: 'relations:read' },
   [View.Products]: { policy: 'permission', required: 'products:read' },
-  [View.KnowledgeBase]: { policy: 'permission', required: 'knowledge:read' },
+  [View.DataCenter]: { policy: 'permission', required: 'knowledge:read' },
   [View.Orders]: { policy: 'permission', required: 'orders:read' },
   [View.Quotations]: { policy: 'permission', required: 'orders:read' },
   [View.Procurement]: { policy: 'permission', required: 'orders:read' },

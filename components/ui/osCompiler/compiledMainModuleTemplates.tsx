@@ -4,7 +4,7 @@ import type { OSCompilerProvenance } from './osCompiler';
 export type CompiledMainModuleId =
   | 'assistant'
   | 'development'
-  | 'knowledge-base'
+  | 'data-center'
   | 'fabric-orders'
   | 'garment-orders'
   | 'invoices'
@@ -37,7 +37,7 @@ type CompiledMainModuleBlueprint = {
 const MAIN_MODULE_SOURCE_BY_ID: Record<CompiledMainModuleId, CompiledMainModuleBlueprint['source']> = {
   assistant: 'Assistant.main-app.compiler-slot',
   development: 'DevelopmentManager.main-app.compiler-slot',
-  'knowledge-base': 'DataTwinCenter.main-app.compiler-slot',
+  'data-center': 'DataCenter.main-app.compiler-slot',
   'fabric-orders': 'OrderManager.main-app.compiler-slot',
   'garment-orders': 'GarmentOrders.main-app.compiler-slot',
   invoices: 'FinanceManager.invoices.main-app.compiler-slot',

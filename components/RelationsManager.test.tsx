@@ -688,7 +688,7 @@ describe('RelationsManager title system', () => {
     const contactListSource = readFileSync(new URL('./ui/ContactList.tsx', import.meta.url), 'utf8');
     const orgChartSource = readFileSync(new URL('./ui/OrgChart.tsx', import.meta.url), 'utf8');
     const settingsSource = readFileSync(new URL('./Settings.tsx', import.meta.url), 'utf8');
-    const dataTwinSource = readFileSync(new URL('./DataTwinCenter.tsx', import.meta.url), 'utf8');
+    const dataTwinSource = readFileSync(new URL('./DataCenter.tsx', import.meta.url), 'utf8');
     const appCss = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 
     expect(BAMBOOK_OS.tone.text.quietLight).toBe('text-slate-600');

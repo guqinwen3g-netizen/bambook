@@ -148,7 +148,7 @@ import Dashboard from './components/Dashboard';
 import CockpitManager from './components/CockpitManager';
 import { CompiledDashboardPage } from './components/ui/osCompiler/compiledDashboardTemplates';
 import Assistant, { assistantRuntimeStore, type AssistantRuntimeSnapshot } from './components/Assistant';
-import DataTwinCenter from './components/DataTwinCenter';
+import DataCenter from './components/DataCenter';
 import OrderManager, { savedRowToOrder } from './components/OrderManager';
 import CommandPalette from './components/CommandPalette';
 import GarmentOrders from './components/GarmentOrders';
@@ -1196,7 +1196,7 @@ const App: React.FC = () => {
   }, [orders, config.cloudEndpoint]);
 
   const settingsMode = resolveSettingsMode(activeView);
-  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.KnowledgeBase || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
+  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
 
   // Views that render the ProductionGlobe as an underlay. We must let pointer
   // events pass THROUGH the main / wrapper divs to the canvas underneath; the
@@ -1669,10 +1669,10 @@ const App: React.FC = () => {
               'customs',
               <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} />,
             )}
-            {activeView === View.KnowledgeBase && renderMainCompilerSlot(
-              compilerSurfaces.knowledgeBase,
-              'knowledge-base',
-              <DataTwinCenter isDarkMode={isDarkMode} dataCenterEndpoint={config.cloudEndpoint} />,
+            {activeView === View.DataCenter && renderMainCompilerSlot(
+              compilerSurfaces.dataCenter,
+              'data-center',
+              <DataCenter isDarkMode={isDarkMode} dataCenterEndpoint={config.cloudEndpoint} />,
             )}
             {activeView === View.Orders && (
               renderMainCompilerSlot(

@@ -39,7 +39,7 @@ describe('moduleRegistry 阶段 IA 导航分组契约（PRD 第二十四章）',
       // 财务与成本
       View.PaymentVouchers, View.Pricing, View.BOM, View.Risks,
       // 平台
-      View.Assistant, View.KnowledgeBase, View.HR, View.BusinessTools, View.AdminPanel,
+      View.Assistant, View.DataCenter, View.HR, View.BusinessTools, View.AdminPanel,
     ]);
   });
 

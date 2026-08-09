@@ -150,7 +150,7 @@ The first registry should preserve current behavior.
 | `orders` | 生产管理 | `View.Orders` | `orders` | provisional | `orders:read` |
 | `development` | 开发管理 | `View.Development` | `development` | provisional | currently ungated |
 | `emails` | 智能邮箱 | `View.Emails` | `emails` | provisional | `emails:read` |
-| `data-center` | 数据中心 | `View.KnowledgeBase` | `knowledgeBase` | provisional | `knowledge:read` |
+| `data-center` | 数据中心 | `View.DataCenter` | `dataCenter` | provisional | `knowledge:read` |
 | `settings` | 设置 | `View.Settings` | `settings` | accepted | authenticated |
 | `business-tools` | 业务工具 | `View.BusinessTools` | `businessTools` | provisional | `tools:execute` |
 | `admin` | 管理后台 | `View.AdminPanel` | `adminPanel` | provisional | `users:read` plus nav role gate |
@@ -317,7 +317,7 @@ Do not rename in the registry migration commit. First record the debt:
 | Current code name | Product name | Target decision needed |
 | --- | --- | --- |
 | `Samples`, `SampleManager` | 开发管理 | (Completed) Renamed to `Development` / `DevelopmentManager` in June 2026. |
-| `KnowledgeBase` | 数据中心 | Whether target code name is `DataCenter` or `DataTwin`. |
+| `KnowledgeBase` | 数据中心 | (Completed) Unified as `DataCenter` / `DataCenter.tsx` (`View.DataCenter`, compiler surface `dataCenter`). Mobile PWA still renders legacy `KnowledgeBase` component under the same view — pending consolidation. |
 | `Products` | 数字档案 | Whether code remains Products or migrates to DigitalArchive. |
 | `Orders` | 生产管理 | Whether fabric/garment become sub-route concepts. |
 

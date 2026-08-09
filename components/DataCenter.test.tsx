@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-describe('DataTwinCenter layout boot', () => {
+describe('DataCenter layout boot', () => {
   it('hydrates the cached office layout before the first paint', () => {
-    const source = readFileSync(new URL('./DataTwinCenter.tsx', import.meta.url), 'utf8');
-    const componentSource = source.slice(source.indexOf('const DataTwinCenter: React.FC'));
+    const source = readFileSync(new URL('./DataCenter.tsx', import.meta.url), 'utf8');
+    const componentSource = source.slice(source.indexOf('const DataCenter: React.FC'));
 
     expect(componentSource).toContain('readCachedLayoutSnapshot() ?? createDefaultLayoutSnapshot()');
     expect(componentSource).toContain('React.useState<OfficeFrame>(() => ({ ...initialLayout.officeFrame }))');
@@ -14,7 +14,7 @@ describe('DataTwinCenter layout boot', () => {
   });
 
   it('treats the data twin layout as data-center system data, not device-only state', () => {
-    const source = readFileSync(new URL('./DataTwinCenter.tsx', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('./DataCenter.tsx', import.meta.url), 'utf8');
     const loadSource = source.slice(source.indexOf('apiService'), source.indexOf('const pushUndoSnapshot'));
     const saveSource = source.slice(source.indexOf('const saveLayout'), source.indexOf('const fitLayoutView'));
 

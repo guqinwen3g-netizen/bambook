@@ -223,7 +223,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         产品: View.Products,
         发票: View.Invoices,
         发货: View.Shipments,
-        知识: View.KnowledgeBase,
+        知识: View.DataCenter,
         邮件: View.Emails,
       };
       onNavigate(target[item.domain]);

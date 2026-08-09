@@ -202,7 +202,7 @@ AI/RAG 模块 + 邮件同步流程支撑此闭环。当前缺口：Agent 内核�
 | 8 | shipments | 货运管理 | Truck | 58 | 全员 | provisional | ShipmentManager.tsx |
 | 9 | development | 开发管理 | ClipboardList | 60 | 全员 | provisional | DevelopmentManager.tsx |
 | 10 | emails | 智能邮箱 | Mail | 46 | 全员 | provisional | EmailManager.tsx |
-| 11 | data-center | 数据中心 | Database | 80 | 全员 | provisional | DataTwinCenter.tsx |
+| 11 | data-center | 数据中心 | Database | 80 | 全员 | provisional | DataCenter.tsx |
 | 12 | settings | 设置 | Shield | 90 | 全员 | accepted | Settings.tsx |
 | 13 | business-tools | 业务工具 | Wrench | 100 | 全员 | provisional | BusinessTools.tsx |
 | 14 | admin | 管理后台 | Shield | 110 | owner/admin | provisional | AdminPanel.tsx |
@@ -958,7 +958,7 @@ type ToolManifestSafety = {
 | HRManager.tsx | 1364 | 直接 fetch（风格不统一） | 中-高 | 应改专用 service |
 | AdminPanel.tsx | 1258 | 真实 API | 高 | 完整 RBAC |
 | KnowledgeBase.tsx | 281 | 真实 API | 中 | handleEditSave 未走 API |
-| DataTwinCenter.tsx | 1598 | 真实 API + localStorage | 中 | 偏可视化玩具 |
+| DataCenter.tsx | 1598 | 真实 API + localStorage | 中 | 偏可视化玩具 |
 | ProductionPipeline.tsx | 293 | 真实 API | 高 | 嵌入式组件 |
 | ProductionAlerts.tsx | 97 | 真实 API（60 秒轮询） | 中 | 仅显示无操作 |
 | Settings.tsx | 1596 | 真实 API | 高 | 8 tab |
@@ -1163,7 +1163,7 @@ type ToolManifestSafety = {
 - 🟡 单证生成：发票/装箱单模板有 sample，未接入订单数据自动生成
 - 🟡 银企对账：手工对账可用，自动导入待补
 - 🟡 KnowledgeBase.tsx：handleEditSave 仅本地修改未走 API
-- 🟡 DataTwinCenter.tsx：偏可视化玩具，业务关联弱
+- 🟡 DataCenter.tsx：偏可视化玩具，业务关联弱
 - 🟡 EmailEditor.tsx：半成品（引入 react-quill 但实际渲染 textarea）
 - 🟡 BusinessTools.tsx：4 个 coming-soon 占位
 

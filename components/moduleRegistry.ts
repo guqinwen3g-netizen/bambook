@@ -46,7 +46,7 @@ export type MainCompilerSurface =
   | 'settings'
   | 'assistant'
   | 'development'
-  | 'knowledgeBase'
+  | 'dataCenter'
   | 'orders'
   | 'quotations'
   | 'procurement'
@@ -159,7 +159,7 @@ export const BAMBOOK_MAIN_COMPILER_SURFACES: readonly MainCompilerSurface[] = [
   'settings',
   'assistant',
   'development',
-  'knowledgeBase',
+  'dataCenter',
   'orders',
   'quotations',
   'procurement',
@@ -206,9 +206,9 @@ export const BAMBOOK_MAIN_COMPILER_SURFACE_CONFIGS: Record<MainCompilerSurface, 
     queryKey: 'developmentCompiler',
     storageKey: 'bambook_development_compiler_enabled',
   },
-  knowledgeBase: {
-    queryKey: 'knowledgeBaseCompiler',
-    storageKey: 'bambook_knowledge_base_compiler_enabled',
+  dataCenter: {
+    queryKey: 'dataCenterCompiler',
+    storageKey: 'bambook_data_center_compiler_enabled',
   },
   orders: {
     queryKey: 'ordersCompiler',
@@ -620,19 +620,15 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
   },
   {
     id: 'data-center',
-    view: View.KnowledgeBase,
+    view: View.DataCenter,
     productLabel: '数据中心',
-    internalName: 'KnowledgeBase',
+    internalName: 'DataCenter',
     icon: Database,
     nav: { primary: true, order: 92, group: 'platform' },
-    permissions: getViewPermissionDefinition(View.KnowledgeBase),
-    compiler: compiler('knowledgeBase', 'provisional'),
+    permissions: getViewPermissionDefinition(View.DataCenter),
+    compiler: compiler('dataCenter', 'provisional'),
     runtime: desktopRuntime,
-    entry: { current: 'components/DataTwinCenter.tsx' },
-    cleanup: {
-      namingDebt: 'View.KnowledgeBase opens DataTwinCenter and is labeled 数据中心.',
-      migrationNotes: ['Decide whether code target is DataCenter or DataTwin.'],
-    },
+    entry: { current: 'components/DataCenter.tsx' },
   },
   {
     id: 'settings',

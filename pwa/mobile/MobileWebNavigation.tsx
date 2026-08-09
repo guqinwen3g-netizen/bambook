@@ -218,7 +218,7 @@ const MobileWebNavigation: React.FC<MobileWebNavigationProps> = ({
     { id: View.Orders, icon: Factory, label: '生产管理' },
     { id: View.Development, icon: ClipboardList, label: '开发管理' },
     { id: View.Emails, icon: Mail, label: '智能邮箱' },
-    { id: View.KnowledgeBase, icon: Database, label: '策略文库' },
+    { id: View.DataCenter, icon: Database, label: '策略文库' },
     { id: View.BusinessTools, icon: Wrench, label: '业务工具' },
     ...(isAdmin ? [{ id: View.AdminPanel, icon: Shield, label: '管理后台' }] : []),
     { id: View.Settings, icon: Settings, label: '设置' },
