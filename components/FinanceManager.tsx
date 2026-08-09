@@ -332,8 +332,10 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     apiService.listRelations().then(list => { if (alive) setRelationOptions(list); }).catch(() => {});
     return () => { alive = false; };
   }, []);
+  // 方向分组以 category 为准（type 是自由文本子类，如 Fabric Mill/Trading Agent）；
+  // 保留 type 回退兼容旧档案（对齐 ProcurementManager 的双检模式）。
   const relationOptionsFor = (direction: 'Customer' | 'Supplier') =>
-    relationOptions.filter(r => r.type === direction && !r.deletedAt);
+    relationOptions.filter(r => !r.deletedAt && (r.category === direction || r.type === direction));
   const relationDisplayName = (r: Relation) => r.chineseName || r.name;
 
   // ── P0 payment manual path: 创建凭证 modal state ───

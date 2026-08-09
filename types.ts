@@ -198,7 +198,8 @@ export interface Relation {
   id: string;
   name: string;
   category: RelationCategory;
-  type: 'Supplier' | 'Customer' | 'Partner';
+  /** 业务子类（自由文本，如 Fabric Mill / Trading Agent / Freight Forwarder）；方向分组一律用 category */
+  type: string;
   isOrganization: boolean;
   parentId?: string;
   reportsToId?: string;

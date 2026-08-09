@@ -3,6 +3,7 @@ import { syncInvoiceReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { validateStatusTransition } from '../statusTransition';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import crypto from 'crypto';
 
 export type InvoiceMutationErrorCode =
   | 'INVALID_STATUS'
@@ -22,6 +23,10 @@ export const INVOICE_CREATE_FIELDS = ['id', 'invoiceNumber', 'type', 'status', '
 export const INVOICE_PATCH_FIELDS = ['type', 'status', 'amount', 'currency', 'issueDate', 'dueDate', 'exchangeRate', 'baseCurrency', 'orderId', 'customerRelationId', 'customerName', 'notes', 'attachments'] as const;
 
 const DECIMAL_FIELDS = new Set(['amount', 'exchangeRate']);
+
+function generateId(prefix: string): string {
+  return `${prefix}__${crypto.randomBytes(6).toString('base64url').toUpperCase()}`;
+}
 
 function decimalString(v: any): string | null {
   if (v === undefined || v === null) return null;
@@ -96,7 +101,8 @@ export async function createInvoice(params: { prisma: PrismaClient; input: Invoi
   try {
     const result = await (prisma as any).$transaction(async (tx: any) => {
       const now = BigInt(Date.now());
-      const data = { ...normalized.data, invoiceNumber: input.invoiceNumber, createdAt: now, updatedAt: now };
+      const id = generateId('INV');
+      const data = { id, ...normalized.data, invoiceNumber: input.invoiceNumber, createdAt: now, updatedAt: now };
       const invoice = await tx.invoice.create({ data });
       await syncInvoiceReferences(prisma, invoice, { source: 'route:invoice:create' }, tx);
       const auditId = await writeRouteAuditLog({

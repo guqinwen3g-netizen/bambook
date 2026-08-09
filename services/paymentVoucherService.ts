@@ -61,7 +61,10 @@ export const paymentVoucherService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `createPaymentVoucher failed: HTTP ${res.status}`);
+      const errorMessage = typeof err.error === 'object'
+        ? JSON.stringify(err.error)
+        : (err.error || `createPaymentVoucher failed: HTTP ${res.status}`);
+      throw new Error(errorMessage);
     }
     const data = await res.json();
     return data;
@@ -78,7 +81,10 @@ export const paymentVoucherService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `updatePaymentVoucher failed: HTTP ${res.status}`);
+      const errorMessage = typeof err.error === 'object'
+        ? JSON.stringify(err.error)
+        : (err.error || `updatePaymentVoucher failed: HTTP ${res.status}`);
+      throw new Error(errorMessage);
     }
     const data = await res.json();
     return data;
