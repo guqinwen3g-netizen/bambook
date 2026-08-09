@@ -20,6 +20,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
 import { deactivateEntityLinks, syncCustomsDeclarationReferences, syncLetterOfCreditReferences, syncTaxRefundReferences } from '../entities/sync';
+import { appendTradeDocumentVersion, generateTradeDocumentNumber, toTradeDocumentSnapshot } from './tradeDocumentLifecycleService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -161,7 +162,8 @@ export interface TaxRefundReviewInput {
 }
 
 export interface TradeDocumentInput {
-  documentNumber: string;
+  /** 留空自动取号（{类型前缀}-YYYY-NNNN，按年递增、作废不回收，见 tradeDocumentLifecycleService） */
+  documentNumber?: string;
   type: TradeDocumentType;
   shipmentId?: string;
   declarationId?: string;
@@ -179,6 +181,8 @@ export interface TradeDocumentInput {
   filePath?: string;
   fileName?: string;
   notes?: string;
+  /** 更新时写入 DocumentVersion 的变更原因（服务端自动留痕，仅 update 消费） */
+  changeReason?: string;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1473,55 +1477,77 @@ export function createCustomsService(prisma: PrismaClient) {
   async function createTradeDocument(input: TradeDocumentInput, actorId: string) {
     validateDocType(input.type);
 
-    const existing = await prisma.tradeDocument.findFirst({
-      where: { documentNumber: input.documentNumber, deletedAt: null },
-      select: { id: true },
-    });
-    if (existing) throw new Error(`单据编号 ${input.documentNumber} 已存在`);
-
-    const ts = now();
-    const doc = await prisma.$transaction(async (tx) => {
-      const document = await tx.tradeDocument.create({
-        data: {
-          id: generateId('TD'),
-          documentNumber: input.documentNumber,
-          type: input.type,
-          status: 'Draft',
-          shipmentId: input.shipmentId ?? null,
-          declarationId: input.declarationId ?? null,
-          orderId: input.orderId ?? null,
-          relationId: input.relationId ?? null,
-          issueDate: input.issueDate ?? null,
-          expiryDate: input.expiryDate ?? null,
-          issuedBy: input.issuedBy ?? null,
-          consignee: input.consignee ?? null,
-          consignor: input.consignor ?? null,
-          portOfLoading: input.portOfLoading ?? null,
-          portOfDischarge: input.portOfDischarge ?? null,
-          totalAmount: input.totalAmount != null ? new Prisma.Decimal(input.totalAmount) : null,
-          currency: input.currency ?? null,
-          filePath: input.filePath ?? null,
-          fileName: input.fileName ?? null,
-          notes: input.notes ?? null,
-          createdAt: ts,
-          updatedAt: ts,
-        },
+    const manualNumber = input.documentNumber?.trim() || '';
+    if (manualNumber) {
+      const existing = await prisma.tradeDocument.findFirst({
+        where: { documentNumber: manualNumber, deletedAt: null },
+        select: { id: true },
       });
-      await tx.auditLog.create({
-        data: {
-          id: generateId('AUD'),
-          action: 'TRADE_DOCUMENT_CREATE',
-          actorId,
-          targetType: 'TradeDocument',
-          targetId: document.id,
-          detail: { documentNumber: document.documentNumber, type: document.type },
-        },
-      });
-      return document;
-    });
+      if (existing) throw new Error(`单据编号 ${manualNumber} 已存在`);
+    }
 
-    logger.info('[CustomsService] tradeDocument created', { id: doc.id, documentNumber: input.documentNumber, actorId });
-    return doc;
+    // 自动取号（留空时）+ unique 冲突重试：并发下同号则重取，最多 3 次
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const ts = now();
+      try {
+        const doc = await prisma.$transaction(async (tx) => {
+          const documentNumber = manualNumber || await generateTradeDocumentNumber(tx, input.type);
+          const document = await tx.tradeDocument.create({
+            data: {
+              id: generateId('TD'),
+              documentNumber,
+              type: input.type,
+              status: 'Draft',
+              shipmentId: input.shipmentId ?? null,
+              declarationId: input.declarationId ?? null,
+              orderId: input.orderId ?? null,
+              relationId: input.relationId ?? null,
+              issueDate: input.issueDate ?? null,
+              expiryDate: input.expiryDate ?? null,
+              issuedBy: input.issuedBy ?? null,
+              consignee: input.consignee ?? null,
+              consignor: input.consignor ?? null,
+              portOfLoading: input.portOfLoading ?? null,
+              portOfDischarge: input.portOfDischarge ?? null,
+              totalAmount: input.totalAmount != null ? new Prisma.Decimal(input.totalAmount) : null,
+              currency: input.currency ?? null,
+              filePath: input.filePath ?? null,
+              fileName: input.fileName ?? null,
+              notes: input.notes ?? null,
+              createdAt: ts,
+              updatedAt: ts,
+            },
+          });
+          // 服务端强制留痕：创建即 v1（整行字段快照），不依赖客户端自觉
+          await appendTradeDocumentVersion(tx, {
+            documentId: document.id,
+            content: toTradeDocumentSnapshot(document),
+            actorId,
+            changeReason: '创建',
+          });
+          await tx.auditLog.create({
+            data: {
+              id: generateId('AUD'),
+              action: 'TRADE_DOCUMENT_CREATE',
+              actorId,
+              targetType: 'TradeDocument',
+              targetId: document.id,
+              detail: { documentNumber: document.documentNumber, type: document.type },
+            },
+          });
+          return document;
+        });
+
+        logger.info('[CustomsService] tradeDocument created', { id: doc.id, documentNumber: doc.documentNumber, actorId });
+        return doc;
+      } catch (e: any) {
+        // 仅自动取号路径对 unique 冲突重试；手动编号冲突直接抛「已存在」语义外的错误
+        const isUniqueConflict = e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
+        if (!manualNumber && isUniqueConflict && attempt < 2) continue;
+        throw e;
+      }
+    }
+    throw new Error('单据编号生成失败，请重试');
   }
 
   async function updateTradeDocument(id: string, input: Partial<TradeDocumentInput>, actorId: string) {
@@ -1557,6 +1583,13 @@ export function createCustomsService(prisma: PrismaClient) {
           ...(input.notes !== undefined ? { notes: input.notes } : {}),
           updatedAt: ts,
         },
+      });
+      // 服务端强制留痕：字段更新后整行快照（max+1），不依赖客户端自觉
+      await appendTradeDocumentVersion(tx, {
+        documentId: doc.id,
+        content: toTradeDocumentSnapshot(doc),
+        actorId,
+        changeReason: input.changeReason ?? '更新',
       });
       await tx.auditLog.create({
         data: {

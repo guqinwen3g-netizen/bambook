@@ -17,6 +17,7 @@ export enum View {
   Risks = 'risks',
   MES = 'mes',
   Customs = 'customs',
+  DocumentCenter = 'document-center',
   Invoices = 'invoices',
   PaymentVouchers = 'payment-vouchers',
   Shipments = 'shipments',
@@ -4163,7 +4164,8 @@ export interface TradeDocument {
 }
 
 export interface TradeDocumentInput {
-  documentNumber: string;
+  /** 留空自动取号（{类型前缀}-YYYY-NNNN，Wave A1 服务端生成） */
+  documentNumber?: string;
   type: TradeDocumentType;
   shipmentId?: string;
   declarationId?: string;
@@ -4181,6 +4183,43 @@ export interface TradeDocumentInput {
   filePath?: string;
   fileName?: string;
   notes?: string;
+  /** 更新时写入 DocumentVersion 的变更原因（仅 update 消费） */
+  changeReason?: string;
+}
+
+// ── Wave A1 单据中心：版本留痕 / 生成即登记 / 批量打包 ──
+
+export interface DocumentVersionRecord {
+  id: string;
+  documentId: string;
+  version: number;
+  /** 变更后快照；运单生成的 v1 为 { documentSet: DocumentSetData }（可直接喂 EXPORT_DOC_RENDERERS） */
+  content: Record<string, unknown>;
+  changeReason?: string | null;
+  changedBy?: string | null;
+  createdAt: number;
+}
+
+export interface GenerateTradeDocumentsResult {
+  created: Array<{ id: string; documentNumber: string; type: string }>;
+  skipped: Array<{ type: string; id: string; documentNumber: string; reason: 'EXISTS' }>;
+  /** 装配数据完整度提示（不阻断） */
+  missing: string[];
+}
+
+export interface TradeDocumentPackItem {
+  id: string;
+  documentNumber: string;
+  type: string;
+  status: string;
+  issueDate: string | null;
+  consignee: string | null;
+  consignor: string | null;
+  totalAmount: number | null;
+  currency: string | null;
+  fileName: string | null;
+  latestVersion: number | null;
+  content: Record<string, unknown> | null;
 }
 
 // ── 概览 ──

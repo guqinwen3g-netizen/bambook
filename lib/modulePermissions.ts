@@ -26,6 +26,7 @@ export const VIEW_PERMISSION_DEFINITIONS = {
   [View.Risks]: { policy: 'permission', required: 'finance:read' },
   [View.MES]: { policy: 'permission', required: 'orders:read' },
   [View.Customs]: { policy: 'permission', required: 'orders:read' },
+  [View.DocumentCenter]: { policy: 'permission', required: 'orders:read' },
   [View.Invoices]: { policy: 'public-authenticated' },
   [View.PaymentVouchers]: { policy: 'public-authenticated' },
   [View.Shipments]: { policy: 'public-authenticated' },

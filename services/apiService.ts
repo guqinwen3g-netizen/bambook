@@ -168,6 +168,9 @@ import {
   TradeDocumentInput,
   TradeDocumentType,
   TradeDocumentStatus,
+  DocumentVersionRecord,
+  GenerateTradeDocumentsResult,
+  TradeDocumentPackItem,
   CustomsOverview,
   // Finance Reports (Phase B2)
   AgingReport,
@@ -2792,6 +2795,25 @@ export const apiService = {
   async transitionTradeDocumentStatus(id: string, toStatus: TradeDocumentStatus, endpoint?: string): Promise<TradeDocument> {
     const data = await requestJson<{ item: TradeDocument }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
     return data.item;
+  },
+
+  // ── Wave A1 单据中心：版本 / 生成即登记 / 批量打包 ──
+
+  async listTradeDocumentVersions(id: string, endpoint?: string): Promise<{ items: DocumentVersionRecord[]; total: number }> {
+    return requestJson<{ items: DocumentVersionRecord[]; total: number }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}/versions`, { endpoint, method: 'GET' });
+  },
+
+  async getTradeDocumentVersion(id: string, version: number, endpoint?: string): Promise<DocumentVersionRecord> {
+    const data = await requestJson<{ item: DocumentVersionRecord }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}/versions/${version}`, { endpoint, method: 'GET' });
+    return data.item;
+  },
+
+  async generateTradeDocumentsFromShipment(params: { shipmentId: string; types: TradeDocumentType[] }, endpoint?: string): Promise<GenerateTradeDocumentsResult> {
+    return requestJson<GenerateTradeDocumentsResult>(`/v1/customs/trade-documents/generate-from-shipment`, { endpoint, method: 'POST', body: JSON.stringify(params) });
+  },
+
+  async packTradeDocumentsByOrder(orderId: string, endpoint?: string): Promise<{ items: TradeDocumentPackItem[]; total: number }> {
+    return requestJson<{ items: TradeDocumentPackItem[]; total: number }>(`/v1/customs/trade-documents/pack?orderId=${encodeURIComponent(orderId)}`, { endpoint, method: 'GET' });
   },
 
   // Customs Overview

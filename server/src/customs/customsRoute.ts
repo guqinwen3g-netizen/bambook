@@ -38,11 +38,16 @@
  *
  *   ── 贸易单据 TradeDocument ──
  *   GET    /trade-documents           — 单据列表（支持 type/status/shipmentId/declarationId/orderId/relationId/search 过滤）
+ *   GET    /trade-documents/pack?orderId= — 订单单据批量打包（最新版本快照，L/C 交单场景；Wave A1）
  *   GET    /trade-documents/:id       — 单据详情
- *   POST   /trade-documents           — 创建单据
- *   PUT    /trade-documents/:id       — 更新单据（仅 Draft）
+ *   POST   /trade-documents           — 创建单据（documentNumber 留空自动取号，Wave A1）
+ *   POST   /trade-documents/generate-from-shipment — 运单批量生成单据草稿（生成即登记+v1 快照，幂等；Wave A1）
+ *   PUT    /trade-documents/:id       — 更新单据（仅 Draft，服务端强制版本留痕）
  *   DELETE /trade-documents/:id       — 软删除单据（仅 Draft/Cancelled）
  *   POST   /trade-documents/:id/transition — 状态流转
+ *   GET    /trade-documents/:id/versions   — 版本列表
+ *   GET    /trade-documents/:id/versions/:version — 指定版本快照
+ *   POST   /trade-documents/:id/versions   — 手动追加版本（编辑内容快照）
  *
  *   ── 概览 ──
  *   GET    /overview                   — 外贸报关概览统计
@@ -69,6 +74,7 @@ import {
   TradeDocumentType,
 } from './customsService';
 import { createDocumentTemplateService } from './documentTemplateService';
+import { generateTradeDocumentsFromShipment, packTradeDocumentsByOrder } from './tradeDocumentLifecycleService';
 
 export interface CustomsRouterOptions {
   prisma: PrismaClient;
@@ -512,6 +518,20 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
+  // Wave A1：批量打包须注册在 /trade-documents/:id 之前，避免 'pack' 被当作 id 捕获
+  router.get('/trade-documents/pack', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const orderId = (req.query.orderId as string) || '';
+      if (!orderId) return res.status(400).json({ error: 'orderId 必填' });
+      const result = await packTradeDocumentsByOrder(prisma, orderId);
+      res.json(result);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] GET trade-documents pack failed', { error: e?.message });
+      res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to pack trade-documents' });
+    }
+  });
+
   router.get('/trade-documents/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
@@ -523,11 +543,29 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
+  // Wave A1：运单 → 单据草稿批量生成（生成即登记 + v1 快照，同 shipmentId+type 幂等）
+  router.post('/trade-documents/generate-from-shipment', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const { shipmentId, types } = req.body as { shipmentId?: string; types?: TradeDocumentType[] };
+      if (!shipmentId || !Array.isArray(types) || types.length === 0) {
+        return res.status(400).json({ error: 'shipmentId 与 types（非空数组）必填' });
+      }
+      const result = await generateTradeDocumentsFromShipment(prisma, { shipmentId, types, actorId: actorOf(req) });
+      if (result.created.length > 0) {
+        onDataChange?.({ entity: 'TradeDocument', action: 'create', ids: result.created.map((c) => c.id) });
+      }
+      res.status(201).json(result);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] POST trade-documents generate-from-shipment failed', { error: e?.message });
+      res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to generate trade-documents' });
+    }
+  });
+
   router.post('/trade-documents', requireWrite, async (req: Request, res: Response) => {
     try {
       const input = req.body as TradeDocumentInput;
-      if (!input.documentNumber || !input.type) {
-        return res.status(400).json({ error: 'documentNumber and type are required' });
+      if (!input.type) {
+        return res.status(400).json({ error: 'type is required（documentNumber 留空自动取号）' });
       }
       const item = await service.createTradeDocument(input, actorOf(req));
       onDataChange?.({ entity: 'TradeDocument', action: 'create', ids: [item.id] });

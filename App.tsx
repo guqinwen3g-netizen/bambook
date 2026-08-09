@@ -188,6 +188,7 @@ import PricingManager, { type PricingTabId } from './components/PricingManager';
 import MarketingManager from './components/MarketingManager';
 import MesManager from './components/MesManager';
 import CustomsManager, { type CustomsTabId } from './components/CustomsManager';
+import DocumentCenter from './components/DocumentCenter';
 import type { GlobeQualityMode, GlobeViewportCenter } from './components/ProductionGlobe';
 import {
   requestOsAdaptiveContrastRefresh,
@@ -1196,7 +1197,7 @@ const App: React.FC = () => {
   }, [orders, config.cloudEndpoint]);
 
   const settingsMode = resolveSettingsMode(activeView);
-  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
+  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.DocumentCenter || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
 
   // Views that render the ProductionGlobe as an underlay. We must let pointer
   // events pass THROUGH the main / wrapper divs to the canvas underneath; the
@@ -1668,6 +1669,9 @@ const App: React.FC = () => {
               compilerSurfaces.customs,
               'customs',
               <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} />,
+            )}
+            {activeView === View.DocumentCenter && (
+              <DocumentCenter isDarkMode={isDarkMode} />
             )}
             {activeView === View.DataCenter && renderMainCompilerSlot(
               compilerSurfaces.dataCenter,

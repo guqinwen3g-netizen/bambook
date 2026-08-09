@@ -78,6 +78,11 @@ function makePrisma(overrides: Record<string, any> = {}) {
       delete: vi.fn().mockImplementation(async ({ where }: any) => ({ id: where.id })),
     },
     auditLog: { create: auditLogCreate },
+    // Wave A1 强制版本留痕：appendTradeDocumentVersion 走 tx 内 findFirst/create
+    documentVersion: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data })),
+    },
     // C4 关单闭环：backfillShipmentCustoms 探测运单（null → 静默跳过）
     shipment: {
       findUnique: vi.fn().mockResolvedValue(null),

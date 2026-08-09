@@ -7,7 +7,7 @@
  *   - HS 编码库（参考数据 CRUD + 停用）
  *   - 信用证管理（CRUD + 状态机 + 不符点记录）
  *   - 出口退税（CRUD + 状态机 + 审核 + 自动退税额计算）
- *   - 贸易单据（CRUD + 状态机 + 附件管理）
+ *   - 贸易单据（入口卡：台账/版本/打包已收口至「单据中心」，Wave A1 去重）
  *   - 出运制单（阶段 IA-2 自业务工具收编：运单一键生成 CI/PL/CO/BL 成套单据）
  *   - 单据模板（阶段 IA-2 自业务工具收编：13 类外贸单据 HTML 模板管理）
  */
@@ -52,10 +52,6 @@ import {
   TaxRefund,
   TaxRefundInput,
   TaxRefundStatus,
-  TradeDocument,
-  TradeDocumentInput,
-  TradeDocumentType,
-  TradeDocumentStatus,
   VatInvoice,
   VatInvoiceStatus,
 } from '../types';
@@ -73,8 +69,8 @@ type TabId = 'declarations' | 'hsCodes' | 'lettersOfCredit' | 'taxRefunds' | 'tr
 /** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
 export type { TabId as CustomsTabId };
 
-/** 阶段 IA-2：制单工具 tab（本地工具面板，不走列表数据拉取/搜索/状态筛选） */
-const TOOL_TAB_IDS: ReadonlySet<TabId> = new Set(['docGenerator', 'docTemplates']);
+/** 阶段 IA-2：制单工具 tab（本地工具面板，不走列表数据拉取/搜索/状态筛选）；Wave A1：贸易单据台账收口单据中心，入口卡同例 */
+const TOOL_TAB_IDS: ReadonlySet<TabId> = new Set(['tradeDocuments', 'docGenerator', 'docTemplates']);
 
 const CUSTOMS_TYPES: Array<{ id: CustomsType; label: string }> = [
   { id: 'Export', label: '出口' },
@@ -136,38 +132,19 @@ const VAT_INVOICE_STATUS_LABELS: Record<VatInvoiceStatus, string> = {
   Cancelled: '已作废',
 };
 
-const DOC_TYPES: Array<{ id: TradeDocumentType; label: string }> = [
-  { id: 'CommercialInvoice', label: '商业发票' },
-  { id: 'PackingList', label: '装箱单' },
-  { id: 'CertificateOfOrigin', label: '原产地证' },
-  { id: 'BillOfLading', label: '提单 B/L' },
-  { id: 'AirWaybill', label: '空运单 AWB' },
-  { id: 'InsuranceCert', label: '保险凭证' },
-  { id: 'InspectionCert', label: '检验证书' },
-  { id: 'PhytosanitaryCert', label: '植检证书' },
-  { id: 'Other', label: '其他' },
-];
-
-const DOC_STATUSES: Array<{ id: TradeDocumentStatus; label: string; semantic: StatusSemantic }> = [
-  { id: 'Draft', label: '草稿', semantic: 'neutral' },
-  { id: 'Issued', label: '已签发', semantic: 'info' },
-  { id: 'Submitted', label: '已提交', semantic: 'info' },
-  { id: 'Accepted', label: '已接受', semantic: 'success' },
-  { id: 'Rejected', label: '已拒绝', semantic: 'danger' },
-  { id: 'Cancelled', label: '已取消', semantic: 'neutral' },
-];
-
 const TRADE_TERMS = ['FOB', 'CIF', 'EXW', 'DDP', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'CFR'];
 
 interface CustomsManagerProps {
   isDarkMode: boolean;
   /** A5d 报表下钻联动：指定落点 tab（如 taxRefunds），变更时响应式同步 */
   initialTab?: TabId;
+  /** Wave A1：贸易单据台账收口单据中心后的跳转回调（App 注入 handleViewChange） */
+  onOpenDocumentCenter?: () => void;
 }
 
 // ==================== 组件 ====================
 
-const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab }) => {
+const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab, onOpenDocumentCenter }) => {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'declarations');
   // A5d：与 FinanceManager 同一口径 — initialTab 变更时响应式同步（下钻落点定位）
   useEffect(() => {
@@ -177,7 +154,6 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
   const [hsCodes, setHsCodes] = useState<HsCode[]>([]);
   const [lettersOfCredit, setLettersOfCredit] = useState<LetterOfCredit[]>([]);
   const [taxRefunds, setTaxRefunds] = useState<TaxRefund[]>([]);
-  const [tradeDocuments, setTradeDocuments] = useState<TradeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -264,31 +240,13 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
     }
   }, [searchQuery, statusFilter]);
 
-  const fetchTradeDocuments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await apiService.listTradeDocuments({
-        search: searchQuery || undefined,
-        status: statusFilter || undefined,
-        limit: 200,
-      });
-      setTradeDocuments(result.items);
-    } catch (e: any) {
-      setError(String(e?.message || e || '加载失败'));
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, statusFilter]);
-
   useEffect(() => {
     if (TOOL_TAB_IDS.has(activeTab)) { setLoading(false); return; }
     if (activeTab === 'declarations') fetchDeclarations();
     if (activeTab === 'hsCodes') fetchHsCodes();
     if (activeTab === 'lettersOfCredit') fetchLettersOfCredit();
     if (activeTab === 'taxRefunds') fetchTaxRefunds();
-    if (activeTab === 'tradeDocuments') fetchTradeDocuments();
-  }, [activeTab, fetchDeclarations, fetchHsCodes, fetchLettersOfCredit, fetchTaxRefunds, fetchTradeDocuments]);
+  }, [activeTab, fetchDeclarations, fetchHsCodes, fetchLettersOfCredit, fetchTaxRefunds]);
 
   // ── 辅助 ──
   const formatNum = (n: string | number | null | undefined, digits = 2) => {
@@ -301,7 +259,6 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
   const declStatusInfo = (s: CustomsDeclarationStatus) => DECLARATION_STATUSES.find(d => d.id === s) || DECLARATION_STATUSES[0];
   const lcStatusInfo = (s: LetterOfCreditStatus) => LC_STATUSES.find(d => d.id === s) || LC_STATUSES[0];
   const taxRefundStatusInfo = (s: TaxRefundStatus) => TAX_REFUND_STATUSES.find(d => d.id === s) || TAX_REFUND_STATUSES[0];
-  const docStatusInfo = (s: TradeDocumentStatus) => DOC_STATUSES.find(d => d.id === s) || DOC_STATUSES[0];
 
   // ── 主题样式 ──
   const cardClass = isDarkMode
@@ -325,7 +282,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
     { id: 'hsCodes', label: 'HS 编码库', icon: <BookOpen size={12} />, count: hsCodes.length },
     { id: 'lettersOfCredit', label: '信用证', icon: <CreditCard size={12} />, count: lettersOfCredit.length },
     { id: 'taxRefunds', label: '出口退税', icon: <Receipt size={12} />, count: taxRefunds.length },
-    { id: 'tradeDocuments', label: '贸易单据', icon: <FileText size={12} />, count: tradeDocuments.length },
+    { id: 'tradeDocuments', label: '贸易单据', icon: <FileText size={12} /> },
     { id: 'docGenerator', label: '出运制单', icon: <Layers size={12} /> },
     { id: 'docTemplates', label: '单据模板', icon: <LayoutTemplate size={12} /> },
   ];
@@ -423,18 +380,6 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
     }
   }, []);
 
-  const handleTransitionDoc = useCallback(async (id: string, toStatus: TradeDocumentStatus) => {
-    setActionLoading(`doc_${id}_${toStatus}`);
-    try {
-      const updated = await apiService.transitionTradeDocumentStatus(id, toStatus);
-      setTradeDocuments(prev => prev.map(d => (d.id === id ? updated : d)));
-    } catch (e: any) {
-      setError(`状态转换失败：${e?.message || e}`);
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
-
   const handleDelete = useCallback(async (tab: TabId, id: string) => {
     setActionLoading(`del_${id}`);
     try {
@@ -450,9 +395,6 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
       } else if (tab === 'taxRefunds') {
         await apiService.deleteTaxRefund(id);
         setTaxRefunds(prev => prev.filter(d => d.id !== id));
-      } else if (tab === 'tradeDocuments') {
-        await apiService.deleteTradeDocument(id);
-        setTradeDocuments(prev => prev.filter(d => d.id !== id));
       }
     } catch (e: any) {
       setError(`删除失败：${e?.message || e}`);
@@ -506,7 +448,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索编号 / 名称 / 客户..."
                 className={`${fieldClass} pl-9 py-1.5`}
-                onKeyDown={(e) => { if (e.key === 'Enter') { if (activeTab === 'declarations') fetchDeclarations(); if (activeTab === 'hsCodes') fetchHsCodes(); if (activeTab === 'lettersOfCredit') fetchLettersOfCredit(); if (activeTab === 'taxRefunds') fetchTaxRefunds(); if (activeTab === 'tradeDocuments') fetchTradeDocuments(); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { if (activeTab === 'declarations') fetchDeclarations(); if (activeTab === 'hsCodes') fetchHsCodes(); if (activeTab === 'lettersOfCredit') fetchLettersOfCredit(); if (activeTab === 'taxRefunds') fetchTaxRefunds(); } }}
               />
             </div>
             {activeTab !== 'hsCodes' && (
@@ -515,11 +457,10 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
                 {activeTab === 'declarations' && DECLARATION_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                 {activeTab === 'lettersOfCredit' && LC_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                 {activeTab === 'taxRefunds' && TAX_REFUND_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                {activeTab === 'tradeDocuments' && DOC_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             )}
             <button
-              onClick={() => { if (activeTab === 'declarations') fetchDeclarations(); if (activeTab === 'hsCodes') fetchHsCodes(); if (activeTab === 'lettersOfCredit') fetchLettersOfCredit(); if (activeTab === 'taxRefunds') fetchTaxRefunds(); if (activeTab === 'tradeDocuments') fetchTradeDocuments(); }}
+              onClick={() => { if (activeTab === 'declarations') fetchDeclarations(); if (activeTab === 'hsCodes') fetchHsCodes(); if (activeTab === 'lettersOfCredit') fetchLettersOfCredit(); if (activeTab === 'taxRefunds') fetchTaxRefunds(); }}
               className="h-9 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5"
             >
               <RefreshCw size={12} />刷新
@@ -906,57 +847,24 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
                 </motion.div>
               )}
 
-              {/* ════════ 贸易单据 Tab ════════ */}
+              {/* ════════ 贸易单据 Tab（Wave A1：台账/版本/打包收口单据中心，此处仅入口卡） ════════ */}
               {activeTab === 'tradeDocuments' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-                  {tradeDocuments.length === 0 ? (
-                    <div className={`text-center py-20 text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>暂无贸易单据数据</div>
-                  ) : (
-                    tradeDocuments.map(doc => {
-                      const si = docStatusInfo(doc.status);
-                      return (
-                        <div key={doc.id} className={`${cardClass} p-3`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-medium">{doc.documentNumber}</span>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusSemanticClass(si.semantic, isDarkMode)} ${statusSemanticText(si.semantic, isDarkMode)}`}>{si.label}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDarkMode ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
-                                  {DOC_TYPES.find(t => t.id === doc.type)?.label || doc.type}
-                                </span>
-                              </div>
-                              <div className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                {doc.consignor || '—'} → {doc.consignee || '—'}
-                                {doc.issuedBy && ` · 签发: ${doc.issuedBy}`}
-                              </div>
-                              <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                签发日: {formatDate(doc.issueDate)}
-                                {doc.expiryDate && ` · 有效期至: ${doc.expiryDate}`}
-                                {doc.fileName && ` · 📎 ${doc.fileName}`}
-                              </div>
-                            </div>
-                            {doc.totalAmount && (
-                              <div className="text-right shrink-0">
-                                <div className="text-sm font-medium">{doc.currency || ''} {formatNum(doc.totalAmount)}</div>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-3 flex-wrap">
-                            {doc.status === 'Draft' && <button onClick={() => handleTransitionDoc(doc.id, 'Issued')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light bg-[var(--os-vnext-brand-blue)] text-white disabled:opacity-50">签发</button>}
-                            {doc.status === 'Issued' && <button onClick={() => handleTransitionDoc(doc.id, 'Submitted')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light bg-[var(--os-vnext-brand-blue)] text-white disabled:opacity-50">提交</button>}
-                            {doc.status === 'Submitted' && (
-                              <>
-                                <button onClick={() => handleTransitionDoc(doc.id, 'Accepted')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light bg-green-500 text-white disabled:opacity-50">接受</button>
-                                <button onClick={() => handleTransitionDoc(doc.id, 'Rejected')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light bg-red-500 text-white disabled:opacity-50">拒绝</button>
-                              </>
-                            )}
-                            {doc.status === 'Rejected' && <button onClick={() => handleTransitionDoc(doc.id, 'Draft')} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50">退回草稿</button>}
-                            {(doc.status === 'Draft' || doc.status === 'Cancelled') && <button onClick={() => handleDelete('tradeDocuments', doc.id)} disabled={!!actionLoading} className="h-7 px-3 rounded-control text-[11px] font-light text-red-500 hover:bg-red-500/10 disabled:opacity-50 flex items-center gap-1"><Trash2 size={11} />删除</button>}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <div className={`${cardClass} p-8 flex flex-col items-center text-center`}>
+                    <FileText size={28} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
+                    <div className="text-sm font-light mt-3">贸易单据台账已收口至「单据中心」</div>
+                    <div className={`text-xs mt-1.5 max-w-md ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      登记/编辑/状态流转、版本留痕、单据预览打印、运单批量生成与订单打包，统一在单据中心完成。
+                    </div>
+                    {onOpenDocumentCenter && (
+                      <button
+                        onClick={onOpenDocumentCenter}
+                        className="mt-4 h-8 px-5 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light transition-colors"
+                      >
+                        前往单据中心
+                      </button>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </>
@@ -989,7 +897,6 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab 
             if (activeTab === 'hsCodes') fetchHsCodes();
             if (activeTab === 'lettersOfCredit') fetchLettersOfCredit();
             if (activeTab === 'taxRefunds') fetchTaxRefunds();
-            if (activeTab === 'tradeDocuments') fetchTradeDocuments();
           }}
           cardClass={cardClass}
           fieldClass={fieldClass}
@@ -1046,12 +953,6 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
     exportAmountFobCurrency: 'USD',
   });
 
-  // 单据表单
-  const [docForm, setDocForm] = useState<TradeDocumentInput>({
-    documentNumber: '',
-    type: 'CommercialInvoice',
-  });
-
   const handleSubmit = async () => {
     setError(null);
     setSubmitting(true);
@@ -1068,9 +969,6 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
       } else if (activeTab === 'taxRefunds') {
         if (!trForm.refundNumber) throw new Error('请填写退税编号');
         await apiService.createTaxRefund(trForm);
-      } else if (activeTab === 'tradeDocuments') {
-        if (!docForm.documentNumber) throw new Error('请填写单据编号');
-        await apiService.createTradeDocument(docForm);
       }
       onSuccess();
     } catch (e: any) {
@@ -1091,7 +989,6 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
             {activeTab === 'hsCodes' && '新增 HS 编码'}
             {activeTab === 'lettersOfCredit' && '新增信用证'}
             {activeTab === 'taxRefunds' && '新增出口退税'}
-            {activeTab === 'tradeDocuments' && '新增贸易单据'}
           </h2>
           <button onClick={onClose} className={`p-1 rounded ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}><X size={16} /></button>
         </div>
@@ -1173,23 +1070,6 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
             <div><label className={labelClass}>退税率(%)</label><input type="number" step="0.01" className={inputCls} value={trForm.refundableRate ?? ''} onChange={e => setTrForm({ ...trForm, refundableRate: Number(e.target.value) || undefined })} /></div>
             <div><label className={labelClass}>可退增值税</label><input type="number" className={inputCls} value={trForm.refundableVat ?? ''} onChange={e => setTrForm({ ...trForm, refundableVat: Number(e.target.value) || undefined })} /></div>
             <div className="col-span-2"><label className={labelClass}>备注</label><textarea className={inputCls} rows={2} value={trForm.notes || ''} onChange={e => setTrForm({ ...trForm, notes: e.target.value })} /></div>
-          </div>
-        )}
-
-        {/* 贸易单据表单 */}
-        {activeTab === 'tradeDocuments' && (
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelClass}>单据编号 *</label><input className={inputCls} value={docForm.documentNumber} onChange={e => setDocForm({ ...docForm, documentNumber: e.target.value })} placeholder="CI-20260807-001" /></div>
-            <div><label className={labelClass}>单据类型 *</label><select className={inputCls} value={docForm.type} onChange={e => setDocForm({ ...docForm, type: e.target.value as TradeDocumentType })}>{DOC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
-            <div><label className={labelClass}>签发日期</label><input type="date" className={inputCls} value={docForm.issueDate || ''} onChange={e => setDocForm({ ...docForm, issueDate: e.target.value })} /></div>
-            <div><label className={labelClass}>有效期</label><input type="date" className={inputCls} value={docForm.expiryDate || ''} onChange={e => setDocForm({ ...docForm, expiryDate: e.target.value })} /></div>
-            <div><label className={labelClass}>签发方</label><input className={inputCls} value={docForm.issuedBy || ''} onChange={e => setDocForm({ ...docForm, issuedBy: e.target.value })} /></div>
-            <div><label className={labelClass}>金额</label><input type="number" className={inputCls} value={docForm.totalAmount ?? ''} onChange={e => setDocForm({ ...docForm, totalAmount: Number(e.target.value) || undefined })} /></div>
-            <div><label className={labelClass}>发货人</label><input className={inputCls} value={docForm.consignor || ''} onChange={e => setDocForm({ ...docForm, consignor: e.target.value })} /></div>
-            <div><label className={labelClass}>收货人</label><input className={inputCls} value={docForm.consignee || ''} onChange={e => setDocForm({ ...docForm, consignee: e.target.value })} /></div>
-            <div><label className={labelClass}>装运港</label><input className={inputCls} value={docForm.portOfLoading || ''} onChange={e => setDocForm({ ...docForm, portOfLoading: e.target.value })} /></div>
-            <div><label className={labelClass}>卸货港</label><input className={inputCls} value={docForm.portOfDischarge || ''} onChange={e => setDocForm({ ...docForm, portOfDischarge: e.target.value })} /></div>
-            <div className="col-span-2"><label className={labelClass}>备注</label><textarea className={inputCls} rows={2} value={docForm.notes || ''} onChange={e => setDocForm({ ...docForm, notes: e.target.value })} /></div>
           </div>
         )}
 
