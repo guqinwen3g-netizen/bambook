@@ -10,6 +10,7 @@
 import { PrismaClient } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import { createNotificationService } from '../notifications/notificationService';
 import { logger } from '../lib/logger';
 
 export const PRODUCTION_STAGES = [
@@ -454,7 +455,7 @@ export async function saveInspectionReport(prisma: PrismaClient, orderId: string
   // 同时取出 millRelationId/poNumber 供下方 H1c 自动评分复用，避免二次查询。
   const order = await prisma.order.findFirst({
     where: { id: orderId, deletedAt: null },
-    select: { id: true, millRelationId: true, poNumber: true },
+    select: { id: true, millRelationId: true, poNumber: true, customer: true, product: true },
   });
   if (!order) {
     throw Object.assign(new Error(`订单 ${orderId} 不存在或已删除`), { code: 'ORDER_NOT_FOUND' });
@@ -462,6 +463,11 @@ export async function saveInspectionReport(prisma: PrismaClient, orderId: string
   const now = BigInt(Date.now());
   // final 沿用历史 id 格式（迁移前数据 id=INR__${orderId}），保证 upsert 命中旧行
   const id = inspectionType === 'final' ? `INR__${orderId}` : `INR__${orderId}__${inspectionType}`;
+  // PRD 7.1「终期验货 fail」状态迁移判据：upsert 前取旧结论，仅 fail 迁移瞬间通知一次
+  const previous = await prisma.inspectionReport.findUnique({
+    where: { orderId_inspectionType: { orderId, inspectionType } },
+    select: { result: true },
+  });
   const result = await prisma.inspectionReport.upsert({
     where: { orderId_inspectionType: { orderId, inspectionType } },
     create: {
@@ -535,6 +541,28 @@ export async function saveInspectionReport(prisma: PrismaClient, orderId: string
       }
     } catch (e: any) {
       logger.warn('[StageService] inspection auto-evaluation failed (non-blocking)', { error: e?.message });
+    }
+  }
+
+  // PRD 7.1「终期验货 fail」：结论迁移为非 fail → fail 瞬间广播 critical（QC + 业务员 + 管理层）
+  // 状态迁移触发天然幂等：重复保存相同 fail 结论不再通知；整改后再次 fail 属新事件，重新通知
+  if (inspectionType === 'final' && result.result === 'fail' && previous?.result !== 'fail') {
+    try {
+      const notificationService = createNotificationService(prisma);
+      const label = order.poNumber || orderId;
+      const critical = result.criticalDefects ?? 0;
+      const major = result.majorDefects ?? 0;
+      const minor = result.minorDefects ?? 0;
+      await notificationService.broadcastNotification({
+        type: 'inspection_fail',
+        title: `订单 ${label} 终期验货不通过（critical=${critical}, major=${major}）`,
+        body: `订单 ${label}（客户 ${order.customer ?? '未指定'}，产品 ${order.product ?? '未指定'}）终期验货结论为不合格：致命疵点 ${critical}、主要疵点 ${major}、次要疵点 ${minor}${result.defectSummary ? `，疵点摘要：${result.defectSummary}` : ''}。该订单出运门禁已锁定，需整改复验合格后方可放行。`,
+        level: 'critical',
+        link: `/production?orderId=${orderId}`,
+        metadata: { entityType: 'InspectionReport', entityId: result.id, orderId, criticalDefects: critical, majorDefects: major, minorDefects: minor },
+      });
+    } catch (e: any) {
+      logger.warn('[StageService] inspection fail notification failed (non-blocking)', { error: e?.message });
     }
   }
 

@@ -72,6 +72,11 @@ const ALERT_TYPE_LABELS: Record<RiskAlertType, string> = {
   compliance_fail: '合规未通过',
   quality_repeat: '质量重复问题',
   sample_deadline: '样品交期',
+  hr_lifecycle: '人事生命周期',
+  crm_follow_up_overdue: '跟进逾期',
+  lc_maturity: '信用证到期',
+  tax_refund_stall: '退税滞留',
+  factory_visit: '实地验厂',
 };
 
 const ALERT_LEVEL_LABELS: Record<RiskAlertLevel, string> = {

@@ -174,6 +174,9 @@ model Order {
   fabricSampleTrackingNumber String?
   paidSampleQuantity         Float?
 
+  // 客户实地验厂（PRD 5.1 中期验货附加门禁；PRD 7.1 到期提醒）
+  factoryVisitDate String? // YYYY-MM-DD 客户计划实地验厂日
+
   // Purchase / supplier invoice (我方付给 Mill)
   purchasePrice         Decimal? @db.Decimal(18, 4)
   purchasePaymentDate   String?
@@ -2653,6 +2656,9 @@ model Notification {
   link      String? // 前端跳转路由
   metadata  Json?
   readAt    DateTime?
+  // PRD 7.1「忽略需填原因」：用于持续优化推送准确率（目标 ≥80%）
+  dismissedAt   DateTime?
+  dismissReason String?
   createdAt DateTime  @default(now())
 
   user UserAccount @relation(fields: [userId], references: [id])

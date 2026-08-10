@@ -123,6 +123,31 @@ export function createNotificationsRouter(): Router {
     }
   });
 
+  // POST /v1/notifications/:id/dismiss — PRD 7.1「忽略需填原因」（用于推送准确率优化）
+  router.post('/:id/dismiss', requireUser, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).notificationUserId as string;
+      const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+      if (!reason) {
+        return res.status(400).json({ error: 'REASON_REQUIRED', message: '忽略通知必须填写原因（reason）。' });
+      }
+      if (reason.length > 500) {
+        return res.status(400).json({ error: 'REASON_TOO_LONG', message: '忽略原因最长 500 字。' });
+      }
+      const service = getNotificationService();
+      const result = await service.dismissNotification(userId, req.params.id, reason);
+      if (!result.ok) {
+        return res.status(404).json({ error: 'NOT_FOUND', message: 'Notification not found or already dismissed.' });
+      }
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({
+        error: 'DISMISS_FAILED',
+        message: String(e?.message ?? e),
+      });
+    }
+  });
+
   // ─── D2 主动提醒引擎：偏好控制面 + 转跟进闭环 ───
 
   // GET /v1/notifications/preferences — 本人通知类型偏好清单

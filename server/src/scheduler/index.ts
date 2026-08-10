@@ -34,6 +34,7 @@ import { createLcMaturityWatchdogTask } from './tasks/lcMaturityWatchdog';
 import { createTaxRefundStallWatchdogTask } from './tasks/taxRefundStallWatchdog';
 import { createQuotationFollowUpWatchdogTask } from './tasks/quotationFollowUpWatchdog';
 import { createPpSampleConfirmationWatchdogTask } from './tasks/ppSampleConfirmationWatchdog';
+import { createFactoryVisitWatchdogTask } from './tasks/factoryVisitWatchdog';
 import { logger } from '../lib/logger';
 
 export function startScheduler(prisma: PrismaClient): void {
@@ -75,12 +76,14 @@ export function startScheduler(prisma: PrismaClient): void {
   scheduler.register(createQuotationFollowUpWatchdogTask());
   // PRD 7.1：厂前样寄出 ≥3 天未确认提醒（开裁前置条件），每日 11:30
   scheduler.register(createPpSampleConfirmationWatchdogTask());
+  // PRD 7.1：客户实地验厂到期提醒（前 7 天 warning，前 1 天升 critical），每日 11:30
+  scheduler.register(createFactoryVisitWatchdogTask());
 
   // 启动调度器
   scheduler.start();
 
-  logger.info('[Scheduler] initialized with 22 tasks', {
-    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog', 'season_review_watchdog', 'credit_risk_watchdog', 'quality_repeat_watchdog', 'sample_deadline_watchdog', 'scheduled_report_runner', 'hr_lifecycle_watchdog', 'crm_follow_up_watchdog', 'lc_maturity_watchdog', 'tax_refund_stall_watchdog', 'quotation_follow_up_watchdog', 'pp_sample_confirmation_watchdog'],
+  logger.info('[Scheduler] initialized with 23 tasks', {
+    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog', 'season_review_watchdog', 'credit_risk_watchdog', 'quality_repeat_watchdog', 'sample_deadline_watchdog', 'scheduled_report_runner', 'hr_lifecycle_watchdog', 'crm_follow_up_watchdog', 'lc_maturity_watchdog', 'tax_refund_stall_watchdog', 'quotation_follow_up_watchdog', 'pp_sample_confirmation_watchdog', 'factory_visit_watchdog'],
   });
 }
 

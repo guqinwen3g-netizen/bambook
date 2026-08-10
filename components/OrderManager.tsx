@@ -317,6 +317,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     fabricSampleConfirmedDate: '',
     paidSampleQuantity: 0,
     shipmentSampleComments: '',
+    factoryVisitDate: '',
     // 物流
     shippingDate: '',
     shippingMethod: '',

@@ -1,8 +1,18 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { advanceStage, PRODUCTION_STAGES, initProductionStages, getProductionBoard } from '../stageService';
 
 vi.mock('../../audit/routeAudit', () => ({
   writeRouteAuditLog: vi.fn().mockResolvedValue('audit_test_id'),
+}));
+
+// PRD 7.1 终期验货 fail 通知 mock
+const notificationMocks = vi.hoisted(() => ({
+  broadcastNotification: vi.fn().mockResolvedValue({ count: 1 }),
+}));
+vi.mock('../../notifications/notificationService', () => ({
+  createNotificationService: () => ({
+    broadcastNotification: notificationMocks.broadcastNotification,
+  }),
 }));
 
 function makeTx(overrides: any = {}) {
@@ -189,7 +199,7 @@ describe('saveInspectionReport: Phase B4 多类型 + QC 字段', () => {
       passRate: 0,
       defectRate: 0,
     }));
-    const prisma = { ...orderFound, inspectionReport: { upsert: upsertMock } } as any;
+    const prisma = { ...orderFound, inspectionReport: { upsert: upsertMock, findUnique: vi.fn().mockResolvedValue(null) } } as any;
     const { saveInspectionReport } = await import('../stageService');
 
     await saveInspectionReport(prisma, 'O1', { inspectionType: 'midline', totalUnits: 50, passedUnits: 48, aqlLevel: '2.5/4.0 II' });
@@ -214,7 +224,7 @@ describe('saveInspectionReport: Phase B4 多类型 + QC 字段', () => {
 
   it('未知 inspectionType 归一为 final', async () => {
     const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => create);
-    const prisma = { ...orderFound, inspectionReport: { upsert: upsertMock } } as any;
+    const prisma = { ...orderFound, inspectionReport: { upsert: upsertMock, findUnique: vi.fn().mockResolvedValue(null) } } as any;
     const { saveInspectionReport } = await import('../stageService');
     await saveInspectionReport(prisma, 'O1', { inspectionType: 'weird' });
     expect(upsertMock.mock.calls[0][0].create.inspectionType).toBe('final');
@@ -230,6 +240,110 @@ describe('saveInspectionReport: Phase B4 多类型 + QC 字段', () => {
     const { saveInspectionReport } = await import('../stageService');
     await expect(saveInspectionReport(prisma, 'O_GONE', { totalUnits: 10 })).rejects.toMatchObject({ code: 'ORDER_NOT_FOUND' });
     expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  // PRD 7.1「终期验货 fail」：非 fail → fail 迁移瞬间广播 critical 通知
+  describe('inspection fail notification', () => {
+    beforeEach(() => notificationMocks.broadcastNotification.mockClear());
+
+    const orderWithMeta = {
+      order: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'O1', millRelationId: null, poNumber: 'PO-001', customer: 'Acme Corp', product: 'Cotton Jersey',
+        }),
+      },
+    };
+
+    function makeFailPrisma(previousResult: string | null) {
+      const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => ({
+        ...create,
+        result: 'fail',
+        criticalDefects: 2,
+        majorDefects: 5,
+        minorDefects: 10,
+        defectSummary: 'stain, hole',
+      }));
+      return {
+        ...orderWithMeta,
+        inspectionReport: {
+          findUnique: vi.fn().mockResolvedValue(
+            previousResult ? { result: previousResult } : null,
+          ),
+          upsert: upsertMock,
+        },
+      } as any;
+    }
+
+    it('final fail（新建）→ broadcastNotification inspection_fail critical', async () => {
+      const prisma = makeFailPrisma(null); // 无旧报告 → previous=null → 新 fail
+      const { saveInspectionReport } = await import('../stageService');
+      await saveInspectionReport(prisma, 'O1', {
+        result: 'fail', totalUnits: 100, passedUnits: 80,
+        criticalDefects: 2, majorDefects: 5, minorDefects: 10, defectSummary: 'stain, hole',
+      });
+      expect(notificationMocks.broadcastNotification).toHaveBeenCalledTimes(1);
+      const payload = notificationMocks.broadcastNotification.mock.calls[0][0];
+      expect(payload.type).toBe('inspection_fail');
+      expect(payload.level).toBe('critical');
+      expect(payload.title).toContain('PO-001');
+      expect(payload.title).toContain('终期验货不通过');
+      expect(payload.body).toContain('致命疵点 2');
+      expect(payload.link).toBe('/production?orderId=O1');
+      expect(payload.metadata.entityType).toBe('InspectionReport');
+      expect(payload.metadata.orderId).toBe('O1');
+    });
+
+    it('final fail（pass→fail 迁移）→ 通知触发', async () => {
+      const prisma = makeFailPrisma('pass');
+      const { saveInspectionReport } = await import('../stageService');
+      await saveInspectionReport(prisma, 'O1', {
+        result: 'fail', totalUnits: 100, passedUnits: 80, criticalDefects: 1, majorDefects: 3, minorDefects: 5,
+      });
+      expect(notificationMocks.broadcastNotification).toHaveBeenCalledTimes(1);
+    });
+
+    it('final fail（fail→fail 重复保存）→ 幂等不通知', async () => {
+      const prisma = makeFailPrisma('fail');
+      const { saveInspectionReport } = await import('../stageService');
+      await saveInspectionReport(prisma, 'O1', {
+        result: 'fail', totalUnits: 100, passedUnits: 80, criticalDefects: 1, majorDefects: 3, minorDefects: 5,
+      });
+      expect(notificationMocks.broadcastNotification).not.toHaveBeenCalled();
+    });
+
+    it('midline fail → 不触发通知（仅 final 触发）', async () => {
+      const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => ({
+        ...create, result: 'fail',
+      }));
+      const prisma = {
+        ...orderWithMeta,
+        inspectionReport: {
+          findUnique: vi.fn().mockResolvedValue(null),
+          upsert: upsertMock,
+        },
+      } as any;
+      const { saveInspectionReport } = await import('../stageService');
+      await saveInspectionReport(prisma, 'O1', {
+        inspectionType: 'midline', result: 'fail', totalUnits: 50, passedUnits: 40,
+      });
+      expect(notificationMocks.broadcastNotification).not.toHaveBeenCalled();
+    });
+
+    it('final pass → 不触发通知', async () => {
+      const upsertMock = vi.fn().mockImplementation(async ({ create }: any) => ({
+        ...create, result: 'pass',
+      }));
+      const prisma = {
+        ...orderWithMeta,
+        inspectionReport: {
+          findUnique: vi.fn().mockResolvedValue(null),
+          upsert: upsertMock,
+        },
+      } as any;
+      const { saveInspectionReport } = await import('../stageService');
+      await saveInspectionReport(prisma, 'O1', { result: 'pass', totalUnits: 100, passedUnits: 98 });
+      expect(notificationMocks.broadcastNotification).not.toHaveBeenCalled();
+    });
   });
 });
 

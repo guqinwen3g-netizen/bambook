@@ -12,6 +12,7 @@ import {
   type RelationCandidate,
 } from './emailLinkService';
 import { classifyEmailByRules } from './emailClassificationService';
+import { createNotificationService } from '../notifications/notificationService';
 
 export type EmailSyncErrorCode =
   | 'MISSING_CREDENTIALS'
@@ -209,6 +210,26 @@ export async function syncEmailsFromImap(params: EmailSyncParams): Promise<Email
             }
           });
           synced++;
+
+          // PRD 7.1「新邮件含询价关键词」：入站邮件规则层命中 inquiry → 提醒业务员
+          // 触发点在同步事务落库之后；同步幂等（messageId/uid 去重）保证同一封邮件只通知一次
+          if (direction === 'inbound' && ruleLabels.includes('inquiry')) {
+            try {
+              const notificationService = createNotificationService(prisma);
+              const customerLabel = linkUpdates.relationName ?? fromName ?? fromAddress;
+              await notificationService.broadcastNotification({
+                type: 'email_inquiry',
+                title: `客户 ${customerLabel} 发来新询价`,
+                body: `${customerLabel}（${fromAddress}）发来询价邮件「${subject}」${linkUpdates.orderPo ? `，疑似关联订单 ${linkUpdates.orderPo}` : ''}，请及时跟进报价。`,
+                level: 'info',
+                link: `/inbox?id=${emailId}`,
+                metadata: { stuckKey: `email:inquiry:${emailId}`, entityType: 'Email', entityId: emailId, fromAddress, relationId: linkUpdates.relationId ?? null, orderId: linkUpdates.orderId ?? null },
+              });
+            } catch (notifyErr: any) {
+              // 通知失败不阻断同步主流程
+              logger.warn('[email-sync] inquiry notification failed (non-blocking)', { error: sanitizeMessage(String(notifyErr?.message || notifyErr)) });
+            }
+          }
         } catch (err: any) {
           if (err?.code === 'P2002') { skipped++; continue; }
           if (err?.code === 'SYNC_REF_FAILED' || err?.code === 'AUDIT_FAILED') throw err;

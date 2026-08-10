@@ -627,6 +627,7 @@ const ORDER_WRITABLE_FIELDS = new Set([
   'fabricSampleConfirmedDate',
   'fabricSampleTrackingNumber',
   'paidSampleQuantity',
+  'factoryVisitDate',
   'purchasePrice',
   'purchasePaymentDate',
   'supplierInvoiceNumber',

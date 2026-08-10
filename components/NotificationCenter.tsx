@@ -17,7 +17,7 @@ import {
   PackageCheck, Package, Factory, Truck, FileText, FileX,
   Receipt, DollarSign, CheckCircle, AlertTriangle, Clock,
   MessageSquare, ClipboardList, Info, Settings2, ArrowLeft, UserPlus,
-  Stamp, Loader2, AlertCircle,
+  Stamp, Loader2, AlertCircle, BellOff,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { NotificationItem, NotificationStats, NotificationTypeCatalogItem, ApprovalRequestItem } from '../types';
@@ -124,6 +124,10 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
   const [decidingId, setDecidingId] = useState<string | null>(null);
   // D2: 转跟进行内反馈（notificationId → 提示文案）
   const [followUpFeedback, setFollowUpFeedback] = useState<Record<string, string>>({});
+  // PRD 7.1「忽略需填原因」：行内忽略输入状态
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [dismissReason, setDismissReason] = useState('');
+  const [dismissError, setDismissError] = useState<string | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   // 用 ref 跟踪抽屉开关状态，避免 SSE 订阅因 isOpen 变化而重建连接
   const isOpenRef = useRef(false);
@@ -325,6 +329,31 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
       setFollowUpFeedback(prev => ({ ...prev, [item.id]: String(e?.message || '转跟进失败') }));
     }
   }, [endpoint]);
+
+  // ── PRD 7.1 忽略通知（必填原因；乐观移除，失败回滚）──
+  const handleDismiss = useCallback(async (item: NotificationItem) => {
+    const reason = dismissReason.trim();
+    if (!reason) {
+      setDismissError('请填写忽略原因');
+      return;
+    }
+    const prev = items;
+    const prevStats = stats;
+    setItems(prev.filter(n => n.id !== item.id));
+    if (!item.readAt && stats) {
+      setStats({ ...stats, unread: Math.max(0, stats.unread - 1), total: Math.max(0, stats.total - 1) });
+    }
+    setDismissingId(null);
+    setDismissReason('');
+    setDismissError(null);
+    try {
+      await apiService.dismissNotification(item.id, reason, endpoint);
+    } catch (e: any) {
+      setItems(prev);
+      setStats(prevStats);
+      setDismissError(String(e?.message || '忽略失败'));
+    }
+  }, [items, stats, dismissReason, endpoint]);
 
   // ── PRD 19.21 业务审批：列表加载（401/403 降级为无权限文案，不影响通知）──
   const fetchApprovals = useCallback(async () => {
@@ -773,6 +802,39 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                               {followUpFeedback[item.id]}
                             </div>
                           )}
+                          {/* PRD 7.1 忽略原因行内输入（必填） */}
+                          {dismissingId === item.id && (
+                            <div className="mt-2 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                autoFocus
+                                value={dismissReason}
+                                onChange={(e) => { setDismissReason(e.target.value); setDismissError(null); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleDismiss(item); if (e.key === 'Escape') { setDismissingId(null); setDismissReason(''); setDismissError(null); } }}
+                                placeholder="忽略原因（必填，用于优化推送准确率）"
+                                maxLength={500}
+                                className="w-full rounded-control bg-white/6 px-2.5 py-1.5 text-[11px] font-light text-white/90 placeholder-white/25 outline-none focus:bg-white/8"
+                              />
+                              {dismissError && dismissingId === item.id && (
+                                <div className="text-[10px] font-light text-red-400/90">{dismissError}</div>
+                              )}
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDismiss(item)}
+                                  className="rounded-control bg-amber-400/15 px-2.5 py-1 text-[10px] font-light text-amber-300 transition-colors hover:bg-amber-400/20"
+                                >
+                                  确认忽略
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setDismissingId(null); setDismissReason(''); setDismissError(null); }}
+                                  className="rounded-control px-2.5 py-1 text-[10px] font-light text-white/45 transition-colors hover:bg-white/8"
+                                >
+                                  取消
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* 操作按钮（hover 显示） */}
@@ -804,6 +866,20 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                               <Check size={13} strokeWidth={1.5} />
                             </button>
                           )}
+                          {/* PRD 7.1 忽略（需填原因） */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDismissingId(dismissingId === item.id ? null : item.id);
+                              setDismissReason('');
+                              setDismissError(null);
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-amber-300/90"
+                            title="忽略（需填原因）"
+                          >
+                            <BellOff size={13} strokeWidth={1.5} />
+                          </button>
                           <button
                             type="button"
                             onClick={(e) => {

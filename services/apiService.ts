@@ -2859,6 +2859,15 @@ export const apiService = {
     await requestJson<{ ok: boolean }>(`/v1/notifications/${encodeURIComponent(notificationId)}`, { endpoint, method: 'DELETE' });
   },
 
+  // PRD 7.1「忽略需填原因」：忽略通知（乐观移除由调用方处理；原因用于推送准确率优化）
+  async dismissNotification(notificationId: string, reason: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/notifications/${encodeURIComponent(notificationId)}/dismiss`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
   // ── D2 主动提醒引擎：偏好控制面 + 转跟进闭环 ──
   async getNotificationTypeCatalog(endpoint?: string): Promise<NotificationTypeCatalogItem[]> {
     const data = await requestJson<{ items: NotificationTypeCatalogItem[] }>('/v1/notifications/catalog', { endpoint, method: 'GET' });

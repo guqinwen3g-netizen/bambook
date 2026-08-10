@@ -764,6 +764,8 @@ export interface Order {
   fabricSampleConfirmedDate?: string;
   needHeaderSample?: boolean;
   shipmentSampleComments?: string;
+  /** 客户实地验厂计划日（PRD 5.1/7.1；YYYY-MM-DD，到期前 7 天提醒） */
+  factoryVisitDate?: string;
   
   // Shipment & Invoice
   invoiceDate?: string;
@@ -3487,7 +3489,7 @@ export interface TradeShowROI {
 // 统一风险预警中心 / 汇率与锁定 / 客户信用评级 / 合规检查 / 质量疵点趋势
 // ════════════════════════════════════════════════════════════════
 
-export type RiskAlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat' | 'sample_deadline';
+export type RiskAlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat' | 'sample_deadline' | 'hr_lifecycle' | 'crm_follow_up_overdue' | 'lc_maturity' | 'tax_refund_stall' | 'factory_visit';
 export type RiskAlertLevel = 'info' | 'warning' | 'critical';
 export type RiskAlertStatus = 'Open' | 'Acknowledged' | 'Resolved';
 

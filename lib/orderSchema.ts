@@ -175,6 +175,7 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   // ============ Cluster: delivery — 交期与物流 ============
   { key: 'productionDate',   labelZh: '生产交期',         labelEn: 'Prod Deadline',  cluster: 'delivery', type: 'date', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '从首行 deliveryDate 带出' },
   { key: 'clientDate',       labelZh: '出厂交期 (Exmill)', labelEn: 'Exmill Date',   cluster: 'delivery', type: 'date', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '从首行 exMillDate 带出' },
+  { key: 'factoryVisitDate', labelZh: '客户验厂日期',     labelEn: 'Factory Visit',  cluster: 'delivery', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '客户实地验厂计划日，到期前 7 天提醒' },
   { key: 'shippingDate',     labelZh: '实际发货日',       labelEn: 'Ship Date',      cluster: 'delivery', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'shippingMethod',   labelZh: '运输方式',         labelEn: 'Ship Method',    cluster: 'delivery', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
 

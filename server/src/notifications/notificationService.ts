@@ -63,6 +63,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   crm_follow_up_overdue: '跟进逾期',
   quotation_no_reply: '报价未回复',
   pp_sample_unconfirmed: '厂前样未确认',
+  inspection_fail: '验货不合格',
+  email_inquiry: '新询价邮件',
   hr_lifecycle: '人事生命周期',
   sample_deadline: '样品节点',
   factory_certification_expiring: '工厂认证到期',
@@ -196,6 +198,8 @@ export interface NotificationService {
   markAllAsRead(userId: string): Promise<{ ok: boolean; count: number }>;
   /** 删除通知（仅本人） */
   deleteNotification(userId: string, notificationId: string): Promise<{ ok: boolean }>;
+  /** PRD 7.1：忽略通知（必填原因，用于推送准确率优化）；忽略同时视为已读并从默认列表移除 */
+  dismissNotification(userId: string, notificationId: string, reason: string): Promise<{ ok: boolean }>;
   /** D2：列出本人通知类型偏好 */
   getPreferences(userId: string): Promise<NotificationPreferenceView[]>;
   /** D2：设置某类型对本人的启用/静音（幂等 upsert） */
@@ -418,7 +422,7 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
 
     async listNotifications(params): Promise<{ items: Notification[]; total: number }> {
       const { userId, unreadOnly, type, level, limit = 50, offset = 0 } = params;
-      const where: Record<string, unknown> = { userId };
+      const where: Record<string, unknown> = { userId, dismissedAt: null }; // 已忽略通知退出默认列表
       if (unreadOnly) where.readAt = null;
       if (type) where.type = type;
       if (level) where.level = level;
@@ -472,6 +476,15 @@ export function createNotificationService(prisma: PrismaClient): NotificationSer
     async deleteNotification(userId: string, notificationId: string): Promise<{ ok: boolean }> {
       const result = await prisma.notification.deleteMany({
         where: { id: notificationId, userId },
+      });
+      return { ok: result.count > 0 };
+    },
+
+    async dismissNotification(userId: string, notificationId: string, reason: string): Promise<{ ok: boolean }> {
+      const now = new Date();
+      const result = await prisma.notification.updateMany({
+        where: { id: notificationId, userId, dismissedAt: null },
+        data: { dismissedAt: now, dismissReason: reason, readAt: now }, // 忽略即已读，退出未读统计与默认列表
       });
       return { ok: result.count > 0 };
     },

@@ -3439,6 +3439,7 @@ function orderSamplesContext(order: any) {
       fabricSampleTrackingNumber: order.fabricSampleTrackingNumber,
       paidSampleQuantity: order.paidSampleQuantity,
     }),
+    factoryVisitDate: order.factoryVisitDate,
   });
 }
 

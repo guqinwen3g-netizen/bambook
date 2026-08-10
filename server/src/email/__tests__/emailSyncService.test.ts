@@ -3,6 +3,17 @@ import { syncEmailsFromImap, buildEmailSyncError, maskAccount } from '../emailSy
 
 vi.mock('../sync', () => ({ syncEmailReferences: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../../audit/routeAudit', () => ({ writeRouteAuditLog: vi.fn().mockResolvedValue('alog_test_1') }));
+
+// PRD 7.1 询价邮件提醒 mock
+const notificationMocks = vi.hoisted(() => ({
+  broadcastNotification: vi.fn().mockResolvedValue({ count: 1 }),
+}));
+vi.mock('../../notifications/notificationService', () => ({
+  createNotificationService: () => ({
+    broadcastNotification: notificationMocks.broadcastNotification,
+  }),
+}));
+
 import { syncEmailReferences } from '../sync';
 import { writeRouteAuditLog } from '../../audit/routeAudit';
 
@@ -203,5 +214,78 @@ describe('emailSyncService: C2 自动归档集成', () => {
     expect(emailCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.not.objectContaining({ relationId: expect.anything() }),
     }));
+  });
+});
+
+describe('emailSyncService: PRD 7.1 询价邮件提醒', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationMocks.broadcastNotification.mockClear();
+  });
+
+  function makeInquiryPrisma() {
+    const emailCreate = vi.fn().mockImplementation(async ({ data }: any) => ({ ...data }));
+    const txEmail = { findFirst: vi.fn().mockResolvedValue(null), create: emailCreate };
+    return {
+      prisma: {
+        email: txEmail,
+        relation: { findMany: vi.fn().mockResolvedValue([
+          { id: 'REL__1', name: 'Acme', chineseName: null, email: 'buyer@acme.com', primaryContactEmail: null, isOrganization: true, rating: 1 },
+        ]) },
+        order: { findMany: vi.fn().mockResolvedValue([]) },
+        $transaction: vi.fn(async (fn: any) => fn({ email: txEmail, auditLog: { create: vi.fn() }, entityReference: { upsert: vi.fn() }, entityLink: { upsert: vi.fn() } })),
+      } as any,
+      emailCreate,
+    };
+  }
+
+  const inquiryMessage = {
+    attributes: { uid: 300, date: new Date(), flags: [] },
+    parts: [{ which: '', body: {} }, {
+      which: 'HEADER.FIELDS (FROM TO CC BCC SUBJECT DATE MESSAGE-ID REFERENCES IN-REPLY-TO CONTENT-TYPE)',
+      body: { 'message-id': ['<inquiry@acme.com>'], from: ['Acme Buyer <buyer@acme.com>'], to: [['me@bambook.com']], subject: ['询价：全棉斜纹布 500m'], date: ['2026-08-10T10:00:00Z'] },
+    }],
+  };
+
+  it('入站 inquiry 邮件 → broadcastNotification email_inquiry info', async () => {
+    const { prisma } = makeInquiryPrisma();
+    const imapConnect = makeImapConnect({ messages: [inquiryMessage] });
+    const result = await syncEmailsFromImap({ prisma, credentials: { user: 'a@b.com', pass: 'x' }, imapConnect });
+    expect(result.ok).toBe(true);
+    expect(result.data?.synced).toBe(1);
+    expect(notificationMocks.broadcastNotification).toHaveBeenCalledTimes(1);
+    const payload = notificationMocks.broadcastNotification.mock.calls[0][0];
+    expect(payload.type).toBe('email_inquiry');
+    expect(payload.level).toBe('info');
+    expect(payload.title).toContain('发来新询价');
+    expect(payload.body).toContain('buyer@acme.com');
+    expect(payload.body).toContain('询价：全棉斜纹布');
+    expect(payload.metadata.entityType).toBe('Email');
+    expect(payload.metadata.fromAddress).toBe('buyer@acme.com');
+  });
+
+  it('入站非 inquiry 邮件 → 不触发通知', async () => {
+    const { prisma } = makeInquiryPrisma();
+    const normalMessage = {
+      attributes: { uid: 301, date: new Date(), flags: [] },
+      parts: [{ which: '', body: {} }, {
+        which: 'HEADER.FIELDS (FROM TO CC BCC SUBJECT DATE MESSAGE-ID REFERENCES IN-REPLY-TO CONTENT-TYPE)',
+        body: { 'message-id': ['<hello@test.com>'], from: ['Someone <someone@test.com>'], to: [['me@bambook.com']], subject: ['Hello, how are you'], date: ['2026-08-10T11:00:00Z'] },
+      }],
+    };
+    const imapConnect = makeImapConnect({ messages: [normalMessage] });
+    const result = await syncEmailsFromImap({ prisma, credentials: { user: 'a@b.com', pass: 'x' }, imapConnect });
+    expect(result.ok).toBe(true);
+    expect(result.data?.synced).toBe(1);
+    expect(notificationMocks.broadcastNotification).not.toHaveBeenCalled();
+  });
+
+  it('通知失败不阻断同步主流程', async () => {
+    notificationMocks.broadcastNotification.mockRejectedValueOnce(new Error('notification service down'));
+    const { prisma } = makeInquiryPrisma();
+    const imapConnect = makeImapConnect({ messages: [inquiryMessage] });
+    const result = await syncEmailsFromImap({ prisma, credentials: { user: 'a@b.com', pass: 'x' }, imapConnect });
+    expect(result.ok).toBe(true);
+    expect(result.data?.synced).toBe(1);
   });
 });
