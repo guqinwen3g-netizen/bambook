@@ -266,6 +266,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
     setActionLoading('create');
     try {
+      // 双轨快照（PRD 8.6）：轨道 A 中位 + 轨道 B 终价齐备时随创建提交，服务端计算偏差分级
+      const dualTrackSnapshot = trackAMedian && trackBResult
+        ? {
+            trackAMedianUsd: trackAMedian.usd,
+            trackAUnit: trackAMedian.unit,
+            trackBFinalUsd: trackBResult.finalUnitPrice,
+          }
+        : {};
       const input: QuotationInput = {
         quotationNumber: form.quotationNumber,
         currency: form.currency,
@@ -278,6 +286,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         salesperson: form.salesperson || undefined,
         inquiryRef: form.inquiryRef || undefined,
         notes: form.notes || undefined,
+        ...dualTrackSnapshot,
         lines: validLines.map(l => ({
           fabricCode: l.fabricCode || undefined,
           description: l.description,
@@ -305,7 +314,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     } finally {
       setActionLoading(null);
     }
-  }, [form, formLines, fetchQuotations]);
+  }, [form, formLines, trackAMedian, trackBResult, fetchQuotations]);
 
   const updateFormLine = (key: string, field: keyof DraftLine, value: string) => {
     setFormLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
@@ -691,6 +700,19 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(qt.status.toLowerCase() as any, isDarkMode)} ${statusSemanticText(qt.status.toLowerCase() as any, isDarkMode)}`}>
                                 {STATUS_LABELS[qt.status as QuotationStatus] || qt.status}
                               </span>
+                              {/* 双轨偏差徽标（PRD 8.6 历史快照；warn=已触发审批，block=未审批禁止发送） */}
+                              {qt.priceDeviationLevel === 'warn' && (
+                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass('warning', isDarkMode)} ${statusSemanticText('warning', isDarkMode)}`}>
+                                  <AlertTriangle size={10} />
+                                  偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}% · 已触发审批
+                                </span>
+                              )}
+                              {qt.priceDeviationLevel === 'block' && (
+                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass('danger', isDarkMode)} ${statusSemanticText('danger', isDarkMode)}`}>
+                                  <AlertCircle size={10} />
+                                  偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}% · 需审批后发送
+                                </span>
+                              )}
                             </div>
                             <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                               {qt.customerName || '未指定客户'} · {formatDate(qt.issueDate)}
@@ -725,6 +747,20 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   {qt.salesperson && <div><span className="opacity-60">业务员:</span> {qt.salesperson}</div>}
                                   {qt.inquiryRef && <div><span className="opacity-60">询价参考:</span> {qt.inquiryRef}</div>}
                                 </div>
+
+                                {/* 双轨定价快照（PRD 8.6 历史快照，仅内部参考） */}
+                                {qt.priceDeviationLevel && qt.trackAMedianUsd != null && qt.trackBFinalUsd != null && (
+                                  <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-inset text-xs ${isDarkMode ? 'bg-white/[0.02] text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                                    <span className="opacity-60">双轨快照（内部）:</span>
+                                    <span>轨道 A 中位 ${Number(qt.trackAMedianUsd).toFixed(4)}/{qt.trackAUnit === 'PC' ? '件' : '米'}</span>
+                                    <span>轨道 B 终价 ${Number(qt.trackBFinalUsd).toFixed(4)}</span>
+                                    <span className={statusSemanticText(qt.priceDeviationLevel === 'block' ? 'danger' : qt.priceDeviationLevel === 'warn' ? 'warning' : 'success', isDarkMode)}>
+                                      偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}%
+                                      {qt.priceDeviationLevel === 'warn' && '（已触发审批）'}
+                                      {qt.priceDeviationLevel === 'block' && '（未审批通过禁止发送）'}
+                                    </span>
+                                  </div>
+                                )}
 
                                 {/* 行明细表 */}
                                 {qt.lines && qt.lines.length > 0 && (
@@ -766,6 +802,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         {actionLoading === `${qt.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                         <span>发送报价</span>
                                       </button>
+                                      {/* 双轨红标门禁提示（PRD 8.6）：偏差 >30% 需审批通过后服务端才放行发送 */}
+                                      {qt.priceDeviationLevel === 'block' && (
+                                        <span className={`flex items-center gap-1 text-[10px] ${statusSemanticText('danger', isDarkMode)}`}>
+                                          <AlertCircle size={10} />
+                                          偏差超 30%，需审批通过后发送
+                                        </span>
+                                      )}
                                       <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
                                         {actionLoading === `${qt.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                                         <span>删除</span>

@@ -2838,6 +2838,14 @@ model Quotation {
   exchangeRate Decimal? @db.Decimal(18, 4) // 报价当日 currency → baseCurrency 汇率
   baseCurrency String   @default("CNY") // 本位币
 
+  // ─── 双轨定价快照（PRD 8.6 双轨联动校验；创建时由编辑器写入，此后为历史快照） ───
+  trackAMedianUsd       Decimal? @db.Decimal(18, 4) // 轨道 A 中位估算美元单价
+  trackAUnit            String? // PC（件） | M（米）
+  trackBFinalUsd        Decimal? @db.Decimal(18, 4) // 轨道 B 终价美元单价
+  priceDeviationPercent Float? // 终价偏离估算中位百分比（正 = 高于估算）
+  priceDeviationLevel   String? // ok | warn（>15%，已触发审批） | block（>30%，未审批通过禁止发送）
+  priceApprovalId       String? // 偏差 >15% 时自动生成的 ApprovalRequest id
+
   // ─── 关联（snapshot FK，不强制约束） ───
   customerRelationId String? // 结算单位
   customerName       String? // 冗余快照

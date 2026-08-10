@@ -18,6 +18,8 @@ import { PrismaClient, Quotation, QuotationLine } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
 import { deactivateEntityLinks, syncOrderEntityReferences, syncQuotationReferences } from '../entities/sync';
+import { calculatePriceDeviation, DeviationLevel } from '../pricing/trackAEstimator';
+import { resolveActorUserAccountId } from '../agent/actorIdentity';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -48,6 +50,10 @@ export interface CreateQuotationInput {
   baseCurrency?: string;
   notes?: string;
   lines: QuotationLineInput[];
+  // ── 双轨定价快照（PRD 8.6；可选，A/B 双轨价齐备时创建即计算偏差分级并持久化）──
+  trackAMedianUsd?: number; // 轨道 A 中位估算美元单价
+  trackAUnit?: string; // PC（件） | M（米）
+  trackBFinalUsd?: number; // 轨道 B 终价美元单价
 }
 
 export interface UpdateQuotationInput extends Partial<CreateQuotationInput> {
@@ -113,6 +119,36 @@ export function createQuotationService(prisma: PrismaClient) {
     const now = Date.now();
     const quotationId = generateQuotationId();
 
+    // ── 双轨偏差快照（PRD 8.6）：A/B 双轨价齐备 → 计算偏差分级；warn/block 自动生成审批 ──
+    const trackAOk = Number.isFinite(input.trackAMedianUsd) && (input.trackAMedianUsd as number) > 0;
+    const trackBOk = Number.isFinite(input.trackBFinalUsd) && (input.trackBFinalUsd as number) > 0;
+    let deviation: { deviationPercent: number; level: DeviationLevel } | null = null;
+    if (trackAOk && trackBOk) {
+      deviation = calculatePriceDeviation(input.trackBFinalUsd as number, input.trackAMedianUsd as number);
+    }
+
+    // warn/block → 需要审批：先解析 requester（actor → UserAccount，fallback owner）
+    // 无法解析时不阻断创建：快照照常落库，priceApprovalId 置空；发送门禁对 block 仍 fail-closed
+    let approvalId: string | null = null;
+    let approvalRequesterId: string | null = null;
+    if (deviation && deviation.level !== 'ok') {
+      approvalRequesterId = await resolveActorUserAccountId(prisma, { userId: actorId }).catch(() => null);
+      if (!approvalRequesterId) {
+        const owner = await prisma.userAccount.findFirst({
+          where: { id: 'usr_owner_default', deletedAt: null, status: 'active' },
+          select: { id: true },
+        }).catch(() => null);
+        approvalRequesterId = owner?.id ?? null;
+      }
+      if (approvalRequesterId) {
+        approvalId = `ar_${now}_${Math.random().toString(36).slice(2, 8)}`;
+      } else {
+        logger.warn('[QuotationService] price deviation approval skipped: no resolvable requester', {
+          quotationNumber: input.quotationNumber, deviationPercent: deviation.deviationPercent, level: deviation.level,
+        });
+      }
+    }
+
     const created = await prisma.$transaction(async (tx) => {
       const quotation = await tx.quotation.create({
         data: {
@@ -133,6 +169,13 @@ export function createQuotationService(prisma: PrismaClient) {
           salesperson: input.salesperson ?? null,
           inquiryRef: input.inquiryRef ?? null,
           notes: input.notes ?? null,
+          // 双轨快照（此后为历史快照，不随编辑变更）
+          trackAMedianUsd: trackAOk ? (input.trackAMedianUsd as number) : null,
+          trackAUnit: trackAOk ? (input.trackAUnit ?? null) : null,
+          trackBFinalUsd: trackBOk ? (input.trackBFinalUsd as number) : null,
+          priceDeviationPercent: deviation?.deviationPercent ?? null,
+          priceDeviationLevel: deviation?.level ?? null,
+          priceApprovalId: approvalId,
           createdAt: now,
           updatedAt: now,
           lines: {
@@ -153,6 +196,32 @@ export function createQuotationService(prisma: PrismaClient) {
         include: { lines: { orderBy: { lineNumber: 'asc' } } },
       });
 
+      // 偏差 >15% → 同事务自动生成审批请求（warn 提示审批，block 未通过禁止发送）
+      if (approvalId && deviation && approvalRequesterId) {
+        await tx.approvalRequest.create({
+          data: {
+            id: approvalId,
+            requesterId: approvalRequesterId,
+            actionType: 'quotation:price-deviation',
+            targetType: 'Quotation',
+            targetId: quotationId,
+            status: 'pending',
+            risk: deviation.level === 'block' ? 'high' : 'medium',
+            payload: {
+              quotationId,
+              quotationNumber: input.quotationNumber,
+              trackAMedianUsd: input.trackAMedianUsd,
+              trackAUnit: input.trackAUnit ?? null,
+              trackBFinalUsd: input.trackBFinalUsd,
+              deviationPercent: deviation.deviationPercent,
+              level: deviation.level,
+              requestedAt: new Date(now).toISOString(),
+              source: 'quotation-dual-track',
+            },
+          },
+        });
+      }
+
       // 审计日志
       await tx.auditLog.create({
         data: {
@@ -161,7 +230,7 @@ export function createQuotationService(prisma: PrismaClient) {
           action: 'create_quotation',
           targetType: 'Quotation',
           targetId: quotationId,
-          detail: { source: 'api:quotation', after: { quotationNumber: input.quotationNumber, totalAmount, lineCount: input.lines.length } } as any,
+          detail: { source: 'api:quotation', after: { quotationNumber: input.quotationNumber, totalAmount, lineCount: input.lines.length, priceDeviationLevel: deviation?.level ?? null } } as any,
           ip: null,
           operationType: 'create',
           fieldPath: null,
@@ -355,6 +424,21 @@ export function createQuotationService(prisma: PrismaClient) {
     const existing = await prisma.quotation.findUnique({ where: { id }, include: { lines: true } });
     if (!existing || existing.deletedAt) throw new Error(`报价单 ${id} 不存在`);
     validateStatusTransition(existing.status, 'Sent');
+
+    // ── 双轨红标门禁（PRD 8.6）：偏差 >30% 未审批通过禁止发送（fail-closed）──
+    if (existing.priceDeviationLevel === 'block') {
+      let approved = false;
+      if (existing.priceApprovalId) {
+        const approval = await prisma.approvalRequest.findUnique({ where: { id: existing.priceApprovalId } });
+        approved = approval?.status === 'approved';
+      }
+      if (!approved) {
+        throw new Error(
+          `报价单 ${existing.quotationNumber} 双轨偏差 ${existing.priceDeviationPercent ?? '?'}% 超过 30% 红标阈值，`
+          + `需审批通过后方可发送（门禁：price-deviation${existing.priceApprovalId ? '' : '，审批请求缺失'}）`,
+        );
+      }
+    }
 
     const now = Date.now();
     const updated = await prisma.$transaction(async (tx) => {

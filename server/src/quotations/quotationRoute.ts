@@ -192,8 +192,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
       res.json({ quotation });
     } catch (e: any) {
       logger.error('[QuotationRoute] POST send failed', { error: e?.message });
-      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('非法') ? 409 : 400;
-      res.status(status).json({ error: e?.message || 'failed to send quotation' });
+      const msg = e?.message || '';
+      const status = msg.includes('不存在') ? 404 : msg.includes('非法') || msg.includes('门禁') ? 409 : 400;
+      res.status(status).json({ error: msg || 'failed to send quotation' });
     }
   });
 

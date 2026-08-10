@@ -1759,6 +1759,13 @@ export interface Quotation {
   inquiryRef?: string;
   convertedOrderId?: string;
   notes?: string;
+  // ── 双轨定价快照（PRD 8.6；创建时写入的历史快照）──
+  trackAMedianUsd?: number | null; // 轨道 A 中位估算美元单价
+  trackAUnit?: string | null; // PC（件） | M（米）
+  trackBFinalUsd?: number | null; // 轨道 B 终价美元单价
+  priceDeviationPercent?: number | null; // 终价偏离估算中位百分比
+  priceDeviationLevel?: 'ok' | 'warn' | 'block' | null; // ok | warn（>15% 触发审批） | block（>30% 未审批禁止发送）
+  priceApprovalId?: string | null; // 偏差 >15% 时自动生成的 ApprovalRequest id
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
@@ -1780,6 +1787,10 @@ export interface QuotationInput {
   exchangeRate?: number;
   baseCurrency?: string;
   notes?: string;
+  // ── 双轨定价快照（PRD 8.6；可选，A/B 双轨价齐备时服务端计算偏差并持久化）──
+  trackAMedianUsd?: number;
+  trackAUnit?: string;
+  trackBFinalUsd?: number;
   lines: Array<{
     fabricCode?: string;
     description: string;
