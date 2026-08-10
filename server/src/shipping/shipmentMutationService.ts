@@ -99,6 +99,8 @@ function toMutationError(e: any, fallback: ShipmentMutationErrorCode): ShipmentM
 
 // ─── CREATE ────────────────────────────────────────────────────────
 
+import { nextBusinessNumber } from '../shared/businessNumberService';
+
 export interface CreateShipmentParams {
   prisma: PrismaClient;
   input: any;
@@ -154,7 +156,9 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
       const shipmentStatus = input.status ?? 'Booked';
       const shipmentId = input?.id
         || (generateIdIfMissing ? `SHP__${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` : undefined);
-      const data: any = { ...input, status: shipmentStatus, createdAt: now, updatedAt: now };
+      // PRD 5.6：服务端自动生成运单号（SH-YYYY-NNNN），传入时优先使用传入值
+      const shipmentNumber = input.shipmentNumber || await nextBusinessNumber(t, 'SH');
+      const data: any = { ...input, shipmentNumber, status: shipmentStatus, createdAt: now, updatedAt: now };
       if (shipmentId) data.id = shipmentId;
       const sh = await t.shipment.create({ data });
 

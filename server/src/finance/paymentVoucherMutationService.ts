@@ -7,6 +7,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import { nextBusinessNumber } from '../shared/businessNumberService';
 import crypto from 'crypto';
 
 export const VALID_PAYMENT_VOUCHER_STATUS = ['unreconciled', 'partially_reconciled', 'reconciled'] as const;
@@ -148,7 +149,9 @@ export async function createPaymentVoucher(params: {
     const result = await (prisma as any).$transaction(async (tx: any) => {
       const now = BigInt(Date.now());
       const id = generateId('PAY');
-      const data = { id, ...normalized.data, voucherNumber: input.voucherNumber, createdAt: now, updatedAt: now };
+      // PRD 5.6：服务端自动生成凭证号（PV-YYYY-NNNN），传入时优先使用传入值
+      const voucherNumber = input.voucherNumber || await nextBusinessNumber(tx, 'PV');
+      const data = { id, ...normalized.data, voucherNumber, createdAt: now, updatedAt: now };
       const voucher = await tx.paymentVoucher.create({ data });
       await syncPaymentVoucherReferences(prisma, voucher, { source: 'route:voucher:create' }, tx);
       const auditId = await writeRouteAuditLog({

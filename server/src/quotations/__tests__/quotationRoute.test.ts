@@ -88,6 +88,13 @@ function makeApp(opts: {
       findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn().mockResolvedValue({}),
     },
+    // BusinessSequence mock（统一编号服务依赖）
+    businessSequence: {
+      upsert: vi.fn().mockImplementation(async ({ where, create }: any) => ({ ...create, seq: 0 })),
+      update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ seq: 1 })),
+      findUnique: vi.fn().mockResolvedValue(null),
+      deleteMany: vi.fn().mockResolvedValue({}),
+    },
   };
 
   const prisma: any = {
@@ -139,12 +146,13 @@ describe('quotationRoute: POST / (create)', () => {
     }));
   });
 
-  it('缺少 quotationNumber → 400', async () => {
+  it('缺少 quotationNumber → 自动生成（服务端编号服务）', async () => {
     const { app, onDataChange } = makeApp();
     const res = await request(app).post('/api/v1/quotations').send({ ...validInput, quotationNumber: '' });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/quotationNumber/);
-    expect(onDataChange).not.toHaveBeenCalled();
+    // quotationNumber 为空时服务端自动生成，不再返回 400
+    expect(res.status).toBe(201);
+    expect(res.body.quotation.quotationNumber).toMatch(/^QT-\d{4}-\d{4}$/);
+    expect(onDataChange).toHaveBeenCalled();
   });
 
   it('缺少 currency → 400', async () => {

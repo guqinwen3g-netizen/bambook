@@ -66,6 +66,17 @@ function makePrisma(overrides: Record<string, any> = {}) {
     order: {
       findUnique: overrides.orderFindUnique ?? vi.fn().mockResolvedValue({ customerRelationId: 'rel_1' }),
     },
+    // BusinessSequence mock（统一编号服务依赖，支持 seq 递增）
+    businessSequence: overrides.businessSequence ?? {
+      upsert: vi.fn().mockImplementation(async ({ where, create }: any) => ({ ...create, seq: 0 })),
+      update: vi.fn().mockImplementation(async ({ where, data }: any) => {
+        const current = (prisma as any)._seq ?? 0;
+        (prisma as any)._seq = current + 1;
+        return { seq: current + 1 };
+      }),
+      findUnique: vi.fn().mockImplementation(async () => ({ seq: (prisma as any)._seq ?? 0 })),
+      deleteMany: vi.fn().mockResolvedValue({}),
+    },
     _tx: tx,
   };
   return prisma;
@@ -82,25 +93,23 @@ describe('generateTradeDocumentNumber', () => {
     expect(num).toBe(`CI-${YEAR}-0001`);
   });
 
-  it('含软删记录取 max+1（作废不回收）', async () => {
-    const prisma = makePrisma({
-      docFindMany: vi.fn().mockResolvedValue([
-        { documentNumber: `PL-${YEAR}-0003` },
-        { documentNumber: `PL-${YEAR}-0007` }, // 已软删也计入
-        { documentNumber: `PL-${YEAR}-0005` },
-      ]),
-    });
-    const num = await generateTradeDocumentNumber(prisma, 'PackingList');
-    expect(num).toBe(`PL-${YEAR}-0008`);
+  it('统一编号服务：同类型 seq 递增（作废不回收）', async () => {
+    const prisma = makePrisma();
+    const num1 = await generateTradeDocumentNumber(prisma, 'PackingList');
+    expect(num1).toBe(`PL-${YEAR}-0001`);
+    const num2 = await generateTradeDocumentNumber(prisma, 'PackingList');
+    expect(num2).toBe(`PL-${YEAR}-0002`);
   });
 
-  it('序号超 4 位按数值比较（非字符串排序）', async () => {
+  it('降级路径：无 businessSequence 时扫描既有记录（mock 测试场景兼容）', async () => {
     const prisma = makePrisma({
       docFindMany: vi.fn().mockResolvedValue([
         { documentNumber: `CI-${YEAR}-9999` },
         { documentNumber: `CI-${YEAR}-10000` },
       ]),
     });
+    // 显式移除 businessSequence，触发降级路径
+    delete prisma.businessSequence;
     const num = await generateTradeDocumentNumber(prisma, 'CommercialInvoice');
     expect(num).toBe(`CI-${YEAR}-10001`);
   });

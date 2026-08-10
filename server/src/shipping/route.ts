@@ -276,7 +276,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   // task ERP-P1-shipping-mutation-shared-service-foundation: route 只调 service
   router.post('/', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
     const input = pickFields(req.body as ShipmentCreateInput, [
-      'shipmentNumber', 'type', 'shippingMethod', 'status', 'bookingDate',
+      'type', 'shippingMethod', 'status', 'bookingDate',
       'etd', 'atd', 'eta', 'ata',
       'vesselOrFlight', 'voyageNumber',
       'portOfLoading', 'portOfDischarge',

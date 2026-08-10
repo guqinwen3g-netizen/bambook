@@ -3,6 +3,7 @@ import { syncInvoiceReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { validateStatusTransition } from '../statusTransition';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import { nextBusinessNumber } from '../shared/businessNumberService';
 import crypto from 'crypto';
 
 export type InvoiceMutationErrorCode =
@@ -114,7 +115,9 @@ export async function createInvoice(params: { prisma: PrismaClient; input: Invoi
     const result = await (prisma as any).$transaction(async (tx: any) => {
       const now = BigInt(Date.now());
       const id = generateId('INV');
-      const data = { id, ...normalized.data, invoiceNumber: input.invoiceNumber, createdAt: now, updatedAt: now };
+      // PRD 5.6：服务端自动生成发票号（INV-YYYY-NNNN），传入时优先使用传入值
+      const invoiceNumber = input.invoiceNumber || await nextBusinessNumber(tx, 'INV');
+      const data = { id, ...normalized.data, invoiceNumber, createdAt: now, updatedAt: now };
       const invoice = await tx.invoice.create({ data });
       await syncInvoiceReferences(prisma, invoice, { source: 'route:invoice:create' }, tx);
       const auditId = await writeRouteAuditLog({

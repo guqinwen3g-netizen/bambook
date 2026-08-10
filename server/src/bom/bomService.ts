@@ -51,8 +51,11 @@ export interface CostEstimateInput {
   notes?: string;
 }
 
+import { nextBusinessNumber } from '../shared/businessNumberService';
+
 export interface CreateBOMInput {
-  bomNumber: string;
+  /** BOM 编号（可选，服务端自动生成 BOM-YYYY-NNNN；传入时优先使用传入值并校验唯一性） */
+  bomNumber?: string;
   description: string;
   productAssetId?: string;
   orderId?: string;
@@ -180,10 +183,12 @@ export function createBOMService(prisma: PrismaClient) {
   // ════════════════════════════════════════
 
   async function createBOM(input: CreateBOMInput, actorId: string): Promise<BOMDetail> {
-    // 校验 bomNumber 唯一
-    const existing = await prisma.bOM.findUnique({ where: { bomNumber: input.bomNumber } });
-    if (existing && !existing.deletedAt) {
-      throw new Error(`BOM 编号 ${input.bomNumber} 已存在`);
+    // 校验 bomNumber 唯一（仅在传入时校验；未传入时服务端自动生成，无重号风险）
+    if (input.bomNumber) {
+      const existing = await prisma.bOM.findUnique({ where: { bomNumber: input.bomNumber } });
+      if (existing && !existing.deletedAt) {
+        throw new Error(`BOM 编号 ${input.bomNumber} 已存在`);
+      }
     }
 
     // 校验行明细
@@ -204,10 +209,12 @@ export function createBOMService(prisma: PrismaClient) {
     const { profitAmount, profitMargin } = calcProfit(input.sellingPrice, totalCost);
 
     const bom = await prisma.$transaction(async (tx) => {
+      // PRD 5.6：服务端自动生成 BOM 编号（BOM-YYYY-NNNN），传入时优先使用传入值
+      const bomNumber = input.bomNumber || await nextBusinessNumber(tx, 'BOM');
       const created = await tx.bOM.create({
         data: {
           id: generateBOMId(),
-          bomNumber: input.bomNumber,
+          bomNumber,
           status: 'Draft',
           description: input.description,
           productAssetId: input.productAssetId ?? null,

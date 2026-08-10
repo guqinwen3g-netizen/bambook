@@ -4579,3 +4579,17 @@ model ReportRun {
   @@index([status])
   @@index([createdAt])
 }
+
+// ════════════════════════════════════════════════════════════════════
+// 业务编号序列 — PRD 5.6 按年递增规则
+// ════════════════════════════════════════════════════════════════════
+model BusinessSequence {
+  id     String @id // 格式：SEQ_${prefix}_${year}
+  prefix String // 编号前缀：QT | ORD | PO | INV | SH | CD | PV | IR | SM | BOM
+  year   Int    // 年份：2026
+  seq    Int    // 当前序号（已分配的最大序号）
+
+  updatedAt BigInt
+
+  @@unique([prefix, year])
+}

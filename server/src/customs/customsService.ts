@@ -21,6 +21,7 @@ import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
 import { deactivateEntityLinks, syncCustomsDeclarationReferences, syncLetterOfCreditReferences, syncTaxRefundReferences } from '../entities/sync';
 import { appendTradeDocumentVersion, generateTradeDocumentNumber, toTradeDocumentSnapshot } from './tradeDocumentLifecycleService';
+import { nextBusinessNumber } from '../shared/businessNumberService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -52,7 +53,8 @@ export type TradeDocumentStatus = 'Draft' | 'Issued' | 'Submitted' | 'Accepted' 
 // ─── Input 类型 ───
 
 export interface CustomsDeclarationInput {
-  declarationNumber: string;
+  /** 报关单号（可选，服务端自动生成 CD-YYYY-NNNN；传入时优先使用传入值并校验唯一性） */
+  declarationNumber?: string;
   shipmentId?: string;
   orderId?: string;
   relationId?: string;
@@ -109,7 +111,8 @@ export interface HsCodeInput {
 }
 
 export interface LetterOfCreditInput {
-  lcNumber: string;
+  /** 信用证号（可选，服务端自动生成 LC-YYYY-NNNN；传入时优先使用传入值并校验唯一性） */
+  lcNumber?: string;
   relationId?: string;
   orderId?: string;
   type: LetterOfCreditType;
@@ -137,7 +140,8 @@ export interface LetterOfCreditInput {
 }
 
 export interface TaxRefundInput {
-  refundNumber: string;
+  /** 退税编号（可选，服务端自动生成 TR-YYYY-NNNN；传入时优先使用传入值并校验唯一性） */
+  refundNumber?: string;
   declarationId?: string;
   orderId?: string;
   relationId?: string;
@@ -314,18 +318,20 @@ export function createCustomsService(prisma: PrismaClient) {
   async function createDeclaration(input: CustomsDeclarationInput, actorId: string) {
     validateCustomsType(input.type);
 
+    // PRD 5.6：服务端自动生成报关单号（CD-YYYY-NNNN），传入时优先使用传入值并校验唯一性
+    const declarationNumber = input.declarationNumber || await nextBusinessNumber(prisma, 'CD');
     const existing = await prisma.customsDeclaration.findFirst({
-      where: { declarationNumber: input.declarationNumber, deletedAt: null },
+      where: { declarationNumber, deletedAt: null },
       select: { id: true },
     });
-    if (existing) throw new Error(`报关单号 ${input.declarationNumber} 已存在`);
+    if (existing) throw new Error(`报关单号 ${declarationNumber} 已存在`);
 
     const ts = now();
     const declaration = await prisma.$transaction(async (tx) => {
       const decl = await tx.customsDeclaration.create({
         data: {
           id: generateId('CD'),
-          declarationNumber: input.declarationNumber,
+          declarationNumber,
           shipmentId: input.shipmentId ?? null,
           orderId: input.orderId ?? null,
           relationId: input.relationId ?? null,
@@ -784,18 +790,20 @@ export function createCustomsService(prisma: PrismaClient) {
   async function createLetterOfCredit(input: LetterOfCreditInput, actorId: string) {
     validateLcType(input.type);
 
+    // PRD 5.6：服务端自动生成信用证号（LC-YYYY-NNNN），传入时优先使用传入值并校验唯一性
+    const lcNumber = input.lcNumber || await nextBusinessNumber(prisma, 'LC');
     const existing = await prisma.letterOfCredit.findFirst({
-      where: { lcNumber: input.lcNumber, deletedAt: null },
+      where: { lcNumber, deletedAt: null },
       select: { id: true },
     });
-    if (existing) throw new Error(`信用证号 ${input.lcNumber} 已存在`);
+    if (existing) throw new Error(`信用证号 ${lcNumber} 已存在`);
 
     const ts = now();
     const lc = await prisma.$transaction(async (tx) => {
-      const letter = await tx.letterOfCredit.create({
+      const letterOfCredit = await tx.letterOfCredit.create({
         data: {
           id: generateId('LC'),
-          lcNumber: input.lcNumber,
+          lcNumber,
           relationId: input.relationId ?? null,
           orderId: input.orderId ?? null,
           type: input.type,
@@ -831,15 +839,15 @@ export function createCustomsService(prisma: PrismaClient) {
           action: 'LC_CREATE',
           actorId,
           targetType: 'LetterOfCredit',
-          targetId: letter.id,
-          detail: { lcNumber: letter.lcNumber, type: letter.type, amount: input.amount },
+          targetId: letterOfCredit.id,
+          detail: { lcNumber: letterOfCredit.lcNumber, type: letterOfCredit.type, amount: input.amount },
         },
       });
       // F1：首节点事件（开证登记）+ 图谱入链，同事务保证节点可追溯
       await tx.lcEvent.create({
         data: {
           id: generateId('LCE'),
-          lcId: letter.id,
+          lcId: letterOfCredit.id,
           fromNode: null,
           toNode: 'Issued',
           eventDate: input.issueDate ?? new Date().toISOString().slice(0, 10),
@@ -848,11 +856,11 @@ export function createCustomsService(prisma: PrismaClient) {
           createdAt: ts,
         },
       });
-      await syncLetterOfCreditReferences(prisma, letter, { source: 'api:customs' }, tx);
-      return letter;
+      await syncLetterOfCreditReferences(prisma, letterOfCredit, { source: 'api:customs' }, tx);
+      return letterOfCredit;
     });
 
-    logger.info('[CustomsService] letterOfCredit created', { id: lc.id, lcNumber: input.lcNumber, actorId });
+    logger.info('[CustomsService] letterOfCredit created', { id: lc.id, lcNumber, actorId });
     return lc;
   }
 
@@ -1086,11 +1094,13 @@ export function createCustomsService(prisma: PrismaClient) {
   // ────────────────────────────────────────────────────────────
 
   async function createTaxRefund(input: TaxRefundInput, actorId: string) {
+    // PRD 5.6：服务端自动生成退税编号（TR-YYYY-NNNN），传入时优先使用传入值并校验唯一性
+    const refundNumber = input.refundNumber || await nextBusinessNumber(prisma, 'TR');
     const existing = await prisma.taxRefund.findFirst({
-      where: { refundNumber: input.refundNumber, deletedAt: null },
+      where: { refundNumber, deletedAt: null },
       select: { id: true },
     });
-    if (existing) throw new Error(`退税编号 ${input.refundNumber} 已存在`);
+    if (existing) throw new Error(`退税编号 ${refundNumber} 已存在`);
 
     // 自动计算退税额：refundAmount = exportAmountCny × refundableRate
     let refundAmount = input.refundAmount;
@@ -1103,7 +1113,7 @@ export function createCustomsService(prisma: PrismaClient) {
       const tr = await tx.taxRefund.create({
         data: {
           id: generateId('TR'),
-          refundNumber: input.refundNumber,
+          refundNumber,
           declarationId: input.declarationId ?? null,
           orderId: input.orderId ?? null,
           relationId: input.relationId ?? null,

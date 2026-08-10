@@ -11,6 +11,7 @@ import { ParsedOrder } from '../import/types';
 import { syncOrderEntityReferences } from '../entities/sync';
 import { getOrder, getOrderContext, queryOrders } from './query';
 import { logger } from '../lib/logger';
+import { nextBusinessNumber } from '../shared/businessNumberService';
 
 export interface OrdersRouterOptions {
   prisma: PrismaClient;
@@ -163,7 +164,6 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     const body = (req.body || {}) as Record<string, unknown> & { id?: string; poNumber?: string };
     const errors: string[] = [];
     if (!body.customer) errors.push('customer (客户) is required');
-    if (!body.poNumber) errors.push('poNumber (订单号) is required');
     if (!body.millName) errors.push('millName (面料工厂) is required');
     if (errors.length > 0) {
       return res.status(400).json({ error: 'VALIDATION_FAILED', message: errors.join('; ') });
@@ -193,10 +193,13 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       // $transaction wraps create + auditLog to enforce fail-closed:
       // if AuditLog write fails, the order create rolls back.
       const created = await opts.prisma.$transaction(async (tx) => {
+        // PRD 5.6：服务端自动生成订单号（ORD-YYYY-NNNN），传入时优先使用传入值
+        const poNumber = (writableInput as any).poNumber || await nextBusinessNumber(tx, 'ORD');
         const order = await tx.order.create({
           data: {
             ...(writableInput as any),
             id,
+            poNumber,
             customer: writableInput.customer as string,
             product,
             type: (writableInput.type as string | undefined) ?? 'Fabric',

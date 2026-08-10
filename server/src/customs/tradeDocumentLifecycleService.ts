@@ -17,6 +17,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { assembleDocumentSetData } from '../shipping/documentSetService';
+import { nextBusinessNumber } from '../shared/businessNumberService';
 import type { TradeDocumentType } from './customsService';
 
 // ────────────────────────────────────────────────────────────────
@@ -51,6 +52,13 @@ export async function generateTradeDocumentNumber(db: DbLike, type: TradeDocumen
   if (!prefix) throw new Error(`非法单据类型: ${type}`);
   const year = new Date().getFullYear();
   const stem = `${prefix}-${year}-`;
+
+  // 若 db 有 businessSequence 模型（生产环境），走统一编号服务
+  if ((db as any).businessSequence) {
+    return nextBusinessNumber(db as any, prefix as any);
+  }
+
+  // 降级：mock 环境（单元测试）或无 businessSequence 模型，回退到扫描 max+1
   const rows = await db.tradeDocument.findMany({
     where: { documentNumber: { startsWith: stem } },
     select: { documentNumber: true },

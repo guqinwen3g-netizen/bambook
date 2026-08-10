@@ -35,8 +35,11 @@ export interface PurchaseLineInput {
   notes?: string;
 }
 
+import { nextBusinessNumber } from '../shared/businessNumberService';
+
 export interface CreatePurchaseOrderInput {
-  poNumber: string;
+  /** 采购单号（可选，服务端自动生成 PO-YYYY-NNNN；传入时优先使用传入值并校验唯一性） */
+  poNumber?: string;
   currency: string;
   supplierRelationId?: string;
   supplierName?: string;
@@ -146,10 +149,12 @@ export function createProcurementService(prisma: PrismaClient) {
     const purchaseOrderId = generatePurchaseOrderId();
 
     const created = await prisma.$transaction(async (tx) => {
+      // PRD 5.6：服务端自动生成采购单号（PO-YYYY-NNNN），传入时优先使用传入值
+      const poNumber = input.poNumber || await nextBusinessNumber(tx, 'PO');
       const purchaseOrder = await tx.purchaseOrder.create({
         data: {
           id: purchaseOrderId,
-          poNumber: input.poNumber,
+          poNumber,
           status: 'Draft',
           currency: input.currency,
           totalAmount,

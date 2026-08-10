@@ -92,8 +92,8 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
       const input = req.body as CreateQuotationInput;
 
       // 基本校验
-      if (!input.quotationNumber || !input.currency || !input.issueDate) {
-        return res.status(400).json({ error: '缺少必填字段：quotationNumber / currency / issueDate' });
+      if (!input.currency || !input.issueDate) {
+        return res.status(400).json({ error: '缺少必填字段：currency / issueDate' });
       }
       if (!input.lines || input.lines.length === 0) {
         return res.status(400).json({ error: '至少需要一行报价明细' });

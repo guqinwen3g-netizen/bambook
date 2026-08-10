@@ -20,6 +20,7 @@ import { businessEventBus } from '../events/businessEventBus';
 import { deactivateEntityLinks, syncOrderEntityReferences, syncQuotationReferences } from '../entities/sync';
 import { calculatePriceDeviation, DeviationLevel } from '../pricing/trackAEstimator';
 import { resolveActorUserAccountId } from '../agent/actorIdentity';
+import { nextBusinessNumber } from '../shared/businessNumberService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -35,7 +36,8 @@ export interface QuotationLineInput {
 }
 
 export interface CreateQuotationInput {
-  quotationNumber: string;
+  /** 报价号（可选，服务端自动生成 QT-YYYY-NNNN；传入时优先使用传入值并校验唯一性） */
+  quotationNumber?: string;
   currency: string;
   customerRelationId?: string;
   customerName?: string;
@@ -150,10 +152,12 @@ export function createQuotationService(prisma: PrismaClient) {
     }
 
     const created = await prisma.$transaction(async (tx) => {
+      // PRD 5.6：服务端自动生成报价号（QT-YYYY-NNNN），传入时优先使用传入值
+      const quotationNumber = input.quotationNumber || await nextBusinessNumber(tx, 'QT');
       const quotation = await tx.quotation.create({
         data: {
           id: quotationId,
-          quotationNumber: input.quotationNumber,
+          quotationNumber,
           status: 'Draft',
           currency: input.currency,
           totalAmount,
@@ -230,7 +234,7 @@ export function createQuotationService(prisma: PrismaClient) {
           action: 'create_quotation',
           targetType: 'Quotation',
           targetId: quotationId,
-          detail: { source: 'api:quotation', after: { quotationNumber: input.quotationNumber, totalAmount, lineCount: input.lines.length, priceDeviationLevel: deviation?.level ?? null } } as any,
+          detail: { source: 'api:quotation', after: { quotationNumber, totalAmount, lineCount: input.lines.length, priceDeviationLevel: deviation?.level ?? null } } as any,
           ip: null,
           operationType: 'create',
           fieldPath: null,
