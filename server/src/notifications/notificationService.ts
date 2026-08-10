@@ -61,6 +61,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   lc_shipment_deadline: '信用证装运截止',
   lc_presentation_deadline: '信用证交单截止',
   crm_follow_up_overdue: '跟进逾期',
+  quotation_no_reply: '报价未回复',
+  pp_sample_unconfirmed: '厂前样未确认',
   hr_lifecycle: '人事生命周期',
   sample_deadline: '样品节点',
   factory_certification_expiring: '工厂认证到期',
