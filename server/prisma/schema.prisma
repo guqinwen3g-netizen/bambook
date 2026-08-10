@@ -2870,6 +2870,7 @@ model Quotation {
   createdAt BigInt
   updatedAt BigInt
   deletedAt BigInt?
+  sentAt    BigInt? // 发送时间（Draft→Sent 时写入；用于「Sent 超 7 天未回复」提醒与账龄分析）
 
   // ─── 关联行 ───
   lines QuotationLine[]

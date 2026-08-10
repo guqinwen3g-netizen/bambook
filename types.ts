@@ -1759,6 +1759,7 @@ export interface Quotation {
   inquiryRef?: string;
   convertedOrderId?: string;
   notes?: string;
+  sentAt?: number | null; // 发送时间毫秒时间戳（Draft→Sent 写入；Sent 超 7 天未回复提醒用）
   // ── 双轨定价快照（PRD 8.6；创建时写入的历史快照）──
   trackAMedianUsd?: number | null; // 轨道 A 中位估算美元单价
   trackAUnit?: string | null; // PC（件） | M（米）
@@ -2911,6 +2912,26 @@ export interface NotificationTypeCatalogItem {
   label: string;
   isEnabled: boolean;
   seenCount: number;
+}
+
+// ── 业务审批中心（PRD 19.21；/api/v1/approvals，Agent 工具审批 tool:* 不在此列）──
+export type ApprovalRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ApprovalRequestItem {
+  id: string;
+  requesterId: string;
+  reviewerId?: string | null;
+  actionType: string; // 如 quotation:price-deviation
+  targetType: string; // 如 Quotation
+  targetId?: string | null;
+  status: ApprovalRequestStatus;
+  risk: string; // low | medium | high
+  payload: Record<string, any>;
+  decisionNote?: string | null;
+  createdAt: string;
+  decidedAt?: string | null;
+  requester?: { id: string; displayName?: string | null; email?: string | null } | null;
+  reviewer?: { id: string; displayName?: string | null; email?: string | null } | null;
 }
 
 // ── 自动化规则 ──

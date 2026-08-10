@@ -444,7 +444,7 @@ export function createQuotationService(prisma: PrismaClient) {
     const updated = await prisma.$transaction(async (tx) => {
       const quotation = await tx.quotation.update({
         where: { id },
-        data: { status: 'Sent', updatedAt: now },
+        data: { status: 'Sent', updatedAt: now, sentAt: existing.sentAt ?? now }, // 重发场景保留首次发送时间
         include: { lines: { orderBy: { lineNumber: 'asc' } } },
       });
 

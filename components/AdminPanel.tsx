@@ -1015,9 +1015,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                     {approvals.map((a: any) => (
                       <div key={a.id} className={`${inlinePanelClass} p-3 mb-2`}>
                         <div className="flex items-center justify-between">
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <span className={sectionMutedClass}>{a.actionType}</span>
                             <span className={`text-[10px] ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{a.risk} risk</span>
+                            {/* PRD 8.6 双轨偏差业务审批上下文（报价单号 + 轨道 A/B + 偏差） */}
+                            {a.actionType === 'quotation:price-deviation' && a.payload && (
+                              <div className={`mt-1 text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                报价单 {a.payload.quotationNumber || a.targetId}
+                                {' · '}轨道 A 中位 ${Number(a.payload.trackAMedianUsd ?? 0).toFixed(4)}/{a.payload.trackAUnit === 'PC' ? '件' : '米'}
+                                {' · '}轨道 B 终价 ${Number(a.payload.trackBFinalUsd ?? 0).toFixed(4)}
+                                {' · '}偏差 {(a.payload.deviationPercent ?? 0) > 0 ? '+' : ''}{a.payload.deviationPercent}%
+                              </div>
+                            )}
                           </div>
                           <div className="flex gap-1">
                             <button disabled={actionBusyId !== null} onClick={() => decideApproval(a.id, 'approved')}

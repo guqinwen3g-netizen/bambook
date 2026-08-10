@@ -17,9 +17,10 @@ import {
   PackageCheck, Package, Factory, Truck, FileText, FileX,
   Receipt, DollarSign, CheckCircle, AlertTriangle, Clock,
   MessageSquare, ClipboardList, Info, Settings2, ArrowLeft, UserPlus,
+  Stamp, Loader2, AlertCircle,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
-import { NotificationItem, NotificationStats, NotificationTypeCatalogItem } from '../types';
+import { NotificationItem, NotificationStats, NotificationTypeCatalogItem, ApprovalRequestItem } from '../types';
 
 // D2 主动提醒引擎 — Electron 原生推送桥（preload.ts exposeInMainWorld）。
 // Web 浏览器环境下为 undefined，相关能力自动降级为仅应用内提醒。
@@ -110,9 +111,17 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // D2: 偏好面板视图 + 类型目录
-  const [view, setView] = useState<'list' | 'prefs'>('list');
+  const [view, setView] = useState<'list' | 'prefs' | 'approvals'>('list');
   const [catalog, setCatalog] = useState<NotificationTypeCatalogItem[] | null>(null);
   const [prefsLoading, setPrefsLoading] = useState(false);
+  // PRD 19.21 业务审批中心：待办/已办 + 决策行内状态
+  const [approvalView, setApprovalView] = useState<'pending' | 'done'>('pending');
+  const [approvals, setApprovals] = useState<ApprovalRequestItem[] | null>(null);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
+  const [approvalsError, setApprovalsError] = useState<string | null>(null); // 401/403 → 无权限降级文案
+  const [rejectingId, setRejectingId] = useState<string | null>(null); // 展开驳回意见输入的审批 id
+  const [rejectNote, setRejectNote] = useState('');
+  const [decidingId, setDecidingId] = useState<string | null>(null);
   // D2: 转跟进行内反馈（notificationId → 提示文案）
   const [followUpFeedback, setFollowUpFeedback] = useState<Record<string, string>>({});
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -317,6 +326,45 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
     }
   }, [endpoint]);
 
+  // ── PRD 19.21 业务审批：列表加载（401/403 降级为无权限文案，不影响通知）──
+  const fetchApprovals = useCallback(async () => {
+    setApprovalsLoading(true);
+    setApprovalsError(null);
+    try {
+      const list = await apiService.listApprovals({ status: approvalView, endpoint });
+      setApprovals(list);
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      // 未登录/无审批角色 → 友好降级（审批中心仅对管理层开放）
+      setApprovalsError(/401|403|authentication|forbidden|登录|审批/i.test(msg) ? '当前账号无业务审批权限' : msg);
+      setApprovals(null);
+    } finally {
+      setApprovalsLoading(false);
+    }
+  }, [approvalView, endpoint]);
+
+  useEffect(() => {
+    if (!isOpen || view !== 'approvals') return;
+    fetchApprovals();
+  }, [isOpen, view, approvalView, fetchApprovals]);
+
+  // ── PRD 19.21 业务审批：决策（通过 / 驳回；驳回必填意见，服务端强制）──
+  const handleDecideApproval = useCallback(async (item: ApprovalRequestItem, status: 'approved' | 'rejected') => {
+    const note = status === 'rejected' ? rejectNote.trim() : '';
+    if (status === 'rejected' && !note) return; // 输入框为空时不发起（按钮已 disabled，双保险）
+    setDecidingId(item.id);
+    try {
+      await apiService.decideApproval(item.id, status, note || undefined, endpoint);
+      setRejectingId(null);
+      setRejectNote('');
+      fetchApprovals();
+    } catch (e: any) {
+      setApprovalsError(String(e?.message || '决策失败'));
+    } finally {
+      setDecidingId(null);
+    }
+  }, [rejectNote, endpoint, fetchApprovals]);
+
   const hasUnread = unreadCount > 0;
 
   return (
@@ -386,7 +434,27 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                     <ArrowLeft size={15} strokeWidth={1.5} />
                   </button>
                 )}
-                <h2 className="text-lg font-light tracking-tight">{view === 'prefs' ? '提醒偏好' : '通知'}</h2>
+                {view === 'prefs' ? (
+                  <h2 className="text-lg font-light tracking-tight">提醒偏好</h2>
+                ) : (
+                  /* 通知 / 审批 Tab（PRD 19.21 通知与审批中心） */
+                  <div className="flex items-baseline gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setView('list')}
+                      className={`text-lg tracking-tight transition-colors ${view === 'list' ? 'font-light text-white/95' : 'font-light text-white/40 hover:text-white/70'}`}
+                    >
+                      通知
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setView('approvals')}
+                      className={`text-lg tracking-tight transition-colors ${view === 'approvals' ? 'font-light text-white/95' : 'font-light text-white/40 hover:text-white/70'}`}
+                    >
+                      审批
+                    </button>
+                  </div>
+                )}
                 {view === 'list' && hasUnread && (
                   <span className="text-xs font-light text-white/50">
                     {unreadCount} 条未读
@@ -477,6 +545,157 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                 ${entry.isEnabled ? 'translate-x-[18px]' : 'translate-x-0.5'}`}
                             />
                           </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── PRD 19.21 业务审批面板 ── */}
+            {view === 'approvals' && (
+              <div className="flex-1 overflow-y-auto px-4 pb-6 scroll-smooth">
+                {/* 待办 / 已办 子视图 */}
+                <div className="mb-3 flex items-center gap-1 px-2">
+                  {(['pending', 'done'] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setApprovalView(v)}
+                      className={`rounded-control px-3 py-1.5 text-xs font-light transition-colors
+                        ${approvalView === v ? 'bg-white/10 text-white/90' : 'text-white/40 hover:bg-white/5 hover:text-white/70'}`}
+                    >
+                      {v === 'pending' ? '待办' : '已办'}
+                    </button>
+                  ))}
+                </div>
+                {approvalsLoading && !approvals ? (
+                  <div className="flex h-40 items-center justify-center">
+                    <div className="text-sm font-light text-white/40">加载中...</div>
+                  </div>
+                ) : approvalsError && !approvals ? (
+                  <div className="flex h-40 flex-col items-center justify-center gap-3">
+                    <Stamp size={24} strokeWidth={1} className="text-white/20" />
+                    <div className="text-sm font-light text-white/40">{approvalsError}</div>
+                  </div>
+                ) : !approvals || approvals.length === 0 ? (
+                  <div className="flex h-40 flex-col items-center justify-center gap-3">
+                    <Stamp size={24} strokeWidth={1} className="text-white/20" />
+                    <div className="text-sm font-light text-white/40">{approvalView === 'pending' ? '暂无待办审批' : '暂无已办记录'}</div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {approvals.map((item) => {
+                      const p = item.payload || {};
+                      const isPriceDeviation = item.actionType === 'quotation:price-deviation';
+                      const deciding = decidingId === item.id;
+                      const rejecting = rejectingId === item.id;
+                      return (
+                        <div key={item.id} className="rounded-card bg-white/4 px-4 py-3.5">
+                          {/* 标题行：上下文摘要 + 风险徽章 */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              {isPriceDeviation ? (
+                                <>
+                                  <div className="text-sm font-light text-white/90">
+                                    报价单 {p.quotationNumber || item.targetId || ''} 双轨偏差审批
+                                  </div>
+                                  <div className="mt-1 text-xs font-light leading-relaxed text-white/50">
+                                    轨道 A 中位 ${Number(p.trackAMedianUsd ?? 0).toFixed(4)}/{p.trackAUnit === 'PC' ? '件' : '米'}
+                                    {' · '}轨道 B 终价 ${Number(p.trackBFinalUsd ?? 0).toFixed(4)}
+                                    {' · '}偏差 <span className={p.level === 'block' ? 'text-red-400' : 'text-amber-400'}>
+                                      {(p.deviationPercent ?? 0) > 0 ? '+' : ''}{p.deviationPercent}%
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm font-light text-white/90">{item.actionType}</div>
+                                  <div className="mt-1 text-xs font-light text-white/50">
+                                    {item.targetType}{item.targetId ? ` · ${item.targetId}` : ''}
+                                  </div>
+                                </>
+                              )}
+                              <div className="mt-1.5 text-[10px] font-light text-white/30">
+                                {item.requester?.displayName || item.requester?.email || '申请人'} · {formatRelativeTime(item.createdAt)}
+                                {item.status !== 'pending' && item.reviewer && (
+                                  <> · {item.status === 'approved' ? '由' : '被'} {item.reviewer.displayName || item.reviewer.email} {item.status === 'approved' ? '通过' : '驳回'}</>
+                                )}
+                              </div>
+                              {/* 已办：决策意见 */}
+                              {item.status !== 'pending' && item.decisionNote && (
+                                <div className="mt-1.5 rounded-control bg-white/5 px-2.5 py-1.5 text-[11px] font-light text-white/55">
+                                  审批意见：{item.decisionNote}
+                                </div>
+                              )}
+                            </div>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-light
+                              ${item.status === 'approved' ? 'bg-emerald-400/10 text-emerald-300'
+                                : item.status === 'rejected' ? 'bg-red-400/10 text-red-300'
+                                : item.risk === 'high' ? 'bg-red-400/10 text-red-300'
+                                : 'bg-amber-400/10 text-amber-300'}`}>
+                              {item.status === 'approved' ? '已通过'
+                                : item.status === 'rejected' ? '已驳回'
+                                : item.risk === 'high' ? '高风险' : '待审批'}
+                            </span>
+                          </div>
+                          {/* 待办操作区 */}
+                          {item.status === 'pending' && (
+                            <div className="mt-3">
+                              {rejecting ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={rejectNote}
+                                    onChange={(e) => setRejectNote(e.target.value)}
+                                    placeholder="驳回意见（必填）"
+                                    rows={2}
+                                    className="w-full resize-none rounded-control bg-white/6 px-3 py-2 text-xs font-light text-white/90 placeholder-white/25 outline-none focus:bg-white/8"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={deciding || !rejectNote.trim()}
+                                      onClick={() => handleDecideApproval(item, 'rejected')}
+                                      className="flex items-center gap-1.5 rounded-control bg-red-400/15 px-3 py-1.5 text-xs font-light text-red-300 transition-colors hover:bg-red-400/20 disabled:opacity-40"
+                                    >
+                                      {deciding ? <Loader2 size={12} className="animate-spin" /> : <AlertCircle size={12} strokeWidth={1.5} />}
+                                      确认驳回
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={deciding}
+                                      onClick={() => { setRejectingId(null); setRejectNote(''); }}
+                                      className="rounded-control px-3 py-1.5 text-xs font-light text-white/50 transition-colors hover:bg-white/8"
+                                    >
+                                      取消
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={deciding}
+                                    onClick={() => handleDecideApproval(item, 'approved')}
+                                    className="flex items-center gap-1.5 rounded-control bg-emerald-400/15 px-3 py-1.5 text-xs font-light text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:opacity-40"
+                                  >
+                                    {deciding ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={1.5} />}
+                                    通过
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={deciding}
+                                    onClick={() => { setRejectingId(item.id); setRejectNote(''); }}
+                                    className="flex items-center gap-1.5 rounded-control bg-white/6 px-3 py-1.5 text-xs font-light text-white/60 transition-colors hover:bg-white/10 disabled:opacity-40"
+                                  >
+                                    <X size={12} strokeWidth={1.5} />
+                                    驳回
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

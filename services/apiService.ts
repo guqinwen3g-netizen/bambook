@@ -58,6 +58,8 @@ import {
   NotificationItem,
   NotificationStats,
   NotificationTypeCatalogItem,
+  ApprovalRequestItem,
+  ApprovalRequestStatus,
   AutomationRule,
   WorkflowDefinition,
   WorkflowInstance,
@@ -2878,6 +2880,22 @@ export const apiService = {
     );
     if (!data.ok) throw new Error(data.message || data.error || '转跟进失败');
     return { reused: data.reused ?? false, followUpId: data.followUpId, nextFollowUpAt: data.nextFollowUpAt ?? null };
+  },
+
+  // ── 业务审批中心（PRD 19.21；JWT+角色门禁由服务端强制，未登录/无权限时抛错由 UI 降级处理）──
+  async listApprovals(params?: { status?: 'pending' | 'done'; endpoint?: string }): Promise<ApprovalRequestItem[]> {
+    const query = params?.status === 'done' ? '?status=done' : '';
+    const data = await requestJson<{ items: ApprovalRequestItem[] }>(`/v1/approvals${query}`, { endpoint: params?.endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async decideApproval(approvalId: string, status: Exclude<ApprovalRequestStatus, 'pending'>, decisionNote?: string, endpoint?: string): Promise<ApprovalRequestItem> {
+    const data = await requestJson<{ item: ApprovalRequestItem }>(`/v1/approvals/${encodeURIComponent(approvalId)}/decide`, {
+      endpoint,
+      method: 'POST',
+      body: JSON.stringify({ status, decisionNote }),
+    });
+    return data.item;
   },
 
   // ── 自动化规则 ──

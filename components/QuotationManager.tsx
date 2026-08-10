@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   Send,
+  Printer,
   CheckCircle2,
   XCircle,
   Clock,
@@ -37,6 +38,7 @@ import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
+import { printHtmlDocument, escapeHtml } from './tools/printDocument';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
@@ -129,6 +131,109 @@ const createEmptyLine = (): DraftLine => ({
   notes: '',
 });
 
+// 报价有效期默认报价日 +30 天（外贸报价惯例；用户可改）
+const defaultValidUntil = (issueDate: string): string => {
+  const d = new Date(issueDate);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() + 30);
+  return d.toISOString().split('T')[0];
+};
+
+// Sent 超 7 天未回复 → 列表琥珀高亮（sentAt 为首次发送时间）
+const SENT_FOLLOW_UP_DAYS = 7;
+const sentDaysPending = (qt: Quotation): number | null => {
+  if (qt.status !== 'Sent' || !qt.sentAt) return null;
+  const days = Math.floor((Date.now() - Number(qt.sentAt)) / 86400000);
+  return days >= SENT_FOLLOW_UP_DAYS ? days : null;
+};
+
+// ── 中英文报价单打印（复用共享 printHtmlDocument 版式；双轨快照属内部信息不打印）──
+const buildQuotationPrintHtml = (qt: Quotation): string => {
+  const lines = qt.lines ?? [];
+  const currency = qt.currency || 'USD';
+  const rows = lines.map((l, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml([l.fabricCode, l.description].filter(Boolean).join(' · '))}${l.notes ? `<div style="color:#718096;font-size:10px">${escapeHtml(l.notes)}</div>` : ''}</td>
+      <td style="text-align:right">${Number(l.quantity).toLocaleString('en-US')}</td>
+      <td>${escapeHtml(l.unit)}</td>
+      <td style="text-align:right">${Number(l.unitPrice).toFixed(4)}</td>
+      <td style="text-align:right">${Number(l.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    </tr>`).join('');
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>QUOTATION</h1>
+      <div class="subtitle">报 价 单</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">${escapeHtml(qt.quotationNumber)}</div>
+      <div>Date 报价日期: ${escapeHtml(qt.issueDate)}</div>
+      ${qt.validUntil ? `<div>Valid Until 有效期至: ${escapeHtml(qt.validUntil)}</div>` : ''}
+      ${qt.inquiryRef ? `<div>Inquiry Ref 询价参考: ${escapeHtml(qt.inquiryRef)}</div>` : ''}
+    </div>
+  </div>
+
+  <div class="doc-party-grid">
+    <div class="doc-party">
+      <div class="label">From 报价方</div>
+      <div class="name">Panda Fabric / 江苏熊猫面料有限公司</div>
+      ${qt.salesperson ? `<div class="detail">Sales 业务员: ${escapeHtml(qt.salesperson)}</div>` : ''}
+    </div>
+    <div class="doc-party">
+      <div class="label">To 致客户</div>
+      <div class="name">${escapeHtml(qt.customerName || '—')}</div>
+      ${qt.customerCode ? `<div class="detail">Code 客户编码: ${escapeHtml(qt.customerCode)}</div>` : ''}
+    </div>
+  </div>
+
+  <table class="doc-table">
+    <thead>
+      <tr>
+        <th style="width:36px">No.<br/>序号</th>
+        <th>Description 品名描述</th>
+        <th style="width:90px;text-align:right">Qty 数量</th>
+        <th style="width:60px">Unit 单位</th>
+        <th style="width:100px;text-align:right">Unit Price 单价 (${escapeHtml(currency)})</th>
+        <th style="width:110px;text-align:right">Amount 金额 (${escapeHtml(currency)})</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5">TOTAL 总计 (${escapeHtml(currency)})</td>
+        <td style="text-align:right">${Number(qt.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Terms &amp; Conditions 条款</div>
+    <div style="font-size:11px;line-height:1.8">
+      ${qt.deliveryTerms ? `<div><strong>Delivery 交货:</strong> ${escapeHtml(qt.deliveryTerms)}</div>` : ''}
+      ${qt.paymentTerms ? `<div><strong>Payment 付款:</strong> ${escapeHtml(qt.paymentTerms)}</div>` : ''}
+      ${qt.validUntil ? `<div><strong>Validity 有效期:</strong> ${escapeHtml(qt.issueDate)} ~ ${escapeHtml(qt.validUntil)}</div>` : ''}
+    </div>
+  </div>
+
+  ${qt.notes ? `
+  <div class="doc-notes">
+    <div class="notes-title">Remarks 备注</div>
+    ${escapeHtml(qt.notes)}
+  </div>` : ''}
+
+  <div class="doc-footer">
+    <div class="doc-signature">
+      <div class="sig-label">Seller's Signature 卖方签章</div>
+      <div class="sig-line"></div>
+    </div>
+    <div class="doc-signature">
+      <div class="sig-label">Buyer's Confirmation 买方确认</div>
+      <div class="sig-line"></div>
+    </div>
+  </div>`;
+};
+
 const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenOrder }) => {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,19 +249,22 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
 
-  // 创建表单状态
-  const [form, setForm] = useState({
-    quotationNumber: '',
-    currency: 'USD',
-    customerRelationId: '',
-    customerName: '',
-    issueDate: new Date().toISOString().split('T')[0],
-    validUntil: '',
-    deliveryTerms: 'FOB Shanghai',
-    paymentTerms: 'T/T 30% deposit, 70% before shipment',
-    salesperson: '',
-    inquiryRef: '',
-    notes: '',
+  // 创建表单状态（validUntil 默认报价日 +30 天）
+  const [form, setForm] = useState(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return {
+      quotationNumber: '',
+      currency: 'USD',
+      customerRelationId: '',
+      customerName: '',
+      issueDate: today,
+      validUntil: defaultValidUntil(today),
+      deliveryTerms: 'FOB Shanghai',
+      paymentTerms: 'T/T 30% deposit, 70% before shipment',
+      salesperson: '',
+      inquiryRef: '',
+      notes: '',
+    };
   });
   const [formLines, setFormLines] = useState<DraftLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
@@ -298,10 +406,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       };
       await apiService.createQuotation(input);
       setShowCreateForm(false);
-      // 重置表单
+      // 重置表单（validUntil 重新取报价日 +30 天默认值）
+      const today = new Date().toISOString().split('T')[0];
       setForm({
         quotationNumber: '', currency: 'USD', customerRelationId: '', customerName: '',
-        issueDate: new Date().toISOString().split('T')[0], validUntil: '',
+        issueDate: today, validUntil: defaultValidUntil(today),
         deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit, 70% before shipment',
         salesperson: '', inquiryRef: '', notes: '',
       });
@@ -440,7 +549,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                       </div>
                       <div>
                         <label className={labelClass}>报价日期 *</label>
-                        <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} className={fieldClass} />
+                        <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value, validUntil: defaultValidUntil(e.target.value) })} className={fieldClass} />
                       </div>
                       <div>
                         <label className={labelClass}>有效期至</label>
@@ -713,6 +822,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}% · 需审批后发送
                                 </span>
                               )}
+                              {/* Sent 超 7 天未回复 → 琥珀提醒（sentAt 为首次发送时间） */}
+                              {sentDaysPending(qt) != null && (
+                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass('warning', isDarkMode)} ${statusSemanticText('warning', isDarkMode)}`}>
+                                  <AlertTriangle size={10} />
+                                  已发送 {sentDaysPending(qt)} 天 · 待客户回复
+                                </span>
+                              )}
                             </div>
                             <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                               {qt.customerName || '未指定客户'} · {formatDate(qt.issueDate)}
@@ -864,9 +980,16 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                       )}
                                     </>
                                   )}
+                                  {/* 打印中英文报价单（全状态可用；复用共享打印版式） */}
+                                  <button
+                                    type="button"
+                                    onClick={() => printHtmlDocument({ title: `Quotation ${qt.quotationNumber}`, htmlBody: buildQuotationPrintHtml(qt) })}
+                                    className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                  >
+                                    <Printer size={12} />
+                                    <span>打印报价单</span>
+                                  </button>
                                 </div>
-
-                                {/* 跨模块关联视图（EntityLink 图谱）— 报价客户/转化订单 */}
                                 <RelatedEntitiesPanel
                                   type="quotation"
                                   id={qt.id}
