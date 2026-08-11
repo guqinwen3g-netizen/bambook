@@ -251,6 +251,26 @@ import {
   Settings2
 } from 'lucide-react';
 
+/**
+ * MainContentShell — main 内容区的条件容器。
+ * isFullBleedView 时返回 Fragment（不生成多余 DOM 层，页面组件直接作为
+ * app-main-viewport 子元素，消除"双层 flex 容器"冲突）；
+ * 非 isFullBleedView 时返回 glass-panel div（包裹页面内容，提供磨砂面板背景）。
+ */
+const MainContentShell: React.FC<{
+  isFullBleedView: boolean;
+  isEmails: boolean;
+  isGlobeUnderlay: boolean;
+  children: React.ReactNode;
+}> = ({ isFullBleedView, isEmails, isGlobeUnderlay, children }) => {
+  if (isFullBleedView) return <>{children}</>;
+  const pointerEvents = isGlobeUnderlay ? 'pointer-events-none' : 'pointer-events-auto';
+  if (isEmails) {
+    return <div className={`glass-panel flex-1 h-full overflow-hidden flex flex-col ${pointerEvents}`}>{children}</div>;
+  }
+  return <div className={`glass-panel min-h-full p-8 transition-all duration-300 ${pointerEvents}`}>{children}</div>;
+};
+
 type AgentOsActivitySnapshot = {
   active: boolean;
   source?: 'assistant' | 'pet-preview' | 'system';
@@ -1198,7 +1218,7 @@ const App: React.FC = () => {
   }, [orders, config.cloudEndpoint]);
 
   const settingsMode = resolveSettingsMode(activeView);
-  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.ProductionBoard || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.DocumentCenter || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
+  const isFullBleedView = activeView === View.Dashboard || activeView === View.Cockpit || activeView === View.Reports || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.ProductionBoard || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.DocumentCenter || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
 
   // Views that render the ProductionGlobe as an underlay. We must let pointer
   // events pass THROUGH the main / wrapper divs to the canvas underneath; the
@@ -1388,9 +1408,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* 业务事件通知中心 — 铃铛 + 抽屉，全局持久化 */}
-      <NotificationCenter isDarkMode={isDarkMode} />
-
       {/* 自定义壁纸高对比磨砂防护层 */}
       {resolvedBackgroundImageUrl && (
         <div
@@ -1485,9 +1502,11 @@ const App: React.FC = () => {
           paint above the viewport-level glass mask (z-[15]). Page-level
           dialogs use `absolute inset-0` (not `fixed`) so they're confined
           to main's box rather than spanning the viewport. */}
+      {/* 业务事件通知中心 — Provider 包裹 main，使 PageHeader 中的 Trigger 可通过 Context 获取状态 */}
+      <NotificationCenter isDarkMode={isDarkMode}>
       <main className={`app-main app-main-cover app-main-cover-flush flex flex-col min-w-0 overflow-hidden opacity-100 ${isGlobeUnderlay ? 'pointer-events-none' : ''}`}>
-        <div ref={mainViewportRef} className={`app-main-viewport flex-1 min-h-0 relative ${isFullBleedView ? 'overflow-visible flex flex-col' : ((activeView as string) === View.Emails ? 'overflow-hidden flex flex-col p-6' : 'overflow-y-auto scroll-smooth p-6')} ${isGlobeUnderlay ? 'pointer-events-none' : ''}`}>
-          <div className={`${isFullBleedView ? 'flex-1 h-full' : ((activeView as string) === View.Emails ? 'glass-panel flex-1 h-full overflow-hidden flex flex-col' : 'glass-panel min-h-full p-8 transition-all duration-300')} ${isGlobeUnderlay ? 'pointer-events-none' : 'pointer-events-auto'}`}>
+        <div ref={mainViewportRef} className={`app-main-viewport flex-1 min-h-0 relative ${isFullBleedView ? 'overflow-visible' : ((activeView as string) === View.Emails ? 'overflow-hidden flex flex-col p-6' : 'overflow-y-auto scroll-smooth p-6')} ${isGlobeUnderlay ? 'pointer-events-none' : ''}`}>
+          <MainContentShell isFullBleedView={isFullBleedView} isEmails={(activeView as string) === View.Emails} isGlobeUnderlay={isGlobeUnderlay}>
 
             {activeView === View.Dashboard && (
               compilerSurfaces.dashboard
@@ -1785,9 +1804,10 @@ const App: React.FC = () => {
             {activeView === View.Cockpit && (
               <CockpitManager isDarkMode={isDarkMode} />
             )}
-          </div>
+          </MainContentShell>
         </div>
       </main>
+      </NotificationCenter>
 
     </div>
   );
