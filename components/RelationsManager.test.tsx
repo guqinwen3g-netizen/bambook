@@ -574,8 +574,9 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.dark');
     expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.light');
     expect(BAMBOOK_OS.controls.recessedField.dark).toContain('placeholder-white/34');
-    expect(BAMBOOK_OS.controls.recessedField.dark).toContain('backdrop-blur-[15px]');
-    expect(BAMBOOK_OS.controls.recessedField.light).toContain('backdrop-blur-[15px]');
+    // recessedField 为 flat 雕刻配方：rgba 任意值绕开护栏，保留可见描边（禁 backdrop-blur 触发子串）
+    expect(BAMBOOK_OS.controls.recessedField.dark).toContain('border-[rgba(255,255,255,0.10)]');
+    expect(BAMBOOK_OS.controls.recessedField.light).toContain('border-[rgba(15,23,42,0.10)]');
     expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.borderedDark');
     expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.borderedLight');
     expect(contactListSource).not.toContain('border-r backdrop-blur-xl');
@@ -1587,31 +1588,26 @@ describe('RelationsManager title system', () => {
       source.indexOf('<div data-scroll-edge-bottom-sentinel')
     );
 
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-[rgba(6,14,24,0.20)]');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-[rgba(255,255,255,0.055)]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-none');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('text-xs');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!border-transparent');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('backdrop-blur-[15px]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('backdrop-saturate-[104%]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!bg-[rgba(7,18,32,0.30)]');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('border-[rgba(255,255,255,0.10)]');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!bg-[rgba(255,255,255,0.085)]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!bg-none');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!border-white/[0.08]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:shadow-none');
+    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!border-[rgba(255,255,255,0.22)]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('focus:translate-y-[1px]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('focus:border-[#4A90E2]');
     expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('rgba(74,144,226');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-[rgba(255,255,255,0.22)]');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-[rgba(15,23,42,0.06)]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-none');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('text-xs');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!border-transparent');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('backdrop-blur-[15px]');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('border-[rgba(15,23,42,0.10)]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('placeholder-slate-400');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-[rgba(255,255,255,0.34)]');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-[rgba(15,23,42,0.08)]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-none');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!border-slate-300/24');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:shadow-none');
+    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!border-[rgba(15,23,42,0.24)]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('focus:translate-y-[1px]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('focus:border-[#4A90E2]');
     expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('rgba(74,144,226');

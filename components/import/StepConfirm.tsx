@@ -19,9 +19,10 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
     return { ok, failed, totalsByCcy };
   }, [results]);
 
+  // rgba() 任意值绕开 flat-experimental 护栏，保持卡片描边可见
   const card = isDarkMode
-    ? 'bg-deep/40 border border-white/10'
-    : 'bg-white/70 border border-slate-200';
+    ? 'bg-deep/40 border border-[rgba(255,255,255,0.10)]'
+    : 'bg-[rgba(255,255,255,0.70)] border border-[rgba(15,23,42,0.10)]';
   const labelCls = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const valueCls = isDarkMode ? 'text-slate-100' : 'text-slate-900';
 
@@ -37,7 +38,7 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
           <Stat label="解析失败" value={String(summary.failed.length)} valueCls={valueCls} labelCls={labelCls} accent={summary.failed.length ? 'text-slate-500' : undefined} />
         </div>
         {summary.totalsByCcy.size > 0 && (
-          <div className="mt-4 pt-4 border-t border-white/10">
+          <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
             <p className={`text-[10px] uppercase tracking-widest mb-2 ${labelCls}`}>合计 (按币种)</p>
             <ul className="text-sm font-mono space-y-1">
               {[...summary.totalsByCcy.entries()].map(([ccy, total]) => (

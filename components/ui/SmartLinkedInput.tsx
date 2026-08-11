@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link2, Loader2, Search, X } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import type { EntityCandidate, EntityType } from '../../lib/entityRegistry';
+import { BAMBOOK_OS } from './bambookOsTokens';
 
 interface SmartLinkedInputProps {
   value: string;
@@ -35,13 +36,16 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
   const [items, setItems] = useState<EntityCandidate[]>([]);
   const [linked, setLinked] = useState<EntityCandidate | null>(null);
   const latestQuery = useRef('');
+  const isUserTyping = useRef(false);
 
   const query = String(value || '').trim();
   const canSearch = query.length >= MIN_QUERY_LENGTH && entityTypes.length > 0 && !disabled;
+  // 兜底输入框配方与全局胶囊字段同源（recessedField）；旧 bg-slate-800/border-slate-200
+  // 组合会被 flat-experimental 护栏强制 border:0，导致输入框隐形。
   const inputCls = className || `w-full px-3 py-3 border rounded-control outline-none text-xs font-light ${
     isDarkMode
-      ? 'bg-slate-800 border-white/10 text-white placeholder:text-slate-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
+      ? BAMBOOK_OS.controls.recessedField.dark
+      : BAMBOOK_OS.controls.recessedField.light
   } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`;
 
   const entityLabel = useMemo(() => {
@@ -53,7 +57,7 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
   }, [linked]);
 
   useEffect(() => {
-    if (!canSearch) {
+    if (!canSearch || !isUserTyping.current) {
       setItems([]);
       setLoading(false);
       return;
@@ -117,6 +121,7 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
           value={value}
           onFocus={() => items.length > 0 && setOpen(true)}
           onChange={(event) => {
+            isUserTyping.current = true;
             setLinked(null);
             onChange(event.target.value);
           }}
@@ -138,8 +143,8 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
       )}
 
       {open && items.length > 0 && (
-        <div className={`absolute z-50 mt-1 w-full overflow-hidden rounded-inset border shadow-none ${
-          isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200'
+        <div className={`absolute z-50 mt-1 w-full overflow-hidden rounded-inset border ${
+          isDarkMode ? 'bg-slate-900 border-[rgba(255,255,255,0.12)]' : 'bg-white border-[rgba(15,23,42,0.12)]'
         }`}>
           {items.map((item) => (
             <button
@@ -151,8 +156,8 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
                 isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
               }`}
             >
-              <div className={`text-xs font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.title}</div>
-              <div className={`text-[10px] mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <div className={`truncate text-xs font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.title}</div>
+              <div className={`truncate text-[10px] mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 {[item.entityType, item.subtitle, item.snippet].filter(Boolean).join(' · ')}
               </div>
             </button>

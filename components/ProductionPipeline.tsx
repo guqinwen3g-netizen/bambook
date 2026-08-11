@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight, ChevronDown } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
+import ToggleSwitch from './ui/ToggleSwitch';
+import CapsuleDateInput from './ui/CapsuleDateInput';
+import SidePanelContainer from './ui/SidePanelContainer';
+import OrderSectionHeader from './order/OrderSectionHeader';
+import { createOrderUiSpec } from './order/orderUiSpec';
+import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
+import { formatYmd } from '../lib/dateFormat';
 import { productionService } from '../services/productionService';
 import type { OutsourcingProgress } from '../services/productionService';
 
@@ -89,9 +96,18 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const textPrimary = isDarkMode ? 'text-slate-100' : 'text-slate-900';
-  const textSecondary = isDarkMode ? 'text-white/50' : 'text-slate-500';
-  const surfaceClass = isDarkMode ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-200/60';
+  // ── 统一规范真源（orderUiSpec）：玻璃面板 + inset 子区块，与详情页所有面板同构 ──
+  const spec = createOrderUiSpec(isDarkMode);
+  const textPrimary = spec.textPrimary;
+  const textSecondary = spec.textMuted;
+  const surfaceClass = spec.insetSurface;
+  const fieldCls = spec.field;
+  const noSpinnerCls = spec.fieldNoSpinner;
+  // 状态色唯一来源：RDL 语义 token（success/danger 中性 opacity）；当前态锚点用 accent 品牌蓝
+  const successText = statusSemanticText('success', isDarkMode);
+  const dangerText = statusSemanticText('danger', isDarkMode);
+  const accentText = isDarkMode ? 'text-accent-blue' : 'text-link';
+  const signedChipCls = statusSemanticClass('success', isDarkMode);
 
   const inspection = inspections.find(i => (i.inspectionType ?? 'final') === inspType) ?? null;
 
@@ -121,11 +137,20 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
   };
 
   const handleChecklistToggle = async (field: keyof PreCutChecklist) => {
-    if (!checklist) return;
-    const updated = { ...checklist, [field]: !checklist[field] };
+    // 后端仅返回已存在的 checklist 行；新订单为 null。以全 false 基底乐观更新，
+    // 让后端 upsert 建行，否则新订单的四项门禁开关永远失效（无法初始化）。
+    const base: PreCutChecklist = checklist ?? {
+      orderId,
+      gradingConfirmed: false,
+      consumptionConfirmed: false,
+      patternConfirmed: false,
+      preProductionMeeting: false,
+    };
+    const updated = { ...base, [field]: !base[field] };
     setChecklist(updated);
     try {
-      await productionService.saveChecklist(orderId, { [field]: updated[field] });
+      const saved = await productionService.saveChecklist(orderId, { [field]: updated[field] });
+      setChecklist(saved);
     } catch { /* ignore */ }
   };
 
@@ -140,21 +165,50 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
     } catch { /* ignore */ }
   };
 
+  const doneCount = stages.filter(s => s.status === 'done').length;
+
   if (loading) {
-    return <div className={cx('flex items-center gap-2 p-4 text-xs', textSecondary)}><Loader2 size={14} className="animate-spin" /> 加载生产管线...</div>;
+    return (
+      <SidePanelContainer
+        materialRole="raisedCard"
+        edgeFadeItem
+        spotlight
+        isDarkMode={isDarkMode}
+        className={spec.panelClass}
+        contentClassName={spec.panelContentClass}
+      >
+        <div className={cx('flex items-center gap-2', spec.emptyText)}>
+          <Loader2 size={14} className="animate-spin" /> 加载生产管线...
+        </div>
+      </SidePanelContainer>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <div className={cx('text-[10px] font-light uppercase tracking-widest', textSecondary)}>生产管线 (10 阶段门禁)</div>
+    <SidePanelContainer
+      materialRole="raisedCard"
+      edgeFadeItem
+      spotlight
+      isDarkMode={isDarkMode}
+      className={spec.panelClass}
+      contentClassName={spec.panelContentClass}
+    >
+      <OrderSectionHeader
+        iconKey="pipeline"
+        kicker="Production Pipeline"
+        title="生产管线"
+        meta={stages.length > 0 ? `${doneCount}/${stages.length} 阶段已完成` : undefined}
+        isDarkMode={isDarkMode}
+      />
 
       {error && (
-        <div className="flex items-center gap-2 rounded-control bg-red-500/10 px-3 py-2 text-[11px] text-red-500">
+        <div className={cx('mb-3', spec.bannerDanger)}>
           <AlertCircle size={12} /> {error}
         </div>
       )}
 
       {/* 10-stage progress */}
+      <div className="flex flex-col gap-3.5">
       <div className={cx('rounded-inset border p-4', surfaceClass)}>
         <div className="space-y-1.5">
           {stages.map((stage, idx) => {
@@ -165,11 +219,11 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
               <div key={stage.id} className="flex items-center gap-3">
                 <div className="shrink-0">
                   {isDone ? (
-                    <CheckCircle2 size={16} className={isDarkMode ? 'text-emerald-400' : 'text-emerald-500'} />
+                    <CheckCircle2 size={16} className={successText} />
                   ) : isCurrent ? (
-                    <Circle size={16} className={isDarkMode ? 'text-blue-400' : 'text-blue-500'} />
+                    <Circle size={16} className={accentText} />
                   ) : (
-                    <Circle size={16} className={isDarkMode ? 'text-white/15' : 'text-slate-300'} />
+                    <Circle size={16} className={spec.textFaint} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -181,7 +235,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   </span>
                   {stage.doneAt && (
                     <span className={cx('ml-2 text-[10px]', textSecondary)}>
-                      {new Date(stage.doneAt).toLocaleDateString('zh-CN')}
+                      {formatYmd(stage.doneAt)}
                     </span>
                   )}
                 </div>
@@ -190,12 +244,12 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                     onClick={() => handleAdvance(stage.stageKey)}
                     disabled={advancing === stage.stageKey}
                     className={cx(
-                      'flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[10px] font-light transition-all',
-                      isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50',
+                      spec.btnBase,
+                      spec.btnGhost,
                       advancing === stage.stageKey && 'opacity-50',
                     )}
                   >
-                    {advancing === stage.stageKey ? <Loader2 size={10} className="animate-spin" /> : <ChevronRight size={10} />}
+                    {advancing === stage.stageKey ? <Loader2 size={12} className="animate-spin" /> : <ChevronRight size={12} />}
                     推进
                   </button>
                 )}
@@ -207,9 +261,9 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
 
       {/* 阶段 D / D5：外协加工进度（只读，真源 OutsourcingOrder；管理入口在 MES 可选模块） */}
       <div className={cx('rounded-inset border p-4', surfaceClass)}>
-        <div className={cx('mb-3 text-[10px] font-light uppercase tracking-widest', textSecondary)}>外协加工进度</div>
+        <div className={cx('mb-3', spec.subGroupTitle)}>外协加工进度</div>
         {outsourcing.length === 0 ? (
-          <p className={cx('text-xs font-light', textSecondary)}>无外协加工</p>
+          <p className={spec.emptyText}>无外协加工</p>
         ) : (
           <div className="space-y-2">
             {outsourcing.map(o => {
@@ -233,10 +287,10 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   <span className={cx(
                     'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-light',
                     o.status === 'Received'
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+                      ? statusSemanticClass('success', isDarkMode)
                       : o.status === 'Cancelled'
-                        ? isDarkMode ? 'border-white/10 text-white/35' : 'border-slate-200 text-slate-400'
-                        : isDarkMode ? 'border-white/10 text-white/60' : 'border-slate-200 text-slate-600',
+                        ? statusSemanticClass('neutral', isDarkMode)
+                        : statusSemanticClass('active', isDarkMode),
                   )}>
                     {OUTSOURCING_STATUS_LABELS[o.status] || o.status}
                   </span>
@@ -253,8 +307,8 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
         if (!ppStage) return null;
         return (
           <div className={cx('rounded-inset border p-4', surfaceClass)}>
-            <div className={cx('mb-3 text-[10px] font-light uppercase tracking-widest', textSecondary)}>产前样双签确认</div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cx('mb-3', spec.subGroupTitle)}>产前样双签确认</div>
+            <div className="grid grid-cols-2 gap-3 justify-items-center">
               <button
                 onClick={async () => {
                   try {
@@ -263,10 +317,8 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   } catch (e: any) { setError(e?.message || '签字失败'); }
                 }}
                 className={cx(
-                  'flex h-8 items-center justify-center gap-1.5 rounded-full border text-[10px] font-light transition-all',
-                  ppStage.signedByProduction
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
-                    : isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50',
+                  spec.btnBase,
+                  ppStage.signedByProduction ? signedChipCls : spec.btnGhost,
                 )}
               >
                 {ppStage.signedByProduction ? <CheckCircle2 size={12} /> : <Circle size={12} />}
@@ -280,10 +332,8 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   } catch (e: any) { setError(e?.message || '签字失败'); }
                 }}
                 className={cx(
-                  'flex h-8 items-center justify-center gap-1.5 rounded-full border text-[10px] font-light transition-all',
-                  ppStage.signedByBusiness
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
-                    : isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50',
+                  spec.btnBase,
+                  ppStage.signedByBusiness ? signedChipCls : spec.btnGhost,
                 )}
               >
                 {ppStage.signedByBusiness ? <CheckCircle2 size={12} /> : <Circle size={12} />}
@@ -297,24 +347,33 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
       {/* PreCut Checklist */}
       {stages.some(s => s.stageKey === 'pre_cut_checked') && (
         <div className={cx('rounded-inset border p-4', surfaceClass)}>
-          <div className={cx('mb-3 text-[10px] font-light uppercase tracking-widest', textSecondary)}>裁剪前检查 (四项门禁)</div>
+          <div className={cx('mb-3', spec.subGroupTitle)}>裁剪前检查 (四项门禁)</div>
           <div className="space-y-2">
             {([
               ['gradingConfirmed', '推码确认'],
               ['consumptionConfirmed', '耗料确认'],
               ['patternConfirmed', '样板确认'],
               ['preProductionMeeting', '产前会议'],
-            ] as const).map(([field, label]) => (
-              <label key={field} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={checklist?.[field] ?? false}
-                  onChange={() => handleChecklistToggle(field)}
-                  className="w-4 h-4 rounded accent-emerald-500"
-                />
-                <span className={cx('text-xs font-light', textPrimary)}>{label}</span>
-              </label>
-            ))}
+            ] as const).map(([field, label]) => {
+              const on = checklist?.[field] ?? false;
+              return (
+                <div
+                  key={field}
+                  className={cx(
+                    'flex h-10 w-fit items-center gap-3 rounded-full border px-4 text-xs font-light outline-none transition-all',
+                    isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light,
+                  )}
+                >
+                  <ToggleSwitch
+                    checked={on}
+                    isDarkMode={isDarkMode}
+                    ariaLabel={label}
+                    onChange={() => handleChecklistToggle(field)}
+                  />
+                  <span className={cx('text-xs font-light', textPrimary)}>{label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -323,7 +382,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
       {stages.some(s => s.stageKey === 'qc_shipped') && (
         <div className={cx('rounded-inset border p-4', surfaceClass)}>
           <div className="mb-3 flex items-center justify-between">
-            <div className={cx('text-[10px] font-light uppercase tracking-widest', textSecondary)}>
+            <div className={spec.subGroupTitle}>
               验货报告{inspType === 'final' ? ' (门禁: 合格率≥90% 不合格率≤3% 致命疵点=0)' : ''}
             </div>
             <div className="flex items-center gap-1">
@@ -333,10 +392,14 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   type="button"
                   onClick={() => setInspType(t)}
                   className={cx(
-                    'h-6 rounded-control border px-2.5 text-[10px] font-light transition-colors',
+                    'flex h-10 min-w-[80px] items-center justify-center rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all',
                     inspType === t
-                      ? isDarkMode ? 'border-white/20 bg-white/10 text-white/85' : 'border-slate-400/50 bg-slate-100 text-slate-700'
-                      : isDarkMode ? 'border-white/[0.08] text-white/40 hover:text-white/65' : 'border-slate-200 text-slate-400 hover:text-slate-600',
+                      ? isDarkMode
+                        ? 'border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-white/88'
+                        : 'border-[rgba(100,116,139,0.50)] bg-[rgba(226,232,240,0.70)] text-slate-800'
+                      : isDarkMode
+                        ? 'border-[rgba(255,255,255,0.10)] text-white/55 hover:bg-[rgba(255,255,255,0.05)]'
+                        : 'border-[rgba(148,163,184,0.35)] text-slate-500 hover:bg-[rgba(241,245,249,0.70)]',
                   )}
                 >
                   {t === 'final' ? '终期验货' : '中期验货'}
@@ -348,11 +411,11 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货日期</label>
-              <input
-                type="date"
+              <CapsuleDateInput
                 value={inspection?.inspectionDate ?? ''}
-                onChange={e => handleInspectionSave('inspectionDate', e.target.value)}
-                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                isDarkMode={isDarkMode}
+                className={cx(fieldCls, noSpinnerCls)}
+                onChange={(v) => handleInspectionSave('inspectionDate', v)}
               />
             </div>
             <div>
@@ -362,7 +425,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 placeholder="自有 QC / SGS / BV / 客户验货员"
                 value={inspection?.inspectorOrg ?? ''}
                 onChange={e => handleInspectionSave('inspectorOrg', e.target.value)}
-                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                className={cx(fieldCls, noSpinnerCls)}
               />
             </div>
             <div>
@@ -372,21 +435,28 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 placeholder="如 2.5/4.0 II"
                 value={inspection?.aqlLevel ?? ''}
                 onChange={e => handleInspectionSave('aqlLevel', e.target.value)}
-                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                className={cx(fieldCls, noSpinnerCls)}
               />
             </div>
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货结论</label>
-              <select
-                value={inspection?.result ?? ''}
-                onChange={e => handleInspectionSave('result', e.target.value || null)}
-                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
-              >
-                <option value="">未判定</option>
-                <option value="pass">合格 Pass</option>
-                <option value="conditional">有条件合格 Conditional</option>
-                <option value="fail">不合格 Fail</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={inspection?.result ?? ''}
+                  onChange={e => handleInspectionSave('result', e.target.value || null)}
+                  className={`${fieldCls} appearance-none pr-10 cursor-pointer`}
+                >
+                  <option value="">未判定</option>
+                  <option value="pass">合格 Pass</option>
+                  <option value="conditional">有条件合格 Conditional</option>
+                  <option value="fail">不合格 Fail</option>
+                </select>
+                <ChevronDown
+                  size={14}
+                  strokeWidth={1.5}
+                  className={cx('pointer-events-none absolute right-4 top-1/2 -translate-y-1/2', isDarkMode ? 'text-white/35' : 'text-slate-400')}
+                />
+              </div>
             </div>
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>批量 / 抽样数</label>
@@ -396,14 +466,14 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   placeholder="批量"
                   value={inspection?.lotSize ?? ''}
                   onChange={e => handleInspectionSave('lotSize', e.target.value ? Number(e.target.value) : null)}
-                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                  className={cx(fieldCls, noSpinnerCls)}
                 />
                 <input
                   type="number"
                   placeholder="抽样"
                   value={inspection?.sampleSize ?? ''}
                   onChange={e => handleInspectionSave('sampleSize', e.target.value ? Number(e.target.value) : null)}
-                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                  className={cx(fieldCls, noSpinnerCls)}
                 />
               </div>
             </div>
@@ -415,21 +485,21 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   placeholder="致命"
                   value={inspection?.criticalDefects ?? ''}
                   onChange={e => handleInspectionSave('criticalDefects', Number(e.target.value) || 0)}
-                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                  className={cx(fieldCls, noSpinnerCls)}
                 />
                 <input
                   type="number"
                   placeholder="主要"
                   value={inspection?.majorDefects ?? ''}
                   onChange={e => handleInspectionSave('majorDefects', Number(e.target.value) || 0)}
-                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                  className={cx(fieldCls, noSpinnerCls)}
                 />
                 <input
                   type="number"
                   placeholder="次要"
                   value={inspection?.minorDefects ?? ''}
                   onChange={e => handleInspectionSave('minorDefects', Number(e.target.value) || 0)}
-                  className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                  className={cx(fieldCls, noSpinnerCls)}
                 />
               </div>
             </div>
@@ -439,7 +509,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 type="number"
                 value={inspection?.totalUnits ?? ''}
                 onChange={e => handleInspectionSave('totalUnits', Number(e.target.value) || 0)}
-                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                className={cx(fieldCls, noSpinnerCls)}
               />
             </div>
             <div>
@@ -448,7 +518,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 type="number"
                 value={inspection?.passedUnits ?? ''}
                 onChange={e => handleInspectionSave('passedUnits', Number(e.target.value) || 0)}
-                className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+                className={cx(fieldCls, noSpinnerCls)}
               />
             </div>
           </div>
@@ -459,34 +529,35 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
               placeholder="如 跳线x3 污渍x2 尺寸超差x1"
               value={inspection?.defectSummary ?? ''}
               onChange={e => handleInspectionSave('defectSummary', e.target.value)}
-              className={cx('h-8 w-full rounded-control border px-2 text-xs', isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}
+              className={cx(fieldCls, noSpinnerCls)}
             />
           </div>
 
           {inspection && inspection.totalUnits > 0 && (
             <div className="mt-3 space-y-1">
               <div className={cx('flex justify-between text-[11px]', textSecondary)}>
-                <span>合格率: <span className={inspection.passRate >= 0.9 ? 'text-emerald-500 font-normal' : 'text-red-500 font-normal'}>{(inspection.passRate * 100).toFixed(1)}%</span></span>
-                <span>不合格率: <span className={inspection.defectRate <= 0.03 ? 'text-emerald-500 font-normal' : 'text-red-500 font-normal'}>{(inspection.defectRate * 100).toFixed(1)}%</span></span>
+                <span>合格率: <span className={`${inspection.passRate >= 0.9 ? successText : dangerText} font-normal`}>{(inspection.passRate * 100).toFixed(1)}%</span></span>
+                <span>不合格率: <span className={`${inspection.defectRate <= 0.03 ? successText : dangerText} font-normal`}>{(inspection.defectRate * 100).toFixed(1)}%</span></span>
                 {(inspection.criticalDefects ?? 0) > 0 && (
-                  <span className="text-red-500 font-normal">致命疵点 {inspection.criticalDefects}（零容忍）</span>
+                  <span className={`${dangerText} font-normal`}>致命疵点 {inspection.criticalDefects}（零容忍）</span>
                 )}
               </div>
               {inspType === 'final' && (
-                <label className="flex items-center gap-2 cursor-pointer mt-2">
-                  <input
-                    type="checkbox"
+                <div className="flex items-center gap-2 mt-2">
+                  <ToggleSwitch
                     checked={inspection.approvedByBusiness}
-                    onChange={e => handleInspectionSave('approvedByBusiness', e.target.checked)}
-                    className="w-4 h-4 rounded accent-emerald-500"
+                    isDarkMode={isDarkMode}
+                    ariaLabel="业务部批准发货"
+                    onChange={(next) => handleInspectionSave('approvedByBusiness', next)}
                   />
                   <span className={cx('text-xs font-light', textPrimary)}>业务部批准发货</span>
-                </label>
+                </div>
               )}
             </div>
           )}
         </div>
       )}
-    </div>
+      </div>
+    </SidePanelContainer>
   );
 };

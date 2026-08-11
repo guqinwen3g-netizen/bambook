@@ -63,7 +63,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const formDarkIdleClass = `${BAMBOOK_OS.controls.recessedField.dark} hover:!border-white/[0.105]`;
   const formLightIdleClass = `${BAMBOOK_OS.controls.recessedField.light} hover:!border-slate-300/36`;
   const formDarkOpenClass = `${BAMBOOK_OS.controls.recessedField.dark} !bg-[rgba(7,18,32,0.30)] !border-white/[0.08] shadow-none`;
-  const formLightOpenClass = `${BAMBOOK_OS.controls.recessedField.light} !bg-[rgba(255,255,255,0.34)] !border-slate-300/24 shadow-none`;
+  const formLightOpenClass = `${BAMBOOK_OS.controls.recessedField.light} !bg-[rgba(15,23,42,0.08)] !border-slate-300/24 shadow-none`;
   const darkTriggerOpenClass = isToolbarSurface
     ? isInlineToolbarTrigger ? toolbarDarkInlineOpenClass : toolbarDarkSelectedClass
     : isFormSurface

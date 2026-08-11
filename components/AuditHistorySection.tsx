@@ -8,9 +8,12 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { History, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import type { EntityAuditLogItem } from '../types';
+import SidePanelContainer from './ui/SidePanelContainer';
+import OrderSectionHeader from './order/OrderSectionHeader';
+import { createOrderUiSpec } from './order/orderUiSpec';
 
 export interface AuditHistorySectionProps {
   /** AuditLog.targetType，如 "Order" / "Relation" / "Invoice" */
@@ -99,93 +102,74 @@ export const AuditHistorySection: React.FC<AuditHistorySectionProps> = ({
     return () => { cancelled = true; };
   }, [targetType, targetId, refreshKey]);
 
-  const containerStyle: React.CSSProperties = {
-    border: `1px solid ${isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)'}`,
-    borderRadius: 12,
-    background: isDarkMode ? 'var(--bambook-gray-900)' : 'var(--bambook-gray-50)',
-    padding: 16,
-  };
-
-  const mutedColor = isDarkMode ? 'var(--bambook-gray-400)' : 'var(--bambook-gray-500)';
+  // ── 统一规范真源（orderUiSpec）：玻璃面板 + 胶囊行，与详情页所有面板同构 ──
+  const spec = createOrderUiSpec(isDarkMode);
+  const mutedCls = spec.textMuted;
+  const rowCls = `flex items-baseline gap-3 rounded-full border px-4 py-1.5 text-xs font-light ${spec.rowPillSurface}`;
 
   return (
-    <div style={containerStyle}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
-        color: isDarkMode ? 'var(--bambook-gray-200)' : 'var(--bambook-gray-900)',
-        fontWeight: 600, fontSize: 14,
-      }}>
-        <History size={16} />
-        <span>{title}</span>
-        {logs && logs.length > 0 ? (
-          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: mutedColor }}>
-            {logs.length} 条记录
-          </span>
-        ) : null}
-      </div>
+    <SidePanelContainer
+      materialRole="raisedCard"
+      edgeFadeItem
+      spotlight
+      isDarkMode={isDarkMode}
+      className={spec.panelClass}
+      contentClassName={spec.panelContentClass}
+    >
+      <OrderSectionHeader
+        iconKey="audit"
+        kicker="Audit Trail"
+        title={title}
+        meta={logs && logs.length > 0 ? `${logs.length} 条记录` : undefined}
+        isDarkMode={isDarkMode}
+      />
 
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: mutedColor, fontSize: 13 }}>
+        <div className={`flex items-center gap-2 ${spec.emptyText}`}>
           <Loader2 size={14} className="animate-spin" />
           加载变更记录…
         </div>
       )}
 
       {forbidden && !loading && (
-        <div style={{ color: mutedColor, fontSize: 13, fontStyle: 'italic' }}>
+        <div className={`${spec.emptyText} italic`}>
           当前角色无权限查看该模块的变更记录
         </div>
       )}
 
       {error && !loading && !forbidden && (
-        <div
-          className={isDarkMode ? 'text-red-400 bg-red-500/10' : 'text-red-600 bg-red-50'}
-          style={{ fontSize: 13, padding: 8, borderRadius: 8 }}
-        >
+        <div className={spec.bannerDanger}>
           变更记录加载失败：{error}
         </div>
       )}
 
       {!loading && !error && !forbidden && logs && logs.length === 0 && (
-        <div style={{ color: mutedColor, fontSize: 13, fontStyle: 'italic' }}>
+        <div className={`${spec.emptyText} italic`}>
           暂无变更记录
         </div>
       )}
 
       {!loading && !error && !forbidden && logs && logs.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {logs.map(log => (
-            <div
-              key={log.id}
-              style={{
-                display: 'flex', alignItems: 'baseline', gap: 10,
-                padding: '6px 10px',
-                background: isDarkMode ? 'var(--bambook-gray-800)' : 'var(--bambook-gray-50)',
-                border: `1px solid ${isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)'}`,
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-            >
-              <span style={{ color: mutedColor, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <div key={log.id} className={rowCls}>
+              <span className={`shrink-0 whitespace-nowrap tabular-nums text-[11px] ${mutedCls}`}>
                 {formatTime(log.createdAt)}
               </span>
-              <span style={{
-                color: isDarkMode ? 'var(--bambook-gray-300)' : 'var(--bambook-gray-700)',
-                whiteSpace: 'nowrap', flexShrink: 0, fontWeight: 500,
-              }}>
+              <span className={`shrink-0 whitespace-nowrap font-normal ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>
                 {log.actor.displayName || log.actor.email || log.actor.id}
               </span>
-              <span style={{
-                color: isDarkMode ? 'var(--bambook-gray-200)' : 'var(--bambook-gray-900)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }} title={summaryOf(log)}>
+              <span
+                className={`truncate ${spec.textPrimary}`}
+                title={summaryOf(log)}
+              >
                 {summaryOf(log)}
               </span>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </SidePanelContainer>
   );
 };
 

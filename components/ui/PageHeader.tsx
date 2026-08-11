@@ -1,5 +1,6 @@
 import React from 'react';
 import { BAMBOOK_OS } from './bambookOsTokens';
+import { NotificationCenterTrigger } from '../NotificationCenter';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -52,7 +53,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
   const titleColorClass = isDarkMode ? TITLE_DARK : TITLE_LIGHT;
   const mutedClass = isDarkMode ? SUBTITLE_DARK : SUBTITLE_LIGHT;
-  const hasRight = breadcrumb || contextLabel || actions;
 
   return (
     <header
@@ -81,18 +81,17 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {center}
         </div>
       )}
-      {/* 右侧：面包屑 + 上下文标注 + 操作按钮 */}
-      {hasRight && (
-        <div className="flex shrink-0 items-center gap-4">
-          {breadcrumb}
-          {contextLabel && (
-            <span className={cx('text-[11px] font-light', mutedClass)}>
-              {contextLabel}
-            </span>
-          )}
-          {actions}
-        </div>
-      )}
+      {/* 右侧：面包屑 + 上下文标注 + 操作按钮 + 通知按钮（最右） */}
+      <div className="flex shrink-0 items-center gap-3">
+        {breadcrumb}
+        {contextLabel && (
+          <span className={cx('text-[11px] font-light', mutedClass)}>
+            {contextLabel}
+          </span>
+        )}
+        {actions}
+        <NotificationCenterTrigger variant="header" />
+      </div>
     </header>
   );
 };

@@ -5,6 +5,9 @@ import {
 } from 'lucide-react';
 import { orderContextService, type OrderContext } from '../../services/orderContextService';
 import { View } from '../../types';
+import SidePanelContainer from '../ui/SidePanelContainer';
+import OrderSectionHeader from './OrderSectionHeader';
+import { createOrderUiSpec } from './orderUiSpec';
 
 /**
  * 阶段 D / D3：订单详情「全链路」区块。
@@ -89,56 +92,54 @@ export const OrderContextSection: React.FC<OrderContextSectionProps> = ({
     return () => { cancelled = true; };
   }, [orderId, refreshKey]);
 
-  // ── 色板（CSS 变量，无硬编码 hex / 阴影） ──
-  const tone = {
-    panelBg: isDarkMode ? 'var(--bambook-gray-900)' : 'var(--bambook-gray-50)',
-    panelBorder: isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)',
-    title: isDarkMode ? 'var(--bambook-gray-200)' : 'var(--bambook-gray-900)',
-    muted: isDarkMode ? 'var(--bambook-gray-400)' : 'var(--bambook-gray-500)',
-    faint: isDarkMode ? 'var(--bambook-gray-500)' : 'var(--bambook-gray-400)',
-    cardBg: isDarkMode ? 'var(--bambook-gray-800)' : 'var(--bambook-rdl-card-fill-light)',
-    cardBorder: isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)',
-    chipBg: isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)',
-  };
+  // ── 统一规范真源（orderUiSpec）：玻璃面板 + 胶囊条目，与详情页所有面板同构 ──
+  const spec = createOrderUiSpec(isDarkMode);
+  const mutedCls = spec.textMuted;
+  const faintCls = spec.textFaint;
 
   const stages: StageDef[] = ctx ? buildStages(ctx) : [];
 
   return (
-    <div style={{ border: `1px solid ${tone.panelBorder}`, borderRadius: 12, background: tone.panelBg, padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: tone.title, fontWeight: 600, fontSize: 14 }}>
-        <Ship size={16} />
-        <span>订单全链路</span>
-        {ctx && (
-          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: tone.muted }}>
-            {stages.filter((s) => s.count > 0).length}/{stages.length} 阶段已启动
-          </span>
-        )}
-      </div>
+    <SidePanelContainer
+      materialRole="raisedCard"
+      edgeFadeItem
+      spotlight
+      isDarkMode={isDarkMode}
+      className={spec.panelClass}
+      contentClassName={spec.panelContentClass}
+    >
+      <OrderSectionHeader
+        iconKey="context"
+        kicker="Fulfillment Chain"
+        title="订单全链路"
+        meta={ctx ? `${stages.filter((s) => s.count > 0).length}/${stages.length} 阶段已启动` : undefined}
+        isDarkMode={isDarkMode}
+      />
 
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: tone.muted, fontSize: 13 }}>
+        <div className={`flex items-center gap-2 ${spec.emptyText}`}>
           <Loader2 size={14} className="animate-spin" /> 加载全链路…
         </div>
       )}
       {error && !loading && (
-        <div className={isDarkMode ? 'text-red-400 bg-red-500/10' : 'text-red-600 bg-red-50'} style={{ fontSize: 13, padding: 8, borderRadius: 8 }}>
-          全链路加载失败:{error}
+        <div className={spec.bannerDanger}>
+          全链路加载失败：{error}
         </div>
       )}
 
       {!loading && !error && ctx && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {stages.map((stage) => (
-            <div key={stage.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <div key={stage.key} className="flex items-start gap-3">
               {/* 阶段标签列 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: 76, flexShrink: 0, paddingTop: 6, color: stage.count > 0 ? tone.title : tone.faint, fontSize: 12, fontWeight: 500 }}>
+              <div className={`flex w-[76px] shrink-0 items-center gap-1.5 pt-1.5 text-xs ${stage.count > 0 ? `font-normal ${isDarkMode ? 'text-white/75' : 'text-slate-700'}` : `font-light ${faintCls}`}`}>
                 {stage.icon}
                 <span>{stage.label}</span>
               </div>
               {/* 内容列 */}
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                 {stage.count === 0 ? (
-                  <span style={{ fontSize: 12, color: tone.faint, fontStyle: 'italic', padding: '5px 0' }}>未启动</span>
+                  <span className={`py-1 text-xs font-light italic ${faintCls}`}>未启动</span>
                 ) : (
                   stage.items.map((item) => {
                     const clickable = !!stage.view && !!onNavigate;
@@ -148,25 +149,19 @@ export const OrderContextSection: React.FC<OrderContextSectionProps> = ({
                         type="button"
                         disabled={!clickable}
                         onClick={() => stage.view && onNavigate?.(stage.view)}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 6,
-                          maxWidth: '100%',
-                          border: `1px solid ${tone.cardBorder}`, borderRadius: 8,
-                          background: tone.cardBg, padding: '5px 9px',
-                          cursor: clickable ? 'pointer' : 'default',
-                          fontSize: 12, color: tone.title, textAlign: 'left',
-                        }}
+                        title={item.secondary ? `${item.primary} · ${item.secondary}` : item.primary}
+                        className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-1.5 text-left text-xs font-light transition-all ${spec.rowPillSurface} ${clickable ? spec.rowPillHover : 'cursor-default'}`}
                       >
-                        <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.primary}</span>
+                        <span className="truncate font-normal">{item.primary}</span>
                         {item.secondary && (
-                          <span style={{ color: tone.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.secondary}</span>
+                          <span className={`truncate ${mutedCls}`}>{item.secondary}</span>
                         )}
                         {item.status && (
-                          <span style={{ background: tone.chipBg, borderRadius: 999, padding: '1px 7px', fontSize: 10, color: tone.muted, flexShrink: 0 }}>
+                          <span className={spec.chip}>
                             {statusLabel(item.status)}
                           </span>
                         )}
-                        {clickable && <ChevronRight size={12} style={{ color: tone.faint, flexShrink: 0 }} />}
+                        {clickable && <ChevronRight size={12} strokeWidth={1.5} className={`shrink-0 ${faintCls}`} />}
                       </button>
                     );
                   })
@@ -176,7 +171,7 @@ export const OrderContextSection: React.FC<OrderContextSectionProps> = ({
           ))}
         </div>
       )}
-    </div>
+    </SidePanelContainer>
   );
 };
 

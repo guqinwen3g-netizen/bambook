@@ -110,7 +110,10 @@ describe('Dashboard HUD polish', () => {
         expect(source).toContain('data-ui-lab-wallpaper-contrast');
         expect(source).toContain('Bambook Hub');
         expect(source).toContain('aria-label="Search Bambook Hub"');
-        expect(source).toContain('aria-label="Notifications"');
+        // 通知入口为功能性 NotificationCenterTrigger（aria-label 由触发器内部提供：打开/关闭通知中心）
+        expect(source).toContain("import { NotificationCenterTrigger } from './NotificationCenter'");
+        expect(source).toContain('<NotificationCenterTrigger');
+        expect(source).not.toContain('aria-label="Notifications"');
         expect(source).toContain('aria-label="Bambook Team"');
         expect(source).toContain("import UserAvatar from './ui/UserAvatar'");
         expect(source).toContain("import { getAuthState, subscribe } from '../services/authService'");

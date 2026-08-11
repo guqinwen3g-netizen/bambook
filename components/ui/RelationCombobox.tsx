@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Plus, Search } from 'lucide-react';
+import { ChevronDown, Link2, Plus, Search } from 'lucide-react';
 import type { Relation, RelationCategory } from '../../types';
+import { BAMBOOK_OS } from './bambookOsTokens';
 
 interface RelationComboboxProps {
   value: string;
@@ -12,6 +13,13 @@ interface RelationComboboxProps {
   isDarkMode?: boolean;
   placeholder?: string;
   required?: boolean;
+  /**
+   * Optional override for the input element classes. Hosts with a unified
+   * field recipe (e.g. OrderFieldInput's capsule fieldShell) pass it here so
+   * the combobox renders pixel-identical to sibling text inputs. When omitted,
+   * the legacy standalone style is used.
+   */
+  inputClassName?: string;
   onChange: (next: { name: string; relationId?: string; relation?: Relation }) => void;
   /**
    * Triggered when the user clicks "+ Create new". The host should open its
@@ -39,6 +47,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
   isDarkMode = false,
   placeholder,
   required,
+  inputClassName,
   onChange,
   onCreateNew,
 }) => {
@@ -76,9 +85,12 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
   const exactMatch = candidates.find((r) => r.name.toLowerCase() === query.trim().toLowerCase());
   const showCreateOption = !!onCreateNew && query.trim().length > 0 && !exactMatch;
 
+  // 兜底输入框配方与全局胶囊字段同源（recessedField）；旧 bg-slate-800/border-slate-200
+  // 组合会被 flat-experimental 护栏强制 border:0，导致输入框隐形。
   const baseInputCls = isDarkMode
-    ? 'bg-slate-800 border-white/10 text-white placeholder:text-slate-500'
-    : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400';
+    ? BAMBOOK_OS.controls.recessedField.dark
+    : BAMBOOK_OS.controls.recessedField.light;
+  const resolvedInputCls = inputClassName ?? `w-full pl-3 pr-9 py-3 border rounded-control outline-none text-xs font-light ${baseInputCls}`;
 
   return (
     <div ref={wrapRef} className="relative">
@@ -96,30 +108,30 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className={`w-full pl-3 pr-9 py-3 border rounded-control outline-none text-xs font-light ${baseInputCls}`}
+          className={resolvedInputCls}
         />
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle dropdown"
-          className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-control ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-400 hover:text-slate-700'}`}
+          className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors ${isDarkMode ? 'text-white/35 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}
         >
           <ChevronDown size={14} strokeWidth={2} />
         </button>
-        {relationId && (
-          <span
-            title={`Linked to Relation ${relationId}`}
-            className={`absolute -top-2 right-2 px-1.5 py-0.5 rounded-full text-[8px] font-light uppercase tracking-wider ${isDarkMode ? 'bg-white/10 text-white/70 border border-white/15' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}
-          >
-            FK
-          </span>
-        )}
       </div>
+      {/* FK 关联提示：内联在输入框下方，与 SmartLinkedInput 的「已关联」行同款，
+          不再以贴纸形式压在胶囊边框上 */}
+      {relationId && (
+        <div className={`mt-1 flex items-center gap-1 text-[9px] ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>
+          <Link2 size={10} />
+          <span>已关联关系档案</span>
+        </div>
+      )}
 
       {open && (
         <div
-          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border shadow-none ${
-            isDarkMode ? 'bg-deep border-white/10' : 'bg-white border-slate-200'
+          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border ${
+            isDarkMode ? 'bg-deep border-[rgba(255,255,255,0.12)]' : 'bg-white border-[rgba(15,23,42,0.12)]'
           }`}
         >
           {candidates.length === 0 && !showCreateOption && (

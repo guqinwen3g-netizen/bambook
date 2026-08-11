@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AlertCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 
 const cx = (...args: any[]) => args.filter(Boolean).join(' ');
 
@@ -47,7 +48,7 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
     return (
       <div className={cx(
         'mb-3 flex items-center gap-2 rounded-card border p-3',
-        isDarkMode ? 'bg-red-500/[0.06] border-red-500/20 text-red-400' : 'bg-red-50 border-red-200 text-red-600',
+        statusSemanticClass('danger', isDarkMode),
       )}>
         <AlertCircle size={14} className="shrink-0" />
         <span className="text-[11px] font-light tracking-wide">生产预警扫描失败：{loadError}</span>
@@ -59,10 +60,11 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
   const high = alerts.filter(a => a.severity === 'high').length;
   const visibleCount = expanded ? alerts.length : Math.min(alerts.length, 3);
 
+  // RDL 语义 token：critical→danger / high→warning / 其余→neutral（中性 opacity 驱动）
   const sevColor = (sev: string) => {
-    if (sev === 'critical') return isDarkMode ? 'bg-red-500/15 text-red-400 border-red-500/20' : 'bg-red-50 text-red-600 border-red-200';
-    if (sev === 'high') return isDarkMode ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' : 'bg-amber-50 text-amber-600 border-amber-200';
-    return isDarkMode ? 'bg-white/5 text-white/60 border-white/10' : 'bg-slate-50 text-slate-600 border-slate-200';
+    if (sev === 'critical') return statusSemanticClass('danger', isDarkMode);
+    if (sev === 'high') return statusSemanticClass('warning', isDarkMode);
+    return statusSemanticClass('neutral', isDarkMode);
   };
   const sevLabel = (sev: string) => sev === 'critical' ? '紧急' : sev === 'high' ? '高' : '中';
 
@@ -76,7 +78,7 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
         className="flex w-full items-center justify-between"
       >
         <div className="flex items-center gap-2">
-          <AlertCircle size={14} className={isDarkMode ? 'text-red-400' : 'text-red-500'} />
+          <AlertCircle size={14} className={statusSemanticText('danger', isDarkMode)} />
           <span className={cx('text-[11px] font-light tracking-wide', isDarkMode ? 'text-white/70' : 'text-slate-700')}>
             生产预警 ({critical} 紧急 / {high} 高)
           </span>

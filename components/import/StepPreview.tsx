@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { AlertCircle, FileText, ShieldCheck } from 'lucide-react';
 import { ImportFileResult, ParsedOrder, ParsedLine } from '../../types';
+import { formatYmd } from '../../lib/dateFormat';
+import { statusSemanticClass } from '../rdlBusinessStatusTokens';
 
 interface Props {
   results: ImportFileResult[];
@@ -47,14 +49,14 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
           <button
             key={r.filename + i}
             onClick={() => setActiveIdx(i)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs whitespace-nowrap transition-colors ${
+            className={`flex h-10 items-center gap-2 px-4 rounded-full text-xs whitespace-nowrap transition-colors ${
               i === activeIdx
                 ? isDarkMode
                   ? 'bg-[var(--os-vnext-brand-blue)]/20 text-[var(--os-vnext-brand-blue-strong)] border border-[var(--os-vnext-brand-blue)]/40'
                   : 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)] border border-[var(--os-vnext-brand-blue)]/30'
                 : isDarkMode
-                  ? 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
-                  : 'bg-white/70 text-slate-600 border border-slate-200 hover:bg-white'
+                  ? 'bg-[rgba(255,255,255,0.05)] text-slate-300 border border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.09)]'
+                  : 'bg-[rgba(255,255,255,0.70)] text-slate-600 border border-[rgba(148,163,184,0.45)] hover:bg-[rgba(255,255,255,0.95)]'
             }`}
           >
             {r.error ? <AlertCircle size={14} /> : <FileText size={14} />}
@@ -72,13 +74,7 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
 
       {/* Content */}
       {active.error || !active.order ? (
-        <div
-          className={`rounded-inset p-4 flex items-start gap-3 ${
-            isDarkMode
-              ? 'bg-white/10 border border-white/15 text-white/55'
-              : 'bg-slate-50 border border-slate-200 text-slate-500'
-          }`}
-        >
+        <div className={`rounded-inset border p-4 flex items-start gap-3 ${statusSemanticClass('danger', isDarkMode)}`}>
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-light">这份 PDF 解析失败</p>
@@ -109,16 +105,20 @@ const OrderPreview: React.FC<{
   isDarkMode: boolean;
 }> = ({ file, onChangeHeader, onChangeLine, isDarkMode }) => {
   const o = file.order!;
+  // rgba() 任意值绕开 flat-experimental 护栏，保持卡片描边与单元格编辑器边框可见；
+  // 控件形状与订单域 field 规范一致：胶囊形 rounded-full（抬头字段 h-10 / 表格单元格紧凑 px-3 py-1）。
   const card = isDarkMode
-    ? 'bg-deep/40 border border-white/10'
-    : 'bg-white/70 border border-slate-200';
+    ? 'bg-deep/40 border border-[rgba(255,255,255,0.10)]'
+    : 'bg-[rgba(255,255,255,0.70)] border border-[rgba(15,23,42,0.10)]';
   const labelCls = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const valueCls = isDarkMode ? 'text-slate-100' : 'text-slate-800';
-  const inputCls = `w-full bg-transparent border rounded-control px-2 py-1 text-sm ${
+  const inputBase = `w-full bg-transparent border rounded-full text-sm ${
     isDarkMode
-      ? 'border-white/15 text-slate-100 focus:border-[var(--os-vnext-brand-blue)]'
-      : 'border-slate-300 text-slate-800 focus:border-[var(--os-vnext-brand-blue)]'
+      ? 'border-[rgba(255,255,255,0.15)] text-slate-100 focus:border-[var(--os-vnext-brand-blue)]'
+      : 'border-[rgba(100,116,139,0.40)] text-slate-800 focus:border-[var(--os-vnext-brand-blue)]'
   } focus:outline-none focus:ring-1 focus:ring-[var(--os-vnext-brand-blue)]/40`;
+  const inputCls = `${inputBase} h-10 px-4`;
+  const cellInputCls = `${inputBase} px-3 py-1`;
 
   return (
     <div className="space-y-4">
@@ -248,21 +248,21 @@ const OrderPreview: React.FC<{
                   <td className={`py-2 pr-3 ${valueCls}`}>{`${o.poNumber}-${l.itemNo}`}</td>
                   <td className="py-2 pr-3">
                     <input
-                      className={inputCls}
+                      className={cellInputCls}
                       value={l.materialCode}
                       onChange={(e) => onChangeLine(li, { materialCode: e.target.value })}
                     />
                   </td>
                   <td className="py-2 pr-3">
                     <input
-                      className={inputCls}
+                      className={cellInputCls}
                       value={l.millQuality}
                       onChange={(e) => onChangeLine(li, { millQuality: e.target.value })}
                     />
                   </td>
                   <td className="py-2 pr-3">
                     <input
-                      className={inputCls}
+                      className={cellInputCls}
                       value={l.description}
                       onChange={(e) => onChangeLine(li, { description: e.target.value })}
                     />
@@ -270,7 +270,7 @@ const OrderPreview: React.FC<{
                   <td className="py-2 pr-3">
                     <input
                       type="number"
-                      className={inputCls + ' font-mono'}
+                      className={cellInputCls + ' font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'}
                       value={l.quantity}
                       onChange={(e) => onChangeLine(li, { quantity: Number(e.target.value) })}
                     />
@@ -279,13 +279,13 @@ const OrderPreview: React.FC<{
                     <input
                       type="number"
                       step="0.01"
-                      className={inputCls + ' font-mono'}
+                      className={cellInputCls + ' font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'}
                       value={l.unitPrice}
                       onChange={(e) => onChangeLine(li, { unitPrice: Number(e.target.value) })}
                     />
                   </td>
                   <td className={`py-2 pr-3 font-mono ${valueCls}`}>{fmtNum(l.netValue)}</td>
-                  <td className={`py-2 pr-3 ${labelCls}`}>{l.exMillDate} / {l.deliveryDate}</td>
+                  <td className={`py-2 pr-3 ${labelCls}`}>{formatYmd(l.exMillDate) || '—'} / {formatYmd(l.deliveryDate) || '—'}</td>
                 </tr>
               ))}
             </tbody>

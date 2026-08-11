@@ -48,9 +48,11 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
   const removeOne = (id: string) => onFilesChange(files.filter((f) => f.id !== id));
   const clearAll = () => onFilesChange([]);
 
+  // rgba() 任意值绕开 flat-experimental 护栏（border-white//border-slate/bg-white/ + rounded
+  // → border:0 !important）；拖拽区的虚线描边是核心视觉可供性，必须保持可见。
   const dropzoneBase = isDarkMode
-    ? 'border-white/15 bg-white/5 text-slate-400'
-    : 'border-slate-300 bg-white/60 text-slate-500';
+    ? 'border-[rgba(255,255,255,0.22)] bg-[rgba(255,255,255,0.04)] text-slate-400'
+    : 'border-[rgba(100,116,139,0.50)] bg-[rgba(255,255,255,0.60)] text-slate-500';
   const dropzoneActive = 'border-[var(--os-vnext-brand-blue)] bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)]';
 
   return (
@@ -89,7 +91,7 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
       {files.length > 0 && (
         <div
           className={`rounded-card ${
-            isDarkMode ? 'bg-deep/40 border border-white/10' : 'bg-white/70 border border-slate-200'
+            isDarkMode ? 'bg-deep/40 border border-[rgba(255,255,255,0.10)]' : 'bg-[rgba(255,255,255,0.70)] border border-[rgba(15,23,42,0.10)]'
           } overflow-hidden`}
         >
           <div
@@ -141,7 +143,7 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
                     type="button"
                     onClick={() => removeOne(f.id)}
                     disabled={isParsing}
-                    className={`p-1 rounded transition-colors disabled:opacity-30 ${
+                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-30 ${
                       isDarkMode
                         ? 'text-slate-400 hover:bg-white/10 hover:text-white'
                         : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'

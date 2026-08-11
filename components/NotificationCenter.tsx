@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { NotificationItem, NotificationStats, NotificationTypeCatalogItem, ApprovalRequestItem } from '../types';
+import { BAMBOOK_OS } from './ui/bambookOsTokens';
+import { statusSemanticClass, statusSemanticText, statusSemanticBg } from './rdlBusinessStatusTokens';
 
 // D2 主动提醒引擎 — Electron 原生推送桥（preload.ts exposeInMainWorld）。
 // Web 浏览器环境下为 undefined，相关能力自动降级为仅应用内提醒。
@@ -70,16 +72,17 @@ const TYPE_ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeW
 };
 
 // ── 通知级别 → 颜色映射 ──
-const LEVEL_COLOR_MAP: Record<string, string> = {
-  info: 'text-link',
-  warning: 'text-amber-400',
-  critical: 'text-red-400',
+// RDL 语义 token，抽屉跟随主题（light/dark 双模式）；info 保留品牌 accent 蓝。
+const levelColorFor = (level: string, dark: boolean): string => {
+  if (level === 'critical') return statusSemanticText('danger', dark);
+  if (level === 'warning') return statusSemanticText('warning', dark);
+  return 'text-link';
 };
 
-const LEVEL_BG_MAP: Record<string, string> = {
-  info: 'bg-[rgb(var(--bambook-brand-link-rgb)/0.08)]',
-  warning: 'bg-amber-400/8',
-  critical: 'bg-red-400/10',
+const levelBgFor = (level: string, dark: boolean): string => {
+  if (level === 'critical') return dark ? 'bg-white/[0.07]' : 'bg-slate-900/[0.06]';
+  if (level === 'warning') return dark ? 'bg-white/[0.05]' : 'bg-slate-900/[0.045]';
+  return dark ? 'bg-[rgb(var(--bambook-brand-link-rgb)/0.08)]' : 'bg-[rgb(var(--bambook-brand-link-rgb)/0.06)]';
 };
 
 // ── 时间格式化（相对时间）──
@@ -98,13 +101,90 @@ function formatRelativeTime(isoString: string): string {
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 }
 
+// ── 通知中心 Context ──
+// 将 isOpen/toggle/unreadCount 等状态暴露给 Trigger 组件，
+// 使通知按钮可以集成到各页面 header 中，而非 fixed 定位。
+interface NotificationContextValue {
+  isOpen: boolean;
+  toggle: () => void;
+  close: () => void;
+  unreadCount: number;
+  criticalCount: number;
+  isDarkMode: boolean;
+}
+
+const NotificationContext = React.createContext<NotificationContextValue | null>(null);
+
+export function useNotificationCenter(): NotificationContextValue | null {
+  return React.useContext(NotificationContext);
+}
+
+// ── 通知铃铛按钮（可集成到任意 header 中）──
+// 替代原 fixed 定位按钮，通过 Context 获取状态，自然融入页面 header 布局。
+export interface NotificationCenterTriggerProps {
+  className?: string;
+  iconSize?: number;
+  iconStrokeWidth?: number;
+  /** default：56px 大圆角方块（Dashboard 冻结区沿用）；header：40px 圆形胶囊（PageHeader 标题栏节奏） */
+  variant?: 'default' | 'header';
+}
+
+export function NotificationCenterTrigger({
+  className,
+  iconSize,
+  iconStrokeWidth = 1.3,
+  variant = 'default',
+}: NotificationCenterTriggerProps) {
+  const ctx = React.useContext(NotificationContext);
+  if (!ctx) return null;
+  const { isOpen, toggle, unreadCount, criticalCount, isDarkMode } = ctx;
+  const hasUnread = unreadCount > 0;
+  const pillClass = isDarkMode
+    ? BAMBOOK_OS.controls.actionControl.dark
+    : BAMBOOK_OS.controls.actionControl.light;
+  const sizeClass = variant === 'header'
+    ? 'h-10 w-10 rounded-full'
+    : 'h-14 w-14 rounded-card-lg';
+  const resolvedIconSize = iconSize ?? (variant === 'header' ? 16 : 19);
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={isOpen ? '关闭通知中心' : '打开通知中心'}
+      className={`relative flex shrink-0 items-center justify-center border ${sizeClass} ${pillClass} text-os-adaptive-primary transition-all duration-300
+        ${isOpen ? 'scale-90 opacity-80' : ''}
+        ${className ?? ''}
+      `}
+    >
+      <Bell size={resolvedIconSize} strokeWidth={iconStrokeWidth} />
+      {hasUnread && (
+        /* 未读徽章：默认品牌 accent 蓝（与状态步骤条当前态同配方）；critical 升级为 RDL danger 实心灰阶 */
+        <span
+          className={`absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-light leading-none
+            ${criticalCount > 0
+              ? `${statusSemanticBg('danger', isDarkMode)} ${isDarkMode ? 'text-slate-950 ring-2 ring-white/25' : 'text-white ring-2 ring-slate-400/50'}`
+              : isDarkMode ? 'bg-accent-blue text-slate-950' : 'bg-action text-white'}
+          `}
+        >
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+      {criticalCount > 0 && !isOpen && (
+        <span className={`absolute -right-1 -top-1 h-2.5 w-2.5 animate-ping rounded-full ${isDarkMode ? 'bg-white/50' : 'bg-slate-500/70'}`} />
+      )}
+    </button>
+  );
+}
+
 // ── 组件 ──
 export interface NotificationCenterProps {
   isDarkMode?: boolean;
   endpoint?: string;
+  children?: React.ReactNode;
 }
 
-export function NotificationCenter({ isDarkMode = false, endpoint }: NotificationCenterProps) {
+export function NotificationCenter({ isDarkMode = false, endpoint, children }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -396,37 +476,65 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
 
   const hasUnread = unreadCount > 0;
 
+  // ── 主题配方：抽屉跟随主题（dark=深膜 / light=亮膜），文字/表面/控件层级统一收口 ──
+  const dk = isDarkMode;
+  const ui = {
+    /** Tab 选中态 / 面板标题 */
+    title: dk ? 'text-white/95' : 'text-slate-900',
+    tabIdle: dk ? 'text-white/40 hover:text-white/70' : 'text-slate-400 hover:text-slate-600',
+    /** 一级正文（通知标题未读、审批标题） */
+    primary: dk ? 'text-white/90' : 'text-slate-800',
+    /** 二级正文（通知正文未读） */
+    body: dk ? 'text-white/65' : 'text-slate-600',
+    /** 三级辅助（meta/说明） */
+    muted: dk ? 'text-white/50' : 'text-slate-500',
+    faint: dk ? 'text-white/40' : 'text-slate-400',
+    ghost: dk ? 'text-white/30' : 'text-slate-400',
+    /** 空态大图标 */
+    iconEmpty: dk ? 'text-white/20' : 'text-slate-300',
+    /** 已读态 */
+    readTitle: dk ? 'font-light text-white/55' : 'font-light text-slate-500',
+    readBody: dk ? 'text-white/35' : 'text-slate-400',
+    /** 行/条目 hover */
+    rowHover: dk ? 'hover:bg-white/4' : 'hover:bg-slate-900/[0.035]',
+    /** 未读行 hover（底色之上再加深） */
+    rowHoverUnread: dk ? 'hover:bg-white/6' : 'hover:bg-slate-900/[0.055]',
+    /** 审批卡片 / 决策意见底板 */
+    card: dk ? 'bg-white/4' : 'bg-slate-900/[0.035]',
+    chipSurface: dk ? 'bg-white/5' : 'bg-slate-900/[0.05]',
+    /** 待办/已办 小 Tab */
+    tabPillActive: dk ? 'bg-white/10 text-white/90' : 'bg-slate-900/[0.07] text-slate-800',
+    tabPillIdle: dk ? 'text-white/40 hover:bg-white/5 hover:text-white/70' : 'text-slate-400 hover:bg-slate-900/[0.05] hover:text-slate-600',
+    /** 头部/行内图标按钮 */
+    iconBtn: dk ? 'text-white/50 hover:bg-white/10 hover:text-white/90' : 'text-slate-400 hover:bg-slate-900/[0.06] hover:text-slate-700',
+    iconBtnRow: dk ? 'text-white/40 hover:bg-white/10' : 'text-slate-400 hover:bg-slate-900/[0.06]',
+    /** 文本按钮（全部已读） */
+    textBtn: dk ? 'text-white/60 hover:bg-white/10 hover:text-white/90' : 'text-slate-500 hover:bg-slate-900/[0.06] hover:text-slate-800',
+    /** 中性小按钮（取消/驳回） */
+    ghostBtn: dk ? 'text-white/50 hover:bg-white/8' : 'text-slate-500 hover:bg-slate-900/[0.06]',
+    /** 输入控件（忽略原因/驳回意见） */
+    input: dk
+      ? 'bg-white/6 text-white/90 placeholder-white/25 focus:bg-white/8'
+      : 'bg-slate-900/[0.04] text-slate-800 placeholder-slate-400 focus:bg-slate-900/[0.07]',
+    /** 语义按钮 hover 加深（通过/驳回/确认忽略：statusSemanticClass 之上） */
+    semanticBtnHover: dk ? 'hover:bg-white/[0.10]' : 'hover:bg-slate-900/[0.08]',
+    /** 开关关闭态轨道 */
+    switchOff: dk ? 'bg-white/12' : 'bg-slate-300/80',
+  };
+
+  // Context value — 仅暴露 Trigger 所需的最小状态，避免 stats 轮询导致全局 re-render
+  const ctxValue = React.useMemo<NotificationContextValue>(() => ({
+    isOpen,
+    toggle: () => setIsOpen(open => !open),
+    close: () => setIsOpen(false),
+    unreadCount,
+    criticalCount: stats?.critical ?? 0,
+    isDarkMode,
+  }), [isOpen, unreadCount, stats?.critical, isDarkMode]);
+
   return (
-    <>
-      {/* ── 铃铛按钮 ── */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(open => !open)}
-        aria-label={isOpen ? '关闭通知中心' : '打开通知中心'}
-        className={`fixed right-6 top-6 z-[70] flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-xl transition-all duration-300
-          ${isDarkMode
-            ? 'bg-[rgb(var(--bambook-bg-deep-rgb)/0.45)] text-white/80 hover:bg-[rgb(var(--bambook-bg-deep-rgb)/0.6)] hover:text-white'
-            : 'bg-[rgb(var(--bambook-bg-deep-rgb)/0.08)] text-deep/70 hover:bg-[rgb(var(--bambook-bg-deep-rgb)/0.14)] hover:text-deep'}
-          ${isOpen ? 'scale-90 opacity-80' : 'scale-100'}
-        `}
-      >
-        <Bell size={18} strokeWidth={1.4} />
-        {/* 未读徽章 */}
-        {hasUnread && (
-          <span
-            className={`absolute -right-0.5 -top-0.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-medium leading-none text-white
-              ${unreadCount > 99 ? 'bg-red-500' : unreadCount > 9 ? 'bg-red-500' : 'bg-red-500'}
-              ${stats?.critical && stats.critical > 0 ? 'ring-2 ring-red-400/30' : ''}
-            `}
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-        {/* critical 脉冲提示 */}
-        {stats?.critical && stats.critical > 0 && !isOpen && (
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-ping rounded-full bg-red-500/60" />
-        )}
-      </button>
+    <NotificationContext.Provider value={ctxValue}>
+      {children}
 
       {/* ── 抽屉面板 ── */}
       {isOpen && (
@@ -437,13 +545,13 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
             onClick={() => setIsOpen(false)}
           />
 
-          {/* 抽屉主体 */}
+          {/* 抽屉主体（跟随主题：dark=深膜 / light=亮膜，hairline 左边线分隔页面） */}
           <div
             ref={drawerRef}
-            className={`fixed right-0 top-0 z-[90] flex h-full w-[420px] flex-col overflow-hidden rounded-l-panel backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+            className={`fixed right-0 top-0 z-[90] flex h-full w-[420px] flex-col overflow-hidden rounded-l-panel border-l backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
               ${isDarkMode
-                ? 'bg-[rgb(var(--bambook-bg-deep-rgb)/0.82)] text-white/90'
-                : 'bg-[rgb(var(--bambook-bg-deep-rgb)/0.88)] text-white/95'}
+                ? 'bg-[rgb(var(--bambook-bg-deep-rgb)/0.82)] border-white/[0.08] text-white/90'
+                : 'bg-white/90 border-slate-200/70 text-slate-800'}
             `}
             style={{
               backdropFilter: 'blur(32px) saturate(1.4)',
@@ -457,7 +565,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                   <button
                     type="button"
                     onClick={() => setView('list')}
-                    className="mr-1 flex h-7 w-7 items-center justify-center self-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+                    className={`mr-1 flex h-7 w-7 items-center justify-center self-center rounded-full transition-colors ${ui.iconBtn}`}
                     aria-label="返回通知列表"
                   >
                     <ArrowLeft size={15} strokeWidth={1.5} />
@@ -471,21 +579,21 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                     <button
                       type="button"
                       onClick={() => setView('list')}
-                      className={`text-lg tracking-tight transition-colors ${view === 'list' ? 'font-light text-white/95' : 'font-light text-white/40 hover:text-white/70'}`}
+                      className={`text-lg tracking-tight transition-colors ${view === 'list' ? `font-light ${ui.title}` : `font-light ${ui.tabIdle}`}`}
                     >
                       通知
                     </button>
                     <button
                       type="button"
                       onClick={() => setView('approvals')}
-                      className={`text-lg tracking-tight transition-colors ${view === 'approvals' ? 'font-light text-white/95' : 'font-light text-white/40 hover:text-white/70'}`}
+                      className={`text-lg tracking-tight transition-colors ${view === 'approvals' ? `font-light ${ui.title}` : `font-light ${ui.tabIdle}`}`}
                     >
                       审批
                     </button>
                   </div>
                 )}
                 {view === 'list' && hasUnread && (
-                  <span className="text-xs font-light text-white/50">
+                  <span className={`text-xs font-light ${ui.muted}`}>
                     {unreadCount} 条未读
                   </span>
                 )}
@@ -495,7 +603,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                   <button
                     type="button"
                     onClick={handleMarkAllRead}
-                    className="flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-light text-white/60 transition-colors hover:bg-white/10 hover:text-white/90"
+                    className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-light transition-colors ${ui.textBtn}`}
                     title="全部标记已读"
                   >
                     <CheckCheck size={14} strokeWidth={1.4} />
@@ -506,7 +614,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                   <button
                     type="button"
                     onClick={() => setView('prefs')}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${ui.iconBtn}`}
                     aria-label="提醒偏好设置"
                     title="提醒偏好设置"
                   >
@@ -516,7 +624,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${ui.iconBtn}`}
                   aria-label="关闭通知中心"
                 >
                   <X size={16} strokeWidth={1.5} />
@@ -527,17 +635,17 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
             {/* ── D2 偏好面板 ── */}
             {view === 'prefs' && (
               <div className="flex-1 overflow-y-auto px-4 pb-6 scroll-smooth">
-                <p className="mb-3 px-2 text-[11px] font-light leading-relaxed text-white/40">
+                <p className={`mb-3 px-2 text-[11px] font-light leading-relaxed ${ui.faint}`}>
                   关闭的类型将不再为你生成通知（不影响其他成员）。
                 </p>
                 {prefsLoading && !catalog ? (
                   <div className="flex h-40 items-center justify-center">
-                    <div className="text-sm font-light text-white/40">加载中...</div>
+                    <div className={`text-sm font-light ${ui.faint}`}>加载中...</div>
                   </div>
                 ) : !catalog || catalog.length === 0 ? (
                   <div className="flex h-40 flex-col items-center justify-center gap-3">
-                    <Bell size={24} strokeWidth={1} className="text-white/20" />
-                    <div className="text-sm font-light text-white/40">暂无通知类型</div>
+                    <Bell size={24} strokeWidth={1} className={ui.iconEmpty} />
+                    <div className={`text-sm font-light ${ui.faint}`}>暂无通知类型</div>
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -546,16 +654,16 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                       return (
                         <div
                           key={entry.type}
-                          className="flex items-center gap-3 rounded-control px-4 py-3 transition-colors duration-200 hover:bg-white/4"
+                          className={`flex items-center gap-3 rounded-control px-4 py-3 transition-colors duration-200 ${ui.rowHover}`}
                         >
-                          <div className={`shrink-0 ${entry.isEnabled ? 'text-white/70' : 'text-white/25'}`}>
+                          <div className={`shrink-0 ${entry.isEnabled ? (dk ? 'text-white/70' : 'text-slate-600') : (dk ? 'text-white/25' : 'text-slate-400')}`}>
                             <Icon size={17} strokeWidth={1.3} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className={`text-sm ${entry.isEnabled ? 'font-light text-white/90' : 'font-light text-white/40'}`}>
+                            <div className={`text-sm ${entry.isEnabled ? `font-light ${ui.primary}` : `font-light ${ui.faint}`}`}>
                               {entry.label}
                             </div>
-                            <div className="mt-0.5 text-[10px] font-light text-white/30">
+                            <div className={`mt-0.5 text-[10px] font-light ${ui.ghost}`}>
                               {entry.seenCount > 0 ? `已收到 ${entry.seenCount} 条` : '暂未收到过'}
                             </div>
                           </div>
@@ -567,7 +675,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                             aria-label={`${entry.label}通知开关`}
                             onClick={() => handleTogglePreference(entry.type, !entry.isEnabled)}
                             className={`relative h-5.5 w-10 shrink-0 rounded-full transition-colors duration-200
-                              ${entry.isEnabled ? 'bg-link/70' : 'bg-white/12'}`}
+                              ${entry.isEnabled ? 'bg-link/70' : ui.switchOff}`}
                           >
                             <span
                               className={`absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white transition-transform duration-200
@@ -593,7 +701,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                       type="button"
                       onClick={() => setApprovalView(v)}
                       className={`rounded-control px-3 py-1.5 text-xs font-light transition-colors
-                        ${approvalView === v ? 'bg-white/10 text-white/90' : 'text-white/40 hover:bg-white/5 hover:text-white/70'}`}
+                        ${approvalView === v ? ui.tabPillActive : ui.tabPillIdle}`}
                     >
                       {v === 'pending' ? '待办' : '已办'}
                     </button>
@@ -601,17 +709,17 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                 </div>
                 {approvalsLoading && !approvals ? (
                   <div className="flex h-40 items-center justify-center">
-                    <div className="text-sm font-light text-white/40">加载中...</div>
+                    <div className={`text-sm font-light ${ui.faint}`}>加载中...</div>
                   </div>
                 ) : approvalsError && !approvals ? (
                   <div className="flex h-40 flex-col items-center justify-center gap-3">
-                    <Stamp size={24} strokeWidth={1} className="text-white/20" />
-                    <div className="text-sm font-light text-white/40">{approvalsError}</div>
+                    <Stamp size={24} strokeWidth={1} className={ui.iconEmpty} />
+                    <div className={`text-sm font-light ${ui.faint}`}>{approvalsError}</div>
                   </div>
                 ) : !approvals || approvals.length === 0 ? (
                   <div className="flex h-40 flex-col items-center justify-center gap-3">
-                    <Stamp size={24} strokeWidth={1} className="text-white/20" />
-                    <div className="text-sm font-light text-white/40">{approvalView === 'pending' ? '暂无待办审批' : '暂无已办记录'}</div>
+                    <Stamp size={24} strokeWidth={1} className={ui.iconEmpty} />
+                    <div className={`text-sm font-light ${ui.faint}`}>{approvalView === 'pending' ? '暂无待办审批' : '暂无已办记录'}</div>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -621,32 +729,32 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                       const deciding = decidingId === item.id;
                       const rejecting = rejectingId === item.id;
                       return (
-                        <div key={item.id} className="rounded-card bg-white/4 px-4 py-3.5">
+                        <div key={item.id} className={`rounded-card px-4 py-3.5 ${ui.card}`}>
                           {/* 标题行：上下文摘要 + 风险徽章 */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
                               {isPriceDeviation ? (
                                 <>
-                                  <div className="text-sm font-light text-white/90">
+                                  <div className={`text-sm font-light ${ui.primary}`}>
                                     报价单 {p.quotationNumber || item.targetId || ''} 双轨偏差审批
                                   </div>
-                                  <div className="mt-1 text-xs font-light leading-relaxed text-white/50">
+                                  <div className={`mt-1 text-xs font-light leading-relaxed ${ui.muted}`}>
                                     轨道 A 中位 ${Number(p.trackAMedianUsd ?? 0).toFixed(4)}/{p.trackAUnit === 'PC' ? '件' : '米'}
                                     {' · '}轨道 B 终价 ${Number(p.trackBFinalUsd ?? 0).toFixed(4)}
-                                    {' · '}偏差 <span className={p.level === 'block' ? 'text-red-400' : 'text-amber-400'}>
+                                    {' · '}偏差 <span className={p.level === 'block' ? statusSemanticText('danger', dk) : statusSemanticText('warning', dk)}>
                                       {(p.deviationPercent ?? 0) > 0 ? '+' : ''}{p.deviationPercent}%
                                     </span>
                                   </div>
                                 </>
                               ) : (
                                 <>
-                                  <div className="text-sm font-light text-white/90">{item.actionType}</div>
-                                  <div className="mt-1 text-xs font-light text-white/50">
+                                  <div className={`text-sm font-light ${ui.primary}`}>{item.actionType}</div>
+                                  <div className={`mt-1 text-xs font-light ${ui.muted}`}>
                                     {item.targetType}{item.targetId ? ` · ${item.targetId}` : ''}
                                   </div>
                                 </>
                               )}
-                              <div className="mt-1.5 text-[10px] font-light text-white/30">
+                              <div className={`mt-1.5 text-[10px] font-light ${ui.ghost}`}>
                                 {item.requester?.displayName || item.requester?.email || '申请人'} · {formatRelativeTime(item.createdAt)}
                                 {item.status !== 'pending' && item.reviewer && (
                                   <> · {item.status === 'approved' ? '由' : '被'} {item.reviewer.displayName || item.reviewer.email} {item.status === 'approved' ? '通过' : '驳回'}</>
@@ -654,16 +762,16 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                               </div>
                               {/* 已办：决策意见 */}
                               {item.status !== 'pending' && item.decisionNote && (
-                                <div className="mt-1.5 rounded-control bg-white/5 px-2.5 py-1.5 text-[11px] font-light text-white/55">
+                                <div className={`mt-1.5 rounded-control px-2.5 py-1.5 text-[11px] font-light ${ui.chipSurface} ${dk ? 'text-white/55' : 'text-slate-600'}`}>
                                   审批意见：{item.decisionNote}
                                 </div>
                               )}
                             </div>
-                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-light
-                              ${item.status === 'approved' ? 'bg-emerald-400/10 text-emerald-300'
-                                : item.status === 'rejected' ? 'bg-red-400/10 text-red-300'
-                                : item.risk === 'high' ? 'bg-red-400/10 text-red-300'
-                                : 'bg-amber-400/10 text-amber-300'}`}>
+                            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-light
+                              ${item.status === 'approved' ? statusSemanticClass('success', dk)
+                                : item.status === 'rejected' ? statusSemanticClass('danger', dk)
+                                : item.risk === 'high' ? statusSemanticClass('danger', dk)
+                                : statusSemanticClass('warning', dk)}`}>
                               {item.status === 'approved' ? '已通过'
                                 : item.status === 'rejected' ? '已驳回'
                                 : item.risk === 'high' ? '高风险' : '待审批'}
@@ -679,14 +787,14 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                     onChange={(e) => setRejectNote(e.target.value)}
                                     placeholder="驳回意见（必填）"
                                     rows={2}
-                                    className="w-full resize-none rounded-control bg-white/6 px-3 py-2 text-xs font-light text-white/90 placeholder-white/25 outline-none focus:bg-white/8"
+                                    className={`w-full resize-none rounded-control px-3 py-2 text-xs font-light outline-none ${ui.input}`}
                                   />
                                   <div className="flex items-center gap-2">
                                     <button
                                       type="button"
                                       disabled={deciding || !rejectNote.trim()}
                                       onClick={() => handleDecideApproval(item, 'rejected')}
-                                      className="flex items-center gap-1.5 rounded-control bg-red-400/15 px-3 py-1.5 text-xs font-light text-red-300 transition-colors hover:bg-red-400/20 disabled:opacity-40"
+                                      className={`flex items-center gap-1.5 rounded-control border px-3 py-1.5 text-xs font-light transition-colors ${ui.semanticBtnHover} disabled:opacity-40 ${statusSemanticClass('danger', dk)}`}
                                     >
                                       {deciding ? <Loader2 size={12} className="animate-spin" /> : <AlertCircle size={12} strokeWidth={1.5} />}
                                       确认驳回
@@ -695,7 +803,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                       type="button"
                                       disabled={deciding}
                                       onClick={() => { setRejectingId(null); setRejectNote(''); }}
-                                      className="rounded-control px-3 py-1.5 text-xs font-light text-white/50 transition-colors hover:bg-white/8"
+                                      className={`rounded-control px-3 py-1.5 text-xs font-light transition-colors ${ui.ghostBtn}`}
                                     >
                                       取消
                                     </button>
@@ -707,7 +815,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                     type="button"
                                     disabled={deciding}
                                     onClick={() => handleDecideApproval(item, 'approved')}
-                                    className="flex items-center gap-1.5 rounded-control bg-emerald-400/15 px-3 py-1.5 text-xs font-light text-emerald-300 transition-colors hover:bg-emerald-400/20 disabled:opacity-40"
+                                    className={`flex items-center gap-1.5 rounded-control border px-3 py-1.5 text-xs font-light transition-colors ${ui.semanticBtnHover} disabled:opacity-40 ${statusSemanticClass('success', dk)}`}
                                   >
                                     {deciding ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={1.5} />}
                                     通过
@@ -716,7 +824,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                     type="button"
                                     disabled={deciding}
                                     onClick={() => { setRejectingId(item.id); setRejectNote(''); }}
-                                    className="flex items-center gap-1.5 rounded-control bg-white/6 px-3 py-1.5 text-xs font-light text-white/60 transition-colors hover:bg-white/10 disabled:opacity-40"
+                                    className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-light transition-colors disabled:opacity-40 ${dk ? 'bg-white/6 text-white/60 hover:bg-white/10' : 'bg-slate-900/[0.05] text-slate-600 hover:bg-slate-900/[0.08]'}`}
                                   >
                                     <X size={12} strokeWidth={1.5} />
                                     驳回
@@ -738,32 +846,32 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
             <div className="flex-1 overflow-y-auto px-4 pb-6 scroll-smooth">
               {loading && items.length === 0 ? (
                 <div className="flex h-40 items-center justify-center">
-                  <div className="text-sm font-light text-white/40">加载中...</div>
+                  <div className={`text-sm font-light ${ui.faint}`}>加载中...</div>
                 </div>
               ) : error ? (
                 <div className="flex h-40 flex-col items-center justify-center gap-2">
-                  <AlertTriangle size={20} strokeWidth={1.2} className="text-red-400/70" />
-                  <div className="text-sm font-light text-white/50">{error}</div>
+                  <AlertTriangle size={20} strokeWidth={1.2} className={statusSemanticText('danger', dk)} />
+                  <div className={`text-sm font-light ${ui.muted}`}>{error}</div>
                   <button
                     type="button"
                     onClick={fetchItems}
-                    className="mt-1 rounded-control px-3 py-1.5 text-xs font-light text-link hover:bg-white/10"
+                    className={`mt-1 rounded-control px-3 py-1.5 text-xs font-light text-link ${dk ? 'hover:bg-white/10' : 'hover:bg-slate-900/[0.06]'}`}
                   >
                     重试
                   </button>
                 </div>
               ) : items.length === 0 ? (
                 <div className="flex h-40 flex-col items-center justify-center gap-3">
-                  <Bell size={24} strokeWidth={1} className="text-white/20" />
-                  <div className="text-sm font-light text-white/40">暂无通知</div>
+                  <Bell size={24} strokeWidth={1} className={ui.iconEmpty} />
+                  <div className={`text-sm font-light ${ui.faint}`}>暂无通知</div>
                 </div>
               ) : (
                 <div className="space-y-1">
                   {items.map((item) => {
                     const Icon = TYPE_ICON_MAP[item.type] || Info;
                     const isUnread = !item.readAt;
-                    const levelColor = LEVEL_COLOR_MAP[item.level] || 'text-link';
-                    const levelBg = LEVEL_BG_MAP[item.level] || LEVEL_BG_MAP.info;
+                    const levelColor = levelColorFor(item.level, dk);
+                    const levelBg = levelBgFor(item.level, dk);
 
                     return (
                       <div
@@ -771,29 +879,29 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                         onClick={() => handleItemClick(item)}
                         className={`group relative flex cursor-pointer items-start gap-3 rounded-control px-4 py-3.5 transition-colors duration-200
                           ${isUnread
-                            ? `${levelBg} hover:bg-white/6`
-                            : 'hover:bg-white/4'}
+                            ? `${levelBg} ${ui.rowHoverUnread}`
+                            : ui.rowHover}
                         `}
                       >
                         {/* 未读标记条 */}
                         {isUnread && (
-                          <span className={`absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${item.level === 'critical' ? 'bg-red-400' : 'bg-link'}`} />
+                          <span className={`absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${item.level === 'critical' ? statusSemanticBg('danger', dk) : 'bg-link'}`} />
                         )}
 
                         {/* 类型图标 */}
-                        <div className={`mt-0.5 shrink-0 ${isUnread ? levelColor : 'text-white/30'}`}>
+                        <div className={`mt-0.5 shrink-0 ${isUnread ? levelColor : ui.ghost}`}>
                           <Icon size={18} strokeWidth={1.3} />
                         </div>
 
                         {/* 内容 */}
                         <div className="min-w-0 flex-1">
-                          <div className={`text-sm leading-snug ${isUnread ? 'font-normal text-white/95' : 'font-light text-white/55'}`}>
+                          <div className={`text-sm leading-snug ${isUnread ? `font-normal ${ui.title}` : ui.readTitle}`}>
                             {item.title}
                           </div>
-                          <div className={`mt-1 line-clamp-2 text-xs leading-relaxed ${isUnread ? 'text-white/65' : 'text-white/35'}`}>
+                          <div className={`mt-1 line-clamp-2 text-xs leading-relaxed ${isUnread ? ui.body : ui.readBody}`}>
                             {item.body}
                           </div>
-                          <div className="mt-1.5 text-[10px] font-light text-white/30">
+                          <div className={`mt-1.5 text-[10px] font-light ${ui.ghost}`}>
                             {formatRelativeTime(item.createdAt)}
                           </div>
                           {/* D2 转跟进行内反馈 */}
@@ -812,23 +920,23 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleDismiss(item); if (e.key === 'Escape') { setDismissingId(null); setDismissReason(''); setDismissError(null); } }}
                                 placeholder="忽略原因（必填，用于优化推送准确率）"
                                 maxLength={500}
-                                className="w-full rounded-control bg-white/6 px-2.5 py-1.5 text-[11px] font-light text-white/90 placeholder-white/25 outline-none focus:bg-white/8"
+                                className={`w-full rounded-control px-2.5 py-1.5 text-[11px] font-light outline-none ${ui.input}`}
                               />
                               {dismissError && dismissingId === item.id && (
-                                <div className="text-[10px] font-light text-red-400/90">{dismissError}</div>
+                                <div className={`text-[10px] font-light ${statusSemanticText('danger', dk)}`}>{dismissError}</div>
                               )}
                               <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => handleDismiss(item)}
-                                  className="rounded-control bg-amber-400/15 px-2.5 py-1 text-[10px] font-light text-amber-300 transition-colors hover:bg-amber-400/20"
+                                  className={`rounded-control border px-2.5 py-1 text-[10px] font-light transition-colors ${ui.semanticBtnHover} ${statusSemanticClass('warning', dk)}`}
                                 >
                                   确认忽略
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => { setDismissingId(null); setDismissReason(''); setDismissError(null); }}
-                                  className="rounded-control px-2.5 py-1 text-[10px] font-light text-white/45 transition-colors hover:bg-white/8"
+                                  className={`rounded-control px-2.5 py-1 text-[10px] font-light transition-colors ${dk ? 'text-white/45 hover:bg-white/8' : 'text-slate-500 hover:bg-slate-900/[0.06]'}`}
                                 >
                                   取消
                                 </button>
@@ -847,7 +955,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                 e.stopPropagation();
                                 handleConvertToFollowUp(item);
                               }}
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-link"
+                              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:text-link ${ui.iconBtnRow}`}
                               title="转为跟进任务"
                             >
                               <UserPlus size={13} strokeWidth={1.5} />
@@ -860,7 +968,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                                 e.stopPropagation();
                                 handleMarkAsRead(item.id);
                               }}
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
+                              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-white/80' : 'hover:text-slate-700'}`}
                               title="标记已读"
                             >
                               <Check size={13} strokeWidth={1.5} />
@@ -875,7 +983,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                               setDismissReason('');
                               setDismissError(null);
                             }}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-amber-300/90"
+                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-white/70' : 'hover:text-slate-600'}`}
                             title="忽略（需填原因）"
                           >
                             <BellOff size={13} strokeWidth={1.5} />
@@ -886,7 +994,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
                               e.stopPropagation();
                               handleDelete(item.id);
                             }}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-red-400/80"
+                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-white/75' : 'hover:text-slate-700'}`}
                             title="删除"
                           >
                             <Trash2 size={13} strokeWidth={1.5} />
@@ -902,7 +1010,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint }: Notificatio
           </div>
         </>
       )}
-    </>
+    </NotificationContext.Provider>
   );
 }
 

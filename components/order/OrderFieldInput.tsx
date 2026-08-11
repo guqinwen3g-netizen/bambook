@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { Order, Relation, RelationCategory } from '../../types';
 import type { FieldMeta, RoleFkTarget } from '../../lib/orderSchema';
 import { currencySymbol, resolveCurrency } from '../../lib/orderSchema';
@@ -7,6 +8,9 @@ import type { EntityCandidate } from '../../lib/entityRegistry';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import SmartLinkedInput from '../ui/SmartLinkedInput';
 import RelationCombobox from './RelationCombobox';
+import ToggleSwitch from '../ui/ToggleSwitch';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
+import { formatYmd } from '../../lib/dateFormat';
 
 interface OrderFieldInputProps {
   field: FieldMeta;
@@ -14,6 +18,12 @@ interface OrderFieldInputProps {
   isDarkMode?: boolean;
   /** Disabled fields render read-only with a subdued style. */
   disabled?: boolean;
+  /**
+   * Read-only mode renders the field as plain text (no input chrome).
+   * Use for the detail-page "查阅模式" so users can visually distinguish
+   * "this is the saved value" from "this is an editable field".
+   */
+  readOnly?: boolean;
   /** Called with a partial patch — host applies it to its draft state. */
   onChange: (patch: Partial<Order>) => void;
   /** Required for relationFk fields. Without it the input falls back to plain text. */
@@ -53,6 +63,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
   order,
   isDarkMode = false,
   disabled = false,
+  readOnly = false,
   onChange,
   relations,
   onCreateRelation,
@@ -64,10 +75,12 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
   const fieldSurfaceCls = isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light;
   const labelTextCls = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
   const disabledCls = disabled ? 'opacity-60 cursor-not-allowed' : '';
-  const fieldShellCls = `border rounded-full outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${fieldSurfaceCls} ${disabledCls}`;
-  const inputCls = `w-full h-9 px-3 ${fieldShellCls}`;
-  const textareaCls = `w-full px-3 py-3 ${fieldShellCls} resize-none leading-relaxed`;
-  const relationComboboxCls = '[&_input]:h-9 [&_input]:rounded-full [&_input]:py-0 [&_input]:font-light [&_input]:transition-all';
+  // rounded-full 仅适用于单行控件（input/select/boolean），textarea 多行使用 rounded-inset 保持视觉一致
+  const fieldShellCls = `border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${fieldSurfaceCls} ${disabledCls}`;
+  const inputCls = `w-full h-10 px-4 rounded-full ${fieldShellCls}`;
+  const textareaCls = `w-full px-4 py-3 rounded-inset ${fieldShellCls} resize-none leading-relaxed`;
+  // 隐藏 Chromium number spinner，保持胶囊内排版纯净
+  const noSpinnerCls = '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
   const fieldSources = (order.fieldSources ?? {}) as Record<string, string>;
   const fieldBinding = getFieldBinding(String(field.key));
 
@@ -85,7 +98,8 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     <label className={`text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ${labelTextCls} ml-1 flex items-center gap-2`}>
       <span>
         {field.labelZh}
-        {field.required && <span className="text-slate-400 ml-0.5">*</span>}
+        {/* 必填星号是录入约束的编辑语境元信息；查阅模式（档案态）不渲染，保持纯净 */}
+        {field.required && !readOnly && <span className="text-slate-400 ml-0.5">*</span>}
       </span>
       {sourceTag && <SourcePill tag={sourceTag} isDarkMode={isDarkMode} />}
     </label>
@@ -95,6 +109,43 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     <p className={`text-[9px] ${BAMBOOK_OS.typography.weight.ui} ml-1 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>{field.hintZh}</p>
   ) : null;
 
+  // ---- Read-only: plain text display, no input chrome ----
+  // 查阅模式走这条路：让用户一眼看出"这是已保存的值"，而不是一个可点的输入框。
+  if (readOnly) {
+    const emptyText = '—';
+    // 档案态排版：值用 14px / 400 字重（正文档），与 10px caps 标签拉开编辑级层级
+    const valueTextCls = `text-[14px] font-normal leading-relaxed ${isDarkMode ? 'text-white/85' : 'text-slate-800'}`;
+    const emptyTextCls = `text-[14px] font-normal leading-relaxed ${isDarkMode ? 'text-white/25' : 'text-slate-300'}`;
+    let display: React.ReactNode;
+    if (field.type === 'boolean') {
+      display = value ? '是' : '否';
+    } else if (field.type === 'currency') {
+      if (value === undefined || value === null || value === '') {
+        display = null;
+      } else {
+        const code = resolveCurrency(order, field.currencySide ?? 'sales');
+        const sym = currencySymbol(code);
+        display = `${sym} ${String(value)} ${code}`;
+      }
+    } else if (field.type === 'longText') {
+      display = (value as string | undefined)?.trim() || null;
+    } else if (field.type === 'date') {
+      display = formatYmd(value as string | undefined) || null;
+    } else {
+      display = value === undefined || value === null || value === '' ? null : String(value);
+    }
+    const isEmpty = display === null || display === undefined || display === '';
+    return (
+      <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
+        {labelEl}
+        <div className={`min-h-[20px] px-1 ${field.type === 'longText' ? 'whitespace-pre-wrap' : 'truncate'}`}>
+          <span className={isEmpty ? emptyTextCls : valueTextCls}>{isEmpty ? emptyText : display}</span>
+        </div>
+        {/* 查阅模式不渲染 hintEl：录入辅助说明是编辑语境元信息，档案态保持纯净（来源信息由 SourcePill 承载） */}
+      </div>
+    );
+  }
+
   // ---- Relation FK: combobox ----
   if (field.relationFk && relations) {
     const fkColumn = `${field.relationFk}RelationId` as keyof Order;
@@ -102,50 +153,51 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
-        <div className={relationComboboxCls}>
-          <RelationCombobox
-            value={(value as string | undefined) ?? ''}
-            relationId={relationId}
-            relations={relations}
-            filterCategories={ROLE_TO_CATEGORIES[field.relationFk]}
-            isDarkMode={isDarkMode}
-            placeholder={field.placeholder}
-            required={field.required}
-            onChange={(next) => {
-              const patch: Partial<Order> = {};
-              (patch as any)[field.key] = next.name;
-              (patch as any)[fkColumn] = next.relationId ?? null;
-              onChange(patch);
-              if (next.relationId && next.relation && onRelationSelected) {
-                onRelationSelected(field.relationFk!, next.relation);
-              }
-            }}
-            onCreateNew={
-              onCreateRelation
-                ? (typed) => onCreateRelation(typed, field.relationFk!)
-                : undefined
+        <RelationCombobox
+          value={(value as string | undefined) ?? ''}
+          relationId={relationId}
+          relations={relations}
+          filterCategories={ROLE_TO_CATEGORIES[field.relationFk]}
+          isDarkMode={isDarkMode}
+          placeholder={field.placeholder}
+          required={field.required}
+          inputClassName={`${inputCls} pr-9`}
+          onChange={(next) => {
+            const patch: Partial<Order> = {};
+            (patch as any)[field.key] = next.name;
+            (patch as any)[fkColumn] = next.relationId ?? null;
+            onChange(patch);
+            if (next.relationId && next.relation && onRelationSelected) {
+              onRelationSelected(field.relationFk!, next.relation);
             }
-          />
-        </div>
+          }}
+          onCreateNew={
+            onCreateRelation
+              ? (typed) => onCreateRelation(typed, field.relationFk!)
+              : undefined
+          }
+        />
         {hintEl}
       </div>
     );
   }
 
-  // ---- Boolean: checkbox ----
+  // ---- Boolean: toggle switch ----
   if (field.type === 'boolean') {
+    const on = !!value;
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
-        <label className={`flex h-9 items-center gap-2 px-3 rounded-full cursor-pointer ${fieldShellCls}`}>
-          <input
-            type="checkbox"
-            checked={!!value}
+        <div className={`flex h-10 w-fit items-center gap-3 rounded-full px-4 ${fieldShellCls}`}>
+          <ToggleSwitch
+            checked={on}
             disabled={disabled}
-            onChange={(e) => onChange({ [field.key]: e.target.checked } as Partial<Order>)}
+            isDarkMode={isDarkMode}
+            ariaLabel={field.labelZh}
+            onChange={(next) => onChange({ [field.key]: next } as Partial<Order>)}
           />
-          <span className="text-xs font-light">{value ? '是' : '否'}</span>
-        </label>
+          <span className="text-xs font-light">{on ? '是' : '否'}</span>
+        </div>
         {hintEl}
       </div>
     );
@@ -156,17 +208,24 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
-        <select
-          className={inputCls}
-          disabled={disabled}
-          value={(value as string | undefined) ?? ''}
-          onChange={(e) => onChange({ [field.key]: e.target.value || undefined } as Partial<Order>)}
-        >
-          <option value="">— 请选择 —</option>
-          {field.enumOptions.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            className={`${inputCls} appearance-none pr-10 ${disabled ? '' : 'cursor-pointer'}`}
+            disabled={disabled}
+            value={(value as string | undefined) ?? ''}
+            onChange={(e) => onChange({ [field.key]: e.target.value || undefined } as Partial<Order>)}
+          >
+            <option value="">— 请选择 —</option>
+            {field.enumOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          <ChevronDown
+            size={14}
+            strokeWidth={1.5}
+            className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}
+          />
+        </div>
         {hintEl}
       </div>
     );
@@ -204,24 +263,24 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
             const v = e.target.value;
             onChange({ [field.key]: v === '' ? undefined : Number(v) } as Partial<Order>);
           }}
-          className={inputCls}
+          className={`${inputCls} ${noSpinnerCls}`}
         />
         {hintEl}
       </div>
     );
   }
 
-  // ---- Date ----
+  // ---- Date: 统一 YYYY-MM-DD 文本 + 原生 picker 按钮 ----
   if (field.type === 'date') {
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
-        <input
-          type="date"
-          disabled={disabled}
+        <CapsuleDateInput
           value={(value as string | undefined) ?? ''}
-          onChange={(e) => onChange({ [field.key]: e.target.value || undefined } as Partial<Order>)}
+          disabled={disabled}
+          isDarkMode={isDarkMode}
           className={inputCls}
+          onChange={(v) => onChange({ [field.key]: v || undefined } as Partial<Order>)}
         />
         {hintEl}
       </div>
@@ -251,7 +310,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
               const v = e.target.value;
               onChange({ [field.key]: v === '' ? undefined : Number(v) } as Partial<Order>);
             }}
-            className={`${inputCls} pl-8`}
+            className={`${inputCls} pl-8 pr-14 ${noSpinnerCls}`}
           />
           <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[9px] ${BAMBOOK_OS.typography.weight.ui} uppercase ${BAMBOOK_OS.typography.tracking.overline} ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
             {code}
@@ -303,18 +362,10 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
 };
 
 const SourcePill: React.FC<{ tag: 'pdf' | 'manual' | 'imported-then-edited'; isDarkMode: boolean }> = ({ tag, isDarkMode }) => {
-  const styles =
-    tag === 'pdf'
-      ? isDarkMode
-        ? 'bg-white/10 text-white/70 border-white/15'
-        : 'bg-slate-100 text-slate-600 border-slate-200'
-      : tag === 'manual'
-        ? isDarkMode
-          ? 'bg-white/10 text-white/70 border-white/15'
-          : 'bg-slate-100 text-slate-600 border-slate-200'
-        : isDarkMode
-          ? 'bg-white/10 text-white/70 border-white/15'
-          : 'bg-slate-100 text-slate-600 border-slate-200';
+  // 三种来源标签同一配方；rgba() 任意值绕开 flat-experimental 护栏，保证胶囊描边可见。
+  const styles = isDarkMode
+    ? 'text-white/70 bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.14)]'
+    : 'text-slate-600 bg-[rgba(241,245,249,0.60)] border-[rgba(148,163,184,0.45)]';
   const label = tag === 'pdf' ? 'PDF' : tag === 'manual' ? '手填' : '手改';
   return (
     <span className={`px-1.5 py-px rounded-full text-[8px] font-light tracking-wider border ${styles}`}>{label}</span>

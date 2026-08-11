@@ -2,6 +2,8 @@ import React from 'react';
 import type { OrderLineLite } from '../../types';
 import SidePanelContainer from '../ui/SidePanelContainer';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
+import OrderSectionHeader from './OrderSectionHeader';
+import { formatYmd } from '../../lib/dateFormat';
 
 interface OrderLinesTableProps {
   lines: OrderLineLite[] | undefined;
@@ -47,18 +49,16 @@ const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = f
       className="overflow-hidden"
       contentClassName="relative z-10 flex min-w-0 flex-col"
     >
-      <header className={`flex items-center justify-between gap-4 px-5 py-4 border-b ${tableCellBorderClass}`}>
-        <div>
-          <h4 className={`text-xs ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ${primaryTextClass}`}>
-            行明细 ({lines.length} 行)
-          </h4>
-          <p className={`mt-1 text-[10px] uppercase ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.overline} ${quietTextClass}`}>
-            Line Items
-          </p>
-        </div>
-        <div className={`shrink-0 text-right text-[10px] uppercase ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ${quietTextClass}`}>
-          总数量 {sum(lines.map((l) => Number(l.quantity) || 0)).toLocaleString()}
-        </div>
+      <header className={`px-5 py-4 border-b ${tableCellBorderClass}`}>
+        {/* 统一分区头（唯一渲染器）；表头自带 border-b，故外壳去 mb */}
+        <OrderSectionHeader
+          iconKey="lines"
+          kicker="Line Items"
+          title="行明细"
+          meta={`${lines.length} 行 · 总数量 ${sum(lines.map((l) => Number(l.quantity) || 0)).toLocaleString()}`}
+          isDarkMode={isDarkMode}
+          wrapClassName="flex items-end justify-between gap-4"
+        />
       </header>
       <div className="overflow-x-auto">
         <table className={`w-full min-w-[980px] table-fixed border-separate border-spacing-0 text-left text-xs ${BAMBOOK_OS.typography.weight.body}`}>
@@ -111,8 +111,8 @@ const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = f
                 <td className={`px-4 py-3 text-right tabular-nums ${primaryTextClass}`}>
                   {fmt(l.netValue)}
                 </td>
-                <td className={`px-4 py-3 whitespace-nowrap ${secondaryTextClass}`}>{l.exMillDate || '—'}</td>
-                <td className={`px-4 py-3 whitespace-nowrap ${secondaryTextClass}`}>{l.deliveryDate || '—'}</td>
+                <td className={`px-4 py-3 whitespace-nowrap ${secondaryTextClass}`}>{formatYmd(l.exMillDate) || '—'}</td>
+                <td className={`px-4 py-3 whitespace-nowrap ${secondaryTextClass}`}>{formatYmd(l.deliveryDate) || '—'}</td>
               </tr>
             ))}
           </tbody>

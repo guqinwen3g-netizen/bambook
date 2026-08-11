@@ -63,15 +63,15 @@ export interface SubGroupMeta {
   id: string;
   labelZh: string;
   labelEn: string;
-  accentColor: string; // Tailwind bg class for accent bar
 }
 
+// 子组头中性化：彩色竖条已废除（RDL 中性契约），子组仅靠文字层级区分
 export const PARTIES_SUBGROUPS: SubGroupMeta[] = [
-  { id: 'customer',  labelZh: '客户',       labelEn: 'Customer',   accentColor: 'bg-blue-500' },
-  { id: 'mill',      labelZh: '面料工厂',   labelEn: 'Mill',       accentColor: 'bg-amber-500' },
-  { id: 'consignee', labelZh: '收货方',     labelEn: 'Consignee',  accentColor: 'bg-emerald-500' },
-  { id: 'billTo',    labelZh: '结款方',     labelEn: 'Bill-to',    accentColor: 'bg-purple-500' },
-  { id: 'internal',  labelZh: '内部团队',   labelEn: 'Internal',   accentColor: 'bg-rose-500' },
+  { id: 'customer',  labelZh: '客户',       labelEn: 'Customer' },
+  { id: 'mill',      labelZh: '面料工厂',   labelEn: 'Mill' },
+  { id: 'consignee', labelZh: '收货方',     labelEn: 'Consignee' },
+  { id: 'billTo',    labelZh: '结款方',     labelEn: 'Bill-to' },
+  { id: 'internal',  labelZh: '内部团队',   labelEn: 'Internal' },
 ];
 
 // ---------------------------------------------------------------------------

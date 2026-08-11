@@ -7,6 +7,7 @@ import StepConfirm from './StepConfirm';
 import { ImportFileResult, ImportResponse, ParsedOrder } from '../../types';
 import { uploadPdfsForParsing } from '../../services/importService';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
+import { statusSemanticClass } from '../rdlBusinessStatusTokens';
 
 interface Props {
   isOpen: boolean;
@@ -133,7 +134,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
       >
         <motion.div
           key="dialog"
-          className={`relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-inset shadow-none overflow-hidden ${
+          className={`relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-floating shadow-none overflow-hidden ${
             isDarkMode
               ? 'bg-deep/95 border border-white/10 text-slate-100'
               : 'bg-white/95 border border-slate-200 text-slate-900'
@@ -171,14 +172,14 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
             </div>
             <button
               onClick={onClose}
-              className={`p-2 rounded transition-colors ${
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                 isDarkMode
                   ? 'text-slate-400 hover:bg-white/10 hover:text-white'
                   : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
               }`}
               aria-label="关闭"
             >
-              <X size={18} />
+              <X size={17} strokeWidth={1.5} />
             </button>
           </div>
 
@@ -198,13 +199,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
           {/* Body */}
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {parseError && (
-              <div
-                className={`mb-4 rounded-inset px-4 py-3 text-sm ${
-                  isDarkMode
-                    ? 'bg-white/10 border border-white/15 text-white/55'
-                    : 'bg-slate-50 border border-slate-200 text-slate-500'
-                }`}
-              >
+              <div className={`mb-4 flex items-center gap-2 rounded-inset border px-4 py-3 text-xs font-light ${statusSemanticClass('danger', isDarkMode)}`}>
                 上传失败：{parseError}
               </div>
             )}
@@ -237,19 +232,19 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               type="button"
               onClick={goBack}
               disabled={step === 1 || isParsing}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+              className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                 isDarkMode
                   ? 'text-slate-300 hover:bg-white/10'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
-              <ChevronLeft size={16} /> 上一步
+              <ChevronLeft size={14} strokeWidth={1.5} /> 上一步
             </button>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                className={`flex h-10 min-w-[80px] items-center justify-center rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${
                   isDarkMode ? 'text-slate-400 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'
                 }`}
               >
@@ -259,7 +254,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
                 type="button"
                 onClick={goNext}
                 disabled={!canNext}
-                className={`flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-light transition-all shadow-none disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-5 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                   isDarkMode
                     ? 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-soft)] text-white'
                     : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white'
@@ -267,7 +262,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               >
                 {isParsing && <Loader2 size={14} className="animate-spin" />}
                 {nextLabel}
-                {!isParsing && <ChevronRight size={16} />}
+                {!isParsing && <ChevronRight size={14} strokeWidth={1.5} />}
               </button>
             </div>
           </div>

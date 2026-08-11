@@ -1198,7 +1198,7 @@ const App: React.FC = () => {
   }, [orders, config.cloudEndpoint]);
 
   const settingsMode = resolveSettingsMode(activeView);
-  const isFullBleedView = activeView === View.Dashboard || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.ProductionBoard || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.DocumentCenter || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench;
+  const isFullBleedView = activeView === View.Dashboard || activeView === View.Cockpit || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.ProductionBoard || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.DocumentCenter || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench || activeView === View.Marketing || activeView === View.Reports || activeView === View.Pricing;
 
   // Views that render the ProductionGlobe as an underlay. We must let pointer
   // events pass THROUGH the main / wrapper divs to the canvas underneath; the
@@ -1317,6 +1317,7 @@ const App: React.FC = () => {
   }
 
   return (
+    <NotificationCenter isDarkMode={isDarkMode}>
     <div
       ref={appRootRef}
       className={`bambook-os-root ${isDarkMode ? 'bambook-os-root--dark' : ''} flex h-screen overflow-visible relative transition-[background-image] duration-500 ${isDarkMode ? 'dark bg-app-dark' : 'bg-app-light'}`}
@@ -1388,8 +1389,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* 业务事件通知中心 — 铃铛 + 抽屉，全局持久化 */}
-      <NotificationCenter isDarkMode={isDarkMode} />
+      {/* 业务事件通知中心 — Provider 在最外层，Trigger 集成在各页面 header 中 */}
 
       {/* 自定义壁纸高对比磨砂防护层 */}
       {resolvedBackgroundImageUrl && (
@@ -1790,6 +1790,7 @@ const App: React.FC = () => {
       </main>
 
     </div>
+    </NotificationCenter>
   );
 };
 

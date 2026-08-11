@@ -37,9 +37,9 @@ import {
     TrendingDown,
     RefreshCw,
     Search,
-    Bell,
     ChevronDown
 } from 'lucide-react';
+import { NotificationCenterTrigger } from './NotificationCenter';
 import {
     ResponsiveContainer,
     ComposedChart,
@@ -788,14 +788,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             UTC+8 SHANGHAI
                                         </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        aria-label="Notifications"
-                                        className={`pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-card-lg border ${dashboardHeaderPillClass} text-os-adaptive-primary`}
-                                    >
-                                        <Bell size={19} strokeWidth={1.3} />
-                                        <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-[var(--os-vnext-brand-blue)]" />
-                                    </button>
+                                    <NotificationCenterTrigger className="pointer-events-auto" />
                                     <button
                                         type="button"
                                         aria-label="Bambook Team"

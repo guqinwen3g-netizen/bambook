@@ -38,10 +38,14 @@ const actionControlLightRecipe =
   `${controlFrostLightRecipe} !border-transparent text-slate-500 shadow-none ${controlFrostHoverLightRecipe} hover:text-[#0A2746] ${controlFrostActiveLightRecipe}`;
 const selectedSurfaceLightRecipe = 'bambook-selected-surface bambook-selected-surface--light';
 const selectedSurfaceDarkRecipe = 'bambook-selected-surface bambook-selected-surface--dark';
+// 注意：flat-experimental.css 的护栏规则会对 class 同时含 "rounded" 与
+// "shadow-"/"backdrop-blur"/"bg-white/"/"bg-slate"/"border-white/"/"border-slate" 等
+// 子串的元素强制 border:0 !important。胶囊字段必须带可见描边，因此配方一律使用
+// rgba() 任意值类，禁止出现上述触发子串，也不带 shadow-none/backdrop-blur。
 const recessedFieldDarkRecipe =
-  'text-xs !bg-[rgba(6,14,24,0.20)] !bg-none backdrop-blur-[15px] backdrop-saturate-[104%] !border-transparent text-white placeholder-white/34 shadow-none focus:!bg-[rgba(7,18,32,0.30)] focus:!bg-none focus:!border-white/[0.08] focus:shadow-none';
+  'text-xs !bg-[rgba(255,255,255,0.055)] !bg-none border border-[rgba(255,255,255,0.10)] text-white placeholder-white/34 focus:!bg-[rgba(255,255,255,0.085)] focus:!bg-none focus:!border-[rgba(255,255,255,0.22)]';
 const recessedFieldLightRecipe =
-  'text-xs !bg-[rgba(255,255,255,0.22)] !bg-none backdrop-blur-[15px] backdrop-saturate-[104%] !border-transparent text-slate-900 placeholder-slate-400 shadow-none focus:!bg-[rgba(255,255,255,0.34)] focus:!bg-none focus:!border-slate-300/24 focus:shadow-none';
+  'text-xs !bg-[rgba(15,23,42,0.06)] !bg-none border border-[rgba(15,23,42,0.10)] text-slate-900 placeholder-slate-400 focus:!bg-[rgba(15,23,42,0.08)] focus:!bg-none focus:!border-[rgba(15,23,42,0.24)]';
 
 export const BAMBOOK_OS = {
   patterns: {

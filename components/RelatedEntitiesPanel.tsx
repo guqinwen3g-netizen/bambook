@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Network, ExternalLink, Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import {
   entityLinksService,
   labelForLinkKind,
   type NeighborsResponse,
   type NeighborRow,
 } from '../services/entityLinksService';
+import SidePanelContainer from './ui/SidePanelContainer';
+import OrderSectionHeader from './order/OrderSectionHeader';
+import { createOrderUiSpec } from './order/orderUiSpec';
 
 /**
  * RelatedEntitiesPanel
@@ -103,153 +106,74 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, id, limit, refreshKey, additionalTypesKey]);
 
-  const containerStyle: React.CSSProperties = {
-    border: `1px solid ${isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)'}`,
-    borderRadius: 12,
-    background: isDarkMode ? 'var(--bambook-gray-900)' : 'var(--bambook-gray-50)',
-    padding: 16,
-  };
-
-  const headerStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-    color: isDarkMode ? 'var(--bambook-gray-200)' : 'var(--bambook-gray-900)',
-    fontWeight: 600,
-    fontSize: 14,
-  };
+  // ── 统一规范真源（orderUiSpec）：玻璃面板 + 胶囊行，与详情页所有面板同构 ──
+  const spec = createOrderUiSpec(isDarkMode);
+  const mutedCls = spec.textMuted;
+  const rowCls = `${spec.rowPill} ${onSelectNeighbor ? spec.rowPillHover : 'cursor-default'}`;
 
   const groups = data?.neighbors ?? {};
   const groupKeys = Object.keys(groups).sort();
 
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
-        <Network size={16} />
-        <span>{title}</span>
-        {data ? (
-          <span
-            style={{
-              marginLeft: 'auto',
-              fontSize: 12,
-              fontWeight: 500,
-              color: isDarkMode ? 'var(--bambook-gray-400)' : 'var(--bambook-gray-500)',
-            }}
-          >
-            {data.total} 条关联
-          </span>
-        ) : null}
-      </div>
+    <SidePanelContainer
+      materialRole="raisedCard"
+      edgeFadeItem
+      spotlight
+      isDarkMode={isDarkMode}
+      className={spec.panelClass}
+      contentClassName={spec.panelContentClass}
+    >
+      <OrderSectionHeader
+        iconKey="related"
+        kicker="Entity Links"
+        title={title}
+        meta={data ? `${data.total} 条关联` : undefined}
+        isDarkMode={isDarkMode}
+      />
 
       {loading && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            color: isDarkMode ? 'var(--bambook-gray-400)' : 'var(--bambook-gray-500)',
-            fontSize: 13,
-          }}
-        >
+        <div className={`flex items-center gap-2 ${spec.emptyText}`}>
           <Loader2 size={14} className="animate-spin" />
           加载关联…
         </div>
       )}
 
       {error && !loading && (
-        <div
-          className={isDarkMode ? 'text-red-400 bg-red-500/10' : 'text-red-600 bg-red-50'}
-          style={{
-            fontSize: 13,
-            padding: 8,
-            borderRadius: 8,
-          }}
-        >
+        <div className={spec.bannerDanger}>
           关联加载失败：{error}
         </div>
       )}
 
       {!loading && !error && groupKeys.length === 0 && (
-        <div
-          style={{
-            color: isDarkMode ? 'var(--bambook-gray-500)' : 'var(--bambook-gray-400)',
-            fontSize: 13,
-            fontStyle: 'italic',
-          }}
-        >
+        <div className={`${spec.emptyText} italic`}>
           暂无关联
         </div>
       )}
 
       {!loading && !error && groupKeys.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="flex flex-col gap-3.5">
           {groupKeys.map((kind) => {
             const items = groups[kind] ?? [];
             return (
               <div key={kind}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: isDarkMode ? 'var(--bambook-gray-400)' : 'var(--bambook-gray-500)',
-                    marginBottom: 6,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
+                <div className={`mb-2 flex items-center gap-2 text-[10px] font-light uppercase tracking-[0.18em] ${mutedCls}`}>
                   <span>{labelForLinkKind(kind)}</span>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: isDarkMode ? 'var(--bambook-gray-500)' : 'var(--bambook-gray-400)',
-                    }}
-                  >
-                    × {items.length}
-                  </span>
+                  <span className={spec.textFaint}>× {items.length}</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="flex flex-col gap-1.5">
                   {items.map((n) => (
                     <button
                       key={`${n.type}-${n.id}-${n.direction}`}
                       type="button"
                       onClick={() => onSelectNeighbor?.(n)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 10px',
-                        background: isDarkMode ? 'var(--bambook-gray-800)' : 'var(--bambook-gray-50)',
-                        border: `1px solid ${isDarkMode ? 'var(--bambook-gray-700)' : 'var(--bambook-gray-200)'}`,
-                        borderRadius: 8,
-                        cursor: onSelectNeighbor ? 'pointer' : 'default',
-                        color: isDarkMode ? 'var(--bambook-gray-200)' : 'var(--bambook-gray-900)',
-                        fontSize: 13,
-                        textAlign: 'left',
-                      }}
+                      title={`${n.label || n.id}（${n.type} · ${n.direction === 'out' ? '指向' : '被指向'}）`}
+                      className={rowCls}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        <span
-                          style={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {n.label || n.id}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: isDarkMode ? 'var(--bambook-gray-500)' : 'var(--bambook-gray-400)',
-                          }}
-                        >
-                          {n.type} · {n.direction === 'out' ? '指向' : '被指向'}
-                        </span>
-                      </div>
-                      {onSelectNeighbor && <ExternalLink size={14} />}
+                      <span className="truncate text-[13px] font-light">{n.label || n.id}</span>
+                      <span className={`flex shrink-0 items-center gap-2 text-[10px] font-light ${mutedCls}`}>
+                        {n.type} · {n.direction === 'out' ? '指向' : '被指向'}
+                        {onSelectNeighbor && <ExternalLink size={12} strokeWidth={1.5} />}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -258,7 +182,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
           })}
         </div>
       )}
-    </div>
+    </SidePanelContainer>
   );
 };
 
