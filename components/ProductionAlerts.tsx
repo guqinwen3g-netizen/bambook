@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
+import SidePanelContainer from './ui/SidePanelContainer';
+import { createOrderUiSpec } from './order/orderUiSpec';
 
 const cx = (...args: any[]) => args.filter(Boolean).join(' ');
 
@@ -20,11 +22,20 @@ interface ProductionAlertsProps {
   onSelectOrder?: (orderId: string) => void;
 }
 
+/**
+ * 列表页顶部生产预警条 — 紧凑可折叠通知，与订单域规范体系同源。
+ *
+ * 设计语境：这不是详情页分区面板，而是列表表格之上的临时预警通知，
+ * 因此保持紧凑 padding（p-3）而非详情面板的 p-5。但所有颜色/文字/行元素
+ * 走 orderUiSpec 配方 + statusSemanticClass 语义 token，确保与全域视觉一致。
+ */
 export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode = false, onSelectOrder }) => {
   const [alerts, setAlerts] = useState<ProdAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+
+  const spec = createOrderUiSpec(isDarkMode);
 
   // 统一 apiService 通道：apiBase 解析 + 认证头（原相对路径裸 fetch 在 Electron file:// 下必失败且静默）
   const fetchAlerts = useCallback(async () => {
@@ -46,12 +57,9 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
 
   if (loadError) {
     return (
-      <div className={cx(
-        'mb-3 flex items-center gap-2 rounded-card border p-3',
-        statusSemanticClass('danger', isDarkMode),
-      )}>
+      <div className={cx('mb-3', spec.bannerDanger)}>
         <AlertCircle size={14} className="shrink-0" />
-        <span className="text-[11px] font-light tracking-wide">生产预警扫描失败：{loadError}</span>
+        <span>生产预警扫描失败：{loadError}</span>
       </div>
     );
   }
@@ -69,22 +77,27 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
   const sevLabel = (sev: string) => sev === 'critical' ? '紧急' : sev === 'high' ? '高' : '中';
 
   return (
-    <div className={cx(
-      'mb-3 rounded-card border p-3',
-      isDarkMode ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white border-slate-200/60',
-    )}>
+    <SidePanelContainer
+      isDarkMode={isDarkMode}
+      materialRole="raisedCard"
+      spotlight
+      edgeFadeItem
+      className="mb-3 overflow-hidden"
+      contentClassName="relative z-10 p-3"
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between"
       >
         <div className="flex items-center gap-2">
           <AlertCircle size={14} className={statusSemanticText('danger', isDarkMode)} />
-          <span className={cx('text-[11px] font-light tracking-wide', isDarkMode ? 'text-white/70' : 'text-slate-700')}>
+          <span className={cx('text-[11px] font-light tracking-wide', spec.textSecondary)}>
             生产预警 ({critical} 紧急 / {high} 高)
           </span>
         </div>
-        {expanded ? <ChevronUp size={14} className={isDarkMode ? 'text-white/40' : 'text-slate-400'} />
-          : <ChevronDown size={14} className={isDarkMode ? 'text-white/40' : 'text-slate-400'} />}
+        {expanded
+          ? <ChevronUp size={14} className={spec.chevronColor} />
+          : <ChevronDown size={14} className={spec.chevronColor} />}
       </button>
 
       <div className="mt-2 space-y-1.5">
@@ -93,25 +106,26 @@ export const ProductionAlerts: React.FC<ProductionAlertsProps> = ({ isDarkMode =
             key={`${alert.orderId}-${idx}`}
             onClick={() => onSelectOrder?.(alert.orderId)}
             className={cx(
-              'flex cursor-pointer items-center gap-2 rounded-full border px-2.5 py-1.5 transition-all hover:opacity-80',
+              'flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-left text-[12px] font-light transition-all',
+              spec.rowPillHover,
               sevColor(alert.severity),
             )}
           >
-            <span className="shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-normal uppercase tracking-wide">
+            <span className={cx('shrink-0 rounded-full border px-2 py-px text-[10px] font-light', sevColor(alert.severity))}>
               {sevLabel(alert.severity)}
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block truncate text-[11px] font-light">{alert.message}</span>
+              <span className="block truncate">{alert.message}</span>
             </div>
-            <span className="shrink-0 text-[10px] opacity-60">{alert.customer || alert.orderId.slice(-8)}</span>
+            <span className={cx('shrink-0 text-[10px]', spec.textFaint)}>{alert.customer || alert.orderId.slice(-8)}</span>
           </div>
         ))}
         {!expanded && alerts.length > 3 && (
-          <div className={cx('pt-1 text-center text-[10px]', isDarkMode ? 'text-white/30' : 'text-slate-400')}>
+          <div className={cx('pt-1 text-center text-[10px] font-light', spec.textFaint)}>
             +{alerts.length - 3} 更多预警...
           </div>
         )}
       </div>
-    </div>
+    </SidePanelContainer>
   );
 };

@@ -156,7 +156,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
             const items = groups[kind] ?? [];
             return (
               <div key={kind}>
-                <div className={`mb-2 flex items-center gap-2 text-[10px] font-light uppercase tracking-[0.18em] ${mutedCls}`}>
+                <div className={`mb-2 flex items-center gap-2 ${spec.kicker}`}>
                   <span>{labelForLinkKind(kind)}</span>
                   <span className={spec.textFaint}>× {items.length}</span>
                 </div>

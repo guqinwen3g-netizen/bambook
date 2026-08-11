@@ -30,7 +30,7 @@ import AuditHistorySection from './AuditHistorySection';
 import OrderContextSection from './order/OrderContextSection';
 import OrderSectionHeader from './order/OrderSectionHeader';
 import { createOrderUiSpec } from './order/orderUiSpec';
-import { statusSemanticClass } from './rdlBusinessStatusTokens';
+import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import { fieldsForDetail, fieldsForManualForm, requiredKeysForManual, computeAutoFillPatch, fieldMetaByKey, ORDER_CLUSTERS } from '../lib/orderSchema';
 import type { RoleFkTarget } from '../lib/orderSchema';
 import { flattenOrderLines, getNextItemNo } from '../lib/orderLineItems';
@@ -675,14 +675,18 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const overlayIconActionClass = orderSpec.btnIcon;
   const overlayPrimaryActionClass = orderSpec.btnPrimary;
   const overlayBlueActionClass = orderSpec.btnAccentOutline;
-  // Hero 状态胶囊：异常=warning / 已交付=success（RDL 中性语义 token），进行中=accent 蓝（与步进器同一语义源）
+  // Hero 状态胶囊：5 级语义梯度（与步骤条/列表徽章同源）
+  //   Pending=neutral（未启动灰）/ Confirmed/Production/Shipping=accent 蓝（进行中，与步进器当前态呼应）
+  //   Delivered=success / Alert=warning（RDL 中性语义 token）
   const heroStatusCapsuleClass = (status: string) => status === 'Alert'
     ? statusSemanticClass('warning', isDarkMode)
     : status === 'Delivered'
       ? statusSemanticClass('success', isDarkMode)
-      : isDarkMode
-        ? 'border-[rgba(125,196,235,0.30)] bg-accent-blue/[0.12] text-accent-blue'
-        : 'border-action/25 bg-action/[0.06] text-link';
+      : status === 'Pending'
+        ? statusSemanticClass('neutral', isDarkMode)
+        : isDarkMode
+          ? 'border-[rgba(125,196,235,0.30)] bg-accent-blue/[0.12] text-accent-blue'
+          : 'border-action/25 bg-action/[0.06] text-link';
   const overlayDividerClass = isDarkMode ? 'bg-white/10' : 'bg-slate-300/40';
   const overlayKickerClass = isDarkMode ? 'text-white/40' : 'text-slate-500';
   const overlayTitleClass = isDarkMode ? 'text-slate-50' : 'text-slate-950';
@@ -760,7 +764,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               <div className="flex h-10 shrink-0 items-center gap-1">
                 {renderOrderTypeSwitcher((active) => `flex h-10 min-w-[80px] items-center justify-center rounded-full px-5 text-xs font-light tracking-wide whitespace-nowrap transition-all ${active ? toolbarSelectedClass : toolbarControlClass}`)}
               </div>
-              <div className={`h-6 w-px shrink-0 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300/40'}`} />
+              <div className={`h-6 w-px shrink-0 ${orderSpec.divider}`} />
               <input
                 type="text"
                 value={orderSearchTerm}
@@ -784,7 +788,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 </select>
                 <ChevronDown size={13} strokeWidth={1.5} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`} />
               </div>
-              <div className={`h-6 w-px shrink-0 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300/40'}`} />
+              <div className={`h-6 w-px shrink-0 ${orderSpec.divider}`} />
               <div className="flex h-10 items-center gap-1">
                 {allowGlobeView && (
                   <button
@@ -1027,9 +1031,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       const description = item.description || item.cloth || item.order.product || '-';
                       const exMill = formatYmd(item.exMillDate || item.order.clientDate || item.order.dueDate) || '-';
                       const amountLabel = `${item.salesCurrency || '$'} ${(item.amount ?? 0).toLocaleString()}`;
-                      const primaryText = `truncate text-[13px] font-light leading-[1.25] tracking-normal ${isDarkMode ? 'text-slate-100' : 'text-slate-950'}`;
-                      const regularText = `truncate text-[13px] font-light leading-[1.25] tracking-normal ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`;
-                      const secondaryText = `mt-1 truncate text-[11px] font-light leading-[1.2] tracking-normal ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`;
+                      const primaryText = orderSpec.listRowPrimary;
+                      const regularText = orderSpec.listRowRegular;
+                      const secondaryText = orderSpec.listRowSecondary;
                       const cellClass = 'relative z-10 min-w-0 px-4 py-4';
                       const isSelected = selectedLineItem?.id === item.id;
                       return (
@@ -1061,7 +1065,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             <div className="flex items-center gap-1.5">
                               <p className={`${primaryText} min-w-0`}>{item.displayId}</p>
                               {item.order.businessLine === 'capsule' && (
-                                <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-light leading-none tracking-wide ${isDarkMode ? 'border-[rgba(255,255,255,0.14)] text-white/55' : 'border-[rgba(148,163,184,0.55)] text-slate-500'}`}>Capsule</span>
+                                <span className={orderSpec.capsuleTag}>Capsule</span>
                               )}
                             </div>
                             <p className={secondaryText}>{item.customer || '-'}</p>
@@ -1086,7 +1090,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             <span className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[11px] font-light leading-none tracking-normal ${getStatusStylesDesktop(item.status)}`}>
                               <span className="truncate">{ORDER_STATUS_LABELS[item.status] ?? item.status}</span>
                             </span>
-                            <p className={secondaryText}>查看详情</p>
+                            <p className={orderSpec.listRowActionHint}>
+                              查看详情 <ArrowRight size={10} strokeWidth={1.5} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                            </p>
                           </div>
                         </CompiledMotionInteractiveCard>
                       );
@@ -1142,6 +1148,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-light tracking-wide ${heroStatusCapsuleClass(selectedOrder.status ?? 'Pending')}`}>{ORDER_STATUS_LABELS[selectedOrder.status ?? 'Pending']}</span>
                   <span className={orderSpec.headerMeta}>{isEditing ? '编辑模式' : '查阅模式'}</span>
                 </div>
+                {/* Hero meta 行：PO 日期 / 季节 / 客户 / 业务线 — 降级元信息，增强档案感 */}
+                {(selectedOrder.poDate || selectedOrder.season || selectedOrder.customer) && (
+                  <div className={`mt-2 flex min-w-0 items-center gap-3 ${orderSpec.headerMeta}`}>
+                    {selectedOrder.poDate && <span className="shrink-0">PO 日期 {formatYmd(selectedOrder.poDate) || '—'}</span>}
+                    {selectedOrder.season && <span className="shrink-0">季节 {selectedOrder.season}</span>}
+                    {selectedOrder.customer && <span className="truncate">{selectedOrder.customer}</span>}
+                    {selectedOrder.businessLine === 'capsule' && <span className={orderSpec.capsuleTag}>Capsule</span>}
+                  </div>
+                )}
               </div>
               <div className={`pointer-events-auto relative ${overlayToolbarClass}`}>
                 <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
@@ -1256,10 +1271,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                                   onClick={() => handleSetBusinessLine(opt.code)}
                                   title={active ? undefined : `标记为${opt.label}`}
                                   // 激活态接入 accent 系统：分段控件的选中语义与全局品牌色一致
-                                  className={`flex h-10 min-w-[80px] items-center justify-center rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${
-                                    active
-                                      ? isDarkMode ? 'border border-[rgba(125,196,235,0.35)] bg-accent-blue/[0.12] text-accent-blue shadow-none' : 'border border-action/25 bg-action/[0.07] text-link shadow-none'
-                                      : toolbarControlClass
+                                  className={`flex h-10 min-w-[80px] items-center justify-center rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${
+                                    active ? orderSpec.btnAccentActive : toolbarControlClass
                                   } ${businessLineSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   {opt.label}
@@ -1340,23 +1353,21 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               return (
                                 <React.Fragment key={step}>
                                   {idx > 0 && (
-                                    <span className={`h-px w-4 shrink-0 ${isDone ? (isDarkMode ? 'bg-accent-blue/50' : 'bg-action/35') : (isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-200')}`} />
+                                    <span className={`h-px w-4 shrink-0 ${isDone ? orderSpec.stepConnectorDone : orderSpec.stepConnectorPending}`} />
                                   )}
                                   <button
                                     type="button"
                                     disabled={!isActionable}
                                     onClick={() => handleStatusTransition(step)}
                                     title={isActionable ? `推进到「${ORDER_STATUS_LABELS[step]}」` : ORDER_STATUS_LABELS[step]}
-                                    className={`${orderSpec.btnBase} ${
+                                    className={`${orderSpec.btnBase} !min-w-[96px] ${
                                       isCurrent
-                                        // 当前态：accent 实心填充，步进器视觉锚点（与主按钮同一品牌色源）
-                                        ? isDarkMode ? 'border-transparent bg-accent-blue/90 text-slate-950 shadow-none' : 'border-transparent bg-action text-white shadow-none'
+                                        ? orderSpec.stepBtnCurrent
                                         : isDone
-                                          // 完成态：accent 描边 + accent 对勾，低饱和回述已走路径
-                                          ? isDarkMode ? 'border-[rgba(125,196,235,0.32)] text-accent-blue' : 'border-action/25 text-link'
+                                          ? orderSpec.stepBtnDone
                                           : isActionable
-                                            ? isDarkMode ? 'border-[rgba(255,255,255,0.13)] text-white/70 hover:border-[rgba(125,196,235,0.40)] hover:text-accent-blue' : 'border-[rgba(148,163,184,0.55)] text-slate-600 hover:border-action/40 hover:text-link'
-                                            : isDarkMode ? 'border-[rgba(255,255,255,0.08)] text-white/25 cursor-not-allowed' : 'border-[rgba(148,163,184,0.28)] text-slate-300 cursor-not-allowed'
+                                            ? orderSpec.stepBtnActionable
+                                            : orderSpec.stepBtnDisabled
                                     }`}
                                   >
                                     {isDone && <CheckCircle2 size={12} strokeWidth={2} className={isDarkMode ? 'text-accent-blue' : 'text-link'} />}
@@ -1366,17 +1377,16 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               );
                             })}
                             {/* Alert 异常态：非终态可标记异常；异常中可恢复到任一非终态（点击上方步骤） */}
-                            <span className={`h-px w-4 shrink-0 ${isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-200'}`} />
+                            <span className={`h-px w-4 shrink-0 ${orderSpec.stepConnectorPending}`} />
                             <button
                               type="button"
                               disabled={isEditing || (!isAlert && !allowed.includes('Alert'))}
                               onClick={() => !isAlert && handleStatusTransition('Alert')}
                               title={isAlert ? '异常中：点击左侧步骤恢复到对应阶段' : '标记为异常'}
-                              className={`flex h-10 min-w-[80px] shrink-0 items-center justify-center gap-1.5 rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${
+                              className={`${orderSpec.btnBase} !min-w-[96px] ${
                                 isAlert
-                                  // 异常激活态：RDL warning 语义 token（中性 opacity 驱动，契约禁彩色）
                                   ? statusSemanticClass('warning', isDarkMode)
-                                  : isDarkMode ? 'border-[rgba(255,255,255,0.10)] text-white/45 hover:bg-white/[0.05] hover:text-white/70' : 'border-[rgba(148,163,184,0.40)] text-slate-400 hover:bg-slate-100/60 hover:text-slate-600'
+                                  : orderSpec.btnGhost
                               } ${isEditing ? 'cursor-not-allowed opacity-40' : ''}`}
                             >
                               <AlertTriangle size={11} strokeWidth={1.5} />
@@ -1398,12 +1408,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               <div key={t.id} className="flex items-start gap-3">
                                 <div className="flex flex-col items-center">
                                   <div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                                    isLatest
-                                      ? isDarkMode ? 'bg-accent-blue ring-4 ring-accent-blue/15' : 'bg-action ring-4 ring-action/10'
-                                      : isDarkMode ? 'bg-[rgba(255,255,255,0.16)]' : 'bg-[rgba(148,163,184,0.40)]'
+                                    isLatest ? orderSpec.timelineDotActive : orderSpec.timelineDot
                                   }`} />
                                   {idx < statusTimeline.length - 1 && (
-                                    <div className={`w-px h-4 ${isDarkMode ? 'bg-white/5' : 'bg-slate-200'}`} />
+                                    <div className={`w-px h-4 ${orderSpec.timelineConnector}`} />
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -1412,9 +1420,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                                       {ORDER_STATUS_LABELS[t.fromStatus] ?? t.fromStatus} → {ORDER_STATUS_LABELS[t.toStatus] ?? t.toStatus}
                                     </span>
                                     {isLatest && (
-                                      <span className={`rounded-full px-1.5 py-px text-[9px] font-light tracking-wide ${
-                                        isDarkMode ? 'bg-accent-blue/[0.14] text-accent-blue' : 'bg-action/[0.08] text-link'
-                                      }`}>最新</span>
+                                      <span className={`rounded-full px-1.5 py-px text-[9px] font-light tracking-wide ${orderSpec.timelineLatestBadge}`}>最新</span>
                                     )}
                                     <span className={`text-[9px] ${overlayMutedClass}`}>{dateStr}</span>
                                   </div>
@@ -1491,8 +1497,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             <span className={`rounded-full border px-2.5 py-1 text-[10px] font-light tracking-wide ${heroStatusCapsuleClass((isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending')}`}>{ORDER_STATUS_LABELS[(isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending'] ?? ((isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending')}</span>
                           )}
                         />
-                        {/* 查阅态网格放宽（gap-x-8/gap-y-6），值排版对齐 OrderFieldInput 档案态（14px/400） */}
-                        <div className={`grid grid-cols-1 md:grid-cols-4 ${isEditing ? 'gap-3' : 'gap-x-8 gap-y-6'}`}>
+                        {/* 查阅态网格与 spec.gridRead 同 gap（gap-x-10/gap-y-7），值排版走 spec 档案态配方（与 OrderFieldInput 同构） */}
+                        <div className={`grid grid-cols-1 md:grid-cols-4 ${isEditing ? 'gap-3' : 'gap-x-10 gap-y-7'}`}>
                           {[
                             ['PO Item', 'itemNo'],
                             ['客供品号', 'materialCode'],
@@ -1511,26 +1517,29 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             ['发票号', 'invoiceNumber'],
                             ['收款日', 'actualPaymentDate'],
                           ].map(([label, key]) => {
-                            const raw = (isEditing && editLineForm ? (editLineForm as any)[key] : (selectedLineItem as any)[key]) ?? '';
-                            // 查阅态日期归一：日期键统一 YYYY-MM-DD（与 OrderFieldInput 档案态一致）
-                            const value = !isEditing && ['exMillDate', 'deliveryDate', 'shippingDate', 'actualPaymentDate'].includes(key)
-                              ? formatYmd(raw) || ''
-                              : raw;
-                            return (
-                              <label key={key} className="block min-w-0">
-                                <span className={`mb-1 block text-[10px] font-light uppercase tracking-[0.18em] ${overlayKickerClass}`}>{label}</span>
-                                {isEditing ? (
-                                  <input
-                                    className={`h-10 w-full rounded-full border px-4 text-xs font-light outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
-                                    value={String(value)}
-                                    onChange={(event) => setEditLineForm((prev) => ({ ...(prev ?? selectedLineItem), [key]: ['quantity', 'unitPrice', 'netValue'].includes(key) ? Number(event.target.value) : event.target.value }))}
-                                  />
-                                ) : (
-                                  <p className={`min-h-[20px] px-1 truncate text-[14px] font-normal leading-relaxed ${!value || value === '-' ? (isDarkMode ? 'text-white/25' : 'text-slate-300') : (isDarkMode ? 'text-white/85' : 'text-slate-800')}`}>{String(value || '—')}</p>
-                                )}
-                              </label>
-                            );
-                          })}
+            const raw = (isEditing && editLineForm ? (editLineForm as any)[key] : (selectedLineItem as any)[key]) ?? '';
+            // 查阅态日期归一：日期键统一 YYYY-MM-DD（与 OrderFieldInput 档案态一致）
+            const value = !isEditing && ['exMillDate', 'deliveryDate', 'shippingDate', 'actualPaymentDate'].includes(key)
+              ? formatYmd(raw) || ''
+              : raw;
+            const isEmpty = !value || value === '-' || value === '';
+            return (
+              <div key={key} className="space-y-1.5">
+                <span className={`ml-1 ${orderSpec.kicker}`}>{label}</span>
+                {isEditing ? (
+                  <input
+                    className={`${orderSpec.field} ${orderSpec.fieldNoSpinner}`}
+                    value={String(value)}
+                    onChange={(event) => setEditLineForm((prev) => ({ ...(prev ?? selectedLineItem), [key]: ['quantity', 'unitPrice', 'netValue'].includes(key) ? Number(event.target.value) : event.target.value }))}
+                  />
+                ) : (
+                  <div className={`min-h-[24px] truncate rounded-inset px-2.5 py-1 ${isEmpty ? orderSpec.fieldSlotEmpty : orderSpec.fieldSlotFilled}`}>
+                    <span className={isEmpty ? orderSpec.fieldReadOnlyEmpty : orderSpec.fieldReadOnlyValue}>{isEmpty ? '—' : String(value)}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
                         </div>
                       </CompiledSurfacePanel>
                     )}
@@ -1795,28 +1804,28 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       )}
 
       {showDeleteConfirm && (
-        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300 pointer-events-auto">
+        <div className={`absolute inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300 pointer-events-auto backdrop-blur-md ${isDarkMode ? 'bg-slate-950/60' : 'bg-slate-900/30'}`}>
           <div className="bambook-panel-glass rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300">
             <div className="p-10 text-center space-y-6">
-              <div className={`w-20 h-20 rounded-field flex items-center justify-center mx-auto mb-2 border ${isDarkMode ? 'bg-white/[0.06] text-white/60 border-white/[0.08]' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                <AlertTriangle size={32} strokeWidth={1} />
+              <div className={`w-20 h-20 rounded-field flex items-center justify-center mx-auto mb-2 border ${orderSpec.insetSurface}`}>
+                <AlertTriangle size={32} strokeWidth={1} className={statusSemanticText('warning', isDarkMode)} />
               </div>
               <div className="space-y-2">
-                <h3 className={`text-xl font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>确认归档生产任务？</h3>
-                <p className="text-sm text-slate-400 font-light leading-relaxed">
+                <h3 className={`text-xl font-light ${orderSpec.textTitle}`}>确认归档生产任务？</h3>
+                <p className={`text-sm font-light leading-relaxed ${orderSpec.textSecondary}`}>
                   确定要归档此生产任务吗？归档后该订单将从当前生产流中移除并存入历史档案。
                 </p>
               </div>
               <div className="flex flex-col items-center gap-3 pt-4">
                 <button
                   onClick={handleDeleteOrder}
-                  className={`flex h-10 min-w-[120px] items-center justify-center px-6 rounded-full text-xs font-light uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[rgba(30,41,59,0.90)] text-white/90 hover:bg-[rgba(51,65,85,0.95)] border border-[rgba(255,255,255,0.14)]' : 'bg-[rgba(30,41,59,0.90)] text-white/90 hover:bg-[rgba(51,65,85,0.95)]'}`}
+                  className={`${orderSpec.btnBase} min-w-[120px] px-6 ${orderSpec.btnPrimary}`}
                 >
                   确认归档
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className={`flex h-10 min-w-[120px] items-center justify-center px-6 rounded-full text-xs font-light uppercase tracking-widest transition-all ${isDarkMode ? 'text-slate-400 hover:bg-white/5' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                  className={`${orderSpec.btnBase} min-w-[120px] px-6 ${orderSpec.btnGhost}`}
                 >
                   取消
                 </button>

@@ -3,6 +3,7 @@ import type { OrderLineLite } from '../../types';
 import SidePanelContainer from '../ui/SidePanelContainer';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import OrderSectionHeader from './OrderSectionHeader';
+import { createOrderUiSpec } from './orderUiSpec';
 import { formatYmd } from '../../lib/dateFormat';
 
 interface OrderLinesTableProps {
@@ -18,24 +19,28 @@ interface OrderLinesTableProps {
  * card. All columns map directly onto `OrderLineLite` fields.
  */
 const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = false, currency }) => {
+  const orderSpec = createOrderUiSpec(isDarkMode);
   const tableHeaderClass = isDarkMode ? BAMBOOK_OS.controls.table.headerDark : BAMBOOK_OS.controls.table.headerLight;
   const tableRowHoverClass = isDarkMode ? BAMBOOK_OS.controls.table.rowHoverDark : BAMBOOK_OS.controls.table.rowHoverLight;
-  const tableRowDividerClass = isDarkMode ? 'divide-white/[0.045]' : 'divide-white/45';
+  // 亮色模式用 slate-200/45（原 divide-white/45 是笔误：白色 45% 透明度叠在浅色背景上不可见）
+  const tableRowDividerClass = isDarkMode ? 'divide-white/[0.045]' : 'divide-slate-200/45';
   const tableCellBorderClass = isDarkMode ? BAMBOOK_OS.controls.table.cellBorderDark : BAMBOOK_OS.controls.table.cellBorderLight;
   const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
   const mutedCellClass = isDarkMode ? BAMBOOK_OS.controls.table.cellMutedDark : BAMBOOK_OS.controls.table.cellMutedLight;
-  const primaryTextClass = isDarkMode ? 'text-white/86' : 'text-slate-900';
-  const secondaryTextClass = isDarkMode ? 'text-white/68' : 'text-slate-700';
+  const primaryTextClass = orderSpec.textPrimary;
+  const secondaryTextClass = orderSpec.textSecondary;
 
   if (!lines || lines.length === 0) {
     return (
       <SidePanelContainer
         isDarkMode={isDarkMode}
         materialRole="raisedCard"
+        spotlight
+        edgeFadeItem
         className="overflow-hidden"
         contentClassName="relative z-10 px-5 py-6"
       >
-        <div className={`text-[11px] ${BAMBOOK_OS.typography.weight.body} ${quietTextClass}`}>
+        <div className={orderSpec.emptyText}>
           本订单暂无行明细 · 手动录入或自动导入后会出现在这里
         </div>
       </SidePanelContainer>
@@ -46,10 +51,12 @@ const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = f
     <SidePanelContainer
       isDarkMode={isDarkMode}
       materialRole="raisedCard"
+      spotlight
+      edgeFadeItem
       className="overflow-hidden"
       contentClassName="relative z-10 flex min-w-0 flex-col"
     >
-      <header className={`px-5 py-4 border-b ${tableCellBorderClass}`}>
+      <header className={`px-4 py-4 border-b ${tableCellBorderClass}`}>
         {/* 统一分区头（唯一渲染器）；表头自带 border-b，故外壳去 mb */}
         <OrderSectionHeader
           iconKey="lines"
@@ -76,7 +83,7 @@ const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = f
             <col className="w-[5%]" />
             <col className="w-[5%]" />
           </colgroup>
-          <thead className={`${tableHeaderClass} ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
+          <thead className={`${tableHeaderClass} ${orderSpec.textMuted}`}>
             <tr>
               <th className={`px-4 py-3 ${BAMBOOK_OS.typography.weight.tableHeader} ${BAMBOOK_OS.typography.tracking.label} whitespace-nowrap ${tableCellBorderClass}`}>#</th>
               <th className={`px-4 py-3 ${BAMBOOK_OS.typography.weight.tableHeader} ${BAMBOOK_OS.typography.tracking.label} whitespace-nowrap ${tableCellBorderClass}`}>客供品号</th>
@@ -95,7 +102,7 @@ const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = f
           <tbody className={`divide-y ${tableRowDividerClass}`}>
             {lines.map((l) => (
               <tr key={l.id ?? l.lineNumber} className={`relative transition-[background,color] duration-200 ${tableRowHoverClass}`}>
-                <td className={`px-4 py-3 font-mono tabular-nums ${mutedCellClass}`}>{l.lineNumber}</td>
+                <td className={`px-4 py-3 font-light tabular-nums ${mutedCellClass}`}>{l.lineNumber}</td>
                 <td className={`px-4 py-3 truncate ${primaryTextClass}`}>{l.materialCode || '—'}</td>
                 <td className={`px-4 py-3 truncate ${secondaryTextClass}`}>{l.millQuality || '—'}</td>
                 <td className={`px-4 py-3 truncate ${secondaryTextClass}`}>{l.description || '—'}</td>

@@ -132,7 +132,7 @@ const OrderClusterBlock: React.FC<OrderClusterBlockProps> = ({
     >
       {headerEl}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {[...subGroupMap.entries()].map(([subId, subFields]) => {
           const meta = subGroupMeta(subId);
           return (
@@ -147,14 +147,12 @@ const OrderClusterBlock: React.FC<OrderClusterBlockProps> = ({
               className={spec.insetPadding}
               contentClassName={spec.panelContentClass}
             >
-              {/* 子组头：纯文字层级（中性化，无彩色竖条） */}
-              <div className="flex items-baseline gap-2 mb-2.5">
+              {/* 子组头：小圆点前缀 + 中文标题（去掉 EN，避免与字段标签的 EN kicker 重复） */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`h-1 w-1 shrink-0 rounded-full ${isDarkMode ? 'bg-white/30' : 'bg-slate-400'}`} />
                 <h5 className={spec.subGroupTitle}>
                   {meta?.labelZh ?? subId}
                 </h5>
-                <span className={spec.subGroupMeta}>
-                  {meta?.labelEn ?? ''}
-                </span>
               </div>
               <div className={gridCls}>
                 {subFields.map(renderField)}

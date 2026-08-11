@@ -105,7 +105,8 @@ export const AuditHistorySection: React.FC<AuditHistorySectionProps> = ({
   // ── 统一规范真源（orderUiSpec）：玻璃面板 + 胶囊行，与详情页所有面板同构 ──
   const spec = createOrderUiSpec(isDarkMode);
   const mutedCls = spec.textMuted;
-  const rowCls = `flex items-baseline gap-3 rounded-full border px-4 py-1.5 text-xs font-light ${spec.rowPillSurface}`;
+  // 审计行与关联行（RelatedEntitiesPanel）同一 rowPillSurface 材质 + 对齐的布局
+  const rowCls = `flex items-center gap-3 rounded-full border px-4 py-2 text-left text-[13px] font-light ${spec.rowPillSurface}`;
 
   return (
     <SidePanelContainer
@@ -156,11 +157,11 @@ export const AuditHistorySection: React.FC<AuditHistorySectionProps> = ({
               <span className={`shrink-0 whitespace-nowrap tabular-nums text-[11px] ${mutedCls}`}>
                 {formatTime(log.createdAt)}
               </span>
-              <span className={`shrink-0 whitespace-nowrap font-normal ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>
+              <span className={`shrink-0 whitespace-nowrap ${spec.textSecondary}`}>
                 {log.actor.displayName || log.actor.email || log.actor.id}
               </span>
               <span
-                className={`truncate ${spec.textPrimary}`}
+                className={`min-w-0 flex-1 truncate ${spec.textPrimary}`}
                 title={summaryOf(log)}
               >
                 {summaryOf(log)}

@@ -359,10 +359,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
               return (
                 <div
                   key={field}
-                  className={cx(
-                    'flex h-10 w-fit items-center gap-3 rounded-full border px-4 text-xs font-light outline-none transition-all',
-                    isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light,
-                  )}
+                  className={spec.toggleShell}
                 >
                   <ToggleSwitch
                     checked={on}
@@ -392,14 +389,8 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   type="button"
                   onClick={() => setInspType(t)}
                   className={cx(
-                    'flex h-10 min-w-[80px] items-center justify-center rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all',
-                    inspType === t
-                      ? isDarkMode
-                        ? 'border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-white/88'
-                        : 'border-[rgba(100,116,139,0.50)] bg-[rgba(226,232,240,0.70)] text-slate-800'
-                      : isDarkMode
-                        ? 'border-[rgba(255,255,255,0.10)] text-white/55 hover:bg-[rgba(255,255,255,0.05)]'
-                        : 'border-[rgba(148,163,184,0.35)] text-slate-500 hover:bg-[rgba(241,245,249,0.70)]',
+                    spec.btnBase,
+                    inspType === t ? spec.btnActive : spec.btnGhost,
                   )}
                 >
                   {t === 'final' ? '终期验货' : '中期验货'}
@@ -454,7 +445,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 <ChevronDown
                   size={14}
                   strokeWidth={1.5}
-                  className={cx('pointer-events-none absolute right-4 top-1/2 -translate-y-1/2', isDarkMode ? 'text-white/35' : 'text-slate-400')}
+                  className={cx('pointer-events-none absolute right-4 top-1/2 -translate-y-1/2', spec.chevronColor)}
                 />
               </div>
             </div>
@@ -543,14 +534,16 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                 )}
               </div>
               {inspType === 'final' && (
-                <div className="flex items-center gap-2 mt-2">
-                  <ToggleSwitch
-                    checked={inspection.approvedByBusiness}
-                    isDarkMode={isDarkMode}
-                    ariaLabel="业务部批准发货"
-                    onChange={(next) => handleInspectionSave('approvedByBusiness', next)}
-                  />
-                  <span className={cx('text-xs font-light', textPrimary)}>业务部批准发货</span>
+                <div className="mt-2">
+                  <div className={spec.toggleShell}>
+                    <ToggleSwitch
+                      checked={inspection.approvedByBusiness}
+                      isDarkMode={isDarkMode}
+                      ariaLabel="业务部批准发货"
+                      onChange={(next) => handleInspectionSave('approvedByBusiness', next)}
+                    />
+                    <span className={textPrimary}>业务部批准发货</span>
+                  </div>
                 </div>
               )}
             </div>

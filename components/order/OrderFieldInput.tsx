@@ -11,6 +11,7 @@ import RelationCombobox from './RelationCombobox';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { formatYmd } from '../../lib/dateFormat';
+import { statusSemanticClass } from '../rdlBusinessStatusTokens';
 
 interface OrderFieldInputProps {
   field: FieldMeta;
@@ -99,7 +100,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
       <span>
         {field.labelZh}
         {/* 必填星号是录入约束的编辑语境元信息；查阅模式（档案态）不渲染，保持纯净 */}
-        {field.required && !readOnly && <span className="text-slate-400 ml-0.5">*</span>}
+        {field.required && !readOnly && <span className={`ml-0.5 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>*</span>}
       </span>
       {sourceTag && <SourcePill tag={sourceTag} isDarkMode={isDarkMode} />}
     </label>
@@ -115,7 +116,8 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     const emptyText = '—';
     // 档案态排版：值用 14px / 400 字重（正文档），与 10px caps 标签拉开编辑级层级
     const valueTextCls = `text-[14px] font-normal leading-relaxed ${isDarkMode ? 'text-white/85' : 'text-slate-800'}`;
-    const emptyTextCls = `text-[14px] font-normal leading-relaxed ${isDarkMode ? 'text-white/25' : 'text-slate-300'}`;
+    // 空值语义降级：更小字号 + 轻字重 + 斜体 + 更淡字色，与有值形成视觉差
+    const emptyTextCls = `text-[13px] font-light italic leading-relaxed ${isDarkMode ? 'text-white/20' : 'text-slate-300/70'}`;
     let display: React.ReactNode;
     if (field.type === 'boolean') {
       display = value ? '是' : '否';
@@ -135,10 +137,14 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
       display = value === undefined || value === null || value === '' ? null : String(value);
     }
     const isEmpty = display === null || display === undefined || display === '';
+    // 档案感槽位：弱底色 + 小圆角，有值用稍亮底色，空值用更淡底色（暗示"有字段但无值"）
+    const slotCls = isEmpty
+      ? (isDarkMode ? 'bg-white/[0.015]' : 'bg-slate-900/[0.015]')
+      : (isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-900/[0.025]');
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
-        <div className={`min-h-[20px] px-1 ${field.type === 'longText' ? 'whitespace-pre-wrap' : 'truncate'}`}>
+        <div className={`min-h-[24px] rounded-inset px-2.5 py-1 ${slotCls} ${field.type === 'longText' ? 'whitespace-pre-wrap' : 'truncate'}`}>
           <span className={isEmpty ? emptyTextCls : valueTextCls}>{isEmpty ? emptyText : display}</span>
         </div>
         {/* 查阅模式不渲染 hintEl：录入辅助说明是编辑语境元信息，档案态保持纯净（来源信息由 SourcePill 承载） */}
@@ -362,13 +368,10 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
 };
 
 const SourcePill: React.FC<{ tag: 'pdf' | 'manual' | 'imported-then-edited'; isDarkMode: boolean }> = ({ tag, isDarkMode }) => {
-  // 三种来源标签同一配方；rgba() 任意值绕开 flat-experimental 护栏，保证胶囊描边可见。
-  const styles = isDarkMode
-    ? 'text-white/70 bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.14)]'
-    : 'text-slate-600 bg-[rgba(241,245,249,0.60)] border-[rgba(148,163,184,0.45)]';
+  // 来源标签与 spec.chip 同构（px-2 / text-[10px] / font-light），语义色用 info（来源是辅助元信息）
   const label = tag === 'pdf' ? 'PDF' : tag === 'manual' ? '手填' : '手改';
   return (
-    <span className={`px-1.5 py-px rounded-full text-[8px] font-light tracking-wider border ${styles}`}>{label}</span>
+    <span className={`shrink-0 rounded-full border px-2 py-px text-[10px] font-light ${statusSemanticClass('info', isDarkMode)}`}>{label}</span>
   );
 };
 
