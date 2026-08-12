@@ -6,13 +6,20 @@ const CONTRACT = fs.readFileSync(path.resolve(__dirname, '../docs/design-system/
 
 const SHIPMENT = fs.readFileSync(path.resolve(__dirname, 'ShipmentManager.tsx'), 'utf8');
 const ORDERS = fs.readFileSync(path.resolve(__dirname, 'OrderManager.tsx'), 'utf8');
+const ORDER_SPEC = fs.readFileSync(path.resolve(__dirname, 'order/orderUiSpec.ts'), 'utf8');
 const FINANCE = fs.readFileSync(path.resolve(__dirname, 'FinanceManager.tsx'), 'utf8');
 const DEV = fs.readFileSync(path.resolve(__dirname, 'DevelopmentManager.tsx'), 'utf8');
 
 // 精确抽取函数体（从定义到顶层 '};' 闭合）
 const extractFn = (src: string, fnName: string): string => {
-  const needle = `const ${fnName}`;
-  const idx = src.indexOf(needle);
+  // 先尝试 const fnName = ... 形式
+  let needle = `const ${fnName}`;
+  let idx = src.indexOf(needle);
+  // 再尝试属性: ( ... ) => { 形式（对象内箭头函数）
+  if (idx === -1) {
+    needle = `${fnName}: (`;
+    idx = src.indexOf(needle);
+  }
   if (idx === -1) return '';
   const chunk = src.slice(idx, idx + 1000);
   // 找最后一个 default: 后的闭合（处理 switch 嵌套）
@@ -57,9 +64,9 @@ describe('RDL status token contract [完整性]', () => {
 
 // ═══ Part 2: statusTone 函数体精确断言（禁 accent/gradient/#CFE5FF）═══
 describe('RDL status token [statusTone 函数体中性]', () => {
-  it('OrderManager.getStatusStyles 函数体无 accent/gradient/#CFE5FF', () => {
-    const body = extractFn(ORDERS, 'getStatusStyles');
-    expect(body.length).toBeGreaterThan(50); // 确认抽取到了
+  it('orderUiSpec.statusCapsule 函数体无 accent/gradient/#CFE5FF', () => {
+    const body = extractFn(ORDER_SPEC, 'statusCapsule');
+    expect(body.length).toBeGreaterThan(50);
     expect(body).not.toContain('os-vnext-brand-blue');
     expect(body).not.toContain('gradient-to-r');
     expect(body).not.toContain('#CFE5FF');

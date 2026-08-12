@@ -12,6 +12,7 @@ import ToggleSwitch from '../ui/ToggleSwitch';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { formatYmd } from '../../lib/dateFormat';
 import { statusSemanticClass } from '../rdlBusinessStatusTokens';
+import { createOrderUiSpec } from './orderUiSpec';
 
 interface OrderFieldInputProps {
   field: FieldMeta;
@@ -73,6 +74,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
   onRelationSelected,
 }) => {
   const value = order[field.key as keyof Order];
+  const orderSpec = createOrderUiSpec(isDarkMode);
   const fieldSurfaceCls = isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light;
   const labelTextCls = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
   const disabledCls = disabled ? 'opacity-60 cursor-not-allowed' : '';
@@ -100,14 +102,14 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
       <span>
         {field.labelZh}
         {/* 必填星号是录入约束的编辑语境元信息；查阅模式（档案态）不渲染，保持纯净 */}
-        {field.required && !readOnly && <span className={`ml-0.5 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>*</span>}
+        {field.required && !readOnly && <span className={`ml-0.5 ${orderSpec.fieldAsterisk}`}>*</span>}
       </span>
       {sourceTag && <SourcePill tag={sourceTag} isDarkMode={isDarkMode} />}
     </label>
   );
 
   const hintEl = field.hintZh ? (
-    <p className={`text-[9px] ${BAMBOOK_OS.typography.weight.ui} ml-1 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>{field.hintZh}</p>
+    <p className={orderSpec.fieldHint}>{field.hintZh}</p>
   ) : null;
 
   // ---- Read-only: plain text display, no input chrome ----
@@ -115,9 +117,9 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
   if (readOnly) {
     const emptyText = '—';
     // 档案态排版：值用 14px / 400 字重（正文档），与 10px caps 标签拉开编辑级层级
-    const valueTextCls = `text-[14px] font-normal leading-relaxed ${isDarkMode ? 'text-white/85' : 'text-slate-800'}`;
+    const valueTextCls = orderSpec.fieldReadOnlyValue;
     // 空值语义降级：更小字号 + 轻字重 + 斜体 + 更淡字色，与有值形成视觉差
-    const emptyTextCls = `text-[13px] font-light italic leading-relaxed ${isDarkMode ? 'text-white/20' : 'text-slate-300/70'}`;
+    const emptyTextCls = orderSpec.fieldReadOnlyEmpty;
     let display: React.ReactNode;
     if (field.type === 'boolean') {
       display = value ? '是' : '否';
@@ -139,8 +141,8 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     const isEmpty = display === null || display === undefined || display === '';
     // 档案感槽位：弱底色 + 小圆角，有值用稍亮底色，空值用更淡底色（暗示"有字段但无值"）
     const slotCls = isEmpty
-      ? (isDarkMode ? 'bg-white/[0.015]' : 'bg-slate-900/[0.015]')
-      : (isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-900/[0.025]');
+      ? orderSpec.fieldSlotEmpty
+      : orderSpec.fieldSlotFilled;
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
@@ -229,7 +231,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
           <ChevronDown
             size={14}
             strokeWidth={1.5}
-            className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}
+            className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 ${orderSpec.fieldAsterisk}`}
           />
         </div>
         {hintEl}
@@ -302,7 +304,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
         {labelEl}
         <div className="relative">
           <span
-            className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${BAMBOOK_OS.typography.weight.ui} ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}
+            className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${BAMBOOK_OS.typography.weight.ui} ${orderSpec.fieldCurrencySymbol}`}
             title={code}
           >
             {sym}
@@ -318,7 +320,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
             }}
             className={`${inputCls} pl-8 pr-14 ${noSpinnerCls}`}
           />
-          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[9px] ${BAMBOOK_OS.typography.weight.ui} uppercase ${BAMBOOK_OS.typography.tracking.overline} ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[9px] ${BAMBOOK_OS.typography.weight.ui} uppercase ${BAMBOOK_OS.typography.tracking.overline} ${orderSpec.fieldCurrencyCode}`}>
             {code}
           </span>
         </div>

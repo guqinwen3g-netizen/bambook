@@ -37,6 +37,7 @@ export const ORDER_LINE_WRITABLE_FIELDS = new Set([
   'styleNo',
   'colorName',
   'bomItems',
+  'garmentSampleStages',
 ]);
 
 export function stripLineWritable(input: Record<string, unknown>): Record<string, unknown> {

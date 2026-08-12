@@ -656,7 +656,7 @@ export interface Order {
   id: string;
   customer: string;
   product: string;
-  type: 'Fabric' | 'Garment';
+  type: 'Fabric' | 'Garment' | 'Other';
   factoryLat?: number;
   factoryLon?: number;
   quantity: number;
@@ -839,6 +839,7 @@ export interface OrderLineLite {
   styleNo?: string | null;                          // 款式号
   colorName?: string | null;                        // 色号名称
   bomItems?: BomItem[] | null;                      // [{ type, name, qty, unit }]
+  garmentSampleStages?: GarmentSampleStage[] | null; // 成衣样衣阶段 [{ stage, status, sentDate, confirmedDate, comments }]
 }
 
 /** A single production step in a garment order line. */
@@ -856,6 +857,16 @@ export interface BomItem {
   spec?: string;
   qty: number;
   unit: string;
+}
+
+/** A single sample stage for a garment order line.
+ *  成衣样衣阶段：Proto Sample（开发样）→ Photo Sample（照片样）→ Size Set（尺码样）→ PP Sample（产前样） */
+export interface GarmentSampleStage {
+  stage: 'proto' | 'photo' | 'sizeSet' | 'pp';
+  status: 'pending' | 'sent' | 'confirmed' | 'rejected';
+  sentDate?: string;       // 寄出日期
+  confirmedDate?: string;  // 确认日期
+  comments?: string;       // 意见/反馈
 }
 
 export interface OrderLineItem extends OrderLineLite {

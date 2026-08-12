@@ -245,6 +245,7 @@ model OrderLine {
   styleNo         String? // 款式号 → links to ProductAsset/GarmentProfile
   colorName       String? // 色号名称
   bomItems        Json? // [ { type: "fabric", name: "...", qty: 1.5, unit: "meter" }, ... ]
+  garmentSampleStages Json? // [ { stage: "proto", status: "confirmed", sentDate: "...", confirmedDate: "...", comments: "..." }, ... ]
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

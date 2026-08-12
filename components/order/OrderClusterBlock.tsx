@@ -1,9 +1,10 @@
 import React from 'react';
-import type { Order, Relation } from '../../types';
+import type { Order, OrderLineLite, Relation } from '../../types';
 import type { FieldMeta, OrderClusterMeta, RoleFkTarget } from '../../lib/orderSchema';
 import { PARTIES_SUBGROUPS } from '../../lib/orderSchema';
 import SidePanelContainer from '../ui/SidePanelContainer';
 import OrderFieldInput from './OrderFieldInput';
+import OrderLineFieldRenderer from './OrderLineFieldRenderer';
 import OrderSectionHeader from './OrderSectionHeader';
 import { createOrderUiSpec, type OrderSectionIconKey } from './orderUiSpec';
 
@@ -21,6 +22,10 @@ interface OrderClusterBlockProps {
   density?: 'cozy' | 'compact';
   /** Called when a Relation is selected from a combobox, with the full Relation object for auto-fill. */
   onRelationSelected?: (fkField: string, relation: Relation) => void;
+  /** OrderLine 级字段（level='line'）的数据源；lineScope='first' 时取首行。 */
+  orderLine?: Partial<OrderLineLite> | null;
+  /** OrderLine 级字段变更回调。 */
+  onLineChange?: (patch: Partial<OrderLineLite>) => void;
 }
 
 /**
@@ -44,6 +49,8 @@ const OrderClusterBlock: React.FC<OrderClusterBlockProps> = ({
   onCreateRelation,
   density = 'cozy',
   onRelationSelected,
+  orderLine,
+  onLineChange,
 }) => {
   if (fields.length === 0) return null;
 
@@ -68,20 +75,40 @@ const OrderClusterBlock: React.FC<OrderClusterBlockProps> = ({
     />
   );
 
-  const renderField = (f: FieldMeta) => (
-    <OrderFieldInput
-      key={f.key}
-      field={f}
-      order={order}
-      isDarkMode={isDarkMode}
-      readOnly={readOnly}
-      onChange={onChange}
-      relations={relations}
-      onCreateRelation={onCreateRelation}
-      onRelationSelected={onRelationSelected}
-      sourceTag={sources[f.key as string]}
-    />
-  );
+  const renderField = (f: FieldMeta) => {
+    // OrderLine 级字段（如成衣生产跟单：styleNo/sizeBreakdown/productionSteps/bomItems）
+    if (f.level === 'line') {
+      return (
+        <OrderLineFieldRenderer
+          key={f.key}
+          field={f}
+          line={orderLine}
+          isDarkMode={isDarkMode}
+          readOnly={readOnly}
+          onChangeLine={onLineChange}
+          relations={relations}
+          onCreateRelation={onCreateRelation}
+          onRelationSelected={onRelationSelected}
+          sourceTag={sources[f.key as string]}
+        />
+      );
+    }
+    // Order 级字段：走标准 OrderFieldInput
+    return (
+      <OrderFieldInput
+        key={f.key}
+        field={f}
+        order={order}
+        isDarkMode={isDarkMode}
+        readOnly={readOnly}
+        onChange={onChange}
+        relations={relations}
+        onCreateRelation={onCreateRelation}
+        onRelationSelected={onRelationSelected}
+        sourceTag={sources[f.key as string]}
+      />
+    );
+  };
 
   // If no sub-groups, render one shared OS panel.
   if (!fields.some((f) => f.subGroup)) {
@@ -149,7 +176,7 @@ const OrderClusterBlock: React.FC<OrderClusterBlockProps> = ({
             >
               {/* 子组头：小圆点前缀 + 中文标题（去掉 EN，避免与字段标签的 EN kicker 重复） */}
               <div className="flex items-center gap-2 mb-3">
-                <span className={`h-1 w-1 shrink-0 rounded-full ${isDarkMode ? 'bg-white/30' : 'bg-slate-400'}`} />
+                <span className={`h-1 w-1 shrink-0 rounded-full ${spec.subGroupDot}`} />
                 <h5 className={spec.subGroupTitle}>
                   {meta?.labelZh ?? subId}
                 </h5>

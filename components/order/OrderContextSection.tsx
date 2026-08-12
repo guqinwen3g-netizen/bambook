@@ -132,7 +132,7 @@ export const OrderContextSection: React.FC<OrderContextSectionProps> = ({
           {stages.map((stage) => (
             <div key={stage.key} className="flex items-start gap-3">
               {/* 阶段标签列 */}
-              <div className={`flex w-[76px] shrink-0 items-center gap-1.5 pt-1.5 text-xs ${stage.count > 0 ? `font-normal ${isDarkMode ? 'text-white/75' : 'text-slate-700'}` : `font-light ${faintCls}`}`}>
+              <div className={`flex w-[76px] shrink-0 items-center gap-1.5 pt-1.5 text-xs ${stage.count > 0 ? `font-normal ${spec.stageLabelActive}` : `font-light ${faintCls}`}`}>
                 {stage.icon}
                 <span>{stage.label}</span>
               </div>

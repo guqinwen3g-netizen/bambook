@@ -31,7 +31,7 @@ import OrderContextSection from './order/OrderContextSection';
 import OrderSectionHeader from './order/OrderSectionHeader';
 import { createOrderUiSpec } from './order/orderUiSpec';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
-import { fieldsForDetail, fieldsForManualForm, requiredKeysForManual, computeAutoFillPatch, fieldMetaByKey, ORDER_CLUSTERS } from '../lib/orderSchema';
+import { fieldsForDetail, fieldsForManualForm, requiredKeysForManual, computeAutoFillPatch, fieldMetaByKey, ORDER_CLUSTERS, dbValueToTypeKey } from '../lib/orderSchema';
 import type { RoleFkTarget } from '../lib/orderSchema';
 import { flattenOrderLines, getNextItemNo } from '../lib/orderLineItems';
 import { formatYmd } from '../lib/dateFormat';
@@ -395,6 +395,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       actualPaymentDate: line.actualPaymentDate,
       actualPaymentAmount: line.actualPaymentAmount,
       specialInstructions: line.specialInstructions,
+      // 成衣 line 级字段（sizeBreakdown/productionSteps/bomItems/styleNo/colorName/garmentSampleStages）
+      sizeBreakdown: line.sizeBreakdown,
+      productionSteps: line.productionSteps,
+      bomItems: line.bomItems,
+      styleNo: line.styleNo,
+      colorName: line.colorName,
+      garmentSampleStages: line.garmentSampleStages,
     };
     const existing = sourceOrders.find((order) => order.id === parent.id);
     if (!existing) return [{ ...parent, lines: [lineLite] }, ...sourceOrders];
@@ -505,6 +512,29 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     // honour the manual override (server tags each touched field as
     // 'manual'/'imported-then-edited' in `fieldSources`).
     try {
+      // 成衣订单：先保存 line 级字段（sizeBreakdown/productionSteps/bomItems/styleNo/colorName）
+      // 面料行明细编辑已在上方 selectedLineItem 分支处理，此处仅处理成衣 line 级字段
+      if (editLineForm?.id && !selectedLineItem) {
+        const garmentLinePatch: Partial<OrderLineLite> = {
+          styleNo: editLineForm.styleNo,
+          colorName: editLineForm.colorName,
+          sizeBreakdown: editLineForm.sizeBreakdown,
+          productionSteps: editLineForm.productionSteps,
+          bomItems: editLineForm.bomItems,
+          garmentSampleStages: editLineForm.garmentSampleStages,
+        };
+        try {
+          const { line: garmentLine } = await updateOrderLineFields(editLineForm.id, garmentLinePatch);
+          const garmentMerged = mergeLineIntoOrders(garmentLine, updatedOrders);
+          setOrders(garmentMerged, garmentLine.order);
+          onSelectOrder(garmentLine.order);
+        } catch (lineErr: any) {
+          // eslint-disable-next-line no-console
+          console.error('[detail-save] garment line persist failed:', lineErr);
+          window.alert(`成衣 line 级字段保存失败：${lineErr?.message ?? lineErr}\n\n订单级字段将继续保存。`);
+        }
+      }
+
       const { id, lines: _ignoreLines, fieldSources: _ignoreSources, ...patch } = updatedOrder as any;
       const { order: persisted } = await updateOrderFields(id, patch);
       const synced = updatedOrders.map((o) => (o.id === id ? (persisted as Order) : o));
@@ -566,7 +596,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
 
   const handleAddOrder = async () => {
     // Validate against the dictionary so this stays in sync with the rendered form.
-    const required = requiredKeysForManual();
+    const required = requiredKeysForManual(manualTypeKey);
     const missing: string[] = [];
     for (const k of required) {
       const v = (newOrder as any)[k];
@@ -621,41 +651,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     }
   };
 
-  const getStatusStyles = (status: Order['status']) => {
-    if (isDarkMode) {
-      // Dark mode: muted/desaturated colors, avoiding high saturation
-      switch (status) {
-        case 'Alert': return 'text-white/55 bg-white/[0.06] border-white/[0.08]';
-        case 'Delivered': return 'text-white/70 bg-white/[0.06] border-white/[0.08]';
-        case 'Production': return 'text-white/70 bg-white/[0.06] border-white/[0.08]';
-        case 'Shipping': return 'text-white/70 bg-white/[0.06] border-white/[0.08]';
-        default: return 'text-slate-400 bg-slate-700/40 border-slate-600/30';
-      }
-    }
-    switch (status) {
-      case 'Alert': return 'text-slate-600 bg-slate-100/60 border-slate-200';
-      case 'Delivered': return 'text-slate-600 bg-slate-100/60 border-slate-200';
-      case 'Production': return 'text-slate-600 bg-slate-100/60 border-slate-200';
-      case 'Shipping': return 'text-slate-600 bg-slate-100/60 border-slate-200';
-      default: return 'text-slate-500 bg-slate-50 border-slate-100';
-    }
-  };
-
-  // 桌面端状态徽章配方：rgba() 任意值绕开 flat-experimental 护栏（bg-white//bg-slate/
-  // border-white//border-slate + rounded → border:0 !important），保证胶囊描边可见。
-  // 移动端卡片/BottomSheet 仍走上面的 getStatusStyles（移动端整体搁置，不改动其渲染）。
-  // 桌面端列表徽章与 Hero 胶囊共用同一状态语义色源（heroStatusCapsuleClass，闭包在渲染期求值）。
-  const getStatusStylesDesktop = (status: Order['status']) => heroStatusCapsuleClass(status ?? 'Pending');
-
   const desktopFullscreenOpen = !isMobile && (showAddModal || !!selectedOrder);
   const effectiveViewMode = allowGlobeView ? viewMode : 'list';
   const toolbarSurfaceClass = isDarkMode ? BAMBOOK_OS.controls.toolbar.surfaceDark : BAMBOOK_OS.controls.toolbar.surfaceLight;
-  const toolbarControlClass = isDarkMode
-    ? 'bg-transparent text-white/46 shadow-none hover:bg-transparent hover:text-white/76 active:translate-y-[1px]'
-    : 'bg-transparent text-slate-500 shadow-none hover:bg-transparent hover:text-slate-900 active:translate-y-[1px]';
-  const toolbarSelectedClass = isDarkMode
-    ? 'bg-white/[0.050] text-white/86 shadow-none'
-    : 'bg-white/42 text-slate-950 shadow-none';
   const titleActionClass = isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light;
   const orderTableHeaderClass = isDarkMode
     ? `${BAMBOOK_OS.controls.table.headerDark} text-white/42`
@@ -669,36 +667,17 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     : BAMBOOK_OS.controls.selectedSurface.light;
   const overlayToolbarClass = `${BAMBOOK_OS.controls.toolbar.base} !w-auto !min-w-0 ${toolbarSurfaceClass}`;
   const overlayToolbarContentClass = `${BAMBOOK_OS.controls.toolbar.content} !gap-2 !px-2`;
-  // ── 统一规范真源（orderUiSpec）：详情/录入覆盖层全部按钮取同一配方，禁手写变体 ──
+  // ── 统一规范真源（orderUiSpec）：详情/录入覆盖层/工具栏/状态徽章全部取同一配方，禁手写变体 ──
   const orderSpec = createOrderUiSpec(isDarkMode);
   const overlayActionClass = `${orderSpec.btnBase} ${orderSpec.btnGhost}`;
   const overlayIconActionClass = orderSpec.btnIcon;
   const overlayPrimaryActionClass = orderSpec.btnPrimary;
   const overlayBlueActionClass = orderSpec.btnAccentOutline;
-  // Hero 状态胶囊：5 级语义梯度（与步骤条/列表徽章同源）
-  //   Pending=neutral（未启动灰）/ Confirmed/Production/Shipping=accent 蓝（进行中，与步进器当前态呼应）
-  //   Delivered=success / Alert=warning（RDL 中性语义 token）
-  const heroStatusCapsuleClass = (status: string) => status === 'Alert'
-    ? statusSemanticClass('warning', isDarkMode)
-    : status === 'Delivered'
-      ? statusSemanticClass('success', isDarkMode)
-      : status === 'Pending'
-        ? statusSemanticClass('neutral', isDarkMode)
-        : isDarkMode
-          ? 'border-[rgba(125,196,235,0.30)] bg-accent-blue/[0.12] text-accent-blue'
-          : 'border-action/25 bg-action/[0.06] text-link';
-  const overlayDividerClass = isDarkMode ? 'bg-white/10' : 'bg-slate-300/40';
-  const overlayKickerClass = isDarkMode ? 'text-white/40' : 'text-slate-500';
-  const overlayTitleClass = isDarkMode ? 'text-slate-50' : 'text-slate-950';
-  const overlayMutedClass = isDarkMode ? 'text-white/42' : 'text-slate-500';
-  const overlayMapPanelClass = 'p-4 bambook-relations-form-map-panel';
-  const overlayFormPanelClass = 'scroll-mt-28 p-5 bambook-relations-form-panel';
-  const overlayMapButtonClass = `w-full text-left rounded-full border px-3 py-3 transition-all ${titleActionClass}`;
-  const overlayMapIndexClass = isDarkMode
-    ? 'bg-white/[0.035] border-white/[0.06] text-white/58'
-    : 'bg-white/55 border-white/60 text-slate-500';
-  const detailSections = fieldsForDetail();
-  const manualSections = fieldsForManualForm();
+  // 字段按订单类型过滤：面料订单只看面料字段，成衣订单只看成衣字段
+  const detailTypeKey = dbValueToTypeKey(selectedOrder?.type);
+  const manualTypeKey: 'fabric' | 'garment' = orderType === 'garment' ? 'garment' : 'fabric';
+  const detailSections = fieldsForDetail(detailTypeKey);
+  const manualSections = fieldsForManualForm(manualTypeKey);
 
   // Capsule 子视图：三路订单类型切换（面料 / 成衣 / Capsule）。Capsule = 成衣 + businessLine==='capsule' 透镜；
   // 未标记业务线的成衣订单归大货透镜（businessLine null 语义）。
@@ -762,7 +741,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
             <div className={`${BAMBOOK_OS.controls.toolbar.content} !gap-2.5 !px-3`}>
               <div className="flex h-10 shrink-0 items-center gap-1">
-                {renderOrderTypeSwitcher((active) => `flex h-10 min-w-[80px] items-center justify-center rounded-full px-5 text-xs font-light tracking-wide whitespace-nowrap transition-all ${active ? toolbarSelectedClass : toolbarControlClass}`)}
+                {renderOrderTypeSwitcher((active) => `flex h-10 min-w-[80px] items-center justify-center rounded-full px-5 text-xs font-light tracking-wide whitespace-nowrap transition-all ${active ? orderSpec.toolbarSelectedClass : orderSpec.toolbarControlClass}`)}
               </div>
               <div className={`h-6 w-px shrink-0 ${orderSpec.divider}`} />
               <input
@@ -770,13 +749,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 value={orderSearchTerm}
                 onChange={e => setOrderSearchTerm(e.target.value)}
                 placeholder="搜索订单号/客户/品号..."
-                className={`h-10 min-w-[120px] max-w-[150px] flex-1 rounded-full border-0 px-4 text-xs font-light outline-none placeholder:opacity-50 ${isDarkMode ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'}`}
+                className={orderSpec.toolbarSearchInputClass}
               />
               <div className="relative h-10 shrink-0">
                 <select
                   value={orderFilterStatus}
                   onChange={e => setOrderFilterStatus(e.target.value)}
-                  className={`h-10 w-full appearance-none cursor-pointer whitespace-nowrap rounded-full border-0 pl-4 pr-9 text-xs font-light outline-none ${isDarkMode ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'}`}
+                  className={orderSpec.toolbarSelectClass}
                 >
                   <option value="all">全部状态</option>
                   <option value="Pending">待确认</option>
@@ -786,7 +765,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   <option value="Delivered">已交付</option>
                   <option value="Alert">异常</option>
                 </select>
-                <ChevronDown size={13} strokeWidth={1.5} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`} />
+                <ChevronDown size={13} strokeWidth={1.5} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${orderSpec.toolbarChevronClass}`} />
               </div>
               <div className={`h-6 w-px shrink-0 ${orderSpec.divider}`} />
               <div className="flex h-10 items-center gap-1">
@@ -795,7 +774,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     type="button"
                     title="地球视图"
                     onClick={() => onViewModeChange('globe')}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${effectiveViewMode === 'globe' ? toolbarSelectedClass : toolbarControlClass}`}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${effectiveViewMode === 'globe' ? orderSpec.toolbarSelectedClass : orderSpec.toolbarControlClass}`}
                   >
                     <Globe size={16} strokeWidth={1.5} />
                   </button>
@@ -804,7 +783,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   type="button"
                   title="列表视图"
                   onClick={() => onViewModeChange('list')}
-                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${effectiveViewMode === 'list' ? toolbarSelectedClass : toolbarControlClass}`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${effectiveViewMode === 'list' ? orderSpec.toolbarSelectedClass : orderSpec.toolbarControlClass}`}
                 >
                   <List size={16} strokeWidth={1.5} />
                 </button>
@@ -820,7 +799,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   type="button"
                   title="地球视图"
                   onClick={() => onViewModeChange('globe')}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all ${effectiveViewMode === 'globe' ? toolbarSelectedClass : titleActionClass}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all ${effectiveViewMode === 'globe' ? orderSpec.toolbarSelectedClass : titleActionClass}`}
                 >
                   <Globe size={15} strokeWidth={1.5} />
                 </button>
@@ -829,7 +808,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 type="button"
                 title="列表视图"
                 onClick={() => onViewModeChange('list')}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all ${effectiveViewMode === 'list' ? toolbarSelectedClass : titleActionClass}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all ${effectiveViewMode === 'list' ? orderSpec.toolbarSelectedClass : titleActionClass}`}
               >
                 <List size={15} strokeWidth={1.5} />
               </button>
@@ -881,7 +860,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         <div className={`h-12 px-5 flex items-center justify-start border-b pointer-events-auto ${isDarkMode ? 'bg-transparent border-white/5' : 'bg-transparent border-white/10'} ${isMobile ? 'overflow-x-auto px-4 no-scrollbar' : ''}`}>
           <div className="flex gap-2">
             {/* Fabric/Garment/Capsule Tab Switcher */}
-            {renderOrderTypeSwitcher((active) => `h-8 shrink-0 rounded-full px-4 text-[11px] font-light tracking-wide transition-all ${active ? toolbarSelectedClass : toolbarControlClass}`)}
+            {renderOrderTypeSwitcher((active) => `h-8 shrink-0 rounded-full px-4 text-[11px] font-light tracking-wide transition-all ${active ? orderSpec.toolbarSelectedClass : orderSpec.toolbarControlClass}`)}
           </div>
         </div>
       )}
@@ -901,7 +880,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             <div className={`absolute top-6 left-1/2 z-10 block w-[252px] -translate-x-1/2 pointer-events-auto md:hidden ${BAMBOOK_OS.controls.toolbar.base} ${toolbarSurfaceClass}`}>
               <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
               <div className={BAMBOOK_OS.controls.toolbar.content}>
-                {renderOrderTypeSwitcher((active) => `h-8 flex-1 rounded-full px-3 text-[11px] font-light tracking-wide transition-all ${active ? toolbarSelectedClass : toolbarControlClass}`)}
+                {renderOrderTypeSwitcher((active) => `h-8 flex-1 rounded-full px-3 text-[11px] font-light tracking-wide transition-all ${active ? orderSpec.toolbarSelectedClass : orderSpec.toolbarControlClass}`)}
               </div>
             </div>
           </div>
@@ -937,7 +916,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           </div>
                           <span className={`text-lg font-light font-mono tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{order.id}</span>
                         </div>
-                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-light uppercase tracking-widest border ${getStatusStyles(order.status)}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-light uppercase tracking-widest border ${orderSpec.statusCapsule(order.status)}`}>
                           {order.status}
                         </span>
                       </div>
@@ -1087,7 +1066,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             <p className={secondaryText}>订单 {formatYmd(item.poDate) || '-'}</p>
                           </div>
                           <div className={cellClass}>
-                            <span className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[11px] font-light leading-none tracking-normal ${getStatusStylesDesktop(item.status)}`}>
+                            <span className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[11px] font-light leading-none tracking-normal ${orderSpec.statusCapsule(item.status)}`}>
                               <span className="truncate">{ORDER_STATUS_LABELS[item.status] ?? item.status}</span>
                             </span>
                             <p className={orderSpec.listRowActionHint}>
@@ -1144,8 +1123,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 <p className={orderSpec.kicker}>Production Detail</p>
                 <div className="mt-1.5 flex min-w-0 items-center gap-3">
                   {/* Hero 订单号：页面主角，编辑级大标题排版 */}
-                  <h2 className={`truncate text-[28px] leading-none font-light tracking-[0.03em] ${overlayTitleClass}`}>{selectedLineItem?.displayId || selectedOrder.poNumber || selectedOrder.id}</h2>
-                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-light tracking-wide ${heroStatusCapsuleClass(selectedOrder.status ?? 'Pending')}`}>{ORDER_STATUS_LABELS[selectedOrder.status ?? 'Pending']}</span>
+                  <h2 className={`truncate text-[28px] leading-none font-light tracking-[0.03em] ${orderSpec.overlayTitleClass}`}>{selectedLineItem?.displayId || selectedOrder.poNumber || selectedOrder.id}</h2>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-light tracking-wide ${orderSpec.statusCapsule(selectedOrder.status ?? 'Pending')}`}>{ORDER_STATUS_LABELS[selectedOrder.status ?? 'Pending']}</span>
                   <span className={orderSpec.headerMeta}>{isEditing ? '编辑模式' : '查阅模式'}</span>
                 </div>
                 {/* Hero meta 行：PO 日期 / 季节 / 客户 / 业务线 — 降级元信息，增强档案感 */}
@@ -1166,11 +1145,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       <Save size={14} strokeWidth={1.5} />保存修改
                     </button>
                   ) : (
-                    <button onClick={() => { setIsEditing(true); setEditForm(selectedOrder ? { ...selectedOrder } : null); setEditLineForm(selectedLineItem ? { ...selectedLineItem } : null); }} className={overlayActionClass}>
+                    <button onClick={() => { setIsEditing(true); setEditForm(selectedOrder ? { ...selectedOrder } : null); setEditLineForm(selectedLineItem ? { ...selectedLineItem } : (selectedOrder?.lines?.[0] ? { ...selectedOrder.lines[0] } as Partial<OrderLineItem> : null)); }} className={overlayActionClass}>
                       <Edit2 size={14} strokeWidth={1.5} />编辑项目
                     </button>
                   )}
-                  <div className={`h-4 w-px ${overlayDividerClass}`}></div>
+                  <div className={`h-4 w-px ${orderSpec.overlayDividerClass}`}></div>
                   <button
                     onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); setIsEditing(false); setEditForm(null); }}
                     className={overlayIconActionClass}
@@ -1187,7 +1166,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 <div className="grid w-full grid-cols-[240px_minmax(0,1fr)] gap-5 px-5 pt-24 pb-5">
                   {/* Detail Map：sticky 锚定（滚动时固定于标题层之下），超高时内部滚动 */}
                   <aside className="sticky top-24 z-10 max-h-[calc(100vh-8rem)] self-start overflow-y-auto">
-                    <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={overlayMapPanelClass}>
+                    <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={orderSpec.overlayMapPanelClass}>
                       <p className={`px-3 pb-3 ${orderSpec.kicker}`}>Detail Map</p>
                       <div className="space-y-1">
                         {[
@@ -1205,13 +1184,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             key={section.id}
                             type="button"
                             onClick={() => document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                            className={overlayMapButtonClass}
+                            className={orderSpec.overlayMapButtonClass}
                           >
                             <div className="flex items-center gap-3">
-                              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-light ${overlayMapIndexClass}`}>{idx + 1}</span>
+                              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-light ${orderSpec.overlayMapIndexClass}`}>{idx + 1}</span>
                               <div className="min-w-0">
-                                <div className={`truncate text-xs font-light ${overlayTitleClass}`}>{section.label}</div>
-                                <div className={`mt-0.5 truncate text-[10px] font-light ${overlayMutedClass}`}>{section.desc}</div>
+                                <div className={`truncate text-xs font-light ${orderSpec.overlayTitleClass}`}>{section.label}</div>
+                                <div className={`mt-0.5 truncate text-[10px] font-light ${orderSpec.overlayMutedClass}`}>{section.desc}</div>
                               </div>
                             </div>
                           </button>
@@ -1227,7 +1206,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       materialRole="raisedCard"
                       edgeFadeItem
                       spotlight
-                      className={overlayFormPanelClass}
+                      className={orderSpec.overlayFormPanelClass}
                       contentClassName="relative z-10"
                       spotlightSizing="width"
                     >
@@ -1239,14 +1218,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           { label: '客户', num: selectedOrder.customer || '—', sub: 'Customer', compact: true },
                         ].map((stat, i) => (
                           <div key={stat.label} className={`px-6 py-3 min-w-0 ${i < 3 ? (isDarkMode ? 'md:border-r md:border-[rgba(255,255,255,0.07)]' : 'md:border-r md:border-[rgba(100,116,139,0.18)]') : ''}`}>
-                            <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${overlayKickerClass}`}>{stat.sub}</p>
+                            <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${orderSpec.overlayKickerClass}`}>{stat.sub}</p>
                             {/* 数据带主角：大号超轻数字 + 小号单位/币种缀，编辑级数据排版 */}
-                            <p className={`mt-2.5 flex items-baseline min-w-0 leading-none tracking-tight ${stat.compact ? `text-[15px] font-light` : 'text-[26px] font-extralight tabular-nums'} ${overlayTitleClass}`}>
-                              {stat.affix && stat.affixPos === 'prefix' && <span className={`mr-1.5 shrink-0 text-[12px] font-light tracking-wide ${overlayMutedClass}`}>{stat.affix}</span>}
+                            <p className={`mt-2.5 flex items-baseline min-w-0 leading-none tracking-tight ${stat.compact ? `text-[15px] font-light` : 'text-[26px] font-extralight tabular-nums'} ${orderSpec.overlayTitleClass}`}>
+                              {stat.affix && stat.affixPos === 'prefix' && <span className={`mr-1.5 shrink-0 text-[12px] font-light tracking-wide ${orderSpec.overlayMutedClass}`}>{stat.affix}</span>}
                               <span className="truncate">{stat.num}</span>
-                              {stat.affix && stat.affixPos === 'suffix' && <span className={`ml-1.5 shrink-0 text-[12px] font-light tracking-wide ${overlayMutedClass}`}>{stat.affix}</span>}
+                              {stat.affix && stat.affixPos === 'suffix' && <span className={`ml-1.5 shrink-0 text-[12px] font-light tracking-wide ${orderSpec.overlayMutedClass}`}>{stat.affix}</span>}
                             </p>
-                            <p className={`mt-2.5 text-[11px] font-light ${overlayMutedClass}`}>{stat.label}</p>
+                            <p className={`mt-2.5 text-[11px] font-light ${orderSpec.overlayMutedClass}`}>{stat.label}</p>
                           </div>
                         ))}
                       </div>
@@ -1254,8 +1233,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       {selectedOrder.type === 'Garment' && !isEditing && (
                         <div className={`mt-2 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-3 ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/45'}`}>
                           <div className="min-w-0">
-                            <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${overlayKickerClass}`}>Business Line</p>
-                            <p className={`mt-0.5 text-xs font-light ${overlayMutedClass}`}>业务线（Capsule = 设计师小单业务）</p>
+                            <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${orderSpec.overlayKickerClass}`}>Business Line</p>
+                            <p className={`mt-0.5 text-xs font-light ${orderSpec.overlayMutedClass}`}>业务线（Capsule = 设计师小单业务）</p>
                           </div>
                           <div className="flex items-center gap-0.5">
                             {([
@@ -1272,7 +1251,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                                   title={active ? undefined : `标记为${opt.label}`}
                                   // 激活态接入 accent 系统：分段控件的选中语义与全局品牌色一致
                                   className={`flex h-10 min-w-[80px] items-center justify-center rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${
-                                    active ? orderSpec.btnAccentActive : toolbarControlClass
+                                    active ? orderSpec.btnAccentActive : orderSpec.toolbarControlClass
                                   } ${businessLineSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   {opt.label}
@@ -1292,7 +1271,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         materialRole="raisedCard"
                         edgeFadeItem
                         spotlight
-                        className={overlayFormPanelClass}
+                        className={orderSpec.overlayFormPanelClass}
                         contentClassName="relative z-10"
                         spotlightSizing="width"
                       >
@@ -1327,7 +1306,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       materialRole="raisedCard"
                       edgeFadeItem
                       spotlight
-                      className={overlayFormPanelClass}
+                      className={orderSpec.overlayFormPanelClass}
                       contentClassName="relative z-10"
                       spotlightSizing="width"
                     >
@@ -1397,7 +1376,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       })()}
 
                       {statusTimeline.length === 0 ? (
-                        <p className={`text-xs font-light ${overlayMutedClass}`}>暂无状态变更记录</p>
+                        <p className={`text-xs font-light ${orderSpec.overlayMutedClass}`}>暂无状态变更记录</p>
                       ) : (
                         <div className="space-y-3">
                           {statusTimeline.map((t, idx) => {
@@ -1416,16 +1395,16 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
-                                    <span className={`text-xs ${isLatest ? 'font-normal' : 'font-light'} ${overlayTitleClass}`}>
+                                    <span className={`text-xs ${isLatest ? 'font-normal' : 'font-light'} ${orderSpec.overlayTitleClass}`}>
                                       {ORDER_STATUS_LABELS[t.fromStatus] ?? t.fromStatus} → {ORDER_STATUS_LABELS[t.toStatus] ?? t.toStatus}
                                     </span>
                                     {isLatest && (
                                       <span className={`rounded-full px-1.5 py-px text-[9px] font-light tracking-wide ${orderSpec.timelineLatestBadge}`}>最新</span>
                                     )}
-                                    <span className={`text-[9px] ${overlayMutedClass}`}>{dateStr}</span>
+                                    <span className={`text-[9px] ${orderSpec.overlayMutedClass}`}>{dateStr}</span>
                                   </div>
-                                  {t.note && <div className={`text-[10px] mt-0.5 ${overlayMutedClass}`}>{t.note}</div>}
-                                  {t.operator && <div className={`text-[9px] mt-0.5 ${overlayMutedClass}`}>by {t.operator}</div>}
+                                  {t.note && <div className={`text-[10px] mt-0.5 ${orderSpec.overlayMutedClass}`}>{t.note}</div>}
+                                  {t.operator && <div className={`text-[9px] mt-0.5 ${orderSpec.overlayMutedClass}`}>by {t.operator}</div>}
                                 </div>
                               </div>
                             );
@@ -1484,7 +1463,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         materialRole="raisedCard"
                         edgeFadeItem
                         spotlight
-                        className={overlayFormPanelClass}
+                        className={orderSpec.overlayFormPanelClass}
                         contentClassName="relative z-10"
                         spotlightSizing="width"
                       >
@@ -1494,7 +1473,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           title="面料项目详情"
                           isDarkMode={isDarkMode}
                           meta={(
-                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-light tracking-wide ${heroStatusCapsuleClass((isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending')}`}>{ORDER_STATUS_LABELS[(isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending'] ?? ((isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending')}</span>
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-light tracking-wide ${orderSpec.statusCapsule((isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending')}`}>{ORDER_STATUS_LABELS[(isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending'] ?? ((isEditing && editLineForm ? editLineForm.status : selectedLineItem.status) || 'Pending')}</span>
                           )}
                         />
                         {/* 查阅态网格与 spec.gridRead 同 gap（gap-x-10/gap-y-7），值排版走 spec 档案态配方（与 OrderFieldInput 同构） */}
@@ -1573,6 +1552,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               setEditForm({ ...editForm, ...patch });
                             }
                           }}
+                          orderLine={isEditing && editLineForm ? editLineForm : selectedOrder?.lines?.[0]}
+                          onLineChange={isEditing ? (patch) => {
+                            setEditLineForm((prev) => ({ ...(prev ?? selectedOrder?.lines?.[0] ?? {}), ...patch } as Partial<OrderLineItem>));
+                          } : undefined}
                         />
                       ))}
                     </div>
@@ -1621,16 +1604,17 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   onSelectOrder(showOptionsSheet);
                   setIsEditing(true);
                   setEditForm({ ...showOptionsSheet });
+                  setEditLineForm(showOptionsSheet?.lines?.[0] ? { ...showOptionsSheet.lines[0] } as Partial<OrderLineItem> : null);
                   setShowOptionsSheet(null);
                 }
               }}
-              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${isDarkMode ? 'bg-slate-800/50 text-slate-200' : 'bg-slate-50 text-slate-700'}`}
+              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${orderSpec.sheetCard}`}
             >
-              <div className="p-2 bg-white/[0.06] rounded-2xl text-slate-500"><Edit2 size={18} /></div>
+              <div className={`p-2 rounded-2xl ${orderSpec.sheetIconWrap}`}><Edit2 size={18} /></div>
               编辑详情
             </button>
-            <div className={`p-4 rounded-inset space-y-4 ${isDarkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-              <div className="text-[10px] font-light uppercase tracking-widest text-slate-400">快速状态变更</div>
+            <div className={`p-4 rounded-inset space-y-4 ${orderSpec.sheetSubCard}`}>
+              <div className={`text-[10px] font-light uppercase tracking-widest ${orderSpec.sheetSubLabel}`}>快速状态变更</div>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                 {['Confirmed', 'Production', 'Shipping', 'Delivered'].map(st => (
                   <button
@@ -1647,7 +1631,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         setShowOptionsSheet(null);
                       }
                     }}
-                    className={`px-4 py-2 rounded-full text-[10px] uppercase font-light whitespace-nowrap border ${getStatusStyles(st as any)}`}
+                    className={`px-4 py-2 rounded-full text-[10px] uppercase font-light whitespace-nowrap border ${orderSpec.statusCapsule(st as any)}`}
                   >
                     {st}
                   </button>
@@ -1662,9 +1646,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   setShowOptionsSheet(null);
                 }
               }}
-              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light text-slate-600 ${isDarkMode ? 'bg-slate-800/40' : 'bg-slate-100/60'}`}
+              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${orderSpec.sheetDangerCard}`}
             >
-              <div className="p-2 bg-slate-400/10 rounded-2xl"><Trash2 size={18} /></div>
+              <div className={`p-2 rounded-2xl ${orderSpec.sheetDangerIcon}`}><Trash2 size={18} /></div>
               归档订单
             </button>
           </div>
@@ -1681,7 +1665,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           isDarkMode={isDarkMode}
         >
           <div className="space-y-6 pb-20">
-            {fieldsForManualForm().map(({ cluster, fields }) => (
+            {fieldsForManualForm(manualTypeKey).map(({ cluster, fields }) => (
               <OrderClusterBlock
                 key={cluster.id}
                 cluster={cluster}
@@ -1726,7 +1710,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 <div className="relative min-w-0">
                   <p className={orderSpec.kicker}>{orderType === 'garment' ? 'New Garment Order' : 'New Fabric Order'}</p>
                   <div className="mt-1 flex min-w-0 items-baseline gap-3">
-                    <h2 className={`truncate text-[22px] font-light tracking-[0.12em] ${overlayTitleClass}`}>录入{ORDER_TYPE_LABELS[orderType]}订单</h2>
+                    <h2 className={`truncate text-[22px] font-light tracking-[0.12em] ${orderSpec.overlayTitleClass}`}>录入{ORDER_TYPE_LABELS[orderType]}订单</h2>
                     <span className={orderSpec.headerMeta}>生产录入</span>
                   </div>
                 </div>
@@ -1742,7 +1726,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     <button onClick={handleAddOrder} className={`${overlayActionClass} ${overlayPrimaryActionClass}`}>
                       <Save size={14} strokeWidth={1.5} />确认创建
                     </button>
-                    <div className={`h-4 w-px ${overlayDividerClass}`}></div>
+                    <div className={`h-4 w-px ${orderSpec.overlayDividerClass}`}></div>
                     <button
                       onClick={() => { setShowAddModal(false); resetNewOrder(); }}
                       className={overlayIconActionClass}
@@ -1758,7 +1742,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 <div className="h-full px-5 pt-24">
                   <div className="grid h-full w-full grid-cols-[240px_minmax(0,1fr)] gap-5">
                     <aside className="self-start">
-                      <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={overlayMapPanelClass}>
+                      <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={orderSpec.overlayMapPanelClass}>
                         <p className={`px-3 pb-3 ${orderSpec.kicker}`}>Form Map</p>
                         <div className="space-y-1">
                           {manualSections.map(({ cluster }, idx) => (
@@ -1766,13 +1750,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               key={cluster.id}
                               type="button"
                               onClick={() => document.getElementById(`section-${cluster.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                              className={overlayMapButtonClass}
+                              className={orderSpec.overlayMapButtonClass}
                             >
                               <div className="flex items-center gap-3">
-                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-light ${overlayMapIndexClass}`}>{idx + 1}</span>
+                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-light ${orderSpec.overlayMapIndexClass}`}>{idx + 1}</span>
                                 <div className="min-w-0">
-                                  <div className={`truncate text-xs font-light ${overlayTitleClass}`}>{cluster.labelZh}</div>
-                                  <div className={`mt-0.5 truncate text-[10px] font-light ${overlayMutedClass}`}>{cluster.labelEn}</div>
+                                  <div className={`truncate text-xs font-light ${orderSpec.overlayTitleClass}`}>{cluster.labelZh}</div>
+                                  <div className={`mt-0.5 truncate text-[10px] font-light ${orderSpec.overlayMutedClass}`}>{cluster.labelEn}</div>
                                 </div>
                               </div>
                             </button>

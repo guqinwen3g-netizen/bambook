@@ -15,6 +15,7 @@ import { AlertTriangle, CalendarClock, Loader2, RefreshCw, Search } from 'lucide
 import { productionService, ProductionBoardItem } from '../services/productionService';
 import { PageHeader } from './ui/PageHeader';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
+import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 
 // 与后端 PRODUCTION_STAGES 顺序镜像（stageService.ts）；单订单泳道 ProductionPipeline 亦用同一中文标签集
@@ -121,10 +122,10 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
     const d = daysUntil(dueDate);
     if (d === null) return null;
     const cls = d < 0
-      ? 'bg-red-500/12 text-red-500'
+      ? statusSemanticClass('danger', isDarkMode)
       : d <= 7
-        ? 'bg-amber-500/12 text-amber-500'
-        : isDarkMode ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500';
+        ? statusSemanticClass('warning', isDarkMode)
+        : statusSemanticClass('neutral', isDarkMode);
     const label = d < 0 ? `逾期 ${-d} 天` : d === 0 ? '今日到期' : `剩 ${d} 天`;
     return (
       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-compact text-[10px] font-light ${cls}`}>
@@ -181,7 +182,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
             </div>
           ) : error ? (
             <div className="h-40 flex flex-col items-center justify-center gap-2">
-              <div className="text-xs font-light text-red-500">{error}</div>
+              <div className={`text-xs font-light ${statusSemanticText('danger', isDarkMode)}`}>{error}</div>
               <button onClick={fetchBoard} className="text-[11px] font-light text-[var(--os-vnext-brand-blue)] hover:underline">重试</button>
             </div>
           ) : filtered.length === 0 ? (
@@ -216,7 +217,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-xs font-normal truncate">{o.poNumber || o.id}</span>
                               {item.blockedCount > 0 && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-compact bg-red-500/12 text-red-500 text-[10px] font-light shrink-0">
+                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-compact ${statusSemanticClass('danger', isDarkMode)} text-[10px] font-light shrink-0`}>
                                   <AlertTriangle size={10} />阻塞
                                 </span>
                               )}

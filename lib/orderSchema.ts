@@ -14,23 +14,55 @@
  * `keyof Order` 约束保证不跑偏。
  */
 
-import type { Order } from '../types';
+import type { Order, OrderLineLite } from '../types';
+
+// ---------------------------------------------------------------------------
+// Order type definitions — 三类订单类型（与 Prisma Order.type 字符串对齐）
+// ---------------------------------------------------------------------------
+
+export type OrderTypeKey = 'fabric' | 'garment' | 'other';
+export const ORDER_TYPE_KEYS: ReadonlyArray<OrderTypeKey> = ['fabric', 'garment', 'other'];
+
+/** UI key → 数据库 PascalCase 值（与 Prisma Order.type 对齐） */
+export const ORDER_TYPE_DB_VALUE: Record<OrderTypeKey, string> = {
+  fabric: 'Fabric',
+  garment: 'Garment',
+  other: 'Other',
+};
+
+/** 数据库值 → UI key（null/undefined/未知值兜底为 fabric） */
+export const dbValueToTypeKey = (dbValue: string | null | undefined): OrderTypeKey => {
+  if (dbValue === 'Garment') return 'garment';
+  if (dbValue === 'Other') return 'other';
+  return 'fabric';
+};
+
+export const ORDER_TYPE_LABELS_ZH: Record<OrderTypeKey, string> = {
+  fabric: '面料',
+  garment: '成衣',
+  other: '其他',
+};
+
+/** 视图状态（含"全部"，不属于订单内在类型） */
+export type OrderViewType = OrderTypeKey | 'all';
 
 // ---------------------------------------------------------------------------
 // Cluster definitions — UI 渲染时的分组顺序与标签
 // ---------------------------------------------------------------------------
 
 export type OrderFieldCluster =
-  | 'basic'           // 基础生产档案：PO#/PO Date/Season/Batch/Item Code 等
-  | 'parties'         // 买卖四方：Customer / Mill / Consignee / Bill-to
-  | 'delivery'        // 交期与物流：生产交期/出厂交期/收货方
-  | 'fabric'          // 面料规格：成份/门幅/克重
-  | 'sales'           // 销售/收汇：销售单价、合同金额、收汇日期
-  | 'shipment'        // 出货与发票：发票号、出货数量金额
-  | 'sampleShipment'  // 大货船样
-  | 'sampleFabric'    // 匹头样
-  | 'purchase'        // 采购与供应商发票
-  | 'instructions';   // 特别说明
+  | 'basic'              // 基础生产档案：PO#/PO Date/Season/Batch/Item Code 等
+  | 'parties'            // 买卖四方：Customer / Mill / Consignee / Bill-to
+  | 'delivery'           // 交期与物流：生产交期/出厂交期/收货方
+  | 'fabric'             // 面料规格：成份/门幅/克重
+  | 'sales'              // 销售/收汇：销售单价、合同金额、收汇日期
+  | 'shipment'           // 出货与发票：发票号、出货数量金额
+  | 'sampleShipment'     // 大货船样
+  | 'sampleFabric'       // 匹头样
+  | 'purchase'           // 采购与供应商发票
+  | 'instructions'       // 特别说明
+  | 'garmentProduction'  // 成衣生产跟单：款号/色号/尺码分配/工序/BOM（OrderLine 级）
+  | 'sampleGarment';     // 成衣样衣阶段：Proto/Photo/Size Set/PP Sample（OrderLine 级）
 
 export interface OrderClusterMeta {
   id: OrderFieldCluster;
@@ -53,6 +85,8 @@ export const ORDER_CLUSTERS: OrderClusterMeta[] = [
   { id: 'sampleFabric',   labelZh: '匹头样',         labelEn: 'Fabric Sample',   detailOrder: 8, manualOrder: 99 },
   { id: 'purchase',       labelZh: '采购与供应商',   labelEn: 'Procurement',     detailOrder: 9, manualOrder: 6 },
   { id: 'instructions',   labelZh: '特别说明',       labelEn: 'Instructions',    detailOrder: 10, manualOrder: 7 },
+  { id: 'garmentProduction', labelZh: '成衣生产跟单', labelEn: 'Garment Production', detailOrder: 11, manualOrder: 99 },
+  { id: 'sampleGarment',     labelZh: '成衣样衣阶段', labelEn: 'Garment Samples',     detailOrder: 12, manualOrder: 99 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -78,7 +112,12 @@ export const PARTIES_SUBGROUPS: SubGroupMeta[] = [
 // Field metadata
 // ---------------------------------------------------------------------------
 
-export type OrderFieldType = 'text' | 'longText' | 'number' | 'date' | 'enum' | 'currency' | 'boolean';
+export type OrderFieldType =
+  | 'text' | 'longText' | 'number' | 'date' | 'enum' | 'currency' | 'boolean'
+  | 'jsonSizeBreakdown'    // { S: 100, M: 200, ... } — 尺码配比
+  | 'jsonProductionSteps'  // [{ step, status, date }] — 生产工序
+  | 'jsonBomItems'         // [{ type, name, spec, qty, unit }] — BOM 物料清单
+  | 'jsonGarmentSampleStages'; // [{ stage, status, sentDate, confirmedDate, comments }] — 成衣样衣阶段
 
 export type OrderFieldSource = 'pdf' | 'manual' | 'both';
 
@@ -86,10 +125,10 @@ export type RoleFkTarget = 'customer' | 'mill' | 'consignee' | 'billTo' | 'inter
 
 /**
  * Compile-time guarantee that every metadata entry's `key` resolves to an
- * actual property on the `Order` interface. If you remove a field from
- * `types.ts`, TypeScript will flag the row in this dictionary.
+ * actual property on the `Order` or `OrderLineLite` interface.
+ * OrderLine 级字段（如成衣的 styleNo/sizeBreakdown）需标记 `level: 'line'`。
  */
-export type OrderFieldKey = keyof Order;
+export type OrderFieldKey = keyof Order | keyof OrderLineLite;
 
 export interface FieldMeta {
   /** Must be a key on the `Order` interface. */
@@ -122,6 +161,12 @@ export interface FieldMeta {
     fkField: string;
     mapping: Record<string, string>;
   };
+  /** 适用订单类型。undefined = 通用（所有类型共享）；显式列表 = 仅列出的类型可见。 */
+  applicableTypes?: ReadonlyArray<OrderTypeKey>;
+  /** 字段层级。默认 'order'；OrderLine 级字段（如成衣生产跟单）标记 'line'。 */
+  level?: 'order' | 'line';
+  /** 当 level='line' 时，渲染该字段的 OrderLine 选择策略。默认 'first'。 */
+  lineScope?: 'first' | 'each' | 'aggregate';
 }
 
 /**
@@ -136,9 +181,9 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   { key: 'poDate',           labelZh: 'PO 日期',          labelEn: 'PO Date',       cluster: 'basic', type: 'date', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true },
   { key: 'season',           labelZh: '季节',             labelEn: 'Season',        cluster: 'basic', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true, placeholder: 'SS26' },
   { key: 'productionBatch',  labelZh: '生产批次',         labelEn: 'Prod Batch',    cluster: 'basic', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: 'B001' },
-  { key: 'productColorCode', labelZh: '品/色号',          labelEn: 'Item/Color',    cluster: 'basic', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '从首行 millQuality 自动带出' },
+  { key: 'productColorCode', labelZh: '品/色号',          labelEn: 'Item/Color',    cluster: 'basic', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '从首行 millQuality 自动带出', applicableTypes: ['fabric'] },
   { key: 'clientCode',       labelZh: '客户编码 (Client Code)', labelEn: 'Client Code',   cluster: 'basic', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '客户给产品的编码，从首行 materialCode 自动带出' },
-  { key: 'referenceBatch',   labelZh: '参考批次',         labelEn: 'Ref Batch',     cluster: 'basic', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
+  { key: 'referenceBatch',   labelZh: '参考批次',         labelEn: 'Ref Batch',     cluster: 'basic', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
   { key: 'quantity',         labelZh: '订单数量',         labelEn: 'Order Qty',     cluster: 'basic', type: 'number', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true, required: true },
 
   // ============ Cluster: parties — 买卖四方 + 内部团队 ============
@@ -179,12 +224,12 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   { key: 'shippingDate',     labelZh: '实际发货日',       labelEn: 'Ship Date',      cluster: 'delivery', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'shippingMethod',   labelZh: '运输方式',         labelEn: 'Ship Method',    cluster: 'delivery', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
 
-  // ============ Cluster: fabric — 面料规格 ============
-  { key: 'fabricCode',       labelZh: '面料编号',         labelEn: 'Fabric Code',    cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true },
-  { key: 'fabricContent',    labelZh: '成份',             labelEn: 'Content',        cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '100% Cotton' },
-  { key: 'width',            labelZh: '门幅 (Width CM)',  labelEn: 'Width',          cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '150 CM' },
-  { key: 'gsm',              labelZh: '克重 (GSM)',       labelEn: 'GSM',            cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '180 GSM' },
-  { key: 'product',          labelZh: '品名/规格',        labelEn: 'Product',        cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: 'Cotton Jersey' },
+  // ============ Cluster: fabric — 面料规格（仅面料订单） ============
+  { key: 'fabricCode',       labelZh: '面料编号',         labelEn: 'Fabric Code',    cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, applicableTypes: ['fabric'] },
+  { key: 'fabricContent',    labelZh: '成份',             labelEn: 'Content',        cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '100% Cotton', applicableTypes: ['fabric'] },
+  { key: 'width',            labelZh: '门幅 (Width CM)',  labelEn: 'Width',          cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '150 CM', applicableTypes: ['fabric'] },
+  { key: 'gsm',              labelZh: '克重 (GSM)',       labelEn: 'GSM',            cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '180 GSM', applicableTypes: ['fabric'] },
+  { key: 'product',          labelZh: '品名/规格',        labelEn: 'Product',        cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: 'Cotton Jersey', applicableTypes: ['fabric'] },
 
   // ============ Cluster: sales — 销售与收汇 ============
   { key: 'salesContractNumber', labelZh: '早期销售合同号', labelEn: 'Sales Contract #', cluster: 'sales', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: 'PO 确认即出，给客户' },
@@ -203,15 +248,15 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   { key: 'shipmentQuantity', labelZh: '出货数量',         labelEn: 'Ship Qty',       cluster: 'shipment', type: 'number', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'shipmentAmount',   labelZh: '出货金额',         labelEn: 'Ship Amount',    cluster: 'shipment', type: 'currency', currencySide: 'sales', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
 
-  // ============ Cluster: sampleShipment — 大货船样 ============
-  { key: 'sampleSentDate',         labelZh: '船样寄出日期', labelEn: 'S/Sample Sent', cluster: 'sampleShipment', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
-  { key: 'sampleConfirmedDate',    labelZh: '船样确认日期', labelEn: 'S/Sample Conf', cluster: 'sampleShipment', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
-  { key: 'shipmentSampleComments', labelZh: '船样意见',     labelEn: 'S/Sample Note', cluster: 'sampleShipment', type: 'longText', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
+  // ============ Cluster: sampleShipment — 大货船样（仅面料订单） ============
+  { key: 'sampleSentDate',         labelZh: '船样寄出日期', labelEn: 'S/Sample Sent', cluster: 'sampleShipment', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
+  { key: 'sampleConfirmedDate',    labelZh: '船样确认日期', labelEn: 'S/Sample Conf', cluster: 'sampleShipment', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
+  { key: 'shipmentSampleComments', labelZh: '船样意见',     labelEn: 'S/Sample Note', cluster: 'sampleShipment', type: 'longText', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
 
-  // ============ Cluster: sampleFabric — 匹头样 ============
-  { key: 'fabricSampleSentDate',      labelZh: '匹头样寄出日期', labelEn: 'H/Sample Sent', cluster: 'sampleFabric', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
-  { key: 'fabricSampleConfirmedDate', labelZh: '匹头样确认日期', labelEn: 'H/Sample Conf', cluster: 'sampleFabric', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
-  { key: 'paidSampleQuantity',        labelZh: '收费样品数量',   labelEn: 'Paid Sample',   cluster: 'sampleFabric', type: 'number', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
+  // ============ Cluster: sampleFabric — 匹头样（仅面料订单） ============
+  { key: 'fabricSampleSentDate',      labelZh: '匹头样寄出日期', labelEn: 'H/Sample Sent', cluster: 'sampleFabric', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
+  { key: 'fabricSampleConfirmedDate', labelZh: '匹头样确认日期', labelEn: 'H/Sample Conf', cluster: 'sampleFabric', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
+  { key: 'paidSampleQuantity',        labelZh: '收费样品数量',   labelEn: 'Paid Sample',   cluster: 'sampleFabric', type: 'number', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
 
   // ============ Cluster: purchase — 采购与供应商 ============
   { key: 'purchasePrice',          labelZh: '采购单价',     labelEn: 'Purchase Cost',     cluster: 'purchase', type: 'currency', currencySide: 'purchase', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true },
@@ -222,30 +267,47 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
 
   // ============ Cluster: instructions — 特别说明 ============
   { key: 'specialInstructions', labelZh: '特别说明', labelEn: 'Special Instructions', cluster: 'instructions', type: 'longText', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true },
+
+  // ============ Cluster: garmentProduction — 成衣生产跟单（仅成衣订单，OrderLine 级） ============
+  { key: 'styleNo',         labelZh: '款号',     labelEn: 'Style No',     cluster: 'garmentProduction', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, applicableTypes: ['garment'], level: 'line', lineScope: 'first', required: true, hintZh: '关联数字档案 GarmentProfile.styleNo' },
+  { key: 'colorName',       labelZh: '色号',     labelEn: 'Color Name',   cluster: 'garmentProduction', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, applicableTypes: ['garment'], level: 'line', lineScope: 'first' },
+  { key: 'sizeBreakdown',   labelZh: '尺码分配', labelEn: 'Size Breakdown', cluster: 'garmentProduction', type: 'jsonSizeBreakdown', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['garment'], level: 'line', lineScope: 'first' },
+  { key: 'productionSteps', labelZh: '生产工序', labelEn: 'Production Steps', cluster: 'garmentProduction', type: 'jsonProductionSteps', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['garment'], level: 'line', lineScope: 'first' },
+  { key: 'bomItems',        labelZh: 'BOM 物料清单', labelEn: 'BOM', cluster: 'garmentProduction', type: 'jsonBomItems', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['garment'], level: 'line', lineScope: 'first' },
+
+  // ============ Cluster: sampleGarment — 成衣样衣阶段（仅成衣订单，OrderLine 级） ============
+  // Proto Sample（开发样）→ Photo Sample（照片样）→ Size Set（尺码样）→ PP Sample（产前样）
+  { key: 'garmentSampleStages', labelZh: '样衣阶段追踪', labelEn: 'Sample Stages', cluster: 'sampleGarment', type: 'jsonGarmentSampleStages', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['garment'], level: 'line', lineScope: 'first', hintZh: 'Proto → Photo → Size Set → PP Sample 四阶段样衣确认流程' },
 ];
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** 核心过滤函数：undefined = 通用；显式列表 = 仅列出的类型可见 */
+function isFieldApplicable(f: FieldMeta, type: OrderTypeKey): boolean {
+  if (!f.applicableTypes) return true;
+  return f.applicableTypes.includes(type);
+}
+
 /** Fields shown in the detail card, grouped by cluster, in display order. */
-export function fieldsForDetail(): Array<{ cluster: OrderClusterMeta; fields: FieldMeta[] }> {
-  return groupByCluster(ORDER_FIELDS.filter((f) => f.shownInDetail), 'detailOrder');
+export function fieldsForDetail(type: OrderTypeKey = 'fabric'): Array<{ cluster: OrderClusterMeta; fields: FieldMeta[] }> {
+  return groupByCluster(ORDER_FIELDS.filter((f) => f.shownInDetail && isFieldApplicable(f, type)), 'detailOrder');
 }
 
 /** Fields shown in the manual entry modal, grouped by cluster. */
-export function fieldsForManualForm(): Array<{ cluster: OrderClusterMeta; fields: FieldMeta[] }> {
-  return groupByCluster(ORDER_FIELDS.filter((f) => f.shownInManualForm), 'manualOrder');
+export function fieldsForManualForm(type: OrderTypeKey = 'fabric'): Array<{ cluster: OrderClusterMeta; fields: FieldMeta[] }> {
+  return groupByCluster(ORDER_FIELDS.filter((f) => f.shownInManualForm && isFieldApplicable(f, type)), 'manualOrder');
 }
 
 /** Fields shown in the import preview header. */
-export function fieldsForImportPreview(): FieldMeta[] {
-  return ORDER_FIELDS.filter((f) => f.shownInImportPreview);
+export function fieldsForImportPreview(type: OrderTypeKey = 'fabric'): FieldMeta[] {
+  return ORDER_FIELDS.filter((f) => f.shownInImportPreview && isFieldApplicable(f, type));
 }
 
 /** Required keys for manual entry — used by `handleAddOrder` validation. */
-export function requiredKeysForManual(): OrderFieldKey[] {
-  return ORDER_FIELDS.filter((f) => f.shownInManualForm && f.required).map((f) => f.key);
+export function requiredKeysForManual(type: OrderTypeKey = 'fabric'): OrderFieldKey[] {
+  return ORDER_FIELDS.filter((f) => f.shownInManualForm && f.required && isFieldApplicable(f, type)).map((f) => f.key);
 }
 
 export function fieldMetaByKey(key: OrderFieldKey | string): FieldMeta | undefined {
@@ -385,6 +447,16 @@ export function currencySymbol(code: string): string {
     }
     if (f.required && !f.shownInManualForm) {
       errors.push(`field "${String(f.key)}" is required but not shown in the manual form — required validation would always fail silently`);
+    }
+    if (f.applicableTypes) {
+      for (const t of f.applicableTypes) {
+        if (!ORDER_TYPE_KEYS.includes(t)) {
+          errors.push(`field "${String(f.key)}" has invalid applicableTypes entry "${t}"`);
+        }
+      }
+    }
+    if (f.level === 'line' && !f.lineScope) {
+      // lineScope defaults to 'first' if not set — not an error, just ensure consistency
     }
   }
 
