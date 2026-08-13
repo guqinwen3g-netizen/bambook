@@ -91,13 +91,66 @@ if [[ -z "$OPS_TOKEN" ]]; then
 fi
 
 # 4) 上传
-echo "==> 上传到 $OPS_URL/api/admin/deploy-webapp ..."
+# Cloudflare 隧道对 POST body 转发有阈值（实测 >~300KB 易 524/Broken pipe），
+# 超过阈值自动切分块上传：/api/admin/deploy-webapp-chunk 逐块 + deploy-webapp-finalize 重组。
+CHUNK_THRESHOLD=$((300 * 1024))   # 超过 300KB 走分块
+CHUNK_SIZE=$((192 * 1024))        # 每块 192KB（隧道安全阈值内，服务端 limit 500kb）
 HTTP_RESP=$(mktemp)
-HTTP_CODE=$(curl --http1.1 -sS -m 360 -o "$HTTP_RESP" -w '%{http_code}' \
-  -X POST "$OPS_URL/api/admin/deploy-webapp" \
-  -H 'Content-Type: application/gzip' \
-  -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
-  --data-binary "@$ARCHIVE")
+
+if [[ "$SIZE" -le "$CHUNK_THRESHOLD" ]]; then
+  echo "==> 上传到 $OPS_URL/api/admin/deploy-webapp ..."
+  HTTP_CODE=$(curl --http1.1 -sS -m 360 -o "$HTTP_RESP" -w '%{http_code}' \
+    -X POST "$OPS_URL/api/admin/deploy-webapp" \
+    -H 'Content-Type: application/gzip' \
+    -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
+    --data-binary "@$ARCHIVE")
+else
+  # ── 分块上传 ──
+  UPLOAD_ID="webapp-$(date +%s)-$RANDOM$RANDOM"
+  TOTAL_CHUNKS=$(( (SIZE + CHUNK_SIZE - 1) / CHUNK_SIZE ))
+  echo "==> 包大小 ${SIZE_MB} MB 超阈值，分块上传：${TOTAL_CHUNKS} 块 × 192KB (uploadId=$UPLOAD_ID)"
+
+  CHUNK_DIR="$(mktemp -d)"
+  split -b "$CHUNK_SIZE" "$ARCHIVE" "$CHUNK_DIR/chunk-"
+
+  CHUNK_INDEX=0
+  CHUNK_FAILED=0
+  for CHUNK_FILE in "$CHUNK_DIR"/chunk-*; do
+    printf '\r==> 上传块 %d/%d ...' "$((CHUNK_INDEX + 1))" "$TOTAL_CHUNKS"
+    CHUNK_HTTP=$(curl --http1.1 -sS -m 120 -o "$HTTP_RESP" -w '%{http_code}' \
+      -X POST "$OPS_URL/api/admin/deploy-webapp-chunk" \
+      -H 'Content-Type: application/octet-stream' \
+      -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
+      -H "X-Upload-Id: $UPLOAD_ID" \
+      -H "X-Chunk-Index: $CHUNK_INDEX" \
+      -H "X-Total-Chunks: $TOTAL_CHUNKS" \
+      --data-binary "@$CHUNK_FILE")
+    if [[ "$CHUNK_HTTP" != "200" ]]; then
+      echo ""
+      echo "error: 块 $CHUNK_INDEX 上传失败 (HTTP $CHUNK_HTTP)" >&2
+      cat "$HTTP_RESP" >&2
+      CHUNK_FAILED=1
+      break
+    fi
+    CHUNK_INDEX=$((CHUNK_INDEX + 1))
+  done
+  rm -rf "$CHUNK_DIR"
+
+  if [[ "$CHUNK_FAILED" == "1" ]]; then
+    unset OPS_TOKEN
+    rm -f "$HTTP_RESP"
+    osascript -e 'display notification "分块上传中断，去面板看日志" with title "网页端部署失败"' 2>/dev/null || true
+    exit 2
+  fi
+
+  echo ""
+  echo "==> 全部块上传完成，请求重组部署 (finalize)..."
+  HTTP_CODE=$(curl --http1.1 -sS -m 360 -o "$HTTP_RESP" -w '%{http_code}' \
+    -X POST "$OPS_URL/api/admin/deploy-webapp-finalize" \
+    -H 'Content-Type: application/json' \
+    -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
+    -d "{\"uploadId\": \"$UPLOAD_ID\"}")
+fi
 unset OPS_TOKEN
 
 echo "==> HTTP $HTTP_CODE"
