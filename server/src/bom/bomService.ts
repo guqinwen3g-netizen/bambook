@@ -111,12 +111,12 @@ function round4(n: number): number {
 }
 
 /** 实际用量 = quantity * (1 + wastage%) */
-function calcEffectiveQty(quantity: number, wastagePercent: number): number {
+export function calcEffectiveQty(quantity: number, wastagePercent: number): number {
   return round4(quantity * (1 + wastagePercent / 100));
 }
 
 /** 行金额 = effectiveQty * unitCost */
-function calcLineAmount(effectiveQty: number, unitCost: number): number {
+export function calcLineAmount(effectiveQty: number, unitCost: number): number {
   return round4(effectiveQty * unitCost);
 }
 
@@ -139,7 +139,7 @@ function validateCostType(type: string): asserts type is CostType {
  *   - totalOverheadCost = CostEstimate(Overhead) + CostEstimate(Other)
  *   - totalCost = 物料 + 人工 + 费用
  */
-function aggregateCosts(lines: BOMLineInput[], costEstimates: CostEstimateInput[]) {
+export function aggregateCosts(lines: BOMLineInput[], costEstimates: CostEstimateInput[]) {
   // 物料成本 = 行金额合计（所有 BOMLine 都是物料）+ CostEstimate(Material)
   const lineMaterialCost = lines.reduce((sum, l) => {
     const eff = calcEffectiveQty(l.quantity, l.wastagePercent ?? 0);

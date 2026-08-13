@@ -16,8 +16,10 @@ import XLSX from 'xlsx';
 import fs from 'fs';
 import { createImportRouter } from './import/route';
 import { createOrdersRouter } from './orders/route';
+import { createOrdersV2Router } from './orders/routeV2';
 import { createOrderLinesRouter } from './orders/orderLinesRoute';
 import { createRelationsRouter } from './relations/route';
+import { createRelationsV2Router } from './relations/routeV2';
 import { createProductsRouter } from './products/route';
 import { createSystemAssetsRouter } from './system-assets/route';
 import { createPdmlRouter } from './pdml/route';
@@ -26,6 +28,7 @@ import { createEntitiesRouter } from './entities/route';
 import { createBusinessProfilesRouter } from './business-profiles/route';
 import { createDevelopmentRouter } from './development/route';
 import { createFinanceRouter } from './finance/route';
+import { createFinanceV2Router } from './finance/routeV2';
 import { createReportingRouter } from './reporting/route';
 import { createShippingRouter } from './shipping/route';
 import { createDashboardRouter } from './dashboard/route';
@@ -34,8 +37,12 @@ import { createProcurementRouter } from './procurement/procurementRoute';
 import { createInventoryRouter } from './inventory/inventoryRoute';
 import { createBOMRouter } from './bom/bomRoute';
 import { createCrmRouter } from './crm/crmRoute';
+import { createCrmV2Router } from './crm/crmRouteV2';
 import { createSupplierRouter } from './suppliers/factoryRoute';
+import { createSuppliersV2Router } from './suppliers/factoryRouteV2';
 import { createSeasonRouter } from './seasons/seasonRoute';
+import { createSeasonsV2Router } from './seasons/seasonRouteV2';
+import { createMarketingV2Router } from './marketing/marketingRouteV2';
 import { createRiskRouter } from './risk/riskRoute';
 import { createBusinessLineRouter } from './businessLines/businessLineRoute';
 import { ensureBusinessLineSeed } from './businessLines/businessLineService';
@@ -45,8 +52,11 @@ import { createLookbookRouter } from './products/lookbookRoute';
 import { createFabricRecommendationRouter } from './products/fabricRecommendationRoute';
 import { createMesRouter } from './mes/mesRoute';
 import { createCustomsRouter } from './customs/customsRoute';
+import { createCustomsV2Router } from './customs/customsRouteV2';
 import { createDocumentTemplateRouter } from './customs/documentTemplateRoute';
 import { createProductionRouter } from './production/route';
+import { createProductionV2Router } from './production/routeV2';
+import { createTraceabilityRouter } from './traceability/traceabilityRoute';
 import { createTemplatesRouter } from './templates/route';
 import { logger } from './lib/logger';
 import { attachPrismaSlowQueryLogger, createRequestTimingMiddleware } from './lib/requestTiming';
@@ -463,6 +473,15 @@ app.use(
 );
 
 app.use(
+    '/api/v2/orders',
+    (req, res, next) => createOrdersV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+app.use(
     '/api/v1/order-lines',
     (req, res, next) => createOrderLinesRouter({
         prisma,
@@ -479,6 +498,15 @@ app.use(
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v2/relations',
+    (req, res, next) => createRelationsV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
     })(req, res, next),
 );
 
@@ -535,6 +563,15 @@ app.use(
     })(req, res, next),
 );
 
+app.use(
+    '/api/v2/finance',
+    (req, res, next) => createFinanceV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
 // 阶段 A5：报表引擎（数据集白名单 + 定义/运行/导出）
 app.use(
     '/api/v1/reports',
@@ -571,6 +608,24 @@ app.use(
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v2/production',
+    (req, res, next) => createProductionV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v2/trace',
+    (req, res, next) => createTraceabilityRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
     })(req, res, next),
 );
 
@@ -635,6 +690,15 @@ app.use(
 );
 
 app.use(
+    '/api/v2/crm',
+    (req, res, next) => createCrmV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+app.use(
     '/api/v1/mes',
     (req, res, next) => createMesRouter({
         prisma,
@@ -655,12 +719,39 @@ app.use(
 );
 
 app.use(
+    '/api/v2/suppliers',
+    (req, res, next) => createSuppliersV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+app.use(
     '/api/v1/seasons',
     (req, res, next) => createSeasonRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v2/seasons',
+    (req, res, next) => createSeasonsV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v2/marketing',
+    (req, res, next) => createMarketingV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
     })(req, res, next),
 );
 
@@ -714,6 +805,15 @@ app.use(
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
         onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+app.use(
+    '/api/v2/customs',
+    (req, res, next) => createCustomsV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
     })(req, res, next),
 );
 
@@ -1067,7 +1167,7 @@ interface ShippingNoticeOptions {
     itemRemarks?: string;
 }
 
-const DEFAULT_SUPPLIER = 'PANDA CLOTHING CO., LTD.';
+const DEFAULT_SUPPLIER = process.env.BAMBOOK_COMPANY_NAME_EN || 'JIANGSU PANDA CLOTHING CO.,LTD.';
 const DEFAULT_DEPARTURE_PORT = 'SHANGHAI';
 const DEFAULT_SHIPPING_METHOD = 'SEA';
 const DEFAULT_BL_REQUIREMENT = '电放或正本提单按客户通知';

@@ -11,7 +11,6 @@
 import React from 'react';
 import { Scissors, Layers, CheckCircle2, Package, ArrowRight } from 'lucide-react';
 import type { ProductionStep } from '../../types';
-import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { createOrderUiSpec } from './orderUiSpec';
 
 interface ProductionStepsEditorProps {
@@ -87,11 +86,11 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
                 <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-all ${btnCls}`}>
                   {STEP_ICONS[step.step]}
                 </div>
-                <span className={`text-[9px] font-light tracking-wide ${spec.listRowSecondary}`}>
+                <span className={`text-[10px] font-light tracking-wide ${spec.listRowSecondary}`}>
                   {STEP_LABELS[step.step]}
                 </span>
                 {step.date && (
-                  <span className={`text-[8px] ${spec.listRowSecondary}`}>{step.date}</span>
+                  <span className={`text-[10px] ${spec.listRowSecondary}`}>{step.date}</span>
                 )}
               </div>
               {idx < sorted.length - 1 && (
@@ -125,11 +124,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
     onChange?.(next);
   };
 
-  const fieldSurfaceCls = isDarkMode
-    ? BAMBOOK_OS.controls.recessedField.dark
-    : BAMBOOK_OS.controls.recessedField.light;
-  const fieldShellCls = `border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${fieldSurfaceCls}`;
-  const dateInputCls = `h-7 w-[88px] px-2 rounded-control ${fieldShellCls}`;
+  const dateInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} w-[88px]`;
 
   return (
     <div className="space-y-3">
@@ -157,10 +152,10 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
                 >
                   {STEP_ICONS[step.step]}
                 </button>
-                <span className={`text-[9px] font-light tracking-wide ${spec.listRowSecondary}`}>
+                <span className={`text-[10px] font-light tracking-wide ${spec.listRowSecondary}`}>
                   {STEP_LABELS[step.step]}
                 </span>
-                <span className={`text-[8px] font-light ${spec.listRowSecondary}`}>
+                <span className={`text-[10px] font-light ${spec.listRowSecondary}`}>
                   {statusLabel}
                 </span>
               </div>

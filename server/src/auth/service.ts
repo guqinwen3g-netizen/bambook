@@ -11,6 +11,8 @@ export type TokenPayload = {
   userId: string;
   displayName?: string;
   roles: AgentRole[];
+  /** 新 RBAC 系统角色 ID 列表（role-sales 等），可选，旧 token 不包含 */
+  roleIds?: string[];
   permissions: string[];
   departmentIds: string[];
 };

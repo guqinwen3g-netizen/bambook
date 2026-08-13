@@ -6,6 +6,7 @@ import { fxSettlementService } from '../services/fxSettlementService';
 import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { apiService } from '../services/apiService';
+import { financeV2Service } from '../services/financeV2Service';
 import { BadgeCheck, Ban, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Send, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { RdlMetricCard, RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
@@ -85,6 +86,7 @@ const INVOICE_TYPES: Array<{ id: InvoiceTypeId; label: string }> = [
   { id: 'all', label: '全部类型' },
   { id: 'Receivable', label: '应收' },
   { id: 'Payable', label: '应付' },
+  { id: 'Proforma' as any, label: '形式发票' },
 ];
 const INVOICE_STATUSES: Array<{ id: InvoiceStatusId; label: string }> = [
   { id: 'all', label: '全部状态' },
@@ -106,7 +108,7 @@ const VOUCHER_STATUSES: Array<{ id: VoucherStatusId; label: string }> = [
   { id: 'reconciled', label: '已核销' },
 ];
 
-const invoiceTypeLabel = (t: InvoiceType) => (t === 'Receivable' ? '应收' : '应付');
+const invoiceTypeLabel = (t: InvoiceType | string) => (t === 'Receivable' ? '应收' : t === 'Payable' ? '应付' : t === 'Proforma' ? '形式发票' : String(t));
 const voucherTypeLabel = (t: VoucherType) => (t === 'Receipt' ? '收款' : '付款');
 
 // ── C6 增值税发票常量 ───
@@ -688,6 +690,26 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   // task_mqyusoio: 作废/软删 state（消费后端 contract，不伪造）
   const [voidDeletingId, setVoidDeletingId] = useState<string | null>(null);
   const [voidDeleteError, setVoidDeleteError] = useState<string | null>(null);
+  // Phase 1-04: PI 转换为正式应收发票
+  const [convertingPiId, setConvertingPiId] = useState<string | null>(null);
+
+  const handleConvertToReceivable = async (invoiceId: string, invoiceNumber: string) => {
+    if (!window.confirm(`将形式发票 ${invoiceNumber} 转换为正式应收发票？\n转换后将生成新的应收发票，原 PI 将标记为已作废。`)) return;
+    setConvertingPiId(invoiceId);
+    setVoidDeleteError(null);
+    try {
+      const newInvoice = await financeV2Service.convertToReceivable(invoiceId, {});
+      // 刷新发票列表
+      const refreshed = await invoiceService.listInvoices();
+      setInvoices(refreshed);
+      // 选中新建的应收发票
+      setSelectedId(newInvoice.id);
+    } catch (e: any) {
+      setVoidDeleteError(`PI 转换失败：${e.message || e}`);
+    } finally {
+      setConvertingPiId(null);
+    }
+  };
 
   const handleSaveInvoice = async () => {
     if (invoiceSaving) return;
@@ -1595,6 +1617,18 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 >
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
+                </RdlPill>
+              )}
+              {/* Phase 1-04: PI 转换为正式应收发票（仅 Proforma 类型且非 Cancelled） */}
+              {isInvoice && invoice && (invoice as any).type === 'Proforma' && invoice.status !== 'Cancelled' && (
+                <RdlPill
+                  type="button"
+                  disabled={convertingPiId === invoice.id}
+                  onClick={() => handleConvertToReceivable(invoice.id, invoice.invoiceNumber)}
+                  className="min-h-8 px-2.5 text-[10.5px]"
+                >
+                  {convertingPiId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} strokeWidth={1.3} />}
+                  转为应收
                 </RdlPill>
               )}
               {/* task_mqyusoio: 作废入口（只对非 Cancelled 发票显示） */}

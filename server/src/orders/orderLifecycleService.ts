@@ -15,7 +15,7 @@ export const VALID_ORDER_STATUSES = ['Pending', 'Confirmed', 'Production', 'Ship
 const VALID_STATUS_SET = new Set<string>(VALID_ORDER_STATUSES);
 
 // Order 合法状态转换矩阵（from -> Set<to>）
-const ORDER_TRANSITIONS: Record<string, Set<string>> = {
+export const ORDER_TRANSITIONS: Record<string, Set<string>> = {
   Pending: new Set(['Confirmed', 'Alert']),
   Confirmed: new Set(['Production', 'Alert']),
   Production: new Set(['Shipping', 'Alert']),

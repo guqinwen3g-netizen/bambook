@@ -7,6 +7,7 @@ export type CompiledMainModuleId =
   | 'data-center'
   | 'fabric-orders'
   | 'garment-orders'
+  | 'other-orders'
   | 'invoices'
   | 'payment-vouchers'
   | 'quotations'
@@ -40,6 +41,7 @@ const MAIN_MODULE_SOURCE_BY_ID: Record<CompiledMainModuleId, CompiledMainModuleB
   'data-center': 'DataCenter.main-app.compiler-slot',
   'fabric-orders': 'OrderManager.main-app.compiler-slot',
   'garment-orders': 'GarmentOrders.main-app.compiler-slot',
+  'other-orders': 'OtherOrders.main-app.compiler-slot',
   invoices: 'FinanceManager.invoices.main-app.compiler-slot',
   'payment-vouchers': 'FinanceManager.payment-vouchers.main-app.compiler-slot',
   quotations: 'QuotationManager.main-app.compiler-slot',

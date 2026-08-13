@@ -1,24 +1,16 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { View, KnowledgeItem, Order, Email, SystemConfig, Insight, Relation, ProductAsset, ProductSubCategory, MainCategory, Invoice, PaymentVoucher, Shipment, DevelopmentCase } from './types';
+import type { OrderViewType } from './lib/orderSchema';
 
-// ==========================================
-// INJECTED GLOBAL ERROR BOUNDARY FOR DEBUGGING
-// ==========================================
-if (typeof window !== 'undefined') {
+// Global error listeners — DEV only; in production, errors are handled by React ErrorBoundary.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   window.addEventListener('error', (e) => {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;z-index:999999;padding:20px;font-family:monospace;white-space:pre-wrap;max-height:50vh;overflow:auto;';
-    errorDiv.innerText = `[UNCAUGHT ERROR] ${e.message}\n${e.error?.stack || ''}`;
-    document.body.appendChild(errorDiv);
+    console.error('[UNCAUGHT ERROR]', e.message, e.error?.stack || '');
   });
   window.addEventListener('unhandledrejection', (e) => {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = 'position:fixed;top:50vh;left:0;right:0;background:darkred;color:white;z-index:999999;padding:20px;font-family:monospace;white-space:pre-wrap;max-height:50vh;overflow:auto;';
-    errorDiv.innerText = `[UNHANDLED PROMISE REJECTION] ${e.reason?.message || e.reason}\n${e.reason?.stack || ''}`;
-    document.body.appendChild(errorDiv);
+    console.error('[UNHANDLED PROMISE REJECTION]', e.reason?.message || e.reason, e.reason?.stack || '');
   });
 }
-// ==========================================
 
 // Diagnostic flag — when true, freeze the global background polls (briefing
 // refresh, cloud sync) that cascade setState into the entire App tree.
@@ -424,7 +416,7 @@ const App: React.FC = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [orderFullscreenOpen, setOrderFullscreenOpen] = useState(false);
   const [renderGlobe, setRenderGlobe] = useState(false);
-  const [orderType, setOrderType] = useState<'fabric' | 'garment'>('fabric'); // Fabric/Garment 切换
+  const [orderType, setOrderType] = useState<OrderViewType>('fabric'); // All/Fabric/Garment/Other 切换
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === 'undefined') return false;
     const stored = localStorage.getItem('theme_preference') as StoredThemePreference;
@@ -1704,7 +1696,7 @@ const App: React.FC = () => {
             {activeView === View.Orders && (
               renderMainCompilerSlot(
                 compilerSurfaces.orders,
-                orderType === 'garment' ? 'garment-orders' : 'fabric-orders',
+                orderType === 'garment' ? 'garment-orders' : orderType === 'other' ? 'other-orders' : 'fabric-orders',
                 ordersReady
                   ? (
                     <OrderManager

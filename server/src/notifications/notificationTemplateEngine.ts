@@ -307,6 +307,20 @@ const DEFAULT_TEMPLATES: Record<BusinessEventType, TemplateSpec> = {
     body: '发票 {vatNumber} 从 {from} 流转至 {to}。',
     link: '/finance?tab=vatInvoices',
   },
+  ProformaInvoiceGenerated: {
+    type: 'proforma_invoice_generated',
+    level: 'info',
+    title: '形式发票 {invoiceNumber} 已生成',
+    body: '从报价单 {quotationNumber} 生成形式发票 {invoiceNumber}，金额 {amount} {currency}。',
+    link: '/finance?tab=invoices&id={invoiceId}',
+  },
+  ProformaInvoiceConverted: {
+    type: 'proforma_invoice_converted',
+    level: 'info',
+    title: '形式发票已转为正式应收发票',
+    body: 'PI {proformaInvoiceNumber} 已转换为正式应收发票 {receivableInvoiceNumber}。',
+    link: '/finance?tab=invoices&id={receivableInvoiceId}',
+  },
   LcStatusChanged: {
     type: 'lc_status_changed',
     level: 'info',

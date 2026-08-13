@@ -105,6 +105,17 @@ export interface SystemConfig {
   // SDK API - AI 助理集成
   sdkApiKey?: string;
   sdkAuthMode?: 'auto' | 'required' | 'none';
+
+  // Company Export Profile — 出口方/公司抬头信息（用于 CI/PL/CO/BL 等外贸单据）
+  exporterProfile?: {
+    nameEn: string;
+    addressEn: string;
+    beneficiary: string;
+    bankName: string;
+    swiftCode: string;
+    bankAddress: string;
+    usdAccountNumber: string;
+  };
 }
 
 export interface BusinessProfile<TPayload = Record<string, unknown>, TAssets = Record<string, unknown>> {
@@ -660,6 +671,8 @@ export interface Order {
   factoryLat?: number;
   factoryLon?: number;
   quantity: number;
+  /** 数量单位：面料默认 Meter，成衣默认 Pcs，其他默认 KG。可由录入表单手动选择。 */
+  unit?: string;
   status: 'Pending' | 'Confirmed' | 'Production' | 'Shipping' | 'Delivered' | 'Alert';
   dueDate: string; // This is often used as clientDate
   quoteAmount: number; // This is often used as contractAmount
@@ -787,6 +800,11 @@ export interface Order {
   supplierInvoiceAmount?: number;
   
   specialInstructions?: string;
+  orderNotes?: string;  // 订单特别说明（instructions 集群）
+
+  // 物料信息 (Materials - 仅其他类型订单)
+  materialCategory?: string;  // 物料分类：辅料/纱线/其他
+  materialSpecNotes?: string;  // 物料规格/备注（materials 集群）
 
   // 面料规格 (Fabric Specs)
   fabricContent?: string;  // 面料成份

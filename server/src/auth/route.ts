@@ -5,6 +5,7 @@ import { AgentRole } from '../agent/types';
 import { EmailService, buildVerificationEmail, createEmailService } from './email';
 import { VerificationStore, createVerificationStore } from './verification';
 import { logger } from '../lib/logger';
+import { ROLE_ID_TO_LEGACY_AGENT_ROLE } from './permissionService';
 
 type AuthRouterOptions = {
   prisma: PrismaClient;
@@ -25,6 +26,40 @@ function normalizeLoginIdentifier(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/**
+ * 新 RBAC 角色 id → 旧 AgentRole 字符串列表的映射（兼容旧 requireRole 调用）。
+ * - 角色 id 匹配系统内置 6 种（role-sales / role-sales-manager 等）时走 ROLE_ID_TO_LEGACY_AGENT_ROLE
+ * - 其他自定义角色（isSystem=false）退回到 role.name 作为 legacy 字符串
+ * - 返回 AgentRole[]：一个新角色可能映射到多个旧 role code（例如 FINANCE_MANAGER → ['finance', 'manager']）
+ */
+function userRolesToLegacyAgentRoles(
+  userRoles: Array<{ roleId: string; role?: { name?: string | null; isSystem?: boolean | null } }>,
+): { legacy: AgentRole[]; newRoleIds: string[] } {
+  const legacy = new Set<AgentRole>();
+  const newRoleIds: string[] = [];
+  for (const ur of userRoles) {
+    if (!ur.roleId) continue;
+    newRoleIds.push(ur.roleId);
+    const mapped = ROLE_ID_TO_LEGACY_AGENT_ROLE[ur.roleId];
+    if (mapped) {
+      // 'owner' 同时包含 owner + admin（owner 级权限应该同时拥有 admin 范围的检查）
+      legacy.add(mapped);
+      if (mapped === 'owner') legacy.add('admin');
+      if (mapped === 'finance') legacy.add('finance');
+    } else {
+      // 自定义角色，fallback：role.name 可能是之前旧种子里的 legacy code 字符串
+      const name = ur.role?.name?.trim();
+      if (name) {
+        const accepted: AgentRole[] = ['owner', 'admin', 'manager', 'finance', 'sales', 'merchandiser', 'logistics', 'production_manager', 'factory', 'agent_operator', 'viewer'];
+        if (accepted.includes(name as AgentRole)) {
+          legacy.add(name as AgentRole);
+        }
+      }
+    }
+  }
+  return { legacy: Array.from(legacy), newRoleIds };
+}
+
 function collectPermissionScopes(roles: Array<{ role?: { permissions?: Array<{ permission?: { scope?: string | null } }> } }>): string[] {
   const scopes = new Set<string>();
   for (const userRole of roles) {
@@ -36,13 +71,14 @@ function collectPermissionScopes(roles: Array<{ role?: { permissions?: Array<{ p
   return Array.from(scopes).sort();
 }
 
-function serializeAuthUser(user: any, roles: AgentRole[], permissions: string[], departmentIds: string[]) {
+function serializeAuthUser(user: any, roles: AgentRole[], permissions: string[], departmentIds: string[], extra?: { newRoleIds?: string[] }) {
   return {
     id: user.id,
     displayName: user.displayName,
     email: user.email,
     avatarUrl: (user as any).avatarUrl || null,
     roles,
+    roleIds: extra?.newRoleIds || [],
     permissions,
     departmentIds: departmentIds.length ? departmentIds : [user.primaryDeptId || 'company'],
     department: user.primaryDepartment?.name || null,
@@ -99,7 +135,9 @@ export function createAuthRouter(options: AuthRouterOptions) {
       return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS', message: 'Invalid name/email or password.' });
     }
 
-    const roles = user.roles.map(ur => ur.role.name as AgentRole);
+    const { legacy: roles, newRoleIds } = userRolesToLegacyAgentRoles(
+      user.roles.map((ur: any) => ({ roleId: ur.roleId, role: { name: ur.role?.name, isSystem: ur.role?.isSystem } })),
+    );
     const permissions = collectPermissionScopes(user.roles);
     const departmentIds = user.roles.map(ur => ur.departmentId).filter(Boolean) as string[];
 
@@ -107,6 +145,7 @@ export function createAuthRouter(options: AuthRouterOptions) {
       userId: user.id,
       displayName: user.displayName,
       roles,
+      roleIds: newRoleIds,
       permissions,
       departmentIds: departmentIds.length ? departmentIds : [user.primaryDeptId || 'company'],
     });
@@ -130,7 +169,7 @@ export function createAuthRouter(options: AuthRouterOptions) {
 
     return res.json({
       ok: true,
-      user: serializeAuthUser(user, roles, permissions, departmentIds),
+      user: serializeAuthUser(user, roles, permissions, departmentIds, { newRoleIds }),
       token,
     });
   });
@@ -272,12 +311,14 @@ export function createAuthRouter(options: AuthRouterOptions) {
         res.clearCookie(COOKIE_NAME, { path: '/' });
         return res.status(401).json({ ok: false, error: 'UNAUTHORIZED', message: 'Account disabled.' });
       }
-      const roles = user.roles.map(ur => ur.role.name as AgentRole);
+      const { legacy: roles, newRoleIds } = userRolesToLegacyAgentRoles(
+        user.roles.map((ur: any) => ({ roleId: ur.roleId, role: { name: ur.role?.name, isSystem: ur.role?.isSystem } })),
+      );
       const permissions = collectPermissionScopes(user.roles);
       const departmentIds = user.roles.map(ur => ur.departmentId).filter(Boolean) as string[];
       return res.json({
         ok: true,
-        user: serializeAuthUser(user, roles, permissions, departmentIds),
+        user: serializeAuthUser(user, roles, permissions, departmentIds, { newRoleIds }),
       });
     } catch {
       res.clearCookie(COOKIE_NAME, { path: '/' });
@@ -324,13 +365,15 @@ export function createAuthRouter(options: AuthRouterOptions) {
         data,
         include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } }, primaryDepartment: true },
       });
-      const roles = user.roles.map(ur => ur.role.name as AgentRole);
+      const { legacy: roles, newRoleIds } = userRolesToLegacyAgentRoles(
+        user.roles.map((ur: any) => ({ roleId: ur.roleId, role: { name: ur.role?.name, isSystem: ur.role?.isSystem } })),
+      );
       const permissions = collectPermissionScopes(user.roles);
       const departmentIds = user.roles.map(ur => ur.departmentId).filter(Boolean) as string[];
       await options.prisma.auditLog.create({
         data: { id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, actorId: user.id, action: 'update_profile', targetType: 'UserAccount', targetId: user.id, ip: req.ip },
       }).catch(() => undefined);
-      return res.json({ ok: true, user: serializeAuthUser(user, roles, permissions, departmentIds) });
+      return res.json({ ok: true, user: serializeAuthUser(user, roles, permissions, departmentIds, { newRoleIds }) });
     } catch {
       res.clearCookie(COOKIE_NAME, { path: '/' });
       return res.status(401).json({ ok: false, error: 'UNAUTHORIZED', message: 'Token expired or invalid.' });

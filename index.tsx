@@ -41,9 +41,13 @@ async function boot() {
   const mode = detectDeviceMode();
   document.documentElement.classList.toggle('bambook-device-phone', mode === 'phone');
   document.body.classList.toggle('bambook-device-phone', mode === 'phone');
-  installPageZoomGuard();
-  if (mode === 'phone') {
-    installPhoneZoomGuard();
+  try {
+    installPageZoomGuard();
+    if (mode === 'phone') {
+      installPhoneZoomGuard();
+    }
+  } catch (err) {
+    console.error('[boot] zoom guard install failed:', err);
   }
   const module = mode === 'phone'
     ? await import('./pwa/mobile/MobileWebApp')
@@ -57,4 +61,11 @@ async function boot() {
   );
 }
 
-boot();
+boot().catch((err) => {
+  console.error('[boot] fatal:', err);
+  if (rootElement) {
+    rootElement.innerHTML = '<div style="padding:2rem;font-family:system-ui;color:#333">应用启动失败，请刷新页面或检查网络连接。<br/><pre style="margin-top:1rem;font-size:12px;white-space:pre-wrap;color:#999"></pre></div>';
+    const pre = rootElement.querySelector('pre');
+    if (pre) pre.textContent = String(err?.message || err);
+  }
+});

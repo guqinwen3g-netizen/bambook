@@ -195,6 +195,16 @@ model Order {
   productionPlanDeadline String? // 下单后7天内需出生产计划（createdAt + 7d），超时触发预警
   delayNoticeDeadline    String? // 交货期前15天需发延期通知（dueDate - 15d），超时升级
 
+  // ─── Phase 1-02 订单/履约域升级：接入平台域（权限/编号/字典） ───
+  /// 订单编号（由 SequenceRegister 分配：SO-202608-001），与 id 独立
+  code              String?  @unique
+  /// 归属人 userId（行级权限 dataScope 用：Sales 仅看自己的订单）
+  ownerId           String?
+  /// 归属部门 departmentId（行级权限 dataScope 用：同部门互相可见，跨部门隔离）
+  departmentId      String?
+  /// 创建时间（Order 原本只有 updatedAt BigInt，补 createdAt 便于排序和审计）
+  createdAt         DateTime @default(now())
+
   lines             OrderLine[]
   statusTransitions OrderStatusTransition[]
 
@@ -204,6 +214,10 @@ model Order {
   @@index([consigneeName])
   @@index([billToName])
   @@index([businessLine])
+  @@index([code])
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([createdAt])
 }
 
 model OrderLine {
@@ -273,6 +287,7 @@ model OrderStatusTransition {
 
 model Relation {
   id              String   @id
+  code            String?  @unique // 业务编码：客户编码 CUS-0001 / 供应商编码 SUP-0001 等（由 SequenceRegister 分配）
   name            String
   category        String
   type            String
@@ -325,6 +340,18 @@ model Relation {
   timezone      String?
   personalNote  String?
 
+  // ─── Phase 1-01 客户/市场域升级：接入平台域（权限/编号/字典） ───
+  /// 客户阶段（Lead/Opportunity/Quotation/TrialOrder/Customer/Key/Churned）—— 对应 DataDictionary.relation_stage
+  stage         String?  @default("Customer")
+  /// 客户等级（S/A/B/C/D/Z）—— 对应 DataDictionary.relation_tier
+  tier          String?
+  /// 归属人 userId（行级权限 dataScope 用：Sales 仅看自己的客户）
+  ownerId       String?
+  /// 归属部门 departmentId（行级权限 dataScope 用：同部门互相可见，跨部门隔离）
+  departmentId  String?
+  /// 关联销售用户 IDs（多人对同一客户负责时用）
+  salesRepIds   String[]  @default([])
+
   // ─── C1 CRM 深化：反向关联 ───
   contacts        Contact[]
   creditLimits    CreditLimit[]
@@ -336,6 +363,10 @@ model Relation {
   @@index([category])
   @@index([isOrganization])
   @@index([parentId])
+  @@index([stage])
+  @@index([tier])
+  @@index([ownerId])
+  @@index([departmentId])
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1948,6 +1979,10 @@ model Invoice {
   updatedAt BigInt
   deletedAt BigInt?
 
+  // ─── Phase 1-03 财务域升级：行级权限 ───
+  ownerId       String?
+  departmentId  String?
+
   @@index([type])
   @@index([status])
   @@index([orderId])
@@ -1955,6 +1990,8 @@ model Invoice {
   @@index([invoiceNumber])
   @@index([issueDate])
   @@index([dueDate])
+  @@index([ownerId])
+  @@index([departmentId])
 }
 
 model PaymentVoucher {
@@ -1992,6 +2029,10 @@ model PaymentVoucher {
   updatedAt BigInt
   deletedAt BigInt?
 
+  // ─── Phase 1-03 财务域升级：行级权限 ───
+  ownerId       String?
+  departmentId  String?
+
   @@index([type])
   @@index([status])
   @@index([invoiceId])
@@ -1999,6 +2040,8 @@ model PaymentVoucher {
   @@index([customerRelationId])
   @@index([voucherNumber])
   @@index([paymentDate])
+  @@index([ownerId])
+  @@index([departmentId])
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2879,6 +2922,10 @@ model Quotation {
   deletedAt BigInt?
   sentAt    BigInt? // 发送时间（Draft→Sent 时写入；用于「Sent 超 7 天未回复」提醒与账龄分析）
 
+  // ─── Phase 1-03 财务域升级：行级权限 ───
+  ownerId       String?
+  departmentId  String?
+
   // ─── 关联行 ───
   lines QuotationLine[]
 
@@ -2887,6 +2934,8 @@ model Quotation {
   @@index([quotationNumber])
   @@index([issueDate])
   @@index([validUntil])
+  @@index([ownerId])
+  @@index([departmentId])
 }
 
 model QuotationLine {
@@ -4594,3 +4643,324 @@ model BusinessSequence {
 
   @@unique([prefix, year])
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 0-03 统一编号发号器 SequenceRegister（11 类业务单据独立序列）
+//   vs BusinessSequence：支持按年/月/永不重置，format 模板可配置，显式作废追踪
+//   真源：每次 nextNumber 调用在事务内 upsert + atomic increment
+// ════════════════════════════════════════════════════════════════════
+model SequenceRegister {
+  id               String  @id // 格式：SEQREG_${seqType}_${periodKey}
+  seqType          String  // 11 类枚举：order | pi | quotation | purchase | invoice | voucher | shipment | customs | customer | supplier | material
+  period           String  // 重置周期：year | month | day | none
+  periodKey        String  // 周期键值：2026 | 2026-08 | 2026-08-15 | __global__
+  prefix           String  // 编号前缀：如 SO、PI、QT、PO、INV、PAY、SHP、CD、CUS、SUP、MAT
+  formatTemplate   String  // 格式模板，支持 {prefix} {year} {month} {day} {seq:Npad}
+  padding          Int     @default(4) // 默认 seq 数字补零位数（按模板 override）
+  startSeq         Int     @default(1) // 重置时起始值（通常 1）
+  currentSeq       Int     @default(0) // 已分配的最大序号（next=currentSeq+1）
+  description      String?
+
+  updatedAt BigInt
+
+  @@unique([seqType, periodKey])
+  @@index([seqType])
+  @@index([periodKey])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 0-03 VoidedNumber — 作废单号占坑表（显式追踪，不复用）
+//   语义：只要进入本表，该编号永久不会被 sequenceService 再次分配（即使是正常单调递增也不会重复
+//         — 因为序号只增不减；本表的作用主要是审计追踪 + 防止极端情况下 rollback 后手工回填触发重复）
+// ════════════════════════════════════════════════════════════════════
+model VoidedNumber {
+  id             String   @id // VOID_${seqType}_${number}
+  seqType        String   // 同 SequenceRegister.seqType
+  number         String   // 完整编号（例：INV-2026-0003）
+  periodKey      String?  // 同 SequenceRegister.periodKey（便于按周期过滤）
+  reason         String?  // 作废原因（用户填写或系统自动，如草稿撤销、打印作废、重号）
+  voidedBy       String?  // 操作人 userId / 系统 'system'
+  voidedAt       DateTime @default(now())
+  sourceDocId    String?  // 关联单据 ID（如有）
+  sourceDocType  String?  // 关联单据类型（如有，如 Order、Invoice、PurchaseOrder）
+  metadata       Json?    // 扩展上下文（操作人 IP、客户端、请求 ID 等）
+
+  @@unique([seqType, number])
+  @@index([seqType])
+  @@index([voidedAt])
+  @@index([sourceDocType, sourceDocId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 0-05 DirtyCacheMarker — 缓存脏标记表（最终一致性计算管线的"待重算"真源）
+//
+// 语义：
+//   当 Order / Invoice / Payment 等实体变更时，对应的衍生指标（Dashboard 汇总、
+//   ReportCenter 报表、客户账龄、库存毛利预估 等）不立即重算（避免写请求
+//   响应变慢），而是先在本表写一行"脏标记"。后台调度器（scheduler tasks/
+//   refresh-cache）周期性扫描 dirty=true 的行，按 cacheKey 调对应重算函数，
+//   成功后将 dirty=false + resolvedAt=now。若实体再次变更则覆盖重置为脏。
+//
+// cacheKey 规则：`{scope}:{entityType}[:{entityId}]`
+//   scope: 'dashboard' | 'report' | 'accounting' | 'crm' | 'forecast' | 'custom'
+//   例：dashboard:Order  → 全量订单看板
+//       report:AR_by_customer  → 客户账龄报表
+//       accounting:PaymentAllocation:PV_123  → 单笔分配对应总账条目
+// ════════════════════════════════════════════════════════════════════
+model DirtyCacheMarker {
+  id          String   @id // DCM_${cacheKey}（一对一：每个 cacheKey 只有一行状态）
+  cacheKey    String   @unique
+  /// 分类域：dashboard / report / accounting / crm / forecast / custom
+  scope       String
+  /// 触发变脏的实体：Order / Invoice / PaymentAllocation / Shipment / *（全部）
+  entityType  String?
+  /// 精确到单条实体时填；跨实体聚合（如 dashboard）留空
+  entityId    String?
+
+  /// 是否脏：true=需要重算；false=已完成或未脏
+  dirty       Boolean  @default(true)
+  /// 变脏原因（可选，面向人读）：'order_confirmed' / 'payment_allocated' / 'manual_refresh'
+  reason      String?
+  /// 触发人（或 'system'/'scheduler'）
+  actorId     String?
+
+  dirtyAt     DateTime @default(now())
+  /// 最近一次被标记脏的次数（用于调度器优先处理高频脏项）
+  dirtyCount  Int      @default(1)
+  /// 最近一次重算完成时间
+  resolvedAt  DateTime?
+  /// 上次重算耗时 ms（监控用）
+  resolvedMs  Int?
+  /// 上次重算失败次数（连续失败告警阈值 >3）
+  failCount   Int      @default(0)
+  lastError   String?
+
+  updatedAt   BigInt
+
+  @@index([scope])
+  @@index([entityType, entityId])
+  @@index([dirty])
+  @@index([dirtyAt])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 0-07 DataDictionary — 统一数据字典真源（枚举 / 标签 / 下拉选项）
+//
+// 设计意图：
+//   现有 MaterialType / CostType / OrderStatus / Incoterms / Currency / PaymentTerms
+//   等 21 类常用枚举都散落在 TS union type（代码里）。管理员要新增一个 MaterialType
+//   （如 "印花衬里 PrintedInterlining"）就要改代码+重新发布，非常不灵活。
+//   建立 DataDictionary 后：
+//     · DB 是真源（可通过 OPS Panel 修改）；TS 类型继续保留作为"静态校验+IDE 提示"基线
+//     · entries JSON 存所有枚举项：[{ key, label, value, order, color, tags, disabled }]
+//     · isSystem=true 的字典项（系统内置）不允许删除，但允许改 label/颜色
+//
+// 每条 DataDictionary 对应"一个枚举域"：
+//   code= bom_material_type       → 8 项 MaterialType
+//   code= incoterms               → FOB / CIF / EXW / FCA / CPT / CIP / DAP / DPU / DDP
+//   code= currency                → CNY / USD / EUR / HKD / JPY / GBP
+//   code= order_status            → Draft / Confirmed / InProduction / Shipped / Invoiced / Paid / Completed / Cancelled
+//   …共 21 类（见 seed-datadict.ts）
+// ════════════════════════════════════════════════════════════════════
+model DataDictionary {
+  id          String   @id
+  /// 枚举域编码，全局唯一（前端通过此编码 getEntries(code)）
+  code        String   @unique
+  /// 中文名（面向 OPS Panel 展示）
+  name        String
+  /// 分类：'bom' / 'order' / 'finance' / 'crm' / 'product' / 'hr' / 'logistics' / 'system' / 'custom'
+  category    String
+  /// 生效范围：'global' / 部门ID（为未来多租户/部门自定义字典预留），默认 global
+  scope       String   @default("global")
+  /// 系统内置字典：系统内置的 TS 类型枚举有代码引用，OPS Panel 不得删除（可编辑 label/颜色）
+  isSystem    Boolean  @default(false)
+  /// 版本号：每次 entries 修改 version+1（前端做缓存失效）
+  version     Int      @default(1)
+  /// 字典条目 JSON，结构：
+  ///   Array<{
+  ///     key: string;          // 前端下拉 value（如 'FOB' / 'Main'）
+  ///     label: string;        // 展示中文：'离岸价（FOB）'
+  ///     value?: any;          // 可选：key !== value 时填入（如 currency 对应数字代码）
+  ///     order: number;        // 排序，asc（0 排最前）
+  ///     color?: string;       // 如 status 对应颜色 token
+  ///     tags?: string[];      // 前端分组用
+  ///     disabled?: boolean;   // 已禁用（不再出现在新建选项，但老数据引用仍有效）
+  ///     description?: string; // 长描述，如 tooltip
+  ///   }>
+  entries     Json
+
+  /// 可选：labels JSON —— 其他翻译/别名，结构：{ "zh-CN": {...}, "en-US": {...} }
+  labels      Json?
+
+  /// 备注（运维/产品变更说明）
+  description String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   BigInt
+
+  @@index([category])
+  @@index([scope])
+  @@index([isSystem])
+}
+
+model DataDictionaryHistory {
+  id            String   @id
+  dictCode      String   // 关联 DataDictionary.code
+  versionFrom   Int
+  versionTo     Int
+  diffEntries   Json     // 变更前后 entries 快照（diff 结果）
+  actorId       String?
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  @@index([dictCode, createdAt])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 0-08 SystemConfig — 统一系统配置 DB 真源（替代散落 .env 硬编码）
+//
+// 设计意图：
+//   现有配置分散在 process.env（BAMBOOK_COMPANY_NAME_EN / DEFAULT_*_RATE …）、
+//   以及代码里硬编码默认值（退税率 13%、佣金 3%、USD/CNY 汇率…），管理员想改得
+//   改代码+重启。SystemConfig 把常用 37+ 项配置抽到 DB：
+//     · key 唯一（scope::key 做主键；scope 默认 global；为未来按部门/用户自定义预留）
+//     · valueType=string/number/boolean/json/enum，服务端做类型断言
+//     · encrypted=true 时 value 存 AES-GCM 密文（hex iv.ciphertext.authTag），
+//       用于 API_KEY / AWS_SES_PASSWORD / DB_URL / LLM_API_KEY 等敏感值
+//     · version 自增 + SystemConfigHistory 每次变更留痕
+//     · 前端/路由每次 get 走 30 秒 TTL cache；set 后自动失效
+//
+// 7 类分组（group field）：
+//   company    公司信息：名称/中/英/地址/Logo URL/电话/邮箱/税务登记号/营业执照号
+//   finance    财务相关：默认币种/默认汇率/利润默认比例/佣金率/账期阈值
+//   tax        税务相关：默认 VAT 率/默认退税率/开票限额提示/开票抬头默认值
+//   logistics  物流相关：默认 Incoterm/默认起运港/默认货代联系人
+//   ui         界面主题：主题色/Logo/默认 Dashboard 布局/默认语言
+//   rbac       权限与安全：密码最小长度/会话 TTL/登录失败锁定阈值
+//   ops        运维：通知邮件 SMTP/OPS_TOKEN 过期阈值/备份策略/LLM 网关参数
+// ════════════════════════════════════════════════════════════════════
+model SystemConfig {
+  id          String   @id          /// 主键格式：`${scope}::${key}`（global::company.name / dept_xxx::commission.rate）
+  scope       String   @default("global")
+  /// 配置 key（同 scope 唯一）
+  key         String
+  /// 分组：company / finance / tax / logistics / ui / rbac / ops / custom
+  group       String
+  /// 展示标签（OPS Panel 展示用）
+  label       String
+  /// 值类型：get 时按此类型 parse JSON/number/boolean
+  valueType   String   /// 'string' | 'number' | 'boolean' | 'json' | 'enum'
+  /// 值：未加密则直接 JSON 存字符串/数字/布尔；加密则存 `"${iv.hex}.${cipher.hex}.${tag.hex}"`
+  value       Json?
+  /// 是否加密（AES-GCM）：sensitive 配置（API_KEY / DB_URL / SMTP_PASSWORD / LLM_KEY …）
+  encrypted   Boolean  @default(false)
+  /// 版本号：每次变更 +1
+  version     Int      @default(1)
+
+  /// 枚举/描述：可选的提示、示例、可选值列表（UI 用）
+  description String?
+  meta        Json?    /// e.g. { options?: string[], min?: number, max?: number, placeholder?: string }
+
+  /// 审计：谁最后改的 + 原因（用于 History）
+  updatedBy   String?
+  auditReason String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   BigInt
+
+  @@unique([scope, key])
+  @@index([group])
+  @@index([scope])
+  @@index([encrypted])
+}
+
+model SystemConfigHistory {
+  id          String   @id
+  configId    String   /// 关联 SystemConfig.id（"scope::key"）
+  versionFrom Int
+  versionTo   Int
+  valueFrom   Json?
+  valueTo     Json?
+  actorId     String?
+  reason      String?
+  sensitiveMasked Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([configId, createdAt])
+  @@index([actorId])
+}
+
+// ─── Phase 1-06 营销活动管理 ───
+model MarketingCampaign {
+  id            String   @id @default(cuid())
+  /// 活动编号（SequenceRegister: MKT-2026-001）
+  code          String?  @unique
+  name          String
+  description   String?
+  /// 活动类型：exhibition | digitalAd | email | socialMedia | printAd | referral | other
+  type          String   @default("other")
+  /// 状态：Draft | Active | Paused | Completed | Cancelled
+  status        String   @default("Draft")
+  startDate     String?
+  endDate       String?
+  /// 预算（Decimal）
+  budget        Decimal?
+  /// 实际花费
+  actualCost    Decimal?
+  /// 目标客户群（JSON: 可含 tier/category/region 等筛选条件）
+  targetSegment Json?
+  /// 关联季节
+  seasonId      String?
+  /// 关联展会
+  tradeShowId   String?
+  /// 归属人 / 部门（行级权限）
+  ownerId       String?
+  departmentId  String?
+
+  createdAt     BigInt
+  updatedAt     BigInt
+  deletedAt     BigInt?
+
+  /// 关联线索
+  leads         MarketingLead[]
+
+  @@index([status])
+  @@index([type])
+  @@index([seasonId])
+  @@index([ownerId])
+  @@index([departmentId])
+}
+
+model MarketingLead {
+  id            String   @id @default(cuid())
+  campaignId    String
+  /// 关联客户（可为空，表示新线索未转化）
+  relationId    String?
+  /// 线索来源
+  source        String?
+  /// 联系人信息
+  contactName   String?
+  contactEmail  String?
+  contactPhone  String?
+  /// 线索状态：New | Contacted | Qualified | Converted | Lost
+  status        String   @default("New")
+  /// 预期价值
+  estimatedValue Decimal?
+  /// 实际转化价值
+  actualValue   Decimal?
+  /// 转化时间
+  convertedAt   BigInt?
+  /// 备注
+  notes         String?
+
+  createdAt     BigInt
+  updatedAt     BigInt
+  deletedAt     BigInt?
+
+  campaign      MarketingCampaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([relationId])
+  @@index([status])
+}
+

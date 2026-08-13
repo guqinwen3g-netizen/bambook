@@ -10,7 +10,7 @@ import {
   Monitor, Moon, Sun, DatabaseZap,
   Bot, Cable, Server, Cpu, Globe, User, ArrowRight, LogOut,
   HardDrive, RefreshCw, Trash2, Pencil, RotateCw, Image, Upload,
-  Sparkles, Workflow
+  Sparkles, Workflow, Building2
 } from 'lucide-react';
 import { AutomationRulesSection } from './AutomationRulesSection';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -42,7 +42,7 @@ interface SettingsProps {
   isDarkMode?: boolean;
 }
 
-type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'security' | 'account' | 'automation';
+type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'security' | 'account' | 'automation' | 'company';
 type AvatarCropDraft = {
   src: string;
   fileName: string;
@@ -302,7 +302,8 @@ export const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: type
   { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive },
   { id: 'api', label: 'API', hint: '对外接口密钥', icon: Cable },
   { id: 'automation', label: '自动化', hint: '业务流程联动规则', icon: Workflow },
-  { id: 'security', label: '安全', hint: '隐私与重置', icon: Shield }
+  { id: 'security', label: '安全', hint: '隐私与重置', icon: Shield },
+  { id: 'company', label: '公司抬头', hint: '出口方与银行信息', icon: Building2 }
 ];
 
 const formatBytes = (bytes: number | null | undefined) => {
@@ -1478,6 +1479,92 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
                 </div>
               )}
+
+              {activeTab === 'company' && (
+                <div className="space-y-6">
+                  <div className={`${card} p-5`}>
+                    <div className={`text-sm font-light ${primaryTextCls} mb-1`}>出口方/公司抬头</div>
+                    <p className={`text-xs ${weakTextCls} mb-4`}>
+                      用于 Commercial Invoice / Packing List / Contract / 报价单等外贸单据的抬头信息。修改后立即生效。
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1.5">
+                        <span className={`text-xs font-light ${weakTextCls}`}>公司英文名（单据抬头）</span>
+                        <input
+                          className={inputCls}
+                          value={localConfig.exporterProfile?.nameEn ?? ''}
+                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, nameEn: e.target.value })}
+                          placeholder="JIANGSU PANDA CLOTHING CO.,LTD."
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className={`text-xs font-light ${weakTextCls}`}>受益人名（银行/保险单据）</span>
+                        <input
+                          className={inputCls}
+                          value={localConfig.exporterProfile?.beneficiary ?? ''}
+                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, beneficiary: e.target.value })}
+                          placeholder="JIANGSU PANDA CLOTHING CO.,LTD."
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5 sm:col-span-2">
+                        <span className={`text-xs font-light ${weakTextCls}`}>公司英文地址（多行用换行）</span>
+                        <textarea
+                          className={`${inputCls} min-h-[60px] resize-y`}
+                          value={localConfig.exporterProfile?.addressEn ?? ''}
+                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, addressEn: e.target.value })}
+                          placeholder="ROOM A1028 WUYUE PLAZA,&#10;ZHANGJIAGANG CITY, 215600 PR&#10;CHINA"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className={`${card} p-5`}>
+                    <div className={`text-sm font-light ${primaryTextCls} mb-1`}>银行信息</div>
+                    <p className={`text-xs ${weakTextCls} mb-4`}>
+                      CI 付款条款引用的银行信息。
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1.5">
+                        <span className={`text-xs font-light ${weakTextCls}`}>银行名称</span>
+                        <input
+                          className={inputCls}
+                          value={localConfig.exporterProfile?.bankName ?? ''}
+                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, bankName: e.target.value })}
+                          placeholder="BANK OF CHINA ZHANGJIAGANG SUB-BRANCH"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className={`text-xs font-light ${weakTextCls}`}>SWIFT Code</span>
+                        <input
+                          className={inputCls}
+                          value={localConfig.exporterProfile?.swiftCode ?? ''}
+                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, swiftCode: e.target.value })}
+                          placeholder="BKCHCNBJ95L"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5 sm:col-span-2">
+                        <span className={`text-xs font-light ${weakTextCls}`}>银行地址</span>
+                        <input
+                          className={inputCls}
+                          value={localConfig.exporterProfile?.bankAddress ?? ''}
+                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, bankAddress: e.target.value })}
+                          placeholder="111 MIDDLE RENMIN ROAD, ZHANGJIAGANG CITY, SUZHOU, JIANGSU PROV., P.R.CHINA."
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className={`text-xs font-light ${weakTextCls}`}>USD 账号</span>
+                        <input
+                          className={inputCls}
+                          value={localConfig.exporterProfile?.usdAccountNumber ?? ''}
+                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, usdAccountNumber: e.target.value })}
+                          placeholder="467668133096"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               </motion.div>
             </AnimatePresence>
           </div>

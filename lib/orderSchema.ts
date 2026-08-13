@@ -54,7 +54,8 @@ export type OrderFieldCluster =
   | 'basic'              // 基础生产档案：PO#/PO Date/Season/Batch/Item Code 等
   | 'parties'            // 买卖四方：Customer / Mill / Consignee / Bill-to
   | 'delivery'           // 交期与物流：生产交期/出厂交期/收货方
-  | 'fabric'             // 面料规格：成份/门幅/克重
+  | 'fabric'             // 面料规格：成份/门幅/克重（仅面料）
+  | 'materials'          // 物料信息：品名/规格/分类（仅其他类型：辅料/纱线）
   | 'sales'              // 销售/收汇：销售单价、合同金额、收汇日期
   | 'shipment'           // 出货与发票：发票号、出货数量金额
   | 'sampleShipment'     // 大货船样
@@ -79,6 +80,7 @@ export const ORDER_CLUSTERS: OrderClusterMeta[] = [
   { id: 'parties',        labelZh: '买卖四方',       labelEn: 'Parties',         detailOrder: 2, manualOrder: 2 },
   { id: 'delivery',       labelZh: '交期与物流',     labelEn: 'Delivery',        detailOrder: 3, manualOrder: 3 },
   { id: 'fabric',         labelZh: '面料规格',       labelEn: 'Fabric Specs',    detailOrder: 4, manualOrder: 4 },
+  { id: 'materials',      labelZh: '物料信息',       labelEn: 'Materials',       detailOrder: 4, manualOrder: 4 },
   { id: 'sales',          labelZh: '销售与收汇',     labelEn: 'Sales',           detailOrder: 5, manualOrder: 5 },
   { id: 'shipment',       labelZh: '出货与发票',     labelEn: 'Shipment',        detailOrder: 6, manualOrder: 99 },
   { id: 'sampleShipment', labelZh: '大货船样',       labelEn: 'Shipment Sample', detailOrder: 7, manualOrder: 99 },
@@ -184,7 +186,9 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   { key: 'productColorCode', labelZh: '品/色号',          labelEn: 'Item/Color',    cluster: 'basic', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '从首行 millQuality 自动带出', applicableTypes: ['fabric'] },
   { key: 'clientCode',       labelZh: '客户编码 (Client Code)', labelEn: 'Client Code',   cluster: 'basic', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '客户给产品的编码，从首行 materialCode 自动带出' },
   { key: 'referenceBatch',   labelZh: '参考批次',         labelEn: 'Ref Batch',     cluster: 'basic', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false, applicableTypes: ['fabric'] },
+  { key: 'product',          labelZh: '品名/规格',        labelEn: 'Product',        cluster: 'basic', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: 'Cotton Jersey' },
   { key: 'quantity',         labelZh: '订单数量',         labelEn: 'Order Qty',     cluster: 'basic', type: 'number', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true, required: true },
+  { key: 'unit',             labelZh: '单位',             labelEn: 'Unit',          cluster: 'basic', type: 'enum', enumOptions: ['Meter', 'Yard', 'KG', 'Pcs', 'Dozen', 'Roll', 'Set', 'Other'], source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, required: true, hintZh: '按订单类型默认：面料→Meter，成衣→Pcs，其他→KG' },
 
   // ============ Cluster: parties — 买卖四方 + 内部团队 ============
   // --- Sub-group: customer ---
@@ -194,10 +198,10 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   { key: 'contactTelephone', labelZh: '客户联系电话',        labelEn: 'Contact Tel',      cluster: 'parties', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true, subGroup: 'customer', autoFillFrom: { fkField: 'customer', mapping: { primaryContactPhone: 'contactTelephone' } } },
 
   // --- Sub-group: mill ---
-  { key: 'millName',         labelZh: '面料工厂 (Mill)',     labelEn: 'Mill / Supplier',  cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, relationFk: 'mill', required: true, hintZh: '我方采购对象，应付侧', subGroup: 'mill' },
-  { key: 'millAddress',      labelZh: '面料工厂地址',        labelEn: 'Mill Address',     cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, subGroup: 'mill', autoFillFrom: { fkField: 'mill', mapping: { factoryAddresses: 'millAddress' } } },
-  { key: 'millContact',      labelZh: '面料工厂联系人',      labelEn: 'Mill Contact',     cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, subGroup: 'mill', autoFillFrom: { fkField: 'mill', mapping: { primaryContactName: 'millContact' } } },
-  { key: 'millPhone',        labelZh: '面料工厂电话',        labelEn: 'Mill Phone',       cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, subGroup: 'mill', autoFillFrom: { fkField: 'mill', mapping: { primaryContactPhone: 'millPhone' } } },
+  { key: 'millName',         labelZh: '供应商 (Supplier)', labelEn: 'Supplier / Mill', cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, relationFk: 'mill', required: true, hintZh: '我方采购对象，应付侧', subGroup: 'mill' },
+  { key: 'millAddress',      labelZh: '供应商地址',        labelEn: 'Supplier Address', cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, subGroup: 'mill', autoFillFrom: { fkField: 'mill', mapping: { factoryAddresses: 'millAddress' } } },
+  { key: 'millContact',      labelZh: '供应商联系人',      labelEn: 'Supplier Contact', cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, subGroup: 'mill', autoFillFrom: { fkField: 'mill', mapping: { primaryContactName: 'millContact' } } },
+  { key: 'millPhone',        labelZh: '供应商电话',        labelEn: 'Supplier Phone',   cluster: 'parties', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, subGroup: 'mill', autoFillFrom: { fkField: 'mill', mapping: { primaryContactPhone: 'millPhone' } } },
 
   // --- Sub-group: consignee ---
   { key: 'consigneeName',    labelZh: '收货方 (服装厂)',     labelEn: 'Consignee',        cluster: 'parties', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true, relationFk: 'consignee', hintZh: 'PDF ship-to 公司，物流目的地', subGroup: 'consignee' },
@@ -229,7 +233,10 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   { key: 'fabricContent',    labelZh: '成份',             labelEn: 'Content',        cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '100% Cotton', applicableTypes: ['fabric'] },
   { key: 'width',            labelZh: '门幅 (Width CM)',  labelEn: 'Width',          cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '150 CM', applicableTypes: ['fabric'] },
   { key: 'gsm',              labelZh: '克重 (GSM)',       labelEn: 'GSM',            cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '180 GSM', applicableTypes: ['fabric'] },
-  { key: 'product',          labelZh: '品名/规格',        labelEn: 'Product',        cluster: 'fabric', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: 'Cotton Jersey', applicableTypes: ['fabric'] },
+
+  // ============ Cluster: materials — 物料信息（仅其他类型订单：辅料/纱线/物料） ============
+  { key: 'materialCategory', labelZh: '物料分类',         labelEn: 'Category',       cluster: 'materials', type: 'enum', enumOptions: ['辅料', '纱线', '其他物料', '待定'], source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '辅料/纱线/其他', applicableTypes: ['other'] },
+  { key: 'materialSpecNotes', labelZh: '物料规格/备注', labelEn: 'Spec / Notes',  cluster: 'materials', type: 'longText', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, placeholder: '规格描述 / 特殊要求', applicableTypes: ['other'] },
 
   // ============ Cluster: sales — 销售与收汇 ============
   { key: 'salesContractNumber', labelZh: '早期销售合同号', labelEn: 'Sales Contract #', cluster: 'sales', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: 'PO 确认即出，给客户' },
@@ -238,6 +245,7 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
   { key: 'contractAmount',      labelZh: '销售合同金额',   labelEn: 'Contract Amount',  cluster: 'sales', type: 'currency', currencySide: 'sales', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true },
   { key: 'paymentInstrument',   labelZh: '付款方式',       labelEn: 'Pay Instrument',   cluster: 'sales', type: 'enum', enumOptions: ['T/T', 'L/C', 'O/A', 'D/P', 'D/A', 'Other'], source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true },
   { key: 'paymentTerms',        labelZh: '付款条件',       labelEn: 'Pay Terms',        cluster: 'sales', type: 'text', source: 'both', shownInDetail: true, shownInImportPreview: true, shownInManualForm: true, placeholder: 'Net 30 / At Sight' },
+  { key: 'salesCurrency',       labelZh: '销售币种',       labelEn: 'Sales Currency',   cluster: 'sales', type: 'enum', enumOptions: ['USD', 'CNY', 'EUR', 'HKD'], source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '默认 USD。驱动销售单价/合同金额的货币符号显示' },
   { key: 'expectedPaymentDate', labelZh: '预计付款日',     labelEn: 'Expected Pay',     cluster: 'sales', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'actualPaymentDate',   labelZh: '实际付款日',     labelEn: 'Actual Pay',       cluster: 'sales', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'actualPaymentAmount', labelZh: '实际收汇金额',   labelEn: 'Actual Recv',      cluster: 'sales', type: 'currency', currencySide: 'sales', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
@@ -260,13 +268,14 @@ export const ORDER_FIELDS: ReadonlyArray<FieldMeta> = [
 
   // ============ Cluster: purchase — 采购与供应商 ============
   { key: 'purchasePrice',          labelZh: '采购单价',     labelEn: 'Purchase Cost',     cluster: 'purchase', type: 'currency', currencySide: 'purchase', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true },
+  { key: 'purchaseCurrency',       labelZh: '采购币种',     labelEn: 'Purchase Currency', cluster: 'purchase', type: 'enum', enumOptions: ['USD', 'CNY', 'EUR', 'HKD'], source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, hintZh: '默认 CNY。驱动采购单价的货币符号显示' },
   { key: 'purchasePaymentDate',    labelZh: '采购付款日',   labelEn: 'Purchase Pay Date', cluster: 'purchase', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'supplierInvoiceNumber',  labelZh: '供应商发票号', labelEn: 'Supplier Inv #',    cluster: 'purchase', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'supplierInvoiceDate',    labelZh: '供应商发票日', labelEn: 'Supplier Inv Date', cluster: 'purchase', type: 'date', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
   { key: 'supplierInvoiceAmount',  labelZh: '供应商发票金额', labelEn: 'Supplier Inv Amt', cluster: 'purchase', type: 'currency', currencySide: 'purchase', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: false },
 
   // ============ Cluster: instructions — 特别说明 ============
-  { key: 'specialInstructions', labelZh: '特别说明', labelEn: 'Special Instructions', cluster: 'instructions', type: 'longText', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true },
+  { key: 'orderNotes', labelZh: '特别说明', labelEn: 'Special Instructions', cluster: 'instructions', type: 'longText', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true },
 
   // ============ Cluster: garmentProduction — 成衣生产跟单（仅成衣订单，OrderLine 级） ============
   { key: 'styleNo',         labelZh: '款号',     labelEn: 'Style No',     cluster: 'garmentProduction', type: 'text', source: 'manual', shownInDetail: true, shownInImportPreview: false, shownInManualForm: true, applicableTypes: ['garment'], level: 'line', lineScope: 'first', required: true, hintZh: '关联数字档案 GarmentProfile.styleNo' },

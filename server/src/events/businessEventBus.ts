@@ -84,6 +84,8 @@ export type BusinessEventType =
   | 'OutwardRemittanceCreated'
   | 'VatInvoiceCreated'
   | 'VatInvoiceStatusChanged'
+  | 'ProformaInvoiceGenerated'
+  | 'ProformaInvoiceConverted'
   | 'LcStatusChanged'
   | 'SupplierBlacklisted'
   | 'FactoryEvaluationAdded'

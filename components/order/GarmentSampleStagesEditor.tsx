@@ -13,7 +13,6 @@
 import React from 'react';
 import { Shirt, Camera, Ruler, ClipboardCheck } from 'lucide-react';
 import type { GarmentSampleStage } from '../../types';
-import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { createOrderUiSpec } from './orderUiSpec';
 
 interface GarmentSampleStagesEditorProps {
@@ -114,17 +113,17 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
                 <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-all ${btnCls}`}>
                   {STAGE_ICONS[stage.stage]}
                 </div>
-                <span className={`text-[9px] font-light tracking-wide ${spec.listRowSecondary}`}>
+                <span className={`text-[10px] font-light tracking-wide ${spec.listRowSecondary}`}>
                   {STAGE_LABELS_EN[stage.stage]}
                 </span>
-                <span className={`text-[8px] font-light ${spec.listRowSecondary}`}>
+                <span className={`text-[10px] font-light ${spec.listRowSecondary}`}>
                   {STATUS_LABELS[stage.status]}
                 </span>
                 {stage.sentDate && (
-                  <span className={`text-[8px] ${spec.listRowSecondary}`}>寄：{stage.sentDate}</span>
+                  <span className={`text-[10px] ${spec.listRowSecondary}`}>寄：{stage.sentDate}</span>
                 )}
                 {stage.confirmedDate && (
-                  <span className={`text-[8px] ${spec.listRowSecondary}`}>确：{stage.confirmedDate}</span>
+                  <span className={`text-[10px] ${spec.listRowSecondary}`}>确：{stage.confirmedDate}</span>
                 )}
               </div>
               {idx < sorted.length - 1 && (
@@ -162,12 +161,8 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
     onChange?.(next);
   };
 
-  const fieldSurfaceCls = isDarkMode
-    ? BAMBOOK_OS.controls.recessedField.dark
-    : BAMBOOK_OS.controls.recessedField.light;
-  const fieldShellCls = `border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${fieldSurfaceCls}`;
-  const dateInputCls = `h-7 w-[92px] px-2 rounded-control ${fieldShellCls}`;
-  const textInputCls = `h-7 flex-1 min-w-0 px-2 rounded-control ${fieldShellCls}`;
+  const dateInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} w-[92px] shrink-0`;
+  const textInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} flex-1 min-w-0`;
 
   return (
     <div className="space-y-3">
@@ -189,10 +184,10 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
                 >
                   {STAGE_ICONS[stage.stage]}
                 </button>
-                <span className={`text-[9px] font-light tracking-wide ${spec.listRowSecondary}`}>
+                <span className={`text-[10px] font-light tracking-wide ${spec.listRowSecondary}`}>
                   {STAGE_LABELS_EN[stage.stage]}
                 </span>
-                <span className={`text-[8px] font-light ${spec.listRowSecondary}`}>
+                <span className={`text-[10px] font-light ${spec.listRowSecondary}`}>
                   {STATUS_LABELS[stage.status]}
                 </span>
               </div>

@@ -11,7 +11,7 @@
 
 import { DocumentSetData, DocumentSetLine } from '../../../types';
 import { escapeHtml, formatDate, formatDocNumber } from '../printDocument';
-import { EXPORTER_PROFILE } from './exporterProfile';
+import { getExporterProfile } from './exporterProfile';
 
 // ────────────────────────────────────────────────────────────────
 // 共用辅助
@@ -96,8 +96,8 @@ function exporterBlock(label: string): string {
   return `
   <div class="doc-party">
     <div class="label">${escapeHtml(label)}</div>
-    <div class="name">${escapeHtml(EXPORTER_PROFILE.nameEn)}</div>
-    <div class="detail">${linesToHtml(EXPORTER_PROFILE.addressEn)}</div>
+    <div class="name">${escapeHtml(getExporterProfile().nameEn)}</div>
+    <div class="detail">${linesToHtml(getExporterProfile().addressEn)}</div>
   </div>`;
 }
 
@@ -211,18 +211,18 @@ export function renderCommercialInvoiceHtml(data: DocumentSetData): string {
     <div class="doc-section-title">Beneficiary Bank 收款银行</div>
     <div class="doc-party">
       <div class="detail">
-        Beneficiary: ${escapeHtml(EXPORTER_PROFILE.beneficiary)}<br>
-        Bank: ${escapeHtml(EXPORTER_PROFILE.bankName)}<br>
-        Address: ${escapeHtml(EXPORTER_PROFILE.bankAddress)}<br>
-        SWIFT: ${escapeHtml(EXPORTER_PROFILE.swiftCode)}<br>
-        A/C No.: ${escapeHtml(EXPORTER_PROFILE.usdAccountNumber)}
+        Beneficiary: ${escapeHtml(getExporterProfile().beneficiary)}<br>
+        Bank: ${escapeHtml(getExporterProfile().bankName)}<br>
+        Address: ${escapeHtml(getExporterProfile().bankAddress)}<br>
+        SWIFT: ${escapeHtml(getExporterProfile().swiftCode)}<br>
+        A/C No.: ${escapeHtml(getExporterProfile().usdAccountNumber)}
       </div>
     </div>
   </div>
 
   <div class="doc-footer">
     <div class="doc-signature">
-      <div class="sig-label">For and on behalf of ${escapeHtml(EXPORTER_PROFILE.nameEn)} (签章)</div>
+      <div class="sig-label">For and on behalf of ${escapeHtml(getExporterProfile().nameEn)} (签章)</div>
       <div class="sig-line">&nbsp;</div>
       <div class="sig-name">Authorized Signature</div>
     </div>
@@ -321,7 +321,7 @@ export function renderPackingListHtml(data: DocumentSetData): string {
 
   <div class="doc-footer">
     <div class="doc-signature">
-      <div class="sig-label">For and on behalf of ${escapeHtml(EXPORTER_PROFILE.nameEn)} (签章)</div>
+      <div class="sig-label">For and on behalf of ${escapeHtml(getExporterProfile().nameEn)} (签章)</div>
       <div class="sig-line">&nbsp;</div>
       <div class="sig-name">Authorized Signature</div>
     </div>
@@ -413,7 +413,7 @@ export function renderCertificateOfOriginHtml(data: DocumentSetData): string {
     <div class="doc-signature">
       <div class="sig-label">Declaration by the Exporter 出口商声明</div>
       <div class="sig-line">&nbsp;</div>
-      <div class="sig-name">${escapeHtml(EXPORTER_PROFILE.nameEn)}</div>
+      <div class="sig-name">${escapeHtml(getExporterProfile().nameEn)}</div>
     </div>
     <div class="doc-signature">
       <div class="sig-label">Certification 签证机构证明</div>
@@ -524,7 +524,7 @@ export function renderBillOfLadingHtml(data: DocumentSetData): string {
     <div class="doc-signature">
       <div class="sig-label">Shipper 托运人 (签章)</div>
       <div class="sig-line">&nbsp;</div>
-      <div class="sig-name">${escapeHtml(EXPORTER_PROFILE.nameEn)}</div>
+      <div class="sig-name">${escapeHtml(getExporterProfile().nameEn)}</div>
     </div>
     <div class="doc-signature">
       <div class="sig-label">Carrier / Agent 承运人/代理 (签章)</div>
@@ -575,7 +575,7 @@ export function renderFormAHtml(data: DocumentSetData): string {
       <tr>
         <td style="width:50%;vertical-align:top">
           <strong>1. Goods consigned from (Exporter's business name, address, country)</strong><br><br>
-          ${escapeHtml(EXPORTER_PROFILE.nameEn)}<br>${linesToHtml(EXPORTER_PROFILE.addressEn)}
+          ${escapeHtml(getExporterProfile().nameEn)}<br>${linesToHtml(getExporterProfile().addressEn)}
         </td>
         <td style="width:50%;vertical-align:top">
           <strong>Reference No.</strong><br>
@@ -672,8 +672,8 @@ export function renderInsurancePolicyHtml(data: DocumentSetData): string {
   <div class="doc-party-grid">
     <div class="doc-party">
       <div class="label">Insured / Beneficiary 被保险人</div>
-      <div class="name">${escapeHtml(EXPORTER_PROFILE.beneficiary)}</div>
-      <div class="detail">${linesToHtml(EXPORTER_PROFILE.addressEn)}</div>
+      <div class="name">${escapeHtml(getExporterProfile().beneficiary)}</div>
+      <div class="detail">${linesToHtml(getExporterProfile().addressEn)}</div>
     </div>
     <div class="doc-party">
       <div class="label">Insurer 保险人</div>
@@ -754,7 +754,7 @@ export function renderInsurancePolicyHtml(data: DocumentSetData): string {
     <div class="doc-signature">
       <div class="sig-label">Insured 被保险人 (签章)</div>
       <div class="sig-line">&nbsp;</div>
-      <div class="sig-name">${escapeHtml(EXPORTER_PROFILE.nameEn)}</div>
+      <div class="sig-name">${escapeHtml(getExporterProfile().nameEn)}</div>
     </div>
   </div>`;
 }
@@ -807,7 +807,7 @@ export function renderBeneficiaryCertificateHtml(data: DocumentSetData): string 
   <div class="doc-section">
     <div class="doc-section-title">Certification 声明</div>
     <div class="doc-notes" style="color:#2d3748;font-size:12px;line-height:1.9">
-      WE, ${escapeHtml(EXPORTER_PROFILE.beneficiary)}, HEREBY CERTIFY THAT:
+      WE, ${escapeHtml(getExporterProfile().beneficiary)}, HEREBY CERTIFY THAT:
       <br><br>
       1. ONE FULL SET OF NON-NEGOTIABLE SHIPPING DOCUMENTS (INCLUDING COPY OF BILL OF LADING,
       COMMERCIAL INVOICE AND PACKING LIST) HAS BEEN SENT DIRECTLY TO THE APPLICANT BY COURIER
@@ -823,7 +823,7 @@ export function renderBeneficiaryCertificateHtml(data: DocumentSetData): string 
 
   <div class="doc-footer">
     <div class="doc-signature">
-      <div class="sig-label">For and on behalf of ${escapeHtml(EXPORTER_PROFILE.nameEn)} (签章)</div>
+      <div class="sig-label">For and on behalf of ${escapeHtml(getExporterProfile().nameEn)} (签章)</div>
       <div class="sig-line">&nbsp;</div>
       <div class="sig-name">Beneficiary's Authorized Signature · ${escapeHtml(today)}</div>
     </div>

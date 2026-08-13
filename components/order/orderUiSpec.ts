@@ -228,6 +228,60 @@ export interface OrderUiSpec {
   sheetDangerCard: string;
   /** BottomSheet 删除图标容器。 */
   sheetDangerIcon: string;
+
+  // ── 第八批：订单类型标签（Fabric/Garment/Other 三色区分） ──
+  /** 订单类型标签通用外壳 + Fabric 蓝色态。 */
+  typeTagFabric: string;
+  /** 订单类型标签通用外壳 + Garment 紫色态。 */
+  typeTagGarment: string;
+  /** 订单类型标签通用外壳 + Other 琥珀色态。 */
+  typeTagOther: string;
+  /** 订单类型圆点 Fabric 蓝色。 */
+  typeDotFabric: string;
+  /** 订单类型圆点 Garment 紫色。 */
+  typeDotGarment: string;
+  /** 订单类型圆点 Other 琥珀色。 */
+  typeDotOther: string;
+
+  // ── 第九批：移动端卡片与空状态样式 ──
+  /** 移动端卡片主要文字色（订单号、金额等）。 */
+  mobileCardPrimaryText: string;
+  /** 移动端卡片次要文字色（工厂名、副标题等）。 */
+  mobileCardSecondaryText: string;
+  /** 移动端卡片标签文字色（FACTORY/VALUE 等小标签）。 */
+  mobileCardLabelText: string;
+  /** 移动端卡片更多按钮 hover 背景色。 */
+  mobileCardMenuHoverBg: string;
+  /** 移动端卡片进度条背景色。 */
+  mobileCardProgressBg: string;
+  /** 移动端 Capsule 标签边框文字色。 */
+  mobileCapsuleTag: string;
+  /** 空状态文字色。 */
+  emptyStateText: string;
+  /** 空状态次级文字色。 */
+  emptyStateSubtext: string;
+  /** 空状态图标色。 */
+  emptyStateIcon: string;
+  /** 遮罩背景色（模态框/对话框）。 */
+  overlayBg: string;
+  /** 分割线色（通用边框）。 */
+  borderSubtle: string;
+
+  // ── 第十批：子编辑器统一配方（消除 SizeBreakdown/BomItems/ProductionSteps/GarmentSampleStages 跨文件手写重复） ──
+  /** 子编辑器输入框（h-9 胶囊，与 OrderFieldInput 的 h-10 形成层级差，表示嵌套字段）。 */
+  subFieldInput: string;
+  /** 子编辑器字段 focus 态（统一 focus ring，所有输入框复用）。 */
+  subFieldFocus: string;
+  /** 删除图标按钮（h-9 w-9 方形，ghost → hover 变红）。 */
+  deleteBtn: string;
+  /** 添加按钮（dashed border 胶囊，ghost → hover 变 accent）。 */
+  addBtn: string;
+  /** 快捷添加胶囊按钮（可用态）。 */
+  quickAddBtn: string;
+  /** 快捷添加胶囊按钮（已添加/禁用态）。 */
+  quickAddBtnDisabled: string;
+  /** 全宽确认按钮（移动端 BottomSheet 底部，py-5 大触摸区）。 */
+  btnFullWidthConfirm: string;
 }
 
 export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
@@ -369,10 +423,10 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     }`,
 
     // ── 第四批：工具栏输入框/下拉框/控件 ──
-    toolbarSearchInputClass: `h-10 min-w-[120px] max-w-[150px] flex-1 rounded-full border-0 px-4 text-xs font-light outline-none placeholder:opacity-50 ${
+    toolbarSearchInputClass: `h-8 min-w-[100px] max-w-[180px] flex-1 rounded-full border-0 px-3.5 text-xs font-light outline-none placeholder:opacity-50 ${
       dark ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'
     }`,
-    toolbarSelectClass: `h-10 w-full appearance-none cursor-pointer whitespace-nowrap rounded-full border-0 pl-4 pr-9 text-xs font-light outline-none ${
+    toolbarSelectClass: `h-8 w-full appearance-none cursor-pointer whitespace-nowrap rounded-full border-0 pl-3.5 pr-8 text-xs font-light outline-none ${
       dark ? 'bg-white/5 text-white/80' : 'bg-slate-100/80 text-slate-700'
     }`,
     toolbarChevronClass: dark ? 'text-white/35' : 'text-slate-400',
@@ -409,5 +463,67 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     sheetSubLabel: dark ? 'text-white/40' : 'text-slate-400',
     sheetDangerCard: dark ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-100/60 text-slate-600',
     sheetDangerIcon: dark ? 'bg-white/[0.06] text-slate-500' : 'bg-slate-400/10 text-slate-500',
+
+    // ── 第八批：订单类型标签（Fabric/Garment/Other 三色区分） ──
+    typeTagFabric: dark
+      ? 'rounded-full border border-[rgba(125,196,235,0.30)] bg-accent-blue/[0.12] px-2 py-0.5 text-[10px] font-light tracking-wide text-accent-blue'
+      : 'rounded-full border border-action/25 bg-action/[0.06] px-2 py-0.5 text-[10px] font-light tracking-wide text-link',
+    typeTagGarment: dark
+      ? 'rounded-full border border-[rgba(168,139,235,0.30)] bg-purple-400/[0.12] px-2 py-0.5 text-[10px] font-light tracking-wide text-purple-300'
+      : 'rounded-full border border-purple-400/30 bg-purple-400/[0.08] px-2 py-0.5 text-[10px] font-light tracking-wide text-purple-600',
+    typeTagOther: dark
+      ? 'rounded-full border border-[rgba(251,191,36,0.30)] bg-amber-400/[0.12] px-2 py-0.5 text-[10px] font-light tracking-wide text-amber-300'
+      : 'rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-2 py-0.5 text-[10px] font-light tracking-wide text-amber-700',
+    typeDotFabric: dark ? 'bg-accent-blue' : 'bg-action',
+    typeDotGarment: dark ? 'bg-purple-400' : 'bg-purple-500',
+    typeDotOther: dark ? 'bg-amber-400' : 'bg-amber-500',
+
+    // ── 第九批：移动端卡片与空状态样式 ──
+    mobileCardPrimaryText: dark ? 'text-white' : 'text-slate-900',
+    mobileCardSecondaryText: dark ? 'text-slate-300' : 'text-slate-700',
+    mobileCardLabelText: dark ? 'text-slate-500' : 'text-slate-400',
+    mobileCardMenuHoverBg: dark ? 'hover:bg-white/10' : 'hover:bg-slate-100',
+    mobileCardProgressBg: dark ? 'bg-slate-700' : 'bg-slate-100',
+    mobileCapsuleTag: dark
+      ? 'border-[rgba(255,255,255,0.14)] text-white/55'
+      : 'border-[rgba(148,163,184,0.55)] text-slate-500',
+    emptyStateText: dark ? 'text-white/35' : 'text-slate-400',
+    emptyStateSubtext: dark ? 'text-white/28' : 'text-slate-400',
+    emptyStateIcon: dark ? 'text-white/24' : 'text-slate-300',
+    overlayBg: dark ? 'bg-slate-950/60' : 'bg-slate-900/30',
+    borderSubtle: dark ? 'border-white/[0.06]' : 'border-slate-200/45',
+
+    // ── 第十批：子编辑器统一配方 ──
+    subFieldInput: `h-9 px-3 rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${
+      dark ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light
+    }`,
+    subFieldFocus: dark
+      ? 'focus:border-[rgba(125,196,235,0.45)] focus:ring-1 focus:ring-accent-blue/20'
+      : 'focus:border-action/45 focus:ring-1 focus:ring-action/15',
+    deleteBtn: `flex h-9 w-9 shrink-0 items-center justify-center rounded-control border transition-all ${
+      dark
+        ? 'border-white/10 text-white/40 hover:bg-red-500/10 hover:border-red-500/25 hover:text-red-400'
+        : 'border-slate-200 text-slate-400 hover:bg-red-50 hover:border-red-300 hover:text-red-600'
+    }`,
+    addBtn: `flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[11px] font-light transition-all ${
+      dark
+        ? 'border-white/20 text-white/60 hover:bg-accent-blue/[0.06] hover:border-accent-blue/30 hover:text-accent-blue'
+        : 'border-slate-300 text-slate-500 hover:bg-action/[0.04] hover:border-action/30 hover:text-link'
+    }`,
+    quickAddBtn: `rounded-full border px-2.5 py-1 text-[10px] font-light transition-all ${
+      dark
+        ? 'border-white/15 text-white/70 hover:bg-white/[0.05] hover:border-white/25'
+        : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+    }`,
+    quickAddBtnDisabled: `rounded-full border px-2.5 py-1 text-[10px] font-light ${
+      dark
+        ? 'border-white/5 text-white/20 cursor-not-allowed'
+        : 'border-slate-100 text-slate-300 cursor-not-allowed'
+    }`,
+    btnFullWidthConfirm: `w-full py-5 text-xs font-light uppercase tracking-widest rounded-full mt-4 transition-all ${
+      dark
+        ? 'bg-[rgba(255,255,255,0.10)] text-white/80 hover:bg-[rgba(255,255,255,0.15)]'
+        : 'bg-[rgba(255,255,255,0.70)] border border-[rgba(148,163,184,0.45)] text-slate-700 hover:bg-[rgba(255,255,255,0.90)] hover:text-slate-900'
+    }`,
   };
 };

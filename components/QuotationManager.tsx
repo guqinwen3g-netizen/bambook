@@ -31,6 +31,8 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { financeV2Service } from '../services/financeV2Service';
+import { getExporterProfile } from './tools/exportDocs/exporterProfile';
 import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import QuotationImportWizard from './import/QuotationImportWizard';
@@ -177,7 +179,7 @@ const buildQuotationPrintHtml = (qt: Quotation): string => {
   <div class="doc-party-grid">
     <div class="doc-party">
       <div class="label">From 报价方</div>
-      <div class="name">Panda Fabric / 江苏熊猫面料有限公司</div>
+      <div class="name">${escapeHtml(getExporterProfile().nameEn)}</div>
       ${qt.salesperson ? `<div class="detail">Sales 业务员: ${escapeHtml(qt.salesperson)}</div>` : ''}
     </div>
     <div class="doc-party">
@@ -359,6 +361,24 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       await fetchQuotations();
     } catch (e: any) {
       setError(`操作失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [fetchQuotations]);
+
+  // ── 生成形式发票 PI（Phase 1-04：从 Accepted 报价单生成 PI）──
+  const handleGeneratePi = useCallback(async (id: string) => {
+    setActionLoading(`${id}_generatePi`);
+    try {
+      const invoice = await financeV2Service.generatePi(id, {});
+      setError(null);
+      // 提示成功（不跳转，用户可在发票模块查看 PI）
+      setConvertedOrderId(null);
+      await fetchQuotations();
+      // 用 convertedOrderId state 复用为 PI 编号展示
+      setConvertedOrderId(`PI 已生成：${invoice.invoiceNumber}`);
+    } catch (e: any) {
+      setError(`生成 PI 失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
@@ -953,6 +973,16 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         >
                                           {actionLoading === `${qt.id}_convert` ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
                                           <span>转为订单</span>
+                                        </button>
+                                      )}
+                                      {qt.status === 'Accepted' && (
+                                        <button
+                                          onClick={() => handleGeneratePi(qt.id)}
+                                          disabled={actionLoading === `${qt.id}_generatePi`}
+                                          className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                        >
+                                          {actionLoading === `${qt.id}_generatePi` ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                                          <span>生成 PI</span>
                                         </button>
                                       )}
                                       {qt.status === 'Accepted' && qt.convertedOrderId && (

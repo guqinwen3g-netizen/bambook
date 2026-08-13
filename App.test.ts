@@ -213,7 +213,7 @@ describe('App light background tone', () => {
     expect(source).toContain("renderMainCompilerSlot(\n                compilerSurfaces.assistant,\n                'assistant'");
     expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.development,\n              'development'");
     expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.dataCenter,\n              'data-center'");
-    expect(source).toContain("renderMainCompilerSlot(\n                compilerSurfaces.orders,\n                orderType === 'garment' ? 'garment-orders' : 'fabric-orders'");
+    expect(source).toContain("renderMainCompilerSlot(\n                compilerSurfaces.orders,\n                orderType === 'garment' ? 'garment-orders' : orderType === 'other' ? 'other-orders' : 'fabric-orders'");
     expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.emails,\n              'emails'");
     expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.businessTools,\n              'business-tools'");
     expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.adminPanel,\n              'admin-panel'");

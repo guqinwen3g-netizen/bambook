@@ -9,9 +9,8 @@
  */
 
 import React from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ChevronDown } from 'lucide-react';
 import type { BomItem } from '../../types';
-import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { createOrderUiSpec } from './orderUiSpec';
 
 interface BomItemsEditorProps {
@@ -88,11 +87,7 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
   }
 
   // ── 编辑态：表格化输入 ──
-  const fieldSurfaceCls = isDarkMode
-    ? BAMBOOK_OS.controls.recessedField.dark
-    : BAMBOOK_OS.controls.recessedField.light;
-  const fieldShellCls = `border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${fieldSurfaceCls}`;
-  const inputCls = `h-9 px-2.5 rounded-control ${fieldShellCls}`;
+  const inputCls = `${spec.subFieldInput} ${spec.subFieldFocus}`;
 
   const updateItem = (idx: number, patch: Partial<BomItem>) => {
     const next = items.map((item, i) => (i === idx ? { ...item, ...patch } : item));
@@ -118,22 +113,20 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
       {items.map((item, idx) => (
         <div key={idx} className="flex items-center gap-1.5">
           {/* 类型 select */}
-          <select
-            value={item.type}
-            onChange={(e) => updateItem(idx, { type: e.target.value as BomItem['type'] })}
-            className={`${inputCls} w-16 shrink-0 cursor-pointer appearance-none pr-6`}
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23888' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 6px center',
-            }}
-          >
-            {BOM_TYPE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative shrink-0">
+            <select
+              value={item.type}
+              onChange={(e) => updateItem(idx, { type: e.target.value as BomItem['type'] })}
+              className={`${inputCls} w-16 cursor-pointer appearance-none pr-7`}
+            >
+              {BOM_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 ${spec.chevronColor}`} />
+          </div>
 
           {/* 名称 input */}
           <input
@@ -165,30 +158,24 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
           />
 
           {/* 单位 select */}
-          <select
-            value={item.unit}
-            onChange={(e) => updateItem(idx, { unit: e.target.value })}
-            className={`${inputCls} w-16 shrink-0 cursor-pointer appearance-none pr-5`}
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23888' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 4px center',
-            }}
-          >
-            {BOM_UNITS.map((u) => (
-              <option key={u} value={u}>{u}</option>
-            ))}
-          </select>
+          <div className="relative shrink-0">
+            <select
+              value={item.unit}
+              onChange={(e) => updateItem(idx, { unit: e.target.value })}
+              className={`${inputCls} w-16 cursor-pointer appearance-none pr-7`}
+            >
+              {BOM_UNITS.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 ${spec.chevronColor}`} />
+          </div>
 
           {/* 删除按钮 */}
           <button
             type="button"
             onClick={() => removeItem(idx)}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border transition-all ${
-              isDarkMode
-                ? 'border-white/10 text-white/40 hover:bg-white/[0.05] hover:text-white/70'
-                : 'border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-            }`}
+            className={spec.deleteBtn}
             title="删除此物料"
           >
             <X size={14} strokeWidth={1.5} />
@@ -200,11 +187,7 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
       <button
         type="button"
         onClick={addItem}
-        className={`flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-[11px] font-light transition-all ${
-          isDarkMode
-            ? 'border-white/20 text-white/60 hover:bg-white/[0.05] hover:border-white/30'
-            : 'border-slate-300 text-slate-500 hover:bg-slate-100 hover:border-slate-400'
-        }`}
+        className={spec.addBtn}
       >
         <Plus size={12} strokeWidth={1.5} />
         添加物料

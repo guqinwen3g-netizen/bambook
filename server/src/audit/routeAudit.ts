@@ -30,11 +30,11 @@ export interface RouteAuditInput {
   after?: Record<string, unknown> | null;
   ip?: string | null;
   // ── Phase 0 Sprint 1: 字段级审计 ──
-  operationType?: string;  // create / update / delete / transition / link / unlink
-  fieldPath?: string;       // 如 "status" 或 "lines[0].quantity"
+  operationType?: string | null;  // create / update / delete / transition / link / unlink
+  fieldPath?: string | null;       // 如 "status" 或 "lines[0].quantity"
   beforeValue?: unknown;    // 单字段前值
   afterValue?: unknown;     // 单字段后值
-  transactionId?: string;  // 关联 OrderStatusTransition / BusinessEvent id
+  transactionId?: string | null;  // 关联 OrderStatusTransition / BusinessEvent id
 }
 
 /**
@@ -89,9 +89,9 @@ export interface FieldAuditInput {
   /** 变更后值 */
   afterValue: unknown;
   /** 操作类型：create / update / delete / transition / link / unlink（默认 update）*/
-  operationType?: string;
+  operationType?: string | null;
   /** 关联业务事务 ID（OrderStatusTransition.id / BusinessEvent.id）*/
-  transactionId?: string;
+  transactionId?: string | null;
   ip?: string | null;
 }
 

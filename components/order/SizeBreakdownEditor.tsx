@@ -10,7 +10,6 @@
 
 import React from 'react';
 import { Plus, X } from 'lucide-react';
-import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { createOrderUiSpec } from './orderUiSpec';
 
 interface SizeBreakdownEditorProps {
@@ -67,11 +66,7 @@ const SizeBreakdownEditor: React.FC<SizeBreakdownEditorProps> = ({
   }
 
   // ── 编辑态：行列表 + 实时预览 ──
-  const fieldSurfaceCls = isDarkMode
-    ? BAMBOOK_OS.controls.recessedField.dark
-    : BAMBOOK_OS.controls.recessedField.light;
-  const fieldShellCls = `border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${fieldSurfaceCls}`;
-  const inputCls = `h-9 px-3 rounded-control ${fieldShellCls}`;
+  const inputCls = `${spec.subFieldInput} ${spec.subFieldFocus}`;
 
   const allEntries = value ? Object.entries(value) : [];
 
@@ -154,11 +149,7 @@ const SizeBreakdownEditor: React.FC<SizeBreakdownEditorProps> = ({
             <button
               type="button"
               onClick={() => removeEntry(size)}
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border transition-all ${
-                isDarkMode
-                  ? 'border-white/10 text-white/40 hover:bg-white/[0.05] hover:text-white/70'
-                  : 'border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-              }`}
+              className={spec.deleteBtn}
               title="删除此尺码"
             >
               <X size={14} strokeWidth={1.5} />
@@ -178,15 +169,7 @@ const SizeBreakdownEditor: React.FC<SizeBreakdownEditorProps> = ({
               type="button"
               disabled={exists}
               onClick={() => addEntry(s)}
-              className={`rounded-full border px-2.5 py-1 text-[10px] font-light transition-all ${
-                exists
-                  ? isDarkMode
-                    ? 'border-white/5 text-white/20 cursor-not-allowed'
-                    : 'border-slate-100 text-slate-300 cursor-not-allowed'
-                  : isDarkMode
-                    ? 'border-white/15 text-white/70 hover:bg-white/[0.05] hover:border-white/25'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
-              }`}
+              className={exists ? spec.quickAddBtnDisabled : spec.quickAddBtn}
             >
               {s}
             </button>
@@ -195,11 +178,7 @@ const SizeBreakdownEditor: React.FC<SizeBreakdownEditorProps> = ({
         <button
           type="button"
           onClick={() => addEntry()}
-          className={`ml-1 flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1 text-[10px] font-light transition-all ${
-            isDarkMode
-              ? 'border-white/20 text-white/60 hover:bg-white/[0.05] hover:border-white/30'
-              : 'border-slate-300 text-slate-500 hover:bg-slate-100 hover:border-slate-400'
-          }`}
+          className={`ml-1 ${spec.addBtn}`}
         >
           <Plus size={11} strokeWidth={1.5} />
           自定义

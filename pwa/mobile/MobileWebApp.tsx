@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, startTransition } from 'react';
 import { View, KnowledgeItem, Order, Email, SystemConfig, Insight, Relation, ProductAsset, ProductSubCategory, DevelopmentCase } from '../../types';
+import type { OrderViewType } from '../../lib/orderSchema';
 
 // Diagnostic flag — when true, freeze the global background polls (briefing
 // refresh, cloud sync) that cascade setState into the entire App tree.
@@ -178,7 +179,7 @@ const MobileWebApp: React.FC = () => {
   const [orderViewMode, setOrderViewMode] = useState<'globe' | 'list'>(() => uiState.orderViewMode);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderFullscreenOpen, setOrderFullscreenOpen] = useState(false);
-  const [orderType, setOrderType] = useState<'fabric' | 'garment'>('fabric'); // Fabric/Garment 切换
+  const [orderType, setOrderType] = useState<OrderViewType>('fabric');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === 'undefined') return false;
     const stored = localStorage.getItem('theme_preference') as StoredThemePreference;

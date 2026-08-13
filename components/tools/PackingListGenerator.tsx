@@ -19,6 +19,7 @@ import {
 import { Order, Relation } from '../../types';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 import { printHtmlDocument, formatDate, formatDocNumber, escapeHtml } from './printDocument';
+import { getExporterProfile } from './exportDocs/exporterProfile';
 
 // ==================== 类型 ====================
 interface PackingLine {
@@ -194,8 +195,8 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
         <div class="doc-party-grid">
           <div class="doc-party">
             <div class="label">Shipper / Consignor 发货方</div>
-            <div class="name">${escapeHtml(shipper || 'Panda Fabric / 江苏熊猫面料有限公司')}</div>
-            <div class="detail">${escapeHtml('中国江苏省苏州市工业园区')}</div>
+            <div class="name">${escapeHtml(shipper || getExporterProfile().nameEn)}</div>
+            <div class="detail">${escapeHtml(getExporterProfile().addressEn.replace(/\n/g, ', '))}</div>
           </div>
           <div class="doc-party">
             <div class="label">Consignee / Buyer 收货方</div>

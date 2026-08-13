@@ -21,6 +21,7 @@ import {
 import { Order, Relation } from '../../types';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 import { printHtmlDocument, formatDate, formatDocNumber, escapeHtml } from './printDocument';
+import { getExporterProfile } from './exportDocs/exporterProfile';
 
 // ==================== 类型 ====================
 interface ContractLine {
@@ -186,8 +187,8 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
       const titleCn = isSales ? '销售合同' : '采购合同';
       const titleEn = isSales ? 'SALES CONTRACT' : 'PURCHASE CONTRACT';
 
-      const sellerName = seller?.englishName || seller?.chineseName || 'Panda Fabric / 江苏熊猫面料有限公司';
-      const sellerCn = seller?.chineseName || '江苏熊猫面料有限公司';
+      const sellerName = seller?.englishName || seller?.chineseName || getExporterProfile().nameEn;
+      const sellerCn = seller?.chineseName || getExporterProfile().nameEn;
       const buyerName = buyer?.englishName || buyer?.chineseName || selectedOrder?.customer || '';
       const buyerCn = buyer?.chineseName || selectedOrder?.customer || '';
 

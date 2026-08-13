@@ -469,6 +469,38 @@ const organizations: RelationSeed[] = [
     mobile: '+86 150 0000 0700', wechat: 'DEMO-GLOBEX', whatsapp: null,
     otherContacts: [], birthday: null, language: 'Chinese / English', timezone: 'Asia/Shanghai', personalNote: null,
   },
+
+  // ─── Yarn Supplier ───
+  {
+    id: 'DEMO-MILL-HUZHOU-YARN',
+    name: '【演示】湖州百纤纱线有限公司',
+    category: 'Supplier', type: 'Yarn Supplier', isOrganization: true,
+    parentId: null, reportsToId: null, role: null, department: null,
+    tags: [DEMO_TAG, 'supplier', 'yarn', 'zhejiang'],
+    contactInfo: 'sales@baixian-yarn.example | +86 572 5555 0909',
+    rating: 4.4, lastInteraction: BigInt(now - 3 * 86400000), deletedAt: null,
+    preferences: '主营再生涤纶纱、棉纱和混纺纱；支持小批量定制色。',
+    chineseName: '【演示】湖州百纤纱线有限公司', englishName: 'Huzhou Baixian Yarn Co., Ltd.',
+    creditLevel: 'A', summary: '浙江湖州纱线供应商，提供再生涤纶、棉和混纺纱线。',
+    primaryContactName: '钱伟', primaryContactEmail: 'qianwei@baixian-yarn.example', primaryContactPhone: '+86 572 5555 0909',
+    backupContacts: [
+      { name: '李娜', role: 'Sample Room', email: 'lina@baixian-yarn.example', phone: '+86 572 5555 0910' },
+    ],
+    shipToAddresses: [],
+    financialNotes: 'DEMO: 纱线单价中等，按批号结算。',
+    website: 'https://baixian-yarn.example',
+    paymentTerms: 'T/T 30 days', paymentPreference: 'Bank Transfer', currency: 'CNY',
+    taxId: 'DEMO-CN-HUZHOU-011', creditLimit: 150000,
+    officialAddress: '浙江省湖州市吴兴区演示纱线路 88 号',
+    factoryAddresses: ['浙江省湖州市吴兴区演示纱线路 88 号'],
+    warehouseAddress: '浙江省湖州市吴兴区演示纱线路 88 号',
+    billingAddress: '浙江省湖州市吴兴区演示纱线路 88 号',
+    shippingAddress: '浙江省湖州市吴兴区演示纱线路 88 号',
+    coordinatesLat: 30.872, coordinatesLng: 120.088,
+    email: 'sales@baixian-yarn.example', phone: '+86 572 5555 0909',
+    mobile: '+86 139 0000 0909', wechat: 'DEMO-BAIXIAN-YARN', whatsapp: null,
+    otherContacts: [], birthday: null, language: 'Chinese', timezone: 'Asia/Shanghai', personalNote: null,
+  },
 ];
 
 // --- Contacts (derived from organizations) ---
@@ -512,6 +544,9 @@ const contactDefinitions: Array<[string, string, string, string, string, string,
   // Freight forwarder contacts
   ['DEMO-CONTACT-GLOBEX-ZHOU', '周明', 'Partner', 'DEMO-FWD-GLOBEX', 'Booking Manager', 'zhouming@globex-logistics.example', '+86 21 5555 0700', 'Chinese/English', 'Asia/Shanghai'],
   ['DEMO-CONTACT-GLOBEX-CHEN', '陈丽', 'Partner', 'DEMO-FWD-GLOBEX', 'Booking', 'chenli@globex-logistics.example', '+86 21 5555 0701', 'Chinese', 'Asia/Shanghai'],
+  // Huzhou yarn contacts
+  ['DEMO-CONTACT-HUZHOU-QIAN', '钱伟', 'Supplier', 'DEMO-MILL-HUZHOU-YARN', 'Sales Manager', 'qianwei@baixian-yarn.example', '+86 572 5555 0909', 'Chinese', 'Asia/Shanghai'],
+  ['DEMO-CONTACT-HUZHOU-LI', '李娜', 'Supplier', 'DEMO-MILL-HUZHOU-YARN', 'Sample Room', 'lina@baixian-yarn.example', '+86 572 5555 0910', 'Chinese', 'Asia/Shanghai'],
 ];
 
 const contactRelations: RelationSeed[] = contactDefinitions.map((c, idx) => ({
@@ -1014,6 +1049,53 @@ const orders: OrderSeed[] = [
     billTo: '【演示】Peerless Clothing International', amount: 5600, purchasePrice: 0.08,
     lines: [
       ['001', 'DEMO-TRM-LBL-MAIN', 'DEMO-LBL-MAIN', 'Peerless woven main label black/gold', '3x6cm', 70000, 0.08, '2026-03-05', '2026-03-12'],
+    ],
+  }),
+
+  // ─── Other: Yarn Orders (纱线) ───
+  makeOrder({
+    id: 'DEMO-PO-2601012', customerId: 'DEMO-CUST-NORDEN', customer: '【演示】Norden Studio AB',
+    customerCode: 'norden', product: '再生涤纶纱补货 (纱线)', status: 'Production',
+    poDate: '2026-02-10', dueDate: '2026-03-20', millId: 'DEMO-MILL-HUZHOU-YARN',
+    millName: '【演示】湖州百纤纱线有限公司', consignee: 'Norden Gothenburg DC',
+    billTo: '【演示】Norden Studio AB', amount: 18400, purchasePrice: 8.5,
+    lines: [
+      ['001', 'DEMO-YRN-RPET-300-NVY', 'BT-RPET-300', '再生涤纶 300D Navy 纱', '300D', 2400, 7.67, '2026-03-10', '2026-03-20'],
+      ['002', 'DEMO-YRN-RPET-300-KHK', 'BT-RPET-301', '再生涤纶 300D Khaki 纱', '300D', 1200, 7.80, '2026-03-10', '2026-03-20'],
+    ],
+  }),
+  makeOrder({
+    id: 'DEMO-PO-2601013', customerId: 'DEMO-CUST-ATLAS', customer: '【演示】Atlas Outfitters Ltd.',
+    customerCode: 'atlas', product: '弹力棉纱紧急订单 (纱线)', status: 'Pending',
+    poDate: '2026-02-15', dueDate: '2026-03-15', millId: 'DEMO-MILL-HUZHOU-YARN',
+    millName: '【演示】湖州百纤纱线有限公司', consignee: 'Atlas NJ Warehouse',
+    billTo: '【演示】Atlas Outfitters Ltd.', amount: 12600, purchasePrice: 9.2,
+    lines: [
+      ['001', 'DEMO-YRN-CTX-40S-OLV', 'BT-CTX-40S', '精梳棉 40s Olive 纱', '40s', 1400, 9.00, '2026-03-05', '2026-03-15'],
+    ],
+  }),
+
+  // ─── Other: Accessories Orders (辅料) ───
+  makeOrder({
+    id: 'DEMO-PO-2601014', customerId: 'DEMO-CUST-PEERLESS', customer: '【演示】Peerless Clothing International',
+    customerCode: 'peerless', product: '西装纽扣批量订单 (辅料)', status: 'Production',
+    poDate: '2026-02-08', dueDate: '2026-03-18', millId: 'DEMO-TRIM-ZJG-LABEL',
+    millName: '【演示】张家港骏马辅料织标厂', consignee: 'Peerless Montreal HQ',
+    billTo: '【演示】Peerless Clothing International', amount: 4200, purchasePrice: 0.35,
+    lines: [
+      ['001', 'DEMO-OTH-BTN-NAVY-18L', 'DEMO-BTN-18L', 'Navy 18L 树脂扣 4孔', '18L', 24000, 0.18, '2026-03-10', '2026-03-18'],
+      ['002', 'DEMO-OTH-BTN-GOLD-20L', 'DEMO-BTN-20L', 'Gold 20L 金属扣', '20L', 8000, 0.60, '2026-03-10', '2026-03-18'],
+    ],
+  }),
+  makeOrder({
+    id: 'DEMO-PO-2601015', customerId: 'DEMO-CUST-NORDEN', customer: '【演示】Norden Studio AB',
+    customerCode: 'norden', product: '拉链 + 织带补货 (辅料)', status: 'Pending',
+    poDate: '2026-02-12', dueDate: '2026-03-25', millId: 'DEMO-TRIM-ZJG-LABEL',
+    millName: '【演示】张家港骏马辅料织标厂', consignee: 'Norden Gothenburg DC',
+    billTo: '【演示】Norden Studio AB', amount: 7800, purchasePrice: 0.42,
+    lines: [
+      ['001', 'DEMO-OTH-ZIP-8C-NAVY', 'DEMO-ZIP-8C', 'YKK 8号树脂拉链 Navy', '8C', 6000, 0.55, '2026-03-15', '2026-03-25'],
+      ['002', 'DEMO-OTH-WEB-25MM-GREY', 'DEMO-WEB-25MM', '25mm 尼龙织带 Grey', '25mm', 3000, 0.20, '2026-03-15', '2026-03-25'],
     ],
   }),
 ];
@@ -1678,6 +1760,7 @@ function makeOrder(input: {
     'DEMO-MILL-SHAOXING': { address: '浙江省绍兴市柯桥区演示大道 56 号, Shaoxing, China', contact: '周婷', phone: '+86 575 5555 0404' },
     'DEMO-MILL-DAESE': { address: '123 Seocho-daero, Seocho-gu, Seoul, South Korea', contact: 'Kim Sang-ho', phone: '+82 2 555 0500' },
     'DEMO-TRIM-ZJG-LABEL': { address: '江苏省苏州市张家港市杨舍镇演示工业路 18 号, Zhangjiagang, China', contact: '赵颖', phone: '+86 512 5555 0808' },
+    'DEMO-MILL-HUZHOU-YARN': { address: '浙江省湖州市吴兴区演示纱线路 88 号, Huzhou, China', contact: '钱伟', phone: '+86 572 5555 0909' },
   };
 
   const c = contactMap[input.customerId] || contactMap['DEMO-CUST-ATLAS'];
@@ -1686,7 +1769,9 @@ function makeOrder(input: {
   return {
     order: {
       id: input.id, customer: input.customer, product: input.product,
-      type: input.lines[0][1].startsWith('DEMO-GAR-') ? 'Garment' : 'Fabric',
+      type: input.lines[0][1].startsWith('DEMO-GAR-') ? 'Garment'
+        : input.lines[0][1].startsWith('DEMO-OTH-') || input.lines[0][1].startsWith('DEMO-TRM-') || input.lines[0][1].startsWith('DEMO-YRN-') ? 'Other'
+        : 'Fabric',
       quantity: Math.round(totalQty), status: input.status, dueDate: input.dueDate,
       quoteAmount: input.amount, updatedAt: BigInt(now), deletedAt: null,
       poNumber: input.id, customerCode: input.customerCode, season: 'DEMO-AW26',

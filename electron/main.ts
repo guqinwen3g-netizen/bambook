@@ -869,7 +869,14 @@ function createWindow(): void {
     // BrowserWindow — prevents a hostile/redirected link from running with
     // Electron privileges.
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        shell.openExternal(url);
+        try {
+            const parsed = new URL(url);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                shell.openExternal(url);
+            }
+        } catch {
+            // invalid URL — ignore
+        }
         return { action: 'deny' };
     });
     mainWindow.on('closed', () => {
@@ -1022,11 +1029,14 @@ ipcMain.handle('dev:hard-reload', () => {
 app.whenReady().then(() => {
     // 注册全局快捷键 Cmd+Shift+R → 刷新所有窗口（开发调试用）
     const { globalShortcut } = require('electron');
-    globalShortcut.register('CommandOrControl+Shift+R', () => {
+    const registered = globalShortcut.register('CommandOrControl+Shift+R', () => {
         BrowserWindow.getAllWindows().forEach((win) => {
             if (!win.isDestroyed()) win.webContents.reload();
         });
     });
+    if (!registered) {
+        process.stderr.write('[globalShortcut] Cmd+Shift+R registration failed — may be taken by another app\n');
+    }
     if (process.platform === 'darwin') {
         app.setActivationPolicy('regular');
         app.dock?.show();

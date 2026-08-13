@@ -1,3 +1,5 @@
+import { getExporterProfile } from './exportDocs/exporterProfile';
+
 export interface FabricSampleInvoiceItem {
   id: string;
   zroh: string;
@@ -46,14 +48,14 @@ export const DEFAULT_SAMPLE_INVOICE_TEMPLATE: SampleInvoiceTemplateConfig = {
   stampScale: 2,
   stampOffsetX: 0,
   stampOffsetY: 0,
-  companyName: 'Jiangsu Panda Clothing Co.,Ltd.',
-  companyAddress: 'ROOM A1028 WUYUE PLAZA,\nZHANGJIAGANG CITY,215600 PR\nCHINA',
+  companyName: getExporterProfile().nameEn,
+  companyAddress: getExporterProfile().addressEn,
   paymentTerms: 'AS PER AGREEMENT',
-  bankName: 'BANK OF CHINA ZHANGJIAGANG SUB-BRANCH',
-  swiftCode: 'BKCHCNBJ95L',
-  bankAddress: '111 MIDDLE RENMIN ROAD, ZHANGJIAGANG CITY, SUZHOU, JIANGSU PROV., P.R.CHINA.',
-  beneficiary: 'JIANGSU PANDA CLOTHING CO.,LTD.',
-  usdAccountNumber: '467668133096',
+  bankName: getExporterProfile().bankName,
+  swiftCode: getExporterProfile().swiftCode,
+  bankAddress: getExporterProfile().bankAddress,
+  beneficiary: getExporterProfile().beneficiary,
+  usdAccountNumber: getExporterProfile().usdAccountNumber,
 };
 
 export const createEmptyFabricInvoiceItem = (): FabricSampleInvoiceItem => ({
