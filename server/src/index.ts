@@ -276,6 +276,19 @@ app.use((req, _res, next) => {
 // Serve uploaded images at /api/uploads/*
 app.use('/api/uploads', express.static(UPLOAD_DIR));
 
+// Serve webapp (frontend SPA) at /api/app/ — Cloudflare Tunnel routes /bambook/api/app/* here.
+// The /bambook prefix is stripped by the middleware above, so Express sees /api/app/*.
+const WEBAPP_DIR = path.join(__dirname, '..', 'webapp');
+if (fs.existsSync(WEBAPP_DIR)) {
+  app.use('/api/app', express.static(WEBAPP_DIR));
+  // SPA fallback: non-asset requests return index.html so client-side routing works
+  app.get('/api/app', (_req, res) => res.sendFile(path.join(WEBAPP_DIR, 'index.html')));
+  app.get('/api/app/*', (req, res, next) => {
+    if (req.path.includes('.')) return next(); // asset request → 404
+    res.sendFile(path.join(WEBAPP_DIR, 'index.html'));
+  });
+}
+
 // Serialization helper for BigInt
 // @ts-ignore
 BigInt.prototype.toJSON = function () {

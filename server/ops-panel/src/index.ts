@@ -778,9 +778,11 @@ async function deployUploadedWebapp(req: Request, res: Response) {
     fs.mkdirSync(webappDir, { recursive: true });
     await execFileAsync('/bin/cp', ['-R', `${extractDir}/.`, webappDir], { timeout: 60_000 });
 
-    // 大体量静态资源（3D 地图瓦片 data/、壁纸 wallpapers/）内容稳定、极少变更。
-    // 轻量部署包可省略这些目录以降低上传体积；此处从上一版本自动沿用，避免被全量替换语义误删。
-    for (const heavyDir of ['data', 'wallpapers']) {
+    // 大体量静态资源目录内容稳定、极少变更，轻量部署包可省略以降低上传体积。
+    // 此处从上一版本自动沿用，避免被全量替换语义误删。
+    // 扩展沿用目录：data/wallpapers（3D 地图瓦片+壁纸）、glyphs（字体字形）、
+    // geo（地理数据）、fonts（字体文件）、dev-assets（开发资源）。
+    for (const heavyDir of ['data', 'wallpapers', 'glyphs', 'geo', 'fonts', 'dev-assets']) {
       const inPackage = path.join(extractDir, heavyDir);
       const inPrev = path.join(prevDir, heavyDir);
       if (!fs.existsSync(inPackage) && fs.existsSync(inPrev)) {
@@ -789,22 +791,32 @@ async function deployUploadedWebapp(req: Request, res: Response) {
       }
     }
 
-    // 字体文件级沿用：assets/*.woff2|woff 均为 content-hash 命名（584+ 个子集，约 35MB，
-    // 已压缩无法再 gzip），轻量包省略后按文件名从上一版本补齐；新字体会以新 hash 出现在全量包中。
+    // 根级稳定大文件沿用（地理 GeoJSON、地球纹理图等），轻量包省略后从上一版本补齐。
+    for (const heavyFile of ['ne_50m_admin_0_countries.geojson', 'earth_specular_2048.jpg']) {
+      const inPackage = path.join(extractDir, heavyFile);
+      const inPrev = path.join(prevDir, heavyFile);
+      if (!fs.existsSync(inPackage) && fs.existsSync(inPrev)) {
+        fs.copyFileSync(inPrev, path.join(webappDir, heavyFile));
+        appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', file: heavyFile });
+      }
+    }
+
+    // assets/ 目录全量文件级沿用：JS/CSS bundles 和字体文件均为 content-hash 命名，
+    // 轻量包省略后按文件名从上一版本补齐；新文件会以新 hash 出现在新包中。
+    // 这允许超轻量包只包含变更的 JS/CSS 文件，未变更的自动从上一版本沿用。
     const prevAssets = path.join(prevDir, 'assets');
     const newAssets = path.join(webappDir, 'assets');
     if (fs.existsSync(prevAssets) && fs.existsSync(newAssets)) {
-      let carriedFonts = 0;
+      let carriedAssets = 0;
       for (const f of fs.readdirSync(prevAssets)) {
-        if (!/\.(woff2?|ttf|otf)$/i.test(f)) continue;
         const target = path.join(newAssets, f);
         if (!fs.existsSync(target)) {
           fs.copyFileSync(path.join(prevAssets, f), target);
-          carriedFonts += 1;
+          carriedAssets += 1;
         }
       }
-      if (carriedFonts > 0) {
-        appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', dir: 'assets/fonts', files: carriedFonts });
+      if (carriedAssets > 0) {
+        appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', dir: 'assets', files: carriedAssets });
       }
     }
 
@@ -1812,6 +1824,86 @@ app.post('/api/admin/model-key', auth, updateModelKey);
 app.post('/api/admin/email-key', auth, updateEmailKey);
 app.post('/api/admin/deploy-package', auth, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: DEPLOY_PACKAGE_LIMIT }), deployUploadedPackage);
 app.post('/api/admin/deploy-webapp', auth, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: DEPLOY_PACKAGE_LIMIT }), deployUploadedWebapp);
+
+// ── 分块上传 webapp（隧道 body 转发受限时的回退方案）──────────────────────────
+// Cloudflare Tunnel 对 POST body 大小有限制（~500KB），完整 webapp 包（5MB+）
+// 无法一次性通过。分块上传端点允许客户端将包拆分为多个 < 400KB 的块，
+// 逐块上传后在服务端重组，再走标准 deployUploadedWebapp 流程。
+interface ChunkedUpload {
+  chunks: (Buffer | null)[];
+  totalChunks: number;
+  receivedChunks: number;
+  createdAt: number;
+}
+const webappChunkedUploads = new Map<string, ChunkedUpload>();
+// 每 5 分钟清理超过 10 分钟的未完成上传
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, upload] of webappChunkedUploads) {
+    if (now - upload.createdAt > 10 * 60 * 1000) {
+      webappChunkedUploads.delete(id);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
+app.post('/api/admin/deploy-webapp-chunk', auth, express.raw({ type: ['application/octet-stream'], limit: '500kb' }), (req, res) => {
+  const uploadId = req.headers['x-upload-id'] as string;
+  const chunkIndex = parseInt(req.headers['x-chunk-index'] as string, 10);
+  const totalChunks = parseInt(req.headers['x-total-chunks'] as string, 10);
+
+  if (!uploadId || isNaN(chunkIndex) || isNaN(totalChunks) || chunkIndex < 0 || chunkIndex >= totalChunks) {
+    return res.status(400).json({ ok: false, error: 'INVALID_HEADERS', message: 'Requires X-Upload-Id, X-Chunk-Index (0-based), X-Total-Chunks headers' });
+  }
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    return res.status(400).json({ ok: false, error: 'EMPTY_CHUNK' });
+  }
+
+  if (!webappChunkedUploads.has(uploadId)) {
+    webappChunkedUploads.set(uploadId, {
+      chunks: new Array(totalChunks).fill(null),
+      totalChunks,
+      receivedChunks: 0,
+      createdAt: Date.now(),
+    });
+  }
+
+  const upload = webappChunkedUploads.get(uploadId)!;
+  if (upload.totalChunks !== totalChunks) {
+    return res.status(400).json({ ok: false, error: 'TOTAL_MISMATCH' });
+  }
+  if (upload.chunks[chunkIndex] === null) {
+    upload.chunks[chunkIndex] = req.body;
+    upload.receivedChunks++;
+  }
+
+  return res.json({ ok: true, uploadId, chunkIndex, receivedChunks: upload.receivedChunks, totalChunks: upload.totalChunks });
+});
+
+app.post('/api/admin/deploy-webapp-finalize', auth, express.json(), async (req, res) => {
+  const { uploadId } = req.body as { uploadId?: string };
+  if (!uploadId) {
+    return res.status(400).json({ ok: false, error: 'MISSING_UPLOAD_ID' });
+  }
+
+  const upload = webappChunkedUploads.get(uploadId);
+  if (!upload) {
+    return res.status(404).json({ ok: false, error: 'UPLOAD_NOT_FOUND' });
+  }
+  if (upload.receivedChunks !== upload.totalChunks) {
+    return res.status(400).json({ ok: false, error: 'INCOMPLETE_UPLOAD', receivedChunks: upload.receivedChunks, totalChunks: upload.totalChunks });
+  }
+
+  // 重组完整归档
+  const fullArchive = Buffer.concat(upload.chunks as Buffer[]);
+  webappChunkedUploads.delete(uploadId);
+
+  appendActionLog({ action: 'deployUploadedWebapp', label: '分块上传网页端打包并部署', status: 'reassembled', bytes: fullArchive.length, chunks: upload.totalChunks });
+
+  // 构造模拟的 Express Request 复用 deployUploadedWebapp
+  const mockReq = { body: fullArchive } as any;
+  return deployUploadedWebapp(mockReq, res);
+});
+
 app.get('/api/dev/jobs', auth, listDevJobs);
 app.post('/api/dev/jobs', auth, startDevJob);
 app.get('/api/dev/jobs/:id', auth, getDevJob);
