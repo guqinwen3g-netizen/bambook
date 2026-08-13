@@ -35,9 +35,11 @@ describe('auth profile avatar', () => {
           primaryDeptId: null,
           primaryDepartment: { name: 'Company' },
           roles: [{
+            roleId: 'role-viewer',
             departmentId: 'company',
             role: {
               name: 'viewer',
+              isSystem: false,
               permissions: [{ permission: { scope: 'orders:read' } }],
             },
           }],
