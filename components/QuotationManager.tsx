@@ -424,7 +424,6 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const handleCreate = useCallback(async () => {
     setFormError(null);
     const validLines = formLines.filter(l => l.description && l.quantity && l.unitPrice);
-    if (!form.quotationNumber) { setFormError('请填写报价编号'); return; }
     if (!form.issueDate) { setFormError('请填写报价日期'); return; }
     if (validLines.length === 0) { setFormError('至少需要一行有效报价明细'); return; }
 
@@ -439,7 +438,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
           }
         : {};
       const input: QuotationInput = {
-        quotationNumber: form.quotationNumber,
+        quotationNumber: form.quotationNumber || undefined,
         currency: form.currency,
         customerRelationId: form.customerRelationId || undefined,
         customerName: form.customerName || undefined,
@@ -594,8 +593,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                     <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>基本信息</h3>
                     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                       <div>
-                        <label className={labelClass}>报价编号 *</label>
-                        <input type="text" value={form.quotationNumber} onChange={(e) => setForm({ ...form, quotationNumber: e.target.value })} placeholder="QT-2026-001" className={fieldClass} />
+                        <label className={labelClass}>报价编号</label>
+                        <input type="text" value={form.quotationNumber} onChange={(e) => setForm({ ...form, quotationNumber: e.target.value })} placeholder="留空自动生成 QT-YYYY-NNNN" className={fieldClass} />
                       </div>
                       <div>
                         <label className={labelClass}>币种</label>

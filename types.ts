@@ -1805,7 +1805,7 @@ export interface Quotation {
 }
 
 export interface QuotationInput {
-  quotationNumber: string;
+  quotationNumber?: string;
   currency: string;
   customerRelationId?: string;
   customerName?: string;

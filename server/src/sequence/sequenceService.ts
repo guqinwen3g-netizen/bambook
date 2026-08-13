@@ -276,10 +276,7 @@ export function createSequenceService(prisma: PrismaClient) {
       data: {
         currentSeq: { increment: 1 },
         updatedAt: BigInt(Date.now()),
-        // 可能传入了 overrideFormatTemplate/Padding：若 DB 行已存在（旧版本），也在这里 lazy update
-        // 但避免覆盖历史行的 format 模板（会影响已有编号口径），所以仅在 description 为空时补 description
-        description: { set: undefined } as any, // 占位 no-op
-      } as any,
+      },
       select: { currentSeq: true, formatTemplate: true, padding: true, prefix: true },
     });
 

@@ -104,10 +104,12 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
         }
       }
 
-      // 检查报价号唯一性
-      const existing = await prisma.quotation.findUnique({ where: { quotationNumber: input.quotationNumber } });
-      if (existing) {
-        return res.status(409).json({ error: `报价号 ${input.quotationNumber} 已存在` });
+      // 检查报价号唯一性（仅在传入报价号时检查；未传入时由服务端自动生成 QT-YYYY-NNNN）
+      if (input.quotationNumber) {
+        const existing = await prisma.quotation.findUnique({ where: { quotationNumber: input.quotationNumber } });
+        if (existing) {
+          return res.status(409).json({ error: `报价号 ${input.quotationNumber} 已存在` });
+        }
       }
 
       const quotation = await service.createQuotation(input, actor?.userId || 'system');
