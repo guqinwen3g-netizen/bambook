@@ -2615,6 +2615,7 @@ export interface SalesLeaderboardRow {
   orderCount: number;
   salesAmount: number;
   collectedAmount: number;
+  collectionRate: number | null;
 }
 
 export interface CustomerContributionRow {
@@ -2624,6 +2625,8 @@ export interface CustomerContributionRow {
   orderCount: number;
   salesAmount: number;
   share: number; // 同币种内占比 0-1
+  isNewCustomer: boolean;
+  lastOrderDate: string | null;
 }
 
 export interface OrderMarginRow {
@@ -2640,6 +2643,7 @@ export interface OrderMarginRow {
   crossCurrency: boolean;
   margin: number | null;
   marginRate: number | null;
+  collectionRate: number | null;
 }
 
 export interface OrderMarginTotal {
@@ -2657,6 +2661,51 @@ export interface ArApAlertBucket {
   total: number;
 }
 
+export interface OrderStatusBucket {
+  status: string;
+  count: number;
+  salesAmount: number;
+  currency: string;
+}
+
+export interface DeliveryAlert {
+  orderId: string;
+  poNumber: string | null;
+  customer: string;
+  product: string;
+  dueDate: string;
+  status: string;
+  daysUntilDue: number;
+  currency: string;
+  orderAmount: number;
+}
+
+export interface SampleProgressAlert {
+  caseId: string;
+  caseCode: string;
+  caseName: string;
+  stage: string;
+  priority: string;
+  customerName: string | null;
+  productName: string | null;
+  currentRound: number;
+  targetDate: string | null;
+  daysOverdue: number | null;
+  pendingSampleLevel: string | null;
+  pendingSampleStatus: string | null;
+}
+
+export interface FxTrendPoint {
+  currency: string;
+  effectiveDate: string;
+  rate: number;
+}
+
+export interface FxTrend {
+  baseCurrency: string;
+  points: FxTrendPoint[];
+}
+
 export interface BusinessCockpit {
   from: string | null;
   to: string | null;
@@ -2664,6 +2713,10 @@ export interface BusinessCockpit {
   salesLeaderboard: SalesLeaderboardRow[];
   customerContribution: CustomerContributionRow[];
   orderMargins: { rows: OrderMarginRow[]; totals: OrderMarginTotal[]; excludedCount: number };
+  orderStatusDistribution: OrderStatusBucket[];
+  deliveryAlerts: DeliveryAlert[];
+  sampleProgressAlerts: SampleProgressAlert[];
+  fxTrend: FxTrend;
   arApAlerts: {
     receivable: { rows: AgingRow[]; totals: ArApAlertBucket[] };
     payable: { rows: AgingRow[]; totals: ArApAlertBucket[] };
