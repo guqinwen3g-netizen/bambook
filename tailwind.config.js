@@ -42,10 +42,11 @@ export default {
           'sans-serif',
         ],
       },
-      // ── Bambook Flat Design 圆角 token ──
+      // ── Bambook Flat Design 圆角 token（legacy 语义类，视觉零变化保留） ──
       // 映射 os-vnext.css / --bambook-rdl-radius-* token 到语义类，
       // 组件用 rounded-card / rounded-inset 等，不再写 rounded-[22px]。
       // 值与实际渲染一致，替换后视觉零变化。
+      // 新代码优先使用 BDS v2 纯净刻度（rounded-bds-*，映射 var(--radius-*)）。
       borderRadius: {
         'panel': '34px',     // --os-vnext-radius-panel / --bambook-rdl-radius-panel
         'card': '24px',      // --os-vnext-radius-card
@@ -55,6 +56,14 @@ export default {
         'control': '18px',   // --os-vnext-radius-control
         'field': '16px',     // --os-vnext-radius-field
         'compact': '14px',   // 新增：覆盖 Assistant.tsx 等的 14px 用法
+        // ── BDS v2 纯净刻度（styles/bds/tokens.css var 引用，主题无关） ──
+        'bds-xs': 'var(--radius-xs)',       // 8px  tooltip/小标签
+        'bds-sm': 'var(--radius-sm)',       // 12px 导航项/列表行
+        'bds-md': 'var(--radius-md)',       // 16px 输入框/嵌套小卡
+        'bds-lg': 'var(--radius-lg)',       // 24px 标准卡片
+        'bds-xl': 'var(--radius-xl)',       // 30px 大卡/模态
+        'bds-2xl': 'var(--radius-2xl)',     // 34px 页面级面板（Bambook panel 签名）
+        'bds-pill': 'var(--radius-pill)',   // 999px 按钮/徽章/分段器
       },
       // ── Bambook 业务色 token ──
       // 映射 os-vnext.css 中 --bambook-*-rgb token 到语义类，
@@ -70,6 +79,23 @@ export default {
         'link-light': 'rgb(var(--bambook-brand-link-light-rgb) / <alpha-value>)',
         'accent-cyan': 'rgb(var(--bambook-accent-cyan-rgb) / <alpha-value>)',
         'accent-blue': 'rgb(var(--bambook-accent-blue-rgb) / <alpha-value>)',
+        // ── BDS v2 语义色（styles/bds/tokens.css；rgb 三元组支持 alpha 修饰符） ──
+        // 新代码优先使用：bg-accent / text-accent / bg-success / text-danger 等
+        'accent': 'rgb(var(--accent-rgb) / <alpha-value>)',
+        'success': 'rgb(var(--success-rgb) / <alpha-value>)',
+        'warning': 'rgb(var(--warning-rgb) / <alpha-value>)',
+        'danger': 'rgb(var(--danger-rgb) / <alpha-value>)',
+        // BDS v2 表面色（rgb 三元组，支持 alpha 修饰符，随 [data-theme] 暗色自动翻转）
+        'bds-page': 'rgb(var(--bg-page-rgb) / <alpha-value>)',
+        'bds-card': 'rgb(var(--bg-card-rgb) / <alpha-value>)',
+        'bds-panel': 'rgb(var(--bg-panel-rgb) / <alpha-value>)',
+        'bds-sunken': 'rgb(var(--bg-sunken-rgb) / <alpha-value>)',
+        'bds-raised': 'rgb(var(--bg-raised-rgb) / <alpha-value>)',
+        'bds-ink': 'var(--text-primary)',
+        'bds-ink-2': 'var(--text-secondary)',
+        'bds-ink-3': 'var(--text-tertiary)',
+        'bds-ink-4': 'var(--text-quaternary)',
+        'bds-link': 'rgb(var(--link-rgb) / <alpha-value>)',
       },
     },
   },

@@ -1965,7 +1965,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         >
           <div className={`absolute inset-0 ${isDarkMode ? 'bg-black/40' : 'bg-black/20'}`} />
           <div
-            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l ${isDarkMode ? 'border-white/10 bg-[#1a1a1f]/95' : 'border-slate-200/60 bg-white/95'} backdrop-blur-xl`}
+            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--border-c-strong)] bg-bds-card/95 backdrop-blur-xl`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={`flex items-center justify-between border-b px-4 py-3 ${isDarkMode ? 'border-white/8' : 'border-slate-200/50'}`}>

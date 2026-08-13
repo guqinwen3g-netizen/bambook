@@ -26,6 +26,11 @@ EXCLUDE_GLOBS=(
 BASELINE_ROUNDED=3        # 壁纸缩略图 17px / checkbox 等豁免边缘值（2026-08-06 阶段 B 收拢 4→3）
 BASELINE_HEX_TAILWIND=0   # 全部 hex 颜色已 token 化（bg-app-dark/bg-app-light/text-deep 等）
 BASELINE_HEX_INLINE=8     # 内联 style 中的灰色（已 token 化的排除）
+# ── BDS v2 主题耦合基线（2026-08-13 建立，只减不增）──
+# v2 纪律：新组件对主题机制透明（无 dark: 变体 / 无 isDarkMode 三元），
+# 暗色由 styles/bds/tokens.css 的 [data-theme]/.dark token 覆盖统一承载。
+BASELINE_DARK_VARIANT=34      # dark: Tailwind 变体（豁免口径实测，2026-08-13）
+BASELINE_IS_DARK_TERNARY=2439 # isDarkMode ? 三元（豁免口径实测，2026-08-13）
 
 errors=0
 
@@ -86,6 +91,29 @@ if [ "$shadow_count" -gt 0 ]; then
 else
   echo "  ✅ 无 box-shadow 硬编码"
 fi
+echo ""
+
+# ── 5. BDS v2 采用度 + 主题耦合基线（只减不增）──
+echo "▸ 检查 BDS v2 主题耦合基线（dark: 变体 / isDarkMode 三元）..."
+dark_variant_count=$(rg -c 'dark:' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+is_dark_ternary_count=$(rg -c 'isDarkMode\s*\?' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+bds_adopt_files=$(rg -l 'bds-(btn|card|input|badge|table|modal|toast|pagehead|segment|tabs|switch|check|listrow|setrow|formrow|progress|skeleton|empty|tag|avatar|tooltip|filterbar|divider)' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+coupling_errors=0
+if [ "$dark_variant_count" -gt "$BASELINE_DARK_VARIANT" ]; then
+  echo "  ❌ dark: 变体增加（基线 ${BASELINE_DARK_VARIANT} → 当前 ${dark_variant_count}）"
+  echo "     BDS v2 组件应对主题透明，暗色由 tokens.css [data-theme] 覆盖承载"
+  coupling_errors=$((coupling_errors + 1))
+fi
+if [ "$is_dark_ternary_count" -gt "$BASELINE_IS_DARK_TERNARY" ]; then
+  echo "  ❌ isDarkMode 三元增加（基线 ${BASELINE_IS_DARK_TERNARY} → 当前 ${is_dark_ternary_count}）"
+  echo "     禁止新增 isDarkMode 分支，请使用 BDS v2 语义 token（bg-bds-card/text-bds-ink 等）"
+  coupling_errors=$((coupling_errors + 1))
+fi
+if [ "$coupling_errors" -eq 0 ]; then
+  echo "  ✅ 主题耦合维持或低于基线（dark: ${dark_variant_count} / isDarkMode: ${is_dark_ternary_count}）"
+fi
+echo "  📊 BDS v2 采用度：${bds_adopt_files} 个 tsx 文件已使用 .bds-* 组件类"
+errors=$((errors + coupling_errors))
 echo ""
 
 # ── 总结 ──

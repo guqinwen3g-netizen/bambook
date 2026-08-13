@@ -1,0 +1,357 @@
+/* ═══════════════════════════════════════════════════════════════════
+   BAMBOOK DESIGN SYSTEM v2 — TOKEN 真源（styles/bds/tokens.css）
+   ═══════════════════════════════════════════════════════════════════
+   血统：Project L（RDL/Halo Measured DNA v6.9）底座 × Bambook 品牌蓝
+   定位：Bambook 全部新前端开发的唯一设计真源。后续所有新组件/页面
+         必须引用本文件 token + components.css 的 .bds-* 类，禁止新增
+         硬编码 hex / px 圆角 / box-shadow（check-design-tokens.sh 强制）。
+
+   核心 DNA：
+     1. rimless — 静态面零阴影零边框；阴影仅属浮层（modal/toast/popover）
+     2. pill    — 按钮/徽章/分段器/头像全 pill（--radius-pill）
+     3. 层级圆角 — 嵌套小卡 8-12 / 输入框 16 / 标准卡 24 / 展示卡 30 / 面板 34
+     4. 磨砂玻璃 — 半透底 + blur + saturate（浮层与玻璃卡专用材质）
+     5. 主题透明 — 组件只引用语义 token；暗色由本文件 [data-theme] 统一覆盖，
+                   组件内禁止出现 dark: 分支或 isDarkMode 三元
+
+   与 legacy 的关系：
+     - os-vnext.css（--os-vnext-* / --bambook-*）继续服务旧组件，零改动。
+     - flat-experimental.css 的 :root --shadow-*:none !important 会压死同名
+       token，故 v2 浮层阴影使用独立命名 --bds-shadow-*（不受其影响）。
+     - 暗色选择器双写 .dark + [data-theme="dark"]：.dark 兼容现有 Tailwind
+       darkMode:'class' 机制（App.tsx 根 class），data-theme 为 v2 标准，
+       App.tsx 已同步双写 documentElement.dataset.theme。
+   版本：v2.0.0（2026-08-13）
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ═══════════ 1. 表面色彩 — 微暖白体系（RDL #FAFAF9 实测） ═══════════
+     rgb 三元组（--bg-*-rgb）供 Tailwind alpha 修饰符引用（bg-bds-card/95） */
+  --bg-page: #FAFAF9;
+  --bg-page-rgb: 250 250 249;
+  --bg-card: #FFFFFF;
+  --bg-card-rgb: 255 255 255;
+  --bg-panel: #F5F5F4;
+  --bg-panel-rgb: 245 245 244;
+  --bg-sunken: #EFEFEE;
+  --bg-sunken-rgb: 239 239 238;
+  --bg-raised: #FFFFFF;            /* 浮起表面：segment 激活面、dropdown、popover */
+  --bg-raised-rgb: 255 255 255;
+
+  /* ═══════════ 2. 文字 — Ink 四级阶梯（主题无关常量 + 语义引用） ═══════════ */
+  --ink: #0B0C0B;
+  --ink-2: rgba(11,12,11,0.56);
+  --ink-3: rgba(11,12,11,0.36);
+  --ink-4: rgba(11,12,11,0.18);
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-tertiary: var(--ink-3);
+  --text-quaternary: var(--ink-4);
+  /* 深材质上的锁定文字体系（暗岛/实色卡/on-media 场景直接引用） */
+  --text-on-dark: #F4F5F2;
+  --text-on-dark-2: rgba(244,245,242,0.52);
+  --text-on-dark-3: rgba(244,245,242,0.30);
+  --text-on-dark-4: rgba(244,245,242,0.12);
+
+  /* ═══════════ 3. 品牌 accent — Bambook 行动蓝（白底对比度 8.2:1） ═══════════ */
+  --accent: #004AAD;               /* Bambook 品牌行动蓝（原 --bambook-brand-action） */
+  --accent-rgb: 0 74 173;          /* Tailwind alpha 修饰符三元组 */
+  --accent-hover: #003E92;         /* 加深一档 */
+  --accent-active: #00337A;        /* 再深一档（≈ brand-blue-strong 域） */
+  --accent-tint: rgba(0,74,173,0.08);
+  --accent-tint-light: rgba(0,74,173,0.04);
+  --accent-tint-strong: rgba(0,74,173,0.12);
+  --accent-text: #004AAD;          /* tint 底上的 accent 文字（对比度优先） */
+  --link: #126DCC;                 /* Bambook 链接蓝（原 --bambook-brand-link） */
+  --link-rgb: 18 109 204;
+  --link-hover: #0D5BB0;
+  --on-accent-chip: rgba(255,255,255,0.25);  /* accent 实底上的徽章/chip 底 */
+
+  /* ═══════════ 4. 语义色 — 与 rdlBusinessStatusTokens 八级语义对齐 ═══════════ */
+  --success: #059669;
+  --success-rgb: 5 150 105;
+  --success-tint: rgba(5,150,105,0.10);
+  --success-text: #047857;
+  --warning: #D97706;
+  --warning-rgb: 217 119 6;
+  --warning-tint: rgba(217,119,6,0.10);
+  --warning-text: #B45309;
+  --danger: #DC2626;
+  --danger-rgb: 220 38 38;
+  --danger-hover: #B91C1C;
+  --danger-tint: rgba(220,38,38,0.08);
+  --danger-tint-hover: rgba(220,38,38,0.14);
+  --danger-tint-active: rgba(220,38,38,0.20);
+  --danger-text: #B91C1C;
+  --info-text: var(--accent-text);   /* info 语义归并 accent 系（info 徽章 = accent tint） */
+
+  /* ═══════════ 5. 品牌实色/渐变材质 — 数据看板视觉锚点（双主题通用） ═══════════ */
+  /* Bambook 深蓝实底卡：品牌主视觉锚点（原 bg-deep 深蓝黑的卡片化） */
+  --brand-deep: #0D1B2A;             /* 原 --bambook-bg-deep */
+  --brand-deep-rgb: 13 27 42;
+  --brand-deep-2: #0A2746;           /* 原 --bambook-bg-deep-alt */
+  --on-brand: #F4F5F2;               /* 深蓝卡上的主文字 */
+  --on-brand-2: rgba(244,245,242,0.56);
+  --on-brand-chip: rgba(255,255,255,0.14);
+  /* Bambook 蓝系渐变砖（Cockpit/看板数据强调位） */
+  --tile-royal:
+    radial-gradient(64% 64% at 50% 42%, rgba(10,25,52,0.74), rgba(10,25,52,0) 80%),
+    linear-gradient(150deg, #173B86, #2F95CA);
+  --tile-cyan:
+    radial-gradient(64% 64% at 50% 42%, rgba(8,40,52,0.72), rgba(8,40,52,0) 80%),
+    linear-gradient(150deg, #10718F, #4FB3C8);
+  --on-tile: rgba(255,255,255,0.72);
+
+  /* ═══════════ 6. 图表参照纹理 ═══════════ */
+  --grid-line: rgba(0,0,0,0.14);     /* dashed gridline 比实线更轻 */
+  --hatch-c: rgba(11,12,11,0.20);    /* 斜纹填充 = 预测/区间值 */
+  --gauge-track: rgba(0,0,0,0.06);
+
+  /* ═══════════ 7. 浮层/纹理通用材质 ═══════════ */
+  --skeleton-shine: rgba(255,255,255,0.45);
+  --mask-bg: rgba(11,12,11,0.30);    /* 全系统唯一遮罩入口（modal/cmdk 共用） */
+  --dz-line: rgba(0,0,0,0.14);       /* dropzone 虚线框 */
+
+  /* ═══════════ 8. 圆角 — 纯净七级刻度（按容器层级分配，不是越大越好） ═══════════ */
+  --radius-xs: 8px;      /* tooltip、小标签 */
+  --radius-sm: 12px;     /* 导航项、列表行、小面板 */
+  --radius-md: 16px;     /* 输入框、嵌套小卡 */
+  --radius-lg: 24px;     /* 标准卡片 */
+  --radius-xl: 30px;     /* 大卡片、模态、展示卡 */
+  --radius-2xl: 34px;    /* 页面级面板（Bambook panel 签名） */
+  --radius-pill: 999px;  /* 按钮、徽章、分段器、头像 — RDL/Halo 签名 */
+
+  /* ═══════════ 9. 间距 — 4px 基准非线性刻度 ═══════════ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;       /* Bambook 页面横向 padding（px-7 规范） */
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ═══════════ 10. 浮层阴影 — rimless 纪律：仅浮层使用，静态面零阴影 ═══════════
+     独立 --bds-shadow-* 命名：规避 flat-experimental.css 的 --shadow-*:none !important。
+     蓝黑底色 rgba(2,2,30,x) 比纯黑更通透（Halo 实测"空气感"）。 */
+  --bds-shadow-xs: 0 1px 2px rgba(2,2,30,0.05);    /* switch knob、segment 激活面 */
+  --bds-shadow-sm: 0 2px 10px rgba(2,2,30,0.07);   /* dropdown、popover、toast */
+  --bds-shadow-md: 0 8px 24px rgba(2,2,30,0.10);   /* modal */
+  --bds-shadow-lg: 0 12px 48px rgba(2,2,30,0.12);  /* 大浮层 */
+  --inset-highlight: inset 0 1px 0 rgba(255,255,255,0.5);  /* 磨砂材质厚度内高光 */
+
+  /* ═══════════ 11. 边框 — 隐形 hairline，仅用于同面色分隔 ═══════════
+     颜色单值（--border-c-*）供 border-color 等单属性引用；
+     shorthand（--border-*）供 border 全属性引用 */
+  --border-c-subtle: rgba(0,0,0,0.04);
+  --border-c-default: rgba(0,0,0,0.06);
+  --border-c-strong: rgba(0,0,0,0.08);
+  --border-subtle: 1px solid var(--border-c-subtle);
+  --border-default: 1px solid var(--border-c-default);
+  --border-strong: 1px solid var(--border-c-strong);
+
+  /* ═══════════ 12. 磨砂玻璃 — 三层模糊刻度（RDL 实测 blur 5/20/45） ═══════════ */
+  --frosted-bg: rgba(255,255,255,0.7);
+  --frosted-blur-sm: 6px;    /* 导航项、小控件 */
+  --frosted-blur: 20px;      /* 标准浮层 */
+  --frosted-blur-lg: 45px;   /* 全宽 header / 覆盖层 */
+  --frosted-saturate: 180%;
+  --frosted-border: 1px solid rgba(255,255,255,0.55);
+  --frosted-dark-bg: rgba(255,255,255,0.08);
+  --frosted-dark-border: 1px solid rgba(255,255,255,0.12);
+
+  /* ═══════════ 13. 页面光感背景 — Bambook 蓝系光斑（Halo aurora 签名材质） ═══════════
+     页面本身发光而非依赖卡片阴影分层；卡片以半透白浮于光斑之上 */
+  --page-aurora:
+    radial-gradient(58% 46% at 12% 0%, rgba(23,59,134,0.08), rgba(23,59,134,0) 70%),
+    radial-gradient(46% 40% at 88% 12%, rgba(47,149,202,0.22), rgba(47,149,202,0) 72%),
+    radial-gradient(42% 42% at 72% 96%, rgba(125,183,255,0.14), rgba(125,183,255,0) 70%),
+    var(--bg-page);
+
+  /* ═══════════ 14. 字体系统 — Urbanist（拉丁）+ HarmonyOS Sans SC（CJK） ═══════════ */
+  --font-sans: "Urbanist", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei",
+    -apple-system, "BlinkMacSystemFont", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  /* 字号（组件单值引用） */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  /* 完整 font shorthand（weight size/line-height family）— 字重纪律：300 hero / 400 正文 / 500 强调 / 600 仅 caps 小标题 */
+  --font-xs: 500 11px/1.4 var(--font-sans);
+  --font-sm: 400 13px/1.5 var(--font-sans);
+  --font-base: 400 15px/1.6 var(--font-sans);
+  --font-lg: 500 17px/1.5 var(--font-sans);
+  --font-xl: 500 20px/1.4 var(--font-sans);
+  --font-2xl: 500 24px/1.3 var(--font-sans);
+  --font-3xl: 300 32px/1.2 var(--font-sans);   /* hero 数字/大标题用 300 细字重 */
+  /* 字距 — Halo 实测：标题 -0.02em，caps 标签 +0.08~0.12em */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.08em;
+  --tracking-widest: 0.12em;
+
+  /* ═══════════ 15. 图标 — Lucide 规范（24px 网格、圆头端点，与 pill DNA 同源） ═══════════ */
+  --icon-xs: 14px;
+  --icon-sm: 16px;
+  --icon-md: 18px;
+  --icon-lg: 20px;
+  --icon-xl: 24px;
+  --icon-w-sm: 1.75;     /* ≤18px 光学粗细 */
+  --icon-w-lg: 2;        /* ≥20px 光学粗细 */
+  --icon-w-light: 1.5;   /* 细 — xl/卡头/幽灵钮 */
+  --icon-w-thin: 1.25;   /* 极细 — hero 大图标位 */
+
+  /* ═══════════ 16. 动效 — Halo 实测 0.18/0.25s + easeOutCubic ═══════════ */
+  --duration-fast: 0.18s;
+  --duration-normal: 0.25s;
+  --duration-slower: 0.6s;
+  --ease-default: cubic-bezier(0.215, 0.61, 0.355, 1);   /* easeOutCubic 先快后柔 */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* ═══════════ 17. 组件级 token 映射（.bds-* 组件的唯一引用入口） ═══════════ */
+  /* 圆角映射 */
+  --r-badge: var(--radius-pill);
+  --r-btn: var(--radius-pill);
+  --r-input: var(--radius-md);
+  --r-card: var(--radius-lg);
+  --r-card-lg: var(--radius-xl);
+  --r-panel: var(--radius-2xl);
+  --r-modal: var(--radius-xl);
+  --r-toast: var(--radius-pill);
+  --r-tooltip: var(--radius-xs);
+  --r-chip: var(--radius-pill);
+  --r-avatar: var(--radius-pill);
+  /* 内距映射 */
+  --p-badge: 4px 12px;
+  --p-btn-sm: 8px 16px;
+  --p-btn-md: 10px 22px;
+  --p-btn-lg: 14px 30px;
+  --p-input: 10px 16px;
+  --p-card: var(--space-6);
+  --p-card-lg: var(--space-8);
+  --p-panel: var(--space-6);
+  --p-modal: var(--space-8);
+  /* Bambook 页头规范：px-7 pt-5 pb-4（标题左上不换行，breadcrumb 右侧） */
+  --p-pagehead: var(--space-5) var(--space-7) var(--space-4);
+  /* 尺寸映射 */
+  --h-btn-sm: 32px;
+  --h-btn-md: 40px;
+  --h-btn-lg: 48px;
+  --h-input: 44px;
+  --h-input-sm: 34px;
+  --h-input-lg: 52px;
+  --h-topbar: 56px;
+  /* 状态层（hover/active 背景加深，rimless 下唯一状态语言） */
+  --hover-darken: rgba(0,0,0,0.04);
+  --active-darken: rgba(0,0,0,0.08);
+  /* 反色按钮（invert 变体） */
+  --invert-bg: #0B0C0B;
+  --invert-bg-hover: #2A2B29;
+  --invert-bg-active: #1A1B19;
+  --invert-text: #FAFAF9;
+  /* 焦点环 — 全系统键盘焦点唯一语言 */
+  --focus-ring: 0 0 0 3px var(--accent-tint);
+  --focus-ring-strong: 0 0 0 3px rgba(0,74,173,0.28);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   暗色模式 — token 级覆盖，组件零改动
+   双选择器：.dark 兼容 Tailwind darkMode:'class' 现状；
+             [data-theme="dark"] 为 v2 标准（App.tsx 已双写）。
+   蓝黑深底（Halo 实测 rgb(2,2,30) 血统），避免纯黑发闷。
+   ═══════════════════════════════════════════════════════════════════ */
+.dark, [data-theme="dark"] {
+  /* 表面 */
+  --bg-page: #0D0D12;
+  --bg-page-rgb: 13 13 18;
+  --bg-card: #15151B;
+  --bg-card-rgb: 21 21 27;
+  --bg-panel: #1E1E26;
+  --bg-panel-rgb: 30 30 38;
+  --bg-sunken: #090910;
+  --bg-sunken-rgb: 9 9 16;
+  --bg-raised: #26262E;
+  --bg-raised-rgb: 38 38 46;
+
+  /* 文字（ink 常量为亮主题专用，暗色语义引用翻转到 on-dark 体系） */
+  --text-primary: #F4F5F2;
+  --text-secondary: rgba(244,245,242,0.56);
+  --text-tertiary: rgba(244,245,242,0.36);
+  --text-quaternary: rgba(244,245,242,0.18);
+
+  /* 品牌 accent 暗色适配：实底提亮为链接蓝（#004AAD 在深底上发闷），
+     tint 提高透明度保持发光感，文字再提亮一档 */
+  --accent: #126DCC;
+  --accent-rgb: 18 109 204;
+  --accent-hover: #3D8BE8;
+  --accent-active: #2B7AD9;
+  --accent-tint: rgba(125,183,255,0.16);
+  --accent-tint-light: rgba(125,183,255,0.08);
+  --accent-tint-strong: rgba(125,183,255,0.24);
+  --accent-text: #7DB7FF;          /* 原 --bambook-brand-link-light */
+  --link: #7DB7FF;
+  --link-rgb: 125 183 255;
+  --link-hover: #A5CCFF;
+
+  /* 语义色暗色适配：文字提亮、tint 提亮 */
+  --success-text: #34D399;
+  --success-tint: rgba(52,211,153,0.14);
+  --warning-text: #FBBF24;
+  --warning-tint: rgba(251,191,36,0.14);
+  --danger-text: #F87171;
+  --danger-tint: rgba(248,113,113,0.14);
+  --danger-tint-hover: rgba(248,113,113,0.22);
+  --danger-tint-active: rgba(248,113,113,0.30);
+
+  /* 边框翻转为半透白（单值覆盖，shorthand 自动跟随） */
+  --border-c-subtle: rgba(255,255,255,0.06);
+  --border-c-default: rgba(255,255,255,0.10);
+  --border-c-strong: rgba(255,255,255,0.14);
+
+  /* 状态层翻转 */
+  --hover-darken: rgba(255,255,255,0.06);
+  --active-darken: rgba(255,255,255,0.10);
+
+  /* 反色按钮翻转 */
+  --invert-bg: #F4F5F2;
+  --invert-bg-hover: #DEDFD8;
+  --invert-bg-active: #ECEDE6;
+  --invert-text: #0F0F0E;
+
+  /* 磨砂玻璃暗色适配：蓝黑半透明底 + 弱白边 */
+  --frosted-bg: rgba(21,21,27,0.72);
+  --frosted-border: 1px solid rgba(255,255,255,0.10);
+
+  /* 图表纹理翻转 */
+  --grid-line: rgba(255,255,255,0.18);
+  --hatch-c: rgba(255,255,255,0.30);
+  --gauge-track: rgba(255,255,255,0.10);
+
+  /* 浮层材质暗色适配 */
+  --skeleton-shine: rgba(255,255,255,0.08);
+  --mask-bg: rgba(2,2,8,0.55);
+  --dz-line: rgba(255,255,255,0.24);
+
+  /* 页面光感背景暗色适配：近黑底 + Bambook 蓝光斑分层 */
+  --page-aurora:
+    radial-gradient(58% 46% at 12% 0%, rgba(23,59,134,0.32), rgba(23,59,134,0) 70%),
+    radial-gradient(46% 40% at 88% 12%, rgba(16,113,143,0.28), rgba(16,113,143,0) 72%),
+    radial-gradient(42% 42% at 72% 96%, rgba(47,149,202,0.10), rgba(47,149,202,0) 70%),
+    var(--bg-page);
+
+  /* 阴影暗色加深（暗色下蓝调不可见，纯黑加深保持层次） */
+  --bds-shadow-xs: 0 1px 2px rgba(0,0,0,0.24);
+  --bds-shadow-sm: 0 2px 10px rgba(0,0,0,0.32);
+  --bds-shadow-md: 0 8px 24px rgba(0,0,0,0.36);
+  --bds-shadow-lg: 0 12px 48px rgba(0,0,0,0.42);
+
+  --focus-ring-strong: 0 0 0 3px rgba(125,183,255,0.32);
+}

@@ -919,6 +919,9 @@ const App: React.FC = () => {
       } else {
         document.documentElement.classList.remove('dark');
       }
+      // BDS v2：同步 data-theme 属性（v2 token 暗色覆盖的标准入口，
+      // 与 .dark class 双写并存，组件层对主题机制透明）
+      document.documentElement.dataset.theme = isDarkMode ? 'dark' : 'light';
       requestOsAdaptiveContrastRefresh();
     }
   }, [isDarkMode, config.themeMode]);

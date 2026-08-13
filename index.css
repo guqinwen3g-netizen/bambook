@@ -23,6 +23,13 @@
 @import './styles/os-vnext.css';
 @import './styles/flat-experimental.css';
 
+/* ═══ BAMBOOK DESIGN SYSTEM v2 ═══
+   新前端开发的唯一设计真源：token 层 + .bds-* 组件类库。
+   加载于 flat-experimental 之后（独立命名空间零冲突）、@tailwind 之前
+   （Tailwind utilities 可对组件做合法微调）。 */
+@import './styles/bds/tokens.css';
+@import './styles/bds/components.css';
+
 /* Tailwind CSS v3 — local PostCSS pipeline.
    Replaces the legacy cdn.tailwindcss.com Play CDN that prevented
    offline operation in the packaged Electron app. */
