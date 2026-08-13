@@ -10,7 +10,7 @@
  *
  * 设计原则：
  *   - 条目快照以服务端返回为准（sku/name/imageUrl 服务端重取，防客户端数据不一致）
- *   - RDL flat 设计：statusSemanticClass 中性色阶，无阴影，大圆角
+ *   - BDS v2.1 组件族（bds-card/bds-btn/bds-input/bds-modal 等）
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -40,7 +40,6 @@ import {
   ProductAsset,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ==================== 常量 ====================
 
@@ -57,7 +56,9 @@ const LOOKBOOK_STATUS_LABELS: Record<LookbookStatus, string> = {
   Archived: '已归档',
 };
 
-const LOOKBOOK_STATUS_SEMANTIC: Record<LookbookStatus, StatusSemantic> = {
+// BDS 徽章语义变体映射（bds-badge：neutral/info/success/danger/warning）
+type BadgeVariant = 'neutral' | 'info' | 'success' | 'danger' | 'warning';
+const LOOKBOOK_STATUS_BADGE: Record<LookbookStatus, BadgeVariant> = {
   Draft: 'neutral',
   Published: 'success',
   Archived: 'neutral',
@@ -96,13 +97,13 @@ function summarizeCriteria(c: RecommendCriteria): string {
 
 // ==================== 共享样式 ====================
 
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
-const actionButtonClass = "flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50";
+const inputClass = "bds-input";
+const selectClass = "bds-select";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>{label}</label>
       {children}
     </div>
   );
@@ -114,23 +115,24 @@ function ModalShell({ title, onClose, wide, children }: { title: string; onClose
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="bds-modal-mask"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className={`bg-surface-elevated rounded-panel w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[85vh] overflow-y-auto`}
+        className="bds-modal"
+        style={{ width: wide ? '48rem' : '32rem', maxHeight: '85vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        {children}
       </motion.div>
     </motion.div>
   );
@@ -138,8 +140,8 @@ function ModalShell({ title, onClose, wide, children }: { title: string; onClose
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
-      <p className="text-sm">{text}</p>
+    <div className="bds-empty">
+      <div className="title">{text}</div>
     </div>
   );
 }
@@ -150,6 +152,8 @@ interface MarketingManagerProps {
   isDarkMode?: boolean;
 }
 
+// ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+// isDarkMode 仅保留在 props 签名与解构中兼容调用方，组件内不再使用
 export default function MarketingManager({ isDarkMode }: MarketingManagerProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>('lookbooks');
 
@@ -157,26 +161,24 @@ export default function MarketingManager({ isDarkMode }: MarketingManagerProps) 
     <div className="h-full flex flex-col">
       <PageHeader title="营销推广" subtitle="Marketing" />
 
-      {/* 模块 Tab 栏 */}
-      <div className="px-7 flex items-center gap-1 border-b border-border-subtle shrink-0">
-        {MODULE_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
-                isActive
-                  ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
+      <div className="px-7 shrink-0">
+        <div className="bds-tabs">
+          {MODULE_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`bds-tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tab 内容（切换即重挂载，保证数据新鲜） */}
@@ -190,8 +192,8 @@ export default function MarketingManager({ isDarkMode }: MarketingManagerProps) 
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'lookbooks' && <LookbooksPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'fabricRecommend' && <FabricRecommendPanel isDarkMode={isDarkMode} />}
+            {activeTab === 'lookbooks' && <LookbooksPanel />}
+            {activeTab === 'fabricRecommend' && <FabricRecommendPanel />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -201,7 +203,7 @@ export default function MarketingManager({ isDarkMode }: MarketingManagerProps) 
 
 // ==================== 电子画册 Panel ====================
 
-function LookbooksPanel(_props: { isDarkMode?: boolean }) {
+function LookbooksPanel() {
   const [items, setItems] = useState<LookbookCatalog[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'' | LookbookStatus>('');
@@ -254,32 +256,31 @@ function LookbooksPanel(_props: { isDarkMode?: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-surface-elevated rounded-card p-5">
+      <div className="bds-card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-text-primary">画册列表</h3>
-            {(['', 'Draft', 'Published', 'Archived'] as const).map((s) => (
-              <button
-                key={s || 'all'}
-                onClick={() => setStatusFilter(s)}
-                className={`px-2.5 py-1 text-xs rounded-control transition-colors ${
-                  statusFilter === s
-                    ? 'bg-surface-primary text-text-primary ring-1 ring-border-action'
-                    : 'text-text-tertiary hover:text-text-secondary'
-                }`}
-              >
-                {s === '' ? '全部' : LOOKBOOK_STATUS_LABELS[s]}
-              </button>
-            ))}
+            <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>画册列表</h3>
+            <div className="bds-segment">
+              {(['', 'Draft', 'Published', 'Archived'] as const).map((s) => (
+                <button
+                  key={s || 'all'}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={`seg ${statusFilter === s ? 'active' : ''}`}
+                >
+                  {s === '' ? '全部' : LOOKBOOK_STATUS_LABELS[s]}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className={actionButtonClass}>
+            <button onClick={load} className="bds-btn bds-btn-secondary sm">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+              className="bds-btn bds-btn-primary sm"
             >
               <Plus className="w-3.5 h-3.5" />
               新建画册
@@ -288,14 +289,14 @@ function LookbooksPanel(_props: { isDarkMode?: boolean }) {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12 text-text-tertiary">
+          <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : items.length === 0 ? (
           <EmptyHint text="暂无画册，点击「新建画册」开始" />
         ) : (
-          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
-            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-3">标题</span>
               <span className="col-span-1">条目</span>
               <span className="col-span-1">状态</span>
@@ -303,24 +304,28 @@ function LookbooksPanel(_props: { isDarkMode?: boolean }) {
               <span className="col-span-2">更新时间</span>
               <span className="col-span-3 text-right">操作</span>
             </div>
-            {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
-                <span className="col-span-3 text-text-primary truncate" title={item.description || undefined}>
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+              >
+                <span className="col-span-3 truncate" style={{ color: 'var(--text-primary)' }} title={item.description || undefined}>
                   {item.title}
                 </span>
-                <span className="col-span-1 text-text-secondary">{item.items.length}</span>
+                <span className="col-span-1 bds-tnum" style={{ color: 'var(--text-secondary)' }}>{item.items.length}</span>
                 <span className="col-span-1">
-                  <span className={`px-2 py-0.5 rounded-control ${statusSemanticClass(LOOKBOOK_STATUS_SEMANTIC[item.status])}`}>
+                  <span className={`bds-badge sm ${LOOKBOOK_STATUS_BADGE[item.status]}`}>
                     {LOOKBOOK_STATUS_LABELS[item.status]}
                   </span>
                 </span>
-                <span className="col-span-2 text-text-secondary">{formatTs(item.publishedAt)}</span>
-                <span className="col-span-2 text-text-secondary">{formatTs(item.updatedAt)}</span>
+                <span className="col-span-2" style={{ color: 'var(--text-secondary)' }}>{formatTs(item.publishedAt)}</span>
+                <span className="col-span-2" style={{ color: 'var(--text-secondary)' }}>{formatTs(item.updatedAt)}</span>
                 <span className="col-span-3 flex items-center justify-end gap-1.5">
                   <button
                     onClick={() => setItemsEditing(item)}
                     disabled={updatingId === item.id || item.status === 'Archived'}
-                    className={actionButtonClass}
+                    className="bds-btn bds-btn-secondary sm"
                     title={item.status === 'Archived' ? '已归档画册不可修改条目' : '管理条目'}
                   >
                     <ListOrdered className="w-3.5 h-3.5" />
@@ -329,7 +334,7 @@ function LookbooksPanel(_props: { isDarkMode?: boolean }) {
                   <button
                     onClick={() => { setEditing(item); setShowForm(true); }}
                     disabled={updatingId === item.id || item.status === 'Archived'}
-                    className={actionButtonClass}
+                    className="bds-btn bds-btn-ghost bds-btn-icon sm"
                     title={item.status === 'Archived' ? '已归档画册不可编辑' : '编辑'}
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -338,7 +343,7 @@ function LookbooksPanel(_props: { isDarkMode?: boolean }) {
                     <button
                       onClick={() => handleTransition(item, 'publish')}
                       disabled={updatingId === item.id || item.status === 'Archived'}
-                      className={actionButtonClass}
+                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       title="发布"
                     >
                       <Upload className="w-3.5 h-3.5" />
@@ -347,7 +352,7 @@ function LookbooksPanel(_props: { isDarkMode?: boolean }) {
                     <button
                       onClick={() => handleTransition(item, 'unpublish')}
                       disabled={updatingId === item.id}
-                      className={actionButtonClass}
+                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       title="撤回为草稿"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -357,13 +362,13 @@ function LookbooksPanel(_props: { isDarkMode?: boolean }) {
                     <button
                       onClick={() => handleTransition(item, 'archive')}
                       disabled={updatingId === item.id}
-                      className={actionButtonClass}
+                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       title="归档"
                     >
                       <Archive className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className={actionButtonClass} title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -438,10 +443,10 @@ function LookbookForm({
         <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="目标客户 / 季节 / 用途说明" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
         <button
           onClick={handleSubmit}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -526,7 +531,7 @@ function LookbookItemsEditor({
       {/* 添加产品 */}
       <div className="flex items-center gap-2 mb-4">
         <select
-          className={inputClass}
+          className={selectClass}
           value={pickId}
           onChange={(e) => setPickId(e.target.value)}
           disabled={productsLoading}
@@ -538,7 +543,7 @@ function LookbookItemsEditor({
             </option>
           ))}
         </select>
-        <button onClick={handleAdd} disabled={!pickId} className={actionButtonClass}>
+        <button onClick={handleAdd} disabled={!pickId} className="bds-btn bds-btn-secondary sm shrink-0">
           <Plus className="w-3.5 h-3.5" />
           添加
         </button>
@@ -547,24 +552,28 @@ function LookbookItemsEditor({
       {drafts.length === 0 ? (
         <EmptyHint text="暂无条目，从上方选择产品加入" />
       ) : (
-        <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle mb-4">
-          <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+        <div className="rounded-inset mb-4" style={{ background: 'var(--bg-panel)' }}>
+          <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
             <span className="col-span-4">产品</span>
             <span className="col-span-2">展示价格</span>
             <span className="col-span-1">币种</span>
             <span className="col-span-4">展示描述</span>
             <span className="col-span-1 text-right">操作</span>
           </div>
-          {drafts.map((d) => {
+          {drafts.map((d, idx) => {
             const snap = snapshotOf(d.productAssetId);
             const prod = products.find((p) => p.id === d.productAssetId);
             const label = snap ? `${snap.sku} · ${snap.name}` : prod ? `${prod.sku} · ${prod.name}` : d.productAssetId;
             return (
-              <div key={d.productAssetId} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
-                <span className="col-span-4 text-text-primary truncate" title={label}>{label}</span>
+              <div
+                key={d.productAssetId}
+                className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+              >
+                <span className="col-span-4 truncate" style={{ color: 'var(--text-primary)' }} title={label}>{label}</span>
                 <span className="col-span-2">
                   <input
-                    className={inputClass}
+                    className="bds-input sm"
                     value={d.price ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { price: parseNum(e.target.value) })}
                     placeholder="留空不展示"
@@ -573,7 +582,8 @@ function LookbookItemsEditor({
                 </span>
                 <span className="col-span-1">
                   <select
-                    className={inputClass}
+                    className={selectClass}
+                    style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
                     value={d.currency ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { currency: e.target.value || null })}
                   >
@@ -585,14 +595,14 @@ function LookbookItemsEditor({
                 </span>
                 <span className="col-span-4">
                   <input
-                    className={inputClass}
+                    className="bds-input sm"
                     value={d.description ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { description: e.target.value || null })}
                     placeholder="面向客户的展示描述"
                   />
                 </span>
                 <span className="col-span-1 flex justify-end">
-                  <button onClick={() => handleRemove(d.productAssetId)} className={actionButtonClass} title="移除">
+                  <button onClick={() => handleRemove(d.productAssetId)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="移除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -602,15 +612,15 @@ function LookbookItemsEditor({
         </div>
       )}
 
-      <p className="text-xs text-text-tertiary mb-3">
+      <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>
         保存后服务端将按数字档案真源重新生成条目快照（SKU / 名称 / 主图），此处仅维护选择依据与展示参数。
       </p>
       <div className="flex justify-end gap-2">
-        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors disabled:opacity-50"
+          className="bds-btn bds-btn-primary sm"
         >
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           保存条目
@@ -622,7 +632,7 @@ function LookbookItemsEditor({
 
 // ==================== 面料推荐 Panel ====================
 
-function FabricRecommendPanel(_props: { isDarkMode?: boolean }) {
+function FabricRecommendPanel() {
   const [season, setSeason] = useState('');
   const [budgetMin, setBudgetMin] = useState('');
   const [budgetMax, setBudgetMax] = useState('');
@@ -698,8 +708,8 @@ function FabricRecommendPanel(_props: { isDarkMode?: boolean }) {
   return (
     <div className="space-y-4">
       {/* 推荐条件 */}
-      <div className="bg-surface-elevated rounded-card p-5">
-        <h3 className="text-sm font-medium text-text-primary mb-3">推荐条件</h3>
+      <div className="bds-card">
+        <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>推荐条件</h3>
         <div className="grid grid-cols-4 gap-3">
           <Field label="季节">
             <input className={inputClass} value={season} onChange={(e) => setSeason(e.target.value)} placeholder="如 2026AW" />
@@ -711,7 +721,7 @@ function FabricRecommendPanel(_props: { isDarkMode?: boolean }) {
             <input className={inputClass} value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} placeholder="如 8" inputMode="decimal" />
           </Field>
           <Field label="预算币种">
-            <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
               <option value="USD">USD</option>
               <option value="CNY">CNY</option>
               <option value="EUR">EUR</option>
@@ -732,13 +742,13 @@ function FabricRecommendPanel(_props: { isDarkMode?: boolean }) {
         </div>
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-tertiary">返回条数</label>
-            <input className={`${inputClass} w-20`} value={limit} onChange={(e) => setLimit(e.target.value)} inputMode="numeric" />
+            <label className="text-xs" style={{ color: 'var(--text-tertiary)' }}>返回条数</label>
+            <input className={inputClass} style={{ width: 80 }} value={limit} onChange={(e) => setLimit(e.target.value)} inputMode="numeric" />
           </div>
           <button
             onClick={handleRun}
             disabled={running}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors disabled:opacity-50"
+            className="bds-btn bds-btn-primary sm"
           >
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             执行推荐
@@ -748,35 +758,39 @@ function FabricRecommendPanel(_props: { isDarkMode?: boolean }) {
 
       {/* 最新推荐结果 */}
       {latest && (
-        <div className="bg-surface-elevated rounded-card p-5">
-          <h3 className="text-sm font-medium text-text-primary mb-1">
+        <div className="bds-card">
+          <h3 className="bds-overline mb-1" style={{ color: 'var(--text-tertiary)' }}>
             推荐结果（命中 {latest.results.length} 条）
           </h3>
-          <p className="text-xs text-text-tertiary mb-3">{summarizeCriteria(latest.criteria)} · {formatTs(latest.createdAt)}</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>{summarizeCriteria(latest.criteria)} · {formatTs(latest.createdAt)}</p>
           {latest.results.length === 0 ? (
             <EmptyHint text="无候选命中，请放宽条件" />
           ) : (
-            <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
-              {latest.results.map((r) => (
-                <div key={r.productAssetId} className="px-3 py-2.5">
+            <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+              {latest.results.map((r, idx) => (
+                <div
+                  key={r.productAssetId}
+                  className="px-3 py-2.5"
+                  style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-text-primary font-medium">
+                    <span className="text-xs" style={{ color: 'var(--text-primary)' }}>
                       {r.sku} · {r.name}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-control text-xs ${statusSemanticClass(r.score >= 60 ? 'success' : r.score >= 30 ? 'warning' : 'neutral')}`}>
+                    <span className={`bds-badge sm ${r.score >= 60 ? 'success' : r.score >= 30 ? 'warning' : 'neutral'}`}>
                       {r.score} 分
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-text-tertiary">
+                  <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                     {r.millName && <span>{r.millName}</span>}
-                    {r.latestPrice != null && <span>{formatMoney(r.latestPrice, r.priceCurrency ?? '')}</span>}
-                    {r.weightValue != null && <span>{r.weightValue}{r.weightUnit ?? ''}</span>}
+                    {r.latestPrice != null && <span className="bds-tnum">{formatMoney(r.latestPrice, r.priceCurrency ?? '')}</span>}
+                    {r.weightValue != null && <span className="bds-tnum">{r.weightValue}{r.weightUnit ?? ''}</span>}
                     {r.season && <span>{r.season}</span>}
                   </div>
                   {r.reasons.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {r.reasons.map((reason, i) => (
-                        <span key={i} className="px-2 py-0.5 text-xs rounded-control bg-surface-elevated text-text-secondary">
+                        <span key={i} className="bds-badge sm neutral">
                           {reason}
                         </span>
                       ))}
@@ -790,40 +804,44 @@ function FabricRecommendPanel(_props: { isDarkMode?: boolean }) {
       )}
 
       {/* 历史记录 */}
-      <div className="bg-surface-elevated rounded-card p-5">
+      <div className="bds-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-text-primary">推荐历史</h3>
-          <button onClick={loadHistory} className={actionButtonClass}>
+          <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>推荐历史</h3>
+          <button onClick={loadHistory} className="bds-btn bds-btn-secondary sm">
             <RefreshCw className="w-3.5 h-3.5" />
             刷新
           </button>
         </div>
         {historyLoading ? (
-          <div className="flex items-center justify-center py-12 text-text-tertiary">
+          <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : history.length === 0 ? (
           <EmptyHint text="暂无推荐记录" />
         ) : (
-          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
-            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-6">推荐条件</span>
               <span className="col-span-1">命中</span>
               <span className="col-span-3">时间</span>
               <span className="col-span-2 text-right">操作</span>
             </div>
-            {history.map((rec) => (
-              <div key={rec.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
-                <span className="col-span-6 text-text-secondary truncate" title={summarizeCriteria(rec.criteria)}>
+            {history.map((rec, idx) => (
+              <div
+                key={rec.id}
+                className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+              >
+                <span className="col-span-6 truncate" style={{ color: 'var(--text-secondary)' }} title={summarizeCriteria(rec.criteria)}>
                   {summarizeCriteria(rec.criteria)}
                 </span>
-                <span className="col-span-1 text-text-primary">{rec.results.length}</span>
-                <span className="col-span-3 text-text-secondary">{formatTs(rec.createdAt)}</span>
+                <span className="col-span-1 bds-tnum" style={{ color: 'var(--text-primary)' }}>{rec.results.length}</span>
+                <span className="col-span-3" style={{ color: 'var(--text-secondary)' }}>{formatTs(rec.createdAt)}</span>
                 <span className="col-span-2 flex items-center justify-end gap-1.5">
-                  <button onClick={() => setLatest(rec)} className={actionButtonClass} title="查看结果">
+                  <button onClick={() => setLatest(rec)} className="bds-btn bds-btn-secondary sm" title="查看结果">
                     查看
                   </button>
-                  <button onClick={() => handleDelete(rec.id)} disabled={deletingId === rec.id} className={actionButtonClass} title="删除">
+                  <button onClick={() => handleDelete(rec.id)} disabled={deletingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>

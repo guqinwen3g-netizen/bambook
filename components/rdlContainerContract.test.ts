@@ -98,16 +98,16 @@ describe('RDL global container contract', () => {
     expect(coverGuard).toContain('backdrop-filter: none !important;');
   });
 
-  it('keeps migrated RDL surfaces from reintroducing page-local padding recipes', () => {
+  it('keeps migrated pages on shared containers without page-local padding recipes', () => {
     const rdlSurfaceWithLocalPadding = /<RdlSurface[^\n]*className="[^"]*\b(?:p-[1-9]|px-|py-)[^"]*"/;
 
-    expect(emailSource).not.toMatch(rdlSurfaceWithLocalPadding);
-    expect(financeSource).not.toMatch(rdlSurfaceWithLocalPadding);
-    expect(emailSource).toContain('padding="compact"');
-    expect(emailSource).toContain('padding="loose"');
-    // FinanceManager 已迁移到 BDS 组件族（BDS v2.1），不再使用 RdlSurface；
-    // 同一契约延续：容器一律共享组件（bds-card），禁止页面局部 padding 配方。
-    expect(financeSource).not.toContain('<RdlSurface');
-    expect(financeSource).toContain('bds-card');
+    // EmailManager / FinanceManager 均已迁移到 BDS 组件族（BDS v2.1）：
+    // 不允许 RdlSurface 残留，也不允许带页面局部 padding 的容器配方；
+    // 容器一律共享组件（bds-card / bds-modal）。
+    [emailSource, financeSource].forEach(source => {
+      expect(source).not.toMatch(rdlSurfaceWithLocalPadding);
+      expect(source).not.toContain('<RdlSurface');
+      expect(source).toContain('bds-card');
+    });
   });
 });

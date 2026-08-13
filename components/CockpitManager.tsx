@@ -21,7 +21,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, AlertCircle, TrendingUp, TrendingDown, Users, UserCheck, Scale, BellRing, Clock, FlaskConical, BarChart3 } from 'lucide-react';
 import { apiService } from '../services/apiService';
-import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
 import { PageHeader } from './ui/PageHeader';
 import type { BusinessCockpit } from '../types';
 
@@ -57,11 +56,12 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<BusinessCockpit | null>(null);
 
-  const textPrimary = isDarkMode ? 'text-white/88' : 'text-slate-800/88';
-  const textSecondary = isDarkMode ? 'text-white/50' : 'text-slate-500/75';
-  const textFaint = isDarkMode ? 'text-white/35' : 'text-slate-400/80';
-  const divider = isDarkMode ? 'border-white/8' : 'border-slate-300/30';
-  const rowBg = isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40';
+  // ── BDS v2.1 语义文本/表面类（token 主题透明，无 isDarkMode 分支） ───
+  const textPrimary = 'text-[var(--text-primary)]';
+  const textSecondary = 'text-[var(--text-tertiary)]';
+  const textFaint = 'text-[var(--text-quaternary)]';
+  const divider = 'border-[var(--border-c-subtle)]';
+  const rowBg = 'bg-[var(--bg-panel)]';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,10 +77,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps — 仅首载，区间变更走「查询」
 
-  const inputCls = cx(
-    'h-8 rounded-field border bg-transparent px-2.5 text-[11px] font-light outline-none tabular-nums',
-    divider, textPrimary,
-  );
+  const inputCls = 'bds-input sm bds-tnum w-auto';
 
   const sectionTitle = (icon: React.ReactNode, zh: string, en: string) => (
     <div className={cx('flex items-center gap-2 border-b px-4 pb-2 pt-2.5', divider)}>
@@ -95,7 +92,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     const grid = 'grid w-full min-w-0 grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(0,0.7fr))]';
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<UserCheck size={13} strokeWidth={1.4} />, '销售业绩排行', 'SALES LEADERBOARD')}
         <div className={cx(grid, 'px-4 pb-1.5 pt-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
           <div>业务员</div>
@@ -116,13 +113,13 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               <div className={cx('text-right font-light tabular-nums', textPrimary)}>{row.orderCount}</div>
               <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(row.salesAmount, row.currency)}</div>
               <div className={cx('text-right font-light tabular-nums', textSecondary)}>{formatAmount(row.collectedAmount, row.currency)}</div>
-              <div className={cx('text-right font-light tabular-nums', row.collectionRate == null ? textFaint : row.collectionRate >= 0.8 ? 'text-emerald-400' : row.collectionRate >= 0.5 ? textPrimary : 'text-amber-400')}>
+              <div className={cx('text-right font-light tabular-nums', row.collectionRate == null ? textFaint : row.collectionRate >= 0.8 ? 'text-[var(--success-text)]' : row.collectionRate >= 0.5 ? textPrimary : 'text-[var(--warning-text)]')}>
                 {formatPct(row.collectionRate)}
               </div>
             </div>
           ))}
         </div>
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -130,7 +127,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
   const renderCustomerContribution = () => {
     if (!data) return null;
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<Users size={13} strokeWidth={1.4} />, '客户贡献度', 'CUSTOMER SHARE')}
         <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {data.customerContribution.length === 0 && (
@@ -142,7 +139,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
                 <div className="flex min-w-0 items-center gap-1.5">
                   <div className={cx('min-w-0 truncate font-light', textPrimary)}>{row.customer}</div>
                   {row.isNewCustomer && (
-                    <span className={cx('shrink-0 rounded-compact px-1 py-0.5 text-[9px] font-light', isDarkMode ? 'bg-emerald-400/15 text-emerald-400' : 'bg-emerald-400/10 text-emerald-600')}>
+                    <span className="bds-badge sm success shrink-0">
                       新客
                     </span>
                   )}
@@ -152,9 +149,9 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
                   <span className={cx('ml-2 text-[10px]', textFaint)}>{(row.share * 100).toFixed(1)}%</span>
                 </div>
               </div>
-              <div className={cx('mt-1.5 h-1 overflow-hidden rounded-full', isDarkMode ? 'bg-white/6' : 'bg-slate-300/30')}>
+              <div className="bds-progress mt-1.5">
                 <div
-                  className="h-full rounded-full bg-[var(--os-vnext-brand-blue)] transition-all duration-500"
+                  className="fill"
                   style={{ width: `${Math.min(row.share * 100, 100)}%` }}
                 />
               </div>
@@ -164,7 +161,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
             </div>
           ))}
         </div>
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -174,7 +171,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const { rows, totals, excludedCount } = data.orderMargins;
     const grid = 'grid w-full min-w-0 grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_repeat(6,minmax(0,0.62fr))]';
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<Scale size={13} strokeWidth={1.4} />, '订单毛利表', 'ORDER MARGIN')}
         <div className={cx(grid, 'px-4 pb-1.5 pt-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
           <div>订单 / 客户</div>
@@ -201,13 +198,13 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               <div className={cx('text-right font-light tabular-nums', textSecondary)}>
                 {row.cost == null ? '—' : row.crossCurrency ? <span title="采销币种不一致，毛利不参与合计">跨币种</span> : formatAmount(row.cost, row.currency)}
               </div>
-              <div className={cx('text-right font-light tabular-nums', row.margin == null ? textFaint : row.margin >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+              <div className={cx('text-right font-light tabular-nums', row.margin == null ? textFaint : row.margin >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
                 {row.margin == null ? '—' : `${row.margin >= 0 ? '+' : ''}${formatAmount(row.margin, row.currency)}`}
               </div>
-              <div className={cx('text-right font-light tabular-nums', row.marginRate == null ? textFaint : row.marginRate >= 0 ? textPrimary : 'text-red-400')}>
+              <div className={cx('text-right font-light tabular-nums', row.marginRate == null ? textFaint : row.marginRate >= 0 ? textPrimary : 'text-[var(--danger-text)]')}>
                 {formatPct(row.marginRate)}
               </div>
-              <div className={cx('text-right font-light tabular-nums', row.collectionRate == null ? textFaint : row.collectionRate >= 0.8 ? 'text-emerald-400' : row.collectionRate >= 0.5 ? textPrimary : 'text-amber-400')}>
+              <div className={cx('text-right font-light tabular-nums', row.collectionRate == null ? textFaint : row.collectionRate >= 0.8 ? 'text-[var(--success-text)]' : row.collectionRate >= 0.5 ? textPrimary : 'text-[var(--warning-text)]')}>
                 {formatPct(row.collectionRate)}
               </div>
               <div className={cx('text-right font-light tabular-nums', textFaint)}>{row.dueDate}</div>
@@ -218,13 +215,13 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
           <div className={cx('shrink-0 border-t px-4 py-2 text-[10px] font-light tabular-nums', divider, textSecondary)}>
             {totals.map(t => (
               <span key={t.currency} className="mr-4">
-                {t.currency} 合计：收入 {formatAmount(t.revenue, t.currency)} · 毛利 <span className={t.margin >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatAmount(t.margin, t.currency)}</span>（{formatPct(t.marginRate)}，{t.orderCount} 单）
+                {t.currency} 合计：收入 {formatAmount(t.revenue, t.currency)} · 毛利 <span className={t.margin >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}>{formatAmount(t.margin, t.currency)}</span>（{formatPct(t.marginRate)}，{t.orderCount} 单）
               </span>
             ))}
             {excludedCount > 0 && <span className={textFaint}>另 {excludedCount} 单跨币种/缺成本未计入</span>}
           </div>
         )}
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -244,11 +241,11 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               <div key={`${title}-${row.customerRelationId ?? row.customerName}-${row.currency}`} className={cx('flex items-center justify-between gap-2 rounded-control px-2 py-1.5', rowBg)}>
                 <div className="min-w-0">
                   <div className={cx('truncate font-light', textPrimary)}>{row.customerName}</div>
-                  <div className={cx('text-[10px] font-light', row.buckets.d90plus > 0 ? 'text-red-400' : textFaint)}>
+                  <div className={cx('text-[10px] font-light', row.buckets.d90plus > 0 ? 'text-[var(--danger-text)]' : textFaint)}>
                     {row.buckets.d90plus > 0 ? `90 天以上 ${formatAmount(row.buckets.d90plus, row.currency)}` : `${row.currency} · ${row.invoiceCount} 张未清`}
                   </div>
                 </div>
-                <div className={cx('shrink-0 font-light tabular-nums', 'text-red-400')}>{formatAmount(overdue, row.currency)}</div>
+                <div className={cx('shrink-0 font-light tabular-nums', 'text-[var(--danger-text)]')}>{formatAmount(overdue, row.currency)}</div>
               </div>
             );
           })}
@@ -256,13 +253,13 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
       </div>
     );
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<BellRing size={13} strokeWidth={1.4} />, '应收应付预警', 'AR/AP OVERDUE')}
         <div className="flex min-h-0 divide-x divide-transparent">
           {oneSide('应收逾期 TOP5', data.arApAlerts.receivable)}
           {oneSide('应付逾期 TOP5', data.arApAlerts.payable)}
         </div>
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -271,16 +268,18 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     const buckets = data.orderStatusDistribution;
     const maxCount = Math.max(...buckets.map(b => b.count), 1);
+    // BDS v2.1：图表分类色 token 化 —— 进行中各阶段（Confirmed/Production/Shipping）
+    // 统一 accent，语义态（Delivered=success / Alert=danger / Pending=中性灰）用语义 token
     const STATUS_COLORS: Record<string, string> = {
-      Pending: 'bg-slate-400',
-      Confirmed: 'bg-blue-400',
-      Production: 'bg-indigo-400',
-      Shipping: 'bg-cyan-400',
-      Delivered: 'bg-emerald-400',
-      Alert: 'bg-red-400',
+      Pending: 'var(--text-quaternary)',
+      Confirmed: 'var(--accent)',
+      Production: 'var(--accent)',
+      Shipping: 'var(--accent)',
+      Delivered: 'var(--success)',
+      Alert: 'var(--danger)',
     };
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<BarChart3 size={13} strokeWidth={1.4} />, '订单状态分布', 'ORDER STATUS')}
         <div className="min-h-0 space-y-1.5 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {buckets.length === 0 && (
@@ -290,7 +289,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
             <div key={`${b.status}-${b.currency}`} className="space-y-1">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
-                  <span className={cx('inline-block h-2 w-2 rounded-full', STATUS_COLORS[b.status] ?? 'bg-slate-400')} />
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ background: STATUS_COLORS[b.status] ?? 'var(--text-quaternary)' }} />
                   <span className={cx('font-light', textPrimary)}>{b.status}</span>
                   <span className={cx('text-[10px] font-light', textFaint)}>{b.currency}</span>
                 </div>
@@ -299,16 +298,16 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
                   <span className={cx('ml-2 text-[10px]', textFaint)}>{formatAmount(b.salesAmount, b.currency)}</span>
                 </div>
               </div>
-              <div className={cx('h-1 overflow-hidden rounded-full', isDarkMode ? 'bg-white/6' : 'bg-slate-300/30')}>
+              <div className="h-1 overflow-hidden rounded-full" style={{ background: 'var(--gauge-track)' }}>
                 <div
-                  className={cx('h-full rounded-full transition-all duration-500', STATUS_COLORS[b.status] ?? 'bg-slate-400')}
-                  style={{ width: `${(b.count / maxCount) * 100}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${(b.count / maxCount) * 100}%`, background: STATUS_COLORS[b.status] ?? 'var(--text-quaternary)' }}
                 />
               </div>
             </div>
           ))}
         </div>
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -317,7 +316,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     const alerts = data.deliveryAlerts;
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<Clock size={13} strokeWidth={1.4} />, '交付预警', 'DELIVERY ALERTS')}
         <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {alerts.length === 0 && (
@@ -330,7 +329,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
                 <div className={cx('truncate text-[10px] font-light', textFaint)}>{a.customer} · {a.product}</div>
               </div>
               <div className="shrink-0 text-right">
-                <div className={cx('font-light tabular-nums', a.daysUntilDue < 0 ? 'text-red-400' : a.daysUntilDue <= 3 ? 'text-amber-400' : textSecondary)}>
+                <div className={cx('font-light tabular-nums', a.daysUntilDue < 0 ? 'text-[var(--danger-text)]' : a.daysUntilDue <= 3 ? 'text-[var(--warning-text)]' : textSecondary)}>
                   {a.daysUntilDue < 0 ? `逾期 ${-a.daysUntilDue} 天` : `${a.daysUntilDue} 天`}
                 </div>
                 <div className={cx('text-[10px] font-light tabular-nums', textFaint)}>{a.dueDate} · {formatAmount(a.orderAmount, a.currency)}</div>
@@ -338,7 +337,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
             </div>
           ))}
         </div>
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -347,7 +346,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     const alerts = data.sampleProgressAlerts;
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<FlaskConical size={13} strokeWidth={1.4} />, '样品进度预警', 'SAMPLE PROGRESS')}
         <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {alerts.length === 0 && (
@@ -359,17 +358,17 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
                 <div className={cx('truncate font-light', textPrimary)}>{a.caseCode} · {a.caseName}</div>
                 <div className={cx('truncate text-[10px] font-light', textFaint)}>
                   {a.customerName ?? '—'} · {a.productName ?? '—'} · 第 {a.currentRound} 轮
-                  {a.priority === 'urgent' && <span className="ml-1 text-red-400">紧急</span>}
+                  {a.priority === 'urgent' && <span className="ml-1 text-[var(--danger-text)]">紧急</span>}
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <div className={cx('font-light tabular-nums text-red-400')}>逾期 {a.daysOverdue} 天</div>
+                <div className="font-light tabular-nums text-[var(--danger-text)]">逾期 {a.daysOverdue} 天</div>
                 <div className={cx('text-[10px] font-light', textFaint)}>目标 {a.targetDate}</div>
               </div>
             </div>
           ))}
         </div>
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -379,10 +378,10 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const points = data.fxTrend.points;
     if (points.length === 0) {
       return (
-        <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+        <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
           {sectionTitle(<TrendingUp size={13} strokeWidth={1.4} />, '汇率走势', 'FX TREND')}
           <div className={cx('py-5 text-center text-xs font-light', textFaint)}>暂无汇率数据</div>
-        </RdlSurface>
+        </div>
       );
     }
     // 按币种分组
@@ -392,7 +391,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
       byCurrency.get(p.currency)!.push(p);
     }
     return (
-      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-col">
+      <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
         {sectionTitle(<TrendingUp size={13} strokeWidth={1.4} />, '汇率走势', 'FX TREND')}
         <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {[...byCurrency.entries()].map(([currency, pts]) => {
@@ -414,15 +413,15 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               <div key={currency} className={cx('rounded-control px-2 py-1.5', rowBg)}>
                 <div className="flex items-center justify-between">
                   <span className={cx('font-light', textPrimary)}>{currency}/CNY</span>
-                  <span className={cx('font-light tabular-nums', isUp ? 'text-emerald-400' : 'text-red-400')}>
+                  <span className={cx('font-light tabular-nums', isUp ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
                     {lastRate.toFixed(4)}
-                    <span className={cx('ml-1 text-[10px]', isUp ? 'text-emerald-400' : 'text-red-400')}>
+                    <span className={cx('ml-1 text-[10px]', isUp ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
                       {isUp ? '+' : ''}{(lastRate - firstRate).toFixed(4)}
                     </span>
                   </span>
                 </div>
                 <svg viewBox={`0 0 ${w} ${h}`} className="mt-1 w-full" preserveAspectRatio="none" style={{ height: h }}>
-                  <path d={path} fill="none" stroke={isUp ? 'rgb(74 222 128)' : 'rgb(248 113 113)'} strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+                  <path d={path} fill="none" strokeWidth="0.8" vectorEffect="non-scaling-stroke" style={{ stroke: isUp ? 'var(--success)' : 'var(--danger)' }} />
                 </svg>
                 <div className={cx('mt-0.5 flex justify-between text-[9px] font-light', textFaint)}>
                   <span>{pts[0].effectiveDate}</span>
@@ -432,7 +431,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
             );
           })}
         </div>
-      </RdlSurface>
+      </div>
     );
   };
 
@@ -444,36 +443,36 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const apOverdue = data.arApAlerts.payable.totals;
     return (
       <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
-        <RdlMetricCard className="px-4 py-3">
+        <div className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
           <div className={cx('flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
             {fxGain ? <TrendingUp size={11} strokeWidth={1.4} /> : <TrendingDown size={11} strokeWidth={1.4} />}
             汇兑净{fxGain ? '收益' : '损失'} · {data.fxSummary.baseCurrency}
           </div>
-          <div className={cx('mt-1.5 text-lg font-light tabular-nums', fxGain ? 'text-emerald-400' : 'text-red-400')}>
+          <div className={cx('bds-tnum mt-1.5 text-lg font-light', fxGain ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
             {fxGain ? '+' : ''}{formatAmount(data.fxSummary.totalGainLoss, data.fxSummary.baseCurrency)}
           </div>
           <div className={cx('mt-1 text-[10px] font-light', textFaint)}>{data.fxSummary.rowCount} 笔核销 · 区间内</div>
-        </RdlMetricCard>
+        </div>
         {arOverdue.map(t => (
-          <RdlMetricCard key={`ar-${t.currency}`} className="px-4 py-3">
+          <div key={`ar-${t.currency}`} className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
             <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>应收逾期 · {t.currency}</div>
-            <div className={cx('mt-1.5 text-lg font-light tabular-nums', t.overdue > 0 ? 'text-red-400' : textPrimary)}>{formatAmount(t.overdue, t.currency)}</div>
-            <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>未收合计 {formatAmount(t.total, t.currency)}</div>
-          </RdlMetricCard>
+            <div className={cx('bds-tnum mt-1.5 text-lg font-light', t.overdue > 0 ? 'text-[var(--danger-text)]' : textPrimary)}>{formatAmount(t.overdue, t.currency)}</div>
+            <div className={cx('bds-tnum mt-1 text-[10px] font-light', textFaint)}>未收合计 {formatAmount(t.total, t.currency)}</div>
+          </div>
         ))}
         {apOverdue.map(t => (
-          <RdlMetricCard key={`ap-${t.currency}`} className="px-4 py-3">
+          <div key={`ap-${t.currency}`} className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
             <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>应付逾期 · {t.currency}</div>
-            <div className={cx('mt-1.5 text-lg font-light tabular-nums', t.overdue > 0 ? 'text-red-400' : textPrimary)}>{formatAmount(t.overdue, t.currency)}</div>
-            <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>未付合计 {formatAmount(t.total, t.currency)}</div>
-          </RdlMetricCard>
+            <div className={cx('bds-tnum mt-1.5 text-lg font-light', t.overdue > 0 ? 'text-[var(--danger-text)]' : textPrimary)}>{formatAmount(t.overdue, t.currency)}</div>
+            <div className={cx('bds-tnum mt-1 text-[10px] font-light', textFaint)}>未付合计 {formatAmount(t.total, t.currency)}</div>
+          </div>
         ))}
         {arOverdue.length === 0 && apOverdue.length === 0 && (
-          <RdlMetricCard className="px-4 py-3">
+          <div className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
             <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>账龄预警</div>
             <div className={cx('mt-1.5 text-lg font-light', textPrimary)}>无未清账款</div>
             <div className={cx('mt-1 text-[10px] font-light', textFaint)}>应收/应付均已核销</div>
-          </RdlMetricCard>
+          </div>
         )}
       </div>
     );
@@ -491,13 +490,13 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
         <div className="flex h-full min-h-0 flex-col gap-2.5">
           {/* 工具条：区间 + 查询 */}
           <div className="flex min-h-0 shrink-0 items-center gap-2">
-            <RdlToolbar density="compact">
+            <div className="bds-filterbar">
               <span className={cx('px-2 text-[10px] font-light tracking-[0.14em]', textSecondary)}>统计区间</span>
               <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <input type="date" value={to} onChange={e => setTo(e.target.value)} className={inputCls} aria-label="结束日期" />
-              <RdlPill type="button" active tone="accent" onClick={load} className="min-h-8 px-4 text-[11px]">查询</RdlPill>
-            </RdlToolbar>
+              <button type="button" onClick={load} className="bds-btn bds-btn-primary sm">查询</button>
+            </div>
             {data && (
               <div className={cx('ml-auto text-[10px] font-light tabular-nums', textFaint)}>
                 生成于 {new Date(data.generatedAt).toLocaleString('zh-CN', { hour12: false })}
@@ -511,7 +510,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
             </div>
           ) : error ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2">
-              <AlertCircle size={18} strokeWidth={1.2} className="text-red-400/70" />
+              <AlertCircle size={18} strokeWidth={1.2} className="text-[var(--danger-text)]" />
               <div className={cx('text-xs font-light', textSecondary)}>{error}</div>
             </div>
           ) : (

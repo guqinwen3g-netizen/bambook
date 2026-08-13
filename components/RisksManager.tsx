@@ -12,7 +12,8 @@
  * 设计原则：
  *   - 预警/评级/检查均为服务端真源，前端只做展示与触发，不做本地推断
  *   - Relation 名称经既有 relations API 批量取映射（category=Customer）
- *   - RDL flat 设计：statusSemanticClass 中性色阶，无阴影，大圆角
+ *   - BDS v2.1：视觉层已迁移至组件族（bds-tabs/bds-segment/bds-card/bds-badge/bds-table/bds-input/bds-empty 等），
+ *     状态用 bds-badge 语义变体（*_VARIANT 常量）替代 statusSemanticClass 拼装，主题透明无 isDarkMode 三元
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -51,7 +52,6 @@ import {
   DefectTrendItem,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ==================== 常量 ====================
 
@@ -85,29 +85,10 @@ const ALERT_LEVEL_LABELS: Record<RiskAlertLevel, string> = {
   info: '提示',
 };
 
-const ALERT_LEVEL_SEMANTIC: Record<RiskAlertLevel, StatusSemantic> = {
-  critical: 'danger',
-  warning: 'warning',
-  info: 'info',
-};
-
 const ALERT_STATUS_LABELS: Record<RiskAlertStatus, string> = {
   Open: '未处理',
   Acknowledged: '已确认',
   Resolved: '已解决',
-};
-
-const ALERT_STATUS_SEMANTIC: Record<RiskAlertStatus, StatusSemantic> = {
-  Open: 'warning',
-  Acknowledged: 'info',
-  Resolved: 'success',
-};
-
-const GRADE_SEMANTIC: Record<CreditGrade, StatusSemantic> = {
-  A: 'success',
-  B: 'active',
-  C: 'warning',
-  D: 'danger',
 };
 
 const CHECK_TYPE_LABELS: Record<ComplianceCheckType, string> = {
@@ -122,7 +103,29 @@ const CHECK_RESULT_LABELS: Record<ComplianceCheckResult, string> = {
   fail: '未通过',
 };
 
-const CHECK_RESULT_SEMANTIC: Record<ComplianceCheckResult, StatusSemantic> = {
+// BDS v2.1：状态 → bds-badge 语义变体（主题透明，替代 statusSemanticClass 拼装；active 归并 info）
+type BadgeVariant = 'neutral' | 'info' | 'success' | 'danger' | 'warning';
+
+const ALERT_LEVEL_VARIANT: Record<RiskAlertLevel, BadgeVariant> = {
+  critical: 'danger',
+  warning: 'warning',
+  info: 'info',
+};
+
+const ALERT_STATUS_VARIANT: Record<RiskAlertStatus, BadgeVariant> = {
+  Open: 'warning',
+  Acknowledged: 'info',
+  Resolved: 'success',
+};
+
+const GRADE_VARIANT: Record<CreditGrade, BadgeVariant> = {
+  A: 'success',
+  B: 'info',
+  C: 'warning',
+  D: 'danger',
+};
+
+const CHECK_RESULT_VARIANT: Record<ComplianceCheckResult, BadgeVariant> = {
   pass: 'success',
   warn: 'warning',
   fail: 'danger',
@@ -163,16 +166,16 @@ interface RisksManagerProps {
   isDarkMode?: boolean;
 }
 
-// ==================== 共享样式 ====================
+// ==================== 共享样式（BDS v2.1 组件族） ====================
 
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
-const actionButtonClass = "flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50";
+const actionBtnCls = 'bds-btn bds-btn-secondary sm';
+const selectSmStyle: React.CSSProperties = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)', width: 'auto' };
 
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border-subtle">
-        <span className="text-xs text-text-tertiary">{title}</span>
+    <div className="bds-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: 'var(--border-subtle)' }}>
+        <span className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>{title}</span>
         {extra && <div className="ml-auto flex items-center gap-2">{extra}</div>}
       </div>
       <div className="p-4">{children}</div>
@@ -183,7 +186,7 @@ function SectionCard({ title, extra, children }: { title: string; extra?: React.
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      <label className="block text-xs mb-1 text-[var(--text-tertiary)]">{label}</label>
       {children}
     </div>
   );
@@ -198,26 +201,24 @@ export default function RisksManager({ isDarkMode }: RisksManagerProps) {
     <div className="h-full flex flex-col">
       <PageHeader title="风险管理与合规" subtitle="Risk & Compliance" />
 
-      {/* 模块 Tab 栏 */}
-      <div className="px-7 flex items-center gap-1 border-b border-border-subtle shrink-0">
-        {MODULE_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
-                isActive
-                  ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
+      <div className="px-7 pb-3 shrink-0">
+        <div className="bds-tabs">
+          {MODULE_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`bds-tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tab 内容（切换即重挂载，保证数据新鲜） */}
@@ -231,11 +232,11 @@ export default function RisksManager({ isDarkMode }: RisksManagerProps) {
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'alerts' && <AlertsPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'fx' && <FxPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'credit' && <CreditPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'compliance' && <CompliancePanel isDarkMode={isDarkMode} />}
-            {activeTab === 'quality' && <QualityPanel isDarkMode={isDarkMode} />}
+            {activeTab === 'alerts' && <AlertsPanel />}
+            {activeTab === 'fx' && <FxPanel />}
+            {activeTab === 'credit' && <CreditPanel />}
+            {activeTab === 'compliance' && <CompliancePanel />}
+            {activeTab === 'quality' && <QualityPanel />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -245,7 +246,7 @@ export default function RisksManager({ isDarkMode }: RisksManagerProps) {
 
 // ==================== 预警中心 Panel ====================
 
-function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function AlertsPanel() {
   const [overview, setOverview] = useState<RiskOverview | null>(null);
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
   const [total, setTotal] = useState(0);
@@ -313,17 +314,14 @@ function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   return (
     <div className="h-full flex flex-col min-h-0 gap-4">
       {/* 总览统计条 */}
-      <div className="shrink-0 rounded-panel bg-surface-primary border border-border-subtle px-4 py-3 flex items-center gap-3 flex-wrap">
-        <span className="text-xs text-text-tertiary shrink-0">未结预警</span>
+      <div className="bds-card shrink-0 flex items-center gap-3 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
+        <span className="text-xs shrink-0" style={{ color: 'var(--text-tertiary)' }}>未结预警</span>
         {(['critical', 'warning', 'info'] as RiskAlertLevel[]).map((level) => (
-          <span
-            key={level}
-            className={`text-xs px-2.5 py-1 rounded-control border ${statusSemanticClass(ALERT_LEVEL_SEMANTIC[level], isDarkMode)}`}
-          >
+          <span key={level} className={`bds-badge sm ${ALERT_LEVEL_VARIANT[level]}`}>
             {ALERT_LEVEL_LABELS[level]} {overview?.openByLevel?.[level] ?? 0}
           </span>
         ))}
-        <span className="ml-auto text-[11px] text-text-tertiary truncate">
+        <span className="ml-auto text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>
           {openByTypeEntries.length > 0
             ? openByTypeEntries.map(([type, count]) => `${ALERT_TYPE_LABELS[type as RiskAlertType] ?? type} ${count}`).join(' · ')
             : '各类型暂无未结预警'}
@@ -331,92 +329,86 @@ function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
       </div>
 
       {/* 过滤 + 列表 */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
-        <div className="p-3 border-b border-border-subtle space-y-2">
+      <div className="bds-card flex-1 min-h-0 flex flex-col" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] text-text-tertiary w-10 shrink-0">类型</span>
-            {(['', 'fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat', 'sample_deadline'] as const).map((t) => (
-              <button
-                key={t || 'all'}
-                onClick={() => setTypeFilter(t)}
-                className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                  typeFilter === t
-                    ? statusSemanticClass('active', isDarkMode)
-                    : 'text-text-tertiary border-transparent hover:text-text-secondary'
-                }`}
-              >
-                {t === '' ? '全部' : ALERT_TYPE_LABELS[t]}
-              </button>
-            ))}
+            <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>类型</span>
+            <div className="bds-segment flex-wrap">
+              {(['', 'fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat', 'sample_deadline'] as const).map((t) => (
+                <button
+                  key={t || 'all'}
+                  onClick={() => setTypeFilter(t)}
+                  className={`seg ${typeFilter === t ? 'active' : ''}`}
+                >
+                  {t === '' ? '全部' : ALERT_TYPE_LABELS[t]}
+                </button>
+              ))}
+            </div>
             <button
               onClick={refreshAll}
-              className="ml-auto p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+              className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
               title="刷新"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] text-text-tertiary w-10 shrink-0">等级</span>
-            {(['', 'critical', 'warning', 'info'] as const).map((l) => (
-              <button
-                key={l || 'all'}
-                onClick={() => setLevelFilter(l)}
-                className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                  levelFilter === l
-                    ? statusSemanticClass('active', isDarkMode)
-                    : 'text-text-tertiary border-transparent hover:text-text-secondary'
-                }`}
-              >
-                {l === '' ? '全部' : ALERT_LEVEL_LABELS[l]}
-              </button>
-            ))}
+            <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>等级</span>
+            <div className="bds-segment flex-wrap">
+              {(['', 'critical', 'warning', 'info'] as const).map((l) => (
+                <button
+                  key={l || 'all'}
+                  onClick={() => setLevelFilter(l)}
+                  className={`seg ${levelFilter === l ? 'active' : ''}`}
+                >
+                  {l === '' ? '全部' : ALERT_LEVEL_LABELS[l]}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] text-text-tertiary w-10 shrink-0">状态</span>
-            {(['', 'Open', 'Acknowledged', 'Resolved'] as const).map((s) => (
-              <button
-                key={s || 'all'}
-                onClick={() => setStatusFilter(s)}
-                className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                  statusFilter === s
-                    ? statusSemanticClass('active', isDarkMode)
-                    : 'text-text-tertiary border-transparent hover:text-text-secondary'
-                }`}
-              >
-                {s === '' ? '全部' : ALERT_STATUS_LABELS[s]}
-              </button>
-            ))}
+            <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>状态</span>
+            <div className="bds-segment flex-wrap">
+              {(['', 'Open', 'Acknowledged', 'Resolved'] as const).map((s) => (
+                <button
+                  key={s || 'all'}
+                  onClick={() => setStatusFilter(s)}
+                  className={`seg ${statusFilter === s ? 'active' : ''}`}
+                >
+                  {s === '' ? '全部' : ALERT_STATUS_LABELS[s]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+              <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
             </div>
           ) : alerts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-text-tertiary px-4">
-              <BellRing className="w-10 h-10 mb-2 opacity-40" />
-              <p className="text-sm text-center">暂无匹配的风险预警</p>
+            <div className="bds-empty">
+              <div className="glyph"><BellRing size={24} /></div>
+              <div className="title">暂无匹配的风险预警</div>
             </div>
           ) : (
             alerts.map((alert) => (
-              <div key={alert.id} className="px-4 py-3 border-b border-border-subtle">
+              <div key={alert.id} className="px-4 py-3" style={{ borderBottom: 'var(--border-subtle)' }}>
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(ALERT_LEVEL_SEMANTIC[alert.level] ?? 'neutral', isDarkMode)}`}>
+                  <span className={`bds-badge sm shrink-0 ${ALERT_LEVEL_VARIANT[alert.level] ?? 'neutral'}`}>
                     {ALERT_LEVEL_LABELS[alert.level] || alert.level}
                   </span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('info', isDarkMode)}`}>
+                  <span className="bds-badge sm info shrink-0">
                     {ALERT_TYPE_LABELS[alert.type] || alert.type}
                   </span>
-                  <span className="text-sm text-text-primary font-medium truncate">{alert.title}</span>
-                  <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(ALERT_STATUS_SEMANTIC[alert.status] ?? 'neutral', isDarkMode)}`}>
+                  <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{alert.title}</span>
+                  <span className={`bds-badge sm ml-auto shrink-0 ${ALERT_STATUS_VARIANT[alert.status] ?? 'neutral'}`}>
                     {ALERT_STATUS_LABELS[alert.status] || alert.status}
                   </span>
                 </div>
-                <div className="mt-1.5 text-xs text-text-secondary whitespace-pre-wrap">{alert.content}</div>
-                <div className="mt-2 flex items-center gap-3 text-[11px] text-text-tertiary flex-wrap">
+                <div className="mt-1.5 text-xs whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{alert.content}</div>
+                <div className="mt-2 flex items-center gap-3 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                   <span>{formatTs(alert.createdAt)}</span>
                   {alert.relatedType && (
                     <span>关联 {alert.relatedType}{alert.relatedId ? ` ${alert.relatedId}` : ''}</span>
@@ -427,7 +419,7 @@ function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                       <button
                         onClick={() => handleUpdateStatus(alert, 'Acknowledged')}
                         disabled={updatingId === alert.id}
-                        className={actionButtonClass}
+                        className={actionBtnCls}
                       >
                         {updatingId === alert.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                         确认
@@ -437,7 +429,7 @@ function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                       <button
                         onClick={() => handleUpdateStatus(alert, 'Resolved')}
                         disabled={updatingId === alert.id}
-                        className={actionButtonClass}
+                        className={actionBtnCls}
                       >
                         {updatingId === alert.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
                         标记解决
@@ -449,7 +441,7 @@ function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
             ))
           )}
         </div>
-        <div className="px-4 py-2 border-t border-border-subtle text-[11px] text-text-tertiary">
+        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           共 {total} 条预警
         </div>
       </div>
@@ -459,7 +451,7 @@ function AlertsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
 
 // ==================== 汇率 Panel ====================
 
-function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function FxPanel() {
   const [latest, setLatest] = useState<LatestFxRate[]>([]);
   const [rates, setRates] = useState<ExchangeRate[]>([]);
   const [locks, setLocks] = useState<FxRateLock[]>([]);
@@ -601,7 +593,7 @@ function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
         extra={
           <button
             onClick={refreshAll}
-            className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+            className="bds-btn bds-btn-ghost bds-btn-icon sm"
             title="刷新"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -609,19 +601,20 @@ function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
         }
       >
         {latest.length === 0 ? (
-          <div className="text-center py-6 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-            暂无汇率数据，请在下方录入第一条汇率
+          <div className="bds-empty">
+            <div className="glyph"><CircleDollarSign size={24} /></div>
+            <div className="title">暂无汇率数据，请在下方录入第一条汇率</div>
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-3">
             {latest.map((item) => (
-              <div key={item.currency} className="bg-surface-elevated rounded-card p-3">
+              <div key={item.currency} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
                 <div className="flex items-center gap-2">
-                  <span className="text-base font-medium text-text-primary">{item.currency}</span>
-                  <span className="text-[10px] text-text-tertiary ml-auto">{item.source}</span>
+                  <span className="text-base" style={{ color: 'var(--text-primary)' }}>{item.currency}</span>
+                  <span className="text-[10px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{item.source}</span>
                 </div>
-                <div className="mt-1 text-lg text-text-primary font-medium">{formatRate(item.rate)}</div>
-                <div className="mt-1 text-[11px] text-text-tertiary">生效 {formatDate(item.effectiveDate)}</div>
+                <div className="bds-tnum mt-1 text-lg" style={{ color: 'var(--text-primary)' }}>{formatRate(item.rate)}</div>
+                <div className="mt-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>生效 {formatDate(item.effectiveDate)}</div>
               </div>
             ))}
           </div>
@@ -632,22 +625,22 @@ function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
       <SectionCard title="录入汇率">
         <div className="grid grid-cols-4 gap-3 items-end">
           <Field label="币种 *">
-            <select className={inputClass} value={rateCurrency} onChange={(e) => setRateCurrency(e.target.value)}>
+            <select className="bds-select" value={rateCurrency} onChange={(e) => setRateCurrency(e.target.value)}>
               {FX_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
           <Field label="汇率（兑 CNY）*">
-            <input type="number" min={0} step="0.0001" className={inputClass} value={rateValue} onChange={(e) => setRateValue(e.target.value)} placeholder="如 7.1234" />
+            <input type="number" min={0} step="0.0001" className="bds-input" value={rateValue} onChange={(e) => setRateValue(e.target.value)} placeholder="如 7.1234" />
           </Field>
           <Field label="生效日期">
-            <input type="date" className={inputClass} value={rateDate} onChange={(e) => setRateDate(e.target.value)} />
+            <input type="date" className="bds-input" value={rateDate} onChange={(e) => setRateDate(e.target.value)} />
           </Field>
           <Field label="备注">
-            <input className={inputClass} value={rateNote} onChange={(e) => setRateNote(e.target.value)} placeholder="可选" />
+            <input className="bds-input" value={rateNote} onChange={(e) => setRateNote(e.target.value)} placeholder="可选" />
           </Field>
         </div>
         <div className="flex justify-end">
-          <button onClick={handleAddRate} disabled={savingRate} className={actionButtonClass}>
+          <button onClick={handleAddRate} disabled={savingRate} className={actionBtnCls}>
             {savingRate ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CircleDollarSign className="w-3.5 h-3.5" />}
             录入汇率
           </button>
@@ -661,7 +654,8 @@ function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
           <select
             value={currencyFilter}
             onChange={(e) => setCurrencyFilter(e.target.value)}
-            className="bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1.5 border border-border-subtle outline-none focus:border-border-action"
+            className="bds-select"
+            style={selectSmStyle}
           >
             <option value="">全部币种</option>
             {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -670,34 +664,39 @@ function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
       >
         {loadingRates ? (
           <div className="flex items-center justify-center py-10">
-            <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : rates.length === 0 ? (
-          <div className="text-center py-6 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-            暂无汇率记录
+          <div className="bds-empty">
+            <div className="glyph"><CircleDollarSign size={24} /></div>
+            <div className="title">暂无汇率记录</div>
           </div>
         ) : (
-          <div className="bg-surface-elevated rounded-card overflow-hidden">
-            <div className="grid grid-cols-[0.7fr_1fr_1fr_0.8fr_1.4fr_1.2fr] gap-2 px-4 py-2 border-b border-border-subtle text-[11px] text-text-tertiary">
-              <span>币种</span>
-              <span>汇率</span>
-              <span>生效日期</span>
-              <span>来源</span>
-              <span>备注</span>
-              <span>录入时间</span>
-            </div>
-            <div className="divide-y divide-border-subtle">
-              {rates.map((rate) => (
-                <div key={rate.id} className="grid grid-cols-[0.7fr_1fr_1fr_0.8fr_1.4fr_1.2fr] gap-2 px-4 py-2.5 items-center">
-                  <span className="text-sm text-text-primary font-medium">{rate.currency}</span>
-                  <span className="text-sm text-text-primary">{formatRate(rate.rate)}</span>
-                  <span className="text-xs text-text-secondary">{formatDate(rate.effectiveDate)}</span>
-                  <span className="text-xs text-text-tertiary">{rate.source}</span>
-                  <span className="text-xs text-text-tertiary truncate" title={rate.note || undefined}>{rate.note || '—'}</span>
-                  <span className="text-xs text-text-tertiary">{formatTs(rate.createdAt)}</span>
-                </div>
-              ))}
-            </div>
+          <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+            <table className="bds-table">
+              <thead>
+                <tr>
+                  <th>币种</th>
+                  <th className="num">汇率</th>
+                  <th>生效日期</th>
+                  <th>来源</th>
+                  <th>备注</th>
+                  <th>录入时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rates.map((rate) => (
+                  <tr key={rate.id}>
+                    <td style={{ color: 'var(--text-primary)' }}>{rate.currency}</td>
+                    <td className="num bds-tnum">{formatRate(rate.rate)}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{formatDate(rate.effectiveDate)}</td>
+                    <td style={{ color: 'var(--text-tertiary)' }}>{rate.source}</td>
+                    <td className="max-w-[220px] truncate" title={rate.note || undefined} style={{ color: 'var(--text-tertiary)' }}>{rate.note || '—'}</td>
+                    <td style={{ color: 'var(--text-tertiary)' }}>{formatTs(rate.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </SectionCard>
@@ -706,63 +705,69 @@ function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
       <SectionCard title="订单汇率锁定">
         <div className="grid grid-cols-[1.2fr_0.8fr_1fr_1.2fr_auto] gap-3 items-end mb-4">
           <Field label="订单号 *">
-            <input className={inputClass} value={lockOrderId} onChange={(e) => setLockOrderId(e.target.value)} placeholder="如 SO-2026-0001" />
+            <input className="bds-input" value={lockOrderId} onChange={(e) => setLockOrderId(e.target.value)} placeholder="如 SO-2026-0001" />
           </Field>
           <Field label="币种 *">
-            <select className={inputClass} value={lockCurrency} onChange={(e) => setLockCurrency(e.target.value)}>
+            <select className="bds-select" value={lockCurrency} onChange={(e) => setLockCurrency(e.target.value)}>
               {FX_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
           <Field label="锁定汇率">
-            <input type="number" min={0} step="0.0001" className={inputClass} value={lockRate} onChange={(e) => setLockRate(e.target.value)} placeholder="留空取最新汇率" />
+            <input type="number" min={0} step="0.0001" className="bds-input" value={lockRate} onChange={(e) => setLockRate(e.target.value)} placeholder="留空取最新汇率" />
           </Field>
           <Field label="备注">
-            <input className={inputClass} value={lockNote} onChange={(e) => setLockNote(e.target.value)} placeholder="可选" />
+            <input className="bds-input" value={lockNote} onChange={(e) => setLockNote(e.target.value)} placeholder="可选" />
           </Field>
-          <button onClick={handleLock} disabled={savingLock} className={`${actionButtonClass} mb-3`}>
+          <button onClick={handleLock} disabled={savingLock} className={`${actionBtnCls} mb-3`}>
             {savingLock ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
             新建锁定
           </button>
         </div>
-        <div className="text-[11px] text-text-tertiary mb-3">锁定汇率留空时将自动取该币种最新有效汇率。</div>
+        <div className="text-[11px] mb-3" style={{ color: 'var(--text-tertiary)' }}>锁定汇率留空时将自动取该币种最新有效汇率。</div>
         {loadingLocks ? (
           <div className="flex items-center justify-center py-10">
-            <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : locks.length === 0 ? (
-          <div className="text-center py-6 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-            暂无汇率锁定，大额订单建议在报价阶段锁定汇率
+          <div className="bds-empty">
+            <div className="glyph"><Lock size={24} /></div>
+            <div className="title">暂无汇率锁定</div>
+            <div className="desc">大额订单建议在报价阶段锁定汇率</div>
           </div>
         ) : (
-          <div className="bg-surface-elevated rounded-card overflow-hidden">
-            <div className="grid grid-cols-[1.2fr_0.7fr_1fr_1.2fr_1.2fr_auto] gap-2 px-4 py-2 border-b border-border-subtle text-[11px] text-text-tertiary">
-              <span>订单号</span>
-              <span>币种</span>
-              <span>锁定汇率</span>
-              <span>锁定时间</span>
-              <span>备注</span>
-              <span className="text-right">操作</span>
-            </div>
-            <div className="divide-y divide-border-subtle">
-              {locks.map((lock) => (
-                <div key={lock.id} className="grid grid-cols-[1.2fr_0.7fr_1fr_1.2fr_1.2fr_auto] gap-2 px-4 py-2.5 items-center">
-                  <span className="text-sm text-text-primary truncate">{lock.orderId}</span>
-                  <span className="text-sm text-text-primary">{lock.currency}</span>
-                  <span className="text-sm text-text-primary">{formatRate(lock.rate)}</span>
-                  <span className="text-xs text-text-tertiary">{formatTs(lock.lockedAt)}</span>
-                  <span className="text-xs text-text-tertiary truncate" title={lock.note || undefined}>{lock.note || '—'}</span>
-                  <span className="flex justify-end">
-                    <button
-                      onClick={() => handleDeleteLock(lock)}
-                      className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
-                      title="删除锁定"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+            <table className="bds-table">
+              <thead>
+                <tr>
+                  <th>订单号</th>
+                  <th>币种</th>
+                  <th className="num">锁定汇率</th>
+                  <th>锁定时间</th>
+                  <th>备注</th>
+                  <th className="num">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {locks.map((lock) => (
+                  <tr key={lock.id}>
+                    <td className="max-w-[200px] truncate" style={{ color: 'var(--text-primary)' }}>{lock.orderId}</td>
+                    <td style={{ color: 'var(--text-primary)' }}>{lock.currency}</td>
+                    <td className="num bds-tnum">{formatRate(lock.rate)}</td>
+                    <td style={{ color: 'var(--text-tertiary)' }}>{formatTs(lock.lockedAt)}</td>
+                    <td className="max-w-[200px] truncate" title={lock.note || undefined} style={{ color: 'var(--text-tertiary)' }}>{lock.note || '—'}</td>
+                    <td className="num">
+                      <button
+                        onClick={() => handleDeleteLock(lock)}
+                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        title="删除锁定"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </SectionCard>
@@ -772,7 +777,7 @@ function FxPanel({ isDarkMode }: { isDarkMode?: boolean }) {
 
 // ==================== 信用 Panel ====================
 
-function CreditPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function CreditPanel() {
   const [relations, setRelations] = useState<Relation[]>([]);
   const [ratings, setRatings] = useState<CreditRating[]>([]);
   const [loading, setLoading] = useState(true);
@@ -855,41 +860,43 @@ function CreditPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   return (
     <div className="h-full overflow-y-auto space-y-4 pr-1">
       {/* 操作条 */}
-      <div className="rounded-panel bg-surface-primary border border-border-subtle px-4 py-3 flex items-center gap-2 flex-wrap">
+      <div className="bds-card flex items-center gap-2 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
         <select
           value={evaluateRelationId}
           onChange={(e) => setEvaluateRelationId(e.target.value)}
-          className="bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1.5 border border-border-subtle outline-none focus:border-border-action"
+          className="bds-select"
+          style={selectSmStyle}
         >
           <option value="">选择客户...</option>
           {relations.map((r) => (
             <option key={r.id} value={r.id}>{r.name}</option>
           ))}
         </select>
-        <button onClick={handleEvaluate} disabled={evaluating} className={actionButtonClass}>
+        <button onClick={handleEvaluate} disabled={evaluating} className={actionBtnCls}>
           {evaluating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Gauge className="w-3.5 h-3.5" />}
           评估该客户
         </button>
-        <button onClick={handleScan} disabled={scanning} className={actionButtonClass}>
+        <button onClick={handleScan} disabled={scanning} className={actionBtnCls}>
           {scanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
           运行信用扫描
         </button>
         <button
           onClick={loadRatings}
-          className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+          className="bds-btn bds-btn-ghost bds-btn-icon sm"
           title="刷新"
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
         {scanResult && (
-          <span className={`text-xs px-2.5 py-1 rounded-control border ${statusSemanticClass(scanResult.frozenCount > 0 || scanResult.badDebtCount > 0 ? 'warning' : 'success', isDarkMode)}`}>
+          <span className={`bds-badge sm ${scanResult.frozenCount > 0 || scanResult.badDebtCount > 0 ? 'warning' : 'success'}`}>
             扫描完成：新冻结 {scanResult.frozenCount} 家客户 · 新增坏账预警 {scanResult.badDebtCount} 条
           </span>
         )}
         <select
           value={relationFilter}
           onChange={(e) => setRelationFilter(e.target.value)}
-          className="ml-auto bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1.5 border border-border-subtle outline-none focus:border-border-action"
+          className="bds-select ml-auto"
+          style={selectSmStyle}
         >
           <option value="">全部客户（最新评级）</option>
           {relations.map((r) => (
@@ -899,47 +906,50 @@ function CreditPanel({ isDarkMode }: { isDarkMode?: boolean }) {
       </div>
 
       {/* 评级列表 */}
-      <div className="rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+      <div className="bds-card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : ratings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-text-tertiary px-4">
-            <Gauge className="w-10 h-10 mb-2 opacity-40" />
-            <p className="text-sm text-center">暂无信用评级，选择客户后点击「评估该客户」生成首条评级</p>
+          <div className="bds-empty">
+            <div className="glyph"><Gauge size={24} /></div>
+            <div className="title">暂无信用评级</div>
+            <div className="desc">选择客户后点击「评估该客户」生成首条评级</div>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-[1.2fr_0.6fr_0.7fr_2.4fr_1.1fr_0.9fr] gap-2 px-4 py-2 border-b border-border-subtle text-[11px] text-text-tertiary">
-              <span>客户</span>
-              <span>评级</span>
-              <span>评分</span>
-              <span>评估因子</span>
-              <span>评估时间</span>
-              <span>评估人</span>
-            </div>
-            <div className="divide-y divide-border-subtle">
+          <table className="bds-table">
+            <thead>
+              <tr>
+                <th>客户</th>
+                <th>评级</th>
+                <th className="num">评分</th>
+                <th>评估因子</th>
+                <th>评估时间</th>
+                <th>评估人</th>
+              </tr>
+            </thead>
+            <tbody>
               {ratings.map((rating) => (
-                <div key={rating.id} className="grid grid-cols-[1.2fr_0.6fr_0.7fr_2.4fr_1.1fr_0.9fr] gap-2 px-4 py-2.5 items-center">
-                  <span className="text-sm text-text-primary truncate" title={rating.relationId}>
+                <tr key={rating.id}>
+                  <td className="max-w-[200px] truncate" title={rating.relationId} style={{ color: 'var(--text-primary)' }}>
                     {relationNameById.get(rating.relationId) ?? rating.relationId}
-                  </span>
-                  <span>
-                    <span className={`text-xs px-2 py-0.5 rounded-control border ${statusSemanticClass(GRADE_SEMANTIC[rating.grade] ?? 'neutral', isDarkMode)}`}>
+                  </td>
+                  <td>
+                    <span className={`bds-badge sm ${GRADE_VARIANT[rating.grade] ?? 'neutral'}`}>
                       {rating.grade} 级
                     </span>
-                  </span>
-                  <span className="text-sm text-text-primary font-medium">{formatNumber(rating.score)}</span>
-                  <span className="text-[11px] text-text-tertiary truncate" title={`准时率 ${rating.factors.onTimeRate == null ? '—' : `${Math.round(rating.factors.onTimeRate * 100)}%`} · 逾期 ${rating.factors.overdueCount} 次 · 最长逾期 ${rating.factors.maxDaysOverdue} 天 · 合作 ${rating.factors.cooperationYears} 年 · 已结清 ${rating.factors.settledCount} 单`}>
+                  </td>
+                  <td className="num bds-tnum" style={{ color: 'var(--text-primary)' }}>{formatNumber(rating.score)}</td>
+                  <td className="max-w-[320px] truncate text-[11px]" title={`准时率 ${rating.factors.onTimeRate == null ? '—' : `${Math.round(rating.factors.onTimeRate * 100)}%`} · 逾期 ${rating.factors.overdueCount} 次 · 最长逾期 ${rating.factors.maxDaysOverdue} 天 · 合作 ${rating.factors.cooperationYears} 年 · 已结清 ${rating.factors.settledCount} 单`} style={{ color: 'var(--text-tertiary)' }}>
                     准时率 {rating.factors.onTimeRate == null ? '—' : `${Math.round(rating.factors.onTimeRate * 100)}%`} · 逾期 {rating.factors.overdueCount} 次 · 最长逾期 {rating.factors.maxDaysOverdue} 天 · 合作 {rating.factors.cooperationYears} 年 · 已结清 {rating.factors.settledCount} 单
-                  </span>
-                  <span className="text-xs text-text-tertiary">{formatTs(rating.evaluatedAt)}</span>
-                  <span className="text-xs text-text-tertiary truncate">{rating.evaluatedBy ?? '系统'}</span>
-                </div>
+                  </td>
+                  <td style={{ color: 'var(--text-tertiary)' }}>{formatTs(rating.evaluatedAt)}</td>
+                  <td className="max-w-[120px] truncate" style={{ color: 'var(--text-tertiary)' }}>{rating.evaluatedBy ?? '系统'}</td>
+                </tr>
               ))}
-            </div>
-          </>
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -948,7 +958,7 @@ function CreditPanel({ isDarkMode }: { isDarkMode?: boolean }) {
 
 // ==================== 合规 Panel ====================
 
-function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function CompliancePanel() {
   const [checks, setChecks] = useState<ComplianceCheck[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<'' | ComplianceCheckType>('');
@@ -1050,10 +1060,10 @@ function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
       <div className="grid grid-cols-3 gap-4">
         <SectionCard title="运行 HS Code 检查">
           <Field label="报关单 ID *">
-            <input className={inputClass} value={hsDeclarationId} onChange={(e) => setHsDeclarationId(e.target.value)} placeholder="如 CD-2026-0001" />
+            <input className="bds-input" value={hsDeclarationId} onChange={(e) => setHsDeclarationId(e.target.value)} placeholder="如 CD-2026-0001" />
           </Field>
           <div className="flex justify-end">
-            <button onClick={handleRunHs} disabled={runningHs} className={actionButtonClass}>
+            <button onClick={handleRunHs} disabled={runningHs} className={actionBtnCls}>
               {runningHs ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
               运行检查
             </button>
@@ -1061,10 +1071,10 @@ function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
         </SectionCard>
         <SectionCard title="运行出口管制检查">
           <Field label="报关单 ID *">
-            <input className={inputClass} value={ecDeclarationId} onChange={(e) => setEcDeclarationId(e.target.value)} placeholder="如 CD-2026-0001" />
+            <input className="bds-input" value={ecDeclarationId} onChange={(e) => setEcDeclarationId(e.target.value)} placeholder="如 CD-2026-0001" />
           </Field>
           <div className="flex justify-end">
-            <button onClick={handleRunEc} disabled={runningEc} className={actionButtonClass}>
+            <button onClick={handleRunEc} disabled={runningEc} className={actionBtnCls}>
               {runningEc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
               运行检查
             </button>
@@ -1073,12 +1083,12 @@ function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
         <SectionCard title="人工登记（原产地规则）">
           <div className="grid grid-cols-2 gap-2">
             <Field label="对象类型 *">
-              <select className={inputClass} value={manualTargetType} onChange={(e) => setManualTargetType(e.target.value)}>
+              <select className="bds-select" value={manualTargetType} onChange={(e) => setManualTargetType(e.target.value)}>
                 {CHECK_TARGET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
             <Field label="结果 *">
-              <select className={inputClass} value={manualResult} onChange={(e) => setManualResult(e.target.value as ComplianceCheckResult)}>
+              <select className="bds-select" value={manualResult} onChange={(e) => setManualResult(e.target.value as ComplianceCheckResult)}>
                 {(Object.keys(CHECK_RESULT_LABELS) as ComplianceCheckResult[]).map((r) => (
                   <option key={r} value={r}>{CHECK_RESULT_LABELS[r]}</option>
                 ))}
@@ -1086,13 +1096,13 @@ function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
             </Field>
           </div>
           <Field label="对象 ID *">
-            <input className={inputClass} value={manualTargetId} onChange={(e) => setManualTargetId(e.target.value)} placeholder="如 ORD-... / PA-..." />
+            <input className="bds-input" value={manualTargetId} onChange={(e) => setManualTargetId(e.target.value)} placeholder="如 ORD-... / PA-..." />
           </Field>
           <Field label="结论摘要 *">
-            <input className={inputClass} value={manualSummary} onChange={(e) => setManualSummary(e.target.value)} placeholder="如：满足 RCEP 原产地累积规则" />
+            <input className="bds-input" value={manualSummary} onChange={(e) => setManualSummary(e.target.value)} placeholder="如：满足 RCEP 原产地累积规则" />
           </Field>
           <div className="flex justify-end">
-            <button onClick={handleAddManual} disabled={savingManual} className={actionButtonClass}>
+            <button onClick={handleAddManual} disabled={savingManual} className={actionBtnCls}>
               {savingManual ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
               登记检查
             </button>
@@ -1101,39 +1111,35 @@ function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
       </div>
 
       {/* 检查记录 */}
-      <div className="rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
-        <div className="p-3 border-b border-border-subtle flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] text-text-tertiary w-10 shrink-0">类型</span>
-          {(['', 'hs_code', 'export_control', 'origin_rule'] as const).map((t) => (
-            <button
-              key={t || 'all'}
-              onClick={() => setTypeFilter(t)}
-              className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                typeFilter === t
-                  ? statusSemanticClass('active', isDarkMode)
-                  : 'text-text-tertiary border-transparent hover:text-text-secondary'
-              }`}
-            >
-              {t === '' ? '全部' : CHECK_TYPE_LABELS[t]}
-            </button>
-          ))}
-          <span className="text-[11px] text-text-tertiary w-10 shrink-0 ml-3">结果</span>
-          {(['', 'pass', 'warn', 'fail'] as const).map((r) => (
-            <button
-              key={r || 'all'}
-              onClick={() => setResultFilter(r)}
-              className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                resultFilter === r
-                  ? statusSemanticClass('active', isDarkMode)
-                  : 'text-text-tertiary border-transparent hover:text-text-secondary'
-              }`}
-            >
-              {r === '' ? '全部' : CHECK_RESULT_LABELS[r]}
-            </button>
-          ))}
+      <div className="bds-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="p-3 flex items-center gap-1.5 flex-wrap" style={{ borderBottom: 'var(--border-subtle)' }}>
+          <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>类型</span>
+          <div className="bds-segment flex-wrap">
+            {(['', 'hs_code', 'export_control', 'origin_rule'] as const).map((t) => (
+              <button
+                key={t || 'all'}
+                onClick={() => setTypeFilter(t)}
+                className={`seg ${typeFilter === t ? 'active' : ''}`}
+              >
+                {t === '' ? '全部' : CHECK_TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] w-10 shrink-0 ml-3" style={{ color: 'var(--text-tertiary)' }}>结果</span>
+          <div className="bds-segment flex-wrap">
+            {(['', 'pass', 'warn', 'fail'] as const).map((r) => (
+              <button
+                key={r || 'all'}
+                onClick={() => setResultFilter(r)}
+                className={`seg ${resultFilter === r ? 'active' : ''}`}
+              >
+                {r === '' ? '全部' : CHECK_RESULT_LABELS[r]}
+              </button>
+            ))}
+          </div>
           <button
             onClick={loadChecks}
-            className="ml-auto p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+            className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
             title="刷新"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -1142,42 +1148,45 @@ function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : checks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-text-tertiary px-4">
-            <ClipboardCheck className="w-10 h-10 mb-2 opacity-40" />
-            <p className="text-sm text-center">暂无合规检查记录，可在上方触发自动检查或人工登记</p>
+          <div className="bds-empty">
+            <div className="glyph"><ClipboardCheck size={24} /></div>
+            <div className="title">暂无合规检查记录</div>
+            <div className="desc">可在上方触发自动检查或人工登记</div>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-[1fr_0.7fr_2.2fr_1.6fr_1.1fr_0.8fr] gap-2 px-4 py-2 border-b border-border-subtle text-[11px] text-text-tertiary">
-              <span>类型</span>
-              <span>结果</span>
-              <span>结论摘要</span>
-              <span>检查对象</span>
-              <span>检查时间</span>
-              <span>检查人</span>
-            </div>
-            <div className="divide-y divide-border-subtle">
+          <table className="bds-table">
+            <thead>
+              <tr>
+                <th>类型</th>
+                <th>结果</th>
+                <th>结论摘要</th>
+                <th>检查对象</th>
+                <th>检查时间</th>
+                <th>检查人</th>
+              </tr>
+            </thead>
+            <tbody>
               {checks.map((check) => (
-                <div key={check.id} className="grid grid-cols-[1fr_0.7fr_2.2fr_1.6fr_1.1fr_0.8fr] gap-2 px-4 py-2.5 items-center">
-                  <span className="text-xs text-text-secondary">{CHECK_TYPE_LABELS[check.type] || check.type}</span>
-                  <span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-control border ${statusSemanticClass(CHECK_RESULT_SEMANTIC[check.result] ?? 'neutral', isDarkMode)}`}>
+                <tr key={check.id}>
+                  <td style={{ color: 'var(--text-secondary)' }}>{CHECK_TYPE_LABELS[check.type] || check.type}</td>
+                  <td>
+                    <span className={`bds-badge sm ${CHECK_RESULT_VARIANT[check.result] ?? 'neutral'}`}>
                       {CHECK_RESULT_LABELS[check.result] || check.result}
                     </span>
-                  </span>
-                  <span className="text-xs text-text-primary truncate" title={check.summary}>{check.summary}</span>
-                  <span className="text-[11px] text-text-tertiary truncate" title={`${check.targetType} ${check.targetId}`}>
+                  </td>
+                  <td className="max-w-[280px] truncate" title={check.summary} style={{ color: 'var(--text-primary)' }}>{check.summary}</td>
+                  <td className="max-w-[200px] truncate text-[11px]" title={`${check.targetType} ${check.targetId}`} style={{ color: 'var(--text-tertiary)' }}>
                     {check.targetType} {check.targetId}
-                  </span>
-                  <span className="text-xs text-text-tertiary">{formatTs(check.checkedAt)}</span>
-                  <span className="text-xs text-text-tertiary truncate">{check.checkedById ?? '系统'}</span>
-                </div>
+                  </td>
+                  <td style={{ color: 'var(--text-tertiary)' }}>{formatTs(check.checkedAt)}</td>
+                  <td className="max-w-[120px] truncate" style={{ color: 'var(--text-tertiary)' }}>{check.checkedById ?? '系统'}</td>
+                </tr>
               ))}
-            </div>
-          </>
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -1186,7 +1195,7 @@ function CompliancePanel({ isDarkMode }: { isDarkMode?: boolean }) {
 
 // ==================== 质量 Panel ====================
 
-function QualityPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function QualityPanel() {
   const [groupBy, setGroupBy] = useState<'factory' | 'quarter'>('factory');
   const [trends, setTrends] = useState<DefectTrendItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1222,90 +1231,97 @@ function QualityPanel({ isDarkMode }: { isDarkMode?: boolean }) {
     }
   };
 
+  const stickyThStyle: React.CSSProperties = { position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 };
+
   return (
     <div className="h-full flex flex-col min-h-0 gap-4">
       {/* 操作条 */}
-      <div className="shrink-0 rounded-panel bg-surface-primary border border-border-subtle px-4 py-3 flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] text-text-tertiary shrink-0">分组</span>
-        {(['factory', 'quarter'] as const).map((g) => (
-          <button
-            key={g}
-            onClick={() => setGroupBy(g)}
-            className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-              groupBy === g
-                ? statusSemanticClass('active', isDarkMode)
-                : 'text-text-tertiary border-transparent hover:text-text-secondary'
-            }`}
-          >
-            {g === 'factory' ? '按工厂' : '按季度'}
-          </button>
-        ))}
-        <button onClick={handleScan} disabled={scanning} className={actionButtonClass}>
+      <div className="bds-card shrink-0 flex items-center gap-2 flex-wrap" style={{ padding: 'var(--space-3) var(--space-4)' }}>
+        <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>分组</span>
+        <div className="bds-segment">
+          {(['factory', 'quarter'] as const).map((g) => (
+            <button
+              key={g}
+              onClick={() => setGroupBy(g)}
+              className={`seg ${groupBy === g ? 'active' : ''}`}
+            >
+              {g === 'factory' ? '按工厂' : '按季度'}
+            </button>
+          ))}
+        </div>
+        <button onClick={handleScan} disabled={scanning} className={actionBtnCls}>
           {scanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
           运行重复问题扫描
         </button>
         <button
           onClick={loadTrends}
-          className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+          className="bds-btn bds-btn-ghost bds-btn-icon sm"
           title="刷新"
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
         {scanResult !== null && (
-          <span className={`text-xs px-2.5 py-1 rounded-control border ${statusSemanticClass(scanResult > 0 ? 'warning' : 'success', isDarkMode)}`}>
+          <span className={`bds-badge sm ${scanResult > 0 ? 'warning' : 'success'}`}>
             扫描完成：新增 {scanResult} 条重复质量预警
           </span>
         )}
       </div>
 
       {/* 趋势表格 */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+      <div className="bds-card flex-1 min-h-0 flex flex-col" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : trends.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-text-tertiary px-4">
-            <ShieldCheck className="w-10 h-10 mb-2 opacity-40" />
-            <p className="text-sm text-center">暂无疵点趋势数据，验货报告积累后自动聚合</p>
+          <div className="bds-empty flex-1 justify-center">
+            <div className="glyph"><ShieldCheck size={24} /></div>
+            <div className="title">暂无疵点趋势数据</div>
+            <div className="desc">验货报告积累后自动聚合</div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
-            <div className="grid grid-cols-[1.1fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_2fr] gap-2 px-4 py-2 border-b border-border-subtle text-[11px] text-text-tertiary sticky top-0 bg-surface-primary">
-              <span>{groupBy === 'factory' ? '工厂' : '季度'}</span>
-              <span>验货报告</span>
-              <span>不合格</span>
-              <span>严重疵点</span>
-              <span>主要疵点</span>
-              <span>轻微疵点</span>
-              <span>高频疵点</span>
-            </div>
-            <div className="divide-y divide-border-subtle">
-              {trends.map((item) => (
-                <div key={item.key} className="grid grid-cols-[1.1fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_2fr] gap-2 px-4 py-2.5 items-center">
-                  <span className="text-sm text-text-primary truncate">{item.key}</span>
-                  <span className="text-sm text-text-secondary">{formatNumber(item.reports)}</span>
-                  <span className="text-sm text-text-secondary">{formatNumber(item.failCount)}</span>
-                  <span className={`text-sm ${item.criticalDefects > 0 ? 'text-text-primary font-medium' : 'text-text-tertiary'}`}>{formatNumber(item.criticalDefects)}</span>
-                  <span className="text-sm text-text-secondary">{formatNumber(item.majorDefects)}</span>
-                  <span className="text-sm text-text-secondary">{formatNumber(item.minorDefects)}</span>
-                  <span className="flex items-center gap-1 flex-wrap">
-                    {item.defectKeywords.length === 0 ? (
-                      <span className="text-[11px] text-text-tertiary">—</span>
-                    ) : (
-                      item.defectKeywords.slice(0, 5).map((kw) => (
-                        <span key={kw.keyword} className={`text-[10px] px-1.5 py-0.5 rounded-control border ${statusSemanticClass('info', isDarkMode)}`}>
-                          {kw.keyword} ×{kw.count}
-                        </span>
-                      ))
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <table className="bds-table">
+              <thead>
+                <tr>
+                  <th style={stickyThStyle}>{groupBy === 'factory' ? '工厂' : '季度'}</th>
+                  <th className="num" style={stickyThStyle}>验货报告</th>
+                  <th className="num" style={stickyThStyle}>不合格</th>
+                  <th className="num" style={stickyThStyle}>严重疵点</th>
+                  <th className="num" style={stickyThStyle}>主要疵点</th>
+                  <th className="num" style={stickyThStyle}>轻微疵点</th>
+                  <th style={stickyThStyle}>高频疵点</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trends.map((item) => (
+                  <tr key={item.key}>
+                    <td className="max-w-[180px] truncate" style={{ color: 'var(--text-primary)' }}>{item.key}</td>
+                    <td className="num bds-tnum" style={{ color: 'var(--text-secondary)' }}>{formatNumber(item.reports)}</td>
+                    <td className="num bds-tnum" style={{ color: 'var(--text-secondary)' }}>{formatNumber(item.failCount)}</td>
+                    <td className="num bds-tnum" style={{ color: item.criticalDefects > 0 ? 'var(--danger-text)' : 'var(--text-tertiary)' }}>{formatNumber(item.criticalDefects)}</td>
+                    <td className="num bds-tnum" style={{ color: 'var(--text-secondary)' }}>{formatNumber(item.majorDefects)}</td>
+                    <td className="num bds-tnum" style={{ color: 'var(--text-secondary)' }}>{formatNumber(item.minorDefects)}</td>
+                    <td>
+                      <span className="flex items-center gap-1 flex-wrap">
+                        {item.defectKeywords.length === 0 ? (
+                          <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>—</span>
+                        ) : (
+                          item.defectKeywords.slice(0, 5).map((kw) => (
+                            <span key={kw.keyword} className="bds-badge sm info">
+                              {kw.keyword} ×{kw.count}
+                            </span>
+                          ))
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-        <div className="px-4 py-2 border-t border-border-subtle text-[11px] text-text-tertiary">
+        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           共 {trends.length} 个分组
         </div>
       </div>

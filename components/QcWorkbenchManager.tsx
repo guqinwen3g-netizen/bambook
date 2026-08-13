@@ -11,7 +11,8 @@
  * 设计原则：
  *   - 任务看板数据来自服务端聚合 /qc/workbench，订单信息为服务端快照，前端只读展示
  *   - QC 人员选择器复用 /api/hr/personnel（owner/admin），无权限时降级为手工录入 qcUserId
- *   - RDL flat 设计：statusSemanticClass 中性色阶，无阴影，大圆角
+ *   - BDS v2.1：视觉层已迁移至 bds 组件族（bds-tabs/bds-card/bds-badge/bds-input/bds-modal 等），
+ *     状态徽章走语义变体映射（主题透明，无 isDarkMode 样式分支），暗色由 tokens.css 统一覆盖
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -48,7 +49,6 @@ import {
   UserAccountOption,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ==================== 常量 ====================
 
@@ -67,9 +67,10 @@ const QC_STATUS_LABELS: Record<QCAssignmentStatus, string> = {
   Cancelled: '已取消',
 };
 
-const QC_STATUS_SEMANTIC: Record<QCAssignmentStatus, StatusSemantic> = {
+// BDS v2.1：状态 → bds-badge 语义变体（主题透明，替代 statusSemanticClass 拼装）
+const QC_STATUS_BADGE_VARIANT: Record<QCAssignmentStatus, 'neutral' | 'info' | 'success' | 'danger' | 'warning'> = {
   Assigned: 'info',
-  InProgress: 'active',
+  InProgress: 'warning',
   Completed: 'success',
   Cancelled: 'neutral',
 };
@@ -146,15 +147,12 @@ function isOverdue(a: QCAssignment): boolean {
   return a.dueDate < todayLocal();
 }
 
-// ==================== 共享样式 ====================
-
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
-const actionButtonClass = "flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50";
+// ==================== 共享表单原语 ====================
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>{label}</label>
       {children}
     </div>
   );
@@ -166,23 +164,24 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="bds-modal-mask"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-surface-elevated rounded-panel w-full max-w-lg max-h-[85vh] overflow-y-auto"
+        className="bds-modal"
+        style={{ width: '32rem', maxHeight: '85vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
-            <X className="w-4 h-4" />
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="关闭">
+            <X size={16} />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        {children}
       </motion.div>
     </motion.div>
   );
@@ -204,7 +203,7 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
       <PageHeader title="QC 工作台" subtitle="QC Workbench" />
 
       {/* 模块 Tab 栏 */}
-      <div className="px-7 flex items-center gap-1 border-b border-border-subtle shrink-0">
+      <div className="bds-tabs px-7 shrink-0">
         {MODULE_TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -212,13 +211,9 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
-                isActive
-                  ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
+              className={`bds-tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon size={16} />
               {tab.label}
             </button>
           );
@@ -236,9 +231,9 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'assignments' && <AssignmentsPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'locations' && <LocationsPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'businessLines' && <BusinessLinesPanel isDarkMode={isDarkMode} />}
+            {activeTab === 'assignments' && <AssignmentsPanel />}
+            {activeTab === 'locations' && <LocationsPanel />}
+            {activeTab === 'businessLines' && <BusinessLinesPanel />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -248,7 +243,7 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
 
 // ==================== 验货任务 Panel ====================
 
-function AssignmentsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function AssignmentsPanel() {
   const [workbench, setWorkbench] = useState<QcWorkbenchData>({ assigned: [], inProgress: [], completed: [] });
   const [loading, setLoading] = useState(true);
   const [qcUserFilter, setQcUserFilter] = useState('');
@@ -380,12 +375,13 @@ function AssignmentsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   return (
     <div className="h-full flex flex-col min-h-0 gap-4">
       {/* 操作条：QC 人员筛选 + 刷新 + 新建 */}
-      <div className="shrink-0 rounded-panel bg-surface-primary border border-border-subtle px-4 py-3 flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] text-text-tertiary shrink-0">QC 人员</span>
+      <div className="shrink-0 flex items-center gap-2 flex-wrap">
+        <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>QC 人员</span>
         <select
           value={qcUserFilter}
           onChange={(e) => setQcUserFilter(e.target.value)}
-          className="bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1.5 border border-border-subtle outline-none focus:border-border-action"
+          className="bds-select"
+          style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
         >
           <option value="">全部</option>
           {users.map((u) => (
@@ -393,50 +389,51 @@ function AssignmentsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
           ))}
         </select>
         {usersLoadFailed && (
-          <span className="text-[11px] text-text-tertiary">人员列表需管理角色权限，当前仅支持查看全部任务</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>人员列表需管理角色权限，当前仅支持查看全部任务</span>
         )}
         <button
           onClick={loadWorkbench}
-          className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+          className="bds-btn bds-btn-ghost sm"
+          style={{ padding: '0 var(--space-2)' }}
           title="刷新"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
-        <span className="text-[11px] text-text-tertiary">共 {totalCount} 项任务</span>
+        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>共 {totalCount} 项任务</span>
         <button
           onClick={() => setShowForm(true)}
-          className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+          className="ml-auto bds-btn bds-btn-primary sm"
         >
-          <Plus className="w-3.5 h-3.5" />
-          新建任务
+          <Plus size={14} />
+          <span>新建任务</span>
         </button>
       </div>
 
       {/* 看板三列 */}
       {loading ? (
-        <div className="flex-1 flex items-center justify-center rounded-panel bg-surface-primary border border-border-subtle">
-          <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
         </div>
       ) : totalCount === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center rounded-panel bg-surface-primary border border-border-subtle text-text-tertiary px-4">
-          <ClipboardCheck className="w-10 h-10 mb-2 opacity-40" />
-          <p className="text-sm text-center">
+        <div className="bds-empty flex-1 justify-center">
+          <div className="glyph"><ClipboardCheck size={24} /></div>
+          <div className="title">
             {qcUserFilter ? '该 QC 人员暂无验货任务' : '暂无验货任务，点击「新建任务」开始分配'}
-          </p>
+          </div>
         </div>
       ) : (
         <div className="flex-1 min-h-0 grid grid-cols-3 gap-4">
           {columns.map((col) => (
-            <div key={col.status} className="flex flex-col min-h-0 rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-border-subtle flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-control border ${statusSemanticClass(QC_STATUS_SEMANTIC[col.status], isDarkMode)}`}>
+            <div key={col.status} className="bds-card flex flex-col min-h-0" style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: 'var(--border-subtle)' }}>
+                <span className={`bds-badge sm ${QC_STATUS_BADGE_VARIANT[col.status]}`}>
                   {QC_STATUS_LABELS[col.status]}
                 </span>
-                <span className="text-[11px] text-text-tertiary ml-auto">{col.items.length} 项</span>
+                <span className="text-[11px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{col.items.length} 项</span>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
                 {col.items.length === 0 ? (
-                  <div className="text-center py-8 text-text-tertiary text-xs bg-surface-elevated rounded-card">
+                  <div className="bds-card flat text-center text-xs" style={{ padding: 'var(--space-8) var(--space-4)', color: 'var(--text-tertiary)' }}>
                     暂无{QC_STATUS_LABELS[col.status]}任务
                   </div>
                 ) : (
@@ -444,66 +441,66 @@ function AssignmentsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                     const overdue = isOverdue(a);
                     const canOperate = a.status === 'Assigned' || a.status === 'InProgress';
                     return (
-                      <div key={a.id} className="bg-surface-elevated rounded-card p-3">
+                      <div key={a.id} className="bds-card flat" style={{ padding: 'var(--space-3)' }}>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-text-primary font-medium truncate flex-1">
+                          <span className="bds-mono text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>
                             {a.order?.poNumber || a.orderId}
                           </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('info', isDarkMode)}`}>
+                          <span className="bds-badge sm info shrink-0">
                             {INSPECTION_TYPE_LABELS[a.inspectionType] || a.inspectionType}
                           </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(QC_STATUS_SEMANTIC[a.status] ?? 'neutral', isDarkMode)}`}>
+                          <span className={`bds-badge sm shrink-0 ${QC_STATUS_BADGE_VARIANT[a.status] ?? 'neutral'}`}>
                             {QC_STATUS_LABELS[a.status] || a.status}
                           </span>
                         </div>
-                        <div className="mt-1 text-xs text-text-secondary truncate">
+                        <div className="mt-1 text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                           {a.order ? `${a.order.customer} · ${a.order.product}` : a.orderId}
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-text-tertiary flex-wrap">
-                          <span className={overdue ? `px-1.5 py-0.5 rounded-control border ${statusSemanticClass('danger', isDarkMode)}` : ''}>
+                        <div className="mt-1.5 flex items-center gap-2 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                          <span className={overdue ? 'bds-badge sm danger' : ''}>
                             要求 {formatDate(a.dueDate)}{overdue ? '（已过期）' : ''}
                           </span>
                           {a.location?.name && (
                             <span className="flex items-center gap-0.5 truncate">
-                              <MapPin className="w-3 h-3 shrink-0" />
+                              <MapPin size={12} className="shrink-0" />
                               {a.location.name}
                             </span>
                           )}
                           <span className="truncate">{userNameById.get(a.qcUserId) ?? a.qcUserId}</span>
                         </div>
                         {a.status === 'Completed' && a.completedAt != null && (
-                          <div className="mt-1 text-[11px] text-text-tertiary">
+                          <div className="mt-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
                             完成于 {formatTs(a.completedAt)}{a.reportId ? ` · 报告 ${a.reportId}` : ''}
                           </div>
                         )}
                         {a.notes && (
-                          <div className="mt-1.5 text-[11px] text-text-tertiary whitespace-pre-wrap">{a.notes}</div>
+                          <div className="mt-1.5 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>{a.notes}</div>
                         )}
                         <div className="mt-2 flex items-center gap-1.5">
                           {a.status === 'Assigned' && (
-                            <button onClick={() => handleStart(a)} disabled={updatingId === a.id} className={actionButtonClass}>
-                              {updatingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-                              开始
+                            <button onClick={() => handleStart(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-primary sm">
+                              {updatingId === a.id ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                              <span>开始</span>
                             </button>
                           )}
                           {canOperate && (
-                            <button onClick={() => setCompletingAssignment(a)} disabled={updatingId === a.id} className={actionButtonClass}>
-                              <CheckCheck className="w-3.5 h-3.5" />
-                              完成
+                            <button onClick={() => setCompletingAssignment(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-secondary sm">
+                              <CheckCheck size={14} />
+                              <span>完成</span>
                             </button>
                           )}
                           {canOperate && (
-                            <button onClick={() => handleCancel(a)} disabled={updatingId === a.id} className={actionButtonClass}>
-                              <Ban className="w-3.5 h-3.5" />
-                              取消
+                            <button onClick={() => handleCancel(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-ghost sm">
+                              <Ban size={14} />
+                              <span>取消</span>
                             </button>
                           )}
                           <button
                             onClick={() => handleDelete(a)}
-                            className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors ml-auto"
+                            className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
                             title="删除任务"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -633,47 +630,52 @@ function AssignmentForm({
       {/* 订单搜索选择器 */}
       <Field label="订单 *">
         {selectedOrder ? (
-          <div className="flex items-center gap-2 bg-surface-primary rounded-control px-3 py-2 border border-border-subtle">
-            <span className="text-sm text-text-primary truncate flex-1">
+          <div className="bds-card flat flex items-center gap-2" style={{ padding: 'var(--space-2) var(--space-3)' }}>
+            <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>
               {selectedOrder.poNumber || selectedOrder.id} · {selectedOrder.customer} · {selectedOrder.product}
             </span>
             <button
               onClick={() => setSelectedOrder(null)}
-              className="p-1 rounded-control text-text-tertiary hover:text-text-primary transition-colors shrink-0"
+              className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0"
               title="重新选择"
             >
-              <X className="w-3.5 h-3.5" />
+              <X size={14} />
             </button>
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-1.5 bg-surface-primary rounded-control px-2.5 py-1.5 border border-border-subtle focus-within:border-border-action">
-              <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input
                 type="text"
                 placeholder="搜索 PO 号 / 客户 / 产品..."
                 value={orderQuery}
                 onChange={(e) => setOrderQuery(e.target.value)}
-                className="bg-transparent text-xs text-text-primary placeholder:text-text-tertiary outline-none flex-1 min-w-0"
+                className="bds-input sm pl-9"
               />
-              {ordersLoading && <Loader2 className="w-3 h-3 animate-spin text-text-tertiary shrink-0" />}
+              {ordersLoading && (
+                <Loader2 size={12} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
+              )}
             </div>
             {filteredOrders.length > 0 && (
-              <div className="mt-1.5 bg-surface-primary rounded-control border border-border-subtle divide-y divide-border-subtle max-h-40 overflow-y-auto">
-                {filteredOrders.map((o) => (
-                  <button
-                    key={o.id}
-                    onClick={() => { setSelectedOrder(o); setOrderQuery(''); }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors hover:bg-surface-elevated"
-                  >
-                    <span className="text-xs text-text-primary truncate flex-1">{o.poNumber || o.id}</span>
-                    <span className="text-[10px] text-text-tertiary truncate shrink-0">{o.customer} · {o.product}</span>
-                  </button>
-                ))}
+              <div className="bds-card flat mt-1.5 max-h-40 overflow-y-auto" style={{ padding: 'var(--space-1)' }}>
+                <div className="bds-listrows">
+                  {filteredOrders.map((o) => (
+                    <button
+                      key={o.id}
+                      onClick={() => { setSelectedOrder(o); setOrderQuery(''); }}
+                      className="bds-listrow w-full text-left"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      <span className="lr-main bds-mono text-xs" style={{ color: 'var(--text-primary)' }}>{o.poNumber || o.id}</span>
+                      <span className="lr-sub truncate shrink-0">{o.customer} · {o.product}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {!ordersLoading && orders.length === 0 && (
-              <div className="text-[11px] text-text-tertiary mt-1">暂无可选订单，请先在「订单管理」创建订单</div>
+              <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>暂无可选订单，请先在「订单管理」创建订单</div>
             )}
           </>
         )}
@@ -681,7 +683,7 @@ function AssignmentForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="验货类型 *">
-          <select className={inputClass} value={inspectionType} onChange={(e) => setInspectionType(e.target.value as QCInspectionType)}>
+          <select className="bds-select" value={inspectionType} onChange={(e) => setInspectionType(e.target.value as QCInspectionType)}>
             {(Object.keys(INSPECTION_TYPE_LABELS) as QCInspectionType[]).map((t) => (
               <option key={t} value={t}>{INSPECTION_TYPE_LABELS[t]}验货</option>
             ))}
@@ -689,7 +691,7 @@ function AssignmentForm({
         </Field>
         <Field label="执行 QC *">
           {users.length > 0 ? (
-            <select className={inputClass} value={qcUserId} onChange={(e) => setQcUserId(e.target.value)}>
+            <select className="bds-select" value={qcUserId} onChange={(e) => setQcUserId(e.target.value)}>
               <option value="">选择 QC 人员...</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>{u.displayName}{u.department ? `（${u.department}）` : ''}</option>
@@ -697,7 +699,7 @@ function AssignmentForm({
             </select>
           ) : (
             <input
-              className={inputClass}
+              className="bds-input"
               value={qcUserId}
               onChange={(e) => setQcUserId(e.target.value)}
               placeholder={usersLoadFailed ? '人员列表不可用，请输入 QC 用户 ID' : '输入 QC 用户 ID'}
@@ -707,7 +709,7 @@ function AssignmentForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="所属驻地">
-          <select className={inputClass} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+          <select className="bds-select" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
             <option value="">不指定驻地</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>{l.name}</option>
@@ -715,20 +717,17 @@ function AssignmentForm({
           </select>
         </Field>
         <Field label="要求完成日期">
-          <input type="date" className={inputClass} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <input type="date" className="bds-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </Field>
       </div>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
-        <button
-          onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
-        >
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">
           保存
         </button>
       </div>
@@ -753,25 +752,25 @@ function CompleteAssignmentForm({
 
   return (
     <ModalShell title={`完成验货任务 ${assignment.order?.poNumber || assignment.orderId}`} onClose={onClose}>
-      <div className="mb-3 px-3 py-2 rounded-card bg-surface-primary border border-border-subtle text-xs text-text-tertiary">
+      <div className="bds-card flat mb-3 text-xs" style={{ padding: 'var(--space-2) var(--space-3)', color: 'var(--text-tertiary)' }}>
         {INSPECTION_TYPE_LABELS[assignment.inspectionType] || assignment.inspectionType}验货 · {assignment.order ? `${assignment.order.customer} · ${assignment.order.product}` : assignment.orderId}
       </div>
       <Field label="验货报告 ID">
         <input
-          className={inputClass}
+          className="bds-input"
           value={reportId}
           onChange={(e) => setReportId(e.target.value)}
           placeholder="可选，完成后关联 InspectionReport"
         />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={() => onSave(reportId.trim() || undefined)}
           disabled={saving}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50"
+          className="bds-btn bds-btn-primary sm"
         >
           {saving ? '提交中...' : '确认完成'}
         </button>
@@ -782,7 +781,7 @@ function CompleteAssignmentForm({
 
 // ==================== 驻地管理 Panel ====================
 
-function LocationsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function LocationsPanel() {
   const [locations, setLocations] = useState<QCLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -831,23 +830,24 @@ function LocationsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+    <div className="bds-card h-full flex flex-col min-h-0" style={{ padding: 0, overflow: 'hidden' }}>
       {/* 操作条 */}
-      <div className="p-3 border-b border-border-subtle flex items-center gap-2">
-        <span className="text-[11px] text-text-tertiary">QC 常驻验货驻地（如 温州驻场-服装 / 苏州驻场-面料）</span>
+      <div className="p-3 flex items-center gap-2" style={{ borderBottom: 'var(--border-subtle)' }}>
+        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>QC 常驻验货驻地（如 温州驻场-服装 / 苏州驻场-面料）</span>
         <button
           onClick={loadLocations}
-          className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+          className="bds-btn bds-btn-ghost sm"
+          style={{ padding: '0 var(--space-2)' }}
           title="刷新"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
         <button
           onClick={() => { setEditingLocation(null); setShowForm(true); }}
-          className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+          className="ml-auto bds-btn bds-btn-primary sm"
         >
-          <Plus className="w-3.5 h-3.5" />
-          新建驻地
+          <Plus size={14} />
+          <span>新建驻地</span>
         </button>
       </div>
 
@@ -855,49 +855,49 @@ function LocationsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
       <div className="flex-1 overflow-y-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+            <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : locations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-text-tertiary">
-            <MapPin className="w-10 h-10 mb-2 opacity-40" />
-            <p className="text-sm">暂无驻地，点击「新建驻地」配置 QC 常驻验货点</p>
+          <div className="bds-empty">
+            <div className="glyph"><MapPin size={24} /></div>
+            <div className="title">暂无驻地，点击「新建驻地」配置 QC 常驻验货点</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {locations.map((location) => (
-              <div key={location.id} className="bg-surface-elevated rounded-card p-4">
+              <div key={location.id} className="bds-card flat">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-text-primary font-medium truncate flex-1">{location.name}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('neutral', isDarkMode)}`}>
+                  <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>{location.name}</span>
+                  <span className="bds-badge sm neutral shrink-0">
                     {location.code}
                   </span>
                   {location.focus && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('info', isDarkMode)}`}>
+                    <span className="bds-badge sm info shrink-0">
                       {LOCATION_FOCUS_LABELS[location.focus] || location.focus}
                     </span>
                   )}
                 </div>
-                <div className="mt-1.5 flex items-center gap-2 text-[11px] text-text-tertiary flex-wrap">
+                <div className="mt-1.5 flex items-center gap-2 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                   {location.region && <span>区域 {location.region}</span>}
                   {location.address && <span className="truncate">地址 {location.address}</span>}
                 </div>
                 {location.notes && (
-                  <div className="mt-1.5 text-[11px] text-text-tertiary whitespace-pre-wrap">{location.notes}</div>
+                  <div className="mt-1.5 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>{location.notes}</div>
                 )}
                 <div className="mt-2.5 flex items-center gap-1.5">
                   <button
                     onClick={() => { setEditingLocation(location); setShowForm(true); }}
-                    className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+                    className="bds-btn bds-btn-ghost bds-btn-icon sm"
                     title="编辑"
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(location)}
-                    className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors ml-auto"
+                    className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
                     title="删除"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -905,7 +905,7 @@ function LocationsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
           </div>
         )}
       </div>
-      <div className="px-4 py-2 border-t border-border-subtle text-[11px] text-text-tertiary">
+      <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
         共 {locations.length} 个驻地
       </div>
 
@@ -965,26 +965,26 @@ function LocationForm({
       <div className="grid grid-cols-2 gap-3">
         <Field label="驻地代码 *">
           <input
-            className={inputClass}
+            className="bds-input"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="wenzhou"
             disabled={!!location}
           />
           {!location && (
-            <div className="text-[11px] text-text-tertiary mt-1">如 wenzhou / suzhou，创建后不可修改</div>
+            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>如 wenzhou / suzhou，创建后不可修改</div>
           )}
         </Field>
         <Field label="驻地名称 *">
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="温州驻场" />
+          <input className="bds-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="温州驻场" />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="区域">
-          <input className={inputClass} value={region} onChange={(e) => setRegion(e.target.value)} placeholder="浙江 · 温州" />
+          <input className="bds-input" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="浙江 · 温州" />
         </Field>
         <Field label="主攻业务线">
-          <select className={inputClass} value={focus} onChange={(e) => setFocus(e.target.value)}>
+          <select className="bds-select" value={focus} onChange={(e) => setFocus(e.target.value)}>
             <option value="">通用</option>
             <option value="garment">服装</option>
             <option value="fabric">面料</option>
@@ -992,19 +992,16 @@ function LocationForm({
         </Field>
       </div>
       <Field label="地址">
-        <input className={inputClass} value={address} onChange={(e) => setAddress(e.target.value)} />
+        <input className="bds-input" value={address} onChange={(e) => setAddress(e.target.value)} />
       </Field>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
-        <button
-          onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
-        >
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">
           保存
         </button>
       </div>
@@ -1014,7 +1011,7 @@ function LocationForm({
 
 // ==================== 业务线 Panel ====================
 
-function BusinessLinesPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function BusinessLinesPanel() {
   const [lines, setLines] = useState<BusinessLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -1075,93 +1072,103 @@ function BusinessLinesPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+    <div className="bds-card h-full flex flex-col min-h-0" style={{ padding: 0, overflow: 'hidden' }}>
       {/* 表头说明 + 操作条 */}
-      <div className="p-3 border-b border-border-subtle flex items-center gap-2">
-        <span className="text-[11px] text-text-tertiary">业务线影响 MOQ 校验与报表口径</span>
+      <div className="p-3 flex items-center gap-2" style={{ borderBottom: 'var(--border-subtle)' }}>
+        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>业务线影响 MOQ 校验与报表口径</span>
         <button
           onClick={loadLines}
-          className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+          className="bds-btn bds-btn-ghost sm"
+          style={{ padding: '0 var(--space-2)' }}
           title="刷新"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
         <button
           onClick={() => { setEditingLine(null); setShowForm(true); }}
-          className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+          className="ml-auto bds-btn bds-btn-primary sm"
         >
-          <Plus className="w-3.5 h-3.5" />
-          新建业务线
+          <Plus size={14} />
+          <span>新建业务线</span>
         </button>
       </div>
 
       {/* 规则表格 */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+          <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
         </div>
       ) : lines.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-text-tertiary px-4">
-          <Layers className="w-10 h-10 mb-2 opacity-40" />
-          <p className="text-sm text-center">暂无业务线，点击「新建业务线」配置 MOQ 与生产周期基准</p>
+        <div className="bds-empty flex-1 justify-center">
+          <div className="glyph"><Layers size={24} /></div>
+          <div className="title">暂无业务线，点击「新建业务线」配置 MOQ 与生产周期基准</div>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-[0.8fr_1.2fr_1fr_0.9fr_1.1fr_0.7fr_auto] gap-2 px-4 py-2 border-b border-border-subtle text-[11px] text-text-tertiary sticky top-0 bg-surface-primary">
-            <span>代码</span>
-            <span>名称</span>
-            <span>MOQ</span>
-            <span>生产周期</span>
-            <span>付款条件</span>
-            <span>启用</span>
-            <span className="text-right">操作</span>
-          </div>
-          <div className="divide-y divide-border-subtle">
-            {lines.map((line) => (
-              <div key={line.id} className="grid grid-cols-[0.8fr_1.2fr_1fr_0.9fr_1.1fr_0.7fr_auto] gap-2 px-4 py-2.5 items-center">
-                <span className="text-sm text-text-primary font-medium truncate">{line.code}</span>
-                <span className="text-sm text-text-secondary truncate" title={line.description || undefined}>{line.name}</span>
-                <span className="text-sm text-text-secondary">
-                  {line.moqValue != null ? `${formatNumber(line.moqValue)} ${line.moqUnit || ''}`.trim() : '—'}
-                </span>
-                <span className="text-sm text-text-secondary">
-                  {line.productionCycleDays != null ? `${line.productionCycleDays} 天` : '—'}
-                </span>
-                <span className="text-xs text-text-tertiary truncate" title={line.paymentTermsHint || undefined}>
-                  {line.paymentTermsHint || '—'}
-                </span>
-                <span>
-                  <button
-                    onClick={() => handleToggleActive(line)}
-                    disabled={togglingId === line.id}
-                    className={`text-[10px] px-1.5 py-0.5 rounded-control border transition-all disabled:opacity-50 ${statusSemanticClass(line.isActive ? 'success' : 'neutral', isDarkMode)}`}
-                    title={line.isActive ? '点击停用' : '点击启用'}
-                  >
-                    {togglingId === line.id ? '...' : line.isActive ? '启用中' : '已停用'}
-                  </button>
-                </span>
-                <span className="flex items-center gap-0.5 justify-end">
-                  <button
-                    onClick={() => { setEditingLine(line); setShowForm(true); }}
-                    className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-elevated transition-colors"
-                    title="编辑"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(line)}
-                    className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-elevated transition-colors"
-                    title="删除"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              </div>
-            ))}
-          </div>
+          <table className="bds-table">
+            <thead className="sticky top-0" style={{ background: 'var(--bg-card)' }}>
+              <tr>
+                <th>代码</th>
+                <th>名称</th>
+                <th className="num">MOQ</th>
+                <th className="num">生产周期</th>
+                <th>付款条件</th>
+                <th>启用</th>
+                <th className="num">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line) => (
+                <tr key={line.id}>
+                  <td><span className="bds-mono" style={{ color: 'var(--text-primary)' }}>{line.code}</span></td>
+                  <td style={{ color: 'var(--text-secondary)', maxWidth: '14rem' }}>
+                    <span className="block truncate" title={line.description || undefined}>{line.name}</span>
+                  </td>
+                  <td className="num" style={{ color: 'var(--text-secondary)' }}>
+                    {line.moqValue != null ? `${formatNumber(line.moqValue)} ${line.moqUnit || ''}`.trim() : '—'}
+                  </td>
+                  <td className="num" style={{ color: 'var(--text-secondary)' }}>
+                    {line.productionCycleDays != null ? `${line.productionCycleDays} 天` : '—'}
+                  </td>
+                  <td className="text-xs" style={{ color: 'var(--text-tertiary)', maxWidth: '12rem' }}>
+                    <span className="block truncate" title={line.paymentTermsHint || undefined}>{line.paymentTermsHint || '—'}</span>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => handleToggleActive(line)}
+                      disabled={togglingId === line.id}
+                      className={`bds-badge sm ${line.isActive ? 'success' : 'neutral'}`}
+                      style={{ cursor: 'pointer', border: 'none', opacity: togglingId === line.id ? 0.5 : 1 }}
+                      title={line.isActive ? '点击停用' : '点击启用'}
+                    >
+                      {togglingId === line.id ? '...' : line.isActive ? '启用中' : '已停用'}
+                    </button>
+                  </td>
+                  <td className="num">
+                    <span className="flex items-center gap-0.5 justify-end">
+                      <button
+                        onClick={() => { setEditingLine(line); setShowForm(true); }}
+                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        title="编辑"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(line)}
+                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        title="删除"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-      <div className="px-4 py-2 border-t border-border-subtle text-[11px] text-text-tertiary">
+      <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
         共 {lines.length} 条业务线
       </div>
 
@@ -1240,54 +1247,51 @@ function BusinessLineForm({
       <div className="grid grid-cols-2 gap-3">
         <Field label="业务线代码 *">
           <input
-            className={inputClass}
+            className="bds-input"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="fabric"
             disabled={!!line}
           />
           {!line && (
-            <div className="text-[11px] text-text-tertiary mt-1">如 fabric / garment / capsule，创建后不可修改</div>
+            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>如 fabric / garment / capsule，创建后不可修改</div>
           )}
         </Field>
         <Field label="业务线名称 *">
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="面料大货" />
+          <input className="bds-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="面料大货" />
         </Field>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <Field label="MOQ 基准">
-          <input type="number" min={0} className={inputClass} value={moqValue} onChange={(e) => setMoqValue(e.target.value)} placeholder="如 1000" />
+          <input type="number" min={0} className="bds-input" value={moqValue} onChange={(e) => setMoqValue(e.target.value)} placeholder="如 1000" />
         </Field>
         <Field label="MOQ 单位">
-          <select className={inputClass} value={moqUnit} onChange={(e) => setMoqUnit(e.target.value)}>
+          <select className="bds-select" value={moqUnit} onChange={(e) => setMoqUnit(e.target.value)}>
             {MOQ_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </Field>
         <Field label="生产周期（天）">
-          <input type="number" min={0} className={inputClass} value={productionCycleDays} onChange={(e) => setProductionCycleDays(e.target.value)} placeholder="如 70" />
+          <input type="number" min={0} className="bds-input" value={productionCycleDays} onChange={(e) => setProductionCycleDays(e.target.value)} placeholder="如 70" />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="付款条件提示">
-          <input className={inputClass} value={paymentTermsHint} onChange={(e) => setPaymentTermsHint(e.target.value)} placeholder="如 T/T 30 天" />
+          <input className="bds-input" value={paymentTermsHint} onChange={(e) => setPaymentTermsHint(e.target.value)} placeholder="如 T/T 30 天" />
         </Field>
         {!line && (
           <Field label="排序">
-            <input type="number" className={inputClass} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} />
+            <input type="number" className="bds-input" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} />
           </Field>
         )}
       </div>
       <Field label="描述">
-        <textarea className={inputClass} rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <textarea className="bds-input bds-textarea" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
-        <button
-          onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
-        >
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">
           保存
         </button>
       </div>

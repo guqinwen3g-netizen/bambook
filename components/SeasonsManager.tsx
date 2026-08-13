@@ -10,7 +10,8 @@
  * 设计原则：
  *   - 季度回顾为服务端快照，前端只读展示 + 触发生成
  *   - 线索转化真源在 Relation（category=Customer），前端只做选择与提交
- *   - RDL flat 设计：statusSemanticClass 中性色阶，无阴影，大圆角
+ *   - BDS v2.1：视觉层已迁移至组件族（bds-tabs/bds-card/bds-badge/bds-table/bds-input/bds-modal/bds-empty 等），
+ *     状态用 bds-badge 语义变体（SEMANTIC_BADGE_VARIANT 常量）替代 statusSemanticClass 拼装，主题透明无 isDarkMode 三元
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -53,7 +54,7 @@ import {
   TradeShowLeadStatus,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, statusSemanticBg, StatusSemantic } from './rdlBusinessStatusTokens';
+import { StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ==================== 常量 ====================
 
@@ -112,6 +113,28 @@ const LEAD_STATUS_SEMANTIC: Record<TradeShowLeadStatus, StatusSemantic> = {
   Lost: 'neutral',
 };
 
+// BDS v2.1：StatusSemantic → bds-badge 语义变体（active 归并 info；替代 statusSemanticClass 拼装）
+type BadgeVariant = 'neutral' | 'info' | 'success' | 'danger' | 'warning';
+const SEMANTIC_BADGE_VARIANT: Record<StatusSemantic, BadgeVariant> = {
+  neutral: 'neutral',
+  active: 'info',
+  info: 'info',
+  warning: 'warning',
+  danger: 'danger',
+  success: 'success',
+  destructive: 'danger',
+  rebate: 'info',
+};
+
+/** 非 badge 结构（ROI 指标卡 / 线索状态下拉）共用的 tint/text token 样式 */
+const SEMANTIC_TINT_STYLE: Record<BadgeVariant, React.CSSProperties> = {
+  neutral: { background: 'var(--bg-sunken)', color: 'var(--text-secondary)' },
+  info: { background: 'var(--accent-tint)', color: 'var(--accent-text)' },
+  success: { background: 'var(--success-tint)', color: 'var(--success-text)' },
+  warning: { background: 'var(--warning-tint)', color: 'var(--warning-text)' },
+  danger: { background: 'var(--danger-tint)', color: 'var(--danger-text)' },
+};
+
 const CURRENCIES = ['USD', 'CNY', 'EUR'];
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -151,26 +174,24 @@ export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
     <div className="h-full flex flex-col">
       <PageHeader title="季节性与趋势" subtitle="Season & Trend Management" />
 
-      {/* 模块 Tab 栏 */}
-      <div className="px-7 flex items-center gap-1 border-b border-border-subtle shrink-0">
-        {MODULE_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
-                isActive
-                  ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
+      <div className="px-7 shrink-0">
+        <div className="bds-tabs">
+          {MODULE_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`bds-tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tab 内容（切换即重挂载，保证数据新鲜） */}
@@ -184,9 +205,9 @@ export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'seasons' && <SeasonsPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'trends' && <TrendsPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'shows' && <ShowsPanel isDarkMode={isDarkMode} />}
+            {activeTab === 'seasons' && <SeasonsPanel />}
+            {activeTab === 'trends' && <TrendsPanel />}
+            {activeTab === 'shows' && <ShowsPanel />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -196,7 +217,9 @@ export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
 
 // ==================== 季度 Panel ====================
 
-function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+// ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+
+function SeasonsPanel() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -315,42 +338,42 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   return (
     <div className="h-full flex min-h-0 gap-4">
       {/* ── 左侧：季度卡片列表 ── */}
-      <div className="w-80 shrink-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
-        <div className="p-3 border-b border-border-subtle space-y-2">
+      <div className="w-80 shrink-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
+        <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
           <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-text-tertiary shrink-0" />
-            <input
-              type="text"
-              placeholder="搜索季度代码 / 名称..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none flex-1 min-w-0"
-            />
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+              <input
+                type="text"
+                placeholder="搜索季度代码 / 名称..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="bds-input sm pl-9"
+              />
+            </div>
             <button
               onClick={refreshAll}
-              className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+              className="bds-btn bds-btn-ghost bds-btn-icon sm"
               title="刷新"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(['', 'Planning', 'Active', 'Closed'] as const).map((s) => (
-              <button
-                key={s || 'all'}
-                onClick={() => setStatusFilter(s)}
-                className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                  statusFilter === s
-                    ? statusSemanticClass('active', isDarkMode)
-                    : 'text-text-tertiary border-transparent hover:text-text-secondary'
-                }`}
-              >
-                {s === '' ? '全部' : SEASON_STATUS_LABELS[s]}
-              </button>
-            ))}
+            <div className="bds-segment flex-wrap">
+              {(['', 'Planning', 'Active', 'Closed'] as const).map((s) => (
+                <button
+                  key={s || 'all'}
+                  onClick={() => setStatusFilter(s)}
+                  className={`seg ${statusFilter === s ? 'active' : ''}`}
+                >
+                  {s === '' ? '全部' : SEASON_STATUS_LABELS[s]}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => { setEditingSeason(null); setShowForm(true); }}
-              className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+              className="bds-btn bds-btn-secondary sm ml-auto"
             >
               <Plus className="w-3.5 h-3.5" />
               新建季度
@@ -361,71 +384,73 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+              <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
             </div>
           ) : seasons.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-text-tertiary px-4">
-              <CalendarRange className="w-10 h-10 mb-2 opacity-40" />
-              <p className="text-sm text-center">
-                {search ? '未找到匹配的季度' : '暂无季度，点击「新建季度」开始规划'}
-              </p>
+            <div className="bds-empty">
+              <div className="glyph"><CalendarRange className="w-6 h-6" /></div>
+              <div className="title">{search ? '未找到匹配的季度' : '暂无季度'}</div>
+              {!search && <div className="desc">点击「新建季度」开始规划</div>}
             </div>
           ) : (
-            seasons.map((s) => {
-              const isSelected = s.id === selectedId;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedId(s.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-border-subtle transition-colors ${
-                    isSelected ? 'bg-surface-elevated' : 'hover:bg-surface-elevated/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-medium text-text-primary truncate flex-1">{s.code}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(SEASON_STATUS_SEMANTIC[s.status] ?? 'neutral', isDarkMode)}`}>
-                      {SEASON_STATUS_LABELS[s.status] || s.status}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-sm text-text-secondary truncate">{s.name}</div>
-                  <div className="mt-1 text-[11px] text-text-tertiary">
-                    {formatDate(s.startDate)} ~ {formatDate(s.endDate)}
-                  </div>
-                </button>
-              );
-            })
+            <div className="bds-listrows px-2 py-1">
+              {seasons.map((s) => {
+                const isSelected = s.id === selectedId;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelectedId(s.id)}
+                    className="bds-listrow w-full text-left"
+                    style={isSelected ? { background: 'var(--bg-panel)' } : undefined}
+                  >
+                    <div className="lr-main">
+                      <div className="flex items-center gap-2">
+                        <span className="lr-title flex-1" style={{ color: 'var(--text-primary)' }}>{s.code}</span>
+                        <span className={`bds-badge sm shrink-0 ${SEMANTIC_BADGE_VARIANT[SEASON_STATUS_SEMANTIC[s.status] ?? 'neutral']}`}>
+                          {SEASON_STATUS_LABELS[s.status] || s.status}
+                        </span>
+                      </div>
+                      <div className="lr-sub mt-1 truncate">{s.name}</div>
+                      <div className="lr-sub mt-1">
+                        {formatDate(s.startDate)} ~ {formatDate(s.endDate)}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
-        <div className="px-4 py-2 border-t border-border-subtle text-[11px] text-text-tertiary">
+        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           共 {total} 个季度
         </div>
       </div>
 
       {/* ── 右侧：季度详情 ── */}
-      <div className="flex-1 min-w-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
         {!selectedSeason ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-text-tertiary">
-            <CalendarRange className="w-12 h-12 mb-3 opacity-40" />
-            <p className="text-sm">请选择左侧季度查看详情</p>
+          <div className="bds-empty flex-1 justify-center">
+            <div className="glyph"><CalendarRange className="w-6 h-6" /></div>
+            <div className="title">请选择左侧季度查看详情</div>
           </div>
         ) : detailLoading ? (
           <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
             {/* 季度头部 */}
-            <div className="p-5 border-b border-border-subtle">
+            <div className="p-5" style={{ borderBottom: 'var(--border-subtle)' }}>
               <div className="flex items-start gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-medium text-text-primary">{selectedSeason.code}</h2>
-                    <span className={`text-xs px-2 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(SEASON_STATUS_SEMANTIC[selectedSeason.status] ?? 'neutral', isDarkMode)}`}>
+                    <h2 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>{selectedSeason.code}</h2>
+                    <span className={`bds-badge sm shrink-0 ${SEMANTIC_BADGE_VARIANT[SEASON_STATUS_SEMANTIC[selectedSeason.status] ?? 'neutral']}`}>
                       {SEASON_STATUS_LABELS[selectedSeason.status] || selectedSeason.status}
                     </span>
                   </div>
-                  <div className="mt-1 text-sm text-text-secondary">{selectedSeason.name}</div>
-                  <div className="mt-2 flex items-center gap-3 text-xs text-text-tertiary flex-wrap">
+                  <div className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>{selectedSeason.name}</div>
+                  <div className="mt-2 flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                     <span>{formatDate(selectedSeason.startDate)} ~ {formatDate(selectedSeason.endDate)}</span>
                     <span>{detail?.trendTags?.length ?? 0} 个趋势标签</span>
                     <span>{detail?.tradeShows?.length ?? 0} 场展会</span>
@@ -435,21 +460,21 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => { setEditingSeason(detail ?? selectedSeason); setShowForm(true); }}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   编辑季度
                 </button>
                 <button
                   onClick={() => handleDelete(detail ?? selectedSeason)}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-tertiary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all ml-auto"
+                  className="bds-btn bds-btn-danger sm ml-auto"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   删除
                 </button>
               </div>
               {(detail?.notes || selectedSeason.notes) && (
-                <div className="mt-3 px-3 py-2 rounded-card bg-surface-elevated text-xs text-text-secondary whitespace-pre-wrap">
+                <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap" style={{ background: 'var(--bg-panel)', color: 'var(--text-secondary)' }}>
                   {detail?.notes || selectedSeason.notes}
                 </div>
               )}
@@ -458,20 +483,20 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
             <div className="p-5 space-y-5">
               {/* 开发日历 timeline */}
               <section>
-                <div className="text-xs text-text-tertiary mb-3">开发日历</div>
+                <div className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>开发日历</div>
                 {(detail?.calendar ?? []).length > 0 ? (
                   <div className="relative pl-5">
-                    <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px bg-border-subtle" />
+                    <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px" style={{ background: 'var(--border-c-subtle)' }} />
                     <div className="space-y-3">
                       {(detail?.calendar ?? []).map((node) => (
                         <div key={node.key} className="relative flex items-start gap-3">
-                          <span className={`absolute -left-5 top-1 w-2.5 h-2.5 rounded-full ${statusSemanticBg('active', isDarkMode)}`} />
-                          <div className="min-w-0 flex-1 bg-surface-elevated rounded-card px-3 py-2">
+                          <span className="absolute -left-5 top-1 w-2.5 h-2.5 rounded-full" style={{ background: 'var(--accent)' }} />
+                          <div className="min-w-0 flex-1 rounded-inset px-3 py-2" style={{ background: 'var(--bg-panel)' }}>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-text-primary">{node.label}</span>
-                              <span className="text-[10px] text-text-tertiary">{node.key}</span>
+                              <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{node.label}</span>
+                              <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{node.key}</span>
                             </div>
-                            <div className="mt-0.5 text-[11px] text-text-tertiary">
+                            <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
                               {formatDate(node.startDate)} ~ {formatDate(node.endDate)}
                             </div>
                           </div>
@@ -480,7 +505,7 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-text-tertiary text-sm bg-surface-elevated rounded-card">
+                  <div className="text-center py-6 text-sm rounded-inset" style={{ color: 'var(--text-tertiary)', background: 'var(--bg-panel)' }}>
                     暂无开发日历节点，点击「编辑季度」维护开发里程碑
                   </div>
                 )}
@@ -489,14 +514,14 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
               {/* 季度回顾 */}
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="text-xs text-text-tertiary">季度回顾</div>
+                  <div className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>季度回顾</div>
                   {review && (
-                    <span className="text-[10px] text-text-tertiary">生成于 {formatDateTime(review.generatedAt)}</span>
+                    <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>生成于 {formatDateTime(review.generatedAt)}</span>
                   )}
                   <button
                     onClick={handleGenerateReview}
                     disabled={generatingReview}
-                    className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50"
+                    className="bds-btn bds-btn-secondary sm ml-auto"
                   >
                     {generatingReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
                     {review ? '重新生成回顾' : '生成季度回顾'}
@@ -512,24 +537,24 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                         { label: '成本', value: formatNumber(review.cost) },
                         { label: '毛利', value: formatNumber(review.grossProfit) },
                       ].map((m) => (
-                        <div key={m.label} className="bg-surface-elevated rounded-card p-3">
-                          <div className="text-xs text-text-tertiary">{m.label}</div>
-                          <div className="text-sm text-text-primary mt-1 font-medium">{m.value}</div>
+                        <div key={m.label} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{m.label}</div>
+                          <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{m.value}</div>
                         </div>
                       ))}
                     </div>
                     {review.topCustomers.length > 0 && (
-                      <div className="bg-surface-elevated rounded-card overflow-hidden">
-                        <div className="px-4 py-2 border-b border-border-subtle text-xs text-text-tertiary">
+                      <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                        <div className="px-4 py-2 text-xs" style={{ borderBottom: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
                           Top {review.topCustomers.length} 客户
                         </div>
-                        <div className="divide-y divide-border-subtle">
+                        <div>
                           {review.topCustomers.map((c, idx) => (
-                            <div key={`${c.customer}-${idx}`} className="flex items-center gap-3 px-4 py-2">
-                              <span className="text-[11px] text-text-tertiary w-5">{idx + 1}</span>
-                              <span className="text-sm text-text-primary truncate flex-1">{c.customer}</span>
-                              <span className="text-xs text-text-tertiary">{c.orderCount} 单</span>
-                              <span className="text-xs text-text-secondary">{formatNumber(c.revenue)}</span>
+                            <div key={`${c.customer}-${idx}`} className="flex items-center gap-3 px-4 py-2" style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}>
+                              <span className="text-[11px] w-5" style={{ color: 'var(--text-tertiary)' }}>{idx + 1}</span>
+                              <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>{c.customer}</span>
+                              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{c.orderCount} 单</span>
+                              <span className="bds-tnum text-xs" style={{ color: 'var(--text-secondary)' }}>{formatNumber(c.revenue)}</span>
                             </div>
                           ))}
                         </div>
@@ -537,7 +562,7 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                     )}
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-text-tertiary text-sm bg-surface-elevated rounded-card">
+                  <div className="text-center py-6 text-sm rounded-inset" style={{ color: 'var(--text-tertiary)', background: 'var(--bg-panel)' }}>
                     尚未生成季度回顾，点击「生成季度回顾」按当前订单数据聚合快照
                   </div>
                 )}
@@ -546,36 +571,36 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
               {/* 关联趋势 / 展会 */}
               {detail && (detail.trendTags?.length || detail.tradeShows?.length) ? (
                 <section className="grid grid-cols-2 gap-3">
-                  <div className="bg-surface-elevated rounded-card p-3">
-                    <div className="text-xs text-text-tertiary mb-2">趋势标签</div>
+                  <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                    <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>趋势标签</div>
                     {(detail.trendTags ?? []).length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
                         {(detail.trendTags ?? []).map((t) => (
-                          <span key={t.id} className={`text-xs px-2 py-1 rounded-control border ${statusSemanticClass('info', isDarkMode)}`}>
+                          <span key={t.id} className="bds-badge sm info">
                             {t.name}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-sm text-text-tertiary">暂无</div>
+                      <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>暂无</div>
                     )}
                   </div>
-                  <div className="bg-surface-elevated rounded-card p-3">
-                    <div className="text-xs text-text-tertiary mb-2">展会</div>
+                  <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                    <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>展会</div>
                     {(detail.tradeShows ?? []).length > 0 ? (
                       <div className="space-y-1.5">
                         {(detail.tradeShows ?? []).map((show) => (
                           <div key={show.id} className="flex items-center gap-2">
-                            <Store className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
-                            <span className="text-sm text-text-primary truncate flex-1">{show.name}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(SHOW_STATUS_SEMANTIC[show.status] ?? 'neutral', isDarkMode)}`}>
+                            <Store className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+                            <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>{show.name}</span>
+                            <span className={`bds-badge sm shrink-0 ${SEMANTIC_BADGE_VARIANT[SHOW_STATUS_SEMANTIC[show.status] ?? 'neutral']}`}>
                               {SHOW_STATUS_LABELS[show.status] || show.status}
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-sm text-text-tertiary">暂无</div>
+                      <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>暂无</div>
                     )}
                   </div>
                 </section>
@@ -601,7 +626,7 @@ function SeasonsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
 
 // ==================== 趋势 Panel ====================
 
-function TrendsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function TrendsPanel() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [tags, setTags] = useState<TrendTag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -689,29 +714,26 @@ function TrendsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+    <div className="h-full flex flex-col min-h-0 bds-card overflow-hidden" style={{ padding: 0 }}>
       {/* 过滤栏 */}
-      <div className="p-3 border-b border-border-subtle flex items-center gap-2 flex-wrap">
+      <div className="p-3 flex items-center gap-2 flex-wrap" style={{ borderBottom: 'var(--border-subtle)' }}>
         <select
           value={seasonFilter}
           onChange={(e) => setSeasonFilter(e.target.value)}
-          className="bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1.5 border border-border-subtle outline-none focus:border-border-action"
+          className="bds-select"
+          style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
         >
           <option value="">全部季度</option>
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>{s.code} {s.name}</option>
           ))}
         </select>
-        <div className="flex items-center gap-1.5">
+        <div className="bds-segment flex-wrap">
           {(['', 'fabric', 'color', 'craft', 'composition'] as const).map((t) => (
             <button
               key={t || 'all'}
               onClick={() => setTypeFilter(t)}
-              className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                typeFilter === t
-                  ? statusSemanticClass('active', isDarkMode)
-                  : 'text-text-tertiary border-transparent hover:text-text-secondary'
-              }`}
+              className={`seg ${typeFilter === t ? 'active' : ''}`}
             >
               {t === '' ? '全部' : TREND_TYPE_LABELS[t]}
             </button>
@@ -719,14 +741,14 @@ function TrendsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
         </div>
         <button
           onClick={loadTags}
-          className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+          className="bds-btn bds-btn-ghost bds-btn-icon sm"
           title="刷新"
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => { setEditingTag(null); setShowForm(true); }}
-          className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-secondary sm ml-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           新建标签
@@ -737,12 +759,13 @@ function TrendsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
       <div className="flex-1 overflow-y-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : tags.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-text-tertiary">
-            <TrendingUp className="w-10 h-10 mb-2 opacity-40" />
-            <p className="text-sm">暂无趋势标签，点击「新建标签」开始收集趋势</p>
+          <div className="bds-empty">
+            <div className="glyph"><TrendingUp className="w-6 h-6" /></div>
+            <div className="title">暂无趋势标签</div>
+            <div className="desc">点击「新建标签」开始收集趋势</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
@@ -750,14 +773,14 @@ function TrendsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
               const expanded = expandedId === tag.id;
               const links = tag.fabricLinks ?? [];
               return (
-                <div key={tag.id} className="bg-surface-elevated rounded-card p-4">
+                <div key={tag.id} className="bds-card flat" style={{ padding: 'var(--space-4)' }}>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-text-primary font-medium truncate flex-1">{tag.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('info', isDarkMode)}`}>
+                    <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>{tag.name}</span>
+                    <span className="bds-badge sm info shrink-0">
                       {TREND_TYPE_LABELS[tag.type] || tag.type}
                     </span>
                   </div>
-                  <div className="mt-1.5 flex items-center gap-2 text-[11px] text-text-tertiary flex-wrap">
+                  <div className="mt-1.5 flex items-center gap-2 text-[11px] flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                     <span>{links.length} 款关联面料</span>
                     {tag.tradeShow?.name && <span>来源展会：{tag.tradeShow.name}</span>}
                     {!tag.tradeShow?.name && tag.source && <span>来源：{tag.source}</span>}
@@ -765,21 +788,21 @@ function TrendsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                   <div className="mt-2.5 flex items-center gap-1.5">
                     <button
                       onClick={() => setExpandedId(expanded ? null : tag.id)}
-                      className="flex items-center gap-1 px-2 py-1 text-xs rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+                      className="bds-btn bds-btn-ghost sm"
                     >
                       <ArrowRight className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                       {expanded ? '收起面料' : '展开面料'}
                     </button>
                     <button
                       onClick={() => { setEditingTag(tag); setShowForm(true); }}
-                      className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       title="编辑"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDelete(tag)}
-                      className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors ml-auto"
+                      className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
                       title="删除"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -794,28 +817,28 @@ function TrendsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
                         exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="mt-3 pt-3 border-t border-border-subtle space-y-2">
+                        <div className="mt-3 pt-3 space-y-2" style={{ borderTop: 'var(--border-subtle)' }}>
                           {tag.description && (
-                            <div className="text-xs text-text-secondary whitespace-pre-wrap">{tag.description}</div>
+                            <div className="text-xs whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{tag.description}</div>
                           )}
                           {links.length === 0 ? (
-                            <div className="text-xs text-text-tertiary py-2">尚未关联面料</div>
+                            <div className="text-xs py-2" style={{ color: 'var(--text-tertiary)' }}>尚未关联面料</div>
                           ) : (
                             <div className="space-y-1.5">
                               {links.map((link) => (
-                                <div key={link.id} className="flex items-center gap-2 bg-surface-primary rounded-control px-2.5 py-1.5">
+                                <div key={link.id} className="flex items-center gap-2 rounded-bds-md px-2.5 py-1.5" style={{ background: 'var(--bg-card)' }}>
                                   <div className="min-w-0 flex-1">
-                                    <div className="text-xs text-text-primary truncate">
+                                    <div className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>
                                       {link.fabric?.productAsset?.name || link.fabric?.articleNo || link.fabricId}
                                     </div>
-                                    <div className="text-[10px] text-text-tertiary truncate">
+                                    <div className="text-[10px] truncate" style={{ color: 'var(--text-tertiary)' }}>
                                       {link.fabric?.productAsset?.sku || ''}
                                       {link.note ? ` · ${link.note}` : ''}
                                     </div>
                                   </div>
                                   <button
                                     onClick={() => handleUnlinkFabric(tag.id, link.fabricId)}
-                                    className="p-1 rounded-control text-text-tertiary hover:text-text-primary transition-colors shrink-0"
+                                    className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0"
                                     title="移除关联"
                                   >
                                     <X className="w-3 h-3" />
@@ -895,28 +918,28 @@ function FabricLinker({
   return (
     <div className="pt-1">
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 flex-1 min-w-0 bg-surface-primary rounded-control px-2.5 py-1.5 border border-border-subtle focus-within:border-border-action">
-          <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+        <div className="relative flex-1 min-w-0">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
           <input
             type="text"
             placeholder="搜索面料名称 / SKU 关联..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="bg-transparent text-xs text-text-primary placeholder:text-text-tertiary outline-none flex-1 min-w-0"
+            className="bds-input sm pl-9"
           />
-          {searching && <Loader2 className="w-3 h-3 animate-spin text-text-tertiary shrink-0" />}
+          {searching && <Loader2 className="w-3 h-3 animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />}
         </div>
         <input
           type="text"
           placeholder="备注（可选）"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-28 bg-surface-primary text-text-primary text-xs rounded-control px-2.5 py-1.5 border border-border-subtle outline-none focus:border-border-action"
+          className="bds-input sm w-28"
         />
       </div>
       {results.length > 0 && (
-        <div className="mt-1.5 bg-surface-primary rounded-control border border-border-subtle divide-y divide-border-subtle max-h-40 overflow-y-auto">
-          {results.map((asset) => {
+        <div className="mt-1.5 rounded-bds-md max-h-40 overflow-y-auto" style={{ border: 'var(--border-subtle)', background: 'var(--bg-card)' }}>
+          {results.map((asset, idx) => {
             const fabricId = asset.fabricProfile?.id;
             const alreadyLinked = fabricId != null && linkedFabricIds.includes(fabricId);
             return (
@@ -930,11 +953,12 @@ function FabricLinker({
                   setResults([]);
                   setNote('');
                 }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors hover:bg-surface-elevated disabled:opacity-40 disabled:hover:bg-transparent"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--hover-darken)] disabled:opacity-40 disabled:hover:bg-transparent"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
               >
-                <span className="text-xs text-text-primary truncate flex-1">{asset.name}</span>
-                <span className="text-[10px] text-text-tertiary shrink-0">{asset.sku}</span>
-                <span className="text-[10px] text-text-tertiary shrink-0">
+                <span className="text-xs truncate flex-1" style={{ color: 'var(--text-primary)' }}>{asset.name}</span>
+                <span className="text-[10px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>{asset.sku}</span>
+                <span className="text-[10px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>
                   {!fabricId ? '无面料档案' : alreadyLinked ? '已关联' : '关联'}
                 </span>
               </button>
@@ -948,7 +972,7 @@ function FabricLinker({
 
 // ==================== 展会 Panel ====================
 
-function ShowsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
+function ShowsPanel() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [shows, setShows] = useState<TradeShow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1111,13 +1135,14 @@ function ShowsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
   return (
     <div className="h-full flex min-h-0 gap-4">
       {/* ── 左侧：展会列表 ── */}
-      <div className="w-80 shrink-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
-        <div className="p-3 border-b border-border-subtle space-y-2">
+      <div className="w-80 shrink-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
+        <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
           <div className="flex items-center gap-2">
             <select
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
-              className="flex-1 min-w-0 bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1.5 border border-border-subtle outline-none focus:border-border-action"
+              className="bds-select flex-1 min-w-0"
+              style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
             >
               <option value="">全部季度</option>
               {seasons.map((s) => (
@@ -1126,29 +1151,27 @@ function ShowsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
             </select>
             <button
               onClick={refreshAll}
-              className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+              className="bds-btn bds-btn-ghost bds-btn-icon sm"
               title="刷新"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(['', 'Planned', 'Ongoing', 'Completed', 'Cancelled'] as const).map((s) => (
-              <button
-                key={s || 'all'}
-                onClick={() => setStatusFilter(s)}
-                className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                  statusFilter === s
-                    ? statusSemanticClass('active', isDarkMode)
-                    : 'text-text-tertiary border-transparent hover:text-text-secondary'
-                }`}
-              >
-                {s === '' ? '全部' : SHOW_STATUS_LABELS[s]}
-              </button>
-            ))}
+            <div className="bds-segment flex-wrap">
+              {(['', 'Planned', 'Ongoing', 'Completed', 'Cancelled'] as const).map((s) => (
+                <button
+                  key={s || 'all'}
+                  onClick={() => setStatusFilter(s)}
+                  className={`seg ${statusFilter === s ? 'active' : ''}`}
+                >
+                  {s === '' ? '全部' : SHOW_STATUS_LABELS[s]}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => { setEditingShow(null); setShowForm(true); }}
-              className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+              className="bds-btn bds-btn-secondary sm ml-auto"
             >
               <Plus className="w-3.5 h-3.5" />
               新建展会
@@ -1159,72 +1182,76 @@ function ShowsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+              <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
             </div>
           ) : shows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-text-tertiary px-4">
-              <Store className="w-10 h-10 mb-2 opacity-40" />
-              <p className="text-sm text-center">暂无展会记录，点击「新建展会」开始</p>
+            <div className="bds-empty">
+              <div className="glyph"><Store className="w-6 h-6" /></div>
+              <div className="title">暂无展会记录</div>
+              <div className="desc">点击「新建展会」开始</div>
             </div>
           ) : (
-            shows.map((show) => {
-              const isSelected = show.id === selectedId;
-              return (
-                <button
-                  key={show.id}
-                  onClick={() => setSelectedId(show.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-border-subtle transition-colors ${
-                    isSelected ? 'bg-surface-elevated' : 'hover:bg-surface-elevated/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-text-primary truncate flex-1">{show.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(SHOW_STATUS_SEMANTIC[show.status] ?? 'neutral', isDarkMode)}`}>
-                      {SHOW_STATUS_LABELS[show.status] || show.status}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2 text-[11px] text-text-tertiary">
-                    <span>{formatDate(show.startDate)}{show.endDate ? ` ~ ${formatDate(show.endDate)}` : ''}</span>
-                    {show.location && (
-                      <span className="flex items-center gap-0.5 truncate">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        {show.location}
-                      </span>
-                    )}
-                    {show.cost != null && <span className="ml-auto shrink-0">{formatMoney(show.cost, show.currency)}</span>}
-                  </div>
-                </button>
-              );
-            })
+            <div className="bds-listrows px-2 py-1">
+              {shows.map((show) => {
+                const isSelected = show.id === selectedId;
+                return (
+                  <button
+                    key={show.id}
+                    onClick={() => setSelectedId(show.id)}
+                    className="bds-listrow w-full text-left"
+                    style={isSelected ? { background: 'var(--bg-panel)' } : undefined}
+                  >
+                    <div className="lr-main">
+                      <div className="flex items-center gap-2">
+                        <span className="lr-title flex-1" style={{ color: 'var(--text-primary)' }}>{show.name}</span>
+                        <span className={`bds-badge sm shrink-0 ${SEMANTIC_BADGE_VARIANT[SHOW_STATUS_SEMANTIC[show.status] ?? 'neutral']}`}>
+                          {SHOW_STATUS_LABELS[show.status] || show.status}
+                        </span>
+                      </div>
+                      <div className="lr-sub mt-1.5 flex items-center gap-2">
+                        <span>{formatDate(show.startDate)}{show.endDate ? ` ~ ${formatDate(show.endDate)}` : ''}</span>
+                        {show.location && (
+                          <span className="flex items-center gap-0.5 truncate">
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            {show.location}
+                          </span>
+                        )}
+                        {show.cost != null && <span className="bds-tnum ml-auto shrink-0">{formatMoney(show.cost, show.currency)}</span>}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
-        <div className="px-4 py-2 border-t border-border-subtle text-[11px] text-text-tertiary">
+        <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
           共 {shows.length} 场展会
         </div>
       </div>
 
       {/* ── 右侧：展会详情 ── */}
-      <div className="flex-1 min-w-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
         {!selectedShow ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-text-tertiary">
-            <Store className="w-12 h-12 mb-3 opacity-40" />
-            <p className="text-sm">请选择左侧展会查看详情</p>
+          <div className="bds-empty flex-1 justify-center">
+            <div className="glyph"><Store className="w-6 h-6" /></div>
+            <div className="title">请选择左侧展会查看详情</div>
           </div>
         ) : detailLoading ? (
           <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
             {/* 展会头部 */}
-            <div className="p-5 border-b border-border-subtle">
+            <div className="p-5" style={{ borderBottom: 'var(--border-subtle)' }}>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-medium text-text-primary truncate">{selectedShow.name}</h2>
-                <span className={`text-xs px-2 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(SHOW_STATUS_SEMANTIC[selectedShow.status] ?? 'neutral', isDarkMode)}`}>
+                <h2 className="bds-text-base truncate" style={{ color: 'var(--text-primary)' }}>{selectedShow.name}</h2>
+                <span className={`bds-badge sm shrink-0 ${SEMANTIC_BADGE_VARIANT[SHOW_STATUS_SEMANTIC[selectedShow.status] ?? 'neutral']}`}>
                   {SHOW_STATUS_LABELS[selectedShow.status] || selectedShow.status}
                 </span>
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs text-text-tertiary flex-wrap">
+              <div className="mt-2 flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                 <span>{formatDate(selectedShow.startDate)}{selectedShow.endDate ? ` ~ ${formatDate(selectedShow.endDate)}` : ''}</span>
                 {selectedShow.location && <span>地点 {selectedShow.location}</span>}
                 {selectedShow.boothNo && <span>展位 {selectedShow.boothNo}</span>}
@@ -1233,28 +1260,28 @@ function ShowsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => { setEditingShow(detail ?? selectedShow); setShowForm(true); }}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   编辑展会
                 </button>
                 <button
                   onClick={() => { setEditingLead(null); setShowLeadForm(true); }}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   新增线索
                 </button>
                 <button
                   onClick={() => handleDeleteShow(detail ?? selectedShow)}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-tertiary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all ml-auto"
+                  className="bds-btn bds-btn-danger sm ml-auto"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   删除
                 </button>
               </div>
               {(detail?.notes || selectedShow.notes) && (
-                <div className="mt-3 px-3 py-2 rounded-card bg-surface-elevated text-xs text-text-secondary whitespace-pre-wrap">
+                <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap" style={{ background: 'var(--bg-panel)', color: 'var(--text-secondary)' }}>
                   {detail?.notes || selectedShow.notes}
                 </div>
               )}
@@ -1264,37 +1291,40 @@ function ShowsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
               {/* ROI 卡片 */}
               {roi && (
                 <section>
-                  <div className="text-xs text-text-tertiary mb-3">投资回报 ROI</div>
+                  <div className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>投资回报 ROI</div>
                   <div className="grid grid-cols-4 gap-3">
-                    <div className="bg-surface-elevated rounded-card p-3">
-                      <div className="text-xs text-text-tertiary">参展费用</div>
-                      <div className="text-sm text-text-primary mt-1 font-medium">{formatMoney(roi.cost, roi.currency)}</div>
+                    <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>参展费用</div>
+                      <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{formatMoney(roi.cost, roi.currency)}</div>
                     </div>
-                    <div className="bg-surface-elevated rounded-card p-3">
-                      <div className="text-xs text-text-tertiary">转化订单金额</div>
-                      <div className="text-sm text-text-primary mt-1 font-medium">{formatMoney(roi.orderAmount, roi.currency)}</div>
+                    <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>转化订单金额</div>
+                      <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{formatMoney(roi.orderAmount, roi.currency)}</div>
                     </div>
-                    <div className={`rounded-card p-3 border ${statusSemanticClass(roi.roi >= 1 ? 'success' : roi.cost > 0 ? 'warning' : 'neutral', isDarkMode)}`}>
+                    <div
+                      className="rounded-inset p-3"
+                      style={SEMANTIC_TINT_STYLE[roi.roi >= 1 ? 'success' : roi.cost > 0 ? 'warning' : 'neutral']}
+                    >
                       <div className="text-xs opacity-70">ROI 倍数</div>
-                      <div className="text-sm mt-1 font-medium">{formatNumber(roi.roi)}x</div>
+                      <div className="bds-tnum text-sm mt-1">{formatNumber(roi.roi)}x</div>
                     </div>
-                    <div className="bg-surface-elevated rounded-card p-3">
-                      <div className="text-xs text-text-tertiary">转化订单</div>
-                      <div className="text-sm text-text-primary mt-1 font-medium">{roi.orderCount} 单</div>
+                    <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>转化订单</div>
+                      <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{roi.orderCount} 单</div>
                     </div>
                   </div>
-                  {/* 线索转化占比条（flat：纯色膜，无阴影） */}
-                  <div className="mt-3 bg-surface-elevated rounded-card p-3">
-                    <div className="flex items-center gap-2 text-xs text-text-tertiary">
+                  {/* 线索转化占比条 */}
+                  <div className="mt-3 rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                    <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                       <span>线索 {roi.leadsTotal} 条</span>
                       <span>已转化 {roi.leadsConverted} 条</span>
                       <span className="ml-auto">
                         转化率 {roi.leadsTotal > 0 ? Math.round((roi.leadsConverted / roi.leadsTotal) * 100) : 0}%
                       </span>
                     </div>
-                    <div className="mt-2 h-1.5 rounded-full bg-surface-primary overflow-hidden">
+                    <div className="bds-progress success mt-2">
                       <div
-                        className={`h-full rounded-full transition-all ${statusSemanticBg('success', isDarkMode)}`}
+                        className="fill"
                         style={{ width: `${roi.leadsTotal > 0 ? Math.min((roi.leadsConverted / roi.leadsTotal) * 100, 100) : 0}%` }}
                       />
                     </div>
@@ -1305,70 +1335,83 @@ function ShowsPanel({ isDarkMode }: { isDarkMode?: boolean }) {
               {/* 线索列表 */}
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="text-xs text-text-tertiary">展会线索（{detail?.leads?.length ?? 0}）</div>
+                  <div className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>展会线索（{detail?.leads?.length ?? 0}）</div>
                 </div>
                 {(detail?.leads ?? []).length === 0 ? (
-                  <div className="text-center py-8 text-text-tertiary text-sm bg-surface-elevated rounded-card">
+                  <div className="text-center py-8 text-sm rounded-inset" style={{ color: 'var(--text-tertiary)', background: 'var(--bg-panel)' }}>
                     暂无线索，点击「新增线索」录入展会名片
                   </div>
                 ) : (
-                  <div className="bg-surface-elevated rounded-card overflow-hidden">
-                    <div className="grid grid-cols-[1.2fr_1fr_0.7fr_1.4fr_0.9fr_0.9fr_auto] gap-2 px-4 py-2 border-b border-border-subtle text-[11px] text-text-tertiary">
-                      <span>客户</span>
-                      <span>公司</span>
-                      <span>国家</span>
-                      <span>需求</span>
-                      <span>状态</span>
-                      <span>下次跟进</span>
-                      <span className="text-right">操作</span>
-                    </div>
-                    <div className="divide-y divide-border-subtle">
-                      {(detail?.leads ?? []).map((lead) => (
-                        <div key={lead.id} className="grid grid-cols-[1.2fr_1fr_0.7fr_1.4fr_0.9fr_0.9fr_auto] gap-2 px-4 py-2.5 items-center">
-                          <span className="text-sm text-text-primary truncate">{lead.customerName}</span>
-                          <span className="text-xs text-text-secondary truncate">{lead.company || '—'}</span>
-                          <span className="text-xs text-text-secondary truncate">{lead.country || '—'}</span>
-                          <span className="text-xs text-text-tertiary truncate" title={lead.demand || undefined}>{lead.demand || '—'}</span>
-                          <span>
-                            <select
-                              value={lead.status}
-                              onChange={(e) => handleLeadStatus(lead, e.target.value as TradeShowLeadStatus)}
-                              className={`text-[11px] px-1.5 py-0.5 rounded-control border outline-none bg-surface-primary ${statusSemanticClass(LEAD_STATUS_SEMANTIC[lead.status] ?? 'neutral', isDarkMode)}`}
-                            >
-                              {(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => (
-                                <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
-                              ))}
-                            </select>
-                          </span>
-                          <span className="text-xs text-text-tertiary">{formatDate(lead.nextFollowUpAt)}</span>
-                          <span className="flex items-center gap-0.5 justify-end">
-                            {lead.status !== 'Converted' && (
-                              <button
-                                onClick={() => setConvertingLead(lead)}
-                                className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
-                                title="转化为客户"
+                  <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                    <table className="bds-table">
+                      <thead>
+                        <tr>
+                          <th>客户</th>
+                          <th>公司</th>
+                          <th>国家</th>
+                          <th>需求</th>
+                          <th>状态</th>
+                          <th>下次跟进</th>
+                          <th className="num">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(detail?.leads ?? []).map((lead) => (
+                          <tr key={lead.id}>
+                            <td className="max-w-[140px] truncate" style={{ color: 'var(--text-primary)' }}>{lead.customerName}</td>
+                            <td className="max-w-[120px] truncate" style={{ color: 'var(--text-secondary)' }}>{lead.company || '—'}</td>
+                            <td className="max-w-[80px] truncate" style={{ color: 'var(--text-secondary)' }}>{lead.country || '—'}</td>
+                            <td className="max-w-[180px] truncate" title={lead.demand || undefined} style={{ color: 'var(--text-tertiary)' }}>{lead.demand || '—'}</td>
+                            <td>
+                              <select
+                                value={lead.status}
+                                onChange={(e) => handleLeadStatus(lead, e.target.value as TradeShowLeadStatus)}
+                                className="bds-select"
+                                style={{
+                                  width: 'auto',
+                                  height: 'var(--h-input-sm)',
+                                  fontSize: '11px',
+                                  padding: '0 26px 0 10px',
+                                  ...SEMANTIC_TINT_STYLE[SEMANTIC_BADGE_VARIANT[LEAD_STATUS_SEMANTIC[lead.status] ?? 'neutral']],
+                                }}
                               >
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => { setEditingLead(lead); setShowLeadForm(true); }}
-                              className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
-                              title="编辑"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteLead(lead)}
-                              className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
-                              title="删除"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                                {(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => (
+                                  <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ color: 'var(--text-tertiary)' }}>{formatDate(lead.nextFollowUpAt)}</td>
+                            <td>
+                              <div className="flex items-center gap-0.5 justify-end">
+                                {lead.status !== 'Converted' && (
+                                  <button
+                                    onClick={() => setConvertingLead(lead)}
+                                    className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                                    title="转化为客户"
+                                  >
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => { setEditingLead(lead); setShowLeadForm(true); }}
+                                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                                  title="编辑"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteLead(lead)}
+                                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                                  title="删除"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </section>
@@ -1414,23 +1457,24 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="bds-modal-mask"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-surface-elevated rounded-panel w-full max-w-lg max-h-[85vh] overflow-y-auto"
+        className="bds-modal"
+        style={{ width: '32rem', maxHeight: '85vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        {children}
       </motion.div>
     </motion.div>
   );
@@ -1439,13 +1483,15 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>{label}</label>
       {children}
     </div>
   );
 }
 
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
+const inputClass = "bds-input";
+const selectClass = "bds-select";
+const textareaClass = "bds-input bds-textarea";
 
 // ─── 季度表单（新建 / 编辑） ───
 
@@ -1520,7 +1566,7 @@ function SeasonForm({
             disabled={!!season}
           />
           {!season && (
-            <div className="text-[11px] text-text-tertiary mt-1">格式：SS26（春夏）/ AW26（秋冬），创建后不可修改</div>
+            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>格式：SS26（春夏）/ AW26（秋冬），创建后不可修改</div>
           )}
         </Field>
         <Field label="季度名称 *">
@@ -1537,7 +1583,7 @@ function SeasonForm({
       </div>
       {season && (
         <Field label="状态">
-          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as SeasonStatus)}>
+          <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value as SeasonStatus)}>
             {(Object.keys(SEASON_STATUS_LABELS) as SeasonStatus[]).map((s) => (
               <option key={s} value={s}>{SEASON_STATUS_LABELS[s]}</option>
             ))}
@@ -1551,17 +1597,17 @@ function SeasonForm({
       {/* 开发日历节点编辑 */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs text-text-tertiary">开发日历（里程碑节点）</label>
+          <label className="block text-xs" style={{ color: 'var(--text-tertiary)' }}>开发日历（里程碑节点）</label>
           <button
             onClick={() => setCalendar((rows) => [...rows, { key: '', label: '', startDate: '', endDate: '' }])}
-            className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+            className="bds-btn bds-btn-ghost sm"
           >
             <Plus className="w-3 h-3" />
             添加节点
           </button>
         </div>
         {calendar.length === 0 ? (
-          <div className="text-[11px] text-text-tertiary py-2">暂无节点，点击「添加节点」维护开发里程碑（如 开发启动 / 打样截止 / 下单截止）</div>
+          <div className="text-[11px] py-2" style={{ color: 'var(--text-tertiary)' }}>暂无节点，点击「添加节点」维护开发里程碑（如 开发启动 / 打样截止 / 下单截止）</div>
         ) : (
           <div className="space-y-2">
             {calendar.map((row, idx) => (
@@ -1592,7 +1638,7 @@ function SeasonForm({
                 />
                 <button
                   onClick={() => setCalendar((rows) => rows.filter((_, i) => i !== idx))}
-                  className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary transition-colors"
+                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
                   title="删除节点"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -1604,12 +1650,12 @@ function SeasonForm({
       </div>
 
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1689,7 +1735,7 @@ function TrendTagForm({
           </select>
         </Field>
         <Field label="类型 *">
-          <select className={inputClass} value={type} onChange={(e) => setType(e.target.value as TrendTagType)}>
+          <select className={selectClass} value={type} onChange={(e) => setType(e.target.value as TrendTagType)}>
             {(Object.keys(TREND_TYPE_LABELS) as TrendTagType[]).map((t) => (
               <option key={t} value={t}>{TREND_TYPE_LABELS[t]}</option>
             ))}
@@ -1707,7 +1753,7 @@ function TrendTagForm({
           <input className={inputClass} value={source} onChange={(e) => setSource(e.target.value)} placeholder="如：WGSN / 行业报告" />
         </Field>
         <Field label="来源展会">
-          <select className={inputClass} value={tradeShowId} onChange={(e) => setTradeShowId(e.target.value)}>
+          <select className={selectClass} value={tradeShowId} onChange={(e) => setTradeShowId(e.target.value)}>
             <option value="">无</option>
             {selectableShows.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
@@ -1716,12 +1762,12 @@ function TrendTagForm({
         </Field>
       </div>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1778,7 +1824,7 @@ function TradeShowForm({
     <ModalShell title={show ? '编辑展会' : '新建展会'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="所属季度">
-          <select className={inputClass} value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
+          <select className={selectClass} value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
             <option value="">不关联季度</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>{s.code} {s.name}</option>
@@ -1813,14 +1859,14 @@ function TradeShowForm({
           <input type="number" min={0} className={inputClass} value={cost} onChange={(e) => setCost(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
       </div>
       {show && (
         <Field label="状态">
-          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as TradeShowStatus)}>
+          <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value as TradeShowStatus)}>
             {(Object.keys(SHOW_STATUS_LABELS) as TradeShowStatus[]).map((s) => (
               <option key={s} value={s}>{SHOW_STATUS_LABELS[s]}</option>
             ))}
@@ -1831,12 +1877,12 @@ function TradeShowForm({
         <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1913,7 +1959,7 @@ function LeadForm({
         </Field>
         {lead && (
           <Field label="状态">
-            <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as TradeShowLeadStatus)}>
+            <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value as TradeShowLeadStatus)}>
               {(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => (
                 <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
               ))}
@@ -1925,12 +1971,12 @@ function LeadForm({
         <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1980,16 +2026,16 @@ function ConvertLeadForm({
 
   return (
     <ModalShell title={`转化线索「${lead.customerName}」`} onClose={onClose}>
-      <div className="mb-3 px-3 py-2 rounded-card bg-surface-primary border border-border-subtle text-xs text-text-tertiary">
+      <div className="bds-alert info mb-3">
         选择关系智库中 category=Customer 的客户档案，转化后线索状态将变为「已转化」并关联该客户。
       </div>
       <Field label="目标客户 *">
         {loading ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-4 h-4 animate-spin text-text-tertiary" />
+            <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-tertiary)' }} />
           </div>
         ) : (
-          <select className={inputClass} value={relationId} onChange={(e) => setRelationId(e.target.value)}>
+          <select className={selectClass} value={relationId} onChange={(e) => setRelationId(e.target.value)}>
             <option value="">选择客户...</option>
             {relations.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
@@ -1997,18 +2043,18 @@ function ConvertLeadForm({
           </select>
         )}
         {!loading && relations.length === 0 && (
-          <div className="text-[11px] text-text-tertiary mt-1">
+          <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
             暂无客户档案，请先在「关系智库」创建 category=Customer 的客户
           </div>
         )}
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           确认转化
         </button>

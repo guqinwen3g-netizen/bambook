@@ -11,7 +11,7 @@ import {
   MoreHorizontal, CornerUpLeft, Reply, Forward, Plus, Edit, ChevronDown,
   Clock, CheckCircle2, ShieldAlert, ShieldCheck, Filter, List,
   ReplyAll, MoreVertical, PanelLeftClose, PanelLeft, PenLine,
-  Tags, CalendarPlus
+  Tags, CalendarPlus, Search
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { emailSyncService } from '../services/emailSyncService';
@@ -32,7 +32,6 @@ import { EmailList } from './email/EmailList';
 import { EmailEditor } from './email/EmailEditor';
 import SignatureManager from './email/SignatureManager';
 import { cleanHtmlSnippet } from '../utils/emailUtils';
-import { RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
 
 
 interface EmailProps {
@@ -1362,32 +1361,32 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   return (
     <div
       data-email-workspace="full-bleed"
-      className={`w-full h-full min-w-0 flex bg-transparent overflow-hidden ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}
+      className="w-full h-full min-w-0 flex bg-transparent overflow-hidden text-[var(--text-primary)]"
     >
 
       {/* 1. Workspace rail: sectioned, not a contained app panel. */}
       <aside
-        className={`flex-shrink-0 flex flex-col transition-[width] duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] z-30 bg-transparent border-r shadow-none ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}
+        className="flex-shrink-0 flex flex-col transition-[width] duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] z-30 bg-transparent border-r shadow-none border-[var(--border-c-default)]"
         style={{ width: isSidebarCollapsed ? '68px' : '250px' }}
       >
-        <div className={`h-16 flex items-center px-5 border-b overflow-hidden shrink-0 ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
+        <div className="h-16 flex items-center px-5 border-b overflow-hidden shrink-0 border-[var(--border-c-default)]">
           {!isSidebarCollapsed && (
-            <RdlPill
-              tone="accent"
-              active
+            <button
+              type="button"
               onClick={() => { setIsComposing(true); }}
-              className="flex-1 group mr-2"
+              className="bds-btn bds-btn-primary flex-1 group mr-2"
             >
               <Plus size={20} strokeWidth={1} className="group-hover:rotate-90 transition-transform duration-300" />
               <span>Compose</span>
-            </RdlPill>
+            </button>
           )}
-          <RdlOverlayIconButton
+          <button
+            type="button"
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className={`!h-10 !w-10 ${isSidebarCollapsed ? (isDarkMode ? 'text-accent-cyan' : 'text-action') : ''}`}
+            className={`bds-btn bds-btn-ghost bds-btn-icon ${isSidebarCollapsed ? 'text-[var(--accent)]' : ''}`}
           >
             {isSidebarCollapsed ? <PanelLeft size={20} strokeWidth={1} /> : <PanelLeftClose size={20} strokeWidth={1} />}
-          </RdlOverlayIconButton>
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 space-y-6">
@@ -1402,7 +1401,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'INBOX'}
                 onClick={() => handleBoxChange('INBOX')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
               <NavItem
                 icon={Mail}
@@ -1411,7 +1409,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'UNREAD'}
                 onClick={() => handleBoxChange('UNREAD')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
               <NavItem
                 icon={Flag}
@@ -1419,7 +1416,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'STARRED'}
                 onClick={() => handleBoxChange('STARRED')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
               <NavItem
                 icon={Star}
@@ -1427,7 +1423,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'IMPORTANT'}
                 onClick={() => handleBoxChange('IMPORTANT')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
             </div>
           </section>
@@ -1449,7 +1444,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'Drafts'}
                 onClick={() => handleBoxChange('Drafts')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
               <NavItem
                 icon={Send}
@@ -1457,7 +1451,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'Sent Messages'}
                 onClick={() => handleBoxChange('Sent Messages')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
               <NavItem
                 icon={Trash2}
@@ -1465,7 +1458,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'Trash'}
                 onClick={() => handleBoxChange('Trash')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
               <NavItem
                 icon={ShieldAlert}
@@ -1473,46 +1465,46 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 active={currentBox === 'Spams'}
                 onClick={() => handleBoxChange('Spams')}
                 collapsed={isSidebarCollapsed}
-                isDarkMode={isDarkMode}
               />
             </div>
           </section>
         </div>
 
         {/* Config / Sync Button at bottom - REFRESH MOVED TO TOP */}
-        <div className={`p-4 border-t flex justify-between items-center ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
-          <RdlPill onClick={() => setIsConfiguring(true)} className="min-h-9 px-3 text-xs">
+        <div className="p-4 border-t flex justify-between items-center border-[var(--border-c-default)]">
+          <button type="button" onClick={() => setIsConfiguring(true)} className="bds-btn bds-btn-secondary sm">
             <Settings size={14} strokeWidth={1} /> 邮箱设置
-          </RdlPill>
-          <RdlPill
+          </button>
+          <button
+            type="button"
             onClick={handleSyncToErp}
             disabled={erpSyncBusy}
             data-erp-sync-busy={erpSyncBusy}
-            className={`min-h-9 px-3 text-xs ${erpSyncBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`bds-btn bds-btn-secondary sm ${erpSyncBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <RefreshCcw size={14} strokeWidth={1} className={erpSyncBusy ? 'animate-spin' : ''} />
             {erpSyncBusy ? '同步中…' : '同步到 ERP'}
-          </RdlPill>
+          </button>
           {erpSyncError && (
-            <div className="text-[10px] text-red-400 mt-1 w-full">{erpSyncError}</div>
+            <div className="text-[10px] mt-1 w-full" style={{ color: 'var(--danger-text)' }}>{erpSyncError}</div>
           )}
           {erpSyncResult && (
-            <div className="text-[10px] text-emerald-400 mt-1 w-full">{erpSyncResult}</div>
+            <div className="text-[10px] mt-1 w-full" style={{ color: 'var(--success-text)' }}>{erpSyncResult}</div>
           )}
         </div>
       </aside>
 
       {/* 2. Email List (Middle Pane) */}
-      <div className={`flex flex-col border-r shrink-0 z-10 box-content transition-all duration-300 pointer-events-auto bg-transparent ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'} ${isMobile ? 'w-full absolute inset-0' : 'w-[340px] 3xl:w-[390px] relative'}`}>
+      <div className={`flex flex-col border-r shrink-0 z-10 box-content transition-all duration-300 pointer-events-auto bg-transparent border-[var(--border-c-default)] ${isMobile ? 'w-full absolute inset-0' : 'w-[340px] 3xl:w-[390px] relative'}`}>
         {/* Mobile Header for Folder Selection */}
         {isMobile && (
-          <div className={`h-14 flex items-center justify-between px-4 border-b ${isDarkMode ? 'bg-deep/95 border-white/10' : 'bg-white/95 border-slate-200'}`}>
-            <h2 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{currentBox}</h2>
+          <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-c-default)] bg-[var(--bg-card)]">
+            <h2 className="text-lg font-light text-[var(--text-primary)]">{currentBox}</h2>
             <div className="flex gap-2">
-              <button onClick={() => setIsComposing(true)} className={`p-2 rounded-full ${isDarkMode ? 'bg-white/15 text-white/80 hover:bg-white/20' : 'bg-white/70 border border-slate-200/60 text-slate-600 hover:bg-white/90'}`}>
+              <button onClick={() => setIsComposing(true)} className="bds-btn bds-btn-ghost bds-btn-icon sm">
                 <Edit size={18} strokeWidth={1} />
               </button>
-              <button onClick={() => handleSync(currentBox)} className={`p-2 rounded-full ${isSyncing ? 'animate-spin' : ''} ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <button onClick={() => handleSync(currentBox)} className={`bds-btn bds-btn-ghost bds-btn-icon sm ${isSyncing ? 'animate-spin' : ''}`}>
                 <RefreshCcw size={18} strokeWidth={1} />
               </button>
             </div>
@@ -1521,40 +1513,40 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
         {/* Desktop Header for List */}
         {!isMobile && (
-          <div data-os-adaptive-container="1" className={`h-14 border-b flex items-center justify-between px-5 shrink-0 bg-transparent ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
-            <div data-ui-lab-wallpaper-contrast="primary" className={`flex items-center gap-2 font-light text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              <ChevronDown size={14} strokeWidth={1} className="text-slate-400" />
+          <div data-os-adaptive-container="1" className="h-14 border-b flex items-center justify-between px-5 shrink-0 bg-transparent border-[var(--border-c-default)]">
+            <div data-ui-lab-wallpaper-contrast="primary" className="flex items-center gap-2 font-light text-sm text-[var(--text-secondary)]">
+              <ChevronDown size={14} strokeWidth={1} className="text-[var(--text-quaternary)]" />
               <span>{currentBox === 'INBOX' ? 'Inbox' : currentBox === 'STARRED' ? 'Flagged' : currentBox === 'IMPORTANT' ? 'Important' : currentBox === 'UNREAD' ? 'Unread Messages' : currentBox === 'Sent Messages' ? 'Sent' : currentBox}</span>
             </div>
-            <div className="flex items-center gap-4 text-slate-400">
+            <div className="flex items-center gap-4 text-[var(--text-tertiary)]">
               {/* Filter Dropdown */}
               <div className="relative group">
-                <Filter size={16} strokeWidth={1} className={`hover:text-blue-600 cursor-pointer transition-colors ${filterType !== 'All' ? 'text-blue-600' : ''}`} />
-                <RdlSurface tone="floating" padding="compact" className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-1">
+                <Filter size={16} strokeWidth={1} className={`hover:text-[var(--accent-text)] cursor-pointer transition-colors ${filterType !== 'All' ? 'text-[var(--accent-text)]' : ''}`} />
+                <div className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-1 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
                   {['All', 'Unread', 'Read', 'Has Attachment', 'Follow-ups', 'Completed'].map(f => (
                     <button
                       key={f}
                       onClick={() => setFilterType(f)}
-                      className={`w-full text-left px-4 py-2 text-xs font-light transition-colors flex items-center justify-between ${filterType === f ? (isDarkMode ? 'text-blue-400 bg-white/[0.06]' : 'text-blue-700 bg-white/45') : (isDarkMode ? 'text-slate-300 hover:bg-white/[0.045]' : 'text-slate-600 hover:bg-white/35')}`}
+                      className={`w-full text-left px-4 py-2 text-xs font-light transition-colors flex items-center justify-between rounded-control ${filterType === f ? 'text-[var(--accent-text)] bg-[var(--accent-tint)]' : 'text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]'}`}
                     >
                       {f}
                       {filterType === f && <Check size={12} strokeWidth={1} />}
                     </button>
                   ))}
-                </RdlSurface>
+                </div>
               </div>
 
               {/* Sort Dropdown */}
               <div className="relative group">
-                <div className="hover:text-blue-600 cursor-pointer transition-all p-1 flex items-center justify-center">
+                <div className="hover:text-[var(--accent-text)] cursor-pointer transition-all p-1 flex items-center justify-center">
                   <div className="flex flex-col gap-[3px]">
                     <div className="w-[14px] h-[1.5px] bg-current"></div>
                     <div className="w-[10px] h-[1.5px] bg-current"></div>
                     <div className="w-[6px] h-[1.5px] bg-current"></div>
                   </div>
                 </div>
-                <RdlSurface tone="floating" padding="compact" className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-1">
-                  <div className="px-4 py-2 text-[11px] font-light text-slate-400 mb-1">Sort By</div>
+                <div className="absolute right-0 top-full mt-2 w-44 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-1 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
+                  <div className="px-4 py-2 text-[11px] font-light text-[var(--text-tertiary)] mb-1">Sort By</div>
                   {[
                     { id: 'Default', label: 'Default Sort' },
                     { id: 'Date', label: 'Date' },
@@ -1565,19 +1557,19 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                     <button
                       key={s.id}
                       onClick={() => setSortType(s.id)}
-                      className={`w-full text-left px-4 py-2 text-xs font-light transition-colors flex items-center justify-between ${sortType === s.id ? (isDarkMode ? 'text-blue-400 bg-white/[0.06]' : 'text-blue-700 bg-white/45') : (isDarkMode ? 'text-slate-300 hover:bg-white/[0.045]' : 'text-slate-600 hover:bg-white/35')}`}
+                      className={`w-full text-left px-4 py-2 text-xs font-light transition-colors flex items-center justify-between rounded-control ${sortType === s.id ? 'text-[var(--accent-text)] bg-[var(--accent-tint)]' : 'text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]'}`}
                     >
                       {s.label}
                       {sortType === s.id && <Check size={12} strokeWidth={1} />}
                     </button>
                   ))}
-                </RdlSurface>
+                </div>
               </div>
 
               <RefreshCcw
                 size={15}
                 onClick={() => handleSync(currentBox, false)}
-                className={`hover:text-blue-600 cursor-pointer transition-colors ${isSyncing ? 'animate-spin' : ''}`}
+                className={`hover:text-[var(--accent-text)] cursor-pointer transition-colors ${isSyncing ? 'animate-spin' : ''}`}
               />
             </div>
           </div>
@@ -1585,15 +1577,17 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
         {/* Desktop Search Bar */}
         {!isMobile && (
-          <div className={`px-5 py-3 bg-transparent border-b ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
-            <RdlSearch
-              density="compact"
-              className="w-full"
-              inputClassName="text-xs font-light"
-              placeholder="Search (⌘ + Shift + F)"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="px-5 py-3 bg-transparent border-b border-[var(--border-c-default)]">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+              <input
+                type="text"
+                className="bds-input sm pl-9"
+                placeholder="Search (⌘ + Shift + F)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         )}
 
@@ -1619,172 +1613,176 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       `}>
         {/* Mobile Detail Header */}
         {isMobile && (
-          <div className={`h-14 px-4 flex items-center gap-3 border-b shrink-0 ${isDarkMode ? 'border-white/10 bg-deep' : 'border-slate-200 bg-white'}`}>
-            <button onClick={() => setMobileView('list')} className={`p-2 -ml-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+          <div className="h-14 px-4 flex items-center gap-3 border-b shrink-0 border-[var(--border-c-default)] bg-[var(--bg-card)]">
+            <button onClick={() => setMobileView('list')} className="p-2 -ml-2 text-[var(--text-secondary)]">
               <ChevronDown size={24} strokeWidth={1} className="rotate-90" />
             </button>
-            <span className={`font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Message</span>
+            <span className="font-light text-[var(--text-primary)]">Message</span>
           </div>
         )}
 
         {selectedEmail ? (
           <>
             {/* Header Actions */}
-            <div className={`h-14 border-b flex items-center justify-between px-6 shrink-0 bg-transparent ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
-              <RdlToolbar density="compact" className="max-w-full overflow-x-auto">
+            <div className="h-14 border-b flex items-center justify-between px-6 shrink-0 bg-transparent border-[var(--border-c-default)]">
+              <div className="bds-filterbar max-w-full overflow-x-auto">
                 {/* Outbox send（task_mqyqftn8）：只对 outbound Outbox 邮件显示发送入口 */}
                 {selectedEmail && emailOutboxService.isSendableOutbox(selectedEmail) && (
-                  <RdlPill
+                  <button
+                    type="button"
                     onClick={() => handleSendOutbox(selectedEmail.id)}
                     disabled={outboxSendingId === selectedEmail.id}
-                    className="min-h-8 px-3 text-xs disabled:opacity-50"
+                    className="bds-btn bds-btn-secondary sm disabled:opacity-50"
                   >
                     {outboxSendingId === selectedEmail.id
                       ? <Loader2 size={14} strokeWidth={1} className="animate-spin" />
                       : <SendHorizontal size={14} strokeWidth={1} />}
                     {outboxSendingId === selectedEmail.id ? '发送中...' : '发送'}
-                  </RdlPill>
+                  </button>
                 )}
-                <RdlPill onClick={handleStartReply} className="min-h-8 px-3 text-xs">
-                  <Reply size={14} strokeWidth={1} className="text-blue-500" /> Reply
-                </RdlPill>
-                <RdlPill onClick={handleReplyAll} className="min-h-8 px-3 text-xs">
-                  <ReplyAll size={14} strokeWidth={1} className="text-blue-500" /> Reply All
-                </RdlPill>
+                <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary sm">
+                  <Reply size={14} strokeWidth={1} className="text-[var(--accent)]" /> Reply
+                </button>
+                <button type="button" onClick={handleReplyAll} className="bds-btn bds-btn-secondary sm">
+                  <ReplyAll size={14} strokeWidth={1} className="text-[var(--accent)]" /> Reply All
+                </button>
                 {/* Outbox send 错误反馈（保持 Outbox UI 状态，显示后端错误） */}
                 {outboxError && (
-                  <span className={`flex items-center gap-1 px-2 py-1 text-[11px] ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
+                  <span className="flex items-center gap-1 px-2 py-1 text-[11px]" style={{ color: 'var(--danger-text)' }}>
                     <AlertCircle size={12} strokeWidth={1} /> {outboxError}
                   </span>
                 )}
-                <RdlPill onClick={handleForward} className="min-h-8 px-3 text-xs">
-                  <Forward size={14} strokeWidth={1} className="text-blue-500" /> Forward
-                </RdlPill>
-                <div className={`w-px h-4 mx-2 self-center ${isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`}></div>
+                <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary sm">
+                  <Forward size={14} strokeWidth={1} className="text-[var(--accent)]" /> Forward
+                </button>
+                <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
 
-                <RdlOverlayIconButton onClick={() => handleDelete(selectedId!)} className="!h-8 !w-8" title="Delete"><Trash2 size={16} /></RdlOverlayIconButton>
-                <RdlOverlayIconButton onClick={() => handleArchive(selectedId!)} className="!h-8 !w-8" title="Archive"><Archive size={16} strokeWidth={1} /></RdlOverlayIconButton>
-                <RdlOverlayIconButton onClick={() => handleSpam(selectedId!)} className="!h-8 !w-8" title="Report Spam"><ShieldAlert size={16} strokeWidth={1} /></RdlOverlayIconButton>
+                <button type="button" onClick={() => handleDelete(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="Delete"><Trash2 size={16} /></button>
+                <button type="button" onClick={() => handleArchive(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="Archive"><Archive size={16} strokeWidth={1} /></button>
+                <button type="button" onClick={() => handleSpam(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="Report Spam"><ShieldAlert size={16} strokeWidth={1} /></button>
 
-                <div className={`w-px h-4 mx-2 self-center ${isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`}></div>
+                <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
 
-                <RdlOverlayIconButton
+                <button
+                  type="button"
                   onClick={() => handleToggleStar(selectedId!, selectedEmail.isStarred ?? false)}
-                  className={`!h-8 !w-8 ${selectedEmail.isStarred ? (isDarkMode ? 'text-red-400' : 'text-red-500') : ''}`}
+                  className={`bds-btn bds-btn-ghost bds-btn-icon sm ${selectedEmail.isStarred ? 'text-[var(--danger)]' : ''}`}
                   title="Tag Flagged (Standard)"
                 >
                   <Flag size={16} strokeWidth={1} className={selectedEmail.isStarred ? 'fill-red-400' : ''} />
-                </RdlOverlayIconButton>
+                </button>
 
-                <RdlOverlayIconButton
+                <button
+                  type="button"
                   onClick={() => handleToggleImportant(selectedId!, !!selectedEmail.isImportant)}
-                  className={`!h-8 !w-8 ${selectedEmail.isImportant ? (isDarkMode ? 'text-accent-cyan' : 'text-action') : ''}`}
+                  className={`bds-btn bds-btn-ghost bds-btn-icon sm ${selectedEmail.isImportant ? 'text-[var(--accent)]' : ''}`}
                   title="Tag Important"
                 >
                   <Star size={16} strokeWidth={1} className={selectedEmail.isImportant ? 'fill-accent-cyan/50' : ''} />
-                </RdlOverlayIconButton>
+                </button>
 
-                <RdlOverlayIconButton
+                <button
+                  type="button"
                   onClick={() => handleToggleRead(selectedId!, selectedEmail.isRead)}
-                  className={`!h-8 !w-8 ${!selectedEmail.isRead ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : ''}`}
+                  className={`bds-btn bds-btn-ghost bds-btn-icon sm ${!selectedEmail.isRead ? 'text-[var(--accent)]' : ''}`}
                   title={selectedEmail.isRead ? "Mark Unread" : "Mark Read"}
                 >
                   <Mail size={16} strokeWidth={1} />
-                </RdlOverlayIconButton>
+                </button>
 
                 {/* C8 邮件深化：智能分类 + 一键建跟进（仅已同步邮件有 DB id 可操作） */}
                 {selectedIntentInfo?.id && (
                   <>
-                    <div className={`w-px h-4 mx-2 self-center ${isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`}></div>
-                    <RdlPill
+                    <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
+                    <button
+                      type="button"
                       onClick={handleClassifyEmail}
                       disabled={classifyBusy}
-                      className="min-h-8 px-3 text-xs"
+                      className="bds-btn bds-btn-secondary sm"
                       title="规则 + AI 自动打标（投诉/紧急自动建跟进）"
                     >
                       {classifyBusy
-                        ? <Loader2 size={14} strokeWidth={1} className="animate-spin text-slate-400" />
-                        : <Tags size={14} strokeWidth={1} className="text-blue-500" />}
+                        ? <Loader2 size={14} strokeWidth={1} className="animate-spin text-[var(--text-tertiary)]" />
+                        : <Tags size={14} strokeWidth={1} className="text-[var(--accent)]" />}
                       {classifyBusy ? '分类中...' : '智能分类'}
-                    </RdlPill>
-                    <RdlPill
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleCreateFollowUp}
                       disabled={followUpBusy}
-                      className="min-h-8 px-3 text-xs"
+                      className="bds-btn bds-btn-secondary sm"
                       title="幂等生成 CRM 跟进任务"
                     >
                       {followUpBusy
-                        ? <Loader2 size={14} strokeWidth={1} className="animate-spin text-slate-400" />
-                        : <CalendarPlus size={14} strokeWidth={1} className="text-blue-500" />}
+                        ? <Loader2 size={14} strokeWidth={1} className="animate-spin text-[var(--text-tertiary)]" />
+                        : <CalendarPlus size={14} strokeWidth={1} className="text-[var(--accent)]" />}
                       {followUpBusy ? '创建中...' : '建跟进'}
-                    </RdlPill>
+                    </button>
                   </>
                 )}
                 {/* C8 操作反馈（成功中性色 / 失败警示色，与 outboxError 同区展示） */}
                 {c8Feedback && (
-                  <span className={`flex items-center gap-1 px-2 py-1 text-[11px] ${c8Feedback.kind === 'err'
-                    ? (isDarkMode ? 'text-rose-400' : 'text-rose-600')
-                    : (isDarkMode ? 'text-slate-300' : 'text-slate-500')}`}>
+                  <span className="flex items-center gap-1 px-2 py-1 text-[11px]" style={{ color: c8Feedback.kind === 'err' ? 'var(--danger-text)' : 'var(--text-tertiary)' }}>
                     {c8Feedback.kind === 'err' && <AlertCircle size={12} strokeWidth={1} />}
                     {c8Feedback.text}
                   </span>
                 )}
-              </RdlToolbar>
+              </div>
 
               <div className="flex gap-2 relative group">
-                <RdlOverlayIconButton className="!h-9 !w-9" title="Move to folder"><MoreHorizontal size={16} strokeWidth={1} /></RdlOverlayIconButton>
-                <RdlSurface tone="floating" padding="compact" className="absolute right-0 top-full mt-1 w-48 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-2">
-                  <div className="px-3 py-2 text-[11px] font-light text-slate-400 mb-1">Move to</div>
-                  <button onClick={() => handleBoxChange('INBOX')} className={`w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'text-slate-300 hover:bg-white/5 hover:text-blue-400' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'}`}>Inbox</button>
-                  <button onClick={() => handleBoxChange('Sent Messages')} className={`w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'text-slate-300 hover:bg-white/5 hover:text-blue-400' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'}`}>Sent Items</button>
-                  <button onClick={() => handleBoxChange('Drafts')} className={`w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'text-slate-300 hover:bg-white/5 hover:text-blue-400' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'}`}>Drafts</button>
-                  <button onClick={() => handleBoxChange('Trash')} className={`w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'text-slate-300 hover:bg-white/5 hover:text-blue-400' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'}`}>Deleted</button>
-                </RdlSurface>
+                <button type="button" className="bds-btn bds-btn-ghost bds-btn-icon" title="Move to folder"><MoreHorizontal size={16} strokeWidth={1} /></button>
+                <div className="absolute right-0 top-full mt-1 w-48 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-2 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
+                  <div className="px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)] mb-1">Move to</div>
+                  <button onClick={() => handleBoxChange('INBOX')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Inbox</button>
+                  <button onClick={() => handleBoxChange('Sent Messages')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Sent Items</button>
+                  <button onClick={() => handleBoxChange('Drafts')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Drafts</button>
+                  <button onClick={() => handleBoxChange('Trash')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Deleted</button>
+                </div>
               </div>
             </div>
 
             {/* Reading Content */}
             <div className="flex-1 overflow-y-auto p-8 scroll-smooth">
               <div className="max-w-4xl mx-auto">
-                <h1 className={`text-2xl font-light mb-6 leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedEmail.subject}</h1>
+                <h1 className="text-2xl font-light mb-6 leading-tight text-[var(--text-primary)]">{selectedEmail.subject}</h1>
 
-                {/* C8 分类标签 + 业务关联标记（已同步邮件的 DB 投影；RDL flat 中性色板） */}
+                {/* C8 分类标签 + 业务关联标记（已同步邮件的 DB 投影；BDS 语义徽章） */}
                 {selectedIntentInfo && (selectedIntentInfo.labels.length > 0 || selectedIntentInfo.relationId || selectedIntentInfo.orderId) && (
                   <div className="flex flex-wrap items-center gap-2 mb-6 -mt-3">
                     {selectedIntentInfo.labels.map(l => (
                       <span
                         key={l}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? 'bg-white/[0.07] text-slate-300' : 'bg-slate-500/[0.08] text-slate-500'}`}
+                        className="bds-badge sm neutral"
                       >
                         {EMAIL_LABEL_LABELS[l] || l}
                       </span>
                     ))}
                     {selectedIntentInfo.relationId && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? 'bg-white/[0.10] text-slate-200' : 'bg-slate-500/[0.12] text-slate-700'}`}>
+                      <span className="bds-badge sm info">
                         已关联客户
                       </span>
                     )}
                     {selectedIntentInfo.orderId && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? 'bg-white/[0.10] text-slate-200' : 'bg-slate-500/[0.12] text-slate-700'}`}>
+                      <span className="bds-badge sm info">
                         已关联订单
                       </span>
                     )}
                   </div>
                 )}
 
-                <div className={`flex items-center justify-between mb-8 pb-6 border-b ${isDarkMode ? 'border-white/10' : 'border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-c-default)]">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-blue to-action flex items-center justify-center text-white font-light text-lg">
                       {getInitials(selectedEmail.sender)}
                     </div>
                     <div>
-                      <div className={`font-light text-[15px] ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedEmail.sender}</div>
-                      <div className="text-xs text-slate-500 mt-0.5">To: Me</div>
+                      <div className="font-light text-[15px] text-[var(--text-primary)]">{selectedEmail.sender}</div>
+                      <div className="text-xs mt-0.5 text-[var(--text-tertiary)]">To: Me</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-sm font-light ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}>{formatFullTime(selectedEmail.date)}</div>
-                    <div className="text-xs text-slate-400 mt-1 flex items-center justify-end gap-1">
+                    <div className="text-sm font-light text-[var(--text-primary)]">{formatFullTime(selectedEmail.date)}</div>
+                    <div className="text-xs mt-1 flex items-center justify-end gap-1 text-[var(--text-tertiary)]">
                       {selectedEmail.isRead ? 'Read' : 'Unread'}
                       <Lock size={10} strokeWidth={1} /> TLS Encrypted
                     </div>
@@ -1793,34 +1791,34 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
                 {/* Body Content */}
                 {selectedEmailBody === null ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                    <Loader2 size={32} className="animate-spin mb-4 text-blue-500" />
+                  <div className="flex flex-col items-center justify-center py-20 text-[var(--text-tertiary)]">
+                    <Loader2 size={32} className="animate-spin mb-4 text-[var(--accent)]" />
                     <p>Loading full message content...</p>
                   </div>
                 ) : (
-                  <div className={`prose prose-slate max-w-none mb-10 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                  <div className="prose prose-slate max-w-none mb-10 text-[var(--text-secondary)]">
                     <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedEmailBody || '') }} />
                   </div>
                 )}
 
                 {/* Attachments */}
                 {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
-                  <div className="mt-8 pt-6 border-t border-slate-200">
-                    <h3 className="text-sm font-light text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="mt-8 pt-6 border-t border-[var(--border-c-default)]">
+                    <h3 className="text-sm font-light text-[var(--text-primary)] mb-4 flex items-center gap-2">
                       <Paperclip size={16} strokeWidth={1} />
                       {selectedEmail.attachments.length} Attachments
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {selectedEmail.attachments.map((att, idx) => (
-                        <div key={idx} className={`rdl-data-row flex items-center p-3 transition-all group cursor-pointer ${isDarkMode ? 'text-slate-200 hover:bg-white/[0.045]' : 'text-slate-700 hover:bg-white/35'}`}
+                        <div key={idx} className="rdl-data-row flex items-center p-3 transition-all group cursor-pointer text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]"
                           onClick={() => handleDownloadAttachment(selectedEmail, att.filename)}
                         >
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 shrink-0 group-hover:text-blue-500 transition-colors">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--text-tertiary)] shrink-0 group-hover:text-[var(--accent-text)] transition-colors">
                             <FileText size={20} strokeWidth={1} />
                           </div>
                           <div className="ml-3 min-w-0 flex-1">
-                            <div className={`text-sm font-light truncate group-hover:text-blue-500 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{att.filename}</div>
-                            <div className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{(att.size / 1024).toFixed(1)} KB</div>
+                            <div className="text-sm font-light truncate group-hover:text-[var(--accent-text)] text-[var(--text-secondary)]">{att.filename}</div>
+                            <div className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">{(att.size / 1024).toFixed(1)} KB</div>
                           </div>
                         </div>
                       ))}
@@ -1832,40 +1830,40 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
             {/* Reply Bar */}
             {!isReplying && (
-              <div className={`p-4 border-t mt-auto overflow-hidden shrink-0 ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
-                <RdlToolbar className="p-4">
+              <div className="p-4 border-t mt-auto overflow-hidden shrink-0 border-[var(--border-c-default)]">
+                <div className="bds-filterbar p-4">
                   <div className="flex gap-3">
-                    <RdlPill onClick={handleStartReply}>
+                    <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary sm">
                       <Reply size={16} strokeWidth={1} /> Reply
-                    </RdlPill>
-                    <RdlPill onClick={handleForward}>
+                    </button>
+                    <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary sm">
                       <Forward size={16} strokeWidth={1} /> Forward
-                    </RdlPill>
+                    </button>
                   </div>
-                </RdlToolbar>
+                </div>
               </div>
             )}
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center bg-transparent p-12 text-center select-none">
             <div className="relative mb-8">
-              <RdlSurface tone="card" className="w-40 h-40 flex items-center justify-center">
-                <div className={`absolute inset-0 ${isDarkMode ? 'bg-action/5' : 'bg-accent-blue/8'}`}></div>
+              <div className="bds-card relative w-40 h-40 flex items-center justify-center !p-0">
+                <div className="absolute inset-0 bg-[var(--accent-tint-light)]"></div>
                 <div className="relative z-10 flex flex-col items-center">
-                  <Mail size={56} strokeWidth={1} className={`text-blue-500 absolute -top-4 ${isDarkMode ? 'opacity-10' : 'opacity-20'}`} />
-                  <ShieldCheck size={64} strokeWidth={1} className="text-blue-600/80" />
+                  <Mail size={56} strokeWidth={1} className="absolute -top-4 opacity-20 text-[var(--accent)]" />
+                  <ShieldCheck size={64} strokeWidth={1} className="text-[var(--accent)]" />
                 </div>
-              </RdlSurface>
-              <RdlSurface tone="floating" className="absolute -bottom-4 -right-4 w-14 h-14 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full bg-action flex items-center justify-center text-white">
+              </div>
+              <div className="bds-card absolute -bottom-4 -right-4 w-14 h-14 !rounded-full flex items-center justify-center !p-0 border border-[var(--border-c-subtle)]">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ background: 'var(--accent)' }}>
                   <Lock size={16} strokeWidth={1} />
                 </div>
-              </RdlSurface>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <h3 className={`text-xl font-light ${isDarkMode ? 'text-white/85' : 'text-slate-900'}`}>Message Standby</h3>
-              <p className="text-slate-400 text-[13px] max-w-[320px] leading-relaxed font-light mx-auto">
+              <h3 className="text-xl font-light text-[var(--text-primary)]">Message Standby</h3>
+              <p className="text-[13px] max-w-[320px] leading-relaxed font-light mx-auto text-[var(--text-tertiary)]">
                 Select a mailbox item to inspect content, reply, or sync messages into ERP records.
               </p>
             </div>
@@ -1876,7 +1874,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <div className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse delay-75"></div>
                 <div className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse delay-150"></div>
               </div>
-              <span className="text-[10px] font-light text-slate-300">Secure Mail Gateway</span>
+              <span className="text-[10px] font-light text-[var(--text-quaternary)]">Secure Mail Gateway</span>
             </div>
           </div>
         )}
@@ -1885,102 +1883,103 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       {/* Reply Editor Overlay */}
       {
         isReplying && (
-          <RdlSurface tone="floating" padding="loose" className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-5">
+          <div className="bds-card absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-5 border-t border-[var(--border-c-default)]">
             <div className="max-w-5xl mx-auto flex flex-col gap-4">
               <div className="flex justify-between items-center">
-                <span className={`font-light flex items-center gap-2 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}><CornerUpLeft size={16} strokeWidth={1} /> Replying to {selectedEmail?.sender}</span>
-                <RdlOverlayIconButton onClick={() => setIsReplying(false)} className="!h-9 !w-9"><X size={20} /></RdlOverlayIconButton>
+                <span className="font-light flex items-center gap-2 text-[var(--text-secondary)]"><CornerUpLeft size={16} strokeWidth={1} /> Replying to {selectedEmail?.sender}</span>
+                <button type="button" onClick={() => setIsReplying(false)} className="bds-btn bds-btn-ghost bds-btn-icon"><X size={20} /></button>
               </div>
-              <RdlSurface tone="inset" className="h-60">
+              <div className="rounded-inset h-60" style={{ background: 'var(--bg-panel)' }}>
                 <EmailEditor
                   value={replyContent}
                   onChange={setReplyContent}
                   placeholder="Write your reply..."
                   isDarkMode={isDarkMode}
                 />
-              </RdlSurface>
+              </div>
               {outboxError && (
                 <div className="mb-2 text-xs text-red-400">{outboxError}</div>
               )}
               <div className="flex justify-end gap-3">
-                <RdlPill onClick={() => setIsReplying(false)} className="text-sm">Discard</RdlPill>
-                <RdlPill
+                <button type="button" onClick={() => setIsReplying(false)} className="bds-btn bds-btn-secondary">Discard</button>
+                <button
+                  type="button"
                   onClick={handleSendReply}
                   disabled={isSending}
-                  tone="accent"
-                  active={!isSending}
-                  className="text-sm"
+                  className="bds-btn bds-btn-primary"
                 >
                   {isSending ? <Loader2 className="animate-spin" size={16} /> : <SendHorizontal size={16} strokeWidth={1} />}
                   Send Reply
-                </RdlPill>
+                </button>
               </div>
             </div>
-          </RdlSurface>
+          </div>
         )
       }
 
       {/* Compose Modal */}
       {
         isComposing && (
-          <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
-            <RdlSurface tone="panel" className="w-full max-w-4xl overflow-hidden flex flex-col h-[80vh] animate-in zoom-in duration-300">
-              <div className={`px-8 py-5 flex items-center justify-between backdrop-blur-md ${isDarkMode ? 'bg-white/5' : 'bg-white/28'}`}>
-                <h3 className={`text-lg font-light flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                  <RdlSurface tone="inset" className="w-10 h-10 flex items-center justify-center text-[var(--os-vnext-brand-blue-strong)]">
+          <div className="bds-modal-mask !absolute !z-[80] animate-in fade-in duration-300">
+            <div className="bds-modal w-full overflow-hidden flex flex-col h-[80vh] animate-in zoom-in duration-300 !p-0" style={{ width: '56rem' }}>
+              <div className="px-8 py-5 flex items-center justify-between bg-[var(--bg-panel)]">
+                <h3 className="text-lg font-light flex items-center gap-3 text-[var(--text-primary)]">
+                  <span className="bds-iconbadge text-[var(--accent-text)]">
                     <SendHorizontal size={18} strokeWidth={1} />
-                  </RdlSurface>
+                  </span>
                   New Message
                 </h3>
                 <div className="flex items-center gap-2">
-                  <RdlPill
+                  <button
+                    type="button"
                     onClick={() => setTemplatePickerOpen(v => !v)}
-                    className={`min-h-8 px-3 text-xs ${templatePickerOpen ? (isDarkMode ? 'bg-white/10' : 'bg-white/50') : ''}`}
+                    className={`bds-btn bds-btn-secondary sm ${templatePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
                   >
-                    <FileText size={14} strokeWidth={1} className="text-blue-500" /> 模板
-                  </RdlPill>
-                  <RdlPill
+                    <FileText size={14} strokeWidth={1} className="text-[var(--accent)]" /> 模板
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setSignaturePickerOpen(v => !v)}
-                    className={`min-h-8 px-3 text-xs ${signaturePickerOpen ? (isDarkMode ? 'bg-white/10' : 'bg-white/50') : ''}`}
+                    className={`bds-btn bds-btn-secondary sm ${signaturePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
                   >
-                    <PenLine size={14} strokeWidth={1} className="text-blue-500" /> 签名
-                  </RdlPill>
-                  <RdlOverlayIconButton onClick={() => setIsComposing(false)} className="!h-9 !w-9">
+                    <PenLine size={14} strokeWidth={1} className="text-[var(--accent)]" /> 签名
+                  </button>
+                  <button type="button" onClick={() => setIsComposing(false)} className="bds-btn bds-btn-ghost bds-btn-icon">
                     <X size={20} />
-                  </RdlOverlayIconButton>
+                  </button>
                 </div>
               </div>
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-8 py-4 space-y-4 border-b border-white/40">
+                <div className="px-8 py-4 space-y-4 border-b border-[var(--border-c-default)]">
                   <div className="flex items-center gap-4">
-                    <span className="text-xs font-light text-slate-400 w-12 text-right">To:</span>
+                    <span className="text-xs font-light text-[var(--text-tertiary)] w-12 text-right">To:</span>
                     <input
                       value={composeTo}
                       onChange={e => setComposeTo(e.target.value)}
                       placeholder="Recipient email address..."
-                      className={`flex-1 bg-transparent outline-none text-sm font-light placeholder:text-slate-300 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}
+                      className="flex-1 bg-transparent outline-none text-sm font-light placeholder:text-[var(--text-quaternary)] text-[var(--text-primary)]"
                       autoFocus
                     />
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-xs font-light text-slate-400 w-12 text-right">Subject:</span>
+                    <span className="text-xs font-light text-[var(--text-tertiary)] w-12 text-right">Subject:</span>
                     <input
                       value={composeSubject}
                       onChange={e => setComposeSubject(e.target.value)}
                       placeholder="Enter subject here..."
-                      className={`flex-1 bg-transparent outline-none text-sm font-light placeholder:text-slate-300 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}
+                      className="flex-1 bg-transparent outline-none text-sm font-light placeholder:text-[var(--text-quaternary)] text-[var(--text-primary)]"
                     />
                   </div>
 
                   {/* F5 模板选择面板（PRD 12.1：报价/催款/交期通知/验货报告/节日问候） */}
                   {templatePickerOpen && (
-                    <div className={`rounded-control border p-3 space-y-2 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white/50'}`}>
+                    <div className="rounded-control border p-3 space-y-2 border-[var(--border-c-default)] bg-[var(--bg-panel)]">
                       {!templatesLoaded ? (
-                        <div className="flex items-center gap-2 text-xs font-light text-slate-400 px-1 py-2">
+                        <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-1 py-2">
                           <Loader2 size={12} className="animate-spin" /> 加载模板库...
                         </div>
                       ) : emailTemplates.length === 0 ? (
-                        <div className="text-xs font-light text-slate-400 px-1 py-2">暂无可用模板，请先在服务端播种标准模板库</div>
+                        <div className="text-xs font-light text-[var(--text-tertiary)] px-1 py-2">暂无可用模板，请先在服务端播种标准模板库</div>
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           {emailTemplates.map(tpl => (
@@ -1988,9 +1987,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                               key={tpl.id}
                               type="button"
                               onClick={() => handleSelectTemplate(tpl)}
-                              className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/[0.06] hover:bg-white/10 text-slate-200' : 'bg-white/70 hover:bg-white text-slate-700'}`}
+                              className="bds-btn bds-btn-secondary sm"
                             >
-                              <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>{EMAIL_TEMPLATE_TYPE_LABELS[tpl.type] || tpl.type} · </span>
+                              <span className="text-[var(--text-tertiary)]">{EMAIL_TEMPLATE_TYPE_LABELS[tpl.type] || tpl.type} · </span>
                               {tpl.name}
                             </button>
                           ))}
@@ -2001,18 +2000,18 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
                   {/* 阶段 P3b 签名选择面板（PRD 12.1：统一公司签名格式，插入时渲染 {{variable}}） */}
                   {signaturePickerOpen && (
-                    <div className={`rounded-control border p-3 space-y-2 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white/50'}`}>
+                    <div className="rounded-control border p-3 space-y-2 border-[var(--border-c-default)] bg-[var(--bg-panel)]">
                       {!signaturesLoaded ? (
-                        <div className="flex items-center gap-2 text-xs font-light text-slate-400 px-1 py-2">
+                        <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-1 py-2">
                           <Loader2 size={12} className="animate-spin" /> 加载签名库...
                         </div>
                       ) : emailSignatures.length === 0 ? (
-                        <div className="flex items-center gap-2 text-xs font-light text-slate-400 px-1 py-2">
+                        <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-1 py-2">
                           <span>暂无可用签名</span>
                           <button
                             type="button"
                             onClick={() => setSignatureManagerOpen(true)}
-                            className={`underline underline-offset-2 ${isDarkMode ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-500'}`}
+                            className="underline underline-offset-2 text-[var(--accent-text)] hover:text-[var(--accent)]"
                           >
                             前往创建
                           </button>
@@ -2024,7 +2023,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                               key={sig.id}
                               type="button"
                               onClick={() => handleSelectSignature(sig)}
-                              className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/[0.06] hover:bg-white/10 text-slate-200' : 'bg-white/70 hover:bg-white text-slate-700'}`}
+                              className="bds-btn bds-btn-secondary sm"
                             >
                               {sig.isDefault && <Star size={10} className="inline mr-1 fill-current opacity-60" />}
                               {sig.name}
@@ -2033,7 +2032,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                           <button
                             type="button"
                             onClick={() => setSignatureManagerOpen(true)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors border border-dashed ${isDarkMode ? 'border-white/15 text-slate-400 hover:text-slate-200 hover:border-white/25' : 'border-slate-300 text-slate-500 hover:text-slate-700 hover:border-slate-400'}`}
+                            className="px-3 py-1.5 rounded-full text-xs font-light transition-colors border border-dashed border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)]"
                           >
                             管理签名
                           </button>
@@ -2044,25 +2043,25 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
                   {/* F5 模板变量填写行（选中模板且含变量时显示，输入实时渲染） */}
                   {activeTemplate && activeTemplate.variables.length > 0 && (
-                    <div className={`rounded-control border px-3 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 ${isDarkMode ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-white/50'}`}>
-                      <span className="text-[10px] font-light text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <div className="rounded-control border px-3 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-c-default)] bg-[var(--bg-panel)]">
+                      <span className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest flex items-center gap-2">
                         {activeTemplate.name}
                         <button
                           type="button"
                           onClick={() => setActiveTemplate(null)}
-                          className={`normal-case tracking-normal ${isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'}`}
+                          className="normal-case tracking-normal text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                         >
                           解除联动
                         </button>
                       </span>
                       {activeTemplate.variables.map(name => (
                         <label key={name} className="flex items-center gap-1.5 text-xs font-light">
-                          <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>{name}</span>
+                          <span className="text-[var(--text-tertiary)]">{name}</span>
                           <input
                             value={templateVars[name] || ''}
                             onChange={e => handleTemplateVarChange(name, e.target.value)}
                             placeholder={`{{${name}}}`}
-                            className={`w-32 px-2 py-1 rounded-control outline-none text-xs font-light ${isDarkMode ? 'bg-white/[0.06] text-slate-200 placeholder:text-slate-600' : 'bg-white/80 text-slate-800 placeholder:text-slate-300'}`}
+                            className="bds-input sm !w-32"
                           />
                         </label>
                       ))}
@@ -2072,32 +2071,32 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <textarea
                   value={composeBody}
                   onChange={e => setComposeBody(e.target.value)}
-                  className={`flex-1 w-full p-8 outline-none resize-none text-sm leading-relaxed selection:bg-blue-100 ${isDarkMode ? 'bg-white/5 text-slate-200' : 'bg-white/30 text-slate-700'}`}
+                  className="flex-1 w-full p-8 outline-none resize-none text-sm leading-relaxed selection:bg-blue-100 bg-[var(--bg-panel)] text-[var(--text-primary)]"
                   placeholder="Write your message..."
                 />
               </div>
-              <div className={`px-8 py-5 flex justify-end gap-4 ${isDarkMode ? 'bg-white/5' : 'bg-white/28'}`}>
-                <RdlPill
+              <div className="px-8 py-5 flex justify-end gap-4 bg-[var(--bg-panel)]">
+                <button
+                  type="button"
                   onClick={() => setIsComposing(false)}
-                  className="text-xs"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   Discard
-                </RdlPill>
+                </button>
                 {outboxError && (
                   <div className="flex-1 text-xs text-red-400 px-2">{outboxError}</div>
                 )}
-                <RdlPill
+                <button
+                  type="button"
                   onClick={handleSendNew}
                   disabled={isSending || !composeTo}
-                  tone="accent"
-                  active={!(isSending || !composeTo)}
-                  className={`text-xs ${isSending || !composeTo ? 'opacity-45 cursor-not-allowed' : ''}`}
+                  className={`bds-btn bds-btn-primary sm ${isSending || !composeTo ? 'opacity-45 cursor-not-allowed' : ''}`}
                 >
                   {isSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1} />}
                   Send Message
-                </RdlPill>
+                </button>
               </div>
-            </RdlSurface>
+            </div>
           </div>
         )
       }
@@ -2110,40 +2109,40 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       {/* Settings Modal */}
       {
         isConfiguring && (
-          <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
-            <RdlSurface tone="panel" className="w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
-              <div className="p-10 space-y-8">
+          <div className="bds-modal-mask !absolute !z-[90] animate-in fade-in duration-300">
+            <div className="bds-modal overflow-hidden animate-in zoom-in duration-300" style={{ width: '32rem' }}>
+              <div className="space-y-8">
                 <div className="text-center space-y-2">
-                  <RdlSurface tone="inset" className="w-16 h-16 flex items-center justify-center text-[var(--os-vnext-brand-blue-strong)] mx-auto mb-4">
+                  <span className="bds-iconbadge text-[var(--accent-text)] mx-auto mb-4" style={{ width: 64, height: 64 }}>
                     <Settings size={32} strokeWidth={1} />
-                  </RdlSurface>
-                  <h3 className={`text-2xl font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Link Mail Account</h3>
-                  <p className="text-xs font-light text-slate-400">Secure IMAP/SMTP Gateway Connection</p>
+                  </span>
+                  <h3 className="text-2xl font-light text-[var(--text-primary)]">Link Mail Account</h3>
+                  <p className="text-xs font-light text-[var(--text-tertiary)]">Secure IMAP/SMTP Gateway Connection</p>
                 </div>
 
                 <div className="space-y-5">
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-light text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                    <label className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest ml-1">Email Address</label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2" size={16} style={{ color: 'var(--text-quaternary)' }} />
                       <input
                         type="email"
                         value={emailConfig.email}
                         onChange={e => setEmailConfig({ ...emailConfig, email: e.target.value })}
-                        className={`w-full pl-11 pr-4 py-3.5 rounded-full outline-none font-light text-sm placeholder:font-normal ${isDarkMode ? 'bg-white/[0.055] text-white' : 'bg-white/55 text-slate-900'}`}
+                        className="bds-input pl-11"
                         placeholder="name@company.com"
                       />
                     </div>
                   </div>
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-light text-slate-400 uppercase tracking-widest ml-1">App Password</label>
+                    <label className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest ml-1">App Password</label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2" size={16} style={{ color: 'var(--text-quaternary)' }} />
                       <input
                         type="password"
                         value={emailConfig.password}
                         onChange={e => setEmailConfig({ ...emailConfig, password: e.target.value })}
-                        className={`w-full pl-11 pr-4 py-3.5 rounded-full outline-none font-light text-sm placeholder:font-normal ${isDarkMode ? 'bg-white/[0.055] text-white' : 'bg-white/55 text-slate-900'}`}
+                        className="bds-input pl-11"
                         placeholder="••••••••••••••"
                       />
                     </div>
@@ -2153,19 +2152,19 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <div className="pt-2">
                   <button
                     onClick={() => handleSaveConfig(emailConfig)}
-                    className="rdl-pill w-full text-[11px]"
+                    className="bds-btn bds-btn-primary w-full text-[11px]"
                   >
                     <CheckCircle2 size={16} /> Connect Securely
                   </button>
                   <button
                     onClick={() => setIsConfiguring(false)}
-                    className="rdl-pill w-full mt-3 text-[10px]"
+                    className="bds-btn bds-btn-secondary w-full mt-3 text-[10px]"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
-            </RdlSurface>
+            </div>
           </div>
         )
       }
@@ -2173,20 +2172,20 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   );
 };
 
-const NavItem = ({ icon: Icon, label, count, unreadCount, active, onClick, iconColor, collapsed, isDarkMode = false }: any) => (
+const NavItem = ({ icon: Icon, label, count, unreadCount, active, onClick, iconColor, collapsed }: any) => (
   <button
     onClick={onClick}
     data-rdl-component="data-row"
     data-interactive="true"
     data-selected={active ? 'true' : 'false'}
     className={`rdl-data-row w-full ${collapsed ? 'justify-center !px-0' : 'justify-between'} min-h-11 text-[13px] group ${active
-      ? (isDarkMode ? 'text-blue-400' : 'text-blue-700')
-      : (isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-900')
+      ? 'text-[var(--accent-text)]'
+      : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
       }`}
     title={collapsed ? label : ''}
   >
     <div className={`flex items-center ${collapsed ? 'gap-0' : 'gap-3'}`}>
-      <div className={`p-1.5 rounded-full transition-colors ${active ? (isDarkMode ? 'text-blue-400' : 'text-blue-700') : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>
+      <div className={`p-1.5 rounded-full transition-colors ${active ? 'text-[var(--accent-text)]' : 'text-[var(--text-tertiary)]'}`}>
         <Icon size={collapsed ? 20 : 16} className={iconColor} />
       </div>
       {!collapsed && <span className={active ? "font-light" : "font-light"}>{label}</span>}
@@ -2194,15 +2193,15 @@ const NavItem = ({ icon: Icon, label, count, unreadCount, active, onClick, iconC
     {!collapsed && (
       <div className="flex items-center gap-2">
         {unreadCount !== undefined && unreadCount > 0 && (
-          <span className={`text-[10px] font-light px-2 py-0.5 rounded-full min-w-[20px] text-center ${isDarkMode ? 'bg-white/10 text-white/60' : 'bg-slate-200/60 text-slate-600'}`}>{unreadCount}</span>
+          <span className="bds-badge sm neutral min-w-[20px] justify-center">{unreadCount}</span>
         )}
         {count !== undefined && count > 0 && (
-          <span className={`text-[10px] font-light px-2 py-0.5 rounded-full min-w-[20px] text-center ${isDarkMode ? 'bg-white/10 text-slate-500' : 'bg-slate-100/40 text-slate-400'}`}>{count}</span>
+          <span className="bds-badge sm neutral min-w-[20px] justify-center opacity-70">{count}</span>
         )}
       </div>
     )}
     {collapsed && unreadCount !== undefined && unreadCount > 0 && (
-      <div className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full"></div>
+      <div className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: 'var(--accent)' }}></div>
     )}
   </button>
 )
