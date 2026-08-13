@@ -143,7 +143,7 @@ export function createTraceabilityService(prisma: PrismaClient) {
     if (!order) throw new Error('NOT_FOUND');
 
     const [stages, inspections, shipments, customs] = await Promise.all([
-      (prisma as any).productionStage.findMany({ where: { orderId }, select: { id: true, stageKey: true, status: true, seq: true, startedAt: true, completedAt: true, signedBy: true }, orderBy: { seq: 'asc' } }),
+      (prisma as any).productionStage.findMany({ where: { orderId }, select: { id: true, stageKey: true, status: true, stageSeq: true, startedAt: true, doneAt: true, signedByProduction: true, signedByBusiness: true }, orderBy: { stageSeq: 'asc' } }),
       (prisma as any).inspectionReport.findMany({ where: { orderId }, select: { id: true, result: true, passRate: true, defectRate: true, inspector: true, inspectedAt: true }, take: 20, orderBy: { createdAt: 'desc' } }),
       (prisma as any).shipment.findMany({ where: { orderId }, select: { id: true, shipmentNumber: true, status: true, shipDate: true, eta: true, carrier: true, trackingNo: true }, take: 20, orderBy: { createdAt: 'desc' } }),
       (prisma as any).customsDeclaration.findMany({ where: { orderId }, select: { id: true, declarationNumber: true, status: true, customsType: true, declaredDate: true, releasedDate: true }, take: 20, orderBy: { createdAt: 'desc' } }),
