@@ -43,8 +43,6 @@ import {
 } from '../types';
 import { primeFinanceInvoiceCreate } from './FinanceManager';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
-import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
@@ -115,11 +113,11 @@ const STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
   Cancelled: '已取消',
 };
 
-// 采购单状态 → 语义色阶映射
-const STATUS_SEMANTIC: Record<PurchaseOrderStatus, StatusSemantic> = {
+// BDS v2.1：状态 → bds-badge 语义变体（主题透明，替代 statusSemanticClass/Text 双三元拼装）
+const STATUS_BADGE_VARIANT: Record<PurchaseOrderStatus, 'neutral' | 'info' | 'success' | 'danger' | 'warning'> = {
   Draft: 'neutral',
   Sent: 'info',
-  Confirmed: 'active',
+  Confirmed: 'neutral',
   PartiallyReceived: 'warning',
   Received: 'success',
   Closed: 'neutral',
@@ -136,6 +134,14 @@ const RECEIPT_STATUS_LABELS: Record<MaterialReceipt['status'], string> = {
   Accepted: '合格入库',
   Rejected: '不合格',
   PartiallyAccepted: '部分合格',
+};
+
+const RECEIPT_STATUS_BADGE_VARIANT: Record<MaterialReceipt['status'], 'neutral' | 'success' | 'danger' | 'warning'> = {
+  Pending: 'neutral',
+  Inspected: 'neutral',
+  Accepted: 'success',
+  Rejected: 'danger',
+  PartiallyAccepted: 'warning',
 };
 
 interface ProcurementManagerProps {
@@ -426,15 +432,8 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
 
   const formatDate = (s?: string) => s || '—';
 
-  // ── 主题样式 ──
-  const cardClass = isDarkMode
-    ? `rounded-card border border-white/[0.055] bg-white/[0.018] ${BAMBOOK_OS.material.glassColor}`
-    : `rounded-card border border-white/45 bg-white/24 ${BAMBOOK_OS.material.glassColor}`;
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
-  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
-  const actionBtnCls = `h-8 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50`;
+  // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+  const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 
   const canReceive = (status: PurchaseOrderStatus) =>
     status === 'Confirmed' || status === 'PartiallyReceived' || status === 'Received';
@@ -452,14 +451,15 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                 {/* 创建表单 */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <h2 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建采购单</h2>
+                    <h2 className="text-lg font-light" style={{ color: 'var(--text-primary)' }}>新建采购单</h2>
                     {createPrime && (
-                      <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-light ${isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/60' : 'border-slate-200/60 bg-slate-50 text-slate-500'}`}>
+                      <span className="bds-badge sm neutral flex items-center gap-1.5">
                         关联订单 {createPrime.poNumber || createPrime.orderId}
                         <button
                           type="button"
                           onClick={() => setCreatePrime(null)}
-                          className={`rounded-full p-0.5 transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-900'}`}
+                          className="rounded-full p-0.5 transition-colors"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'inline-flex' }}
                           title="取消订单关联"
                         >
                           <X size={10} />
@@ -467,121 +467,121 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                       </span>
                     )}
                   </div>
-                  <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]' : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}>
+                  <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className="bds-btn bds-btn-secondary sm">
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
 
                 <div className="space-y-3">
                   {/* 基本信息 */}
-                  <div className={`p-4 rounded-card ${cardClass}`}>
-                    <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>基本信息</h3>
+                  <div className="bds-card">
+                    <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>基本信息</h3>
                     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                       <div>
-                        <label className={labelClass}>采购单号 *</label>
-                        <input type="text" value={form.poNumber} onChange={(e) => setForm({ ...form, poNumber: e.target.value })} placeholder="PO-2026-001" className={fieldClass} />
+                        <label className={labelCls}>采购单号 *</label>
+                        <input type="text" value={form.poNumber} onChange={(e) => setForm({ ...form, poNumber: e.target.value })} placeholder="PO-2026-001" className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>币种</label>
-                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className={fieldClass}>
+                        <label className={labelCls}>币种</label>
+                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="bds-select">
                           {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className={labelClass}>下单日期 *</label>
-                        <input type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>下单日期 *</label>
+                        <input type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>预计交货日期</label>
-                        <input type="date" value={form.expectedDeliveryDate} onChange={(e) => setForm({ ...form, expectedDeliveryDate: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>预计交货日期</label>
+                        <input type="date" value={form.expectedDeliveryDate} onChange={(e) => setForm({ ...form, expectedDeliveryDate: e.target.value })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>供应商</label>
+                        <label className={labelCls}>供应商</label>
                         <select value={form.supplierRelationId} onChange={(e) => {
                           const rel = relations.find(r => r.id === e.target.value);
                           setForm({ ...form, supplierRelationId: e.target.value, supplierName: rel?.englishName || rel?.chineseName || '' });
-                        }} className={fieldClass}>
+                        }} className="bds-select">
                           <option value="">选择供应商...</option>
                           {supplierOptions.map(s => <option key={s.id} value={s.id}>{s.label} ({s.chineseName})</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className={labelClass}>采购员</label>
-                        <input type="text" value={form.buyer} onChange={(e) => setForm({ ...form, buyer: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>采购员</label>
+                        <input type="text" value={form.buyer} onChange={(e) => setForm({ ...form, buyer: e.target.value })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>收货地址</label>
-                        <input type="text" value={form.shipToAddress} onChange={(e) => setForm({ ...form, shipToAddress: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>收货地址</label>
+                        <input type="text" value={form.shipToAddress} onChange={(e) => setForm({ ...form, shipToAddress: e.target.value })} className="bds-input" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
-                        <label className={labelClass}>交货条款</label>
-                        <input type="text" value={form.deliveryTerms} onChange={(e) => setForm({ ...form, deliveryTerms: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>交货条款</label>
+                        <input type="text" value={form.deliveryTerms} onChange={(e) => setForm({ ...form, deliveryTerms: e.target.value })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>付款条款</label>
-                        <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>付款条款</label>
+                        <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className="bds-input" />
                       </div>
                     </div>
                   </div>
 
                   {/* 采购行 */}
-                  <div className={`p-4 rounded-card ${cardClass}`}>
+                  <div className="bds-card">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>采购明细</h3>
-                      <button onClick={addFormLine} className={`text-xs px-3 py-1.5 rounded-full flex items-center gap-1 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] hover:bg-white/5' : 'text-[var(--os-vnext-brand-blue)] hover:bg-slate-100/60'}`}>
+                      <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>采购明细</h3>
+                      <button onClick={addFormLine} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
                         <Plus size={12} /> 添加行
                       </button>
                     </div>
                     <div className="space-y-2">
                       {formLines.map((line) => (
-                        <div key={line.key} className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/5' : 'bg-slate-50'}`}>
+                        <div key={line.key} className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
                           <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>行 {formLines.indexOf(line) + 1}</span>
+                            <span className="bds-mono text-xs" style={{ color: 'var(--text-quaternary)' }}>行 {formLines.indexOf(line) + 1}</span>
                             {formLines.length > 1 && (
-                              <button onClick={() => removeFormLine(line.key)} className={`p-1 rounded ${isDarkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500'}`}>
+                              <button onClick={() => removeFormLine(line.key)} className="p-1 rounded transition-colors" style={{ color: 'var(--text-quaternary)' }}>
                                 <Trash2 size={12} />
                               </button>
                             )}
                           </div>
                           <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
-                            <input type="text" value={line.materialCode} onChange={(e) => updateFormLine(line.key, 'materialCode', e.target.value)} placeholder="物料编码" className={`${fieldClass} py-1.5 text-xs`} />
-                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className={`${fieldClass} py-1.5 text-xs xl:col-span-2`} />
-                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                            <input type="text" value={line.materialCode} onChange={(e) => updateFormLine(line.key, 'materialCode', e.target.value)} placeholder="物料编码" className="bds-input sm" />
+                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
+                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                               {LINE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
-                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className={`${fieldClass} py-1.5 text-xs`} />
-                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
+                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                               {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
-                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className={`${fieldClass} py-1.5 text-xs`} />
-                            <input type="text" value={line.specification} onChange={(e) => updateFormLine(line.key, 'specification', e.target.value)} placeholder="规格" className={`${fieldClass} py-1.5 text-xs xl:col-span-2`} />
+                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
+                            <input type="text" value={line.specification} onChange={(e) => updateFormLine(line.key, 'specification', e.target.value)} placeholder="规格" className="bds-input sm xl:col-span-2" />
                           </div>
-                          <div className={`mt-1 text-right text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <div className="mt-1 text-right text-xs" style={{ color: 'var(--text-tertiary)' }}>
                             金额: {formatAmount(calcLineAmount(line.quantity, line.unitPrice), form.currency)}
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className={`mt-3 pt-3 border-t flex justify-between items-center text-sm ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
-                      <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>合计</span>
-                      <span className={`font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatAmount(formTotal, form.currency)}</span>
+                    <div className="mt-3 pt-3 flex justify-between items-center text-sm" style={{ borderTop: 'var(--border-subtle)' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>合计</span>
+                      <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{formatAmount(formTotal, form.currency)}</span>
                     </div>
                   </div>
 
                   {formError && (
-                    <div className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('danger', isDarkMode)}`}>
-                      <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
-                      <span className="text-sm">{formError}</span>
+                    <div className="bds-alert danger">
+                      <AlertCircle size={16} />
+                      <span>{formError}</span>
                     </div>
                   )}
 
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className={`h-9 px-4 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    <button onClick={() => { setShowCreateForm(false); setCreatePrime(null); }} className="bds-btn bds-btn-ghost sm">
                       取消
                     </button>
-                    <button onClick={handleCreate} disabled={actionLoading === 'create'} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors disabled:opacity-50">
+                    <button onClick={handleCreate} disabled={actionLoading === 'create'} className="bds-btn bds-btn-primary sm">
                       {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                       <span>创建采购单</span>
                     </button>
@@ -592,26 +592,22 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
               <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
                 {/* 工具栏 */}
                 <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => setShowCreateForm(true)} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors">
+                  <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary sm">
                     <Plus size={14} /><span>新建采购单</span>
                   </button>
                   <div className="relative flex-1 max-w-xs">
-                    <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
-                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className={`${fieldClass} pl-9`} />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className="bds-input sm pl-9" />
                   </div>
-                  <button onClick={fetchPurchaseOrders} className={`p-2 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`} title="刷新">
+                  <button onClick={fetchPurchaseOrders} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                 </div>
 
                 {/* 状态过滤 */}
-                <div className="flex items-center gap-1 mb-4 flex-wrap">
+                <div className="bds-segment mb-4 flex-wrap">
                   {STATUS_TABS.map(tab => (
-                    <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${
-                      statusFilter === tab.id
-                        ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-                        : isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}>
+                    <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`seg ${statusFilter === tab.id ? 'active' : ''}`}>
                       {tab.label}
                     </button>
                   ))}
@@ -619,10 +615,10 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
 
                 {/* 错误提示 */}
                 {error && (
-                  <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('danger', isDarkMode)}`}>
-                    <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
-                    <span className="text-sm">{error}</span>
-                    <button onClick={() => setError(null)} className={`ml-auto p-0.5 ${isDarkMode ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-slate-900'}`}>
+                  <div className="bds-alert danger mb-3">
+                    <AlertCircle size={16} />
+                    <span>{error}</span>
+                    <button onClick={() => setError(null)} className="ml-auto p-0.5" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'inline-flex' }}>
                       <X size={14} />
                     </button>
                   </div>
@@ -631,17 +627,17 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                 {/* 列表 */}
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 size={24} className={`animate-spin ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                    <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                   </div>
                 ) : purchaseOrders.length === 0 ? (
-                  <div className={`text-center py-12 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    <PackageCheck size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">暂无采购单</p>
+                  <div className="bds-empty">
+                    <div className="glyph"><PackageCheck size={24} /></div>
+                    <div className="title">暂无采购单</div>
+                    <div className="desc">点击「新建采购单」开始</div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {purchaseOrders.map((po, index) => {
-                      const semantic = STATUS_SEMANTIC[po.status as PurchaseOrderStatus] || 'neutral';
                       const receipts = receiptsByPo[po.id] || [];
                       return (
                         <motion.div
@@ -649,34 +645,35 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.03 }}
-                          className={`${cardClass} overflow-hidden`}
+                          className="bds-card"
+                          style={{ padding: 0, overflow: 'hidden' }}
                         >
                           {/* 卡片头部 */}
                           <div
-                            className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                            className="flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
                             onClick={() => handleExpand(po.id)}
                           >
-                            <button className={`flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <button className="flex-shrink-0" style={{ color: 'var(--text-quaternary)', background: 'none', border: 'none', cursor: 'pointer' }}>
                               {expandedId === po.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                             </button>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className={`text-sm font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{po.poNumber}</span>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(semantic, isDarkMode)} ${statusSemanticText(semantic, isDarkMode)}`}>
+                                <span className="bds-mono text-sm" style={{ color: 'var(--text-primary)' }}>{po.poNumber}</span>
+                                <span className={`bds-badge sm ${STATUS_BADGE_VARIANT[po.status as PurchaseOrderStatus] || 'neutral'}`}>
                                   {STATUS_LABELS[po.status as PurchaseOrderStatus] || po.status}
                                 </span>
                               </div>
-                              <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                                 {po.supplierName || '未指定供应商'} · 下单 {formatDate(po.orderDate)}
                                 {po.expectedDeliveryDate ? ` · 预计交货 ${po.expectedDeliveryDate}` : ''}
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <div className={`text-sm font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                              <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                                 {formatAmount(Number(po.totalAmount), po.currency)}
                               </div>
                               {po.lines && po.lines.length > 0 && (
-                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
                                   {po.lines.length} 行
                                   {receipts.length > 0 && ` · ${receipts.length} 次收料`}
                                 </div>
@@ -692,11 +689,12 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
                                 transition={{ duration: 0.2 }}
-                                className={`overflow-hidden border-t ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}
+                                className="overflow-hidden"
+                                style={{ borderTop: 'var(--border-subtle)' }}
                               >
                                 <div className="p-4 space-y-3">
                                   {/* 条款信息 */}
-                                  <div className={`grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                     {po.deliveryTerms && <div><span className="opacity-60">交货:</span> {po.deliveryTerms}</div>}
                                     {po.paymentTerms && <div><span className="opacity-60">付款:</span> {po.paymentTerms}</div>}
                                     {po.buyer && <div><span className="opacity-60">采购员:</span> {po.buyer}</div>}
@@ -705,33 +703,33 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
 
                                   {/* 行明细表 */}
                                   {po.lines && po.lines.length > 0 && (
-                                    <div className={`rounded-inset overflow-hidden ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
-                                      <table className="w-full text-xs">
+                                    <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                                      <table className="bds-table">
                                         <thead>
-                                          <tr className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>
-                                            <th className="text-left p-2 font-light">#</th>
-                                            <th className="text-left p-2 font-light">物料编码</th>
-                                            <th className="text-left p-2 font-light">品名</th>
-                                            <th className="text-right p-2 font-light">订单数量</th>
-                                            <th className="text-center p-2 font-light">单位</th>
-                                            <th className="text-right p-2 font-light">单价</th>
-                                            <th className="text-right p-2 font-light">金额</th>
-                                            <th className="text-right p-2 font-light">已收</th>
+                                          <tr>
+                                            <th>#</th>
+                                            <th>物料编码</th>
+                                            <th>品名</th>
+                                            <th className="num">订单数量</th>
+                                            <th style={{ textAlign: 'center' }}>单位</th>
+                                            <th className="num">单价</th>
+                                            <th className="num">金额</th>
+                                            <th className="num">已收</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {po.lines.map((line: PurchaseLine) => (
-                                            <tr key={line.id} className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>
-                                              <td className="p-2">{line.lineNumber}</td>
-                                              <td className="p-2 font-mono">{line.materialCode || '—'}</td>
-                                              <td className="p-2">{line.description}</td>
-                                              <td className="p-2 text-right tabular-nums">{Number(line.quantity).toLocaleString('en-US')}</td>
-                                              <td className="p-2 text-center">{line.unit}</td>
-                                              <td className="p-2 text-right tabular-nums">{Number(line.unitPrice).toFixed(4)}</td>
-                                              <td className="p-2 text-right tabular-nums">{Number(line.amount).toFixed(2)}</td>
-                                              <td className="p-2 text-right tabular-nums">
+                                            <tr key={line.id}>
+                                              <td>{line.lineNumber}</td>
+                                              <td className="bds-mono">{line.materialCode || '—'}</td>
+                                              <td>{line.description}</td>
+                                              <td className="num bds-tnum">{Number(line.quantity).toLocaleString('en-US')}</td>
+                                              <td style={{ textAlign: 'center' }}>{line.unit}</td>
+                                              <td className="num bds-tnum">{Number(line.unitPrice).toFixed(4)}</td>
+                                              <td className="num bds-tnum">{Number(line.amount).toFixed(2)}</td>
+                                              <td className="num bds-tnum">
                                                 {Number(line.receivedQuantity) > 0 ? (
-                                                  <span className={isDarkMode ? 'text-green-400' : 'text-green-600'}>{Number(line.receivedQuantity).toLocaleString('en-US')}</span>
+                                                  <span style={{ color: 'var(--success-text)' }}>{Number(line.receivedQuantity).toLocaleString('en-US')}</span>
                                                 ) : '—'}
                                               </td>
                                             </tr>
@@ -744,27 +742,21 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                   {/* 来料检验记录 */}
                                   {receipts.length > 0 && (
                                     <div>
-                                      <h4 className={`text-xs font-light uppercase tracking-wider mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>来料检验记录</h4>
+                                      <h4 className="bds-overline mb-2" style={{ color: 'var(--text-tertiary)' }}>来料检验记录</h4>
                                       <div className="space-y-1.5">
                                         {receipts.map(rc => (
-                                          <div key={rc.id} className={`p-2.5 rounded-inset flex items-center gap-3 text-xs ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50/80'}`}>
-                                            <Package size={14} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
-                                            <span className={`font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{rc.receiptNumber}</span>
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(
-                                              rc.status === 'Accepted' ? 'success' : rc.status === 'Rejected' ? 'danger' : rc.status === 'PartiallyAccepted' ? 'warning' : 'neutral',
-                                              isDarkMode,
-                                            )} ${statusSemanticText(
-                                              rc.status === 'Accepted' ? 'success' : rc.status === 'Rejected' ? 'danger' : rc.status === 'PartiallyAccepted' ? 'warning' : 'neutral',
-                                              isDarkMode,
-                                            )}`}>
+                                          <div key={rc.id} className="p-2.5 rounded-inset flex items-center gap-3 text-xs" style={{ background: 'var(--bg-panel)' }}>
+                                            <Package size={14} style={{ color: 'var(--text-quaternary)' }} />
+                                            <span className="bds-mono" style={{ color: 'var(--text-primary)' }}>{rc.receiptNumber}</span>
+                                            <span className={`bds-badge sm ${RECEIPT_STATUS_BADGE_VARIANT[rc.status] || 'neutral'}`}>
                                               {RECEIPT_STATUS_LABELS[rc.status] || rc.status}
                                             </span>
-                                            <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{formatDate(rc.receivedDate)}</span>
-                                            <span className={`ml-auto tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                                            <span style={{ color: 'var(--text-tertiary)' }}>{formatDate(rc.receivedDate)}</span>
+                                            <span className="ml-auto bds-tnum" style={{ color: 'var(--text-primary)' }}>
                                               合格 {Number(rc.totalAccepted).toLocaleString('en-US')} / 不合格 {Number(rc.totalRejected).toLocaleString('en-US')}
                                             </span>
                                             {rc.warehouseName && (
-                                              <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>· {rc.warehouseName}</span>
+                                              <span style={{ color: 'var(--text-quaternary)' }}>· {rc.warehouseName}</span>
                                             )}
                                           </div>
                                         ))}
@@ -781,26 +773,26 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         exit={{ height: 0, opacity: 0 }}
                                         className="overflow-hidden"
                                       >
-                                        <div className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
-                                          <h4 className={`text-xs font-light mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>登记来料检验</h4>
+                                        <div className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                          <h4 className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>登记来料检验</h4>
                                           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
-                                            <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className={`${fieldClass} py-1.5 text-xs`} />
-                                            <input type="date" value={receiptForm.receivedDate} onChange={(e) => setReceiptForm({ ...receiptForm, receivedDate: e.target.value })} className={`${fieldClass} py-1.5 text-xs`} />
-                                            <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className={`${fieldClass} py-1.5 text-xs`} />
-                                            <input type="text" value={receiptForm.warehouseName} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseName: e.target.value })} placeholder="入库仓库" className={`${fieldClass} py-1.5 text-xs`} />
-                                            <input type="number" value={receiptForm.totalReceived} onChange={(e) => setReceiptForm({ ...receiptForm, totalReceived: e.target.value })} placeholder="收货数量 *" className={`${fieldClass} py-1.5 text-xs`} />
-                                            <input type="number" value={receiptForm.totalAccepted} onChange={(e) => setReceiptForm({ ...receiptForm, totalAccepted: e.target.value })} placeholder="合格数量 *" className={`${fieldClass} py-1.5 text-xs`} />
-                                            <input type="number" value={receiptForm.totalRejected} onChange={(e) => setReceiptForm({ ...receiptForm, totalRejected: e.target.value })} placeholder="不合格数量 *" className={`${fieldClass} py-1.5 text-xs`} />
-                                            <input type="text" value={receiptForm.rejectionReason} onChange={(e) => setReceiptForm({ ...receiptForm, rejectionReason: e.target.value })} placeholder="不合格原因" className={`${fieldClass} py-1.5 text-xs`} />
+                                            <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className="bds-input sm" />
+                                            <input type="date" value={receiptForm.receivedDate} onChange={(e) => setReceiptForm({ ...receiptForm, receivedDate: e.target.value })} className="bds-input sm" />
+                                            <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className="bds-input sm" />
+                                            <input type="text" value={receiptForm.warehouseName} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseName: e.target.value })} placeholder="入库仓库" className="bds-input sm" />
+                                            <input type="number" value={receiptForm.totalReceived} onChange={(e) => setReceiptForm({ ...receiptForm, totalReceived: e.target.value })} placeholder="收货数量 *" className="bds-input sm" />
+                                            <input type="number" value={receiptForm.totalAccepted} onChange={(e) => setReceiptForm({ ...receiptForm, totalAccepted: e.target.value })} placeholder="合格数量 *" className="bds-input sm" />
+                                            <input type="number" value={receiptForm.totalRejected} onChange={(e) => setReceiptForm({ ...receiptForm, totalRejected: e.target.value })} placeholder="不合格数量 *" className="bds-input sm" />
+                                            <input type="text" value={receiptForm.rejectionReason} onChange={(e) => setReceiptForm({ ...receiptForm, rejectionReason: e.target.value })} placeholder="不合格原因" className="bds-input sm" />
                                           </div>
                                           {receiptError && (
-                                            <div className={`text-xs mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>{receiptError}</div>
+                                            <div className="text-xs mb-2" style={{ color: 'var(--danger-text)' }}>{receiptError}</div>
                                           )}
                                           <div className="flex items-center justify-end gap-2">
-                                            <button onClick={() => { setShowReceiptForm(null); setReceiptError(null); }} className={`h-7 px-3 rounded-full text-xs font-light ${isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                            <button onClick={() => { setShowReceiptForm(null); setReceiptError(null); }} className="bds-btn bds-btn-ghost sm">
                                               取消
                                             </button>
-                                            <button onClick={() => handleCreateReceipt(po.id)} disabled={actionLoading === `receipt_${po.id}`} className="h-7 px-3 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1 disabled:opacity-50">
+                                            <button onClick={() => handleCreateReceipt(po.id)} disabled={actionLoading === `receipt_${po.id}`} className="bds-btn bds-btn-primary sm">
                                               {actionLoading === `receipt_${po.id}` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                               <span>登记</span>
                                             </button>
@@ -814,11 +806,11 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                   <div className="flex items-center gap-2 pt-2 flex-wrap">
                                     {po.status === 'Draft' && (
                                       <>
-                                        <button onClick={() => handleAction(po.id, 'send')} disabled={actionLoading === `${po.id}_send`} className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}>
+                                        <button onClick={() => handleAction(po.id, 'send')} disabled={actionLoading === `${po.id}_send`} className="bds-btn bds-btn-primary sm">
                                           {actionLoading === `${po.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                           <span>发送采购单</span>
                                         </button>
-                                        <button onClick={() => handleAction(po.id, 'delete')} disabled={actionLoading === `${po.id}_delete`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
+                                        <button onClick={() => handleAction(po.id, 'delete')} disabled={actionLoading === `${po.id}_delete`} className="bds-btn bds-btn-danger sm">
                                           {actionLoading === `${po.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                                           <span>删除</span>
                                         </button>
@@ -826,11 +818,11 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     )}
                                     {po.status === 'Sent' && (
                                       <>
-                                        <button onClick={() => handleAction(po.id, 'confirm')} disabled={actionLoading === `${po.id}_confirm`} className={`${actionBtnCls} bg-green-500/10 text-green-500 hover:bg-green-500/14`}>
+                                        <button onClick={() => handleAction(po.id, 'confirm')} disabled={actionLoading === `${po.id}_confirm`} className="bds-btn bds-btn-primary sm">
                                           {actionLoading === `${po.id}_confirm` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                           <span>确认采购单</span>
                                         </button>
-                                        <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className={`${actionBtnCls} bg-red-500/10 text-red-500 hover:bg-red-500/14`}>
+                                        <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className="bds-btn bds-btn-danger sm">
                                           {actionLoading === `${po.id}_cancel` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
                                           <span>取消</span>
                                         </button>
@@ -840,13 +832,13 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                       <>
                                         <button
                                           onClick={() => { setShowReceiptForm(showReceiptForm === po.id ? null : po.id); setReceiptError(null); }}
-                                          className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}
+                                          className="bds-btn bds-btn-primary sm"
                                         >
                                           <Package size={12} />
                                           <span>{showReceiptForm === po.id ? '收起' : '登记来料'}</span>
                                         </button>
                                         {po.status !== 'Received' && po.status !== 'Closed' && (
-                                          <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className={`${actionBtnCls} bg-red-500/10 text-red-500 hover:bg-red-500/14`}>
+                                          <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className="bds-btn bds-btn-danger sm">
                                             {actionLoading === `${po.id}_cancel` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
                                             <span>取消</span>
                                           </button>
@@ -854,7 +846,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                       </>
                                     )}
                                     {po.status === 'Received' && (
-                                      <button onClick={() => handleAction(po.id, 'close')} disabled={actionLoading === `${po.id}_close`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
+                                      <button onClick={() => handleAction(po.id, 'close')} disabled={actionLoading === `${po.id}_close`} className="bds-btn bds-btn-secondary sm">
                                         {actionLoading === `${po.id}_close` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                         <span>关闭采购单</span>
                                       </button>
@@ -872,20 +864,20 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                           });
                                           onNavigate(View.Invoices);
                                         }}
-                                        className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                        className="bds-btn bds-btn-secondary sm"
                                       >
                                         <FileText size={12} />
                                         <span>生成应付发票</span>
                                       </button>
                                     )}
                                     {po.status === 'Closed' && (
-                                      <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                      <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
                                         <CheckCircle2 size={12} />
                                         <span>已关闭 — 终态</span>
                                       </div>
                                     )}
                                     {po.status === 'Cancelled' && (
-                                      <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                      <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-quaternary)' }}>
                                         <Clock size={12} />
                                         <span>已取消 — 终态</span>
                                       </div>

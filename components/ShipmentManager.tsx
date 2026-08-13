@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box } from 'lucide-react';
-import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import {
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
-  CompiledInteractiveCard,
   CompiledModuleTitleBar,
   CompiledMotionInteractiveCard,
   CompiledSurfacePanel,
@@ -15,7 +13,6 @@ import type { Shipment as ShipmentType, ShipmentStatus, ShipmentEvent, ShipmentL
 import { shipmentService } from '../services/shipmentService';
 import type { OnTimeStats, MethodStats } from '../services/shipmentService';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
-import { statusSemanticBg, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ── 阶段 IA-3：订单详情下游动作 prime（创建出运预填订单，与 Suppliers preview 同模式） ──
 const SHIPMENT_CREATE_PRIME_KEY = 'bambook_shipment_create_prime';
@@ -65,23 +62,19 @@ type ShipmentStatusId = 'all' | ShipmentStatus;
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-const SHIPMENT_STATUSES: Array<{ id: ShipmentStatusId; label: string; semantic?: StatusSemantic }> = [
+const SHIPMENT_STATUSES: Array<{ id: ShipmentStatusId; label: string }> = [
   { id: 'all', label: '全部状态' },
-  { id: 'Draft', label: '草稿', semantic: 'neutral' },
-  { id: 'Booked', label: '已订舱', semantic: 'info' },
-  { id: 'Loading', label: '装货中', semantic: 'active' },
-  { id: 'Shipped', label: '已发运', semantic: 'active' },
-  { id: 'Arrived', label: '已到港', semantic: 'active' },
-  { id: 'Cleared', label: '已清关', semantic: 'active' },
-  { id: 'Delivered', label: '已交付', semantic: 'success' },
-  { id: 'Cancelled', label: '已取消', semantic: 'neutral' },
+  { id: 'Draft', label: '草稿' },
+  { id: 'Booked', label: '已订舱' },
+  { id: 'Loading', label: '装货中' },
+  { id: 'Shipped', label: '已发运' },
+  { id: 'Arrived', label: '已到港' },
+  { id: 'Cleared', label: '已清关' },
+  { id: 'Delivered', label: '已交付' },
+  { id: 'Cancelled', label: '已取消' },
 ];
 
 const statusLabelMap = Object.fromEntries(SHIPMENT_STATUSES.map(item => [item.id, item.label])) as Record<ShipmentStatusId, string>;
-
-// F3：节点语义色（时间轴圆点/文字，沿用 RDL 低饱和语义 token）
-const shipmentStatusSemantic = (s: ShipmentStatus): StatusSemantic =>
-  SHIPMENT_STATUSES.find(item => item.id === s)?.semantic ?? 'neutral';
 
 const tableColumns = [
   { key: 'shipment', label: '货运单' },
@@ -229,42 +222,28 @@ const SHIPMENT_FORM_SECTIONS: Array<{ id: string; title: string; desc: string; f
   },
 ];
 
-const statusTone = (status: ShipmentStatus, isDarkMode: boolean) => {
-  if (status === 'Delivered') return isDarkMode ? 'border-white/[0.08] bg-white/[0.06] text-white/70' : 'border-slate-300/40 bg-slate-100/60 text-slate-600';
-  if (status === 'Shipped' || status === 'Loading' || status === 'Arrived' || status === 'Cleared') return isDarkMode ? 'border-white/[0.08] bg-white/[0.06] text-white/70' : 'border-slate-300/40 bg-slate-100/60 text-slate-600';
-  if (status === 'Booked') return isDarkMode ? 'border-white/[0.08] bg-white/[0.06] text-white/70' : 'border-slate-300/40 bg-slate-100/60 text-slate-600';
-  if (status === 'Cancelled') return isDarkMode ? 'border-white/[0.07] bg-white/[0.02] text-white/38' : 'border-slate-200/30 bg-slate-50/36 text-slate-400';
-  return isDarkMode ? 'border-white/[0.07] bg-white/[0.035] text-white/58' : 'border-slate-300/30 bg-white/36 text-slate-600/78';
+// BDS v2.1：状态 → bds-badge 语义变体（主题透明，替代原 isDarkMode 双态 class 拼装。
+// 函数名与活跃态判定字面量保留 —— rdl/shipment 源码契约守卫测试消费同一函数体）
+const statusTone = (status: ShipmentStatus): 'neutral' | 'info' | 'success' | 'danger' | 'warning' => {
+  if (status === 'Delivered') return 'success';
+  if (status === 'Shipped' || status === 'Loading' || status === 'Arrived' || status === 'Cleared') return 'info';
+  if (status === 'Booked') return 'info';
+  if (status === 'Cancelled') return 'neutral';
+  return 'neutral';
 };
 
-const ToolbarFilterButton = ({
-  active,
-  children,
-  isDarkMode,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  isDarkMode: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cx(
-      'h-8 shrink-0 rounded-control border px-3 text-[10px] font-light tracking-wide transition-all',
-      active
-        ? isDarkMode
-          ? BAMBOOK_OS.controls.selectedSurface.dark
-          : BAMBOOK_OS.controls.selectedSurface.light
-        : isDarkMode
-          ? `${BAMBOOK_OS.controls.toolbar.controlDark} ${BAMBOOK_OS.controls.toolbar.controlIdleDark}`
-          : `${BAMBOOK_OS.controls.toolbar.controlLight} ${BAMBOOK_OS.controls.toolbar.controlIdleLight}`,
-    )}
-  >
-    {children}
-  </button>
-);
+// 时间轴节点圆点/文字色（与徽章变体同语义 token，主题透明）
+const STATUS_TONE_COLOR: Record<ReturnType<typeof statusTone>, string> = {
+  neutral: 'var(--text-tertiary)',
+  info: 'var(--accent-text)',
+  success: 'var(--success-text)',
+  danger: 'var(--danger-text)',
+  warning: 'var(--warning-text)',
+};
+
+// compiled 交互卡 spotlight 统一 accent 色/尺寸（主题透明，替代 isDarkMode 双值三元）
+const SPOTLIGHT_COLOR = 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)';
+const SPOTLIGHT_SIZE = 200;
 
 const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments, setShipments }) => {
   const [selectedStatus, setSelectedStatus] = useState<ShipmentStatusId>('all');
@@ -372,25 +351,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     return () => { cancelled = true; };
   }, [selectedShipmentId, selectedShipmentStatus, packingRefreshKey]);
 
-  const textPrimaryClass = isDarkMode ? 'text-white/86' : 'text-slate-950';
-  const textSecondaryClass = isDarkMode ? 'text-white/52' : 'text-slate-500';
-  const tableHeaderClass = isDarkMode ? BAMBOOK_OS.controls.table.headerDark : BAMBOOK_OS.controls.table.headerLight;
-  const tableRowHoverClass = isDarkMode ? BAMBOOK_OS.controls.table.rowHoverDark : BAMBOOK_OS.controls.table.rowHoverLight;
-  const tableRowSeparatorClass = isDarkMode ? BAMBOOK_OS.controls.table.rowSeparatorDark : BAMBOOK_OS.controls.table.rowSeparatorLight;
-  const toolbarSurfaceClass = isDarkMode ? BAMBOOK_OS.controls.toolbar.surfaceDark : BAMBOOK_OS.controls.toolbar.surfaceLight;
-  const toolbarSearchClass = isDarkMode ? BAMBOOK_OS.controls.toolbar.searchDark : BAMBOOK_OS.controls.toolbar.searchLight;
-  const toolbarSearchShellClass = isDarkMode ? BAMBOOK_OS.controls.toolbar.controlDark : BAMBOOK_OS.controls.toolbar.controlLight;
-  const statusChipClass = isDarkMode
-    ? 'border-white/[0.065] bg-white/[0.028] text-white/54'
-    : 'border-slate-300/28 bg-white/38 text-slate-500';
-  const formFieldClass = cx(
-    'w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all',
-    isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light,
-  );
-  const formTextareaClass = cx(
-    'w-full mt-1 px-4 py-3 rounded-full border outline-none font-light text-xs transition-all resize-none',
-    isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light,
-  );
+  // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+  const textPrimaryClass = 'text-[var(--text-primary)]';
+  const textSecondaryClass = 'text-[var(--text-tertiary)]';
 
   const statusItems = [
     { label: '已发运', value: shipments.filter(s => s.status === 'Shipped').length },
@@ -548,20 +511,20 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
 
   const renderShipmentField = (field: ShipmentFormFieldConfig) => (
     <div key={field.name} className={cx('flex flex-col', field.fullSpan && 'md:col-span-2')}>
-      <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>
-        {field.label}{field.required && <span className="ml-0.5 text-slate-400">*</span>}
+      <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">
+        {field.label}{field.required && <span className="ml-0.5 text-[var(--text-quaternary)]">*</span>}
       </label>
       {field.type === 'select' ? (
         <select
           value={formDraft[field.name]}
           onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
-          className={formFieldClass}
+          className="bds-select"
         >
           {!field.required && (
-            <option value="" className={isDarkMode ? 'bg-deep text-white/60' : 'bg-white text-slate-500'}>— 不指定 —</option>
+            <option value="">— 不指定 —</option>
           )}
           {field.options?.map(opt => (
-            <option key={opt.value} value={opt.value} className={isDarkMode ? 'bg-deep text-white/85' : 'bg-white text-slate-800'}>{opt.label}</option>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
       ) : field.type === 'textarea' ? (
@@ -570,7 +533,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
           rows={3}
           placeholder={field.placeholder}
-          className={formTextareaClass}
+          className="bds-input bds-textarea"
         />
       ) : (
         <input
@@ -578,7 +541,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           value={formDraft[field.name]}
           onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
           placeholder={field.placeholder}
-          className={formFieldClass}
+          className="bds-input"
         />
       )}
     </div>
@@ -590,53 +553,46 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
         title="货运管理"
         subtitle="Shipments & Logistics"
         contextLabel="Shipment Desk"
-        isDarkMode={isDarkMode}
         hidden={showFormModal}
         actions={(
           <button
             type="button"
             onClick={openCreateModal}
-            className={cx(
-              BAMBOOK_OS.controls.title.actionButton,
-              isDarkMode
-                ? 'border-white/[0.085] bg-white/[0.04] text-white/72 hover:bg-white/[0.08]'
-                : 'border-slate-200/60 bg-white/60 text-slate-600 hover:bg-white/90',
-            )}
+            className="bds-btn bds-btn-primary sm"
           >
-            <Plus size={14} strokeWidth={1.4} />
+            <Plus size={14} />
             新建运单
           </button>
         )}
       />
 
-      <main className={cx(BAMBOOK_OS.layout.desktopSinglePanelBodyClass, BAMBOOK_OS.layout.desktopPageCanvasClass, showFormModal && 'hidden')}>
+      <main className={cx('flex-1 min-h-0 flex flex-col px-5 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', showFormModal && 'hidden')}>
         <div className="flex h-full min-h-0 flex-col gap-3">
           {errorMessage && !showFormModal && (
-            <div className={cx('flex items-start justify-between gap-3 rounded-inset border px-4 py-2.5 text-[11px] font-light', isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/55' : 'border-slate-200 bg-slate-100/60 text-slate-500')}>
-              <span className="break-words">{errorMessage}</span>
-              <button type="button" onClick={() => setErrorMessage('')} className={cx('mt-px shrink-0', isDarkMode ? 'text-white/40 hover:text-white/70' : 'text-slate-400 hover:text-slate-600')}>
-                <X size={12} strokeWidth={1.6} />
+            <div className="bds-alert danger shrink-0">
+              <span className="flex-1 min-w-0 break-words">{errorMessage}</span>
+              <button type="button" onClick={() => setErrorMessage('')} aria-label="关闭错误提示" className="mt-px shrink-0 hover:opacity-70">
+                <X size={12} />
               </button>
             </div>
           )}
-          <div className={cx(BAMBOOK_OS.controls.toolbar.base, 'h-auto min-h-9 overflow-hidden py-1', toolbarSurfaceClass)}>
-            <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
-            <div className={cx(BAMBOOK_OS.controls.toolbar.content, '!h-auto min-h-9 flex-wrap gap-x-2 gap-y-2 py-1.5')}>
-              <label className={cx('flex h-9 min-w-[188px] flex-[1_1_220px] items-center gap-2 rounded-control border px-3 text-[11px] font-light', toolbarSearchShellClass)}>
-                <Search size={13} strokeWidth={1.2} className={isDarkMode ? 'text-white/38' : 'text-slate-400'} />
-                <input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="运单号 / 收货方"
-                  className={cx('min-w-0 flex-1 bg-transparent text-[11px] font-light outline-none', toolbarSearchClass)}
-                />
-              </label>
-              <div className={cx('hidden h-4 w-px shrink-0 xl:block', isDarkMode ? 'bg-white/8' : 'bg-slate-300/32')} />
-              <div className="flex min-w-0 flex-[1_1_auto] items-center gap-1 overflow-x-auto">
+          <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">
+            <div className="relative min-w-[188px] flex-[1_1_220px] max-w-xs">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="运单号 / 收货方"
+                className="bds-input sm pl-9"
+              />
+            </div>
+            <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
+            <div className="min-w-0 flex-[1_1_auto] overflow-x-auto">
+              <div className="bds-segment">
                 {SHIPMENT_STATUSES.map(item => (
-                  <ToolbarFilterButton key={item.id} active={selectedStatus === item.id} isDarkMode={isDarkMode} onClick={() => setSelectedStatus(item.id)}>
+                  <button key={item.id} type="button" onClick={() => setSelectedStatus(item.id)} className={cx('seg whitespace-nowrap', selectedStatus === item.id && 'active')}>
                     {item.label}
-                  </ToolbarFilterButton>
+                  </button>
                 ))}
               </div>
             </div>
@@ -644,42 +600,42 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
 
           {/* Phase B3 — 准交率统计条（只读，口径：订单最后一票 ata ≤ dueDate / 运单 ata ≤ eta） */}
           {onTimeStats && (onTimeStats.order.total > 0 || onTimeStats.shipment.total > 0) && (
-            <div className={cx('flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1.5 rounded-inset border px-4 py-2', toolbarSurfaceClass)}>
+            <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1.5 rounded-inset px-4 py-2 bg-[var(--bg-panel)]">
               <div className="flex items-baseline gap-2">
-                <span className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>订单准交率</span>
-                <span className={cx('text-sm font-light tabular-nums', textPrimaryClass)}>
+                <span className={cx('text-[10px] tracking-[0.14em]', textSecondaryClass)}>订单准交率</span>
+                <span className={cx('text-sm bds-tnum', textPrimaryClass)}>
                   {onTimeStats.order.rate == null ? '—' : `${(onTimeStats.order.rate * 100).toFixed(1)}%`}
                 </span>
-                <span className={cx('text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                <span className={cx('text-[10px] bds-tnum', textSecondaryClass)}>
                   准交 {onTimeStats.order.onTime} / 可判定 {onTimeStats.order.total - onTimeStats.order.pending}
                   {onTimeStats.order.pending > 0 && ` · 待出运 ${onTimeStats.order.pending}`}
                 </span>
               </div>
-              <div className={cx('hidden h-4 w-px xl:block', isDarkMode ? 'bg-white/8' : 'bg-slate-300/32')} />
+              <div className="hidden h-4 w-px xl:block bg-[var(--border-c-strong)]" />
               <div className="flex items-baseline gap-2">
-                <span className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>运单准点率</span>
-                <span className={cx('text-sm font-light tabular-nums', textPrimaryClass)}>
+                <span className={cx('text-[10px] tracking-[0.14em]', textSecondaryClass)}>运单准点率</span>
+                <span className={cx('text-sm bds-tnum', textPrimaryClass)}>
                   {onTimeStats.shipment.rate == null ? '—' : `${(onTimeStats.shipment.rate * 100).toFixed(1)}%`}
                 </span>
-                <span className={cx('text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                <span className={cx('text-[10px] bds-tnum', textSecondaryClass)}>
                   准点 {onTimeStats.shipment.onTime} / {onTimeStats.shipment.total}
                 </span>
               </div>
               {/* C4：运输方式 chips（总量 · 在途 · 准点率） */}
               {methodStats && methodStats.methods.length > 0 && (
                 <>
-                  <div className={cx('hidden h-4 w-px xl:block', isDarkMode ? 'bg-white/8' : 'bg-slate-300/32')} />
+                  <div className="hidden h-4 w-px xl:block bg-[var(--border-c-strong)]" />
                   <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     {methodStats.methods.slice(0, 6).map(m => (
                       <span
                         key={m.method}
                         title={`${m.method}：共 ${m.total} 票 · 在途 ${m.inTransit} · 已交付 ${m.delivered}${m.onTimeRate != null ? ` · 准点率 ${(m.onTimeRate * 100).toFixed(1)}%` : ''}`}
-                        className={cx('inline-flex items-baseline gap-1.5 rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', statusChipClass)}
+                        className="bds-badge sm neutral"
                       >
                         <span>{m.method}</span>
-                        <span className="tabular-nums">{m.total}票</span>
-                        {m.inTransit > 0 && <span className="tabular-nums">在途{m.inTransit}</span>}
-                        {m.onTimeRate != null && <span className="tabular-nums">{(m.onTimeRate * 100).toFixed(0)}%</span>}
+                        <span className="bds-tnum">{m.total}票</span>
+                        {m.inTransit > 0 && <span className="bds-tnum">在途{m.inTransit}</span>}
+                        {m.onTimeRate != null && <span className="bds-tnum">{(m.onTimeRate * 100).toFixed(0)}%</span>}
                       </span>
                     ))}
                   </div>
@@ -699,9 +655,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
               scrollClassName="min-h-0 flex-1 overflow-x-visible overflow-y-auto overscroll-contain"
               edgeFade={{ topHeight: 22, topFadeStartOffset: 0, bottomHeight: 42 }}
               header={(
-                <div className={cx(tableGridClass, 'border-b text-[10px] font-light tracking-[0.16em]', tableHeaderClass, textSecondaryClass)}>
+                <div className={cx(tableGridClass, 'text-[10px] tracking-[0.16em]', textSecondaryClass)} style={{ borderBottom: 'var(--border-default)' }}>
                   {tableColumns.map(column => (
-                    <div key={column.key} className={cx('min-w-0', BAMBOOK_OS.spacing.cellPadding)}>{column.label}</div>
+                    <div key={column.key} className="min-w-0 px-3 py-3">{column.label}</div>
                   ))}
                 </div>
               )}
@@ -716,8 +672,8 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                       key={item.id}
                       data-glass-edge-mask
                       onClick={() => setSelectedId(item.id)}
-                      spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                      spotlightSize={isDarkMode ? 240 : 190}
+                      spotlightColor={SPOTLIGHT_COLOR}
+                      spotlightSize={SPOTLIGHT_SIZE}
                       idleSpotlightOpacity={0}
                       liquidSpotlight
                       liquidSpotlightTone="light"
@@ -726,36 +682,35 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                       transition={{ delay: index * 0.025 }}
                       className={cx(
                         tableGridClass,
-                        'group relative isolate w-full overflow-hidden text-left transition-[background,color,transform] duration-200',
-                        tableRowHoverClass,
-                        active && (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light),
+                        'group relative isolate w-full overflow-hidden text-left transition-colors duration-200 hover:bg-[var(--hover-darken)]',
                       )}
+                      style={active ? { background: 'var(--accent-tint)' } : undefined}
                     >
-                      <span className={cx('pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px', tableRowSeparatorClass)} aria-hidden="true" />
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <div className={cx('truncate font-light', textPrimaryClass)}>{item.shipmentNumber}</div>
+                      <span className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px bg-[var(--border-c-subtle)]" aria-hidden="true" />
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <div className={cx('truncate', textPrimaryClass)}>{item.shipmentNumber}</div>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>{item.shippingMethod || '—'} · {item.carrierName || '—'}</div>
                       </div>
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', statusTone(item.status, isDarkMode))}>
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <span className={`bds-badge sm ${statusTone(item.status)}`}>
                           {statusLabelMap[item.status]}
                         </span>
                       </div>
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <div className={cx('truncate font-light', textPrimaryClass)}>{item.customerName || '—'}</div>
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <div className={cx('truncate', textPrimaryClass)}>{item.customerName || '—'}</div>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>{item.orderId ? '订单 ' + item.orderId.slice(-8) : '无关联订单'}</div>
                       </div>
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <div className={cx('truncate font-light', textPrimaryClass)}>{item.vesselOrFlight || item.voyageNumber || '—'}</div>
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <div className={cx('truncate', textPrimaryClass)}>{item.vesselOrFlight || item.voyageNumber || '—'}</div>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>{item.etd || '—'} → {item.eta || '—'}</div>
                       </div>
                     </CompiledMotionInteractiveCard>
                   );
                 })}
                 {filteredShipments.length === 0 && (
-                  <div className={cx('flex h-56 flex-col items-center justify-center text-center', textSecondaryClass)}>
-                    <Truck size={28} strokeWidth={1} className="mb-3 opacity-45" />
-                    <div className="text-sm font-light">暂无匹配运单</div>
+                  <div className="bds-empty">
+                    <div className="glyph"><Truck size={24} strokeWidth={1} /></div>
+                    <div className="title">暂无匹配运单</div>
                   </div>
                 )}
               </div>
@@ -771,101 +726,101 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
             >
               {selectedShipment ? (
                 <>
-                  <div className={cx('shrink-0 border-b', BAMBOOK_OS.spacing.detailPanelPadding, isDarkMode ? 'border-white/[0.045]' : 'border-white/36')}>
+                  <div className="shrink-0 px-5 py-4" style={{ borderBottom: 'var(--border-subtle)' }}>
                     <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>当前运单</div>
-                        <div className={cx('mt-2 truncate text-base font-light', textPrimaryClass)}>{selectedShipment.shipmentNumber}</div>
+                        <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>当前运单</div>
+                        <div className={cx('mt-2 truncate text-base', textPrimaryClass)}>{selectedShipment.shipmentNumber}</div>
                         <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{selectedShipment.shippingMethod || '—'} · {selectedShipment.carrierName || '—'}</div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', statusTone(selectedShipment.status, isDarkMode))}>
+                        <span className={`bds-badge sm ${statusTone(selectedShipment.status)}`}>
                           {statusLabelMap[selectedShipment.status]}
                         </span>
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => openEditModal(selectedShipment)}
-                            className={cx('h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
+                            className="bds-btn bds-btn-secondary sm"
                           >
-                            <Pencil size={11} strokeWidth={1.4} />
+                            <Pencil size={11} />
                             编辑
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(selectedShipment)} disabled={deletingId !== null}
-                            className={cx('h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors', isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/55 hover:bg-white/[0.06]' : 'border-slate-300/40 bg-slate-100/50 text-slate-500 hover:bg-slate-100/60')}
+                            className="bds-btn bds-btn-danger sm"
                           >
-                            <Trash2 size={11} strokeWidth={1.4} />
+                            <Trash2 size={11} />
                             删除
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className={cx('min-h-0 flex-1 overflow-y-auto', BAMBOOK_OS.spacing.detailPanelPadding)}>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
                     <div className="space-y-1">
                       {inspectorRows.map(row => (
-                        <div key={row.label} className={cx('grid grid-cols-[72px_minmax(0,1fr)] items-baseline', BAMBOOK_OS.spacing.attrRowGap)}>
-                          <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>{row.label}</div>
-                          <div className={cx('truncate text-xs font-light', textPrimaryClass)}>{row.value}</div>
+                        <div key={row.label} className="grid grid-cols-[72px_minmax(0,1fr)] items-baseline gap-3 py-2">
+                          <div className={cx('text-[10px] tracking-wide', textSecondaryClass)}>{row.label}</div>
+                          <div className={cx('truncate text-xs', textPrimaryClass)}>{row.value}</div>
                         </div>
                       ))}
                     </div>
-                    <div className={cx('my-4 h-px w-full', isDarkMode ? 'bg-white/[0.055]' : 'bg-slate-200/55')} />
-                    <div className={cx('rounded-inset border', BAMBOOK_OS.spacing.nestedPanelPadding, isDarkMode ? 'border-[var(--os-vnext-brand-blue-soft)]/12 bg-[var(--os-vnext-brand-blue)]/[0.045]' : 'border-[var(--os-vnext-brand-blue)]/16 bg-[var(--os-vnext-brand-blue)]/[0.045]')}>
-                      <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>物流轨迹</div>
-                      <div className={cx('mt-2 text-sm font-light', textPrimaryClass)}>
+                    <div className="my-4 h-px w-full bg-[var(--border-c-subtle)]" />
+                    <div className="rounded-inset px-4 py-3" style={{ background: 'var(--accent-tint-light)', border: '1px solid var(--accent-tint)' }}>
+                      <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>物流轨迹</div>
+                      <div className={cx('mt-2 text-sm', textPrimaryClass)}>
                         {selectedShipment.portOfLoading || '?'} → {selectedShipment.portOfDischarge || '?'}
                       </div>
-                      <div className={cx('mt-1 text-[10px] font-light', textSecondaryClass)}>
+                      <div className={cx('mt-1 text-[10px]', textSecondaryClass)}>
                         离港 {selectedShipment.etd || '?'} · 到港 {selectedShipment.eta || '?'}
                         {selectedShipment.ata && ` · 实际到港 ${selectedShipment.ata}`}
                       </div>
                       {/* C4：物流跟踪号 + 承运商查询跳转 */}
                       {(selectedShipment.trackingNumber || selectedShipment.carrierTrackingUrl) && (
-                        <div className={cx('mt-2 flex items-center gap-2 text-[10px] font-light', textSecondaryClass)}>
+                        <div className={cx('mt-2 flex items-center gap-2 text-[10px]', textSecondaryClass)}>
                           <span className="truncate">跟踪号 {selectedShipment.trackingNumber || '—'}</span>
                           {selectedShipment.carrierTrackingUrl && (
                             <a
                               href={selectedShipment.carrierTrackingUrl}
                               target="_blank"
                               rel="noreferrer noopener"
-                              className={cx('inline-flex shrink-0 items-center gap-1 rounded-control border px-2 py-0.5 transition-colors', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
+                              className="bds-btn bds-btn-secondary sm shrink-0"
                             >
-                              <ExternalLink size={10} strokeWidth={1.4} />
+                              <ExternalLink size={10} />
                               承运商查询
                             </a>
                           )}
                         </div>
                       )}
                       {/* F3：节点时间轴（ShipmentEvent 订舱→装货→发运→到港→清关→交付） */}
-                      <div className={cx('mt-3 pt-3 border-t', isDarkMode ? 'border-white/[0.055]' : 'border-white/50')}>
+                      <div className="mt-3 pt-3" style={{ borderTop: 'var(--border-subtle)' }}>
                         {eventsLoading ? (
-                          <div className={cx('flex items-center gap-2 py-1 text-[10px] font-light', textSecondaryClass)}>
+                          <div className={cx('flex items-center gap-2 py-1 text-[10px]', textSecondaryClass)}>
                             <Loader2 size={11} className="animate-spin" />加载节点时间轴…
                           </div>
                         ) : shipmentEvents.length === 0 ? (
-                          <div className={cx('py-1 text-[10px] font-light', textSecondaryClass)}>暂无节点记录</div>
+                          <div className={cx('py-1 text-[10px]', textSecondaryClass)}>暂无节点记录</div>
                         ) : (
                           <div className="space-y-0">
                             {shipmentEvents.map((ev, idx) => {
-                              const semantic = shipmentStatusSemantic(ev.toNode);
+                              const toneColor = STATUS_TONE_COLOR[statusTone(ev.toNode)];
                               const isLast = idx === shipmentEvents.length - 1;
                               return (
                                 <div key={ev.id} className="flex gap-2.5">
                                   <div className="flex flex-col items-center shrink-0 w-2.5 pt-1">
-                                    <span className={cx('w-1.5 h-1.5 rounded-full shrink-0', statusSemanticBg(semantic, isDarkMode))} />
-                                    {!isLast && <span className={cx('flex-1 w-px', isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-200/70')} />}
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: toneColor }} />
+                                    {!isLast && <span className="flex-1 w-px bg-[var(--border-c-strong)]" />}
                                   </div>
                                   <div className={cx('flex-1 min-w-0', isLast ? 'pb-0.5' : 'pb-3')}>
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className={cx('text-xs font-light', statusSemanticText(semantic, isDarkMode))}>{statusLabelMap[ev.toNode] || ev.toNode}</span>
-                                      <span className={cx('text-[10px] font-light', textSecondaryClass)}>{ev.eventDate}</span>
-                                      {ev.actorId && <span className={cx('text-[10px] font-light', isDarkMode ? 'text-white/32' : 'text-slate-400/80')}>操作人: {ev.actorId}</span>}
+                                      <span className="text-xs" style={{ color: toneColor }}>{statusLabelMap[ev.toNode] || ev.toNode}</span>
+                                      <span className={cx('text-[10px]', textSecondaryClass)}>{ev.eventDate}</span>
+                                      {ev.actorId && <span className="text-[10px] text-[var(--text-quaternary)]">操作人: {ev.actorId}</span>}
                                     </div>
                                     {ev.note && (
-                                      <div className={cx('mt-1 px-2 py-1 rounded-inset text-[11px] font-light', isDarkMode ? 'bg-white/[0.02] text-white/45' : 'bg-white/50 text-slate-500')}>{ev.note}</div>
+                                      <div className="mt-1 px-2 py-1 rounded-inset text-[11px]" style={{ background: 'var(--bg-panel)', color: 'var(--text-tertiary)' }}>{ev.note}</div>
                                     )}
                                   </div>
                                 </div>
@@ -877,9 +832,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                     </div>
                     <div className="mt-4">
                       {/* C4：装箱明细区块（行级 + 逐箱；只读展示 + 编辑入口） */}
-                      <div className={cx('rounded-inset border', BAMBOOK_OS.spacing.nestedPanelPadding, isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/40')}>
+                      <div className="rounded-inset px-4 py-3" style={{ background: 'var(--bg-panel)', border: 'var(--border-subtle)' }}>
                         <div className="flex items-center justify-between gap-2">
-                          <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>装箱明细</div>
+                          <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>装箱明细</div>
                           <div className="flex items-center gap-1.5">
                             {selectedShipment.orderId && packingEditable && (
                               <button
@@ -887,9 +842,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                 onClick={handlePullLines}
                                 disabled={pullingLines}
                                 title="从关联订单重新带出装运行（覆盖现有行）"
-                                className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light tracking-wide transition-colors disabled:opacity-50', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
+                                className="bds-btn bds-btn-secondary sm"
                               >
-                                {pullingLines ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} strokeWidth={1.4} />}
+                                {pullingLines ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
                                 从订单带出
                               </button>
                             )}
@@ -897,34 +852,34 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                               <button
                                 type="button"
                                 onClick={() => setShowPackingEditor(true)}
-                                className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light tracking-wide transition-colors', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
+                                className="bds-btn bds-btn-secondary sm"
                               >
-                                <Package size={10} strokeWidth={1.4} />
+                                <Package size={10} />
                                 编辑装箱
                               </button>
                             )}
                           </div>
                         </div>
                         {packingLoading ? (
-                          <div className={cx('mt-2 flex items-center gap-2 py-1 text-[10px] font-light', textSecondaryClass)}>
+                          <div className={cx('mt-2 flex items-center gap-2 py-1 text-[10px]', textSecondaryClass)}>
                             <Loader2 size={11} className="animate-spin" />加载装箱明细…
                           </div>
                         ) : packingLines.length === 0 && packingCartons.length === 0 ? (
-                          <div className={cx('mt-2 py-1 text-[10px] font-light', textSecondaryClass)}>
+                          <div className={cx('mt-2 py-1 text-[10px]', textSecondaryClass)}>
                             暂无装箱明细{packingEditable && selectedShipment.orderId ? '，可点击「从订单带出」快速生成装运行' : ''}
                           </div>
                         ) : (
                           <div className="mt-2 space-y-2.5">
                             {packingLines.length > 0 && (
                               <div>
-                                <div className={cx('text-[10px] font-light', textSecondaryClass)}>装运行（{packingLines.length}）</div>
+                                <div className={cx('text-[10px]', textSecondaryClass)}>装运行（{packingLines.length}）</div>
                                 <div className="mt-1 space-y-1">
                                   {packingLines.map(line => (
-                                    <div key={line.id} className={cx('flex items-baseline justify-between gap-2 rounded-inset px-2 py-1', isDarkMode ? 'bg-white/[0.025]' : 'bg-white/55')}>
-                                      <span className={cx('min-w-0 truncate text-[11px] font-light', textPrimaryClass)}>
+                                    <div key={line.id} className="flex items-baseline justify-between gap-2 rounded-inset px-2 py-1 bg-[var(--bg-card)]">
+                                      <span className={cx('min-w-0 truncate text-[11px]', textPrimaryClass)}>
                                         {line.productName || line.productCode || `行 ${line.lineNumber ?? ''}`}
                                       </span>
-                                      <span className={cx('shrink-0 text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                                      <span className={cx('shrink-0 text-[10px] bds-tnum', textSecondaryClass)}>
                                         {line.quantity != null ? `${line.quantity}${line.unit ? ` ${line.unit}` : ''}` : '—'}
                                         {line.cartons != null && ` · ${line.cartons}箱`}
                                       </span>
@@ -935,25 +890,25 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                             )}
                             {packingCartons.length > 0 && (
                               <div>
-                                <div className={cx('text-[10px] font-light', textSecondaryClass)}>逐箱（{packingCartons.length}）</div>
+                                <div className={cx('text-[10px]', textSecondaryClass)}>逐箱（{packingCartons.length}）</div>
                                 <div className="mt-1 space-y-1">
                                   {packingCartons.map(carton => {
                                     const dims = [carton.length, carton.width, carton.height].every(v => v != null)
                                       ? `${carton.length}×${carton.width}×${carton.height}cm` : null;
                                     return (
-                                      <div key={carton.id} className={cx('rounded-inset px-2 py-1', isDarkMode ? 'bg-white/[0.025]' : 'bg-white/55')}>
+                                      <div key={carton.id} className="rounded-inset px-2 py-1 bg-[var(--bg-card)]">
                                         <div className="flex items-baseline justify-between gap-2">
-                                          <span className={cx('inline-flex min-w-0 items-center gap-1 text-[11px] font-light', textPrimaryClass)}>
-                                            <Box size={10} strokeWidth={1.4} className="shrink-0 opacity-60" />
+                                          <span className={cx('inline-flex min-w-0 items-center gap-1 text-[11px]', textPrimaryClass)}>
+                                            <Box size={10} className="shrink-0 opacity-60" />
                                             <span className="truncate">C/NO {carton.cartonNo}</span>
                                           </span>
-                                          <span className={cx('shrink-0 text-[10px] font-light tabular-nums', textSecondaryClass)}>
+                                          <span className={cx('shrink-0 text-[10px] bds-tnum', textSecondaryClass)}>
                                             {carton.grossWeight != null ? `${carton.grossWeight}kg` : '—'}
                                             {carton.volume != null && ` · ${Number(carton.volume).toFixed(3)}CBM`}
                                           </span>
                                         </div>
                                         {(dims || (carton.items && carton.items.length > 0)) && (
-                                          <div className={cx('mt-0.5 text-[10px] font-light', textSecondaryClass)}>
+                                          <div className={cx('mt-0.5 text-[10px]', textSecondaryClass)}>
                                             {dims && <span>{dims}</span>}
                                             {carton.items && carton.items.length > 0 && (
                                               <span>
@@ -983,9 +938,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                   </div>
                 </>
               ) : (
-                <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondaryClass)}>
-                  <Truck size={28} strokeWidth={1} className="mb-3 opacity-45" />
-                  <div className="text-sm font-light">请选择运单</div>
+                <div className="bds-empty" style={{ height: '100%', justifyContent: 'center' }}>
+                  <div className="glyph"><Truck size={24} strokeWidth={1} /></div>
+                  <div className="title">请选择运单</div>
                 </div>
               )}
             </CompiledSurfacePanel>
@@ -1004,56 +959,32 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
               source="ShipmentManager.form"
               leading={(
                 <div className="flex h-full items-center gap-1.5 min-w-0">
-                  <CompiledInteractiveCard
-                    spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                    spotlightSize={isDarkMode ? 240 : 190}
-                    idleSpotlightOpacity={0}
-                    activeSpotlightOpacity={1}
-                    className={cx(BAMBOOK_OS.controls.title.iconButton, isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light)}
-                  >
-                    <button type="button" onClick={closeFormModal} aria-label="返回货运管理" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center">
-                      <ChevronLeft size={18} strokeWidth={1.4} />
-                    </button>
-                  </CompiledInteractiveCard>
-                  <h3 className={cx(BAMBOOK_OS.controls.title.pageLabel, isDarkMode ? 'text-white/70' : 'text-slate-700')}>
+                  <button type="button" onClick={closeFormModal} aria-label="返回货运管理" className="bds-btn bds-btn-secondary bds-btn-icon sm">
+                    <ChevronLeft size={18} strokeWidth={1.4} />
+                  </button>
+                  <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
                     {editingShipment ? '编辑运单' : '新建运单'}
                   </h3>
                 </div>
               )}
               actions={(
                 <div className="flex h-full items-center gap-2 shrink-0">
-                  <div className={cx('text-[11px] font-light tracking-wide', isDarkMode ? 'text-white/48' : 'text-slate-400')}>
+                  <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">
                     货运管理
                   </div>
-                  <CompiledInteractiveCard
-                    spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                    spotlightSize={isDarkMode ? 240 : 190}
-                    idleSpotlightOpacity={0}
-                    activeSpotlightOpacity={1}
-                    className={cx(BAMBOOK_OS.controls.title.actionButton, isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light)}
-                  >
-                    <button type="button" onClick={closeFormModal} disabled={isSaving} className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center disabled:cursor-not-allowed">
-                      取消
-                    </button>
-                  </CompiledInteractiveCard>
-                  <CompiledInteractiveCard
-                    spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                    spotlightSize={isDarkMode ? 240 : 190}
-                    idleSpotlightOpacity={0}
-                    activeSpotlightOpacity={1}
-                    className={cx(BAMBOOK_OS.controls.title.actionButton, isSaving ? 'opacity-60 cursor-not-allowed border-transparent' : isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light)}
-                  >
-                    <button type="submit" form="shipment-fullscreen-form" disabled={isSaving} className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2 disabled:cursor-not-allowed">
-                      <Save size={14} strokeWidth={1.5} />
-                      {isSaving ? '保存中…' : '保存'}
-                    </button>
-                  </CompiledInteractiveCard>
+                  <button type="button" onClick={closeFormModal} disabled={isSaving} className="bds-btn bds-btn-secondary sm">
+                    取消
+                  </button>
+                  <button type="submit" form="shipment-fullscreen-form" disabled={isSaving} className="bds-btn bds-btn-primary sm">
+                    <Save size={14} strokeWidth={1.5} />
+                    {isSaving ? '保存中…' : '保存'}
+                  </button>
                 </div>
               )}
             />
             {errorMessage && (
-              <div className={cx('w-full px-5 pt-3 text-xs font-light', isDarkMode ? 'text-white/55' : 'text-slate-500')}>
-                {errorMessage}
+              <div className="w-full px-5 pt-3">
+                <div className="bds-alert danger">{errorMessage}</div>
               </div>
             )}
             <form
@@ -1072,20 +1003,15 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         key={section.id}
                         type="button"
                         onClick={() => document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className={cx(
-                          'w-full text-left rounded-full border px-3 py-3 transition-all',
-                          isDarkMode
-                            ? 'border-white/[0.06] bg-white/[0.025] hover:bg-white/[0.05] hover:border-white/[0.1]'
-                            : 'border-slate-200/50 bg-white/30 hover:bg-white/60 hover:border-slate-300/60',
-                        )}
+                        className="w-full rounded-full border border-[var(--border-c-subtle)] bg-[var(--bg-panel)] px-3 py-3 text-left transition-all hover:bg-[var(--bg-sunken)] hover:border-[var(--border-c-strong)]"
                       >
                         <div className="flex items-center gap-3">
-                          <span className={cx('w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors', isDarkMode ? 'border-white/[0.1] bg-white/[0.04] text-white/60' : 'border-slate-200 bg-white/50 text-slate-400')}>
+                          <span className="w-6 h-6 shrink-0 rounded-full border border-[var(--border-c-subtle)] bg-[var(--bg-sunken)] flex items-center justify-center text-[10px] font-light text-[var(--text-tertiary)] transition-colors">
                             {idx + 1}
                           </span>
                           <div className="min-w-0">
-                            <div className={cx('text-xs font-light', isDarkMode ? 'text-white/75' : 'text-slate-800')}>{section.title}</div>
-                            <div className={cx('text-[10px] mt-0.5 truncate', isDarkMode ? 'text-white/38' : 'text-slate-400')}>{section.desc}</div>
+                            <div className="text-xs font-light text-[var(--text-primary)]">{section.title}</div>
+                            <div className="text-[10px] mt-0.5 truncate text-[var(--text-quaternary)]">{section.desc}</div>
                           </div>
                         </div>
                       </button>
@@ -1094,7 +1020,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                 </CompiledFormMapPanel>
               </aside>
 
-              <div ref={formScrollRef} className={cx('min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px]', BAMBOOK_OS.layout.panelShadowViewportClass)}>
+              <div ref={formScrollRef} className="min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] bambook-panel-shadow-viewport">
                 {SHIPMENT_FORM_SECTIONS.map(section => (
                   <CompiledFormSectionPanel
                     key={section.id}
@@ -1214,7 +1140,6 @@ function cartonDraftFrom(carton: ShipmentCarton, lineKeyById: Map<string, string
 }
 
 function PackingEditorModal({
-  isDarkMode,
   shipment,
   initialLines,
   initialCartons,
@@ -1240,12 +1165,8 @@ function PackingEditorModal({
   const [error, setError] = useState('');
   const [tab, setTab] = useState<'lines' | 'cartons'>('lines');
 
-  const textPrimary = isDarkMode ? 'text-white/86' : 'text-slate-950';
-  const textSecondary = isDarkMode ? 'text-white/52' : 'text-slate-500';
-  const fieldClass = cx(
-    'h-8 w-full rounded-control border px-2.5 text-[11px] font-light outline-none transition-all',
-    isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light,
-  );
+  const textSecondary = 'text-[var(--text-tertiary)]';
+  const fieldClass = 'bds-input sm';
 
   const updateLine = (key: string, patch: Partial<PackingLineDraft>) =>
     setLines(prev => prev.map(l => (l.key === key ? { ...l, ...patch } : l)));
@@ -1336,70 +1257,41 @@ function PackingEditorModal({
           source="ShipmentManager.packing"
           leading={(
             <div className="flex h-full min-w-0 items-center gap-1.5">
-              <CompiledInteractiveCard
-                spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                spotlightSize={isDarkMode ? 240 : 190}
-                idleSpotlightOpacity={0}
-                activeSpotlightOpacity={1}
-                className={cx(BAMBOOK_OS.controls.title.iconButton, isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light)}
-              >
-                <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="relative z-10 flex h-full w-full items-center justify-center rounded-[inherit]">
-                  <ChevronLeft size={18} strokeWidth={1.4} />
-                </button>
-              </CompiledInteractiveCard>
-              <h3 className={cx(BAMBOOK_OS.controls.title.pageLabel, isDarkMode ? 'text-white/70' : 'text-slate-700')}>
+              <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon sm">
+                <ChevronLeft size={18} strokeWidth={1.4} />
+              </button>
+              <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
                 装箱明细 · {shipment.shipmentNumber}
               </h3>
             </div>
           )}
           actions={(
             <div className="flex h-full shrink-0 items-center gap-2">
-              <div className={cx('text-[11px] font-light tracking-wide', isDarkMode ? 'text-white/48' : 'text-slate-400')}>货运管理</div>
-              <CompiledInteractiveCard
-                spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                spotlightSize={isDarkMode ? 240 : 190}
-                idleSpotlightOpacity={0}
-                activeSpotlightOpacity={1}
-                className={cx(BAMBOOK_OS.controls.title.actionButton, isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light)}
-              >
-                <button type="button" onClick={onClose} disabled={saving} className="relative z-10 flex h-full w-full items-center justify-center rounded-[inherit] disabled:cursor-not-allowed">取消</button>
-              </CompiledInteractiveCard>
-              <CompiledInteractiveCard
-                spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                spotlightSize={isDarkMode ? 240 : 190}
-                idleSpotlightOpacity={0}
-                activeSpotlightOpacity={1}
-                className={cx(BAMBOOK_OS.controls.title.actionButton, saving ? 'cursor-not-allowed border-transparent opacity-60' : isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light)}
-              >
-                <button type="button" onClick={() => void handleSave()} disabled={saving} className="relative z-10 flex h-full w-full items-center justify-center gap-2 rounded-[inherit] disabled:cursor-not-allowed">
-                  <Save size={14} strokeWidth={1.5} />
-                  {saving ? '保存中…' : '保存'}
-                </button>
-              </CompiledInteractiveCard>
+              <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
+              <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-secondary sm">取消</button>
+              <button type="button" onClick={() => void handleSave()} disabled={saving} className="bds-btn bds-btn-primary sm">
+                <Save size={14} strokeWidth={1.5} />
+                {saving ? '保存中…' : '保存'}
+              </button>
             </div>
           )}
         />
 
         {error && (
-          <div className={cx('w-full px-5 pt-3 text-xs font-light', isDarkMode ? 'text-white/55' : 'text-slate-500')}>{error}</div>
+          <div className="w-full px-5 pt-3">
+            <div className="bds-alert danger">{error}</div>
+          </div>
         )}
 
         <div className="flex min-h-0 flex-1 flex-col px-5 pt-3 pb-5">
           {/* tab 切换 */}
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="bds-segment shrink-0 self-start">
             {([{ id: 'lines', label: `装运行（${lines.length}）` }, { id: 'cartons', label: `逐箱（${cartons.length}）` }] as const).map(t => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={cx(
-                  'h-8 rounded-control border px-3 text-[10px] font-light tracking-wide transition-all',
-                  tab === t.id
-                    ? isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light
-                    : isDarkMode
-                      ? `${BAMBOOK_OS.controls.toolbar.controlDark} ${BAMBOOK_OS.controls.toolbar.controlIdleDark}`
-                      : `${BAMBOOK_OS.controls.toolbar.controlLight} ${BAMBOOK_OS.controls.toolbar.controlIdleLight}`,
-                )}
+                className={cx('seg', tab === t.id && 'active')}
               >
                 {t.label}
               </button>
@@ -1410,10 +1302,10 @@ function PackingEditorModal({
             {tab === 'lines' ? (
               <div className="space-y-2 pb-8">
                 {lines.map((line, idx) => (
-                  <div key={line.key} className={cx('rounded-inset border p-3', isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/50')}>
+                  <div key={line.key} className="rounded-inset p-3 bg-[var(--bg-panel)]">
                     <div className="flex items-center justify-between gap-2">
                       <span className={cx('text-[10px] font-light tracking-wide', textSecondary)}>行 {idx + 1}</span>
-                      <button type="button" onClick={() => setLines(prev => prev.filter(l => l.key !== line.key))} className={cx('inline-flex h-6 items-center gap-1 rounded-control border px-2 text-[10px] font-light', isDarkMode ? 'border-white/[0.08] text-white/50 hover:bg-white/[0.05]' : 'border-slate-200/60 text-slate-400 hover:bg-white/70')}>
+                      <button type="button" onClick={() => setLines(prev => prev.filter(l => l.key !== line.key))} className="inline-flex h-6 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]">
                         <X size={10} strokeWidth={1.4} />移除
                       </button>
                     </div>
@@ -1433,7 +1325,7 @@ function PackingEditorModal({
                 <button
                   type="button"
                   onClick={() => setLines(prev => [...prev, { key: nextDraftKey('PL'), productCode: '', productName: '', quantity: '', unit: '', cartons: '', grossWeight: '', netWeight: '', volume: '', hsCode: '' }])}
-                  className={cx('inline-flex h-8 items-center gap-1.5 rounded-control border px-3 text-[10px] font-light tracking-wide', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Plus size={11} strokeWidth={1.4} />添加装运行
                 </button>
@@ -1441,15 +1333,15 @@ function PackingEditorModal({
             ) : (
               <div className="space-y-2 pb-8">
                 {lines.length === 0 && (
-                  <div className={cx('rounded-inset border px-3 py-2 text-[11px] font-light', isDarkMode ? 'border-white/[0.055] bg-white/[0.02] text-white/45' : 'border-slate-200/55 bg-white/50 text-slate-400')}>
+                  <div className="bds-alert info">
                     请先在「装运行」页签添加行，逐箱分配需引用装运行。
                   </div>
                 )}
                 {cartons.map((carton, idx) => (
-                  <div key={carton.key} className={cx('rounded-inset border p-3', isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/50')}>
+                  <div key={carton.key} className="rounded-inset p-3 bg-[var(--bg-panel)]">
                     <div className="flex items-center justify-between gap-2">
                       <span className={cx('text-[10px] font-light tracking-wide', textSecondary)}>箱 {idx + 1}</span>
-                      <button type="button" onClick={() => setCartons(prev => prev.filter(c => c.key !== carton.key))} className={cx('inline-flex h-6 items-center gap-1 rounded-control border px-2 text-[10px] font-light', isDarkMode ? 'border-white/[0.08] text-white/50 hover:bg-white/[0.05]' : 'border-slate-200/60 text-slate-400 hover:bg-white/70')}>
+                      <button type="button" onClick={() => setCartons(prev => prev.filter(c => c.key !== carton.key))} className="inline-flex h-6 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]">
                         <X size={10} strokeWidth={1.4} />移除
                       </button>
                     </div>
@@ -1470,10 +1362,11 @@ function PackingEditorModal({
                           <select
                             value={item.lineKey}
                             onChange={e => updateCarton(carton.key, { items: carton.items.map(i => i.key === item.key ? { ...i, lineKey: e.target.value } : i) })}
-                            className={cx(fieldClass, 'flex-1')}
+                            className="bds-select flex-1"
+                            style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
                           >
                             {lines.map(l => (
-                              <option key={l.key} value={l.key} className={isDarkMode ? 'bg-deep text-white/85' : 'bg-white text-slate-800'}>
+                              <option key={l.key} value={l.key}>
                                 {l.productName || l.productCode || '（未命名行）'}{l.quantity ? ` · 总量 ${l.quantity}${l.unit ? ` ${l.unit}` : ''}` : ''}
                               </option>
                             ))}
@@ -1487,7 +1380,7 @@ function PackingEditorModal({
                           <button
                             type="button"
                             onClick={() => updateCarton(carton.key, { items: carton.items.filter(i => i.key !== item.key) })}
-                            className={cx('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control border', isDarkMode ? 'border-white/[0.08] text-white/50 hover:bg-white/[0.05]' : 'border-slate-200/60 text-slate-400 hover:bg-white/70')}
+                            className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0"
                             aria-label="移除分配"
                           >
                             <X size={10} strokeWidth={1.4} />
@@ -1498,7 +1391,7 @@ function PackingEditorModal({
                         <button
                           type="button"
                           onClick={() => updateCarton(carton.key, { items: [...carton.items, { key: nextDraftKey('PCI'), lineKey: lines[0].key, quantity: '' }] })}
-                          className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light', isDarkMode ? 'border-white/[0.07] text-white/50 hover:bg-white/[0.04]' : 'border-slate-200/50 text-slate-400 hover:bg-white/60')}
+                          className="inline-flex h-7 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]"
                         >
                           <Plus size={10} strokeWidth={1.4} />添加分配
                         </button>
@@ -1509,7 +1402,7 @@ function PackingEditorModal({
                 <button
                   type="button"
                   onClick={() => setCartons(prev => [...prev, { key: nextDraftKey('PC'), cartonNo: String(prev.length + 1), description: '', length: '', width: '', height: '', grossWeight: '', netWeight: '', volume: '', items: [] }])}
-                  className={cx('inline-flex h-8 items-center gap-1.5 rounded-control border px-3 text-[10px] font-light tracking-wide', isDarkMode ? 'border-white/[0.085] bg-white/[0.035] text-white/62 hover:bg-white/[0.07]' : 'border-slate-200/60 bg-white/50 text-slate-500 hover:bg-white/85')}
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Plus size={11} strokeWidth={1.4} />添加箱
                 </button>
