@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bambook Design System v2 — 设计系统展厅</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300&display=swap" rel="stylesheet">
+<!-- HarmonyOS Sans SC Light 300 — 本地分包（与生产同源，规避 CDN 被墙 / 无 300 面风险） -->
+<link href="../../node_modules/harmonyos-sans-sc-webfont-splitted/dist/Light.css" rel="stylesheet">
+<!-- JetBrains Mono Light 300 — 等宽排印与生产同源 -->
+<link href="../../node_modules/@fontsource/jetbrains-mono/300.css" rel="stylesheet">
+<style>
+  /* Acherus Grotesque — 回退字（本地字库，与生产环境同源） */
+  @font-face { font-family: 'Acherus Grotesque'; src: url('./fonts/AcherusGrotesque-Light.otf') format('opentype'); font-weight: 300; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Acherus Grotesque'; src: url('./fonts/AcherusGrotesque-Regular.otf') format('opentype'); font-weight: 400; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Acherus Grotesque'; src: url('./fonts/AcherusGrotesque-Bold.otf') format('opentype'); font-weight: 700; font-style: normal; font-display: swap; }
+</style>
+<!-- 直接引用真源：本页即设计系统的真实渲染结果 -->
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./components.css">
+<style>
+  /* ═══ 展厅页自身布局（仅用 token，不属于组件库） ═══ */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    font-weight: 300;
+    color: var(--text-primary);
+    background: var(--grain-img), var(--page-aurora);
+    min-height: 100vh;
+    transition: background var(--duration-normal) var(--ease-default);
+  }
+  .shell { display: flex; min-height: 100vh; }
+
+  /* 左侧导航 — 透明浮于氛围雾之上（Luna 式：万物浮于雾） */
+  .side {
+    width: 216px; flex-shrink: 0;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: var(--space-6) var(--space-4);
+    border-right: var(--border-subtle);
+    background: transparent;
+  }
+  .side .logo {
+    font-size: var(--text-sm); font-weight: 300; letter-spacing: var(--tracking-tight);
+    padding: 0 var(--space-3) var(--space-5);
+  }
+  .side .logo .ver { color: var(--text-tertiary); font-weight: 300; }
+  .side a {
+    display: block; padding: 8px var(--space-3);
+    font-size: var(--text-sm); color: var(--text-secondary);
+    text-decoration: none; border-radius: var(--radius-sm);
+    transition: all var(--duration-fast) var(--ease-default);
+  }
+  .side a:hover { background: var(--bg-panel); color: var(--text-primary); }
+  .side .nav-cap {
+    font-size: 10px; font-weight: 300; letter-spacing: var(--tracking-widest);
+    text-transform: uppercase; color: var(--text-quaternary);
+    padding: var(--space-5) var(--space-3) var(--space-2);
+  }
+
+  /* 主区 */
+  .main { flex: 1; min-width: 0; padding-bottom: var(--space-16); }
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-4) var(--space-8);
+    background: var(--frosted-bg);
+    backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+    -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
+    border-bottom: var(--frosted-border);
+  }
+  .topbar .ttl { font-size: var(--text-sm); font-weight: 300; }
+  .topbar .ttl .en { color: var(--text-tertiary); font-weight: 300; margin-left: var(--space-2); font-size: var(--text-xs); }
+
+  section { padding: var(--space-10) var(--space-8) 0; max-width: 1080px; }
+  .sec-head { margin-bottom: var(--space-6); }
+  .sec-title { font-size: var(--text-xl); font-weight: 300; letter-spacing: var(--tracking-tight); }
+  .sec-title .en { font-size: var(--text-sm); font-weight: 300; color: var(--text-tertiary); margin-left: var(--space-2); }
+  .sec-desc { font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-1); }
+
+  .grid { display: grid; gap: var(--space-3); }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .g5 { grid-template-columns: repeat(5, 1fr); }
+  .row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .col { display: flex; flex-direction: column; gap: var(--space-3); }
+
+  .swatch { border-radius: var(--radius-md); padding: var(--space-4); min-height: 76px; display: flex; flex-direction: column; justify-content: flex-end; }
+  .swatch .nm { font-size: var(--text-xs); font-weight: 300; font-family: var(--font-mono); }
+  .swatch .vl { font-size: 10px; font-family: var(--font-mono); opacity: 0.56; margin-top: 2px; }
+
+  .radius-box { height: 64px; background: var(--accent-tint); border: 1.5px solid var(--accent); display: flex; align-items: flex-end; padding: var(--space-2); }
+  .radius-box span { font-size: 10px; font-family: var(--font-mono); color: var(--accent-text); }
+
+  .space-bar { height: 20px; background: var(--accent-tint-strong); border-radius: var(--radius-xs); }
+
+  .demo-label { font-size: 10px; font-weight: 300; letter-spacing: var(--tracking-widest); text-transform: uppercase; color: var(--text-quaternary); margin-bottom: var(--space-2); }
+
+  .specimen { background: var(--bg-card); border-radius: var(--radius-lg); padding: var(--space-6); }
+  .specimen.flat-bg { background: var(--bg-panel); }
+
+  .type-row { display: flex; align-items: baseline; gap: var(--space-4); padding: var(--space-2) 0; border-bottom: var(--border-subtle); }
+  .type-row:last-child { border-bottom: none; }
+  .type-meta { width: 168px; flex-shrink: 0; font-size: 10px; font-family: var(--font-mono); color: var(--text-tertiary); }
+
+  /* 模拟页面组合 */
+  .page-mock { border-radius: var(--radius-2xl); background: var(--page-aurora); overflow: hidden; border: var(--border-default); }
+  .page-mock .mock-body { padding: 0 var(--space-7) var(--space-7); }
+
+  footer { padding: var(--space-12) var(--space-8); font-size: var(--text-xs); color: var(--text-tertiary); }
+
+  @media (max-width: 900px) {
+    .side { display: none; }
+    .g4, .g5 { grid-template-columns: repeat(2, 1fr); }
+    .g3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ═══ 侧导航 ═══ -->
+  <nav class="side">
+    <div class="logo">Bambook DS <span class="ver">v2.1</span></div>
+    <div class="nav-cap">基础 Foundations</div>
+    <a href="#palette">配色 Color</a>
+    <a href="#type">字体排印 Type</a>
+    <a href="#radius">圆角与间距 Radius</a>
+    <a href="#material">材质 Material</a>
+    <div class="nav-cap">组件 Components</div>
+    <a href="#button">按钮 Button</a>
+    <a href="#form">表单 Form</a>
+    <a href="#card">卡片 Card</a>
+    <a href="#badge">徽章与标签 Badge</a>
+    <a href="#table">表格与列表 Table</a>
+    <a href="#overlay">浮层 Overlay</a>
+    <a href="#feedback">反馈 Feedback</a>
+    <div class="nav-cap">组合 Patterns</div>
+    <a href="#page">页面组合 Page</a>
+  </nav>
+
+  <div class="main">
+    <!-- ═══ 顶栏 ═══ -->
+    <div class="topbar">
+      <div class="ttl">设计系统展厅<span class="en">Bambook Design System v2 · RDL/Halo DNA × Bambook 品牌蓝</span></div>
+      <div class="bds-segment" id="themeSeg">
+        <button class="seg active" data-theme-val="light">亮色 Light</button>
+        <button class="seg" data-theme-val="dark">暗色 Dark</button>
+      </div>
+    </div>
+
+    <!-- ═══ Hero — Luna 式：雾蓝渐变签名 + 磨砂玻璃浮于氛围 ═══ -->
+    <section id="hero">
+      <div class="grid g2">
+        <div class="bds-card lg mist">
+          <div class="bds-overline" style="color: var(--on-mist-2); letter-spacing: 0.16em;">Bambook Design System v2.1</div>
+          <div class="bds-stat-num hero" style="color: var(--on-mist); margin: var(--space-3) 0; font-size: 52px; font-weight: 300; letter-spacing: -0.02em;">Data → Atmosphere</div>
+          <div style="color: var(--on-mist-2); font-size: var(--text-sm); line-height: 1.8; max-width: 400px;">
+            Luna 案例实测转译：零高饱和纯色，所有彩色都是雾里透出来的。
+            白字落于雾面，磨砂玻璃浮于氛围之上。
+          </div>
+          <div class="row" style="margin-top: var(--space-6);">
+            <span class="bds-badge" style="background: var(--on-mist-chip); color: var(--on-mist);">rimless 零阴影</span>
+            <span class="bds-badge" style="background: var(--on-mist-chip); color: var(--on-mist);">pill 全圆角</span>
+            <span class="bds-badge" style="background: var(--on-mist-chip); color: var(--on-mist);">主题透明</span>
+          </div>
+        </div>
+        <div class="bds-card lg glass">
+          <div class="bds-overline" style="color: var(--text-tertiary); letter-spacing: 0.16em;">一级材质 First-class Material</div>
+          <div class="bds-stat-num" style="margin: var(--space-3) 0; font-size: 52px; font-weight: 300; letter-spacing: -0.02em;">磨砂玻璃 Glass</div>
+          <div style="color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.8;">
+            半透底 + blur 20 + saturate 180%，浮于页面氛围雾之上——
+            导航、抽屉、浮层、玻璃卡的统一材质语言。
+          </div>
+          <div class="row" style="margin-top: var(--space-6);">
+            <span class="bds-badge accent"><span class="dot"></span>blur 20</span>
+            <span class="bds-badge accent"><span class="dot"></span>saturate 180%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 1. 配色 Color — 全系统只有 6 个颜色角色 ═══ -->
+    <section id="palette">
+      <div class="sec-head">
+        <div class="sec-title">配色<span class="en">Color — Luna 式雾化色彩，各就各位</span></div>
+        <div class="sec-desc">Luna 色彩哲学：零高饱和纯色，所有彩色都是雾里透出来的。中性画布承载 90% 界面；雾青蓝是唯一功能主色；语义三色全部雾化、仅以小圆点出现；雾蓝渐变与淡紫藤为签名面，每屏至多一处。</div>
+      </div>
+
+      <div class="demo-label">① 中性画布 Surface — 页面 → 卡片 → 面板 → 下沉</div>
+      <div class="grid g5" style="margin-bottom: var(--space-6);">
+        <div class="swatch" style="background: var(--bg-page); border: var(--border-default);"><div class="nm">--bg-page</div><div class="vl">#FAFAF9</div></div>
+        <div class="swatch" style="background: var(--bg-card); border: var(--border-default);"><div class="nm">--bg-card</div><div class="vl">#FFFFFF</div></div>
+        <div class="swatch" style="background: var(--bg-panel);"><div class="nm">--bg-panel</div><div class="vl">#F5F5F4</div></div>
+        <div class="swatch" style="background: var(--bg-sunken);"><div class="nm">--bg-sunken</div><div class="vl">#EFEFEE</div></div>
+        <div class="swatch" style="background: var(--bg-raised); border: var(--border-default);"><div class="nm">--bg-raised</div><div class="vl">浮层表面</div></div>
+      </div>
+
+      <div class="demo-label">② 文字 Ink — 墨色四级阶梯</div>
+      <div class="specimen" style="margin-bottom: var(--space-6);">
+        <div style="font-size: var(--text-lg); color: var(--text-primary);">一级文字 Primary — 标题与关键数据</div>
+        <div style="font-size: var(--text-base); color: var(--text-secondary); margin-top: 6px;">二级文字 Secondary — 正文与次要信息</div>
+        <div style="font-size: var(--text-sm); color: var(--text-tertiary); margin-top: 6px;">三级文字 Tertiary — 辅助说明、占位符</div>
+        <div style="font-size: var(--text-sm); color: var(--text-quaternary); margin-top: 6px;">四级文字 Quaternary — 最弱提示、分隔符</div>
+      </div>
+
+      <div class="demo-label">③ 功能色 Functional — 雾青蓝 accent + 雾化语义三色（仅圆点/tint）</div>
+      <div class="grid g4" style="margin-bottom: var(--space-6);">
+        <div class="swatch" style="background: var(--accent); color: #fff;"><div class="nm">雾青蓝 --accent</div><div class="vl">#3F6E7E</div></div>
+        <div class="swatch" style="background: var(--success); color: #fff;"><div class="nm">雾松绿</div><div class="vl">#5E8B6E</div></div>
+        <div class="swatch" style="background: var(--warning); color: #fff;"><div class="nm">雾琥珀</div><div class="vl">#A98A4F</div></div>
+        <div class="swatch" style="background: var(--danger); color: #fff;"><div class="nm">雾砖红</div><div class="vl">#B05F57</div></div>
+      </div>
+
+      <div class="demo-label">④ 签名面 Signature — Luna 转译，每屏至多一处</div>
+      <div class="grid g4">
+        <div class="swatch" style="background: var(--brand-mist); color: var(--on-mist); min-height: 72px;"><div class="nm">雾蓝渐变 --brand-mist</div><div class="vl" style="color: var(--on-mist-2);">hero 数据卡</div></div>
+        <div class="swatch" style="background: var(--brand-wisteria); color: var(--on-wisteria); min-height: 72px;"><div class="nm">淡紫藤 --brand-wisteria</div><div class="vl" style="color: rgba(46,36,64,0.6);">AI / 特殊标记</div></div>
+      </div>
+    </section>
+
+    <!-- ═══ 2. 字体排印 ═══ -->
+    <section id="type">
+      <div class="sec-head">
+        <div class="sec-title">字体排印<span class="en">Typography — Urbanist + HarmonyOS Sans SC</span></div>
+        <div class="sec-desc">镜像生产环境字栈（Urbanist → HarmonyOS Sans SC → Inter → Acherus → PingFang SC）。字重纪律：全局 Light 300 单一字重，≤300 无例外——轻盈即基调，强调靠字号与墨色层级，绝不靠字重。</div>
+      </div>
+      <div class="specimen">
+        <div class="type-row"><div class="type-meta">3xl · 32px · w300</div><div class="bds-text-3xl">经营总览 Overview ¥1,280,000</div></div>
+        <div class="type-row"><div class="type-meta">2xl · 24px · w300</div><div class="bds-text-2xl">订单履约域 Order Fulfillment</div></div>
+        <div class="type-row"><div class="type-meta">xl · 20px · w300</div><div class="bds-text-xl">报价单管理 Quotation</div></div>
+        <div class="type-row"><div class="type-meta">lg · 17px · w300</div><div class="bds-text-lg">本月新增客户 24 家</div></div>
+        <div class="type-row"><div class="type-meta">base · 15px · w300</div><div class="bds-text-base">正文 Base — 面料订单 FO-2026-0813 已完成商检，等待出运安排。</div></div>
+        <div class="type-row"><div class="type-meta">sm · 13px · w300</div><div class="bds-text-sm">辅助 Small — 上次跟进：2026-08-12 14:30 · 业务员 Amy</div></div>
+        <div class="type-row"><div class="type-meta">xs · 11px · w300</div><div class="bds-text-xs">微标签 Caption — 数据来源：数据中心</div></div>
+        <div class="type-row"><div class="type-meta">overline · caps</div><div class="bds-overline">Section Header 区块标题</div></div>
+        <div class="type-row"><div class="type-meta">mono · JetBrains</div><div class="bds-mono" style="font-size: var(--text-sm);">FO-2026-0813-A · PI-2026-0042</div></div>
+        <div class="type-row" style="border-bottom: none;"><div class="type-meta">stat · 符号缩排</div><div class="bds-stat-num" style="font-size: 40px;"><span class="unit">¥</span>1,284,300<span class="frac">.50</span></div></div>
+      </div>
+    </section>
+
+    <!-- ═══ 3. 圆角与间距 ═══ -->
+    <section id="radius">
+      <div class="sec-head">
+        <div class="sec-title">圆角与间距<span class="en">Radius &amp; Space — 纯净七级刻度</span></div>
+        <div class="sec-desc">圆角按容器层级分配，不是越大越好；间距 4px 基准非线性刻度。</div>
+      </div>
+      <div class="grid" style="grid-template-columns: repeat(7, 1fr);">
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-xs);"><span>xs 8</span></div><div style="font-size: 10px; color: var(--text-tertiary);">tooltip</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-sm);"><span>sm 12</span></div><div style="font-size: 10px; color: var(--text-tertiary);">列表行</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-md);"><span>md 16</span></div><div style="font-size: 10px; color: var(--text-tertiary);">输入框</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-lg);"><span>lg 24</span></div><div style="font-size: 10px; color: var(--text-tertiary);">标准卡</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-xl);"><span>xl 30</span></div><div style="font-size: 10px; color: var(--text-tertiary);">模态/大卡</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-2xl);"><span>2xl 34</span></div><div style="font-size: 10px; color: var(--text-tertiary);">页面面板</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-pill);"><span>pill</span></div><div style="font-size: 10px; color: var(--text-tertiary);">按钮/徽章</div></div>
+      </div>
+      <div class="specimen" style="margin-top: var(--space-6);">
+        <div class="col" style="gap: var(--space-2);">
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-1 · 4</div><div class="space-bar" style="width: 4px;"></div></div>
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-2 · 8</div><div class="space-bar" style="width: 8px;"></div></div>
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-3 · 12</div><div class="space-bar" style="width: 12px;"></div></div>
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-4 · 16</div><div class="space-bar" style="width: 16px;"></div></div>
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-6 · 24</div><div class="space-bar" style="width: 24px;"></div></div>
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-8 · 32</div><div class="space-bar" style="width: 32px;"></div></div>
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-12 · 48</div><div class="space-bar" style="width: 48px;"></div></div>
+          <div class="row"><div style="width:72px" class="bds-text-xs bds-mono">sp-16 · 64</div><div class="space-bar" style="width: 64px;"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 4. 材质 ═══ -->
+    <section id="material">
+      <div class="sec-head">
+        <div class="sec-title">材质<span class="en">Material — 磨砂玻璃三层模糊 × 页面光感背景</span></div>
+        <div class="sec-desc">rimless 纪律：静态面零结构阴影；阴影仅属浮层。发光纪律：仅徽章/进度条等小型彩色状态元素发光；控件与大表面不发光。页面本身发光，卡片浮于光斑之上。</div>
+      </div>
+      <div class="grid g3">
+        <div class="bds-card glass" style="min-height: 110px;">
+          <div class="bds-overline" style="font-size: 10px;">Frosted 磨砂</div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: var(--space-2);">blur 20px · saturate 180%<br>浮层与玻璃卡专用材质</div>
+        </div>
+        <div class="bds-card" style="min-height: 110px; box-shadow: var(--bds-shadow-md);">
+          <div class="bds-overline" style="font-size: 10px;">Shadow 浮层阴影</div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: var(--space-2);">--bds-shadow-md<br>蓝黑底 rgba(2,2,30) 空气感</div>
+        </div>
+        <div class="bds-card flat" style="min-height: 110px;">
+          <div class="bds-overline" style="font-size: 10px;">Flat 静态面</div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: var(--space-2);">零阴影零边框<br>层级靠表面色差递进</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 5. 按钮 ═══ -->
+    <section id="button">
+      <div class="sec-head">
+        <div class="sec-title">按钮<span class="en">Button — pill 签名 · 6 变体 × 3 尺寸</span></div>
+        <div class="sec-desc">控件不发光——rimless 纯色实底，hover 只换底色。发光仅属徽章/进度条等小型彩色状态元素。</div>
+      </div>
+      <div class="specimen col" style="gap: var(--space-5);">
+        <div>
+          <div class="demo-label">变体 Variants</div>
+          <div class="row">
+            <button class="bds-btn bds-btn-primary"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>主要操作</button>
+            <button class="bds-btn bds-btn-dark">反色按钮</button>
+            <button class="bds-btn bds-btn-secondary">次要操作</button>
+            <button class="bds-btn bds-btn-ghost">幽灵按钮</button>
+            <button class="bds-btn bds-btn-outline">描边按钮</button>
+            <button class="bds-btn bds-btn-danger">危险操作</button>
+          </div>
+        </div>
+        <div>
+          <div class="demo-label">尺寸 Sizes</div>
+          <div class="row">
+            <button class="bds-btn bds-btn-primary sm">小按钮 sm</button>
+            <button class="bds-btn bds-btn-primary">标准 md</button>
+            <button class="bds-btn bds-btn-primary lg">大按钮 lg</button>
+          </div>
+        </div>
+        <div>
+          <div class="demo-label">状态 States</div>
+          <div class="row">
+            <button class="bds-btn bds-btn-primary loading">加载中</button>
+            <button class="bds-btn bds-btn-primary" disabled>禁用 Disabled</button>
+            <button class="bds-btn bds-btn-icon bds-btn-secondary"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
+            <button class="bds-btn bds-btn-icon bds-btn-ghost"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button>
+            <button class="bds-btn bds-btn-icon sm bds-btn-outline"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 6. 表单 ═══ -->
+    <section id="form">
+      <div class="sec-head">
+        <div class="sec-title">表单<span class="en">Form — 填充式无边框 · focus 才出 accent 边</span></div>
+      </div>
+      <div class="grid g2">
+        <div class="specimen col">
+          <div class="demo-label">输入 Input</div>
+          <input class="bds-input" placeholder="搜索客户 / 订单号 / 款号…">
+          <input class="bds-input" value="江苏某纺织科技有限公司">
+          <div class="row">
+            <input class="bds-input sm" placeholder="小尺寸 sm" style="flex:1">
+            <input class="bds-input lg" placeholder="大尺寸 lg" style="flex:1">
+          </div>
+          <input class="bds-input" placeholder="禁用状态" disabled>
+          <textarea class="bds-input bds-textarea" placeholder="备注 Textarea — 跟进记录、特殊工艺要求…"></textarea>
+          <select class="bds-select">
+            <option>全部订单状态</option><option>草稿 Draft</option><option>已确认 Confirmed</option><option>生产中 In Production</option>
+          </select>
+        </div>
+        <div class="col">
+          <div class="specimen col">
+            <div class="demo-label">开关 Switch / 选择 Check</div>
+            <div class="row">
+              <button class="bds-switch on" onclick="this.classList.toggle('on')"></button>
+              <button class="bds-switch" onclick="this.classList.toggle('on')"></button>
+              <button class="bds-switch disabled"></button>
+            </div>
+            <div class="col" style="gap: var(--space-2);">
+              <label class="bds-check"><input type="checkbox" checked><span class="box"></span>自动同步订单状态</label>
+              <label class="bds-check"><input type="checkbox"><span class="box"></span>启用双轨成本校验</label>
+              <label class="bds-check radio"><input type="radio" name="r1" checked><span class="box"></span>Track A 系统推荐估算</label>
+              <label class="bds-check radio"><input type="radio" name="r1"><span class="box"></span>Track B 终价核算</label>
+            </div>
+          </div>
+          <div class="specimen">
+            <div class="demo-label">表单行 Form Row</div>
+            <div class="bds-formrows">
+              <div class="bds-formrow">
+                <div class="fr-label">客户名称</div>
+                <div class="fr-field"><input class="bds-input" placeholder="必填"><div class="fr-hint">与客户档案自动关联</div></div>
+              </div>
+              <div class="bds-formrow">
+                <div class="fr-label">付款方式</div>
+                <div class="fr-field"><select class="bds-select"><option>T/T 30 天</option><option>T/T 60 天</option><option>L/C 即期</option></select></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="specimen" style="margin-top: var(--space-3);">
+        <div class="demo-label">Steps 步骤条 — 导入向导 / 多步流程</div>
+        <div class="bds-steps">
+          <div class="bds-step done"><span class="dot">✓</span><span class="st-title">上传文件</span></div>
+          <div class="bds-step-line done"></div>
+          <div class="bds-step done"><span class="dot">✓</span><span class="st-title">字段映射</span></div>
+          <div class="bds-step-line"></div>
+          <div class="bds-step active"><span class="dot">3</span><span class="st-title">数据校验</span></div>
+          <div class="bds-step-line"></div>
+          <div class="bds-step"><span class="dot">4</span><span class="st-title">完成导入</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 7. 卡片 ═══ -->
+    <section id="card">
+      <div class="sec-head">
+        <div class="sec-title">卡片<span class="en">Card — rimless 核心载体 · 5 种材质</span></div>
+      </div>
+      <div class="grid g3">
+        <div class="bds-card">
+          <div class="bds-card-head">
+            <div class="bds-iconbadge"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
+          </div>
+          <div class="bds-stat-label" style="color: var(--text-tertiary);">本月订单额 Revenue</div>
+          <div class="bds-stat-num" style="margin-top: var(--space-2);"><span class="unit">¥</span>1,284,300</div>
+          <div class="bds-stat-delta up" style="margin-top: var(--space-2);">↑ 12.4% vs 上月</div>
+        </div>
+        <div class="bds-card flat">
+          <div class="bds-stat-label" style="color: var(--text-tertiary);">待跟进询盘 Inquiries</div>
+          <div class="bds-stat-num" style="margin-top: var(--space-2);">18</div>
+          <div class="bds-stat-cap">flat 材质 — 面板底</div>
+        </div>
+        <div class="bds-card interactive">
+          <div class="bds-stat-label" style="color: var(--text-tertiary);">交付预警 Alerts</div>
+          <div class="bds-stat-num" style="margin-top: var(--space-2); color: var(--danger-text);">3</div>
+          <div class="bds-stat-cap">interactive — hover 浮起（试试）</div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="bds-card mist">
+          <div class="bds-stat-label">年度回款率 Collection</div>
+          <div class="bds-stat-num" style="font-size: 44px; margin-top: var(--space-2);">94.2<span class="frac">%</span></div>
+          <div class="bds-progress" style="margin-top: var(--space-4); background: var(--on-mist-chip);"><div class="fill" style="width: 94%; background: var(--on-mist);"></div></div>
+          <div class="bds-stat-cap">mist 雾蓝渐变 — Luna 签名转译 · 全页仅此一处 · 白字落于雾面</div>
+        </div>
+        <div class="bds-card flat">
+          <div class="bds-stat-label" style="color: var(--text-tertiary);">在产订单 In Production</div>
+          <div class="bds-stat-num" style="margin-top: var(--space-2);">26</div>
+          <div class="bds-stat-cap">flat 面板底 — 数据卡的默认形态（克制）</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 8. 徽章与标签 ═══ -->
+    <section id="badge">
+      <div class="sec-head">
+        <div class="sec-title">徽章与标签<span class="en">Badge &amp; Tag — 语义对齐业务状态机</span></div>
+        <div class="sec-desc">tint 底 + soft 荧光外晕；状态圆点如 LED 自发光（box-shadow: currentColor）。</div>
+      </div>
+      <div class="specimen col" style="gap: var(--space-4);">
+        <div>
+          <div class="demo-label">语义填充 Filled</div>
+          <div class="row">
+            <span class="bds-badge success"><span class="dot"></span>已收款 Paid</span>
+            <span class="bds-badge warning"><span class="dot"></span>生产中 WIP</span>
+            <span class="bds-badge danger"><span class="dot"></span>逾期 Overdue</span>
+            <span class="bds-badge info"><span class="dot"></span>已确认 Confirmed</span>
+            <span class="bds-badge neutral">草稿 Draft</span>
+          </div>
+        </div>
+        <div>
+          <div class="demo-label">描边 Outline / 磨砂 Frosted / 尺寸</div>
+          <div class="row">
+            <span class="bds-badge outline success">已出运 Shipped</span>
+            <span class="bds-badge outline danger">已取消 Cancelled</span>
+            <span class="bds-badge outline neutral">已归档 Archived</span>
+            <span class="bds-badge frosted">图表浮动标记</span>
+            <span class="bds-badge sm info">sm 小徽章</span>
+            <span class="bds-badge lg success">lg 大徽章</span>
+          </div>
+        </div>
+        <div>
+          <div class="demo-label">标签 Tag（caps 微标签）</div>
+          <div class="row">
+            <span class="bds-tag">面料 Fabric</span>
+            <span class="bds-tag">成衣 Garment</span>
+            <span class="bds-tag">Separates</span>
+            <span class="bds-tag">T/T 30</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 9. 表格与列表 ═══ -->
+    <section id="table">
+      <div class="sec-head">
+        <div class="sec-title">表格与列表<span class="en">Table &amp; List — hairline 分隔 · hover 整行浮底</span></div>
+      </div>
+      <div class="specimen" style="padding: var(--space-3) 0;">
+        <table class="bds-table">
+          <thead><tr>
+            <th>订单号</th><th>客户</th><th>产品</th><th>状态</th><th>交期</th><th class="num">金额 (USD)</th><th class="num">毛利</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td class="bds-mono" style="font-size: var(--text-xs);">GO-2026-0312</td>
+              <td style="font-weight:300;">Client A</td>
+              <td>男士休闲夹克</td>
+              <td><span class="bds-badge warning sm"><span class="dot"></span>生产中</span></td>
+              <td class="bds-tnum" style="color: var(--text-secondary);">2026-09-15</td>
+              <td class="num bds-tnum">48,600.00</td>
+              <td class="num"><span class="bds-badge success sm">18.2%</span></td>
+            </tr>
+            <tr>
+              <td class="bds-mono" style="font-size: var(--text-xs);">FO-2026-0801</td>
+              <td style="font-weight:300;">Client B</td>
+              <td>40S 全棉府绸</td>
+              <td><span class="bds-badge info sm"><span class="dot"></span>已确认</span></td>
+              <td class="bds-tnum" style="color: var(--text-secondary);">2026-10-02</td>
+              <td class="num bds-tnum">126,000.00</td>
+              <td class="num"><span class="bds-badge success sm">22.5%</span></td>
+            </tr>
+            <tr>
+              <td class="bds-mono" style="font-size: var(--text-xs);">GO-2026-0288</td>
+              <td style="font-weight:300;">Client C</td>
+              <td>女装连衣裙</td>
+              <td><span class="bds-badge danger sm"><span class="dot"></span>逾期</span></td>
+              <td class="bds-tnum" style="color: var(--text-secondary);">2026-08-05</td>
+              <td class="num bds-tnum">32,400.00</td>
+              <td class="num"><span class="bds-badge warning sm">9.8%</span></td>
+            </tr>
+            <tr>
+              <td class="bds-mono" style="font-size: var(--text-xs);">FO-2026-0795</td>
+              <td style="font-weight:300;">Client A</td>
+              <td>T/R 斜纹布</td>
+              <td><span class="bds-badge success sm"><span class="dot"></span>已出运</span></td>
+              <td class="bds-tnum" style="color: var(--text-secondary);">2026-07-28</td>
+              <td class="num bds-tnum">89,200.00</td>
+              <td class="num"><span class="bds-badge success sm">20.1%</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="row" style="justify-content: flex-end; padding: var(--space-3) var(--space-4) 0;">
+          <div class="bds-pager">
+            <span class="pg-total">共 128 条</span>
+            <button class="pg disabled">‹</button>
+            <button class="pg">1</button>
+            <button class="pg cur">2</button>
+            <button class="pg">3</button>
+            <button class="pg">4</button>
+            <button class="pg">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen">
+          <div class="demo-label">列表行 List Row</div>
+          <div class="bds-listrows">
+            <div class="bds-listrow">
+              <div class="bds-avatar">A</div>
+              <div class="lr-main"><div class="lr-title">Client A — 年度框架洽谈</div><div class="lr-sub">Amy · 10 分钟前</div></div>
+              <span class="bds-badge info sm">跟进中</span>
+              <span class="lr-chevron">›</span>
+            </div>
+            <div class="bds-listrow">
+              <div class="bds-avatar" style="background: var(--accent-tint); color: var(--accent-text);">B</div>
+              <div class="lr-main"><div class="lr-title">Client B — 船样确认待回复</div><div class="lr-sub">David · 2 小时前</div></div>
+              <span class="bds-badge warning sm">待确认</span>
+              <span class="lr-chevron">›</span>
+            </div>
+            <div class="bds-listrow">
+              <div class="bds-avatar" style="background: var(--success-tint); color: var(--success-text);">C</div>
+              <div class="lr-main"><div class="lr-title">Client C — PI 已签回</div><div class="lr-sub">Amy · 昨天 18:42</div></div>
+              <span class="bds-badge success sm">已完成</span>
+              <span class="lr-chevron">›</span>
+            </div>
+          </div>
+        </div>
+        <div class="specimen">
+          <div class="demo-label">设置行 Settings Row</div>
+          <div class="bds-setrows">
+            <div class="bds-setrow">
+              <div class="sr-main"><div class="sr-title">报价双轨校验</div><div class="sr-desc">Track A/B 偏差超 5% 时需主管审批</div></div>
+              <button class="bds-switch on" onclick="this.classList.toggle('on')"></button>
+            </div>
+            <div class="bds-setrow">
+              <div class="sr-main"><div class="sr-title">订单逾期自动预警</div><div class="sr-desc">交期前 7 天推送业务员与主管</div></div>
+              <button class="bds-switch on" onclick="this.classList.toggle('on')"></button>
+            </div>
+            <div class="bds-setrow">
+              <div class="sr-main"><div class="sr-title">汇率波动提醒</div><div class="sr-desc">USD/CNY 单日波动超 0.3% 时提醒</div></div>
+              <button class="bds-switch" onclick="this.classList.toggle('on')"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 10. 浮层 ═══ -->
+    <section id="overlay">
+      <div class="sec-head">
+        <div class="sec-title">浮层<span class="en">Overlay — 阴影的唯一合法场景</span></div>
+      </div>
+      <div class="grid g3">
+        <div class="specimen flat-bg col" style="align-items: flex-start;">
+          <div class="demo-label">Toast 轻提示</div>
+          <div class="bds-toast"><span class="ico" style="background: var(--accent); color:#fff;">i</span>报价单已保存为草稿</div>
+          <div class="bds-toast success"><span class="ico">✓</span>PI-2026-0042 已生成</div>
+          <div class="bds-toast danger"><span class="ico">!</span>汇率获取失败，请重试</div>
+        </div>
+        <div class="specimen flat-bg col" style="align-items: flex-start;">
+          <div class="demo-label">Tooltip（hover 查看）</div>
+          <span class="bds-tooltip">
+            <button class="bds-btn bds-btn-secondary sm"> hover 我</button>
+            <span class="tip-body">偏差 3.2% · 无需审批</span>
+          </span>
+          <div class="demo-label" style="margin-top: var(--space-4);">Segment 分段器</div>
+          <div class="bds-segment">
+            <button class="seg active">本月</button><button class="seg">本季</button><button class="seg">本年</button>
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-4);">Tabs 页签</div>
+          <div class="bds-tabs" style="width: 100%;">
+            <button class="bds-tab active">全部</button><button class="bds-tab">报价中</button><button class="bds-tab">已成交</button>
+          </div>
+        </div>
+        <div class="specimen flat-bg col" style="align-items: flex-start;">
+          <div class="demo-label">Modal 模态（点击预览）</div>
+          <button class="bds-btn bds-btn-primary" onclick="document.getElementById('demoModal').style.display='grid'">打开模态框</button>
+          <div class="demo-label" style="margin-top: var(--space-4);">Filterbar 筛选条</div>
+          <div class="bds-filterbar">
+            <input class="bds-input sm" placeholder="搜索…" style="width: 140px; background: var(--bg-panel);">
+            <button class="bds-btn bds-btn-ghost sm">状态 ▾</button>
+            <button class="bds-btn bds-btn-ghost sm">业务员 ▾</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid g3" style="margin-top: var(--space-3);">
+        <div class="specimen flat-bg col" style="align-items: flex-start;">
+          <div class="demo-label">Dropdown 下拉浮层 — 收敛四套选择器</div>
+          <div style="position: relative;">
+            <button class="bds-btn bds-btn-secondary sm">客户：Client A ▾</button>
+            <div class="bds-pop" style="position: static; margin-top: var(--space-2);">
+              <div class="search"><input class="bds-input sm" placeholder="搜索客户…" style="background: var(--bg-panel);"></div>
+              <div class="cap">最近往来</div>
+              <div class="opt sel">Client A<span class="tick">✓</span></div>
+              <div class="opt">Client B<span class="sub">USD</span></div>
+              <div class="opt">Client C<span class="sub">EUR</span></div>
+              <div class="sep"></div>
+              <div class="cap">全部客户</div>
+              <div class="opt">Client D<span class="sub">L/C</span></div>
+              <div class="opt disabled">Client E（已停用）</div>
+            </div>
+          </div>
+        </div>
+        <div class="specimen flat-bg col" style="align-items: flex-start;">
+          <div class="demo-label">Calendar 日历 — 日期选择浮层</div>
+          <div class="bds-cal">
+            <div class="cal-head">
+              <button class="bds-btn bds-btn-ghost sm" style="padding: 0 var(--space-2);">‹</button>
+              <div class="cal-title">2026 年 8 月</div>
+              <button class="bds-btn bds-btn-ghost sm" style="padding: 0 var(--space-2);">›</button>
+            </div>
+            <div class="cal-grid">
+              <div class="cal-wd">一</div><div class="cal-wd">二</div><div class="cal-wd">三</div><div class="cal-wd">四</div><div class="cal-wd">五</div><div class="cal-wd">六</div><div class="cal-wd">日</div>
+              <div class="cal-day dim">27</div><div class="cal-day dim">28</div><div class="cal-day dim">29</div><div class="cal-day dim">30</div><div class="cal-day dim">31</div><div class="cal-day">1</div><div class="cal-day">2</div>
+              <div class="cal-day">3</div><div class="cal-day">4</div><div class="cal-day">5</div><div class="cal-day">6</div><div class="cal-day">7</div><div class="cal-day">8</div><div class="cal-day">9</div>
+              <div class="cal-day">10</div><div class="cal-day">11</div><div class="cal-day">12</div><div class="cal-day">13</div><div class="cal-day today">14</div><div class="cal-day">15</div><div class="cal-day">16</div>
+              <div class="cal-day">17</div><div class="cal-day sel">18</div><div class="cal-day">19</div><div class="cal-day">20</div><div class="cal-day">21</div><div class="cal-day">22</div><div class="cal-day">23</div>
+              <div class="cal-day">24</div><div class="cal-day">25</div><div class="cal-day">26</div><div class="cal-day">27</div><div class="cal-day">28</div><div class="cal-day">29</div><div class="cal-day">30</div>
+              <div class="cal-day">31</div><div class="cal-day dim">1</div><div class="cal-day dim">2</div><div class="cal-day dim">3</div><div class="cal-day dim">4</div><div class="cal-day dim">5</div><div class="cal-day dim">6</div>
+            </div>
+          </div>
+        </div>
+        <div class="specimen flat-bg col" style="align-items: flex-start;">
+          <div class="demo-label">Sheet 右滑详情抽屉（点击预览）</div>
+          <button class="bds-btn bds-btn-primary" onclick="document.getElementById('demoSheetMask').classList.add('open');document.getElementById('demoSheet').classList.add('open')">打开详情抽屉</button>
+          <div class="sec-desc" style="font-size: var(--text-xs);">收敛 DetailPanel / SidePanel — 头/体/脚骨架，480 / 640 双宽度，内容用 listrow + badge 组合。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 11. 反馈 ═══ -->
+    <section id="feedback">
+      <div class="sec-head">
+        <div class="sec-title">反馈<span class="en">Feedback — Progress / Skeleton / Empty</span></div>
+      </div>
+      <div class="grid g3">
+        <div class="specimen col">
+          <div class="demo-label">Progress 进度</div>
+          <div class="bds-progress"><div class="fill" style="width: 62%;"></div></div>
+          <div class="bds-progress success"><div class="fill" style="width: 94%;"></div></div>
+          <div class="bds-progress warning"><div class="fill" style="width: 45%;"></div></div>
+          <div class="bds-progress danger"><div class="fill" style="width: 18%;"></div></div>
+        </div>
+        <div class="specimen col">
+          <div class="demo-label">Skeleton 骨架屏</div>
+          <div class="bds-skeleton" style="height: 16px; width: 60%;"></div>
+          <div class="bds-skeleton" style="height: 16px; width: 90%;"></div>
+          <div class="bds-skeleton" style="height: 16px; width: 75%;"></div>
+        </div>
+        <div class="specimen" style="padding: 0;">
+          <div class="bds-empty" style="padding: var(--space-6);">
+            <div class="glyph"><svg class="bds-icon lg w-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
+            <div class="title">暂无贸易单据</div>
+            <div class="desc">从订单一键生成形式发票开始</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen col">
+          <div class="demo-label">Upload 上传区 — 拖拽态 / 缩略图网格</div>
+          <div class="bds-upload">
+            <div class="up-title">拖拽船样图片到此处，或点击选择</div>
+            <div class="up-hint">支持 JPG / PNG，单张不超过 10MB</div>
+          </div>
+          <div class="bds-upload drag">
+            <div class="up-title">松开以上传 3 个文件</div>
+            <div class="up-hint">drag 激活态 — accent tint 反馈</div>
+          </div>
+          <div class="bds-upgrid">
+            <div class="bds-upitem" style="background: var(--accent-tint);"><span class="del">×</span><div class="prog"><div class="fill" style="width: 100%;"></div></div></div>
+            <div class="bds-upitem" style="background: var(--accent-tint-strong);"><span class="del">×</span><div class="prog"><div class="fill" style="width: 64%;"></div></div></div>
+            <div class="bds-upitem"><span class="del">×</span><div class="prog"><div class="fill" style="width: 12%;"></div></div></div>
+          </div>
+        </div>
+        <div class="specimen col">
+          <div class="demo-label">AI 消息气泡 — 流式态 / 工具调用轨迹</div>
+          <div class="bds-msg user"><div class="bbl">把 QT-2026-1042 转成形式发票，并检查汇率偏差</div></div>
+          <div class="bds-msg ai"><div class="bbl">已生成 PI 草稿，报价快照随单锁定。Track A/B 偏差 2.1%，无需审批。</div></div>
+          <div class="row" style="gap: var(--space-2);">
+            <span class="bds-toolchip done"><span class="dot"></span>create_invoice</span>
+            <span class="bds-toolchip done"><span class="dot"></span>lock_snapshot</span>
+            <span class="bds-toolchip run"><span class="dot"></span>fetch_fx_rate</span>
+          </div>
+          <div class="bds-msg ai"><div class="bbl"><span class="bds-stream">正在核对最近 90 天汇率波动</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 12. 页面组合 ═══ -->
+    <section id="page">
+      <div class="sec-head">
+        <div class="sec-title">页面组合<span class="en">Page Pattern — 真实 Bambook 页面的标准骨架</span></div>
+        <div class="sec-desc">aurora 光感背景 + pagehead（中英标题左对齐 / breadcrumb 右侧）+ filterbar + stat 卡 + 表格。这是后续所有业务页面的统一范式。</div>
+      </div>
+      <div class="page-mock">
+        <div class="bds-pagehead">
+          <div class="ph-main">
+            <div class="ph-title">报价管理<span class="en">Quotations</span></div>
+            <div class="ph-sub">双轨成本校验 · Track A/B 偏差分级审批</div>
+          </div>
+          <div class="ph-side">
+            <div class="bds-crumb"><a href="#">经营总览</a><span class="sep">/</span><a href="#">财务与成本</a><span class="sep">/</span><span>报价管理</span></div>
+            <button class="bds-btn bds-btn-primary sm"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>新建报价</button>
+          </div>
+        </div>
+        <div class="mock-body">
+          <div class="bds-filterbar" style="margin-bottom: var(--space-5); width: fit-content;">
+            <input class="bds-input sm" placeholder="搜索报价号 / 客户…" style="width: 180px;">
+            <div class="bds-segment"><button class="seg active">全部</button><button class="seg">报价中</button><button class="seg">已成交</button><button class="seg">已失效</button></div>
+          </div>
+          <div class="grid g3" style="margin-bottom: var(--space-5);">
+            <div class="bds-card">
+              <div class="bds-stat-label" style="color: var(--text-tertiary);">本月报价 Quoted</div>
+              <div class="bds-stat-num" style="margin-top: var(--space-2);"><span class="unit">$</span>386,200</div>
+              <div class="bds-stat-delta up" style="margin-top: var(--space-2);">↑ 8.6%</div>
+            </div>
+            <div class="bds-card">
+              <div class="bds-stat-label" style="color: var(--text-tertiary);">成交转化 Win Rate</div>
+              <div class="bds-stat-num" style="margin-top: var(--space-2);">34.5<span class="frac">%</span></div>
+              <div class="bds-stat-cap">近 90 天滚动</div>
+            </div>
+            <div class="bds-card">
+              <div class="bds-stat-label" style="color: var(--text-tertiary);">待审批偏差 Deviations</div>
+              <div class="bds-stat-num" style="margin-top: var(--space-2); color: var(--warning-text);">2</div>
+              <div class="bds-stat-cap">Track A/B 偏差 &gt; 5% — 语义色小面积使用示范</div>
+            </div>
+          </div>
+          <div class="bds-card bds-chart" style="margin-bottom: var(--space-5);">
+            <div class="ch-head">
+              <div class="ch-title">月度报价趋势 Monthly Quotations</div>
+              <div class="ch-legend">
+                <span class="lg-item"><span class="lg-dot" style="color: var(--accent);"></span>报价额</span>
+                <span class="lg-item"><span class="lg-dot" style="color: var(--success);"></span>成交额</span>
+              </div>
+            </div>
+            <div class="ch-plot">
+              <div class="ch-grid" style="height: 40px;"></div>
+              <div class="ch-grid" style="height: 40px;"></div>
+              <div class="ch-grid" style="height: 40px;"></div>
+              <div class="row" style="align-items: flex-end; gap: var(--space-4); height: 96px; margin-top: -120px; padding: 0 var(--space-4);">
+                <div style="flex: 1; height: 42%; background: var(--accent-tint); border-radius: var(--radius-xs) var(--radius-xs) 0 0;"></div>
+                <div style="flex: 1; height: 58%; background: var(--accent-tint); border-radius: var(--radius-xs) var(--radius-xs) 0 0;"></div>
+                <div style="flex: 1; height: 50%; background: var(--accent-tint); border-radius: var(--radius-xs) var(--radius-xs) 0 0;"></div>
+                <div style="flex: 1; height: 74%; background: var(--accent); border-radius: var(--radius-xs) var(--radius-xs) 0 0;"></div>
+                <div style="flex: 1; height: 66%; background: var(--accent-tint); border-radius: var(--radius-xs) var(--radius-xs) 0 0;"></div>
+                <div style="flex: 1; height: 88%; background: var(--accent-tint); border-radius: var(--radius-xs) var(--radius-xs) 0 0;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="bds-card" style="padding: var(--space-3) 0;">
+            <table class="bds-table">
+              <thead><tr><th>报价号</th><th>客户</th><th>Track B 终价</th><th>偏差</th><th>状态</th><th class="num">金额 (USD)</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="bds-mono" style="font-size: var(--text-xs);">QT-2026-1042</td>
+                  <td style="font-weight:300;">Client A</td>
+                  <td class="bds-tnum">$4.82 / m</td>
+                  <td><span class="bds-badge success sm">2.1%</span></td>
+                  <td><span class="bds-badge info sm"><span class="dot"></span>报价中</span></td>
+                  <td class="num bds-tnum">48,200.00</td>
+                </tr>
+                <tr>
+                  <td class="bds-mono" style="font-size: var(--text-xs);">QT-2026-1041</td>
+                  <td style="font-weight:300;">Client D</td>
+                  <td class="bds-tnum">$12.40 / pc</td>
+                  <td><span class="bds-badge danger sm">7.8%</span></td>
+                  <td><span class="bds-badge warning sm"><span class="dot"></span>待审批</span></td>
+                  <td class="num bds-tnum">62,000.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Bambook Design System v2.1 · token 真源 styles/bds/tokens.css · 组件真源 styles/bds/components.css · 防回退 npm run check:tokens
+    </footer>
+  </div>
+</div>
+
+<!-- ═══ Modal 演示 ═══ -->
+<div class="bds-modal-mask" id="demoModal" style="display: none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="bds-modal">
+    <div class="bds-overline" style="font-size: 10px; color: var(--text-tertiary);">确认操作 Confirm</div>
+    <div style="font-size: var(--text-lg); font-weight: 300; margin-top: var(--space-2);">将报价单转为形式发票？</div>
+    <div style="font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-2); line-height: 1.6;">
+      QT-2026-1042 将生成 PI 草稿，报价快照（Track A/B）随单一并锁定。
+    </div>
+    <div class="row" style="justify-content: flex-end; margin-top: var(--space-6);">
+      <button class="bds-btn bds-btn-ghost" onclick="document.getElementById('demoModal').style.display='none'">取消</button>
+      <button class="bds-btn bds-btn-primary" onclick="document.getElementById('demoModal').style.display='none'">确认转换</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Sheet 演示 ═══ -->
+<div class="bds-sheet-mask" id="demoSheetMask" onclick="this.classList.remove('open');document.getElementById('demoSheet').classList.remove('open')"></div>
+<div class="bds-sheet" id="demoSheet">
+  <div class="sh-head">
+    <div class="sh-main">
+      <div class="sh-title">QT-2026-1042 · Client A</div>
+      <div class="sh-sub">报价详情 — 右滑抽屉标准骨架（480px）</div>
+    </div>
+    <button class="bds-btn bds-btn-ghost sm" onclick="document.getElementById('demoSheetMask').classList.remove('open');document.getElementById('demoSheet').classList.remove('open')">✕</button>
+  </div>
+  <div class="sh-body">
+    <div class="bds-listrows">
+      <div class="bds-listrow">
+        <div class="lr-main"><div class="lr-title">Track B 终价</div><div class="lr-sub">退税后成本 + 销售利润</div></div>
+        <span class="bds-tnum" style="font-size: var(--text-sm);">$4.82 / m</span>
+      </div>
+      <div class="bds-listrow">
+        <div class="lr-main"><div class="lr-title">双轨偏差</div><div class="lr-sub">Track A 推荐 $4.72 / m</div></div>
+        <span class="bds-badge success sm">2.1%</span>
+      </div>
+      <div class="bds-listrow">
+        <div class="lr-main"><div class="lr-title">状态</div><div class="lr-sub">2026-08-12 由 Amy 提交</div></div>
+        <span class="bds-badge info sm"><span class="dot"></span>报价中</span>
+      </div>
+    </div>
+  </div>
+  <div class="sh-foot">
+    <button class="bds-btn bds-btn-ghost" onclick="document.getElementById('demoSheetMask').classList.remove('open');document.getElementById('demoSheet').classList.remove('open')">关闭</button>
+    <button class="bds-btn bds-btn-primary">转为形式发票</button>
+  </div>
+</div>
+
+<script>
+  // 主题切换：data-theme 是 v2 标准入口（tokens.css [data-theme="dark"] 覆盖），
+  // 同时双写 .dark class 兼容 Tailwind darkMode:'class'（与 App.tsx 机制一致）
+  const seg = document.getElementById('themeSeg');
+  seg.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg');
+    if (!btn) return;
+    seg.querySelectorAll('.seg').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    const dark = btn.dataset.themeVal === 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    document.documentElement.classList.toggle('dark', dark);
+  });
+  // Tabs / Segment 组内激活演示
+  document.querySelectorAll('.bds-tabs, .page-mock .bds-segment').forEach(group => {
+    group.addEventListener('click', (e) => {
+      const item = e.target.closest('.bds-tab, .seg');
+      if (!item) return;
+      group.querySelectorAll('.bds-tab, .seg').forEach(t => t.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+  // 日历点选演示
+  document.querySelectorAll('.bds-cal .cal-grid').forEach(grid => {
+    grid.addEventListener('click', (e) => {
+      const day = e.target.closest('.cal-day');
+      if (!day || day.classList.contains('dim')) return;
+      grid.querySelectorAll('.cal-day').forEach(d => d.classList.remove('sel'));
+      day.classList.add('sel');
+    });
+  });
+</script>
+</body>
+</html>

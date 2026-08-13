@@ -41,6 +41,33 @@ export default {
           'Helvetica Neue',
           'sans-serif',
         ],
+        // 等宽栈 — JetBrains Mono 优先（@fontsource 本地加载 Light 300，
+        // 与全局 ≤300 纪律同重）；此前 font-mono 走 Tailwind 默认栈落到 Menlo 400，
+        // 造成数字/单号场景比正文粗的隐性错配。
+        mono: [
+          'JetBrains Mono',
+          'SF Mono',
+          'Menlo',
+          'Consolas',
+          'monospace',
+        ],
+      },
+      // ── BDS v2.1 字重刻度 — Thin-first 纪律（单一真源，全局长效） ──
+      // Bambook 基调是 Light 300 细体（index.css body font-weight: 300）。
+      // 纪律升级（2026-08-14 用户裁决）：全局 ≤300 无例外——400 都嫌重。
+      // 所有字重工具类坍缩到 ≤300：写 font-bold 也得 300，从机制上杜绝过重字重。
+      // 强调靠墨色层级与字号，绝不靠字重。HarmonyOS Sans SC 有真实 Light 300 面，
+      // CJK 与拉丁（Urbanist 300）同重渲染，无中西文字重错配。
+      fontWeight: {
+        thin: 100,
+        extralight: 200,
+        light: 300,
+        normal: 300,      // 生产 body 默认 300
+        medium: 300,      // 原 500 → 坍缩至 300（≤300 无例外）
+        semibold: 300,    // 原 600 → 坍缩至 300
+        bold: 300,        // 原 700 → 坍缩至 300
+        extrabold: 300,
+        black: 300,
       },
       // ── Bambook Flat Design 圆角 token（legacy 语义类，视觉零变化保留） ──
       // 映射 os-vnext.css / --bambook-rdl-radius-* token 到语义类，

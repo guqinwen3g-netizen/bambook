@@ -240,7 +240,7 @@ const CtrlButton: React.FC<{ kind: CtrlKind; onClick: () => void }> = ({ kind, o
                 color: palette.glyph,
                 fontSize: 9,
                 lineHeight: 1,
-                fontWeight: 700,
+                fontWeight: 300,
                 fontFamily: 'var(--font-primary)',
                 WebkitAppRegion: 'no-drag',
             } as React.CSSProperties}

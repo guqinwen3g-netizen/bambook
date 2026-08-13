@@ -1,18 +1,22 @@
 /* ═══════════════════════════════════════════════════════════════════
    BAMBOOK DESIGN SYSTEM v2 — TOKEN 真源（styles/bds/tokens.css）
    ═══════════════════════════════════════════════════════════════════
-   血统：Project L（RDL/Halo Measured DNA v6.9）底座 × Bambook 品牌蓝
+   血统：RDL Luna 案例（rondesignlab.com/cases/luna）实测转译 × Bambook 业务系统
    定位：Bambook 全部新前端开发的唯一设计真源。后续所有新组件/页面
          必须引用本文件 token + components.css 的 .bds-* 类，禁止新增
          硬编码 hex / px 圆角 / box-shadow（check-design-tokens.sh 强制）。
 
+   Luna 色彩哲学："Precision → Soft clarity / Data → Atmosphere /
+   Metrics → Emotional insight"——零高饱和纯色，所有彩色都是雾里透出来的。
+
    核心 DNA：
-     1. rimless — 静态面零阴影零边框；阴影仅属浮层（modal/toast/popover）
-     2. pill    — 按钮/徽章/分段器/头像全 pill（--radius-pill）
-     3. 层级圆角 — 嵌套小卡 8-12 / 输入框 16 / 标准卡 24 / 展示卡 30 / 面板 34
-     4. 磨砂玻璃 — 半透底 + blur + saturate（浮层与玻璃卡专用材质）
-     5. 主题透明 — 组件只引用语义 token；暗色由本文件 [data-theme] 统一覆盖，
-                   组件内禁止出现 dark: 分支或 isDarkMode 三元
+     1. rimless    — 静态面零阴影零边框；阴影仅属浮层（modal/toast/popover）
+     2. pill       — 按钮/徽章/分段器/头像全 pill（--radius-pill）
+     3. 层级圆角   — 嵌套小卡 8-12 / 输入框 16 / 标准卡 24 / 展示卡 30 / 面板 34
+     4. 氛围雾     — 页面底层三色弥散雾（雾蓝/雾绿/紫藤），磨砂玻璃为一级材质
+     5. 雾化色彩   — accent 雾青蓝 #3F6E7E；语义色全部低饱和雾化，小面积 dot/tint
+     6. 主题透明   — 组件只引用语义 token；暗色由本文件 [data-theme] 统一覆盖，
+                     组件内禁止出现 dark: 分支或 isDarkMode 三元
 
    与 legacy 的关系：
      - os-vnext.css（--os-vnext-* / --bambook-*）继续服务旧组件，零改动。
@@ -21,7 +25,7 @@
      - 暗色选择器双写 .dark + [data-theme="dark"]：.dark 兼容现有 Tailwind
        darkMode:'class' 机制（App.tsx 根 class），data-theme 为 v2 标准，
        App.tsx 已同步双写 documentElement.dataset.theme。
-   版本：v2.0.0（2026-08-13）
+   版本：v2.1.0（2026-08-14，Luna 案例色彩重构）
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -53,54 +57,61 @@
   --text-on-dark-3: rgba(244,245,242,0.30);
   --text-on-dark-4: rgba(244,245,242,0.12);
 
-  /* ═══════════ 3. 品牌 accent — Bambook 行动蓝（白底对比度 8.2:1） ═══════════ */
-  --accent: #004AAD;               /* Bambook 品牌行动蓝（原 --bambook-brand-action） */
-  --accent-rgb: 0 74 173;          /* Tailwind alpha 修饰符三元组 */
-  --accent-hover: #003E92;         /* 加深一档 */
-  --accent-active: #00337A;        /* 再深一档（≈ brand-blue-strong 域） */
-  --accent-tint: rgba(0,74,173,0.08);
-  --accent-tint-light: rgba(0,74,173,0.04);
-  --accent-tint-strong: rgba(0,74,173,0.12);
-  --accent-text: #004AAD;          /* tint 底上的 accent 文字（对比度优先） */
-  --link: #126DCC;                 /* Bambook 链接蓝（原 --bambook-brand-link） */
-  --link-rgb: 18 109 204;
-  --link-hover: #0D5BB0;
+  /* ═══════════ 3. 品牌 accent — 雾青蓝 Mist Teal（Luna 案例实测转译） ═══════════
+     Luna 手法：零高饱和纯色，所有彩色都是"雾里透出来的"。
+     accent = Luna 雾蓝氛围的实色化（可点击的最深一档），白底对比度 5.9:1 */
+  --accent: #3F6E7E;               /* 雾青蓝实色 — Luna 雾蓝 #A8C4D0 的加深实色版 */
+  --accent-rgb: 63 110 126;        /* Tailwind alpha 修饰符三元组 */
+  --accent-hover: #35616F;
+  --accent-active: #2C5461;
+  --accent-tint: rgba(63,110,126,0.09);
+  --accent-tint-light: rgba(63,110,126,0.045);
+  --accent-tint-strong: rgba(63,110,126,0.14);
+  --accent-text: #2C5461;          /* tint 底上的 accent 文字（加深一档保对比度） */
+  --link: #3F6E7E;                 /* 链接与行动同色（纪律：功能色只有一个） */
+  --link-rgb: 63 110 126;
+  --link-hover: #35616F;
   --on-accent-chip: rgba(255,255,255,0.25);  /* accent 实底上的徽章/chip 底 */
 
-  /* ═══════════ 4. 语义色 — 与 rdlBusinessStatusTokens 八级语义对齐 ═══════════ */
-  --success: #059669;
-  --success-rgb: 5 150 105;
-  --success-tint: rgba(5,150,105,0.10);
-  --success-text: #047857;
-  --warning: #D97706;
-  --warning-rgb: 217 119 6;
-  --warning-tint: rgba(217,119,6,0.10);
-  --warning-text: #B45309;
-  --danger: #DC2626;
-  --danger-rgb: 220 38 38;
-  --danger-hover: #B91C1C;
-  --danger-tint: rgba(220,38,38,0.08);
-  --danger-tint-hover: rgba(220,38,38,0.14);
-  --danger-tint-active: rgba(220,38,38,0.20);
-  --danger-text: #B91C1C;
+  /* ═══════════ 4. 语义色 — 雾化处理（Luna 纪律：低饱和、高明度、小面积 dot/tint） ═══════════ */
+  --success: #5E8B6E;              /* 雾松绿 */
+  --success-rgb: 94 139 110;
+  --success-tint: rgba(94,139,110,0.11);
+  --success-text: #4A7059;
+  --warning: #A98A4F;              /* 雾琥珀 */
+  --warning-rgb: 169 138 79;
+  --warning-tint: rgba(169,138,79,0.11);
+  --warning-text: #8A6F3D;
+  --danger: #B05F57;               /* 雾砖红 */
+  --danger-rgb: 176 95 87;
+  --danger-hover: #964C44;
+  --danger-tint: rgba(176,95,87,0.09);
+  --danger-tint-hover: rgba(176,95,87,0.15);
+  --danger-tint-active: rgba(176,95,87,0.21);
+  --danger-text: #964C44;
   --info-text: var(--accent-text);   /* info 语义归并 accent 系（info 徽章 = accent tint） */
 
-  /* ═══════════ 5. 品牌实色/渐变材质 — 数据看板视觉锚点（双主题通用） ═══════════ */
-  /* Bambook 深蓝实底卡：品牌主视觉锚点（原 bg-deep 深蓝黑的卡片化） */
-  --brand-deep: #0D1B2A;             /* 原 --bambook-bg-deep */
-  --brand-deep-rgb: 13 27 42;
-  --brand-deep-2: #0A2746;           /* 原 --bambook-bg-deep-alt */
-  --on-brand: #F4F5F2;               /* 深蓝卡上的主文字 */
-  --on-brand-2: rgba(244,245,242,0.56);
-  --on-brand-chip: rgba(255,255,255,0.14);
-  /* Bambook 蓝系渐变砖（Cockpit/看板数据强调位） */
-  --tile-royal:
-    radial-gradient(64% 64% at 50% 42%, rgba(10,25,52,0.74), rgba(10,25,52,0) 80%),
-    linear-gradient(150deg, #173B86, #2F95CA);
-  --tile-cyan:
-    radial-gradient(64% 64% at 50% 42%, rgba(8,40,52,0.72), rgba(8,40,52,0) 80%),
-    linear-gradient(150deg, #10718F, #4FB3C8);
-  --on-tile: rgba(255,255,255,0.72);
+  /* ═══════════ 4.5 签名材质 — Luna 转译：雾蓝渐变 Mist + 淡紫藤 Wisteria ═══════════
+     Luna 高级感核心（案例实测）："Data → Atmosphere"——色彩以雾的形态弥散，
+     磨砂玻璃浮于氛围之上，白色文字直接落于雾面。
+     分工纪律（每类签名每屏至多一处）：
+       雾蓝渐变 = hero 数据卡 / 品牌面（白字落于雾面）
+       淡紫藤   = AI 助手 / 特殊标记（Luna checkbox 上那一抹紫的转译）
+       磨砂玻璃 = 一级材质，浮于 atmosphere 之上 */
+  --brand-mist:
+    radial-gradient(130% 160% at 18% -22%, rgba(255,255,255,0.30), rgba(255,255,255,0) 55%),
+    linear-gradient(155deg, #7FA3B3 0%, #A2C0CD 52%, #C6DAE3 100%);  /* Luna 雾蓝氛围：顶部柔光 + 雾蓝渐变 */
+  --on-mist: #FFFFFF;              /* 雾面上的白色文字（Luna 实测手法） */
+  --on-mist-2: rgba(255,255,255,0.72);
+  --on-mist-3: rgba(255,255,255,0.45);
+  --on-mist-chip: rgba(255,255,255,0.22);      /* 雾面上的 chip 底 */
+  --on-mist-chip-hover: rgba(255,255,255,0.34);
+
+  --brand-wisteria: #C8B8E0;       /* 淡紫藤 — Luna checkbox 紫的转译（AI/特殊标记专用） */
+  --brand-wisteria-rgb: 200 184 224;
+  --wisteria-tint: rgba(200,184,224,0.16);
+  --wisteria-text: #6B5A8C;        /* 紫藤 tint 上的文字 */
+  --on-wisteria: #2E2440;          /* 紫藤实底上的深墨紫文字 */
 
   /* ═══════════ 6. 图表参照纹理 ═══════════ */
   --grid-line: rgba(0,0,0,0.14);     /* dashed gridline 比实线更轻 */
@@ -143,6 +154,19 @@
   --bds-shadow-lg: 0 12px 48px rgba(2,2,30,0.12);  /* 大浮层 */
   --inset-highlight: inset 0 1px 0 rgba(255,255,255,0.5);  /* 磨砂材质厚度内高光 */
 
+  /* ═══════════ 10.5 光感 Glow — Luna 式弥散柔光（小型彩色状态元素专用） ═══════════
+     Luna 手法：光不是锐利辉光，是弥散的雾光（低透明、大模糊）。
+     发光纪律：仅徽章（tint + dot）/ 进度条 fill / toast 图标等小型彩色状态元素发光；
+     控件（button/switch/checkbox）与大表面（卡片）不发光——大表面的光感由 atmosphere 承载。 */
+  --glow-accent: 0 2px 16px rgba(63,110,126,0.30);
+  --glow-success: 0 1px 12px rgba(94,139,110,0.26);
+  --glow-warning: 0 1px 12px rgba(169,138,79,0.26);
+  --glow-danger: 0 1px 12px rgba(176,95,87,0.26);
+  --glow-accent-soft: 0 1px 9px rgba(63,110,126,0.15);
+  --glow-success-soft: 0 1px 9px rgba(94,139,110,0.14);
+  --glow-warning-soft: 0 1px 9px rgba(169,138,79,0.14);
+  --glow-danger-soft: 0 1px 9px rgba(176,95,87,0.14);
+
   /* ═══════════ 11. 边框 — 隐形 hairline，仅用于同面色分隔 ═══════════
      颜色单值（--border-c-*）供 border-color 等单属性引用；
      shorthand（--border-*）供 border 全属性引用 */
@@ -163,18 +187,25 @@
   --frosted-dark-bg: rgba(255,255,255,0.08);
   --frosted-dark-border: 1px solid rgba(255,255,255,0.12);
 
-  /* ═══════════ 13. 页面光感背景 — Bambook 蓝系光斑（Halo aurora 签名材质） ═══════════
-     页面本身发光而非依赖卡片阴影分层；卡片以半透白浮于光斑之上 */
+  /* ═══════════ 13. 页面氛围 Atmosphere — Luna 签名转译（全页弥散雾 + 胶片颗粒） ═══════════
+     Luna 手法："Data → Atmosphere"——页面底层是三色弥散雾（雾蓝/雾鼠尾草绿/淡紫藤），
+     浓度必须可感知：背景一眼看去就是"有色的雾"，不是白色。卡片与玻璃浮于雾上。
+     颗粒层：极细 fractalNoise（6% 透明）让色雾有胶片的呼吸感，而非数字平涂。 */
+  --grain-img: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.055'/></svg>");
   --page-aurora:
-    radial-gradient(58% 46% at 12% 0%, rgba(23,59,134,0.08), rgba(23,59,134,0) 70%),
-    radial-gradient(46% 40% at 88% 12%, rgba(47,149,202,0.22), rgba(47,149,202,0) 72%),
-    radial-gradient(42% 42% at 72% 96%, rgba(125,183,255,0.14), rgba(125,183,255,0) 70%),
+    radial-gradient(75% 60% at 8% -5%, rgba(163,191,205,0.55), rgba(163,191,205,0) 74%),
+    radial-gradient(60% 52% at 92% 6%, rgba(185,196,172,0.42), rgba(185,196,172,0) 76%),
+    radial-gradient(54% 50% at 70% 102%, rgba(200,184,224,0.30), rgba(200,184,224,0) 74%),
     var(--bg-page);
 
-  /* ═══════════ 14. 字体系统 — Urbanist（拉丁）+ HarmonyOS Sans SC（CJK） ═══════════ */
-  --font-sans: "Urbanist", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei",
-    -apple-system, "BlinkMacSystemFont", "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  /* ═══════════ 14. 字体系统 — 镜像生产环境（index.css --font-primary） ═══════════
+     Urbanist（拉丁 UI/display，@fontsource 本地加载 300-700 全档）→ HarmonyOS Sans SC（CJK，有真实 Light 300 面）
+     → Inter → Acherus Grotesque → PingFang SC。生产 body 字重 300：极致轻盈基调。
+     字重纪律（2026-08-14 用户裁决）：全局 Light 300 单一字重，≤300 无例外——
+     强调靠字号与墨色层级，绝不靠字重。CJK 与拉丁同重渲染，无中西文错配。 */
+  --font-sans: "Urbanist", "HarmonyOS Sans SC", "Inter", "Acherus Grotesque",
+    "PingFang SC", "Microsoft YaHei", -apple-system, "BlinkMacSystemFont", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace;
   /* 字号（组件单值引用） */
   --text-xs: 11px;
   --text-sm: 13px;
@@ -183,13 +214,13 @@
   --text-xl: 20px;
   --text-2xl: 24px;
   --text-3xl: 32px;
-  /* 完整 font shorthand（weight size/line-height family）— 字重纪律：300 hero / 400 正文 / 500 强调 / 600 仅 caps 小标题 */
-  --font-xs: 500 11px/1.4 var(--font-sans);
-  --font-sm: 400 13px/1.5 var(--font-sans);
-  --font-base: 400 15px/1.6 var(--font-sans);
-  --font-lg: 500 17px/1.5 var(--font-sans);
-  --font-xl: 500 20px/1.4 var(--font-sans);
-  --font-2xl: 500 24px/1.3 var(--font-sans);
+  /* 完整 font shorthand（weight size/line-height family）— 全档 300：≤300 无例外 */
+  --font-xs: 300 11px/1.4 var(--font-sans);
+  --font-sm: 300 13px/1.5 var(--font-sans);
+  --font-base: 300 15px/1.6 var(--font-sans);
+  --font-lg: 300 17px/1.5 var(--font-sans);
+  --font-xl: 300 20px/1.4 var(--font-sans);    /* 标题 Light 300 — 生产环境轻盈签名 */
+  --font-2xl: 300 24px/1.3 var(--font-sans);
   --font-3xl: 300 32px/1.2 var(--font-sans);   /* hero 数字/大标题用 300 细字重 */
   /* 字距 — Halo 实测：标题 -0.02em，caps 标签 +0.08~0.12em */
   --tracking-tight: -0.02em;
@@ -259,57 +290,78 @@
   --invert-text: #FAFAF9;
   /* 焦点环 — 全系统键盘焦点唯一语言 */
   --focus-ring: 0 0 0 3px var(--accent-tint);
-  --focus-ring-strong: 0 0 0 3px rgba(0,74,173,0.28);
+  --focus-ring-strong: 0 0 0 3px rgba(63,110,126,0.28);
+  /* 层叠刻度 — 全系统唯一 z 秩序（modal 200 现状归位）；禁止组件自造 z 值 */
+  --z-sticky: 40;    /* 粘性页头/顶栏 */
+  --z-pop: 60;       /* dropdown / popover / tooltip / calendar */
+  --z-sheet: 180;    /* 右滑详情抽屉 */
+  --z-modal: 200;    /* 模态遮罩 + 对话框 */
+  --z-toast: 220;    /* 轻提示永远置顶 */
+  /* 浮层族映射 */
+  --r-pop: var(--radius-lg);       /* 浮层面板圆角 */
+  --p-pop: 6px;                    /* 浮层菜单容器内距 */
+  --r-sheet: var(--radius-2xl);    /* 抽屉左缘圆角 — Bambook panel 签名 */
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    暗色模式 — token 级覆盖，组件零改动
    双选择器：.dark 兼容 Tailwind darkMode:'class' 现状；
              [data-theme="dark"] 为 v2 标准（App.tsx 已双写）。
-   蓝黑深底（Halo 实测 rgb(2,2,30) 血统），避免纯黑发闷。
+   Luna 暗色转译：深夜雾蓝黑底（带雾青倾向的暗，非纯黑），
+   accent 提亮为雾蓝，atmosphere 转为深夜雾池。
    ═══════════════════════════════════════════════════════════════════ */
 .dark, [data-theme="dark"] {
-  /* 表面 */
-  --bg-page: #0D0D12;
-  --bg-page-rgb: 13 13 18;
-  --bg-card: #15151B;
-  --bg-card-rgb: 21 21 27;
-  --bg-panel: #1E1E26;
-  --bg-panel-rgb: 30 30 38;
-  --bg-sunken: #090910;
-  --bg-sunken-rgb: 9 9 16;
-  --bg-raised: #26262E;
-  --bg-raised-rgb: 38 38 46;
+  /* 表面 — 深夜雾蓝黑体系（比中性黑多一丝雾青） */
+  --bg-page: #0E1519;
+  --bg-page-rgb: 14 21 25;
+  --bg-card: #151E23;
+  --bg-card-rgb: 21 30 35;
+  --bg-panel: #1C272D;
+  --bg-panel-rgb: 28 39 45;
+  --bg-sunken: #0A1013;
+  --bg-sunken-rgb: 10 16 19;
+  --bg-raised: #24323A;
+  --bg-raised-rgb: 36 50 58;
 
   /* 文字（ink 常量为亮主题专用，暗色语义引用翻转到 on-dark 体系） */
-  --text-primary: #F4F5F2;
-  --text-secondary: rgba(244,245,242,0.56);
-  --text-tertiary: rgba(244,245,242,0.36);
-  --text-quaternary: rgba(244,245,242,0.18);
+  --text-primary: #F2F5F4;
+  --text-secondary: rgba(242,245,244,0.56);
+  --text-tertiary: rgba(242,245,244,0.36);
+  --text-quaternary: rgba(242,245,244,0.18);
 
-  /* 品牌 accent 暗色适配：实底提亮为链接蓝（#004AAD 在深底上发闷），
-     tint 提高透明度保持发光感，文字再提亮一档 */
-  --accent: #126DCC;
-  --accent-rgb: 18 109 204;
-  --accent-hover: #3D8BE8;
-  --accent-active: #2B7AD9;
-  --accent-tint: rgba(125,183,255,0.16);
-  --accent-tint-light: rgba(125,183,255,0.08);
-  --accent-tint-strong: rgba(125,183,255,0.24);
-  --accent-text: #7DB7FF;          /* 原 --bambook-brand-link-light */
-  --link: #7DB7FF;
-  --link-rgb: 125 183 255;
-  --link-hover: #A5CCFF;
+  /* 品牌 accent 暗色适配：实底提亮为雾蓝（深底上浅态更透气），
+     tint 与文字同步提亮 */
+  --accent: #7FA8B8;
+  --accent-rgb: 127 168 184;
+  --accent-hover: #93BAC9;
+  --accent-active: #6B96A6;
+  --accent-tint: rgba(127,168,184,0.16);
+  --accent-tint-light: rgba(127,168,184,0.08);
+  --accent-tint-strong: rgba(127,168,184,0.24);
+  --accent-text: #A4C6D2;
+  --link: #A4C6D2;
+  --link-rgb: 164 198 210;
+  --link-hover: #C2DAE2;
 
-  /* 语义色暗色适配：文字提亮、tint 提亮 */
-  --success-text: #34D399;
-  --success-tint: rgba(52,211,153,0.14);
-  --warning-text: #FBBF24;
-  --warning-tint: rgba(251,191,36,0.14);
-  --danger-text: #F87171;
-  --danger-tint: rgba(248,113,113,0.14);
-  --danger-tint-hover: rgba(248,113,113,0.22);
-  --danger-tint-active: rgba(248,113,113,0.30);
+  /* 语义色暗色适配（雾化亮态：松绿/沙金/尘红提亮版） */
+  --success: #8AB89A;
+  --success-rgb: 138 184 154;
+  --success-text: #9CC4AB;
+  --success-tint: rgba(138,184,154,0.14);
+  --warning: #C9AC6E;
+  --warning-rgb: 201 172 110;
+  --warning-text: #D4BC85;
+  --warning-tint: rgba(201,172,110,0.14);
+  --danger: #C97F76;
+  --danger-rgb: 201 127 118;
+  --danger-text: #D4958D;
+  --danger-tint: rgba(201,127,118,0.14);
+  --danger-tint-hover: rgba(201,127,118,0.22);
+  --danger-tint-active: rgba(201,127,118,0.30);
+
+  /* 紫藤暗色适配 */
+  --wisteria-tint: rgba(200,184,224,0.20);
+  --wisteria-text: #CBBCE4;
 
   /* 边框翻转为半透白（单值覆盖，shorthand 自动跟随） */
   --border-c-subtle: rgba(255,255,255,0.06);
@@ -321,13 +373,13 @@
   --active-darken: rgba(255,255,255,0.10);
 
   /* 反色按钮翻转 */
-  --invert-bg: #F4F5F2;
-  --invert-bg-hover: #DEDFD8;
-  --invert-bg-active: #ECEDE6;
-  --invert-text: #0F0F0E;
+  --invert-bg: #F2F5F4;
+  --invert-bg-hover: #DEE3E0;
+  --invert-bg-active: #EAEEEB;
+  --invert-text: #0E1519;
 
-  /* 磨砂玻璃暗色适配：蓝黑半透明底 + 弱白边 */
-  --frosted-bg: rgba(21,21,27,0.72);
+  /* 磨砂玻璃暗色适配：雾蓝黑半透明底 + 弱白边 */
+  --frosted-bg: rgba(21,30,35,0.68);
   --frosted-border: 1px solid rgba(255,255,255,0.10);
 
   /* 图表纹理翻转 */
@@ -337,14 +389,14 @@
 
   /* 浮层材质暗色适配 */
   --skeleton-shine: rgba(255,255,255,0.08);
-  --mask-bg: rgba(2,2,8,0.55);
+  --mask-bg: rgba(6,10,13,0.55);
   --dz-line: rgba(255,255,255,0.24);
 
-  /* 页面光感背景暗色适配：近黑底 + Bambook 蓝光斑分层 */
+  /* 页面氛围暗色适配：深夜雾池（雾蓝/雾青/紫藤在深底上弥散，浓度可感知） */
   --page-aurora:
-    radial-gradient(58% 46% at 12% 0%, rgba(23,59,134,0.32), rgba(23,59,134,0) 70%),
-    radial-gradient(46% 40% at 88% 12%, rgba(16,113,143,0.28), rgba(16,113,143,0) 72%),
-    radial-gradient(42% 42% at 72% 96%, rgba(47,149,202,0.10), rgba(47,149,202,0) 70%),
+    radial-gradient(75% 60% at 8% -5%, rgba(85,128,146,0.42), rgba(85,128,146,0) 74%),
+    radial-gradient(60% 52% at 92% 6%, rgba(94,139,110,0.26), rgba(94,139,110,0) 76%),
+    radial-gradient(54% 50% at 70% 102%, rgba(200,184,224,0.16), rgba(200,184,224,0) 74%),
     var(--bg-page);
 
   /* 阴影暗色加深（暗色下蓝调不可见，纯黑加深保持层次） */
@@ -353,5 +405,15 @@
   --bds-shadow-md: 0 8px 24px rgba(0,0,0,0.36);
   --bds-shadow-lg: 0 12px 48px rgba(0,0,0,0.42);
 
-  --focus-ring-strong: 0 0 0 3px rgba(125,183,255,0.32);
+  /* 光感暗色适配：深底上弥散雾光（Luna 式柔光主场） */
+  --glow-accent: 0 2px 18px rgba(127,168,184,0.38);
+  --glow-success: 0 1px 12px rgba(138,184,154,0.28);
+  --glow-warning: 0 1px 12px rgba(201,172,110,0.28);
+  --glow-danger: 0 1px 12px rgba(201,127,118,0.28);
+  --glow-accent-soft: 0 1px 10px rgba(127,168,184,0.20);
+  --glow-success-soft: 0 1px 10px rgba(138,184,154,0.18);
+  --glow-warning-soft: 0 1px 10px rgba(201,172,110,0.18);
+  --glow-danger-soft: 0 1px 10px rgba(201,127,118,0.18);
+
+  --focus-ring-strong: 0 0 0 3px rgba(127,168,184,0.32);
 }

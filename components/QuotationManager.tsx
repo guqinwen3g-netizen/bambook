@@ -43,9 +43,7 @@ import QuotationImportWizard from './import/QuotationImportWizard';
 import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, type TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
-import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import { printHtmlDocument, escapeHtml } from './tools/printDocument';
-import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
@@ -65,6 +63,15 @@ const STATUS_LABELS: Record<QuotationStatus, string> = {
   Accepted: '已接受',
   Rejected: '已拒绝',
   Expired: '已过期',
+};
+
+// BDS v2.1：状态 → bds-badge 语义变体（主题透明，替代 statusSemanticClass/Text 双三元拼装）
+const STATUS_BADGE_VARIANT: Record<QuotationStatus, 'neutral' | 'info' | 'success' | 'danger' | 'warning'> = {
+  Draft: 'neutral',
+  Sent: 'info',
+  Accepted: 'success',
+  Rejected: 'danger',
+  Expired: 'warning',
 };
 
 const CURRENCIES = ['USD', 'CNY', 'EUR'];
@@ -576,20 +583,12 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
   const formatDate = (s?: string) => s || '—';
 
-  // ── 主题样式 ──
-  const panelClass = isDarkMode ? `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceDark}` : `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceLight}`;
-  const cardClass = isDarkMode
-    ? `rounded-card border border-white/[0.055] bg-white/[0.018] ${BAMBOOK_OS.material.glassColor}`
-    : `rounded-card border border-white/45 bg-white/24 ${BAMBOOK_OS.material.glassColor}`;
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
-  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
-  const actionBtnCls = `h-8 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50`;
+  // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+  const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <PageHeader title="报价管理" subtitle="Quotations" isDarkMode={isDarkMode} />
+      <PageHeader title="报价管理" subtitle="Quotations" />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
         <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
@@ -599,72 +598,73 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 {/* 创建表单 */}
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建报价单</h2>
-                  <button onClick={() => setShowCreateForm(false)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]' : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}>
+                  <h2 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>新建报价单</h2>
+                  <button onClick={() => setShowCreateForm(false)} className="bds-btn bds-btn-secondary sm">
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
 
                 <div className="space-y-3">
                   {/* 基本信息 */}
-                  <div className={`p-4 rounded-card ${cardClass}`}>
-                    <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>基本信息</h3>
+                  <div className="bds-card">
+                    <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>基本信息</h3>
                     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                       <div>
-                        <label className={labelClass}>报价编号</label>
-                        <input type="text" value={form.quotationNumber} onChange={(e) => setForm({ ...form, quotationNumber: e.target.value })} placeholder="留空自动生成 QT-YYYY-NNNN" className={fieldClass} />
+                        <label className={labelCls}>报价编号</label>
+                        <input type="text" value={form.quotationNumber} onChange={(e) => setForm({ ...form, quotationNumber: e.target.value })} placeholder="留空自动生成 QT-YYYY-NNNN" className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>币种</label>
-                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className={fieldClass}>
+                        <label className={labelCls}>币种</label>
+                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="bds-select">
                           {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className={labelClass}>报价日期 *</label>
-                        <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value, validUntil: defaultValidUntil(e.target.value) })} className={fieldClass} />
+                        <label className={labelCls}>报价日期 *</label>
+                        <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value, validUntil: defaultValidUntil(e.target.value) })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>有效期至</label>
-                        <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>有效期至</label>
+                        <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>客户</label>
+                        <label className={labelCls}>客户</label>
                         <select value={form.customerRelationId} onChange={(e) => {
                           const rel = relations.find(r => r.id === e.target.value);
                           setForm({ ...form, customerRelationId: e.target.value, customerName: rel?.englishName || rel?.chineseName || '' });
-                        }} className={fieldClass}>
+                        }} className="bds-select">
                           <option value="">选择客户...</option>
                           {customerOptions.map(c => <option key={c.id} value={c.id}>{c.label} ({c.chineseName})</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className={labelClass}>业务员</label>
-                        <input type="text" value={form.salesperson} onChange={(e) => setForm({ ...form, salesperson: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>业务员</label>
+                        <input type="text" value={form.salesperson} onChange={(e) => setForm({ ...form, salesperson: e.target.value })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>询价参考</label>
-                        <input type="text" value={form.inquiryRef} onChange={(e) => setForm({ ...form, inquiryRef: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>询价参考</label>
+                        <input type="text" value={form.inquiryRef} onChange={(e) => setForm({ ...form, inquiryRef: e.target.value })} className="bds-input" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
-                        <label className={labelClass}>交货条款</label>
-                        <input type="text" value={form.deliveryTerms} onChange={(e) => setForm({ ...form, deliveryTerms: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>交货条款</label>
+                        <input type="text" value={form.deliveryTerms} onChange={(e) => setForm({ ...form, deliveryTerms: e.target.value })} className="bds-input" />
                       </div>
                       <div>
-                        <label className={labelClass}>付款条款</label>
-                        <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className={fieldClass} />
+                        <label className={labelCls}>付款条款</label>
+                        <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className="bds-input" />
                       </div>
                     </div>
                   </div>
 
                   {/* 双轨成本面板（PRD 8.6 · 仅内部参考，不对客户展示） */}
-                  <div className={`p-4 rounded-card ${cardClass}`}>
+                  <div className="bds-card">
                     <button
                       type="button"
                       onClick={() => setShowDualTrack(v => !v)}
-                      className={`w-full flex items-center justify-between text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'} transition-colors`}
+                      className="bds-overline w-full flex items-center justify-between transition-colors"
+                      style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
                     >
                       <span>双轨成本面板（轨道 A 估算 + 轨道 B 退税定价 · 仅内部）</span>
                       <ChevronDown size={14} className={`transition-transform ${showDualTrack ? '' : '-rotate-90'}`} />
@@ -686,53 +686,52 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                   </div>
 
                   {/* 报价行 */}
-                  <div className={`p-4 rounded-card ${cardClass}`}>
+                  <div className="bds-card">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>报价明细</h3>
-                      <button onClick={addFormLine} className={`text-xs px-3 py-1.5 rounded-full flex items-center gap-1 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] hover:bg-white/5' : 'text-[var(--os-vnext-brand-blue)] hover:bg-slate-100/60'}`}>
+                      <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>报价明细</h3>
+                      <button onClick={addFormLine} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
                         <Plus size={12} /> 添加行
                       </button>
                     </div>
                     <div className="space-y-2">
                       {formLines.map((line) => (
-                        <div key={line.key} className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/5' : 'bg-slate-50'}`}>
+                        <div key={line.key} className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
                           <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>行 {formLines.indexOf(line) + 1}</span>
+                            <span className="bds-mono text-xs" style={{ color: 'var(--text-quaternary)' }}>行 {formLines.indexOf(line) + 1}</span>
                             {formLines.length > 1 && (
-                              <button onClick={() => removeFormLine(line.key)} className={`p-1 rounded ${isDarkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500'}`}>
+                              <button onClick={() => removeFormLine(line.key)} className="p-1 rounded transition-colors" style={{ color: 'var(--text-quaternary)' }}>
                                 <Trash2 size={12} />
                               </button>
                             )}
                           </div>
                           <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
                             <div className="relative">
-                              <input type="text" value={line.fabricCode} onChange={(e) => updateFormLine(line.key, 'fabricCode', e.target.value)} onBlur={() => setTimeout(() => setFabricSuggestions(prev => ({ ...prev, [line.key]: [] })), 150)} placeholder="面料编码（搜索档案）" className={`${fieldClass} py-1.5 text-xs`} />
+                              <input type="text" value={line.fabricCode} onChange={(e) => updateFormLine(line.key, 'fabricCode', e.target.value)} onBlur={() => setTimeout(() => setFabricSuggestions(prev => ({ ...prev, [line.key]: [] })), 150)} placeholder="面料编码（搜索档案）" className="bds-input sm" />
                               {fabricSearching[line.key] && (
-                                <Loader2 size={12} className={`absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                                <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                               )}
-                              {/* F4：档案面料搜索建议下拉 */}
+                              {/* F4：档案面料搜索建议下拉（BDS 浮层族） */}
                               {(fabricSuggestions[line.key]?.length ?? 0) > 0 && (
-                                <div className={`absolute left-0 right-0 top-full mt-1 z-20 rounded-control border overflow-hidden ${isDarkMode ? 'bg-slate-900/95 border-white/10' : 'bg-white border-slate-200'}`}>
+                                <div className="bds-pop" style={{ left: 0, right: 0, top: 'calc(100% + 4px)' }}>
                                   {fabricSuggestions[line.key].map(p => (
-                                    <button
+                                    <div
                                       key={p.id}
-                                      type="button"
+                                      className="opt"
                                       onClick={() => handleSelectFabric(line.key, p)}
-                                      className={`w-full text-left px-3 py-2 text-xs font-light transition-colors ${isDarkMode ? 'hover:bg-white/5 text-white/80' : 'hover:bg-slate-50 text-slate-700'}`}
                                     >
-                                      <span className="font-mono">{p.sku}</span>
-                                      <span className={isDarkMode ? 'text-white/45' : 'text-slate-500'}> · {p.name}</span>
-                                    </button>
+                                      <span className="bds-mono">{p.sku}</span>
+                                      <span className="sub">{p.name}</span>
+                                    </div>
                                   ))}
                                 </div>
                               )}
                             </div>
-                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className={`${fieldClass} py-1.5 text-xs xl:col-span-2`} />
-                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className={`${fieldClass} py-1.5 text-xs`} />
-                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
+                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
+                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                               {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
-                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className={`${fieldClass} py-1.5 text-xs`} />
+                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
                           </div>
                           {/* F4：历史价参考条 + 偏差黄标（PRD 19.5） */}
                           {(() => {
@@ -743,13 +742,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                             const deviation = priceDeviationRatio(line.unitPrice, customerRef);
                             if (!factoryRef && !customerRef) {
                               return (
-                                <div className={`mt-2 text-[10px] font-light ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                <div className="mt-2 text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
                                   档案面料 {fabric.sku} 暂无历史价格记录
                                 </div>
                               );
                             }
                             return (
-                              <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-light ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
                                 <span>历史价参考：</span>
                                 {factoryRef && (
                                   <span>工厂价 {factoryRef.currency} {Number(factoryRef.amount).toFixed(2)}{factoryRef.unit ? `/${factoryRef.unit}` : ''}{factoryRef.effectiveDate ? `（${factoryRef.effectiveDate}）` : ''}</span>
@@ -758,7 +757,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   <span>最近售价 {customerRef.currency} {Number(customerRef.amount).toFixed(2)}{customerRef.unit ? `/${customerRef.unit}` : ''}{customerRef.effectiveDate ? `（${customerRef.effectiveDate}）` : ''}</span>
                                 )}
                                 {deviation !== null && customerRef && (
-                                  <span className={`inline-flex items-center gap-1 ${statusSemanticText('warning', isDarkMode)}`}>
+                                  <span className="inline-flex items-center gap-1" style={{ color: 'var(--warning-text)' }}>
                                     <AlertTriangle size={11} />
                                     偏离最近售价 {deviation > 0 ? '+' : ''}{Math.round(deviation * 100)}%（&gt;15%，将触发审批）
                                   </span>
@@ -766,26 +765,26 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                               </div>
                             );
                           })()}
-                          <div className={`mt-1 text-right text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <div className="mt-1 text-right text-xs" style={{ color: 'var(--text-tertiary)' }}>
                             金额: {formatAmount(calcLineAmount(line.quantity, line.unitPrice), form.currency)}
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className={`mt-3 pt-3 border-t flex justify-between items-center text-sm ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
-                      <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>合计</span>
-                      <span className={`font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatAmount(formTotal, form.currency)}</span>
+                    <div className="mt-3 pt-3 flex justify-between items-center text-sm" style={{ borderTop: 'var(--border-subtle)' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>合计</span>
+                      <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{formatAmount(formTotal, form.currency)}</span>
                     </div>
                   </div>
 
                   {formError && (
-                    <div className={`p-3 rounded-inset border flex items-center gap-2 ${statusSemanticClass('danger', isDarkMode)}`}>
-                      <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
-                      <span className="text-sm">{formError}</span>
+                    <div className="bds-alert danger">
+                      <AlertCircle size={16} />
+                      <span>{formError}</span>
                     </div>
                   )}
 
-                  <button onClick={handleCreate} disabled={actionLoading === 'create'} className="w-full py-3 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white font-light text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                  <button onClick={handleCreate} disabled={actionLoading === 'create'} className="bds-btn bds-btn-primary lg w-full">
                     {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                     <span>创建报价单</span>
                   </button>
@@ -795,29 +794,25 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
                 {/* 工具栏 */}
                 <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => setShowCreateForm(true)} className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors">
+                  <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary sm">
                     <Plus size={14} /><span>新建报价单</span>
                   </button>
-                  <button onClick={() => setShowImportWizard(true)} className={`h-9 px-4 rounded-full border text-xs font-light flex items-center gap-1.5 transition-colors ${isDarkMode ? 'bg-white/[0.02] border-white/[0.06] text-slate-300 hover:bg-white/[0.05] hover:text-white' : 'bg-white/45 border-black/[0.04] text-slate-600 hover:bg-white/70 hover:text-slate-900'}`}>
+                  <button onClick={() => setShowImportWizard(true)} className="bds-btn bds-btn-secondary sm">
                     <FileSpreadsheet size={14} /><span>导入历史报价</span>
                   </button>
                   <div className="relative flex-1 max-w-xs">
-                    <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
-                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className={`${fieldClass} pl-9`} />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className="bds-input sm pl-9" />
                   </div>
-                  <button onClick={fetchQuotations} className={`p-2 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`} title="刷新">
+                  <button onClick={fetchQuotations} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                 </div>
 
                 {/* 状态过滤 */}
-                <div className="flex items-center gap-1 mb-4">
+                <div className="bds-segment mb-4">
                   {STATUS_TABS.map(tab => (
-                    <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`px-3 py-1.5 rounded-full text-xs font-light transition-colors ${
-                      statusFilter === tab.id
-                        ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-                        : isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}>
+                    <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`seg ${statusFilter === tab.id ? 'active' : ''}`}>
                       {tab.label}
                     </button>
                   ))}
@@ -825,22 +820,23 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                 {/* 错误提示 */}
                 {error && (
-                  <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('danger', isDarkMode)}`}>
-                    <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
-                    <span className="text-sm">{error}</span>
+                  <div className="bds-alert danger mb-3">
+                    <AlertCircle size={16} />
+                    <span>{error}</span>
                   </div>
                 )}
 
                 {/* 阶段 IA-3：转单成功横幅 —— 「查看订单」直达跳转 */}
                 {convertedOrderId && (
-                  <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('success', isDarkMode)}`}>
-                    <CheckCircle2 size={16} className={statusSemanticText('success', isDarkMode)} />
-                    <span className="text-sm flex-1 min-w-0 truncate">已转为订单 {convertedOrderId}</span>
+                  <div className="bds-alert success mb-3">
+                    <CheckCircle2 size={16} />
+                    <span className="flex-1 min-w-0 truncate">已转为订单 {convertedOrderId}</span>
                     {onOpenOrder && (
                       <button
                         type="button"
                         onClick={() => onOpenOrder(convertedOrderId)}
-                        className="flex items-center gap-1 text-sm shrink-0 hover:underline"
+                        className="flex items-center gap-1 shrink-0 hover:underline"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit' }}
                       >
                         查看订单 <ArrowRight size={12} />
                       </button>
@@ -851,12 +847,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 {/* 列表 */}
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 size={24} className={`animate-spin ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                    <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                   </div>
                 ) : quotations.length === 0 ? (
-                  <div className={`text-center py-12 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    <FileText size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">暂无报价单</p>
+                  <div className="bds-empty">
+                    <div className="glyph"><FileText size={24} /></div>
+                    <div className="title">暂无报价单</div>
+                    <div className="desc">点击「新建报价单」开始，或导入历史报价</div>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -866,54 +863,56 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.03 }}
-                        className={`${cardClass} overflow-hidden`}
+                        className="bds-card"
+                        style={{ padding: 0, overflow: 'hidden' }}
                       >
                         {/* 卡片头部 */}
                         <div
-                          className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                          className="flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
                           onClick={() => setExpandedId(expandedId === qt.id ? null : qt.id)}
                         >
-                          <button className={`flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                          <button className="flex-shrink-0" style={{ color: 'var(--text-quaternary)', background: 'none', border: 'none', cursor: 'pointer' }}>
                             {expandedId === qt.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                           </button>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-sm font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{qt.quotationNumber}</span>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(qt.status.toLowerCase() as any, isDarkMode)} ${statusSemanticText(qt.status.toLowerCase() as any, isDarkMode)}`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="bds-mono text-sm" style={{ color: 'var(--text-primary)' }}>{qt.quotationNumber}</span>
+                              <span className={`bds-badge sm ${STATUS_BADGE_VARIANT[qt.status as QuotationStatus] || 'neutral'}`}>
+                                <span className="dot"></span>
                                 {STATUS_LABELS[qt.status as QuotationStatus] || qt.status}
                               </span>
                               {/* 双轨偏差徽标（PRD 8.6 历史快照；warn=已触发审批，block=未审批禁止发送） */}
                               {qt.priceDeviationLevel === 'warn' && (
-                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass('warning', isDarkMode)} ${statusSemanticText('warning', isDarkMode)}`}>
+                                <span className="bds-badge sm warning">
                                   <AlertTriangle size={10} />
                                   偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}% · 已触发审批
                                 </span>
                               )}
                               {qt.priceDeviationLevel === 'block' && (
-                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass('danger', isDarkMode)} ${statusSemanticText('danger', isDarkMode)}`}>
+                                <span className="bds-badge sm danger">
                                   <AlertCircle size={10} />
                                   偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}% · 需审批后发送
                                 </span>
                               )}
                               {/* Sent 超 7 天未回复 → 琥珀提醒（sentAt 为首次发送时间） */}
                               {sentDaysPending(qt) != null && (
-                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass('warning', isDarkMode)} ${statusSemanticText('warning', isDarkMode)}`}>
+                                <span className="bds-badge sm warning">
                                   <AlertTriangle size={10} />
                                   已发送 {sentDaysPending(qt)} 天 · 待客户回复
                                 </span>
                               )}
                             </div>
-                            <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                               {qt.customerName || '未指定客户'} · {formatDate(qt.issueDate)}
                               {qt.validUntil ? ` · 有效期至 ${qt.validUntil}` : ''}
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <div className={`text-sm font-light tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                            <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                               {formatAmount(Number(qt.totalAmount), qt.currency)}
                             </div>
                             {qt.lines && qt.lines.length > 0 && (
-                              <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{qt.lines.length} 行</div>
+                              <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>{qt.lines.length} 行</div>
                             )}
                           </div>
                         </div>
@@ -926,11 +925,12 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
                               transition={{ duration: 0.2 }}
-                              className={`overflow-hidden border-t ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}
+                              className="overflow-hidden"
+                              style={{ borderTop: 'var(--border-subtle)' }}
                             >
                               <div className="p-4 space-y-3">
                                 {/* 条款信息 */}
-                                <div className={`grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                   {qt.deliveryTerms && <div><span className="opacity-60">交货:</span> {qt.deliveryTerms}</div>}
                                   {qt.paymentTerms && <div><span className="opacity-60">付款:</span> {qt.paymentTerms}</div>}
                                   {qt.salesperson && <div><span className="opacity-60">业务员:</span> {qt.salesperson}</div>}
@@ -939,11 +939,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                                 {/* 双轨定价快照（PRD 8.6 历史快照，仅内部参考） */}
                                 {qt.priceDeviationLevel && qt.trackAMedianUsd != null && qt.trackBFinalUsd != null && (
-                                  <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-inset text-xs ${isDarkMode ? 'bg-white/[0.02] text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-inset text-xs" style={{ background: 'var(--bg-panel)', color: 'var(--text-tertiary)' }}>
                                     <span className="opacity-60">双轨快照（内部）:</span>
                                     <span>轨道 A 中位 ${Number(qt.trackAMedianUsd).toFixed(4)}/{qt.trackAUnit === 'PC' ? '件' : '米'}</span>
                                     <span>轨道 B 终价 ${Number(qt.trackBFinalUsd).toFixed(4)}</span>
-                                    <span className={statusSemanticText(qt.priceDeviationLevel === 'block' ? 'danger' : qt.priceDeviationLevel === 'warn' ? 'warning' : 'success', isDarkMode)}>
+                                    <span style={{ color: qt.priceDeviationLevel === 'block' ? 'var(--danger-text)' : qt.priceDeviationLevel === 'warn' ? 'var(--warning-text)' : 'var(--success-text)' }}>
                                       偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}%
                                       {qt.priceDeviationLevel === 'warn' && '（已触发审批）'}
                                       {qt.priceDeviationLevel === 'block' && '（未审批通过禁止发送）'}
@@ -953,29 +953,29 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                                 {/* 行明细表 */}
                                 {qt.lines && qt.lines.length > 0 && (
-                                  <div className={`rounded-inset overflow-hidden ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
-                                    <table className="w-full text-xs">
+                                  <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                                    <table className="bds-table">
                                       <thead>
-                                        <tr className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>
-                                          <th className="text-left p-2 font-light">#</th>
-                                          <th className="text-left p-2 font-light">编码</th>
-                                          <th className="text-left p-2 font-light">品名</th>
-                                          <th className="text-right p-2 font-light">数量</th>
-                                          <th className="text-center p-2 font-light">单位</th>
-                                          <th className="text-right p-2 font-light">单价</th>
-                                          <th className="text-right p-2 font-light">金额</th>
+                                        <tr>
+                                          <th>#</th>
+                                          <th>编码</th>
+                                          <th>品名</th>
+                                          <th className="num">数量</th>
+                                          <th style={{ textAlign: 'center' }}>单位</th>
+                                          <th className="num">单价</th>
+                                          <th className="num">金额</th>
                                         </tr>
                                       </thead>
                                       <tbody>
                                         {qt.lines.map((line) => (
-                                          <tr key={line.id} className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>
-                                            <td className="p-2">{line.lineNumber}</td>
-                                            <td className="p-2 font-mono">{line.fabricCode || '—'}</td>
-                                            <td className="p-2">{line.description}</td>
-                                            <td className="p-2 text-right tabular-nums">{Number(line.quantity).toLocaleString('en-US')}</td>
-                                            <td className="p-2 text-center">{line.unit}</td>
-                                            <td className="p-2 text-right tabular-nums">{Number(line.unitPrice).toFixed(4)}</td>
-                                            <td className="p-2 text-right tabular-nums">{Number(line.amount).toFixed(2)}</td>
+                                          <tr key={line.id}>
+                                            <td>{line.lineNumber}</td>
+                                            <td className="bds-mono">{line.fabricCode || '—'}</td>
+                                            <td>{line.description}</td>
+                                            <td className="num bds-tnum">{Number(line.quantity).toLocaleString('en-US')}</td>
+                                            <td style={{ textAlign: 'center' }}>{line.unit}</td>
+                                            <td className="num bds-tnum">{Number(line.unitPrice).toFixed(4)}</td>
+                                            <td className="num bds-tnum">{Number(line.amount).toFixed(2)}</td>
                                           </tr>
                                         ))}
                                       </tbody>
@@ -984,28 +984,28 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                 )}
 
                                 {/* 操作按钮 */}
-                                <div className="flex items-center gap-2 pt-2">
+                                <div className="flex items-center gap-2 pt-2 flex-wrap">
                                   {qt.status === 'Draft' && (
                                     <>
                                       <button
                                         onClick={() => { setPricingQuoteId(qt.id); setPricingResult(null); }}
-                                        className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                        className="bds-btn bds-btn-secondary sm"
                                       >
                                         <Calculator size={12} />
                                         <span>应用定价</span>
                                       </button>
-                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}>
+                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-primary sm">
                                         {actionLoading === `${qt.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                         <span>发送报价</span>
                                       </button>
                                       {/* 双轨红标门禁提示（PRD 8.6）：偏差 >30% 需审批通过后服务端才放行发送 */}
                                       {qt.priceDeviationLevel === 'block' && (
-                                        <span className={`flex items-center gap-1 text-[10px] ${statusSemanticText('danger', isDarkMode)}`}>
+                                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--danger-text)' }}>
                                           <AlertCircle size={10} />
                                           偏差超 30%，需审批通过后发送
                                         </span>
                                       )}
-                                      <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}>
+                                      <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className="bds-btn bds-btn-danger sm">
                                         {actionLoading === `${qt.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                                         <span>删除</span>
                                       </button>
@@ -1013,11 +1013,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   )}
                                   {qt.status === 'Sent' && (
                                     <>
-                                      <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className={`${actionBtnCls} bg-green-500/10 text-green-500 hover:bg-green-500/14`}>
+                                      <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className="bds-btn bds-btn-primary sm">
                                         {actionLoading === `${qt.id}_accept` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                         <span>接受</span>
                                       </button>
-                                      <button onClick={() => handleAction(qt.id, 'reject')} disabled={actionLoading === `${qt.id}_reject`} className={`${actionBtnCls} bg-red-500/10 text-red-500 hover:bg-red-500/14`}>
+                                      <button onClick={() => handleAction(qt.id, 'reject')} disabled={actionLoading === `${qt.id}_reject`} className="bds-btn bds-btn-danger sm">
                                         {actionLoading === `${qt.id}_reject` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
                                         <span>拒绝</span>
                                       </button>
@@ -1029,7 +1029,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         <button
                                           onClick={() => handleAction(qt.id, 'convert')}
                                           disabled={actionLoading === `${qt.id}_convert`}
-                                          className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}
+                                          className="bds-btn bds-btn-primary sm"
                                         >
                                           {actionLoading === `${qt.id}_convert` ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
                                           <span>转为订单</span>
@@ -1039,7 +1039,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         <button
                                           onClick={() => handleGeneratePi(qt.id)}
                                           disabled={actionLoading === `${qt.id}_generatePi`}
-                                          className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                          className="bds-btn bds-btn-secondary sm"
                                         >
                                           {actionLoading === `${qt.id}_generatePi` ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
                                           <span>生成 PI</span>
@@ -1047,20 +1047,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                       )}
                                       <button
                                         onClick={() => setTraceQuoteId(qt.id)}
-                                        className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                        className="bds-btn bds-btn-secondary sm"
                                       >
                                         <GitBranch size={12} />
                                         <span>溯源</span>
                                       </button>
                                       {qt.status === 'Accepted' && qt.convertedOrderId && (
-                                        <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
                                           <CheckCircle2 size={12} />
                                           <span>已转订单</span>
                                           {onOpenOrder ? (
                                             <button
                                               type="button"
                                               onClick={() => onOpenOrder(qt.convertedOrderId!)}
-                                              className="flex items-center gap-0.5 hover:underline text-[var(--os-vnext-brand-blue-soft)]"
+                                              className="flex items-center gap-0.5 hover:underline"
+                                              style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'var(--accent-text)' }}
                                             >
                                               {qt.convertedOrderId} <ArrowRight size={10} />
                                             </button>
@@ -1070,7 +1071,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         </div>
                                       )}
                                       {(qt.status === 'Rejected' || qt.status === 'Expired') && (
-                                        <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-quaternary)' }}>
                                           <Clock size={12} />
                                           <span>{STATUS_LABELS[qt.status as QuotationStatus]} — 终态</span>
                                         </div>
@@ -1081,7 +1082,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   <button
                                     type="button"
                                     onClick={() => printHtmlDocument({ title: `Quotation ${qt.quotationNumber}`, htmlBody: buildQuotationPrintHtml(qt) })}
-                                    className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                    className="bds-btn bds-btn-ghost sm"
                                   >
                                     <Printer size={12} />
                                     <span>打印报价单</span>
@@ -1117,17 +1118,18 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
       {/* V2 双轨定价 modal：对已保存报价单应用 Track A/B → 写入快照 + 偏差分级 */}
       {pricingQuoteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setPricingQuoteId(null)}>
+        <div className="bds-modal-mask" onClick={() => setPricingQuoteId(null)}>
           <div
-            className={`relative w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-panel p-6 ${isDarkMode ? 'bg-slate-900/95 border border-white/10' : 'bg-white/95 border border-slate-200'}`}
+            className="bds-modal"
+            style={{ width: '56rem', maxHeight: '85vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-sm font-light ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+              <h3 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>
                 应用双轨定价 — Track A 估算 + Track B 退税定价
               </h3>
-              <button onClick={() => setPricingQuoteId(null)} className={`p-1 rounded-lg ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
-                <X size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+              <button onClick={() => setPricingQuoteId(null)} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
+                <X size={16} />
               </button>
             </div>
 
@@ -1146,11 +1148,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
             {/* 定价结果 */}
             {pricingResult && (
-              <div className={`mt-4 p-3 rounded-card text-xs ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-50 text-slate-600'}`}>
+              <div className="mt-4 p-3 rounded-inset text-xs" style={{ background: 'var(--bg-panel)', color: 'var(--text-secondary)' }}>
                 <div className="flex items-center gap-4 flex-wrap">
                   <span>Track A 中位: <strong>${pricingResult.trackAMedianUsd?.toFixed(4)}</strong></span>
                   <span>Track B 终价: <strong>${pricingResult.trackBFinalUsd?.toFixed(4)}</strong></span>
-                  <span>偏差: <strong className={pricingResult.deviationLevel === 'ok' ? 'text-green-500' : pricingResult.deviationLevel === 'warn' ? 'text-amber-500' : 'text-red-500'}>{pricingResult.deviationPercent?.toFixed(1)}% ({pricingResult.deviationLevel})</strong></span>
+                  <span>偏差: <strong style={{ color: pricingResult.deviationLevel === 'ok' ? 'var(--success-text)' : pricingResult.deviationLevel === 'warn' ? 'var(--warning-text)' : 'var(--danger-text)' }}>{pricingResult.deviationPercent?.toFixed(1)}% ({pricingResult.deviationLevel})</strong></span>
                   <span>可发送: <strong>{pricingResult.canSend ? '是' : '否'}</strong></span>
                 </div>
               </div>
@@ -1159,14 +1161,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
             <div className="flex items-center justify-end gap-2 mt-4">
               <button
                 onClick={() => setPricingQuoteId(null)}
-                className={`px-4 py-2 rounded-full text-xs ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className="bds-btn bds-btn-ghost sm"
               >
                 关闭
               </button>
               <button
                 onClick={handlePricingCheck}
                 disabled={applyingPricing}
-                className={`px-4 py-2 rounded-full text-xs flex items-center gap-1.5 ${applyingPricing ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className="bds-btn bds-btn-secondary sm"
               >
                 {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
                 <span>查询校验</span>
@@ -1174,7 +1176,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               <button
                 onClick={handleApplyPricing}
                 disabled={applyingPricing || !pricingTrackB}
-                className={`px-4 py-2 rounded-full text-xs flex items-center gap-1.5 ${applyingPricing || !pricingTrackB ? 'opacity-50 cursor-not-allowed' : ''} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}
+                className="bds-btn bds-btn-primary sm"
               >
                 {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
                 <span>{applyingPricing ? '计算中...' : '应用定价'}</span>
@@ -1184,39 +1186,38 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         </div>
       )}
 
-      {/* 一键溯源侧边面板 */}
+      {/* 一键溯源侧边面板（BDS Sheet 右滑抽屉 · 640 宽度） */}
       {traceQuoteId && (
-        <div
-          className="fixed inset-0 z-50 flex justify-end"
-          onClick={() => setTraceQuoteId(null)}
-        >
-          <div className={`absolute inset-0 ${isDarkMode ? 'bg-black/40' : 'bg-black/20'}`} />
-          <div
-            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--border-c-strong)] bg-bds-card/95 backdrop-blur-xl`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`flex items-center justify-between border-b px-4 py-3 ${isDarkMode ? 'border-white/8' : 'border-slate-200/50'}`}>
-              <div className="flex items-center gap-2">
-                <GitBranch size={15} className={isDarkMode ? 'text-white/70' : 'text-slate-600'} />
-                <span className={`text-sm font-light ${isDarkMode ? 'text-white/88' : 'text-slate-800/88'}`}>报价到发货链溯源</span>
-                <span className={`text-[10px] font-light tracking-[0.14em] ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>Quote to Ship</span>
+        <>
+          <div className="bds-sheet-mask open" onClick={() => setTraceQuoteId(null)} />
+          <div className="bds-sheet lg open" role="dialog" aria-label="报价到发货链溯源">
+            <div className="sh-head" style={{ alignItems: 'center' }}>
+              <div className="sh-main">
+                <div className="sh-title flex items-center gap-2">
+                  <GitBranch size={15} style={{ color: 'var(--text-tertiary)' }} />
+                  报价到发货链溯源
+                </div>
+                <div className="sh-sub">Quote to Ship</div>
               </div>
               <button
                 type="button"
                 onClick={() => setTraceQuoteId(null)}
-                className={`flex h-7 w-7 items-center justify-center rounded-control transition-colors ${isDarkMode ? 'text-white/50 hover:bg-white/8 hover:text-white/80' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                className="bds-btn bds-btn-ghost sm"
+                style={{ padding: '0 var(--space-2)' }}
               >
                 <X size={15} />
               </button>
             </div>
-            <TraceabilityPanel
-              isDarkMode={isDarkMode}
-              presetScenario="quoteToShip"
-              presetRootId={traceQuoteId}
-              embedded
-            />
+            <div className="sh-body" style={{ padding: 0 }}>
+              <TraceabilityPanel
+                isDarkMode={isDarkMode}
+                presetScenario="quoteToShip"
+                presetRootId={traceQuoteId}
+                embedded
+              />
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

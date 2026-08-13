@@ -1,5 +1,4 @@
 import React from 'react';
-import { BAMBOOK_OS } from './bambookOsTokens';
 import { NotificationCenterTrigger } from '../NotificationCenter';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -7,11 +6,15 @@ const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(
 /**
  * 统一页面标题栏组件 —— 所有桌面端页面共用。
  * 一处修改，全页面联动：padding、标题字号、副标题间距、右侧布局。
+ *
+ * BDS v2.1：内部实现收敛到 bds-pagehead（styles/bds/components.css §20），
+ * 对主题透明 — 暗色由 tokens.css [data-theme]/.dark 统一覆盖，
+ * isDarkMode prop 保留仅为调用方兼容，组件内部不再消费。
  */
 export interface PageHeaderProps {
   /** 中文主标题 */
   title: string;
-  /** 英文副标题（显示在主标题下方） */
+  /** 英文副标题（中英混排，显示在主标题右侧） */
   subtitle?: string;
   /** 右侧英文上下文标注（如 "Invoice Desk"） */
   contextLabel?: string;
@@ -21,7 +24,7 @@ export interface PageHeaderProps {
   breadcrumb?: React.ReactNode;
   /** 标题栏中间槽（少数页面有视图切换需求） */
   center?: React.ReactNode;
-  /** 暗色模式 */
+  /** 暗色模式（v2.1 起不再消费，仅为调用方兼容保留） */
   isDarkMode?: boolean;
   /** 是否隐藏（全屏编辑器场景） */
   hidden?: boolean;
@@ -33,11 +36,6 @@ export interface PageHeaderProps {
   style?: React.CSSProperties;
 }
 
-const TITLE_DARK = 'text-white/86';
-const TITLE_LIGHT = 'text-slate-950';
-const SUBTITLE_DARK = 'text-white/52';
-const SUBTITLE_LIGHT = 'text-slate-500';
-
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   subtitle,
@@ -45,35 +43,23 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   actions,
   breadcrumb,
   center,
-  isDarkMode = false,
   hidden = false,
   safeLeftStyle,
   className,
   style,
 }) => {
-  const titleColorClass = isDarkMode ? TITLE_DARK : TITLE_LIGHT;
-  const mutedClass = isDarkMode ? SUBTITLE_DARK : SUBTITLE_LIGHT;
-
   return (
     <header
       data-ui-lab-wallpaper-contrast="primary"
-      className={cx(
-        'flex shrink-0 items-center justify-between gap-4 px-7 pt-5 pb-4',
-        hidden && 'hidden',
-        className,
-      )}
+      className={cx('bds-pagehead shrink-0', hidden && 'hidden', className)}
       style={{ ...safeLeftStyle, ...style }}
     >
-      {/* 左侧：主标题 + 副标题（nowrap + truncate：顶栏文字禁止换行） */}
-      <div className="min-w-0 flex flex-col">
-        <h1 className={cx(BAMBOOK_OS.layout.desktopTitleTextClass, 'whitespace-nowrap truncate', titleColorClass)}>
+      {/* 左侧：中英混排标题（nowrap + truncate：顶栏文字禁止换行） */}
+      <div className="ph-main">
+        <h1 className="ph-title" style={{ margin: 0 }}>
           {title}
+          {subtitle && <span className="en">{subtitle}</span>}
         </h1>
-        {subtitle && (
-          <div className={cx('mt-2 text-xs font-light whitespace-nowrap truncate', mutedClass)}>
-            {subtitle}
-          </div>
-        )}
       </div>
       {/* 中间槽（少数页面有视图切换需求） */}
       {center && (
@@ -82,10 +68,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </div>
       )}
       {/* 右侧：面包屑 + 上下文标注 + 操作按钮 + 通知按钮（最右） */}
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="ph-side">
         {breadcrumb}
         {contextLabel && (
-          <span className={cx('text-[11px] font-light', mutedClass)}>
+          <span className="bds-text-xs" style={{ color: 'var(--text-tertiary)' }}>
             {contextLabel}
           </span>
         )}

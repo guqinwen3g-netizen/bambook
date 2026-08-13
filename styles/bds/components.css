@@ -11,6 +11,8 @@
         [data-theme]/​.dark 统一覆盖。
      3. rimless — 静态面零阴影；仅浮层（modal/toast/segment 激活面/
         switch knob/interactive 卡 hover）使用 --bds-shadow-*。
+        光感例外：仅小型彩色状态元素（徽章 tint + dot LED / 进度条 fill /
+        toast 图标）使用 --glow-* 自发光层；控件与大表面不发光。
      4. Bambook 业务适配 — pagehead 中英混排标题 + 右侧 breadcrumb 槽位；
         标题单行不换行、溢出省略号；徽章语义对齐 rdlBusinessStatusTokens。
    用法：class="bds-btn bds-btn-primary" 基类 + 变体类组合；
@@ -29,7 +31,7 @@
   border-radius: var(--r-btn);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 300;
   letter-spacing: 0.01em;
   white-space: nowrap;
   cursor: pointer;
@@ -56,7 +58,9 @@
 .bds-btn.sm { height: var(--h-btn-sm); padding: var(--p-btn-sm); font-size: var(--text-xs); }
 .bds-btn.lg { height: var(--h-btn-lg); padding: var(--p-btn-lg); font-size: var(--text-base); }
 
-/* 变体 — rimless：hover 只换底色，不加阴影 */
+/* 变体 — rimless：hover 只换底色，不加阴影。
+   发光纪律：控件（button/switch/check）不发光；
+   仅小型彩色状态元素（徽章/进度条/toast 图标）使用 --glow-* 自发光层。 */
 .bds-btn-primary { background: var(--accent); color: #fff; }
 .bds-btn-primary:hover { background: var(--accent-hover); }
 .bds-btn-primary:active { background: var(--accent-active); }
@@ -209,21 +213,16 @@ select.bds-select:focus {
 .bds-card.interactive:hover { transform: translateY(-2px); box-shadow: var(--bds-shadow-sm); }
 .bds-card.interactive:active { transform: translateY(0); box-shadow: none; }
 
-/* 品牌深蓝实底卡 — Bambook 签名锚点（双主题通用，文字锁定 on-brand 体系） */
-.bds-card.brand { background: var(--brand-deep); color: var(--on-brand); }
-.bds-card.brand .bds-stat-label, .bds-card.brand .bds-stat-cap { color: var(--on-brand-2); }
+/* 雾蓝渐变签名卡 — Luna 案例实测转译（"Data → Atmosphere"）
+   用途纪律：hero 数据锚点 / 品牌面 / 每屏至多一处；白字落于雾面（Luna 实测手法）
+   颗粒层：fractalNoise 细颗粒让雾面有胶片呼吸感，而非数字平涂 */
+.bds-card.mist { background: var(--grain-img), var(--brand-mist); color: var(--on-mist); }
+.bds-card.mist .bds-stat-label, .bds-card.mist .bds-stat-cap { color: var(--on-mist-2); }
+.bds-card.mist .bds-stat-delta { color: var(--on-mist); background: var(--on-mist-chip); }
 
-/* 渐变瓷砖卡 — 数据强调位（自身即深材质，双主题通用） */
-.bds-card.tile {
-  background: var(--tile-royal);
-  border-radius: var(--r-card-lg);
-  color: #fff;
-  position: relative;
-  overflow: hidden;
-}
-.bds-card.tile.cyan { background: var(--tile-cyan); }
-.bds-card.tile .bds-stat-num { color: #fff; }
-.bds-card.tile .bds-stat-label, .bds-card.tile .bds-stat-cap { color: var(--on-tile); }
+/* 紫藤点缀卡 — Luna checkbox 紫的转译（AI 助手 / 特殊标记专用，每屏至多一处） */
+.bds-card.wisteria { background: var(--wisteria-tint); color: var(--wisteria-text); }
+.bds-card.wisteria .bds-stat-label, .bds-card.wisteria .bds-stat-cap { color: var(--wisteria-text); }
 
 /* Stat 统计 — 实底卡片签名版式：大数字 + 小标签 */
 .bds-stat-num {
@@ -233,24 +232,24 @@ select.bds-select:focus {
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
-/* 混合字重排版：货币符号/小数缩小淡化 */
-.bds-stat-num .unit, .bds-stat-num .frac { font-size: 0.45em; font-weight: 400; opacity: 0.45; }
+/* 混排：货币符号/小数缩小淡化（同重 300，靠字号与透明度分层） */
+.bds-stat-num .unit, .bds-stat-num .frac { font-size: 0.45em; font-weight: 300; opacity: 0.45; }
 .bds-stat-num.hero { font-size: 56px; }
 .bds-stat-label {
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 300;
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
 }
-.bds-stat-delta { font-size: var(--text-xs); font-weight: 500; }
+.bds-stat-delta { font-size: var(--text-xs); font-weight: 300; }
 .bds-stat-delta.up { color: var(--success-text); }
 .bds-stat-delta.down { color: var(--danger-text); }
 .bds-stat-cap { font-size: var(--text-xs); color: var(--text-tertiary); margin-top: var(--space-2); }
 
-/* Overline 大写微标签 — 区块标题级 */
+/* Overline 大写微标签 — 区块标题级（全局 ≤300 纪律，与同族文本同重） */
 .bds-overline {
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 300;
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
   color: var(--text-primary);
@@ -296,7 +295,7 @@ select.bds-select:focus {
 .bds-listrow .lr-main { flex: 1; min-width: 0; }
 .bds-listrow .lr-title {
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 300;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -312,22 +311,23 @@ select.bds-select:focus {
   padding: var(--p-badge);
   border-radius: var(--r-badge);
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 300;
   line-height: 1.4;
   white-space: nowrap;
 }
-.bds-badge .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.bds-badge .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
 .bds-badge.sm { padding: 3px 9px; font-size: 10px; }
 .bds-badge.lg { padding: 6px 14px; font-size: var(--text-sm); }
 
-.bds-badge.success { background: var(--success-tint); color: var(--success-text); }
-.bds-badge.warning { background: var(--warning-tint); color: var(--warning-text); }
-.bds-badge.danger { background: var(--danger-tint); color: var(--danger-text); }
-.bds-badge.info { background: var(--accent-tint); color: var(--accent-text); }
+/* 语义徽章 — tint 底 + soft 荧光外晕（浊色颜料透光） */
+.bds-badge.success { background: var(--success-tint); color: var(--success-text); box-shadow: var(--glow-success-soft); }
+.bds-badge.warning { background: var(--warning-tint); color: var(--warning-text); box-shadow: var(--glow-warning-soft); }
+.bds-badge.danger { background: var(--danger-tint); color: var(--danger-text); box-shadow: var(--glow-danger-soft); }
+.bds-badge.info { background: var(--accent-tint); color: var(--accent-text); box-shadow: var(--glow-accent-soft); }
 .bds-badge.neutral { background: var(--bg-sunken); color: var(--text-secondary); }
 
-/* Outline 变体 — 去填充，hairline 描边取字色 */
-.bds-badge.outline { background: transparent; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); }
+/* Outline 变体 — 去填充，hairline 描边取字色（去外晕，描边自身即光感边界） */
+.bds-badge.outline { background: transparent; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); box-shadow: none; }
 .bds-badge.outline.neutral { color: var(--text-tertiary); border-color: var(--border-c-strong); }
 
 /* Frosted 变体 — 叠加在图表/视觉内容之上的浮动标记 */
@@ -419,7 +419,7 @@ select.bds-select:focus {
   transition: color var(--duration-fast) var(--ease-default);
 }
 .bds-tab:hover { color: var(--text-primary); }
-.bds-tab.active { color: var(--text-primary); font-weight: 500; }
+.bds-tab.active { color: var(--text-primary); font-weight: 300; }
 .bds-tab.active::after {
   content: "";
   position: absolute;
@@ -441,7 +441,7 @@ select.bds-select:focus {
   padding: 7px 16px;
   border-radius: var(--radius-pill);
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 300;
   color: var(--text-secondary);
   cursor: pointer;
   border: none;
@@ -463,7 +463,7 @@ select.bds-select:focus {
 }
 .bds-table th {
   text-align: left;
-  font-weight: 500;
+  font-weight: 300;
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
@@ -521,10 +521,10 @@ select.bds-select:focus {
   display: grid;
   place-items: center;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 300; /* 全局 ≤300 无例外 */
 }
-.bds-toast.success .ico { background: var(--success); color: #fff; }
-.bds-toast.danger .ico { background: var(--danger); color: #fff; }
+.bds-toast.success .ico { background: var(--success); color: #fff; box-shadow: var(--glow-success); }
+.bds-toast.danger .ico { background: var(--danger); color: #fff; box-shadow: var(--glow-danger); }
 
 /* ============ 13. Tooltip 提示 ============ */
 .bds-tooltip {
@@ -556,7 +556,7 @@ select.bds-select:focus {
   display: grid;
   place-items: center;
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 300;
   color: var(--text-secondary);
   overflow: hidden;
 }
@@ -568,17 +568,18 @@ select.bds-select:focus {
   height: 6px;
   border-radius: var(--radius-pill);
   background: var(--bg-sunken);
-  overflow: hidden;
+  /* 无 overflow:hidden — fill 自带 pill 圆角无溢出；放开让荧光外晕可见 */
 }
 .bds-progress .fill {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--accent);
+  box-shadow: var(--glow-accent);
   transition: width var(--duration-slower) var(--ease-out);
 }
-.bds-progress.success .fill { background: var(--success); }
-.bds-progress.warning .fill { background: var(--warning); }
-.bds-progress.danger .fill { background: var(--danger); }
+.bds-progress.success .fill { background: var(--success); box-shadow: var(--glow-success); }
+.bds-progress.warning .fill { background: var(--warning); box-shadow: var(--glow-warning); }
+.bds-progress.danger .fill { background: var(--danger); box-shadow: var(--glow-danger); }
 
 /* ============ 16. Skeleton 骨架屏 ============ */
 .bds-skeleton {
@@ -616,8 +617,18 @@ select.bds-select:focus {
   color: var(--text-tertiary);
   margin-bottom: var(--space-3);
 }
-.bds-empty .title { font-size: var(--text-sm); font-weight: 500; }
+.bds-empty .title { font-size: var(--text-sm); font-weight: 300; }
 .bds-empty .desc { font-size: var(--text-xs); color: var(--text-tertiary); margin-top: var(--space-1); }
+
+/* mist 签名变体 — Luna 实测手法：雾蓝渐变承载空状态/洞察文案（白字落于雾面） */
+.bds-empty.mist {
+  border-radius: var(--r-card-lg);
+  background: var(--brand-mist);
+  padding: var(--space-16) var(--space-8);
+}
+.bds-empty.mist .glyph { background: var(--on-mist-chip); color: var(--on-mist); backdrop-filter: blur(10px); }
+.bds-empty.mist .title { color: var(--on-mist); font-size: var(--text-lg); }
+.bds-empty.mist .desc { color: var(--on-mist-2); font-size: var(--text-sm); }
 
 /* ============ 18. Divider 分割线 ============ */
 .bds-divider {
@@ -634,7 +645,7 @@ select.bds-select:focus {
   padding: 3px 10px;
   border-radius: var(--r-chip);
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 300;
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   background: var(--bg-sunken);
@@ -654,7 +665,7 @@ select.bds-select:focus {
 .bds-pagehead .ph-main { flex: 1; min-width: 0; }
 .bds-pagehead .ph-title {
   font-size: var(--text-xl);
-  font-weight: 500;
+  font-weight: 300;
   letter-spacing: var(--tracking-tight);
   white-space: nowrap;
   overflow: hidden;
@@ -663,7 +674,7 @@ select.bds-select:focus {
 /* 中英混排：英文部分小一号 + 三级色（<span class="en">Orders</span>） */
 .bds-pagehead .ph-title .en {
   font-size: var(--text-sm);
-  font-weight: 400;
+  font-weight: 300;
   color: var(--text-tertiary);
   margin-left: var(--space-2);
   letter-spacing: var(--tracking-wide);
@@ -732,7 +743,7 @@ select.bds-select:focus {
   padding: 14px 0;
 }
 .bds-setrow .sr-main { flex: 1; min-width: 0; }
-.bds-setrow .sr-title { font-size: var(--text-sm); font-weight: 500; }
+.bds-setrow .sr-title { font-size: var(--text-sm); font-weight: 300; }
 .bds-setrow .sr-desc { font-size: var(--text-xs); color: var(--text-tertiary); margin-top: 2px; }
 
 /* ============ 工具类 — 排版/材质/数字 ============ */
@@ -762,3 +773,284 @@ select.bds-select:focus {
 
 /* 页面光感背景 — Bambook 蓝系 aurora */
 .bds-page-aurora { background: var(--page-aurora); }
+
+/* ============ 23. Popover / Dropdown 浮层族 ============
+   收敛对象：CustomSelect / RelationCombobox / CustomerSearchInput / SmartLinkedInput 四套并存实现。
+   触发器复用 .bds-input / .bds-btn（caret 旋转由触发器自控），本族只提供浮层面板。 */
+.bds-pop {
+  position: absolute;
+  z-index: var(--z-pop);
+  min-width: 200px;
+  background: var(--bg-card);
+  border-radius: var(--r-pop);
+  padding: var(--p-pop);
+  box-shadow: var(--bds-shadow-sm);
+}
+.bds-pop .opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+.bds-pop .opt:hover { background: var(--bg-panel); }
+.bds-pop .opt.sel { background: var(--bg-panel); }
+.bds-pop .opt.sel .tick { margin-left: auto; color: var(--accent-text); }
+.bds-pop .opt.disabled { opacity: 0.4; cursor: not-allowed; }
+.bds-pop .opt .sub { margin-left: auto; font-size: var(--text-xs); color: var(--text-quaternary); }
+.bds-pop .cap {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: 10px;
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.bds-pop .sep { height: 1px; background: var(--border-subtle); margin: var(--space-1) var(--space-2); }
+.bds-pop .search { padding: 0 0 var(--space-1); }
+.bds-pop .empty-tip { padding: var(--space-4); text-align: center; font-size: var(--text-xs); color: var(--text-tertiary); }
+
+/* ============ 24. Sheet 右滑详情抽屉 ============
+   收敛对象：DetailPanel / SidePanelContainer / BottomSheet（桌面端统一为右滑形态）。
+   壳只负责头/体/脚骨架；内部内容用 card/listrow/badge 等现有族组合。 */
+.bds-sheet-mask {
+  position: fixed; inset: 0; z-index: var(--z-sheet);
+  background: var(--mask-bg);
+  opacity: 0;
+  pointer-events: none; /* 关闭态不拦截点击 — 常驻 DOM 的 v2 用法 */
+  transition: opacity var(--duration-normal) var(--ease-default);
+}
+.bds-sheet-mask.open { opacity: 1; pointer-events: auto; }
+.bds-sheet {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: var(--z-sheet);
+  width: 480px;
+  max-width: calc(100vw - 48px);
+  background: var(--bg-card);
+  border-radius: var(--r-sheet) 0 0 var(--r-sheet);
+  box-shadow: var(--bds-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform var(--duration-normal) var(--ease-default);
+}
+.bds-sheet.open { transform: translateX(0); }
+.bds-sheet.lg { width: 640px; }
+.bds-sheet .sh-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6) var(--space-4);
+  border-bottom: var(--border-subtle);
+}
+.bds-sheet .sh-main { flex: 1; min-width: 0; }
+.bds-sheet .sh-title {
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-tight);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; /* 顶栏不换行铁律 */
+}
+.bds-sheet .sh-sub { font-size: var(--text-xs); color: var(--text-tertiary); margin-top: 2px; }
+.bds-sheet .sh-body { flex: 1; overflow-y: auto; padding: var(--space-5) var(--space-6); }
+.bds-sheet .sh-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+  border-top: var(--border-subtle);
+}
+
+/* ============ 25. Calendar 日历（date 输入的浮层部分；输入框复用 .bds-input） ============ */
+.bds-cal {
+  width: 280px;
+  background: var(--bg-card);
+  border-radius: var(--r-pop);
+  padding: var(--space-3);
+  box-shadow: var(--bds-shadow-sm);
+}
+.bds-cal .cal-head { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-1) var(--space-2); }
+.bds-cal .cal-title { font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.bds-cal .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.bds-cal .cal-wd {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+  padding: var(--space-1) 0;
+}
+.bds-cal .cal-day {
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+.bds-cal .cal-day:hover { background: var(--bg-panel); }
+.bds-cal .cal-day.dim { color: var(--text-quaternary); }
+.bds-cal .cal-day.today { color: var(--accent-text); }
+.bds-cal .cal-day.sel { background: var(--accent); color: #fff; }
+.bds-cal .cal-day.in-range { background: var(--accent-tint); border-radius: 0; }
+
+/* ============ 26. Steps 步骤条 — 向导/导入流程 ============ */
+.bds-steps { display: flex; align-items: center; }
+.bds-step { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.bds-step .dot {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-sunken);
+  color: var(--text-tertiary);
+  transition: all var(--duration-fast) var(--ease-default);
+}
+.bds-step .st-title { font-size: var(--text-sm); color: var(--text-tertiary); white-space: nowrap; }
+.bds-step.active .dot { background: var(--accent); color: #fff; box-shadow: var(--glow-accent-soft); }
+.bds-step.active .st-title { color: var(--text-primary); }
+.bds-step.done .dot { background: var(--success-tint); color: var(--success-text); }
+.bds-step.done .st-title { color: var(--text-secondary); }
+.bds-step-line {
+  flex: 1;
+  min-width: 24px;
+  height: 1px;
+  background: var(--border-default);
+  margin: 0 var(--space-3);
+}
+.bds-step-line.done { background: var(--accent); }
+
+/* ============ 27. Pagination 分页 ============ */
+.bds-pager { display: flex; align-items: center; gap: var(--space-1); }
+.bds-pager .pg-total { font-size: var(--text-xs); color: var(--text-tertiary); margin-right: var(--space-2); font-variant-numeric: tabular-nums; }
+.bds-pager .pg {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-default);
+}
+.bds-pager .pg:hover { background: var(--bg-panel); color: var(--text-primary); }
+.bds-pager .pg.cur { background: var(--invert-bg); color: var(--invert-text); }
+.bds-pager .pg.disabled { opacity: 0.35; pointer-events: none; }
+
+/* ============ 28. Chart 图表容器 — 不包图表库，只提供壳/图例/参考线 token ============ */
+.bds-chart .ch-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--space-4); }
+.bds-chart .ch-title { font-size: var(--text-sm); color: var(--text-secondary); }
+.bds-chart .ch-legend { display: flex; gap: var(--space-3); }
+.bds-chart .lg-item { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-tertiary); }
+.bds-chart .lg-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; } /* 小元素允许发光 */
+.bds-chart .ch-plot { position: relative; }
+.bds-chart .ch-grid { border-top: 1px dashed var(--grid-line); } /* dashed 网格线比实线更轻 */
+
+/* ============ 29. Upload 上传区 ============ */
+.bds-upload {
+  border: 1.5px dashed var(--dz-line);
+  border-radius: var(--r-card);
+  padding: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-tertiary);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-default);
+}
+.bds-upload:hover { background: var(--bg-panel); }
+.bds-upload.drag { border-color: var(--accent); background: var(--accent-tint); color: var(--accent-text); }
+.bds-upload .up-title { font-size: var(--text-sm); color: var(--text-secondary); }
+.bds-upload.drag .up-title { color: var(--accent-text); }
+.bds-upload .up-hint { font-size: var(--text-xs); }
+/* 缩略图网格（ImageUploader 形态） */
+.bds-upgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.bds-upitem {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-sunken);
+}
+.bds-upitem img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bds-upitem .del {
+  position: absolute; top: 6px; right: 6px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--invert-bg);
+  color: var(--invert-text);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-default);
+}
+.bds-upitem:hover .del { opacity: 1; }
+.bds-upitem .prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--gauge-track); }
+.bds-upitem .prog .fill { height: 100%; background: var(--accent); box-shadow: var(--glow-accent-soft); }
+
+/* ============ 30. AI 消息气泡 / 流式态 ============ */
+.bds-msg { display: flex; gap: var(--space-3); }
+.bds-msg .bbl {
+  max-width: 72%;
+  padding: 12px var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.bds-msg.ai .bbl { background: var(--bg-card); color: var(--text-primary); border-top-left-radius: var(--radius-xs); }
+.bds-msg.user { flex-direction: row-reverse; }
+.bds-msg.user .bbl { background: var(--accent-tint); color: var(--accent-text); border-top-right-radius: var(--radius-xs); }
+/* 流式光标 — 跟随最后字符闪烁 */
+.bds-stream::after {
+  content: "";
+  display: inline-block;
+  width: 7px; height: 14px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: bds-caret 0.9s steps(2) infinite;
+}
+@keyframes bds-caret { 50% { opacity: 0; } }
+/* 工具调用 chip — Agent 执行轨迹 */
+.bds-toolchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+.bds-toolchip .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
+.bds-toolchip.run .dot { color: var(--warning); }
+.bds-toolchip.done .dot { color: var(--success); }
+.bds-toolchip.fail .dot { color: var(--danger); }
+
+/* ============ 31. Alert 内联通告 — 表单/列表错误、成功横幅 ============
+   收敛对象：各页 p-3 rounded-inset border + statusSemanticClass 拼装横幅。 */
+.bds-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+.bds-alert.info { background: var(--accent-tint); color: var(--accent-text); }
+.bds-alert.success { background: var(--success-tint); color: var(--success-text); }
+.bds-alert.warning { background: var(--warning-tint); color: var(--warning-text); }
+.bds-alert.danger { background: var(--danger-tint); color: var(--danger-text); }

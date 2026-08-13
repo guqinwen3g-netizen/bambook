@@ -16,6 +16,9 @@
 @import '@fontsource/urbanist/500.css';
 @import '@fontsource/urbanist/600.css';
 @import '@fontsource/urbanist/700.css';
+/* JetBrains Mono Light 300 — 等宽数字/单号场景（font-mono 工具类 + --font-mono token）。
+   ≤300 纪律下唯一引入的字重面，与 Urbanist/HarmonyOS 300 同重对齐。 */
+@import '@fontsource/jetbrains-mono/300.css';
 
 /* Design system tokens — os-vnext.css 为权威 token 源 + flat-experimental.css 为正式 flat 覆盖层.
    design-system.css 已退役（legacy，类名/变量在 tsx 中零引用）.
@@ -647,6 +650,16 @@ body {
     /* Prevent UI collapse on ultra-narrow screens */
     min-width: 729px;
     min-height: 479px;
+}
+
+/* Thin-first 字重纪律：Tailwind preflight 保留 b/strong { font-weight: bolder }，
+   在 300 基调下会解析为 ~700 粗体，是"误用粗体"的隐性来源。全局字重 ≤300 无例外，
+   strong/b 与正文同重，强调靠墨色层级而非字重跳变。
+   置于 @layer base，font-light 等工具类仍可按需覆盖。 */
+@layer base {
+    strong, b {
+        font-weight: 300;
+    }
 }
 
 #root {
