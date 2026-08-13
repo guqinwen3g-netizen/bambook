@@ -9,6 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="Bambook">
   <link rel="manifest" href="%BASE_URL%manifest.webmanifest">
   <link rel="apple-touch-icon" href="%BASE_URL%pwa-icon.svg">
+  <!-- Globe basemap origin: warm up DNS+TLS before the lazy map chunk
+       requests style JSON / sprite / vector tiles. Saves the full handshake
+       RTT from the globe's first-paint critical path. -->
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+  <link rel="dns-prefetch" href="https://tiles.openfreemap.org">
   <title>Bambook 竹衍 | Digital Strategy Hub</title>
   <!--
     Offline-first asset policy (B0): all runtime deps are local.

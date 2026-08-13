@@ -70,7 +70,7 @@ describe('MapLibreProductionGlobe', () => {
     expect(source).toContain('const isUserCameraEvent = (event?: { originalEvent?: unknown }) => Boolean(event?.originalEvent)');
     expect(source).toContain('map.on(\'move\', scheduleMarkerUpdate)');
     expect(source).toContain('window.requestAnimationFrame');
-    expect(source).toContain('setMarkers(prev => {');
+    expect(source).toContain('setMarkerItems(prev => {');
     expect(source).not.toContain('GLOBE_AUTO_ROTATE_SPEED * 1.4 * dt');
     expect(source).toContain('onRuntimeError');
     expect(source).toContain('const hasReachedInitialIdleRef = useRef(false)');
@@ -81,8 +81,12 @@ describe('MapLibreProductionGlobe', () => {
   it('renders frosted route nodes with a next-node control over connected route lines', () => {
     const source = readFileSync(new URL('./MapLibreProductionGlobe.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain('const routeSegments = useMemo(() => {');
-    expect(source).toContain('visibleMarkers.slice(0, -1).map');
+    expect(source).toContain('const [routeSegments, setRouteSegments] = useState<RouteSegmentLink[]>([])');
+    expect(source).toContain('computeRouteSegmentLinks');
+    expect(source).toContain('visible.slice(0, -1).map');
+    // Per-frame overlay geometry must stay off React state (imperative DOM writes).
+    expect(source).toContain('applyMarkerPositions');
+    expect(source).not.toContain('const [markers, setMarkers] = useState');
     expect(source).toContain('locationLabel: target.label');
     expect(source).toContain('{marker.locationLabel}');
     expect(source).toContain('aria-label={`聚焦 ${marker.locationLabel} 节点`}');

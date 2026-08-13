@@ -89,14 +89,48 @@ const StatusColorMap: Record<string, string> = {
   Delivered: '#294465',
 };
 
-interface MarkerPosition {
+// Marker overlay state is deliberately split in two:
+//   - MarkerItem (React state): structural identity — id/sequence/target.
+//     Changes only when the tour target set changes, so React re-renders
+//     the overlay O(once), not per camera frame.
+//   - MarkerLayout (refs + imperative DOM writes): x/y/hidden, updated on
+//     every map 'move' event (60/s during flyTo). Writing styles directly
+//     to DOM refs keeps per-frame camera motion off the React
+//     reconciliation path — this was the main jank source during tours.
+interface MarkerItem {
   id: string;
-  x: number;
-  y: number;
   sequence: number;
   locationLabel: string;
   target: RouteTourTarget;
+}
+
+interface MarkerLayout {
+  x: number;
+  y: number;
   hidden: boolean;
+}
+
+interface RouteSegmentLink {
+  id: string;
+  fromId: string;
+  toId: string;
+}
+
+// Segment chain connects visible neighbors in tour order (unchanged visual
+// semantics vs the old state-derived version).
+function computeRouteSegmentLinks(
+  targets: RouteTourTarget[],
+  positions: Map<string, MarkerLayout>,
+): RouteSegmentLink[] {
+  const visible = targets.filter(target => {
+    const pos = positions.get(target.id);
+    return Boolean(pos) && !pos!.hidden;
+  });
+  return visible.slice(0, -1).map((target, index) => ({
+    id: `${target.id}-${visible[index + 1].id}`,
+    fromId: target.id,
+    toId: visible[index + 1].id,
+  }));
 }
 
 interface RouteTourTarget {
@@ -974,7 +1008,15 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
   const [isMapStyled, setIsMapStyled] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<RouteTourTarget | null>(null);
   const [hoveredTarget, setHoveredTarget] = useState<RouteTourTarget | null>(null);
-  const [markers, setMarkers] = useState<MarkerPosition[]>([]);
+  const [markerItems, setMarkerItems] = useState<MarkerItem[]>([]);
+  const [routeSegments, setRouteSegments] = useState<RouteSegmentLink[]>([]);
+  // Per-frame overlay geometry lives outside React state (see MarkerItem comment).
+  const markerPositionsRef = useRef(new Map<string, MarkerLayout>());
+  const markerElsRef = useRef(new Map<string, HTMLDivElement>());
+  const lineElsRef = useRef(new Map<string, SVGLineElement>());
+  const tooltipElRef = useRef<HTMLDivElement | null>(null);
+  const tooltipTargetRef = useRef<RouteTourTarget | null>(null);
+  const routeSegmentsRef = useRef<RouteSegmentLink[]>([]);
 
   const activeOrders = useMemo(
     () => orders
@@ -1019,14 +1061,6 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     () => realTourTargets.length >= 2 ? resolveRouteMapCenter(activeOrders) : DEMO_TOUR_TARGETS[0].center,
     [activeOrders, realTourTargets],
   );
-  const routeSegments = useMemo(() => {
-    const visibleMarkers = markers.filter(marker => !marker.hidden).sort((a, b) => a.sequence - b.sequence);
-    return visibleMarkers.slice(0, -1).map((marker, index) => ({
-      id: `${marker.id}-${visibleMarkers[index + 1].id}`,
-      from: marker,
-      to: visibleMarkers[index + 1],
-    }));
-  }, [markers]);
 
   const styleUrl = getEnvValue('VITE_BAMBOOK_GLOBE_STYLE_URL') || DEFAULT_STYLE_URL;
 
@@ -1180,39 +1214,98 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     presentInitialCamera();
   }, [presentInitialCamera, viewportCenter]);
 
+  // Imperative overlay geometry writer. Runs on every map 'move' frame;
+  // must stay allocation-light and never touch React state.
+  const applyMarkerPositions = useCallback(() => {
+    const positions = markerPositionsRef.current;
+    markerElsRef.current.forEach((el, id) => {
+      const pos = positions.get(id);
+      if (!pos) {
+        el.style.opacity = '0';
+        return;
+      }
+      // transform (composited) instead of left/top (layout) — keeps the
+      // per-frame write off the layout pipeline entirely.
+      el.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0) translate(-50%, -50%)`;
+      el.style.opacity = pos.hidden ? '0' : '1';
+    });
+    routeSegmentsRef.current.forEach(segment => {
+      const el = lineElsRef.current.get(segment.id);
+      if (!el) return;
+      const from = positions.get(segment.fromId);
+      const to = positions.get(segment.toId);
+      if (!from || !to || from.hidden || to.hidden) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = '';
+      el.setAttribute('x1', String(from.x));
+      el.setAttribute('y1', String(from.y));
+      el.setAttribute('x2', String(to.x));
+      el.setAttribute('y2', String(to.y));
+    });
+    const tooltipEl = tooltipElRef.current;
+    if (tooltipEl) {
+      const target = tooltipTargetRef.current;
+      const pos = target ? positions.get(target.id) : undefined;
+      if (pos && !pos.hidden) {
+        tooltipEl.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0) translate(-50%, -112%)`;
+        tooltipEl.style.opacity = '1';
+      } else {
+        tooltipEl.style.opacity = '0';
+      }
+    }
+  }, []);
+
   const updateMarkers = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
     const rect = map.getContainer().getBoundingClientRect();
-    const next = tourTargets.map((target, sequence) => {
+    const positions = markerPositionsRef.current;
+    positions.clear();
+    tourTargets.forEach(target => {
       const point = map.project(target.center);
-      return {
-        id: target.id,
+      positions.set(target.id, {
         x: point.x,
         y: point.y,
+        hidden: point.x < -24 || point.y < -24 || point.x > rect.width + 24 || point.y > rect.height + 24,
+      });
+    });
+    applyMarkerPositions();
+    // Structural changes only: same ordered id list → keep existing state so
+    // React skips re-render entirely on pure camera-motion frames.
+    setMarkerItems(prev => {
+      const unchanged = prev.length === tourTargets.length
+        && prev.every((item, index) => item.id === tourTargets[index].id);
+      if (unchanged) return prev;
+      return tourTargets.map((target, sequence) => ({
+        id: target.id,
         sequence,
         locationLabel: target.label,
         target,
-        hidden: point.x < -24 || point.y < -24 || point.x > rect.width + 24 || point.y > rect.height + 24,
-      };
-    }).filter((marker): marker is MarkerPosition => Boolean(marker));
-    setMarkers(prev => {
-      if (prev.length !== next.length) return next;
-      const changed = next.some((marker, index) => {
-        const previous = prev[index];
-        return !previous ||
-          previous.id !== marker.id ||
-          previous.hidden !== marker.hidden ||
-          Math.abs(previous.x - marker.x) > 0.5 ||
-          Math.abs(previous.y - marker.y) > 0.5;
-      });
-      return changed ? next : prev;
+      }));
     });
-  }, [tourTargets]);
+    setRouteSegments(prev => {
+      const next = computeRouteSegmentLinks(tourTargets, positions);
+      const unchanged = prev.length === next.length
+        && prev.every((segment, index) => segment.id === next[index].id);
+      return unchanged ? prev : next;
+    });
+  }, [tourTargets, applyMarkerPositions]);
 
   useEffect(() => {
     updateMarkersRef.current = updateMarkers;
   }, [updateMarkers]);
+
+  useEffect(() => {
+    routeSegmentsRef.current = routeSegments;
+  }, [routeSegments]);
+
+  // After any structural re-render (new marker/line DOM nodes, new tooltip
+  // target), re-apply the latest geometry to the freshly mounted elements.
+  useEffect(() => {
+    applyMarkerPositions();
+  }, [markerItems, routeSegments, selectedTarget, hoveredTarget, applyMarkerPositions]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -1246,11 +1339,22 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
       },
     });
     mapRef.current = map;
+    // Container resizes fire per-frame during the sidebar's 500ms CSS
+    // transition. Coalesce to one map.resize() per RAF — previously each
+    // RO tick triggered a full map repaint plus (via the 'resize' listener
+    // below) a camera jumpTo that fought the viewportCenter easeTo.
+    let resizeFrame: number | null = null;
+    const scheduleMapResize = () => {
+      if (resizeFrame !== null) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = null;
+        if (mapRef.current !== map) return;
+        map.resize();
+        updateMarkersRef.current();
+      });
+    };
     const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => {
-          map.resize();
-          updateMarkersRef.current();
-        })
+      ? new ResizeObserver(scheduleMapResize)
       : null;
     if (resizeObserver && containerRef.current) {
       resizeObserver.observe(containerRef.current);
@@ -1259,9 +1363,24 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
       (window as Window & { __bambookMapLibre?: MapLibreMap }).__bambookMapLibre = map;
     }
 
+    // Bounded retry instead of a permanent 100ms setInterval: applies the
+    // camera padding until the live main viewport element exists, then
+    // stops. The old interval ran jumpTo() every 100ms for as long as the
+    // element was missing — fighting both user drags and tour flyTos — and
+    // never terminated if the selector never matched.
     let viewportPaddingSyncTimer: number | null = null;
+    let viewportPaddingSyncAttempts = 0;
     const syncViewportPadding = () => {
+      viewportPaddingSyncTimer = null;
       if (!mapRef.current || mapRef.current !== map || isTourAnimatingRef.current) return;
+      if (isInteractingRef.current) {
+        // Never jumpTo mid-drag; retry once the gesture ends.
+        viewportPaddingSyncAttempts += 1;
+        if (viewportPaddingSyncAttempts < 30) {
+          viewportPaddingSyncTimer = window.setTimeout(syncViewportPadding, 100);
+        }
+        return;
+      }
       applyMapCameraPadding(map, sidebarOffsetRef.current, viewportCenterRef.current);
       map.jumpTo({
         center: routeCenterRef.current,
@@ -1270,12 +1389,12 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
         bearing: map.getBearing(),
       });
       updateMarkersRef.current();
-      if (hasLiveMainViewportRect() && viewportPaddingSyncTimer !== null) {
-        window.clearInterval(viewportPaddingSyncTimer);
-        viewportPaddingSyncTimer = null;
+      viewportPaddingSyncAttempts += 1;
+      if (!hasLiveMainViewportRect() && viewportPaddingSyncAttempts < 30) {
+        viewportPaddingSyncTimer = window.setTimeout(syncViewportPadding, 100);
       }
     };
-    viewportPaddingSyncTimer = window.setInterval(syncViewportPadding, 100);
+    viewportPaddingSyncTimer = window.setTimeout(syncViewportPadding, 100);
 
     const isUserCameraEvent = (event?: { originalEvent?: unknown }) => Boolean(event?.originalEvent);
     const startInteraction = (event?: { originalEvent?: unknown }) => {
@@ -1316,10 +1435,11 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     map.on('click', () => setSelectedTarget(null));
     map.on('move', scheduleMarkerUpdate);
     map.on('zoom', handleMapZoomChange);
-    map.on('resize', () => {
-      syncViewportPadding();
-      scheduleMarkerUpdate();
-    });
+    // Camera padding on container resize is owned by the viewportCenter
+    // effect (animated easeTo). This handler only repositions the HTML
+    // marker overlay after the canvas re-layout — a jumpTo here would
+    // collide with that animation on every resize frame.
+    map.on('resize', scheduleMarkerUpdate);
     map.on('error', event => {
       if (import.meta.env.DEV) {
         console.warn('[Bambook Map] maplibre runtime warning', {
@@ -1397,8 +1517,12 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     return () => {
       clearTourTimer();
       if (viewportPaddingSyncTimer !== null) {
-        window.clearInterval(viewportPaddingSyncTimer);
+        window.clearTimeout(viewportPaddingSyncTimer);
         viewportPaddingSyncTimer = null;
+      }
+      if (resizeFrame !== null) {
+        window.cancelAnimationFrame(resizeFrame);
+        resizeFrame = null;
       }
       if (introTimer !== null) {
         window.clearTimeout(introTimer);
@@ -1575,7 +1699,10 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
   }, [focusTarget, selectedTarget, tourTargets]);
 
   const tooltipTarget = hoveredTarget || selectedTarget;
-  const tooltipMarker = tooltipTarget ? markers.find(marker => marker.id === tooltipTarget.id && !marker.hidden) : null;
+  tooltipTargetRef.current = tooltipTarget;
+  const tooltipActive = tooltipTarget
+    ? markerItems.some(item => item.id === tooltipTarget.id)
+    : false;
   const mapOverlayControlClass = isDarkMode
     ? 'bg-[rgba(13,27,42,0.34)] text-slate-200'
     : 'bg-[rgba(255,255,255,0.46)] text-[var(--os-vnext-brand-blue-strong)]'
@@ -1611,10 +1738,10 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
         {isMapVisible && routeSegments.map(segment => (
           <line
             key={segment.id}
-            x1={segment.from.x}
-            y1={segment.from.y}
-            x2={segment.to.x}
-            y2={segment.to.y}
+            ref={el => {
+              if (el) lineElsRef.current.set(segment.id, el);
+              else lineElsRef.current.delete(segment.id);
+            }}
             stroke="url(#bambook-route-map-line)"
             strokeWidth="1.4"
             strokeLinecap="round"
@@ -1623,16 +1750,15 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
         ))}
       </svg>
       <div className="pointer-events-none absolute inset-0 z-[3]">
-        {isMapVisible && markers.map(marker => (
+        {isMapVisible && markerItems.map(marker => (
           <div
             key={marker.id}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${
-              marker.hidden ? 'opacity-0' : 'opacity-100'
-            }`}
-            style={{
-              left: marker.x,
-              top: marker.y,
+            ref={el => {
+              if (el) markerElsRef.current.set(marker.id, el);
+              else markerElsRef.current.delete(marker.id);
             }}
+            className="absolute left-0 top-0 opacity-0 transition-opacity duration-200"
+            style={{ transform: 'translate3d(-1000px, -1000px, 0)' }}
           >
             <button
               type="button"
@@ -1670,10 +1796,11 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
           <span className="text-base leading-none text-[var(--os-vnext-brand-blue)]">→</span>
         </button>
       )}
-      {isMapVisible && tooltipTarget && tooltipMarker && (
+      {isMapVisible && tooltipTarget && tooltipActive && (
         <div
-          className={`pointer-events-none absolute z-[4] min-w-[220px] -translate-x-1/2 translate-y-[-112%] rounded-card-lg border-0 p-4 shadow-none transition-opacity duration-150 ${mapOverlayControlClass}`}
-          style={{ left: tooltipMarker.x, top: tooltipMarker.y }}
+          ref={tooltipElRef}
+          className={`pointer-events-none absolute left-0 top-0 z-[4] min-w-[220px] rounded-card-lg border-0 p-4 opacity-0 shadow-none transition-opacity duration-150 ${mapOverlayControlClass}`}
+          style={{ transform: 'translate3d(-1000px, -1000px, 0)' }}
         >
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[10px] font-light uppercase tracking-[0.18em] text-[var(--os-vnext-brand-blue)]">{tooltipTarget.status || 'Pending'}</div>
@@ -1681,7 +1808,7 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
           </div>
           <div className={`mb-1 truncate text-sm font-light ${mapOverlayPrimaryTextClass}`}>{tooltipTarget.title || tooltipTarget.label}</div>
           <div className={`mb-3 text-[10px] font-light uppercase tracking-[0.16em] ${mapOverlaySubtleTextClass}`}>
-            {tooltipTarget.detail || tooltipMarker.locationLabel}
+            {tooltipTarget.detail || tooltipTarget.label}
           </div>
           <div className="grid grid-cols-2 gap-4 border-t border-[rgb(var(--os-vnext-brand-blue-rgb)/0.14)] pt-3 text-[10px]">
             <div>
