@@ -1,11 +1,9 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { ChevronLeft, FileText, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
-import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import {
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
-  CompiledInteractiveCard,
   CompiledModuleTitleBar,
   CompiledMotionInteractiveCard,
   CompiledSurfacePanel,
@@ -76,41 +74,18 @@ const tableColumns = [
 const tableGridClass =
   'grid w-full min-w-0 grid-cols-[minmax(0,1.1fr)_minmax(0,0.78fr)_minmax(0,0.9fr)_minmax(0,1fr)]';
 
-const stageTone = (stage: DevStage, isDarkMode: boolean) => {
-  if (stage === 'approved') return isDarkMode ? 'border-white/[0.08] bg-white/[0.06] text-white/70' : 'border-slate-300/40 bg-slate-100/60 text-slate-600';
-  if (stage === 'revision') return isDarkMode ? 'border-white/[0.08] bg-white/[0.06] text-white/70' : 'border-slate-300/40 bg-slate-100/60 text-slate-600';
-  if (stage === 'feedback') return isDarkMode ? 'border-white/[0.08] bg-white/[0.06] text-white/70' : 'border-slate-300/40 bg-slate-100/60 text-slate-600';
-  return isDarkMode ? 'border-white/[0.07] bg-white/[0.035] text-white/58' : 'border-slate-300/30 bg-white/36 text-slate-600/78';
+// BDS v2.1：阶段 → bds-badge 语义变体（主题透明，替代原 isDarkMode 双态 class 拼装。
+// 函数名保留 —— rdl 源码契约守卫测试消费同一函数体）
+const stageTone = (stage: DevStage): 'neutral' | 'info' | 'success' | 'danger' | 'warning' => {
+  if (stage === 'approved') return 'success';
+  if (stage === 'revision' || stage === 'shipping') return 'warning';
+  if (stage === 'developing' || stage === 'feedback') return 'info';
+  return 'neutral';
 };
 
-const ToolbarFilterButton = ({
-  active,
-  children,
-  isDarkMode,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  isDarkMode: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cx(
-      'h-8 shrink-0 rounded-control border px-3 text-[10px] font-light tracking-wide transition-all',
-      active
-        ? isDarkMode
-          ? BAMBOOK_OS.controls.selectedSurface.dark
-          : BAMBOOK_OS.controls.selectedSurface.light
-        : isDarkMode
-          ? `${BAMBOOK_OS.controls.toolbar.controlDark} ${BAMBOOK_OS.controls.toolbar.controlIdleDark}`
-          : `${BAMBOOK_OS.controls.toolbar.controlLight} ${BAMBOOK_OS.controls.toolbar.controlIdleLight}`,
-    )}
-  >
-    {children}
-  </button>
-);
+// compiled 交互卡 spotlight 统一 accent 色/尺寸（主题透明，替代 isDarkMode 双值三元）
+const SPOTLIGHT_COLOR = 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)';
+const SPOTLIGHT_SIZE = 200;
 
 const DEV_TYPE_OPTIONS = DEVELOPMENT_TYPES.filter((t): t is { id: DevType; label: string } => t.id !== 'all');
 const DEV_STAGE_OPTIONS = DEVELOPMENT_STAGES.filter((s): s is { id: DevStage; label: string } => s.id !== 'all');
@@ -311,20 +286,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
     }
   }, [selectedCase, setCases]);
 
-  const textPrimaryClass = isDarkMode ? 'text-white/86' : 'text-slate-950';
-  const textSecondaryClass = isDarkMode ? 'text-white/52' : 'text-slate-500';
-  const tableHeaderClass = isDarkMode ? BAMBOOK_OS.controls.table.headerDark : BAMBOOK_OS.controls.table.headerLight;
-  const tableRowHoverClass = isDarkMode ? BAMBOOK_OS.controls.table.rowHoverDark : BAMBOOK_OS.controls.table.rowHoverLight;
-  const tableRowSeparatorClass = isDarkMode ? BAMBOOK_OS.controls.table.rowSeparatorDark : BAMBOOK_OS.controls.table.rowSeparatorLight;
-  const toolbarSurfaceClass = isDarkMode ? BAMBOOK_OS.controls.toolbar.surfaceDark : BAMBOOK_OS.controls.toolbar.surfaceLight;
-  const toolbarSearchClass = isDarkMode ? BAMBOOK_OS.controls.toolbar.searchDark : BAMBOOK_OS.controls.toolbar.searchLight;
-  const toolbarSearchShellClass = isDarkMode ? BAMBOOK_OS.controls.toolbar.controlDark : BAMBOOK_OS.controls.toolbar.controlLight;
-  const mutedTitleActionClass = isDarkMode
-    ? 'border-transparent bg-transparent text-white/36'
-    : 'border-transparent bg-transparent text-slate-400';
-  const statusChipClass = isDarkMode
-    ? 'border-white/[0.065] bg-white/[0.028] text-white/54'
-    : 'border-slate-300/28 bg-white/38 text-slate-500';
+  // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+  const textPrimaryClass = 'text-[var(--text-primary)]';
+  const textSecondaryClass = 'text-[var(--text-tertiary)]';
 
   const statusItems = [
     { label: '开发中', value: cases.filter(item => item.stage === 'developing').length },
@@ -355,68 +319,67 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
         title="开发管理"
         subtitle="Development Tracking"
         contextLabel="Development Desk"
-        isDarkMode={isDarkMode}
         hidden={isFormModalOpen}
         actions={(
-          <div className="flex items-center gap-1">
-            <span
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
               onClick={handleRefresh}
-              className={cx(BAMBOOK_OS.controls.title.actionButton, 'cursor-pointer select-none', mutedTitleActionClass, isRefreshing && 'pointer-events-none opacity-50')}
+              disabled={isRefreshing}
+              className="bds-btn bds-btn-secondary sm"
             >
-              <RefreshCw size={13} strokeWidth={1.4} className={cx(isRefreshing && 'animate-spin')} />
+              <RefreshCw size={13} className={cx(isRefreshing && 'animate-spin')} />
               刷新
-            </span>
-            <span
+            </button>
+            <button
+              type="button"
               onClick={openCreateModal}
-              className={cx(BAMBOOK_OS.controls.title.actionButton, 'cursor-pointer', mutedTitleActionClass)}
+              className="bds-btn bds-btn-primary sm"
             >
-              <Plus size={14} strokeWidth={1.4} />
+              <Plus size={14} />
               新建开发单
-            </span>
+            </button>
           </div>
         )}
       />
 
-      <main className={cx(BAMBOOK_OS.layout.desktopSinglePanelBodyClass, BAMBOOK_OS.layout.desktopPageCanvasClass, isFormModalOpen && 'hidden')}>
+      <main className={cx('flex-1 min-h-0 flex flex-col px-5 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', isFormModalOpen && 'hidden')}>
         <div className="flex h-full min-h-0 flex-col gap-3">
-          <div className={cx(BAMBOOK_OS.controls.toolbar.base, 'h-auto min-h-9 overflow-hidden py-1', toolbarSurfaceClass)}>
-            <span className={BAMBOOK_OS.controls.toolbar.ambient} aria-hidden="true" />
-            <div className={cx(BAMBOOK_OS.controls.toolbar.content, '!h-auto min-h-9 flex-wrap gap-x-2 gap-y-2 py-1.5')}>
-              <label className={cx('flex h-9 min-w-[188px] flex-[1_1_220px] items-center gap-2 rounded-control border px-3 text-[11px] font-light', toolbarSearchShellClass)}>
-                <Search size={13} strokeWidth={1.2} className={isDarkMode ? 'text-white/38' : 'text-slate-400'} />
-                <input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="开发单 / 伙伴"
-                  className={cx('min-w-0 flex-1 bg-transparent text-[11px] font-light outline-none', toolbarSearchClass)}
-                />
-              </label>
-              <div className={cx('hidden h-4 w-px shrink-0 xl:block', isDarkMode ? 'bg-white/8' : 'bg-slate-300/32')} />
-              <CustomSelect
-                isDarkMode={isDarkMode}
-                size="compact"
-                surface="toolbar"
-                value={selectedType}
-                onChange={(v) => setSelectedType(v as DevelopmentTypeId)}
-                className="w-[140px] shrink-0"
-                options={DEVELOPMENT_TYPES.map(item => ({
-                  value: item.id,
-                  label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.type === item.id).length}`,
-                }))}
-              />
-              <CustomSelect
-                isDarkMode={isDarkMode}
-                size="compact"
-                surface="toolbar"
-                value={selectedStage}
-                onChange={(v) => setSelectedStage(v as DevelopmentStageId)}
-                className="w-[120px] shrink-0"
-                options={DEVELOPMENT_STAGES.map(item => ({
-                  value: item.id,
-                  label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.stage === item.id).length}`,
-                }))}
+          <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">
+            <div className="relative min-w-[188px] flex-[1_1_220px] max-w-xs">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="开发单 / 伙伴"
+                className="bds-input sm pl-9"
               />
             </div>
+            <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
+            <CustomSelect
+              isDarkMode={isDarkMode}
+              size="compact"
+              surface="toolbar"
+              value={selectedType}
+              onChange={(v) => setSelectedType(v as DevelopmentTypeId)}
+              className="w-[140px] shrink-0"
+              options={DEVELOPMENT_TYPES.map(item => ({
+                value: item.id,
+                label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.type === item.id).length}`,
+              }))}
+            />
+            <CustomSelect
+              isDarkMode={isDarkMode}
+              size="compact"
+              surface="toolbar"
+              value={selectedStage}
+              onChange={(v) => setSelectedStage(v as DevelopmentStageId)}
+              className="w-[120px] shrink-0"
+              options={DEVELOPMENT_STAGES.map(item => ({
+                value: item.id,
+                label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.stage === item.id).length}`,
+              }))}
+            />
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -430,9 +393,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               scrollClassName="min-h-0 flex-1 overflow-x-visible overflow-y-auto overscroll-contain"
               edgeFade={{ topHeight: 22, topFadeStartOffset: 0, bottomHeight: 42 }}
               header={(
-                <div className={cx(tableGridClass, 'border-b text-[10px] font-light tracking-[0.16em]', tableHeaderClass, textSecondaryClass)}>
+                <div className={cx(tableGridClass, 'text-[10px] tracking-[0.16em]', textSecondaryClass)} style={{ borderBottom: 'var(--border-default)' }}>
                   {tableColumns.map(column => (
-                    <div key={column.key} className={cx('min-w-0', BAMBOOK_OS.spacing.cellPadding)}>
+                    <div key={column.key} className="min-w-0 px-3 py-3">
                       {column.label}
                     </div>
                   ))}
@@ -449,8 +412,8 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                       key={item.id}
                       data-glass-edge-mask
                       onClick={() => setSelectedCaseId(item.id)}
-                      spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                      spotlightSize={isDarkMode ? 240 : 190}
+                      spotlightColor={SPOTLIGHT_COLOR}
+                      spotlightSize={SPOTLIGHT_SIZE}
                       idleSpotlightOpacity={0}
                       liquidSpotlight
                       liquidSpotlightTone="light"
@@ -459,37 +422,36 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                       transition={{ delay: index * 0.025 }}
                       className={cx(
                         tableGridClass,
-                        'group relative isolate w-full overflow-hidden text-left transition-[background,color,transform] duration-200',
-                        tableRowHoverClass,
-                        active && (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light),
+                        'group relative isolate w-full overflow-hidden text-left transition-colors duration-200 hover:bg-[var(--hover-darken)]',
                       )}
+                      style={active ? { background: 'var(--accent-tint)' } : undefined}
                     >
-                      <span className={cx('pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px', tableRowSeparatorClass)} aria-hidden="true" />
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <div className={cx('truncate font-light', textPrimaryClass)}>{item.name}</div>
+                      <span className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px bg-[var(--border-c-subtle)]" aria-hidden="true" />
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <div className={cx('truncate', textPrimaryClass)}>{item.name}</div>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>{item.code} · {typeLabelMap[item.type]} · S{item.currentRound}</div>
                       </div>
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', stageTone(item.stage, isDarkMode))}>
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <span className={`bds-badge sm ${stageTone(item.stage)}`}>
                           {stageLabelMap[item.stage]}
                         </span>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>负责人 · {item.owner || '—'}</div>
                       </div>
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <div className={cx('truncate font-light', textPrimaryClass)}>{item.customerName || '—'}</div>
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <div className={cx('truncate', textPrimaryClass)}>{item.customerName || '—'}</div>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>{item.supplierName || '—'} · {item.linkedOrderPo || '未转大货'}</div>
                       </div>
-                      <div className={cx('relative z-10 min-w-0', BAMBOOK_OS.spacing.cellContentPadding)}>
-                        <div className={cx('truncate font-light', textPrimaryClass)}>{item.nextAction}</div>
+                      <div className="relative z-10 min-w-0 px-3 py-4">
+                        <div className={cx('truncate', textPrimaryClass)}>{item.nextAction}</div>
                         <div className={cx('mt-1 truncate text-[10px]', textSecondaryClass)}>目标日 · {item.targetDate || '—'}</div>
                       </div>
                     </CompiledMotionInteractiveCard>
                   );
                 })}
                 {filteredCases.length === 0 && (
-                  <div className={cx('flex h-56 flex-col items-center justify-center text-center', textSecondaryClass)}>
-                    <PackageCheck size={28} strokeWidth={1} className="mb-3 opacity-45" />
-                    <div className="text-sm font-light">暂无匹配开发单</div>
+                  <div className="bds-empty">
+                    <div className="glyph"><PackageCheck size={24} strokeWidth={1} /></div>
+                    <div className="title">暂无匹配开发单</div>
                   </div>
                 )}
               </div>
@@ -505,15 +467,15 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
             >
               {selectedCase ? (
                 <>
-                  <div className={cx('shrink-0 border-b', BAMBOOK_OS.spacing.detailPanelPadding, isDarkMode ? 'border-white/[0.045]' : 'border-white/36')}>
+                  <div className="shrink-0 px-5 py-4" style={{ borderBottom: 'var(--border-subtle)' }}>
                     <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>当前开发单</div>
-                        <div className={cx('mt-2 truncate text-base font-light', textPrimaryClass)}>{selectedCase.name}</div>
+                        <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>当前开发单</div>
+                        <div className={cx('mt-2 truncate text-base', textPrimaryClass)}>{selectedCase.name}</div>
                         <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{selectedCase.code} · {typeLabelMap[selectedCase.type]} · S{selectedCase.currentRound}</div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className={cx('inline-flex rounded-control border px-2.5 py-1 text-[10px] font-light tracking-wide', stageTone(selectedCase.stage, isDarkMode))}>
+                        <span className={`bds-badge sm ${stageTone(selectedCase.stage)}`}>
                           {stageLabelMap[selectedCase.stage]}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -529,60 +491,45 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                                 onNavigate(View.Quotations);
                               }}
                               title="跳转到报价管理并预填本开发案客户/产品"
-                              className={cx(
-                                'h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors',
-                                isDarkMode
-                                  ? 'border-white/10 text-white/64 hover:bg-white/8 hover:text-white/88'
-                                  : 'border-slate-300/40 text-slate-500 hover:bg-white/60 hover:text-slate-800',
-                              )}
+                              className="bds-btn bds-btn-secondary sm"
                             >
-                              <FileText size={11} strokeWidth={1.4} />
+                              <FileText size={11} />
                               发起报价
                             </button>
                           )}
                           <button
                             type="button"
                             onClick={openEditModal}
-                            className={cx(
-                              'h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors',
-                              isDarkMode
-                                ? 'border-white/10 text-white/64 hover:bg-white/8 hover:text-white/88'
-                                : 'border-slate-300/40 text-slate-500 hover:bg-white/60 hover:text-slate-800',
-                            )}
+                            className="bds-btn bds-btn-secondary sm"
                           >
-                            <Pencil size={11} strokeWidth={1.4} />
+                            <Pencil size={11} />
                             编辑
                           </button>
                           <button
                             type="button"
                             onClick={handleDelete}
-                            className={cx(
-                              'h-8 inline-flex items-center gap-1 rounded-control border px-2.5 text-[10px] font-light tracking-wide transition-colors',
-                              isDarkMode
-                                ? 'border-white/[0.08] text-white/55 hover:bg-white/[0.05] hover:text-white/70'
-                                : 'border-slate-300/40 text-slate-500 hover:bg-slate-100/60 hover:text-slate-600',
-                            )}
+                            className="bds-btn bds-btn-danger sm"
                           >
-                            <Trash2 size={11} strokeWidth={1.4} />
+                            <Trash2 size={11} />
                             删除
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className={cx('min-h-0 flex-1 overflow-y-auto', BAMBOOK_OS.spacing.detailPanelPadding)}>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
                     <div className="space-y-1">
                       {inspectorRows.map(row => (
-                        <div key={row.label} className={cx('grid grid-cols-[72px_minmax(0,1fr)] items-baseline', BAMBOOK_OS.spacing.attrRowGap)}>
-                          <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>{row.label}</div>
-                          <div className={cx('truncate text-xs font-light', textPrimaryClass)}>{row.value}</div>
+                        <div key={row.label} className="grid grid-cols-[72px_minmax(0,1fr)] items-baseline gap-3 py-2">
+                          <div className={cx('text-[10px] tracking-wide', textSecondaryClass)}>{row.label}</div>
+                          <div className={cx('truncate text-xs', textPrimaryClass)}>{row.value}</div>
                         </div>
                       ))}
                     </div>
-                    <div className={cx('my-4 h-px w-full', isDarkMode ? 'bg-white/[0.055]' : 'bg-slate-200/55')} />
-                    <div className={cx('rounded-inset border', BAMBOOK_OS.spacing.nestedPanelPadding, isDarkMode ? 'border-[var(--os-vnext-brand-blue-soft)]/12 bg-[var(--os-vnext-brand-blue)]/[0.045]' : 'border-[var(--os-vnext-brand-blue)]/16 bg-[var(--os-vnext-brand-blue)]/[0.045]')}>
-                      <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>下一动作</div>
-                      <div className={cx('mt-2 text-sm font-light leading-snug', textPrimaryClass)}>{selectedCase.nextAction}</div>
+                    <div className="my-4 h-px w-full bg-[var(--border-c-subtle)]" />
+                    <div className="rounded-inset px-4 py-3" style={{ background: 'var(--accent-tint-light)', border: '1px solid var(--accent-tint)' }}>
+                      <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>下一动作</div>
+                      <div className={cx('mt-2 text-sm leading-snug', textPrimaryClass)}>{selectedCase.nextAction}</div>
                     </div>
                     <div className="mt-4">
                       <SampleNodesPanel key={selectedCase.id} caseId={selectedCase.id} isDarkMode={isDarkMode} />
@@ -601,18 +548,13 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             window.alert(`转订单失败：${err.message || err}`);
                           }
                         }}
-                        className={cx(
-                          'mt-3 w-full rounded-full border px-4 py-2.5 text-xs font-light tracking-wide transition-colors',
-                          isDarkMode
-                            ? 'border-[var(--os-vnext-brand-blue-soft)]/30 bg-[var(--os-vnext-brand-blue)]/15 text-white hover:bg-[var(--os-vnext-brand-blue)]/25'
-                            : 'border-[var(--os-vnext-brand-blue)]/35 bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/20'
-                        )}
+                        className="bds-btn bds-btn-primary w-full mt-3"
                       >
                         一键转为大货订单
                       </button>
                     )}
                     {selectedCase.linkedOrderId && (
-                      <div className={cx('mt-3 rounded-inset border text-xs font-light', BAMBOOK_OS.spacing.nestedPanelPadding, isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/65' : 'border-slate-300 bg-slate-100/60 text-slate-600')}>
+                      <div className="bds-alert success mt-3">
                         已转订单 · {selectedCase.linkedOrderPo || selectedCase.linkedOrderId}
                       </div>
                     )}
@@ -627,9 +569,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   </div>
                 </>
               ) : (
-                <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondaryClass)}>
-                  <PackageCheck size={28} strokeWidth={1} className="mb-3 opacity-45" />
-                  <div className="text-sm font-light">请选择开发单</div>
+                <div className="bds-empty h-full justify-center">
+                  <div className="glyph"><PackageCheck size={24} strokeWidth={1} /></div>
+                  <div className="title">请选择开发单</div>
                 </div>
               )}
             </CompiledSurfacePanel>
@@ -648,82 +590,38 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               source="DevelopmentManager.form"
               leading={(
                 <div className="flex h-full items-center gap-1.5 min-w-0">
-                  <CompiledInteractiveCard
-                    as="button"
-                    type="button"
-                    onClick={closeFormModal}
-                    aria-label="返回开发管理"
-                    spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                    spotlightSize={isDarkMode ? 180 : 140}
-                    idleSpotlightOpacity={0}
-                    activeSpotlightOpacity={1}
-                    className={cx(
-                      'inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors',
-                      isDarkMode
-                        ? 'border-white/10 text-white/64 hover:bg-white/8 hover:text-white/88'
-                        : 'border-slate-300/40 text-slate-500 hover:bg-white/60 hover:text-slate-800',
-                    )}
-                  >
+                  <button type="button" onClick={closeFormModal} aria-label="返回开发管理" className="bds-btn bds-btn-secondary bds-btn-icon sm">
                     <ChevronLeft size={18} strokeWidth={1.4} />
-                  </CompiledInteractiveCard>
-                  <h3 className={cx(isDarkMode ? 'text-white/70' : 'text-slate-700')}>
+                  </button>
+                  <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
                     {editingCase ? '编辑开发单' : '新建开发单'}
                   </h3>
                 </div>
               )}
               actions={(
                 <div className="flex h-full items-center gap-2 shrink-0">
-                  <div className={cx('text-[11px] font-light tracking-wide', isDarkMode ? 'text-white/48' : 'text-slate-400')}>
+                  <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">
                     开发管理
                   </div>
-                  <CompiledInteractiveCard
-                    as="button"
-                    type="button"
-                    onClick={closeFormModal}
-                    spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                    spotlightSize={isDarkMode ? 180 : 140}
-                    idleSpotlightOpacity={0}
-                    activeSpotlightOpacity={1}
-                    className={cx(
-                      'inline-flex h-9 items-center justify-center rounded-full border px-3.5 text-[11px] font-light tracking-wide transition-colors',
-                      isDarkMode
-                        ? 'border-white/10 text-white/64 hover:bg-white/8 hover:text-white/88'
-                        : 'border-slate-300/40 text-slate-500 hover:bg-white/60 hover:text-slate-800',
-                    )}
-                  >
+                  <button type="button" onClick={closeFormModal} disabled={isSubmitting} className="bds-btn bds-btn-secondary sm">
                     取消
-                  </CompiledInteractiveCard>
-                  <CompiledInteractiveCard
-                    spotlightColor={isDarkMode ? 'rgb(var(--os-vnext-brand-blue-soft-rgb)/0.18)' : 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)'}
-                    spotlightSize={isDarkMode ? 180 : 140}
-                    idleSpotlightOpacity={0}
-                    activeSpotlightOpacity={1}
-                    className={cx(
-                      'inline-flex h-9 items-center justify-center rounded-full border px-4 text-[11px] font-light tracking-wide transition-colors',
-                      'border-[var(--os-vnext-brand-blue)]/30',
-                      isDarkMode
-                        ? 'bg-[var(--os-vnext-brand-blue)]/22 text-white hover:bg-[var(--os-vnext-brand-blue)]/32'
-                        : 'bg-[var(--os-vnext-brand-blue)]/14 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/22',
-                      (isSubmitting || !form.code.trim() || !form.name.trim()) && 'pointer-events-none opacity-50',
-                    )}
+                  </button>
+                  <button
+                    type="submit"
+                    form="development-fullscreen-form"
+                    disabled={isSubmitting || !form.code.trim() || !form.name.trim()}
+                    className="bds-btn bds-btn-primary sm"
                   >
-                    <button
-                      type="submit"
-                      form="development-fullscreen-form"
-                      disabled={isSubmitting || !form.code.trim() || !form.name.trim()}
-                      className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-1.5"
-                    >
-                      <Save size={14} strokeWidth={1.5} />
-                      {isSubmitting ? '保存中…' : '保存'}
-                    </button>
-                  </CompiledInteractiveCard>
+                    <Save size={14} strokeWidth={1.5} />
+                    {isSubmitting ? '保存中…' : '保存'}
+                  </button>
                 </div>
               )}
             />
 
             {formErrorMessage && (
-              <div className={cx('w-full px-5 pt-3 text-xs font-light', isDarkMode ? 'text-white/55' : 'text-slate-500')}>
-                {formErrorMessage}
+              <div className="w-full px-5 pt-3">
+                <div className="bds-alert danger">{formErrorMessage}</div>
               </div>
             )}
 
@@ -743,20 +641,15 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                         key={section.id}
                         type="button"
                         onClick={() => document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className={cx(
-                          'w-full text-left rounded-full border px-3 py-3 transition-all',
-                          isDarkMode
-                            ? 'border-white/[0.06] bg-white/[0.025] hover:bg-white/[0.05] hover:border-white/[0.1]'
-                            : 'border-slate-200/50 bg-white/30 hover:bg-white/60 hover:border-slate-300/60',
-                        )}
+                        className="w-full rounded-full border border-[var(--border-c-subtle)] bg-[var(--bg-panel)] px-3 py-3 text-left transition-all hover:bg-[var(--bg-sunken)] hover:border-[var(--border-c-strong)]"
                       >
                         <div className="flex items-center gap-3">
-                          <span className={cx('w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors', isDarkMode ? 'border-white/[0.1] bg-white/[0.04] text-white/60' : 'border-slate-200 bg-white/50 text-slate-400')}>
+                          <span className="w-6 h-6 shrink-0 rounded-full border border-[var(--border-c-subtle)] bg-[var(--bg-sunken)] flex items-center justify-center text-[10px] font-light text-[var(--text-tertiary)] transition-colors">
                             {idx + 1}
                           </span>
                           <div className="min-w-0">
-                            <div className={cx('text-xs font-light', isDarkMode ? 'text-white/75' : 'text-slate-800')}>{section.title}</div>
-                            <div className={cx('text-[10px] mt-0.5 truncate', isDarkMode ? 'text-white/38' : 'text-slate-400')}>{section.desc}</div>
+                            <div className="text-xs font-light text-[var(--text-primary)]">{section.title}</div>
+                            <div className="text-[10px] mt-0.5 truncate text-[var(--text-quaternary)]">{section.desc}</div>
                           </div>
                         </div>
                       </button>
@@ -765,7 +658,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </CompiledFormMapPanel>
               </aside>
 
-              <div ref={formScrollRef} className={cx('min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px]', BAMBOOK_OS.layout.panelShadowViewportClass)}>
+              <div ref={formScrollRef} className="min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] bambook-panel-shadow-viewport">
               <CompiledFormSectionPanel
                 id="dev-basic"
                 title="基本信息"
@@ -774,29 +667,29 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 contentBaseClassName="grid grid-cols-2 gap-4"
               >
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>编号 *</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">编号 *</label>
                   <input
                     value={form.code}
                     onChange={(e) => updateField('code', e.target.value)}
                     placeholder="如 DEV-2026-001"
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>名称 *</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">名称 *</label>
                   <input
                     value={form.name}
                     onChange={(e) => updateField('name', e.target.value)}
                     placeholder="开发单名称"
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>类型</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">类型</label>
                   <select
                     value={form.type}
                     onChange={(e) => updateField('type', e.target.value as DevType)}
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-select"
                   >
                     {DEV_TYPE_OPTIONS.map(t => (
                       <option key={t.id} value={t.id}>{t.label}</option>
@@ -804,11 +697,11 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   </select>
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>阶段</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">阶段</label>
                   <select
                     value={form.stage}
                     onChange={(e) => updateField('stage', e.target.value as DevStage)}
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-select"
                   >
                     {DEV_STAGE_OPTIONS.map(s => (
                       <option key={s.id} value={s.id}>{s.label}</option>
@@ -816,22 +709,22 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   </select>
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>负责人</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">负责人</label>
                   <input
                     value={form.owner}
                     onChange={(e) => updateField('owner', e.target.value)}
                     placeholder="负责人姓名"
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>当前轮次</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">当前轮次</label>
                   <input
                     type="number"
                     min={1}
                     value={form.currentRound}
                     onChange={(e) => updateField('currentRound', e.target.value)}
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
               </CompiledFormSectionPanel>
@@ -844,30 +737,30 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 contentBaseClassName="grid grid-cols-2 gap-4"
               >
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>客户名</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">客户名</label>
                   <input
                     value={form.customerName}
                     onChange={(e) => updateField('customerName', e.target.value)}
                     placeholder="客户名称"
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>供应商名</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">供应商名</label>
                   <input
                     value={form.supplierName}
                     onChange={(e) => updateField('supplierName', e.target.value)}
                     placeholder="供应商名称"
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>产品名</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">产品名</label>
                   <input
                     value={form.productName}
                     onChange={(e) => updateField('productName', e.target.value)}
                     placeholder="产品名称"
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
               </CompiledFormSectionPanel>
@@ -880,11 +773,11 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 contentBaseClassName="grid grid-cols-2 gap-4"
               >
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>样品类型</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">样品类型</label>
                   <select
                     value={form.sampleType}
                     onChange={(e) => updateField('sampleType', e.target.value as SampleType | '')}
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-select"
                   >
                     <option value="">不指定</option>
                     {SAMPLE_TYPE_OPTIONS.map(t => (
@@ -893,41 +786,41 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   </select>
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>样衣分档</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">样衣分档</label>
                   <select
                     value={form.sampleCategory}
                     onChange={(e) => updateField('sampleCategory', e.target.value as 'normal' | '5a')}
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-select"
                   >
                     <option value="normal">普通样衣</option>
                     <option value="5a">5A 重点样衣</option>
                   </select>
                 </div>
                 <div>
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>目标日期</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">目标日期</label>
                   <input
                     type="date"
                     value={form.targetDate}
                     onChange={(e) => updateField('targetDate', e.target.value)}
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>下一动作</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">下一动作</label>
                   <input
                     value={form.nextAction}
                     onChange={(e) => updateField('nextAction', e.target.value)}
                     placeholder="下一步待办或行动项"
-                    className={cx('w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className={cx('text-[10px] font-light tracking-wide ml-1', isDarkMode ? 'text-white/52' : 'text-slate-500')}>备注</label>
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">备注</label>
                   <textarea
                     value={form.notes}
                     onChange={(e) => updateField('notes', e.target.value)}
                     placeholder="备注信息"
-                    className={cx('w-full mt-1 px-4 py-3 rounded-full border outline-none font-light text-xs transition-all resize-none min-h-[96px]', isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light)}
+                    className="bds-input bds-textarea resize-none min-h-[96px]"
                   />
                 </div>
               </CompiledFormSectionPanel>

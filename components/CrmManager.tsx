@@ -13,8 +13,8 @@
  *   - 每个客户（Relation）下管理所有 CRM 实体
  *   - 顶部客户选择器切换当前客户
  *   - Tab 切换不同 CRM 维度
- *   - 状态用语义色阶（statusSemanticClass）
- *   - 大圆角 flat 设计（rounded-panel/card）
+ *   - 状态用 bds-badge 语义变体（SEMANTIC_BADGE_VARIANT）
+ *   - BDS v2.1 组件族（bds-card/bds-btn/bds-input/bds-modal 等）
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -60,7 +60,7 @@ import {
 } from '../types';
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
+import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
@@ -119,6 +119,19 @@ const CREDIT_STATUS_LABELS: Record<string, string> = {
 };
 
 const CURRENCIES = ['CNY', 'USD', 'EUR'];
+
+// BDS 徽章语义变体映射（bds-badge 无 active/rebate 变体，归并到 info）
+type BadgeVariant = 'neutral' | 'info' | 'success' | 'danger' | 'warning';
+const SEMANTIC_BADGE_VARIANT: Record<StatusSemantic, BadgeVariant> = {
+  neutral: 'neutral',
+  active: 'info',
+  info: 'info',
+  warning: 'warning',
+  danger: 'danger',
+  success: 'success',
+  destructive: 'danger',
+  rebate: 'info',
+};
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -367,19 +380,20 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       {/* 客户选择器 + 搜索 */}
       <div className="px-7 pt-3 pb-3 flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-text-tertiary" />
+          <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
           <input
             type="text"
             placeholder="搜索客户名称..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none flex-1"
+            className="bds-input sm flex-1"
           />
         </div>
         <select
           value={selectedRelationId ?? ''}
           onChange={(e) => setSelectedRelationId(e.target.value || null)}
-          className="bg-surface-elevated text-text-primary text-sm rounded-control px-3 py-1.5 border border-border-subtle outline-none focus:border-border-action min-w-[200px]"
+          className="bds-select"
+          style={{ width: 'auto', minWidth: 200 }}
         >
           <option value="">选择客户...</option>
           {relations.map((r) => (
@@ -390,45 +404,43 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
         </select>
         <button
           onClick={loadRelations}
-          className="p-1.5 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+          className="bds-btn bds-btn-ghost bds-btn-icon sm"
           title="刷新客户列表"
         >
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Tab 栏 */}
-      <div className="px-7 pb-3 flex items-center gap-1 border-b border-border-subtle">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
-                isActive
-                  ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* Tab 栏（BDS Tabs 下划线式） */}
+      <div className="px-7 pb-3">
+        <div className="bds-tabs">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`bds-tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 内容区 */}
       <div className="flex-1 overflow-y-auto px-7 py-4">
         {!selectedRelation ? (
-          <div className="flex flex-col items-center justify-center py-20 text-text-tertiary">
-            <Users className="w-12 h-12 mb-3 opacity-40" />
-            <p className="text-sm">请先选择一个客户</p>
+          <div className="bds-empty">
+            <div className="glyph"><Users size={24} /></div>
+            <div className="title">请先选择一个客户</div>
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -570,31 +582,28 @@ function OpportunitiesTab({
     <div className="space-y-4">
       {/* 管线汇总 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-surface-elevated rounded-card p-3">
-          <div className="text-xs text-text-tertiary">商机总数</div>
-          <div className="text-xl font-medium text-text-primary mt-1">{opportunities.length}</div>
+        <div className="bds-card" style={{ padding: 'var(--space-3)' }}>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>商机总数</div>
+          <div className="bds-tnum text-xl mt-1" style={{ color: 'var(--text-primary)' }}>{opportunities.length}</div>
         </div>
-        <div className="bg-surface-elevated rounded-card p-3">
-          <div className="text-xs text-text-tertiary">管线总额</div>
-          <div className="text-xl font-medium text-text-primary mt-1">{formatAmount(totalAmount, opportunities[0]?.currency ?? 'CNY')}</div>
+        <div className="bds-card" style={{ padding: 'var(--space-3)' }}>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>管线总额</div>
+          <div className="bds-tnum text-xl mt-1" style={{ color: 'var(--text-primary)' }}>{formatAmount(totalAmount, opportunities[0]?.currency ?? 'CNY')}</div>
         </div>
-        <div className="bg-surface-elevated rounded-card p-3">
-          <div className="text-xs text-text-tertiary">已成交</div>
-          <div className="text-xl font-medium text-text-primary mt-1">{formatAmount(wonAmount, opportunities[0]?.currency ?? 'CNY')}</div>
+        <div className="bds-card" style={{ padding: 'var(--space-3)' }}>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>已成交</div>
+          <div className="bds-tnum text-xl mt-1" style={{ color: 'var(--text-primary)' }}>{formatAmount(wonAmount, opportunities[0]?.currency ?? 'CNY')}</div>
         </div>
-        <div className="bg-surface-elevated rounded-card p-3">
-          <div className="text-xs text-text-tertiary">当前客户</div>
-          <div className="text-sm font-medium text-text-primary mt-1 truncate">{selectedRelation.name}</div>
+        <div className="bds-card" style={{ padding: 'var(--space-3)' }}>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>当前客户</div>
+          <div className="text-sm mt-1 truncate" style={{ color: 'var(--text-primary)' }}>{selectedRelation.name}</div>
         </div>
       </div>
 
       {/* 管线阶段卡片 */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text-secondary">销售管线</h3>
-        <button
-          onClick={onCreate}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:bg-surface-hover transition-colors"
-        >
+        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>销售管线</h3>
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
           <Plus className="w-4 h-4" />
           新建商机
         </button>
@@ -606,24 +615,26 @@ function OpportunitiesTab({
           const stageOpps = opportunities.filter((o) => o.stage === stage.id);
           const summary = pipelineSummary[stage.id];
           return (
-            <div key={stage.id} className="bg-surface-elevated rounded-card p-3 min-h-[120px]">
+            <div key={stage.id} className="bds-card" style={{ padding: 'var(--space-3)', minHeight: 120 }}>
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs font-medium ${statusSemanticClass(stage.semantic)}`}>{stage.label}</span>
-                <span className="text-xs text-text-tertiary">{summary?.count ?? 0}</span>
+                <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[stage.semantic]}`}>{stage.label}</span>
+                <span className="bds-tnum text-xs" style={{ color: 'var(--text-tertiary)' }}>{summary?.count ?? 0}</span>
               </div>
               <div className="space-y-2">
                 {stageOpps.map((opp) => (
                   <div
                     key={opp.id}
-                    className="bg-surface-primary rounded-compact p-2 cursor-pointer hover:ring-1 hover:ring-border-action transition-all"
+                    className="rounded-compact p-2 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
+                    style={{ background: 'var(--bg-panel)' }}
                     onClick={() => onEdit(opp)}
                   >
-                    <div className="text-xs font-medium text-text-primary truncate">{opp.title}</div>
-                    <div className="text-xs text-text-tertiary mt-0.5">{formatAmount(opp.amount, opp.currency)}</div>
+                    <div className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>{opp.title}</div>
+                    <div className="bds-tnum text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{formatAmount(opp.amount, opp.currency)}</div>
                     <div className="flex items-center gap-1 mt-1">
                       {STAGE_TRANSITION_TARGETS[opp.stage].length > 0 && (
                         <select
-                          className="text-xs bg-transparent text-text-tertiary outline-none cursor-pointer"
+                          className="text-xs bg-transparent outline-none cursor-pointer"
+                          style={{ color: 'var(--text-tertiary)' }}
                           value=""
                           onChange={(e) => {
                             if (e.target.value) onTransition(opp.id, e.target.value as OpportunityStage);
@@ -639,7 +650,8 @@ function OpportunitiesTab({
                         </select>
                       )}
                       <button
-                        className="ml-auto text-text-tertiary hover:text-danger transition-colors"
+                        className="ml-auto transition-colors hover:text-[var(--danger-text)]"
+                        style={{ color: 'var(--text-quaternary)' }}
                         onClick={(e) => { e.stopPropagation(); onDelete(opp.id); }}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -648,7 +660,7 @@ function OpportunitiesTab({
                   </div>
                 ))}
                 {stageOpps.length === 0 && (
-                  <div className="text-xs text-text-tertiary text-center py-2 opacity-50">无</div>
+                  <div className="text-xs text-center py-2 opacity-50" style={{ color: 'var(--text-quaternary)' }}>无</div>
                 )}
               </div>
             </div>
@@ -684,17 +696,17 @@ function FollowUpsTab({
   return (
     <div className="space-y-4">
       {overdueFollowUps.length > 0 && (
-        <div className="bg-danger/10 rounded-card p-3 border border-danger/20">
-          <div className="flex items-center gap-2 text-danger text-sm font-medium mb-2">
+        <div className="rounded-card p-3" style={{ background: 'var(--danger-tint)' }}>
+          <div className="flex items-center gap-2 text-sm mb-2" style={{ color: 'var(--danger-text)' }}>
             <AlertCircle className="w-4 h-4" />
             逾期跟进 ({overdueFollowUps.length})
           </div>
           <div className="space-y-1">
             {overdueFollowUps.slice(0, 5).map((fu) => (
-              <div key={fu.id} className="text-xs text-text-secondary flex items-center gap-2">
-                <Clock className="w-3 h-3 text-danger" />
+              <div key={fu.id} className="text-xs flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                <Clock className="w-3 h-3" style={{ color: 'var(--danger-text)' }} />
                 <span>{fu.nextFollowUpTopic || fu.content}</span>
-                <span className="text-text-tertiary">— 原定 {formatDate(fu.nextFollowUpAt)}</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>— 原定 {formatDate(fu.nextFollowUpAt)}</span>
               </div>
             ))}
           </div>
@@ -702,11 +714,8 @@ function FollowUpsTab({
       )}
 
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text-secondary">跟进记录 ({followUps.length})</h3>
-        <button
-          onClick={onCreate}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:bg-surface-hover transition-colors"
-        >
+        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>跟进记录 ({followUps.length})</h3>
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
           <Plus className="w-4 h-4" />
           新建跟进
         </button>
@@ -714,9 +723,9 @@ function FollowUpsTab({
 
       <div className="space-y-2">
         {followUps.length === 0 && (
-          <div className="text-center py-10 text-text-tertiary text-sm">
-            <Phone className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            暂无跟进记录
+          <div className="bds-empty">
+            <div className="glyph"><Phone size={24} /></div>
+            <div className="title">暂无跟进记录</div>
           </div>
         )}
         {followUps.map((fu) => {
@@ -725,39 +734,41 @@ function FollowUpsTab({
           return (
             <div
               key={fu.id}
-              className="bg-surface-elevated rounded-card p-3 cursor-pointer hover:ring-1 hover:ring-border-action transition-all"
+              className="bds-card interactive"
+              style={{ padding: 'var(--space-3)' }}
               onClick={() => onEdit(fu)}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-compact bg-surface-primary text-text-secondary">
+                    <span className="bds-badge sm neutral">
                       {typeMeta?.label || fu.type}
                     </span>
                     {isOverdue && (
-                      <span className={`text-xs px-2 py-0.5 rounded-compact ${statusSemanticClass('danger')}`}>
+                      <span className="bds-badge sm danger">
                         逾期
                       </span>
                     )}
                     {fu.contact && (
-                      <span className="text-xs text-text-tertiary">联系人：{fu.contact.name}</span>
+                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>联系人：{fu.contact.name}</span>
                     )}
                     {fu.salesRepName && (
-                      <span className="text-xs text-text-tertiary">销售：{fu.salesRepName}</span>
+                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>销售：{fu.salesRepName}</span>
                     )}
                   </div>
-                  <p className="text-sm text-text-primary mt-1 line-clamp-2">{fu.content}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-text-tertiary">
+                  <p className="text-sm mt-1 line-clamp-2" style={{ color: 'var(--text-primary)' }}>{fu.content}</p>
+                  <div className="flex items-center gap-3 mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                     <span>跟进：{formatDate(fu.followUpAt)}</span>
                     {fu.nextFollowUpAt && (
-                      <span className={isOverdue ? 'text-danger' : ''}>
+                      <span style={isOverdue ? { color: 'var(--danger-text)' } : undefined}>
                         下次：{formatDate(fu.nextFollowUpAt)}
                       </span>
                     )}
                   </div>
                 </div>
                 <button
-                  className="text-text-tertiary hover:text-danger transition-colors"
+                  className="transition-colors hover:text-[var(--danger-text)]"
+                  style={{ color: 'var(--text-quaternary)' }}
                   onClick={(e) => { e.stopPropagation(); onDelete(fu.id); }}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -786,12 +797,12 @@ function ContactsTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-medium text-text-secondary">联系人 ({contacts.length})</h3>
-          <p className="text-xs text-text-tertiary mt-0.5">档案由关系智库统一维护，此处只读</p>
+          <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>联系人 ({contacts.length})</h3>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>档案由关系智库统一维护，此处只读</p>
         </div>
         <button
           onClick={onManageInRelations}
-          className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:bg-surface-hover transition-colors"
+          className="bds-btn bds-btn-secondary sm shrink-0"
         >
           在关系智库中维护
           <ArrowRight className="w-4 h-4" />
@@ -800,37 +811,39 @@ function ContactsTab({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {contacts.length === 0 && (
-          <div className="col-span-full text-center py-10 text-text-tertiary text-sm">
-            <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            暂无联系人，可到关系智库为「{selectedRelation.name}」建立联系人档案
+          <div className="bds-empty col-span-full">
+            <div className="glyph"><Users size={24} /></div>
+            <div className="title">暂无联系人</div>
+            <div className="desc">可到关系智库为「{selectedRelation.name}」建立联系人档案</div>
           </div>
         )}
         {contacts.map((c) => (
           <div
             key={c.id}
-            className="bg-surface-elevated rounded-card p-3"
+            className="bds-card"
+            style={{ padding: 'var(--space-3)' }}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-text-primary">{c.name}</span>
+                  <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{c.name}</span>
                   {c.isPrimary && (
-                    <span className={`text-xs px-2 py-0.5 rounded-compact ${statusSemanticClass('success')}`}>
+                    <span className="bds-badge sm success">
                       主联系人
                     </span>
                   )}
                   {c.isDecisionMaker && (
-                    <span className="text-xs px-2 py-0.5 rounded-compact bg-surface-primary text-text-secondary flex items-center gap-0.5">
+                    <span className="bds-badge sm neutral">
                       <Star className="w-3 h-3" />
                       决策人
                     </span>
                   )}
-                  <span className={`text-xs px-2 py-0.5 rounded-compact ${statusSemanticClass(c.status === 'Active' ? 'active' : 'neutral')}`}>
+                  <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[c.status === 'Active' ? 'active' : 'neutral']}`}>
                     {c.status === 'Active' ? '在职' : c.status === 'Left' ? '离职' : '非活跃'}
                   </span>
                 </div>
-                {c.title && <div className="text-xs text-text-tertiary mt-1">{c.title}{c.department ? ` · ${c.department}` : ''}</div>}
-                <div className="flex items-center gap-3 mt-1.5 text-xs text-text-tertiary flex-wrap">
+                {c.title && <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{c.title}{c.department ? ` · ${c.department}` : ''}</div>}
+                <div className="flex items-center gap-3 mt-1.5 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                   {c.email && <span>{c.email}</span>}
                   {c.mobile && <span>{c.mobile}</span>}
                   {c.wechat && <span>微信：{c.wechat}</span>}
@@ -863,66 +876,71 @@ function CreditLimitTab({
     <div className="space-y-4">
       {/* 当前生效 */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text-secondary">当前信用额度</h3>
-        <button
-          onClick={onCreate}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:bg-surface-hover transition-colors"
-        >
+        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>当前信用额度</h3>
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
           <Plus className="w-4 h-4" />
           设置信用额度
         </button>
       </div>
 
       {activeCreditLimit ? (
-        <div className="bg-surface-elevated rounded-card p-4">
+        <div className="bds-card">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <div className="text-xs text-text-tertiary">总额度</div>
-              <div className="text-lg font-medium text-text-primary mt-0.5">
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>总额度</div>
+              <div className="bds-tnum text-lg mt-0.5" style={{ color: 'var(--text-primary)' }}>
                 {formatAmount(activeCreditLimit.totalLimit, activeCreditLimit.currency)}
               </div>
             </div>
             <div>
-              <div className="text-xs text-text-tertiary">已用额度</div>
-              <div className={`text-lg font-medium mt-0.5 ${statusSemanticClass(activeCreditLimit.usedAmount > activeCreditLimit.totalLimit ? 'danger' : 'warning')}`}>
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>已用额度</div>
+              <div
+                className="bds-tnum text-lg mt-0.5"
+                style={{ color: activeCreditLimit.usedAmount > activeCreditLimit.totalLimit ? 'var(--danger-text)' : 'var(--warning-text)' }}
+              >
                 {formatAmount(activeCreditLimit.usedAmount, activeCreditLimit.currency)}
               </div>
             </div>
             <div>
-              <div className="text-xs text-text-tertiary">可用额度</div>
-              <div className="text-lg font-medium text-text-primary mt-0.5">
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>可用额度</div>
+              <div className="bds-tnum text-lg mt-0.5" style={{ color: 'var(--text-primary)' }}>
                 {formatAmount(activeCreditLimit.totalLimit - activeCreditLimit.usedAmount, activeCreditLimit.currency)}
               </div>
             </div>
             <div>
-              <div className="text-xs text-text-tertiary">状态</div>
-              <div className={`text-sm font-medium mt-0.5 ${statusSemanticClass(activeCreditLimit.status === 'Active' ? 'success' : 'neutral')}`}>
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>状态</div>
+              <div
+                className="text-sm mt-0.5"
+                style={{ color: activeCreditLimit.status === 'Active' ? 'var(--success-text)' : 'var(--text-secondary)' }}
+              >
                 {CREDIT_STATUS_LABELS[activeCreditLimit.status] || activeCreditLimit.status}
               </div>
             </div>
           </div>
 
-          {/* 用量进度条 */}
+          {/* 用量进度条（BDS Progress） */}
           <div className="mt-3">
-            <div className="h-2 bg-surface-primary rounded-full overflow-hidden">
+            <div
+              className={`bds-progress ${
+                activeCreditLimit.usedAmount > activeCreditLimit.totalLimit
+                  ? 'danger'
+                  : activeCreditLimit.usedAmount / activeCreditLimit.totalLimit > 0.8
+                  ? 'warning'
+                  : 'success'
+              }`}
+            >
               <div
-                className={`h-full rounded-full transition-all ${
-                  activeCreditLimit.usedAmount > activeCreditLimit.totalLimit
-                    ? 'bg-danger'
-                    : activeCreditLimit.usedAmount / activeCreditLimit.totalLimit > 0.8
-                    ? 'bg-warning'
-                    : 'bg-success'
-                }`}
+                className="fill"
                 style={{ width: `${Math.min(100, (activeCreditLimit.usedAmount / activeCreditLimit.totalLimit) * 100)}%` }}
               />
             </div>
-            <div className="text-xs text-text-tertiary mt-1">
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
               用量 {((activeCreditLimit.usedAmount / activeCreditLimit.totalLimit) * 100).toFixed(1)}%
               {activeCreditLimit.usedAmount > activeCreditLimit.totalLimit && ' · 已超额！'}
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mt-3 text-xs text-text-tertiary">
+          <div className="flex items-center gap-3 mt-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
             <span>生效：{formatDate(activeCreditLimit.validFrom)}</span>
             <span>失效：{formatDate(activeCreditLimit.validTo)}</span>
             {activeCreditLimit.approvedBy && <span>审批：{activeCreditLimit.approvedBy}</span>}
@@ -932,13 +950,13 @@ function CreditLimitTab({
             <div className="flex items-center gap-2 mt-3">
               <button
                 onClick={() => onUpdateStatus(activeCreditLimit.id, 'Frozen')}
-                className="text-xs px-2 py-1 rounded-compact bg-surface-primary text-text-secondary hover:text-warning transition-colors"
+                className="bds-btn bds-btn-secondary sm"
               >
                 冻结
               </button>
               <button
                 onClick={() => onUpdateStatus(activeCreditLimit.id, 'Revoked')}
-                className="text-xs px-2 py-1 rounded-compact bg-surface-primary text-text-secondary hover:text-danger transition-colors"
+                className="bds-btn bds-btn-danger sm"
               >
                 撤销
               </button>
@@ -946,25 +964,27 @@ function CreditLimitTab({
           )}
         </div>
       ) : (
-        <div className="text-center py-10 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-          <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          暂无生效信用额度
+        <div className="bds-card" style={{ padding: 0 }}>
+          <div className="bds-empty">
+            <div className="glyph"><CreditCard size={24} /></div>
+            <div className="title">暂无生效信用额度</div>
+          </div>
         </div>
       )}
 
       {/* 历史记录 */}
       {creditHistory.length > 1 && (
         <div>
-          <h3 className="text-sm font-medium text-text-secondary mb-2">历史记录</h3>
+          <h3 className="bds-overline mb-2" style={{ color: 'var(--text-tertiary)' }}>历史记录</h3>
           <div className="space-y-1">
             {creditHistory.map((cl) => (
-              <div key={cl.id} className="flex items-center gap-3 text-xs bg-surface-elevated rounded-compact px-3 py-2">
-                <span className={`px-2 py-0.5 rounded-compact ${statusSemanticClass(cl.status === 'Active' ? 'success' : 'neutral')}`}>
+              <div key={cl.id} className="flex items-center gap-3 text-xs rounded-compact px-3 py-2" style={{ background: 'var(--bg-card)' }}>
+                <span className={`bds-badge sm ${cl.status === 'Active' ? 'success' : 'neutral'}`}>
                   {CREDIT_STATUS_LABELS[cl.status] || cl.status}
                 </span>
-                <span className="text-text-primary">额度 {formatAmount(cl.totalLimit, cl.currency)}</span>
-                <span className="text-text-tertiary">已用 {formatAmount(cl.usedAmount, cl.currency)}</span>
-                <span className="text-text-tertiary">{cl.validFrom} ~ {formatDate(cl.validTo)}</span>
+                <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>额度 {formatAmount(cl.totalLimit, cl.currency)}</span>
+                <span className="bds-tnum" style={{ color: 'var(--text-tertiary)' }}>已用 {formatAmount(cl.usedAmount, cl.currency)}</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>{cl.validFrom} ~ {formatDate(cl.validTo)}</span>
               </div>
             ))}
           </div>
@@ -992,30 +1012,27 @@ function CustomerTierTab({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text-secondary">当前分层</h3>
-        <button
-          onClick={onCreate}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:bg-surface-hover transition-colors"
-        >
+        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>当前分层</h3>
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
           <Award className="w-4 h-4" />
           评定分层
         </button>
       </div>
 
       {activeTier ? (
-        <div className="bg-surface-elevated rounded-card p-4">
+        <div className="bds-card">
           <div className="flex items-center gap-3">
             {(() => {
               const tierMeta = TIER_LEVELS.find((t) => t.id === activeTier.level);
               return (
-                <div className={`px-3 py-1 rounded-control ${statusSemanticClass(tierMeta?.semantic || 'neutral')}`}>
-                  <span className="text-sm font-medium">{tierMeta?.label || activeTier.level}</span>
-                </div>
+                <span className={`bds-badge lg ${SEMANTIC_BADGE_VARIANT[tierMeta?.semantic || 'neutral']}`}>
+                  {tierMeta?.label || activeTier.level}
+                </span>
               );
             })()}
             <div className="flex-1">
-              <div className="text-sm text-text-primary">客户分层已评定</div>
-              <div className="text-xs text-text-tertiary mt-0.5">
+              <div className="text-sm" style={{ color: 'var(--text-primary)' }}>客户分层已评定</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                 评定日期 {formatDate(activeTier.evaluatedAt)} · 有效期至 {formatDate(activeTier.validUntil)}
               </div>
             </div>
@@ -1023,59 +1040,65 @@ function CustomerTierTab({
 
           <div className="grid grid-cols-3 gap-4 mt-3">
             <div>
-              <div className="text-xs text-text-tertiary">折扣率</div>
-              <div className="text-sm text-text-primary mt-0.5">
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>折扣率</div>
+              <div className="bds-tnum text-sm mt-0.5" style={{ color: 'var(--text-primary)' }}>
                 {activeTier.discountRate ? `${activeTier.discountRate}%` : '—'}
               </div>
             </div>
             <div>
-              <div className="text-xs text-text-tertiary">账期天数</div>
-              <div className="text-sm text-text-primary mt-0.5">
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>账期天数</div>
+              <div className="bds-tnum text-sm mt-0.5" style={{ color: 'var(--text-primary)' }}>
                 {activeTier.paymentTermsDays ? `${activeTier.paymentTermsDays} 天` : '—'}
               </div>
             </div>
             <div>
-              <div className="text-xs text-text-tertiary">信用优先级</div>
-              <div className={`text-sm mt-0.5 ${statusSemanticClass(activeTier.creditPriority === 'High' ? 'success' : activeTier.creditPriority === 'Low' ? 'danger' : 'neutral')}`}>
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>信用优先级</div>
+              <div
+                className="text-sm mt-0.5"
+                style={{ color: activeTier.creditPriority === 'High' ? 'var(--success-text)' : activeTier.creditPriority === 'Low' ? 'var(--danger-text)' : 'var(--text-secondary)' }}
+              >
                 {activeTier.creditPriority === 'High' ? '高' : activeTier.creditPriority === 'Low' ? '低' : '常规'}
               </div>
             </div>
           </div>
 
           {activeTier.criteria && (
-            <div className="mt-3 text-xs text-text-tertiary">
+            <div className="mt-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
               评定依据：{activeTier.criteria}
             </div>
           )}
 
           <button
-            className="mt-3 text-xs text-danger hover:underline"
+            className="mt-3 text-xs hover:underline"
+            style={{ color: 'var(--danger-text)' }}
             onClick={() => onDelete(activeTier.id)}
           >
             删除此分层
           </button>
         </div>
       ) : (
-        <div className="text-center py-10 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-          <Award className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          暂无客户分层
+        <div className="bds-card" style={{ padding: 0 }}>
+          <div className="bds-empty">
+            <div className="glyph"><Award size={24} /></div>
+            <div className="title">暂无客户分层</div>
+          </div>
         </div>
       )}
 
       {/* 历史 */}
       {tierHistory.length > 1 && (
         <div>
-          <h3 className="text-sm font-medium text-text-secondary mb-2">分层历史</h3>
+          <h3 className="bds-overline mb-2" style={{ color: 'var(--text-tertiary)' }}>分层历史</h3>
           <div className="space-y-1">
             {tierHistory.map((t) => {
               const tierMeta = TIER_LEVELS.find((tl) => tl.id === t.level);
               return (
-                <div key={t.id} className="flex items-center gap-3 text-xs bg-surface-elevated rounded-compact px-3 py-2">
-                  <span className={`px-2 py-0.5 rounded-compact ${statusSemanticClass(tierMeta?.semantic || 'neutral')}`}>
+                <div key={t.id} className="flex items-center gap-3 text-xs rounded-compact px-3 py-2" style={{ background: 'var(--bg-card)' }}>
+                  <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[tierMeta?.semantic || 'neutral']}`}>
                     {tierMeta?.label || t.level}
                   </span>
-                  <span className="text-text-tertiary">{formatDate(t.evaluatedAt)} ~ {formatDate(t.validUntil)}</span>
-                  {t.discountRate && <span className="text-text-tertiary">折扣 {t.discountRate}%</span>}
+                  <span style={{ color: 'var(--text-tertiary)' }}>{formatDate(t.evaluatedAt)} ~ {formatDate(t.validUntil)}</span>
+                  {t.discountRate && <span className="bds-tnum" style={{ color: 'var(--text-tertiary)' }}>折扣 {t.discountRate}%</span>}
                 </div>
               );
             })}
@@ -1094,23 +1117,24 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="bds-modal-mask"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-surface-elevated rounded-panel w-full max-w-lg max-h-[85vh] overflow-y-auto"
+        className="bds-modal"
+        style={{ width: '32rem', maxHeight: '85vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        {children}
       </motion.div>
     </motion.div>
   );
@@ -1119,13 +1143,15 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>{label}</label>
       {children}
     </div>
   );
 }
 
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
+const inputClass = "bds-input";
+const selectClass = "bds-select";
+const textareaClass = "bds-input bds-textarea";
 
 function OpportunityForm({
   opportunity,
@@ -1174,14 +1200,14 @@ function OpportunityForm({
           <input type="number" className={inputClass} value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
       </div>
       {!opportunity && (
         <Field label="初始阶段">
-          <select className={inputClass} value={stage} onChange={(e) => setStage(e.target.value as OpportunityStage)}>
+          <select className={selectClass} value={stage} onChange={(e) => setStage(e.target.value as OpportunityStage)}>
             {OPPORTUNITY_STAGES.filter((s) => s.id !== 'ClosedWon' && s.id !== 'ClosedLost').map((s) => (
               <option key={s.id} value={s.id}>{s.label}</option>
             ))}
@@ -1200,14 +1226,14 @@ function OpportunityForm({
         <input className={inputClass} value={salesRepName} onChange={(e) => setSalesRepName(e.target.value)} />
       </Field>
       <Field label="描述">
-        <textarea className={inputClass} rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <textarea className={textareaClass} rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-4 py-2 text-sm rounded-control text-text-secondary hover:bg-surface-primary">取消</button>
-        <button onClick={handleSubmit} className="px-4 py-2 text-sm rounded-control bg-border-action text-white hover:opacity-90">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
       </div>
     </ModalShell>
   );
@@ -1258,7 +1284,7 @@ function FollowUpForm({
     <ModalShell title={followUp ? '编辑跟进' : '新建跟进'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="跟进类型">
-          <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}>
+          <select className={selectClass} value={type} onChange={(e) => setType(e.target.value)}>
             {FOLLOWUP_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
         </Field>
@@ -1267,17 +1293,17 @@ function FollowUpForm({
         </Field>
       </div>
       <Field label="跟进内容 *">
-        <textarea className={inputClass} rows={3} value={content} onChange={(e) => setContent(e.target.value)} placeholder="沟通了什么..." />
+        <textarea className={textareaClass} rows={3} value={content} onChange={(e) => setContent(e.target.value)} placeholder="沟通了什么..." />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="关联联系人">
-          <select className={inputClass} value={contactId} onChange={(e) => setContactId(e.target.value)}>
+          <select className={selectClass} value={contactId} onChange={(e) => setContactId(e.target.value)}>
             <option value="">不关联</option>
             {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </Field>
         <Field label="关联商机">
-          <select className={inputClass} value={opportunityId} onChange={(e) => setOpportunityId(e.target.value)}>
+          <select className={selectClass} value={opportunityId} onChange={(e) => setOpportunityId(e.target.value)}>
             <option value="">不关联</option>
             {opportunities.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
           </select>
@@ -1295,11 +1321,11 @@ function FollowUpForm({
         <input className={inputClass} value={salesRepName} onChange={(e) => setSalesRepName(e.target.value)} />
       </Field>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-4 py-2 text-sm rounded-control text-text-secondary hover:bg-surface-primary">取消</button>
-        <button onClick={handleSubmit} className="px-4 py-2 text-sm rounded-control bg-border-action text-white hover:opacity-90">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
       </div>
     </ModalShell>
   );
@@ -1341,7 +1367,7 @@ function CreditLimitForm({
           <input type="number" className={inputClass} value={totalLimit} onChange={(e) => setTotalLimit(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
@@ -1358,11 +1384,11 @@ function CreditLimitForm({
         <input className={inputClass} value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} />
       </Field>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-4 py-2 text-sm rounded-control text-text-secondary hover:bg-surface-primary">取消</button>
-        <button onClick={handleSubmit} className="px-4 py-2 text-sm rounded-control bg-border-action text-white hover:opacity-90">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
       </div>
     </ModalShell>
   );
@@ -1402,7 +1428,7 @@ function CustomerTierForm({
   return (
     <ModalShell title="评定客户分层" onClose={onClose}>
       <Field label="分层等级">
-        <select className={inputClass} value={level} onChange={(e) => setLevel(e.target.value as CustomerTierLevel)}>
+        <select className={selectClass} value={level} onChange={(e) => setLevel(e.target.value as CustomerTierLevel)}>
           {TIER_LEVELS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
       </Field>
@@ -1416,7 +1442,7 @@ function CustomerTierForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="信用优先级">
-          <select className={inputClass} value={creditPriority} onChange={(e) => setCreditPriority(e.target.value)}>
+          <select className={selectClass} value={creditPriority} onChange={(e) => setCreditPriority(e.target.value)}>
             <option value="High">高</option>
             <option value="Normal">常规</option>
             <option value="Low">低</option>
@@ -1438,11 +1464,11 @@ function CustomerTierForm({
         <input className={inputClass} value={criteria} onChange={(e) => setCriteria(e.target.value)} placeholder="如：年采购额 > 100万" />
       </Field>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-4 py-2 text-sm rounded-control text-text-secondary hover:bg-surface-primary">取消</button>
-        <button onClick={handleSubmit} className="px-4 py-2 text-sm rounded-control bg-border-action text-white hover:opacity-90">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
       </div>
     </ModalShell>
   );

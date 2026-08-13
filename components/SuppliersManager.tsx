@@ -12,7 +12,7 @@
  * 设计原则：
  *   - 身份真源在 Relation（category=Supplier 组织），FactoryProfile 1:1 承载工厂属性
  *   - 评分为服务端事务内重算缓存，前端只读展示 + 追加明细
- *   - RDL flat 设计：statusSemanticClass 中性色阶，无阴影，大圆角
+ *   - BDS v2.1：bds 组件类 + 语义 token，主题透明（无 isDarkMode 样式分支），无阴影，大圆角
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -53,7 +53,7 @@ import {
   FactoryPriceLevel,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, statusSemanticBg, StatusSemantic } from './rdlBusinessStatusTokens';
+import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
 
@@ -187,6 +187,23 @@ function certSemantic(daysLeft: number | null): StatusSemantic {
   if (daysLeft <= EXPIRING_DAYS) return 'warning';
   return 'success';
 }
+
+// ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+
+/** StatusSemantic → tint/text token 样式（分数卡等非 badge 结构共用；badge 直接用语义同名变体类） */
+const SEMANTIC_TINT_STYLE: Record<string, React.CSSProperties> = {
+  neutral: { background: 'var(--bg-sunken)', color: 'var(--text-secondary)' },
+  info: { background: 'var(--accent-tint)', color: 'var(--accent-text)' },
+  success: { background: 'var(--success-tint)', color: 'var(--success-text)' },
+  warning: { background: 'var(--warning-tint)', color: 'var(--warning-text)' },
+  danger: { background: 'var(--danger-tint)', color: 'var(--danger-text)' },
+};
+
+/** 评分类型 → bds-badge 语义变体（原 active 归并 neutral） */
+const EVALUATION_KIND_BADGE_VARIANT: Record<FactoryEvaluationKind, 'info' | 'neutral'> = {
+  inspection: 'info',
+  delivery: 'neutral',
+};
 
 // ==================== 组件 Props ====================
 
@@ -471,7 +488,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
         actions={
           <button
             onClick={() => { setEditingProfile(null); setShowProfileForm(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-control bg-surface-elevated text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+            className="bds-btn bds-btn-primary sm"
           >
             <Plus className="w-4 h-4" />
             新建工厂档案
@@ -484,13 +501,13 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
         <div className="px-7 pb-2">
           <button
             onClick={() => setShowExpiringPanel((v) => !v)}
-            className="w-full flex items-center gap-2 px-4 py-2.5 rounded-card bg-surface-elevated border border-border-subtle text-left hover:ring-1 hover:ring-border-action transition-all"
+            className="bds-alert warning w-full text-left"
           >
-            <AlertTriangle className="w-4 h-4 text-text-secondary shrink-0" />
-            <span className="text-sm text-text-primary">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>
               {expiringCerts.length} 项工厂认证将于 {EXPIRING_DAYS} 天内到期
             </span>
-            <span className="text-xs text-text-tertiary ml-auto">{showExpiringPanel ? '收起' : '查看'}</span>
+            <span className="text-xs opacity-70 ml-auto">{showExpiringPanel ? '收起' : '查看'}</span>
           </button>
           <AnimatePresence>
             {showExpiringPanel && (
@@ -500,19 +517,23 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="mt-2 rounded-card bg-surface-elevated border border-border-subtle divide-y divide-border-subtle">
-                  {expiringCerts.map((cert) => {
+                <div className="mt-2 bds-card" style={{ padding: 0, overflow: 'hidden' }}>
+                  {expiringCerts.map((cert, index) => {
                     const daysLeft = certDaysLeft(cert.validUntil);
                     return (
-                      <div key={cert.id} className="flex items-center gap-3 px-4 py-2.5">
-                        <ShieldAlert className="w-4 h-4 text-text-tertiary shrink-0" />
-                        <span className="text-sm text-text-primary truncate">
+                      <div
+                        key={cert.id}
+                        className="flex items-center gap-3 px-4 py-2.5"
+                        style={index > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+                      >
+                        <ShieldAlert className="w-4 h-4 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+                        <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                           {cert.factory?.relation?.name || cert.factory?.relationId || '未知工厂'}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-control border ${statusSemanticClass('info', isDarkMode)}`}>
+                        <span className="bds-badge sm info">
                           {cert.type}
                         </span>
-                        <span className={`ml-auto text-xs px-2 py-0.5 rounded-control border ${statusSemanticClass(certSemantic(daysLeft), isDarkMode)}`}>
+                        <span className={`ml-auto bds-badge sm ${certSemantic(daysLeft)}`}>
                           {daysLeft !== null && daysLeft < 0 ? `已过期 ${-daysLeft} 天` : `剩余 ${daysLeft} 天`}
                         </span>
                       </div>
@@ -528,43 +549,44 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       {/* 主体：左列表 + 右详情 */}
       <div className="flex-1 flex min-h-0 px-7 pb-5 gap-4">
         {/* ── 左侧：排名列表 ── */}
-        <div className="w-80 shrink-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
-          <div className="p-3 border-b border-border-subtle space-y-2">
+        <div className="w-80 shrink-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
+          <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
             <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-text-tertiary shrink-0" />
-              <input
-                type="text"
-                placeholder="搜索供应商名称..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none flex-1 min-w-0"
-              />
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+                <input
+                  type="text"
+                  placeholder="搜索供应商名称..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="bds-input sm pl-9"
+                />
+              </div>
               <button
                 onClick={refreshAll}
-                className="p-1 rounded-control hover:bg-surface-elevated text-text-tertiary hover:text-text-primary transition-colors"
+                className="bds-btn bds-btn-ghost bds-btn-icon sm"
                 title="刷新"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="flex items-center gap-1.5">
-              {FILTER_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setFilter(opt.id)}
-                  className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-                    filter === opt.id
-                      ? statusSemanticClass('active', isDarkMode)
-                      : 'text-text-tertiary border-transparent hover:text-text-secondary'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="bds-segment">
+                {FILTER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setFilter(opt.id)}
+                    className={`seg ${filter === opt.id ? 'active' : ''}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="ml-auto bg-surface-elevated text-text-primary text-xs rounded-control px-2 py-1 border border-border-subtle outline-none focus:border-border-action"
+                className="bds-select ml-auto"
+                style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
               >
                 {SORT_OPTIONS.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -576,85 +598,87 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
+                <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
               </div>
             ) : profiles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-text-tertiary px-4">
-                <Building2 className="w-10 h-10 mb-2 opacity-40" />
-                <p className="text-sm text-center">
-                  {search ? '未找到匹配的工厂档案' : '暂无工厂档案，点击右上角「新建工厂档案」开始'}
-                </p>
+              <div className="bds-empty">
+                <div className="glyph"><Building2 className="w-6 h-6" /></div>
+                <div className="title">{search ? '未找到匹配的工厂档案' : '暂无工厂档案'}</div>
+                {!search && <div className="desc">点击右上角「新建工厂档案」开始</div>}
               </div>
             ) : (
-              profiles.map((p) => {
-                const isSelected = p.id === selectedId;
-                const blacklisted = p.blacklistedAt != null;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedId(p.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-border-subtle transition-colors ${
-                      isSelected ? 'bg-surface-elevated' : 'hover:bg-surface-elevated/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-text-primary truncate flex-1">
-                        {p.relation?.name || p.relationId}
-                      </span>
-                      {blacklisted && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('danger', isDarkMode)}`}>
-                          已拉黑
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-2 text-[11px] text-text-tertiary">
-                      <span className={`px-1.5 py-0.5 rounded-control border ${statusSemanticClass(scoreSemantic(p.qualityScore), isDarkMode)}`}>
-                        质 {Math.round(p.qualityScore)}
-                      </span>
-                      <span className={`px-1.5 py-0.5 rounded-control border ${statusSemanticClass(scoreSemantic(p.deliveryScore), isDarkMode)}`}>
-                        交 {Math.round(p.deliveryScore)}
-                      </span>
-                      <span className="ml-auto">{p.totalOrders} 单</span>
-                    </div>
-                  </button>
-                );
-              })
+              <div className="bds-listrows px-2 py-1">
+                {profiles.map((p) => {
+                  const isSelected = p.id === selectedId;
+                  const blacklisted = p.blacklistedAt != null;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedId(p.id)}
+                      className="bds-listrow w-full text-left"
+                      style={isSelected ? { background: 'var(--bg-panel)' } : undefined}
+                    >
+                      <div className="lr-main">
+                        <div className="flex items-center gap-2">
+                          <span className="lr-title flex-1" style={{ color: 'var(--text-primary)' }}>
+                            {p.relation?.name || p.relationId}
+                          </span>
+                          {blacklisted && (
+                            <span className="bds-badge sm danger shrink-0">
+                              已拉黑
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                          <span className={`bds-badge sm ${scoreSemantic(p.qualityScore)}`}>
+                            质 {Math.round(p.qualityScore)}
+                          </span>
+                          <span className={`bds-badge sm ${scoreSemantic(p.deliveryScore)}`}>
+                            交 {Math.round(p.deliveryScore)}
+                          </span>
+                          <span className="ml-auto">{p.totalOrders} 单</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
-          <div className="px-4 py-2 border-t border-border-subtle text-[11px] text-text-tertiary">
+          <div className="px-4 py-2 text-[11px]" style={{ borderTop: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
             共 {total} 家工厂
           </div>
         </div>
 
         {/* ── 右侧：360° 详情 ── */}
-        <div className="flex-1 min-w-0 flex flex-col rounded-panel bg-surface-primary border border-border-subtle overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
           {!selectedProfile ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-text-tertiary">
-              <Building2 className="w-12 h-12 mb-3 opacity-40" />
-              <p className="text-sm">请选择左侧工厂查看 360° 详情</p>
+            <div className="bds-empty flex-1 justify-center">
+              <div className="glyph"><Building2 className="w-6 h-6" /></div>
+              <div className="title">请选择左侧工厂查看 360° 详情</div>
             </div>
           ) : (
             <>
               {/* 工厂头部卡 */}
-              <div className="p-5 border-b border-border-subtle">
+              <div className="p-5" style={{ borderBottom: 'var(--border-subtle)' }}>
                 <div className="flex items-start gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-base font-medium text-text-primary truncate">
+                      <h2 className="text-base font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                         {detail?.relation?.name || selectedProfile.relation?.name || selectedProfile.relationId}
                       </h2>
                       {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null && (
-                        <span className={`text-xs px-2 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('danger', isDarkMode)}`}>
+                        <span className="bds-badge sm danger shrink-0">
                           已拉黑
                         </span>
                       )}
                       {(detail?.priceLevel ?? selectedProfile.priceLevel) && (
-                        <span className={`text-xs px-2 py-0.5 rounded-control border shrink-0 ${statusSemanticClass('info', isDarkMode)}`}>
+                        <span className="bds-badge sm info shrink-0">
                           {PRICE_LEVEL_LABELS[(detail?.priceLevel ?? selectedProfile.priceLevel) as string]}
                         </span>
                       )}
                     </div>
-                    <div className="mt-2 flex items-center gap-3 text-xs text-text-tertiary flex-wrap">
+                    <div className="mt-2 flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-tertiary)' }}>
                       <span>累计 {selectedProfile.totalOrders} 单</span>
                       <span>累计金额 {formatNumber(selectedProfile.totalAmount)}</span>
                       <span>首次合作 {formatDate(selectedProfile.firstOrderAt)}</span>
@@ -665,15 +689,15 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   </div>
                   {/* 评分 */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <ScoreBadge label="质量" score={selectedProfile.qualityScore} isDarkMode={isDarkMode} />
-                    <ScoreBadge label="交期" score={selectedProfile.deliveryScore} isDarkMode={isDarkMode} />
+                    <ScoreBadge label="质量" score={selectedProfile.qualityScore} />
+                    <ScoreBadge label="交期" score={selectedProfile.deliveryScore} />
                   </div>
                 </div>
                 {/* 操作行 */}
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     onClick={() => { setEditingProfile(detail ?? selectedProfile); setShowProfileForm(true); }}
-                    className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                    className="bds-btn bds-btn-secondary sm"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     编辑档案
@@ -684,7 +708,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                         primeRelationsOrgDetailPreview(selectedProfile.relationId);
                         onNavigate(View.Relations);
                       }}
-                      className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                      className="bds-btn bds-btn-secondary sm"
                       title="在关系智库中查看该供应商的组织档案、联系人与跟进记录"
                     >
                       关系档案
@@ -694,7 +718,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null ? (
                     <button
                       onClick={() => handleUnblacklist(detail ?? selectedProfile)}
-                      className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                      className="bds-btn bds-btn-secondary sm"
                     >
                       <CircleCheck className="w-3.5 h-3.5" />
                       解除拉黑
@@ -702,7 +726,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   ) : (
                     <button
                       onClick={() => setBlacklistTarget(detail ?? selectedProfile)}
-                      className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+                      className="bds-btn bds-btn-secondary sm"
                     >
                       <Ban className="w-3.5 h-3.5" />
                       拉黑
@@ -710,21 +734,21 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   )}
                   <button
                     onClick={() => handleDeleteProfile(detail ?? selectedProfile)}
-                    className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-tertiary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all ml-auto"
+                    className="bds-btn bds-btn-danger sm ml-auto"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     删除
                   </button>
                 </div>
                 {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null && (
-                  <div className={`mt-3 px-3 py-2 rounded-card border text-xs ${statusSemanticClass('danger', isDarkMode)}`}>
+                  <div className="bds-alert danger mt-3 text-xs">
                     拉黑原因：{(detail ?? selectedProfile).blacklistReason || '未填写'}
                   </div>
                 )}
               </div>
 
               {/* Tab 栏 */}
-              <div className="px-5 flex items-center gap-1 border-b border-border-subtle">
+              <div className="bds-tabs px-5">
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -732,11 +756,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
-                        isActive
-                          ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
-                          : 'text-text-tertiary hover:text-text-secondary'
-                      }`}
+                      className={`bds-tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
                     >
                       <Icon className="w-4 h-4" />
                       {tab.label}
@@ -749,7 +769,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
               <div className="flex-1 overflow-y-auto p-5">
                 {detailLoading ? (
                   <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+                    <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                   </div>
                 ) : (
                   <AnimatePresence mode="wait">
@@ -761,19 +781,17 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                       transition={{ duration: 0.15 }}
                     >
                       {activeTab === 'overview' && detail && (
-                        <OverviewTab profile={detail} isDarkMode={isDarkMode} />
+                        <OverviewTab profile={detail} />
                       )}
                       {activeTab === 'evaluations' && (
                         <EvaluationsTab
                           evaluations={evaluations}
-                          isDarkMode={isDarkMode}
                           onCreate={() => setShowEvaluationForm(true)}
                         />
                       )}
                       {activeTab === 'certifications' && (
                         <CertificationsTab
                           certifications={certifications}
-                          isDarkMode={isDarkMode}
                           onCreate={() => { setEditingCert(null); setShowCertForm(true); }}
                           onEdit={(c) => { setEditingCert(c); setShowCertForm(true); }}
                           onDelete={handleDeleteCertification}
@@ -782,7 +800,6 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                       {activeTab === 'capacity' && (
                         <CapacityTab
                           capacity={capacity}
-                          isDarkMode={isDarkMode}
                           onCreate={() => { setEditingCapacityMonth(null); setShowCapacityForm(true); }}
                           onEdit={(row) => { setEditingCapacityMonth(row); setShowCapacityForm(true); }}
                           onDelete={handleDeleteCapacity}
@@ -854,9 +871,9 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
 
 // ==================== 子组件 ====================
 
-function ScoreBadge({ label, score, isDarkMode }: { label: string; score: number; isDarkMode?: boolean }) {
+function ScoreBadge({ label, score }: { label: string; score: number }) {
   return (
-    <div className={`flex flex-col items-center px-3 py-2 rounded-card border ${statusSemanticClass(scoreSemantic(score), isDarkMode)}`}>
+    <div className="flex flex-col items-center px-3 py-2 rounded-card" style={SEMANTIC_TINT_STYLE[scoreSemantic(score)]}>
       <span className="text-lg font-medium leading-none">{Math.round(score)}</span>
       <span className="text-[10px] mt-1 opacity-70">{label}分</span>
     </div>
@@ -865,7 +882,7 @@ function ScoreBadge({ label, score, isDarkMode }: { label: string; score: number
 
 // ─── 总览 Tab ───
 
-function OverviewTab({ profile, isDarkMode }: { profile: FactoryProfile; isDarkMode?: boolean }) {
+function OverviewTab({ profile }: { profile: FactoryProfile }) {
   const items: Array<{ label: string; value: React.ReactNode }> = [
     { label: '月产能', value: profile.monthlyCapacity != null ? `${formatNumber(profile.monthlyCapacity)} ${profile.capacityUnit || ''}` : '—' },
     { label: '工人数量', value: profile.workerCount != null ? `${profile.workerCount} 人` : '—' },
@@ -882,51 +899,51 @@ function OverviewTab({ profile, isDarkMode }: { profile: FactoryProfile; isDarkM
   return (
     <div className="space-y-4">
       {/* 专长 */}
-      <div className="bg-surface-elevated rounded-card p-4">
-        <div className="text-xs text-text-tertiary mb-2">擅长品类</div>
+      <div className="bds-card flat">
+        <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>擅长品类</div>
         {profile.specialties.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {profile.specialties.map((s) => (
-              <span key={s} className={`text-xs px-2 py-1 rounded-control border ${statusSemanticClass('info', isDarkMode)}`}>
+              <span key={s} className="bds-badge sm info">
                 {s}
               </span>
             ))}
           </div>
         ) : (
-          <div className="text-sm text-text-tertiary">未填写</div>
+          <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>未填写</div>
         )}
       </div>
 
       {/* 档案字段 */}
       <div className="grid grid-cols-2 gap-3">
         {items.map((item) => (
-          <div key={item.label} className="bg-surface-elevated rounded-card p-3">
-            <div className="text-xs text-text-tertiary">{item.label}</div>
-            <div className="text-sm text-text-primary mt-1 break-all">{item.value}</div>
+          <div key={item.label} className="bds-card flat" style={{ padding: 'var(--space-3)' }}>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{item.label}</div>
+            <div className="text-sm mt-1 break-all" style={{ color: 'var(--text-primary)' }}>{item.value}</div>
           </div>
         ))}
       </div>
 
       {/* 备注 */}
       {profile.notes && (
-        <div className="bg-surface-elevated rounded-card p-4">
-          <div className="text-xs text-text-tertiary mb-1">备注</div>
-          <div className="text-sm text-text-secondary whitespace-pre-wrap">{profile.notes}</div>
+        <div className="bds-card flat">
+          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>备注</div>
+          <div className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{profile.notes}</div>
         </div>
       )}
 
       {/* Relation 联系信息 */}
       {profile.relation && (
-        <div className="bg-surface-elevated rounded-card p-4">
-          <div className="text-xs text-text-tertiary mb-2">联系信息（关系智库）</div>
+        <div className="bds-card flat">
+          <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>联系信息（关系智库）</div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <span className="text-text-tertiary text-xs">主联系人</span>
-              <div className="text-text-primary">{profile.relation.primaryContactName || '—'}</div>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>主联系人</span>
+              <div style={{ color: 'var(--text-primary)' }}>{profile.relation.primaryContactName || '—'}</div>
             </div>
             <div>
-              <span className="text-text-tertiary text-xs">联系方式</span>
-              <div className="text-text-primary break-all">{profile.relation.contactInfo || '—'}</div>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>联系方式</span>
+              <div className="break-all" style={{ color: 'var(--text-primary)' }}>{profile.relation.contactInfo || '—'}</div>
             </div>
           </div>
         </div>
@@ -939,11 +956,9 @@ function OverviewTab({ profile, isDarkMode }: { profile: FactoryProfile; isDarkM
 
 function EvaluationsTab({
   evaluations,
-  isDarkMode,
   onCreate,
 }: {
   evaluations: FactoryEvaluation[];
-  isDarkMode?: boolean;
   onCreate: () => void;
 }) {
   const [kindFilter, setKindFilter] = useState<'' | FactoryEvaluationKind>('');
@@ -952,22 +967,20 @@ function EvaluationsTab({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        {(['', 'inspection', 'delivery'] as const).map((k) => (
-          <button
-            key={k || 'all'}
-            onClick={() => setKindFilter(k)}
-            className={`px-2.5 py-1 text-xs rounded-control border transition-colors ${
-              kindFilter === k
-                ? statusSemanticClass('active', isDarkMode)
-                : 'text-text-tertiary border-transparent hover:text-text-secondary'
-            }`}
-          >
-            {k === '' ? '全部' : EVALUATION_KIND_LABELS[k]}
-          </button>
-        ))}
+        <div className="bds-segment">
+          {(['', 'inspection', 'delivery'] as const).map((k) => (
+            <button
+              key={k || 'all'}
+              onClick={() => setKindFilter(k)}
+              className={`seg ${kindFilter === k ? 'active' : ''}`}
+            >
+              {k === '' ? '全部' : EVALUATION_KIND_LABELS[k]}
+            </button>
+          ))}
+        </div>
         <button
           onClick={onCreate}
-          className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-secondary sm ml-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           手动评分
@@ -975,22 +988,23 @@ function EvaluationsTab({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-10 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-          暂无评分记录（验货结论 / 采购单收齐后将自动追加评分）
+        <div className="bds-empty bds-card flat">
+          <div className="title">暂无评分记录</div>
+          <div className="desc">验货结论 / 采购单收齐后将自动追加评分</div>
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map((ev) => (
-            <div key={ev.id} className="bg-surface-elevated rounded-card p-3 flex items-center gap-3">
-              <span className={`text-xs px-2 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(ev.kind === 'inspection' ? 'info' : 'active', isDarkMode)}`}>
+            <div key={ev.id} className="bds-card flat flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
+              <span className={`bds-badge sm shrink-0 ${EVALUATION_KIND_BADGE_VARIANT[ev.kind] || 'neutral'}`}>
                 {EVALUATION_KIND_LABELS[ev.kind] || ev.kind}
               </span>
-              <span className={`text-base font-medium px-2 py-0.5 rounded-control border ${statusSemanticClass(scoreSemantic(ev.score), isDarkMode)}`}>
+              <span className={`bds-badge ${scoreSemantic(ev.score)}`} style={{ fontSize: 'var(--text-base)' }}>
                 {Math.round(ev.score)}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-sm text-text-primary truncate">{ev.note || '—'}</div>
-                <div className="text-[11px] text-text-tertiary mt-0.5">
+                <div className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{ev.note || '—'}</div>
+                <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                   {ev.evaluatedAt}
                   {ev.sourceType ? ` · 来源 ${SOURCE_TYPE_LABELS[ev.sourceType] || ev.sourceType}` : ''}
                 </div>
@@ -1014,13 +1028,11 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
 
 function CertificationsTab({
   certifications,
-  isDarkMode,
   onCreate,
   onEdit,
   onDelete,
 }: {
   certifications: FactoryCertification[];
-  isDarkMode?: boolean;
   onCreate: () => void;
   onEdit: (c: FactoryCertification) => void;
   onDelete: (c: FactoryCertification) => void;
@@ -1028,10 +1040,10 @@ function CertificationsTab({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs text-text-tertiary">共 {certifications.length} 项认证</div>
+        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>共 {certifications.length} 项认证</div>
         <button
           onClick={onCreate}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-secondary sm"
         >
           <Plus className="w-3.5 h-3.5" />
           新增认证
@@ -1039,40 +1051,40 @@ function CertificationsTab({
       </div>
 
       {certifications.length === 0 ? (
-        <div className="text-center py-10 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-          暂无认证记录
+        <div className="bds-empty bds-card flat">
+          <div className="title">暂无认证记录</div>
         </div>
       ) : (
         <div className="space-y-2">
           {certifications.map((cert) => {
             const daysLeft = certDaysLeft(cert.validUntil);
             return (
-              <div key={cert.id} className="bg-surface-elevated rounded-card p-3 flex items-center gap-3">
-                <Award className="w-4 h-4 text-text-tertiary shrink-0" />
+              <div key={cert.id} className="bds-card flat flex items-center gap-3" style={{ padding: 'var(--space-3)' }}>
+                <Award className="w-4 h-4 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-text-primary">{cert.type}</span>
+                    <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{cert.type}</span>
                     {cert.certificateNo && (
-                      <span className="text-[11px] text-text-tertiary">No. {cert.certificateNo}</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>No. {cert.certificateNo}</span>
                     )}
                   </div>
-                  <div className="text-[11px] text-text-tertiary mt-0.5">
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                     签发 {formatDate(cert.issuedAt)} · 有效期至 {cert.validUntil || '长期'}
                   </div>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-control border shrink-0 ${statusSemanticClass(certSemantic(daysLeft), isDarkMode)}`}>
+                <span className={`bds-badge sm shrink-0 ${certSemantic(daysLeft)}`}>
                   {daysLeft === null ? '长期有效' : daysLeft < 0 ? `已过期 ${-daysLeft} 天` : daysLeft <= EXPIRING_DAYS ? `剩余 ${daysLeft} 天` : '有效'}
                 </span>
                 <button
                   onClick={() => onEdit(cert)}
-                  className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
                   title="编辑"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => onDelete(cert)}
-                  className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
                   title="删除"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -1090,13 +1102,11 @@ function CertificationsTab({
 
 function CapacityTab({
   capacity,
-  isDarkMode,
   onCreate,
   onEdit,
   onDelete,
 }: {
   capacity: FactoryCapacity[];
-  isDarkMode?: boolean;
   onCreate: () => void;
   onEdit: (row: FactoryCapacity) => void;
   onDelete: (row: FactoryCapacity) => void;
@@ -1104,12 +1114,12 @@ function CapacityTab({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs text-text-tertiary">
+        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
           占用量由在手采购单（已发送/已确认/部分收货）按交期落月实时聚合
         </div>
         <button
           onClick={onCreate}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-secondary sm"
         >
           <Plus className="w-3.5 h-3.5" />
           设置月产能
@@ -1117,8 +1127,9 @@ function CapacityTab({
       </div>
 
       {capacity.length === 0 ? (
-        <div className="text-center py-10 text-text-tertiary text-sm bg-surface-elevated rounded-card">
-          暂无产能计划，点击「设置月产能」开始规划
+        <div className="bds-empty bds-card flat">
+          <div className="title">暂无产能计划</div>
+          <div className="desc">点击「设置月产能」开始规划</div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -1128,37 +1139,37 @@ function CapacityTab({
             const ratio = cap > 0 ? occupied / cap : 0;
             const semantic: StatusSemantic = ratio > 1 ? 'danger' : ratio > 0.8 ? 'warning' : 'success';
             return (
-              <div key={row.id} className="bg-surface-elevated rounded-card p-3">
+              <div key={row.id} className="bds-card flat" style={{ padding: 'var(--space-3)' }}>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-text-primary font-medium w-20">{row.month}</span>
-                  <span className="text-xs text-text-tertiary">
+                  <span className="text-sm font-medium w-20" style={{ color: 'var(--text-primary)' }}>{row.month}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                     计划 {formatNumber(cap)} {row.unit || ''}
                   </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-control border ${statusSemanticClass(semantic, isDarkMode)}`}>
+                  <span className={`bds-badge sm ${semantic}`}>
                     占用 {formatNumber(occupied)}（{Math.round(ratio * 100)}%）
                   </span>
-                  {row.note && <span className="text-[11px] text-text-tertiary truncate">{row.note}</span>}
+                  {row.note && <span className="text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>{row.note}</span>}
                   <div className="ml-auto flex items-center gap-1">
                     <button
                       onClick={() => onEdit(row)}
-                      className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       title="编辑"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onDelete(row)}
-                      className="p-1.5 rounded-control text-text-tertiary hover:text-text-primary hover:bg-surface-primary transition-colors"
+                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       title="删除"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-                {/* 占用条（flat：纯色膜，无阴影） */}
-                <div className="mt-2 h-1.5 rounded-full bg-surface-primary overflow-hidden">
+                {/* 占用条 */}
+                <div className={`bds-progress mt-2 ${semantic}`}>
                   <div
-                    className={`h-full rounded-full transition-all ${statusSemanticBg(semantic, isDarkMode)}`}
+                    className="fill"
                     style={{ width: `${Math.min(ratio * 100, 100)}%` }}
                   />
                 </div>
@@ -1179,23 +1190,24 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="bds-modal-mask"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-surface-elevated rounded-panel w-full max-w-lg max-h-[85vh] overflow-y-auto"
+        className="bds-modal"
+        style={{ width: '32rem', maxHeight: '85vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon sm">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        {children}
       </motion.div>
     </motion.div>
   );
@@ -1204,13 +1216,15 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>{label}</label>
       {children}
     </div>
   );
 }
 
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
+const inputClass = 'bds-input';
+const selectClass = 'bds-select';
+const textareaClass = 'bds-input bds-textarea';
 
 // ─── 档案表单（新建 / 编辑） ───
 
@@ -1286,14 +1300,14 @@ function ProfileForm({
     <ModalShell title={profile ? '编辑工厂档案' : '新建工厂档案'} onClose={onClose}>
       {!profile && (
         <Field label="供应商（category=Supplier 的组织）*">
-          <select className={inputClass} value={relationId} onChange={(e) => setRelationId(e.target.value)}>
+          <select className={selectClass} value={relationId} onChange={(e) => setRelationId(e.target.value)}>
             <option value="">选择供应商...</option>
             {relations.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
           {relations.length === 0 && (
-            <div className="text-[11px] text-text-tertiary mt-1">
+            <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
               暂无可建档的供应商组织，请先在「关系智库」创建 category=Supplier 的组织
             </div>
           )}
@@ -1304,7 +1318,7 @@ function ProfileForm({
           <input type="number" className={inputClass} value={monthlyCapacity} onChange={(e) => setMonthlyCapacity(e.target.value)} />
         </Field>
         <Field label="产能单位">
-          <select className={inputClass} value={capacityUnit} onChange={(e) => setCapacityUnit(e.target.value)}>
+          <select className={selectClass} value={capacityUnit} onChange={(e) => setCapacityUnit(e.target.value)}>
             {CAPACITY_UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
           </select>
         </Field>
@@ -1314,7 +1328,7 @@ function ProfileForm({
           <input type="number" className={inputClass} value={workerCount} onChange={(e) => setWorkerCount(e.target.value)} />
         </Field>
         <Field label="价位水平">
-          <select className={inputClass} value={priceLevel} onChange={(e) => setPriceLevel(e.target.value as FactoryPriceLevel | '')}>
+          <select className={selectClass} value={priceLevel} onChange={(e) => setPriceLevel(e.target.value as FactoryPriceLevel | '')}>
             <option value="">未设置</option>
             {PRICE_LEVELS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
@@ -1341,15 +1355,15 @@ function ProfileForm({
         </Field>
       </div>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1384,7 +1398,7 @@ function EvaluationForm({
   return (
     <ModalShell title="手动追加评分" onClose={onClose}>
       <Field label="评分类型 *">
-        <select className={inputClass} value={kind} onChange={(e) => setKind(e.target.value as FactoryEvaluationKind)}>
+        <select className={selectClass} value={kind} onChange={(e) => setKind(e.target.value as FactoryEvaluationKind)}>
           <option value="inspection">验货质量</option>
           <option value="delivery">交期达成</option>
         </select>
@@ -1398,15 +1412,15 @@ function EvaluationForm({
         </Field>
       </div>
       <Field label="备注">
-        <textarea className={inputClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="评定依据说明" />
+        <textarea className={textareaClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="评定依据说明" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1453,7 +1467,7 @@ function CertificationForm({
     <ModalShell title={certification ? '编辑认证' : '新增认证'} onClose={onClose}>
       <Field label="认证类型 *">
         <select
-          className={inputClass}
+          className={selectClass}
           value={CERT_TYPES.includes(type) ? type : '其他'}
           onChange={(e) => {
             const v = e.target.value;
@@ -1480,17 +1494,18 @@ function CertificationForm({
           <input type="date" className={inputClass} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} disabled={longTerm} />
         </Field>
       </div>
-      <label className="flex items-center gap-2 text-xs text-text-tertiary mb-3">
+      <label className="bds-check mb-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
         <input type="checkbox" checked={longTerm} onChange={(e) => setLongTerm(e.target.checked)} />
+        <span className="box" />
         长期有效（无到期日）
       </label>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1541,7 +1556,7 @@ function CapacityForm({
         </Field>
       </div>
       <Field label="单位">
-        <select className={inputClass} value={unit} onChange={(e) => setUnit(e.target.value)}>
+        <select className={selectClass} value={unit} onChange={(e) => setUnit(e.target.value)}>
           {CAPACITY_UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
         </select>
       </Field>
@@ -1549,12 +1564,12 @@ function CapacityForm({
         <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="如：春节月减半" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1586,19 +1601,19 @@ function BlacklistForm({
 
   return (
     <ModalShell title={`拉黑「${profile.relation?.name || profile.relationId}」`} onClose={onClose}>
-      <div className={`mb-3 px-3 py-2 rounded-card border text-xs ${statusSemanticClass('warning')}`}>
+      <div className="bds-alert warning mb-3 text-xs">
         拉黑后该工厂将被禁止新建采购单，直至解除拉黑。此操作需要管理权限。
       </div>
       <Field label="拉黑原因 *">
-        <textarea className={inputClass} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="如：连续两次验货不合格 / 严重延期" />
+        <textarea className={textareaClass} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="如：连续两次验货不合格 / 严重延期" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-control text-text-tertiary hover:text-text-primary transition-colors">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="px-3 py-1.5 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all"
+          className="bds-btn bds-btn-danger sm"
         >
           确认拉黑
         </button>
