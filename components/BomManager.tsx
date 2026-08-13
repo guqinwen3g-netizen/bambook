@@ -40,13 +40,14 @@ import {
   BOMStatus,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
-import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
-const MATERIAL_TYPES: Array<{ id: MaterialType; label: string; semantic: StatusSemantic }> = [
+// BDS v2.1：状态 → bds-badge 语义变体（主题透明，替代 statusSemanticClass 拼装）
+type BadgeVariant = 'neutral' | 'info' | 'success' | 'danger' | 'warning';
+
+const MATERIAL_TYPES: Array<{ id: MaterialType; label: string; semantic: BadgeVariant }> = [
   { id: 'Main', label: '主料', semantic: 'info' },
   { id: 'Contrast', label: '对比料', semantic: 'info' },
   { id: 'Lining', label: '里布', semantic: 'neutral' },
@@ -57,15 +58,15 @@ const MATERIAL_TYPES: Array<{ id: MaterialType; label: string; semantic: StatusS
   { id: 'Other', label: '其他', semantic: 'neutral' },
 ];
 
-const COST_TYPES: Array<{ id: CostType; label: string; semantic: StatusSemantic }> = [
+const COST_TYPES: Array<{ id: CostType; label: string; semantic: BadgeVariant }> = [
   { id: 'Material', label: '物料成本', semantic: 'info' },
   { id: 'Labor', label: '人工成本', semantic: 'warning' },
   { id: 'Overhead', label: '制造费用', semantic: 'neutral' },
   { id: 'Other', label: '其他', semantic: 'neutral' },
 ];
 
-// BOM 业务状态 → StatusSemantic 语义映射（避免 as StatusSemantic 不安全强转）
-const BOM_STATUS_SEMANTIC: Record<BOMStatus, StatusSemantic> = {
+// BOM 业务状态 → bds-badge 语义变体映射
+const BOM_STATUS_BADGE_VARIANT: Record<BOMStatus, BadgeVariant> = {
   Draft: 'neutral',
   Confirmed: 'success',
   Archived: 'info',
@@ -77,7 +78,6 @@ const BOM_STATUS_LABEL: Record<BOMStatus, string> = {
   Archived: '已归档',
 };
 
-const ITEM_CATEGORIES = ['Fabric', 'Trimmings', 'Accessories', 'Garment', 'Other'];
 const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
 
 const STATUS_TABS: Array<{ id: BOMStatus | 'all'; label: string }> = [
@@ -212,16 +212,6 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
     loadBOMs();
   };
 
-  // ── 主题样式 ──
-  const cardClass = isDarkMode
-    ? `rounded-card border border-white/[0.055] bg-white/[0.018] ${BAMBOOK_OS.material.glassColor}`
-    : `rounded-card border border-white/45 bg-white/24 ${BAMBOOK_OS.material.glassColor}`;
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
-  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
-  const actionBtnCls = `h-8 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50`;
-
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <PageHeader title="BOM 成本核算" subtitle="Bill of Materials" isDarkMode={isDarkMode} />
@@ -229,39 +219,35 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
         {/* ── 工具栏 ── */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-1 p-1 rounded-control bg-black/5">
+          <div className="bds-segment">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1 rounded-compact text-xs font-light transition-colors ${
-                  statusFilter === tab.id
-                    ? isDarkMode ? 'bg-white/10 text-white' : 'bg-white text-slate-900 shadow-sm'
-                    : isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`seg ${statusFilter === tab.id ? 'active' : ''}`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
           <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索 BOM 编号/描述..."
-              className={`${fieldClass} pl-9`}
+              className="bds-input sm pl-9"
               onKeyDown={(e) => { if (e.key === 'Enter') loadBOMs(); }}
             />
           </div>
-          <button onClick={loadBOMs} className={`${actionBtnCls} ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+          <button onClick={loadBOMs} className="bds-btn bds-btn-ghost sm">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>刷新</span>
           </button>
           <button
             onClick={() => setShowCreateForm(true)}
-            className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white`}
+            className="bds-btn bds-btn-primary sm"
           >
             <Plus size={13} />
             <span>新建 BOM</span>
@@ -269,10 +255,12 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
         </div>
 
         {error && (
-          <div className={`mb-3 p-3 rounded-control flex items-center gap-2 text-xs ${isDarkMode ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
+          <div className="bds-alert danger mb-3">
             <AlertCircle size={14} />
             <span className="flex-1">{error}</span>
-            <button onClick={() => setError(null)} className="opacity-60 hover:opacity-100"><X size={14} /></button>
+            <button onClick={() => setError(null)} className="p-0.5" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'inline-flex' }}>
+              <X size={14} />
+            </button>
           </div>
         )}
 
@@ -280,13 +268,14 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
         <ScrollEdgeFades scrollRef={scrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           {loading && boms.length === 0 ? (
-            <div className={`flex items-center justify-center h-32 text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <div className="flex items-center justify-center h-32 text-sm" style={{ color: 'var(--text-quaternary)' }}>
               <Loader2 size={16} className="animate-spin mr-2" /> 加载中...
             </div>
           ) : boms.length === 0 ? (
-            <div className={`flex flex-col items-center justify-center h-32 text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-              <Calculator size={32} className="mb-2 opacity-30" />
-              <span>暂无 BOM，点击「新建 BOM」创建</span>
+            <div className="bds-empty">
+              <div className="glyph"><Calculator size={24} /></div>
+              <div className="title">暂无 BOM</div>
+              <div className="desc">点击「新建 BOM」创建</div>
             </div>
           ) : (
             <div className="space-y-2 pb-2">
@@ -304,42 +293,44 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(index * 0.02, 0.3) }}
-                    className={`${cardClass} overflow-hidden`}
+                    className="bds-card"
+                    style={{ padding: 0, overflow: 'hidden' }}
                   >
                     {/* ── BOM 头部（可展开） ── */}
                     <div
-                      className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
                       onClick={() => handleExpand(bom.id)}
                     >
                       <ChevronDown
                         size={16}
-                        className={`transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''} ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}
+                        className={`transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
+                        style={{ color: 'var(--text-quaternary)' }}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-sm font-normal truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                          <span className="bds-mono text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                             {bom.bomNumber}
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(BOM_STATUS_SEMANTIC[bom.status] ?? 'neutral', isDarkMode)}`}>
+                          <span className={`bds-badge sm ${BOM_STATUS_BADGE_VARIANT[bom.status] ?? 'neutral'}`}>
                             {BOM_STATUS_LABEL[bom.status] ?? bom.status}
                           </span>
-                          <span className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>v{bom.version}</span>
+                          <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>v{bom.version}</span>
                         </div>
-                        <div className={`text-xs mt-0.5 truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }}>
                           {bom.description} · {lineCount} 行物料
                         </div>
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0">
                         <div className="text-right">
-                          <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>总成本</div>
-                          <div className={`text-sm font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                          <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>总成本</div>
+                          <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                             {formatCurrency(bom.totalCost, bom.currency)}
                           </div>
                         </div>
                         {bom.sellingPrice != null && (
                           <div className="text-right">
-                            <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>利润率</div>
-                            <div className={`text-sm font-normal flex items-center gap-0.5 ${profitPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+                            <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>利润率</div>
+                            <div className="bds-tnum text-sm flex items-center gap-0.5" style={{ color: profitPositive ? 'var(--success-text)' : 'var(--danger-text)' }}>
                               {profitPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                               {bom.profitMargin != null ? `${bom.profitMargin.toFixed(1)}%` : '—'}
                             </div>
@@ -357,30 +348,30 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                           exit={{ height: 0, opacity: 0 }}
                           className="overflow-hidden"
                         >
-                          <div className={`px-4 pb-4 pt-1 border-t ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+                          <div className="px-4 pb-4 pt-1" style={{ borderTop: 'var(--border-subtle)' }}>
                             {/* 成本汇总卡片 */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                              <div className={`p-2 rounded-inset ${isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
-                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>物料成本</div>
-                                <div className={`text-sm font-normal ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 mt-2">
+                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>物料成本</div>
+                                <div className="bds-tnum text-sm" style={{ color: 'var(--text-secondary)' }}>
                                   {formatCurrency(detail.totalMaterialCost, detail.currency)}
                                 </div>
                               </div>
-                              <div className={`p-2 rounded-inset ${isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
-                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>人工成本</div>
-                                <div className={`text-sm font-normal ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>人工成本</div>
+                                <div className="bds-tnum text-sm" style={{ color: 'var(--text-secondary)' }}>
                                   {formatCurrency(detail.totalLaborCost, detail.currency)}
                                 </div>
                               </div>
-                              <div className={`p-2 rounded-inset ${isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
-                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>制造费用</div>
-                                <div className={`text-sm font-normal ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>制造费用</div>
+                                <div className="bds-tnum text-sm" style={{ color: 'var(--text-secondary)' }}>
                                   {formatCurrency(detail.totalOverheadCost, detail.currency)}
                                 </div>
                               </div>
-                              <div className={`p-2 rounded-inset ${isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
-                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>总成本</div>
-                                <div className={`text-sm font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>总成本</div>
+                                <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                                   {formatCurrency(detail.totalCost, detail.currency)}
                                 </div>
                               </div>
@@ -388,22 +379,22 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
 
                             {/* 利润分析 */}
                             {detail.sellingPrice != null && (
-                              <div className={`p-2 rounded-inset mb-3 flex items-center gap-4 ${isDarkMode ? 'bg-emerald-500/[0.06]' : 'bg-emerald-50'}`}>
+                              <div className="p-2 rounded-inset mb-3 flex items-center gap-4" style={{ background: 'var(--success-tint)' }}>
                                 <div>
-                                  <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>销售单价</div>
-                                  <div className={`text-sm font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                  <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>销售单价</div>
+                                  <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                                     {formatCurrency(detail.sellingPrice, detail.currency)}
                                   </div>
                                 </div>
                                 <div>
-                                  <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>利润额</div>
-                                  <div className={`text-sm font-normal ${profitPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+                                  <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>利润额</div>
+                                  <div className="bds-tnum text-sm" style={{ color: profitPositive ? 'var(--success-text)' : 'var(--danger-text)' }}>
                                     {formatCurrency(detail.profitAmount, detail.currency)}
                                   </div>
                                 </div>
                                 <div>
-                                  <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>利润率</div>
-                                  <div className={`text-sm font-normal ${profitPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+                                  <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>利润率</div>
+                                  <div className="bds-tnum text-sm" style={{ color: profitPositive ? 'var(--success-text)' : 'var(--danger-text)' }}>
                                     {detail.profitMargin != null ? `${detail.profitMargin.toFixed(2)}%` : '—'}
                                   </div>
                                 </div>
@@ -413,38 +404,38 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                             {/* 物料行明细 */}
                             {lines.length > 0 && (
                               <div className="mb-3">
-                                <div className={`text-xs mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>物料明细</div>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-xs">
+                                <div className="bds-overline mb-1.5" style={{ color: 'var(--text-tertiary)' }}>物料明细</div>
+                                <div className="rounded-inset overflow-hidden overflow-x-auto" style={{ background: 'var(--bg-panel)' }}>
+                                  <table className="bds-table">
                                     <thead>
-                                      <tr className={`text-left ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                        <th className="py-1 pr-2 font-light">#</th>
-                                        <th className="py-1 pr-2 font-light">类型</th>
-                                        <th className="py-1 pr-2 font-light">物料编码</th>
-                                        <th className="py-1 pr-2 font-light">品名</th>
-                                        <th className="py-1 pr-2 font-light text-right">用量</th>
-                                        <th className="py-1 pr-2 font-light text-right">损耗</th>
-                                        <th className="py-1 pr-2 font-light text-right">实耗</th>
-                                        <th className="py-1 pr-2 font-light text-right">单价</th>
-                                        <th className="py-1 font-light text-right">金额</th>
+                                      <tr>
+                                        <th>#</th>
+                                        <th>类型</th>
+                                        <th>物料编码</th>
+                                        <th>品名</th>
+                                        <th className="num">用量</th>
+                                        <th className="num">损耗</th>
+                                        <th className="num">实耗</th>
+                                        <th className="num">单价</th>
+                                        <th className="num">金额</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {lines.map((line) => (
-                                        <tr key={line.id} className={`border-t ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
-                                          <td className={`py-1.5 pr-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{line.lineNumber}</td>
-                                          <td className="py-1.5 pr-2">
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(MATERIAL_TYPES.find(m => m.id === line.materialType)?.semantic ?? 'neutral', isDarkMode)}`}>
+                                        <tr key={line.id}>
+                                          <td style={{ color: 'var(--text-quaternary)' }}>{line.lineNumber}</td>
+                                          <td>
+                                            <span className={`bds-badge sm ${MATERIAL_TYPES.find(m => m.id === line.materialType)?.semantic ?? 'neutral'}`}>
                                               {MATERIAL_TYPES.find(m => m.id === line.materialType)?.label || line.materialType}
                                             </span>
                                           </td>
-                                          <td className={`py-1.5 pr-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{line.materialCode || '—'}</td>
-                                          <td className={`py-1.5 pr-2 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{line.description}</td>
-                                          <td className={`py-1.5 pr-2 text-right ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{line.quantity} {line.unit}</td>
-                                          <td className={`py-1.5 pr-2 text-right ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{line.wastagePercent}%</td>
-                                          <td className={`py-1.5 pr-2 text-right ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{line.effectiveQty}</td>
-                                          <td className={`py-1.5 pr-2 text-right ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{formatCurrency(line.unitCost, line.currency)}</td>
-                                          <td className={`py-1.5 text-right font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(line.amount, line.currency)}</td>
+                                          <td className="bds-mono" style={{ color: 'var(--text-secondary)' }}>{line.materialCode || '—'}</td>
+                                          <td style={{ color: 'var(--text-primary)' }}>{line.description}</td>
+                                          <td className="num" style={{ color: 'var(--text-secondary)' }}>{line.quantity} {line.unit}</td>
+                                          <td className="num" style={{ color: 'var(--text-tertiary)' }}>{line.wastagePercent}%</td>
+                                          <td className="num" style={{ color: 'var(--text-secondary)' }}>{line.effectiveQty}</td>
+                                          <td className="num" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(line.unitCost, line.currency)}</td>
+                                          <td className="num bds-tnum" style={{ color: 'var(--text-primary)' }}>{formatCurrency(line.amount, line.currency)}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -456,17 +447,17 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                             {/* 成本估算项 */}
                             {costEstimates.length > 0 && (
                               <div className="mb-3">
-                                <div className={`text-xs mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>成本估算项</div>
+                                <div className="bds-overline mb-1.5" style={{ color: 'var(--text-tertiary)' }}>成本估算项</div>
                                 <div className="space-y-1">
                                   {costEstimates.map((ce) => (
-                                    <div key={ce.id} className={`flex items-center justify-between text-xs py-1 px-2 rounded-inset ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
+                                    <div key={ce.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
                                       <div className="flex items-center gap-2">
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(COST_TYPES.find(c => c.id === ce.costType)?.semantic ?? 'neutral', isDarkMode)}`}>
+                                        <span className={`bds-badge sm ${COST_TYPES.find(c => c.id === ce.costType)?.semantic ?? 'neutral'}`}>
                                           {COST_TYPES.find(c => c.id === ce.costType)?.label || ce.costType}
                                         </span>
-                                        <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>{ce.description}</span>
+                                        <span style={{ color: 'var(--text-secondary)' }}>{ce.description}</span>
                                       </div>
-                                      <span className={`font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(ce.amount, ce.currency)}</span>
+                                      <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{formatCurrency(ce.amount, ce.currency)}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -480,7 +471,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   <button
                                     onClick={() => handleConfirm(bom.id)}
                                     disabled={actionLoading === `confirm_${bom.id}`}
-                                    className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white`}
+                                    className="bds-btn bds-btn-primary sm"
                                   >
                                     {actionLoading === `confirm_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                                     <span>确认 BOM</span>
@@ -488,7 +479,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   <button
                                     onClick={() => handleRecalculate(bom.id)}
                                     disabled={actionLoading === `recalc_${bom.id}`}
-                                    className={`${actionBtnCls} ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                    className="bds-btn bds-btn-ghost sm"
                                   >
                                     {actionLoading === `recalc_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Calculator size={13} />}
                                     <span>重新计算</span>
@@ -496,7 +487,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   <button
                                     onClick={() => handleDelete(bom.id)}
                                     disabled={actionLoading === `delete_${bom.id}`}
-                                    className={`${actionBtnCls} ${isDarkMode ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                                    className="bds-btn bds-btn-danger sm"
                                   >
                                     {actionLoading === `delete_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                                     <span>删除</span>
@@ -507,7 +498,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                 <button
                                   onClick={() => handleArchive(bom.id)}
                                   disabled={actionLoading === `archive_${bom.id}`}
-                                  className={`${actionBtnCls} ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                  className="bds-btn bds-btn-ghost sm"
                                 >
                                   {actionLoading === `archive_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />}
                                   <span>归档</span>
@@ -537,10 +528,6 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
         <AnimatePresence>
           {showCreateForm && (
             <CreateBOMModal
-              isDarkMode={isDarkMode}
-              cardClass={cardClass}
-              fieldClass={fieldClass}
-              labelClass={labelClass}
               onClose={() => setShowCreateForm(false)}
               onSuccess={handleCreateSuccess}
             />
@@ -553,15 +540,11 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
 
 // ==================== 创建 BOM 弹窗 ====================
 interface CreateBOMModalProps {
-  isDarkMode: boolean;
-  cardClass: string;
-  fieldClass: string;
-  labelClass: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ isDarkMode, cardClass, fieldClass, labelClass, onClose, onSuccess }) => {
+const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) => {
   const [bomNumber, setBomNumber] = useState(`BOM-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`);
   const [description, setDescription] = useState('');
   const [currency, setCurrency] = useState('CNY');
@@ -668,95 +651,99 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ isDarkMode, cardClass, 
     }
   };
 
+  const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="bds-modal-mask" onClick={onClose}>
       <div
-        className={`w-full max-w-4xl max-h-[90vh] overflow-auto p-6 rounded-card ${cardClass}`}
+        className="bds-modal"
+        style={{ width: '56rem', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className={`text-base font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建 BOM</h2>
-          <button onClick={onClose} className={`p-1 rounded-control ${isDarkMode ? 'text-slate-400 hover:bg-white/5' : 'text-slate-400 hover:bg-slate-100'}`}>
+          <h2 className="text-base" style={{ color: 'var(--text-primary)' }}>新建 BOM</h2>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon sm">
             <X size={18} />
           </button>
         </div>
 
         {error && (
-          <div className={`mb-3 p-2 rounded-control text-xs ${isDarkMode ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
-            {error}
+          <div className="bds-alert danger mb-3">
+            <AlertCircle size={14} />
+            <span>{error}</span>
           </div>
         )}
 
         {/* 基本信息 */}
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div>
-            <label className={labelClass}>BOM 编号 *</label>
-            <input type="text" value={bomNumber} onChange={(e) => setBomNumber(e.target.value)} className={fieldClass} />
+            <label className={labelCls}>BOM 编号 *</label>
+            <input type="text" value={bomNumber} onChange={(e) => setBomNumber(e.target.value)} className="bds-input sm" />
           </div>
           <div>
-            <label className={labelClass}>描述 *</label>
-            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="如：男款西装外套 - 款号 M2026-001" className={fieldClass} />
+            <label className={labelCls}>描述 *</label>
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="如：男款西装外套 - 款号 M2026-001" className="bds-input sm" />
           </div>
           <div>
-            <label className={labelClass}>币种</label>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={fieldClass}>
+            <label className={labelCls}>币种</label>
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
               <option value="CNY">CNY 人民币</option>
               <option value="USD">USD 美元</option>
               <option value="EUR">EUR 欧元</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>销售单价（利润分析）</label>
-            <input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="可选" className={fieldClass} />
+            <label className={labelCls}>销售单价（利润分析）</label>
+            <input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="可选" className="bds-input sm" />
           </div>
         </div>
 
         {/* 物料行 */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <label className={labelClass}>物料明细</label>
-            <button onClick={handleAddLine} className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)]' : 'text-[var(--os-vnext-brand-blue)]'}`}>
+            <label className={labelCls}>物料明细</label>
+            <button onClick={handleAddLine} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
               <Plus size={12} /> 添加行
             </button>
           </div>
           <div className="space-y-2">
             {lines.map((line, index) => (
-              <div key={index} className={`p-2 rounded-inset ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
+              <div key={index} className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-2">
-                    <label className={labelClass}>类型</label>
-                    <select value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                    <label className={labelCls}>类型</label>
+                    <select value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                       {MATERIAL_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                     </select>
                   </div>
                   <div className="col-span-3">
-                    <label className={labelClass}>品名 *</label>
-                    <input type="text" value={line.description} onChange={(e) => handleLineChange(index, 'description', e.target.value)} className={`${fieldClass} py-1.5 text-xs`} />
+                    <label className={labelCls}>品名 *</label>
+                    <input type="text" value={line.description} onChange={(e) => handleLineChange(index, 'description', e.target.value)} className="bds-input sm" />
                   </div>
                   <div className="col-span-2">
-                    <label className={labelClass}>物料编码</label>
-                    <input type="text" value={line.materialCode || ''} onChange={(e) => handleLineChange(index, 'materialCode', e.target.value)} className={`${fieldClass} py-1.5 text-xs`} />
+                    <label className={labelCls}>物料编码</label>
+                    <input type="text" value={line.materialCode || ''} onChange={(e) => handleLineChange(index, 'materialCode', e.target.value)} className="bds-input sm" />
                   </div>
                   <div className="col-span-1">
-                    <label className={labelClass}>用量</label>
-                    <input type="number" value={line.quantity || ''} onChange={(e) => handleLineChange(index, 'quantity', parseFloat(e.target.value) || 0)} className={`${fieldClass} py-1.5 text-xs`} />
+                    <label className={labelCls}>用量</label>
+                    <input type="number" value={line.quantity || ''} onChange={(e) => handleLineChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="bds-input sm" />
                   </div>
                   <div className="col-span-1">
-                    <label className={labelClass}>单位</label>
-                    <select value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                    <label className={labelCls}>单位</label>
+                    <select value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
                   <div className="col-span-1">
-                    <label className={labelClass}>损耗%</label>
-                    <input type="number" value={line.wastagePercent || ''} onChange={(e) => handleLineChange(index, 'wastagePercent', parseFloat(e.target.value) || 0)} className={`${fieldClass} py-1.5 text-xs`} />
+                    <label className={labelCls}>损耗%</label>
+                    <input type="number" value={line.wastagePercent || ''} onChange={(e) => handleLineChange(index, 'wastagePercent', parseFloat(e.target.value) || 0)} className="bds-input sm" />
                   </div>
                   <div className="col-span-1">
-                    <label className={labelClass}>单价</label>
-                    <input type="number" value={line.unitCost || ''} onChange={(e) => handleLineChange(index, 'unitCost', parseFloat(e.target.value) || 0)} className={`${fieldClass} py-1.5 text-xs`} />
+                    <label className={labelCls}>单价</label>
+                    <input type="number" value={line.unitCost || ''} onChange={(e) => handleLineChange(index, 'unitCost', parseFloat(e.target.value) || 0)} className="bds-input sm" />
                   </div>
                   <div className="col-span-1 flex justify-end">
-                    <button onClick={() => handleRemoveLine(index)} className={`p-1.5 rounded-control ${isDarkMode ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50'}`}>
+                    <button onClick={() => handleRemoveLine(index)} className="bds-btn bds-btn-danger bds-btn-icon sm">
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -769,8 +756,8 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ isDarkMode, cardClass, 
         {/* 成本估算项 */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <label className={labelClass}>成本估算项（人工/费用，可选）</label>
-            <button onClick={handleAddCost} className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)]' : 'text-[var(--os-vnext-brand-blue)]'}`}>
+            <label className={labelCls}>成本估算项（人工/费用，可选）</label>
+            <button onClick={handleAddCost} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
               <Plus size={12} /> 添加成本项
             </button>
           </div>
@@ -779,21 +766,21 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ isDarkMode, cardClass, 
               {costEstimates.map((cost, index) => (
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-3">
-                    <label className={labelClass}>类型</label>
-                    <select value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)} className={`${fieldClass} py-1.5 text-xs`}>
+                    <label className={labelCls}>类型</label>
+                    <select value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                       {COST_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                   </div>
                   <div className="col-span-6">
-                    <label className={labelClass}>描述</label>
-                    <input type="text" value={cost.description} onChange={(e) => handleCostChange(index, 'description', e.target.value)} placeholder="如：裁剪人工 / 缝纫人工 / 厂房折旧" className={`${fieldClass} py-1.5 text-xs`} />
+                    <label className={labelCls}>描述</label>
+                    <input type="text" value={cost.description} onChange={(e) => handleCostChange(index, 'description', e.target.value)} placeholder="如：裁剪人工 / 缝纫人工 / 厂房折旧" className="bds-input sm" />
                   </div>
                   <div className="col-span-2">
-                    <label className={labelClass}>金额</label>
-                    <input type="number" value={cost.amount || ''} onChange={(e) => handleCostChange(index, 'amount', parseFloat(e.target.value) || 0)} className={`${fieldClass} py-1.5 text-xs`} />
+                    <label className={labelCls}>金额</label>
+                    <input type="number" value={cost.amount || ''} onChange={(e) => handleCostChange(index, 'amount', parseFloat(e.target.value) || 0)} className="bds-input sm" />
                   </div>
                   <div className="col-span-1 flex justify-end">
-                    <button onClick={() => handleRemoveCost(index)} className={`p-1.5 rounded-control ${isDarkMode ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50'}`}>
+                    <button onClick={() => handleRemoveCost(index)} className="bds-btn bds-btn-danger bds-btn-icon sm">
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -804,27 +791,27 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ isDarkMode, cardClass, 
         </div>
 
         {/* 实时成本汇总 */}
-        <div className={`p-3 rounded-card mb-4 ${isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}`}>
+        <div className="p-3 rounded-card mb-4" style={{ background: 'var(--bg-panel)' }}>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
             <div>
-              <div className={labelClass}>物料合计</div>
-              <div className={`font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{costSummary.totalMaterial.toFixed(2)}</div>
+              <div className={labelCls}>物料合计</div>
+              <div className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{costSummary.totalMaterial.toFixed(2)}</div>
             </div>
             <div>
-              <div className={labelClass}>人工合计</div>
-              <div className={`font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{costSummary.laborCost.toFixed(2)}</div>
+              <div className={labelCls}>人工合计</div>
+              <div className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{costSummary.laborCost.toFixed(2)}</div>
             </div>
             <div>
-              <div className={labelClass}>费用合计</div>
-              <div className={`font-normal ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{costSummary.overheadCost.toFixed(2)}</div>
+              <div className={labelCls}>费用合计</div>
+              <div className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{costSummary.overheadCost.toFixed(2)}</div>
             </div>
             <div>
-              <div className={labelClass}>总成本</div>
-              <div className={`font-normal text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{costSummary.totalCost.toFixed(2)} {currency}</div>
+              <div className={labelCls}>总成本</div>
+              <div className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{costSummary.totalCost.toFixed(2)} {currency}</div>
             </div>
             <div>
-              <div className={labelClass}>{sellingPrice ? '利润率' : '利润分析'}</div>
-              <div className={`font-normal ${sellingPrice ? (costSummary.profitAmount >= 0 ? 'text-emerald-500' : 'text-red-500') : isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              <div className={labelCls}>{sellingPrice ? '利润率' : '利润分析'}</div>
+              <div className="bds-tnum" style={{ color: sellingPrice ? (costSummary.profitAmount >= 0 ? 'var(--success-text)' : 'var(--danger-text)') : 'var(--text-quaternary)' }}>
                 {sellingPrice ? `${costSummary.profitMargin.toFixed(1)}%` : '填入售价'}
               </div>
             </div>
@@ -833,22 +820,22 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ isDarkMode, cardClass, 
 
         {/* 备注 */}
         <div className="mb-4">
-          <label className={labelClass}>备注</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${fieldClass} resize-none`} />
+          <label className={labelCls}>备注</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="bds-input bds-textarea" style={{ resize: 'none' }} />
         </div>
 
         {/* 操作按钮 */}
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={onClose}
-            className={`h-9 px-4 rounded-control text-sm font-light ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className="bds-btn bds-btn-ghost"
           >
             取消
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="h-9 px-4 rounded-control text-sm font-light bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white disabled:opacity-50 flex items-center gap-2"
+            className="bds-btn bds-btn-primary"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
             创建 BOM

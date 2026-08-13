@@ -6,10 +6,9 @@ import {
   Users, Building2, FolderKanban, ClipboardList, Plus, Trash2, Pencil,
   X, Check, Clock3, AlertCircle, UserCircle2,
 } from 'lucide-react';
-import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
-import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
+import { StatusSemantic } from './rdlBusinessStatusTokens';
 import EmployeeProfilesTab from './hr/EmployeeProfilesTab';
 import AttendanceLeaveTab from './hr/AttendanceLeaveTab';
 import PayrollTab from './hr/PayrollTab';
@@ -148,6 +147,19 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: '紧急' },
 ] as const;
 
+// BDS v2.1：语义 → bds-badge 变体映射（bds-badge 无 active 变体，归并到 info；主题透明，替代 statusSemanticClass 拼装）
+type BadgeVariant = 'neutral' | 'info' | 'success' | 'danger' | 'warning';
+const SEMANTIC_BADGE_VARIANT: Record<StatusSemantic, BadgeVariant> = {
+  neutral: 'neutral',
+  active: 'info',
+  info: 'info',
+  warning: 'warning',
+  danger: 'danger',
+  success: 'success',
+  destructive: 'danger',
+  rebate: 'info',
+};
+
 const statusLabel = (status: string, options: readonly { value: string; label: string }[]) =>
   options.find(o => o.value === status)?.label || status;
 
@@ -204,45 +216,21 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const [assignmentForm, setAssignmentForm] = useState({ title: '', description: '', projectId: '', userId: '', priority: 'normal', dueDate: '' });
   const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
 
-  // ── Style tokens (mirror AdminPanel patterns) ──
-  const cardClass = `rounded-inset border transition-all duration-300 ${
-    isDarkMode
-      ? 'border-white/[0.055] bg-white/[0.018]'
-      : 'border-white/45 bg-white/24'
-  }`;
+  // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+  const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
+  const inputCls = 'bds-input';
+  const selectCls = 'bds-select';
 
-  const labelCls = `text-[10px] font-light tracking-wide ${isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight}`;
-  const inputCls = `w-full h-9 px-3 rounded-control border outline-none text-xs font-light transition-all duration-200 ${
-    isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light
-  }`;
+  const primaryButtonCls = 'bds-btn bds-btn-primary sm';
+  const actionButtonCls = 'bds-btn bds-btn-ghost sm';
+  const subtleButtonCls = 'bds-btn bds-btn-secondary sm';
 
-  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-all duration-200 ${
-    isDarkMode
-      ? `${BAMBOOK_OS.controls.stateControl.baseDark} ${BAMBOOK_OS.controls.stateControl.interactionDark}`
-      : `${BAMBOOK_OS.controls.stateControl.baseLight} ${BAMBOOK_OS.controls.stateControl.interactionLight}`
-  }`;
+  const sectionTitleClass = 'text-sm font-light text-[var(--text-primary)]';
+  const sectionMutedClass = 'text-xs font-light text-[var(--text-tertiary)]';
+  const borderSoftClass = 'border-[var(--border-c-subtle)]';
 
-  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-all duration-200 ${
-    isDarkMode ? BAMBOOK_OS.controls.actionControl.borderedDark : BAMBOOK_OS.controls.actionControl.borderedLight
-  }`;
-
-  const subtleButtonCls = `h-8 px-2.5 rounded-field border inline-flex items-center justify-center gap-1 text-[10px] font-light transition-colors ${
-    isDarkMode
-      ? 'border-white/12 text-white/58 hover:text-white/82 hover:bg-white/[0.035]'
-      : 'border-white/45 text-slate-600 hover:text-deep-alt hover:bg-white/30'
-  }`;
-
-  const titleClass = `${BAMBOOK_OS.layout.desktopTitleTextClass} text-os-adaptive-title`;
-  const sectionTitleClass = `text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`;
-  const sectionMutedClass = `text-xs font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`;
-  const borderSoftClass = isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/60';
-
-  const navItemActiveClass = isDarkMode
-    ? `${BAMBOOK_OS.controls.selectedSurface.dark} text-white`
-    : `${BAMBOOK_OS.controls.selectedSurface.light} text-deep-alt`;
-  const navItemIdleClass = isDarkMode
-    ? `${BAMBOOK_OS.controls.actionControl.dark} text-white/58 hover:text-white/84`
-    : `${BAMBOOK_OS.controls.actionControl.light} text-slate-600 hover:text-deep-alt`;
+  const navItemActiveClass = 'bg-[var(--active-darken)] text-[var(--text-primary)]';
+  const navItemIdleClass = 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]';
 
   const treeBtnClass = (active: boolean) =>
     `flex w-full items-center gap-2 rounded-compact py-1.5 pr-3 text-xs font-light transition-colors ${active ? navItemActiveClass : navItemIdleClass}`;
@@ -262,7 +250,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       error: 'danger',
     };
     const semantic = semanticMap[status] || 'neutral';
-    return `rounded-full px-2 py-0.5 text-[10px] font-light ${statusSemanticClass(semantic, isDarkMode)}`;
+    return `bds-badge sm ${SEMANTIC_BADGE_VARIANT[semantic]}`;
   };
 
   const priorityChipCls = (priority: string) => {
@@ -274,7 +262,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       medium: 'neutral',
       low: 'neutral',
     };
-    return `rounded-full px-2 py-0.5 text-[10px] font-light ${statusSemanticClass(semanticMap[priority] || 'neutral', isDarkMode)}`;
+    return `bds-badge sm ${SEMANTIC_BADGE_VARIANT[semanticMap[priority] || 'neutral']}`;
   };
 
   // ── API helpers（统一走 apiService HR 通道：endpoint 解析 / API key / JWT / 错误信封）──
@@ -659,7 +647,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
   // ── Shared card renderers ──
   const renderPersonCard = (person: PersonnelMember) => (
-    <div key={person.id} className={`${cardClass} p-4 flex items-center gap-3`}>
+    <div key={person.id} className="bds-card flex items-center gap-3">
       <UserAvatar
         name={person.displayName}
         email={person.email}
@@ -668,18 +656,16 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         isDarkMode={isDarkMode}
       />
       <div className="flex-1 min-w-0">
-        <div className={`text-sm font-light truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+        <div className={`text-sm font-light truncate text-[var(--text-primary)]`}>
           {person.displayName}
         </div>
-        <div className={`text-[10px] font-light truncate ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+        <div className={`text-[10px] font-light truncate text-[var(--text-tertiary)]`}>
           {person.email || '未绑定邮箱'}
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">
         {person.roles.map(role => (
-          <span key={role} className={`rounded-full px-2 py-0.5 text-[10px] font-light ${
-            isDarkMode ? 'bg-white/[0.04] text-white/50' : 'bg-white/34 text-slate-600'
-          }`}>{role}</span>
+          <span key={role} className="bds-badge sm neutral">{role}</span>
         ))}
         <span className={statusChipCls(person.status)}>{person.status === 'active' ? '正常' : person.status === 'pending' ? '待审批' : person.status === 'disabled' ? '已停用' : person.status}</span>
       </div>
@@ -687,23 +673,23 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   );
 
   const renderTeamCard = (team: TeamInfo) => (
-    <div key={team.id} className={`${cardClass} p-4`}>
+    <div key={team.id} className="bds-card">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <button
-            className={`text-sm font-light text-left truncate ${isDarkMode ? 'text-white hover:text-white/80' : 'text-slate-900 hover:text-deep-alt'}`}
+            className="text-sm font-light text-left truncate text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors"
             onClick={() => setSelectedNode({ type: 'team', id: team.id })}
           >
             {team.name}
           </button>
           {team.description && (
-            <div className={`text-[10px] font-light mt-1 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>{team.description}</div>
+            <div className={`text-[10px] font-light mt-1 text-[var(--text-tertiary)]`}>{team.description}</div>
           )}
         </div>
         <span className={statusChipCls(team.status)}>{team.status === 'active' ? '活跃' : team.status}</span>
       </div>
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.05]">
-        <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border-c-subtle)]">
+        <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
           <Users className="w-3 h-3 inline mr-1" />{team.memberCount} 成员
         </span>
         <div className="flex gap-1">
@@ -719,20 +705,20 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   );
 
   const renderProjectCard = (proj: ProjectInfo) => (
-    <div key={proj.id} className={`${cardClass} p-4`}>
+    <div key={proj.id} className="bds-card">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <button
-            className={`text-sm font-light text-left truncate ${isDarkMode ? 'text-white hover:text-white/80' : 'text-slate-900 hover:text-deep-alt'}`}
+            className="text-sm font-light text-left truncate text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors"
             onClick={() => setSelectedNode({ type: 'project', id: proj.id })}
           >
             {proj.name}
           </button>
           {proj.code && (
-            <span className={`text-[10px] font-light ml-1 ${isDarkMode ? 'text-white/36' : 'text-slate-400'}`}>#{proj.code}</span>
+            <span className={`text-[10px] font-light ml-1 text-[var(--text-quaternary)]`}>#{proj.code}</span>
           )}
           {proj.description && (
-            <div className={`text-[10px] font-light mt-1 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>{proj.description}</div>
+            <div className={`text-[10px] font-light mt-1 text-[var(--text-tertiary)]`}>{proj.description}</div>
           )}
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -740,16 +726,16 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           <span className={priorityChipCls(proj.priority)}>{statusLabel(proj.priority, PRIORITY_OPTIONS)}</span>
         </div>
       </div>
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.05]">
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border-c-subtle)]">
         <div className="flex items-center gap-3">
-          <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+          <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
             <Users className="w-3 h-3 inline mr-1" />{proj.memberCount}
           </span>
-          <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+          <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
             <ClipboardList className="w-3 h-3 inline mr-1" />{proj.assignmentCount} 任务
           </span>
           {proj.endDate && (
-            <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+            <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
               <Clock3 className="w-3 h-3 inline mr-1" />{formatDate(proj.endDate)}
             </span>
           )}
@@ -767,7 +753,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   );
 
   const renderAssignmentRow = (a: AssignmentInfo) => (
-    <div key={a.id} className={`${cardClass} p-4 flex items-center gap-4`}>
+    <div key={a.id} className="bds-card flex items-center gap-4">
       <UserAvatar
         name={a.userName}
         avatarUrl={a.userAvatar}
@@ -776,15 +762,15 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{a.title}</span>
+          <span className={`text-sm font-light text-[var(--text-primary)]`}>{a.title}</span>
           <span className={priorityChipCls(a.priority)}>{statusLabel(a.priority, PRIORITY_OPTIONS)}</span>
         </div>
         <div className="flex items-center gap-3 mt-1">
-          <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+          <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
             <UserCircle2 className="w-3 h-3 inline mr-1" />{a.userName}
           </span>
           {a.dueDate && (
-            <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+            <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
               <Clock3 className="w-3 h-3 inline mr-1" />{formatDate(a.dueDate)}
             </span>
           )}
@@ -851,7 +837,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           <div className="flex items-center gap-2">
             <FolderKanban className="w-4 h-4 opacity-60" />
             <h2 className={sectionTitleClass}>{selectedProject.name}</h2>
-            {selectedProject.code && <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>#{selectedProject.code}</span>}
+            {selectedProject.code && <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>#{selectedProject.code}</span>}
             <span className={statusChipCls(selectedProject.status)}>{statusLabel(selectedProject.status, PROJECT_STATUS_OPTIONS)}</span>
             <span className={priorityChipCls(selectedProject.priority)}>{statusLabel(selectedProject.priority, PRIORITY_OPTIONS)}</span>
           </div>
@@ -904,43 +890,43 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-4 gap-3">
-            <StatCard label="在职人员" value={personnel.filter(p => p.status === 'active').length} isDarkMode={isDarkMode} cardClass={cardClass} />
-            <StatCard label="部门数量" value={departments.length} isDarkMode={isDarkMode} cardClass={cardClass} />
-            <StatCard label="岗位设置" value={positions.length} isDarkMode={isDarkMode} cardClass={cardClass} />
-            <StatCard label="待审批用户" value={personnel.filter(p => p.status === 'pending').length} isDarkMode={isDarkMode} cardClass={cardClass} />
+            <StatCard label="在职人员" value={personnel.filter(p => p.status === 'active').length} />
+            <StatCard label="部门数量" value={departments.length} />
+            <StatCard label="岗位设置" value={positions.length} />
+            <StatCard label="待审批用户" value={personnel.filter(p => p.status === 'pending').length} />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className={sectionTitleClass}>人员名册</h3>
+              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>人员名册</h3>
               <span className={sectionMutedClass}>{filteredAllPersonnel.length} 人</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {filteredAllPersonnel.map(renderPersonCard)}
               {filteredAllPersonnel.length === 0 && (
-                <div className={`col-span-2 text-center py-8 ${sectionMutedClass}`}>暂无人员数据</div>
+                <div className="bds-empty col-span-2"><div className="title">暂无人员数据</div></div>
               )}
             </div>
           </div>
 
           <div>
-            <h3 className={`${sectionTitleClass} mb-3`}>岗位设置</h3>
+            <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>岗位设置</h3>
             <div className="grid grid-cols-3 gap-3">
               {positions.map(pos => (
-                <div key={pos.id} className={`${cardClass} p-4`}>
-                  <div className={`text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{pos.title}</div>
-                  <div className={`text-[10px] font-light mt-1 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+                <div key={pos.id} className="bds-card">
+                  <div className={`text-sm font-light text-[var(--text-primary)]`}>{pos.title}</div>
+                  <div className={`text-[10px] font-light mt-1 text-[var(--text-tertiary)]`}>
                     {pos.department || '未分配部门'} · 编制 {pos.headcount}
                   </div>
                   {pos.description && (
-                    <div className={`text-[10px] font-light mt-2 ${isDarkMode ? 'text-white/36' : 'text-slate-400'}`}>
+                    <div className={`text-[10px] font-light mt-2 text-[var(--text-quaternary)]`}>
                       {pos.description}
                     </div>
                   )}
                 </div>
               ))}
               {positions.length === 0 && (
-                <div className={`col-span-3 text-center py-8 ${sectionMutedClass}`}>暂无岗位数据</div>
+                <div className="bds-empty col-span-3"><div className="title">暂无岗位数据</div></div>
               )}
             </div>
           </div>
@@ -951,38 +937,38 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     if (effectiveNode.type === 'dept' && selectedDept) {
       return (
         <div className="space-y-4">
-          <div className={`${cardClass} p-4`}>
-            <div className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>部门信息</div>
-            <div className={`text-sm font-light mt-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedDept.name}</div>
-            <div className={`text-[10px] font-light mt-2 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+          <div className="bds-card">
+            <div className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>部门信息</div>
+            <div className={`text-sm font-light mt-1 text-[var(--text-primary)]`}>{selectedDept.name}</div>
+            <div className={`text-[10px] font-light mt-2 text-[var(--text-tertiary)]`}>
               状态：{selectedDept.status === 'active' ? '活跃' : selectedDept.status} · 上级部门：{parentDept ? parentDept.name : '无'}
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className={sectionTitleClass}>部门成员</h3>
+              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>部门成员</h3>
               <span className={sectionMutedClass}>{filteredDeptPersonnel.length} 人</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {filteredDeptPersonnel.map(renderPersonCard)}
               {filteredDeptPersonnel.length === 0 && (
-                <div className={`col-span-2 text-center py-8 ${sectionMutedClass}`}>该部门暂无直接归属人员</div>
+                <div className="bds-empty col-span-2"><div className="title">该部门暂无直接归属人员</div></div>
               )}
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className={sectionTitleClass}>下属团队</h3>
+              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>下属团队</h3>
               <button onClick={() => openTeamForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新建</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {deptTeams.map(renderTeamCard)}
               {deptTeams.length === 0 && (
-                <div className={`col-span-2 text-center py-8 ${sectionMutedClass}`}>
-                  <Building2 className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                  该部门暂无团队
+                <div className="bds-empty col-span-2">
+                  <div className="glyph"><Building2 size={24} /></div>
+                  <div className="title">该部门暂无团队</div>
                 </div>
               )}
             </div>
@@ -994,28 +980,28 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     if (effectiveNode.type === 'team' && selectedTeam) {
       return (
         <div className="space-y-4">
-          <div className={`${cardClass} p-4`}>
-            <div className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>团队信息</div>
-            <div className={`text-sm font-light mt-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedTeam.name}</div>
+          <div className="bds-card">
+            <div className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>团队信息</div>
+            <div className={`text-sm font-light mt-1 text-[var(--text-primary)]`}>{selectedTeam.name}</div>
             {selectedTeam.description && (
-              <div className={`text-[10px] font-light mt-2 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>{selectedTeam.description}</div>
+              <div className={`text-[10px] font-light mt-2 text-[var(--text-tertiary)]`}>{selectedTeam.description}</div>
             )}
-            <div className={`text-[10px] font-light mt-2 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+            <div className={`text-[10px] font-light mt-2 text-[var(--text-tertiary)]`}>
               成员编制：{selectedTeam.memberCount} · 负责人：{teamLeader ? teamLeader.displayName : '未指定'} · 所属部门：{selectedTeam.department || '未分配'}
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className={sectionTitleClass}>团队项目</h3>
+              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>团队项目</h3>
               <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新建</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {teamProjects.map(renderProjectCard)}
               {teamProjects.length === 0 && (
-                <div className={`col-span-2 text-center py-8 ${sectionMutedClass}`}>
-                  <FolderKanban className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                  该团队暂无项目
+                <div className="bds-empty col-span-2">
+                  <div className="glyph"><FolderKanban size={24} /></div>
+                  <div className="title">该团队暂无项目</div>
                 </div>
               )}
             </div>
@@ -1027,13 +1013,13 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     if (effectiveNode.type === 'project' && selectedProject) {
       return (
         <div className="space-y-4">
-          <div className={`${cardClass} p-4`}>
-            <div className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>项目信息</div>
-            <div className={`text-sm font-light mt-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{selectedProject.name}</div>
+          <div className="bds-card">
+            <div className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>项目信息</div>
+            <div className={`text-sm font-light mt-1 text-[var(--text-primary)]`}>{selectedProject.name}</div>
             {selectedProject.description && (
-              <div className={`text-[10px] font-light mt-2 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>{selectedProject.description}</div>
+              <div className={`text-[10px] font-light mt-2 text-[var(--text-tertiary)]`}>{selectedProject.description}</div>
             )}
-            <div className={`text-[10px] font-light mt-2 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+            <div className={`text-[10px] font-light mt-2 text-[var(--text-tertiary)]`}>
               所属团队：{selectedProject.teamName || '未分配'} · 成员：{selectedProject.memberCount} · 任务：{selectedProject.assignmentCount}
               {selectedProject.startDate && ` · 开始 ${formatDate(selectedProject.startDate)}`}
               {selectedProject.endDate && ` · 截止 ${formatDate(selectedProject.endDate)}`}
@@ -1042,15 +1028,15 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className={sectionTitleClass}>工作分配</h3>
+              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>工作分配</h3>
               <button onClick={() => openAssignmentForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 分配任务</button>
             </div>
             <div className="space-y-2">
               {projectAssignments.map(renderAssignmentRow)}
               {projectAssignments.length === 0 && (
-                <div className={`text-center py-8 ${sectionMutedClass}`}>
-                  <ClipboardList className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                  该项目暂无工作分配
+                <div className="bds-empty">
+                  <div className="glyph"><ClipboardList size={24} /></div>
+                  <div className="title">该项目暂无工作分配</div>
                 </div>
               )}
             </div>
@@ -1073,7 +1059,6 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         title="人事管理"
         subtitle="Human Resources"
         contextLabel="Organization & Teams"
-        isDarkMode={isDarkMode}
         actions={activeView === 'org' ? (
           <RdlToolbar density="compact">
             <RdlPill type="button" active tone="accent" onClick={() => openTeamForm()} className="min-h-8 px-4 text-[11px]">
@@ -1113,9 +1098,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             exit={{ opacity: 0, height: 0 }}
             className="flex-shrink-0 px-7 pt-2"
           >
-            <div className={`rounded-full border px-4 py-2.5 flex items-center gap-2 text-xs font-light ${
-              statusSemanticClass('danger', isDarkMode)
-            }`}>
+            <div className="bds-alert danger text-xs font-light">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{loadError}</span>
               <button onClick={() => setLoadError('')} className="ml-auto opacity-60 hover:opacity-100">
@@ -1155,9 +1138,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
               {visibleForest.orphanProjects.map(node => renderTreeNode(node, 0))}
 
               {!treeHasContent && (
-                <div className={`text-center py-8 ${sectionMutedClass}`}>
-                  <Building2 className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                  {treeSearchTerm ? '未找到匹配的组织节点' : '暂无部门 / 团队数据'}
+                <div className="bds-empty">
+                  <div className="glyph"><Building2 size={24} /></div>
+                  <div className="title">{treeSearchTerm ? '未找到匹配的组织节点' : '暂无部门 / 团队数据'}</div>
                 </div>
               )}
             </div>
@@ -1179,10 +1162,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                   className="overflow-hidden shrink-0"
                 >
                   <div className="px-5 py-3">
-                    <div className={`${cardClass} p-5 space-y-3`}>
+                    <div className="bds-card space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <div className={labelCls + ' mb-1'}>团队名称</div>
+                          <div className={labelCls}>团队名称</div>
                           <input
                             className={inputCls}
                             value={teamForm.name}
@@ -1191,9 +1174,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                           />
                         </div>
                         <div>
-                          <div className={labelCls + ' mb-1'}>所属部门</div>
+                          <div className={labelCls}>所属部门</div>
                           <select
-                            className={inputCls}
+                            className={selectCls}
                             value={teamForm.departmentId}
                             onChange={e => setTeamForm(f => ({ ...f, departmentId: e.target.value }))}
                           >
@@ -1203,7 +1186,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         </div>
                       </div>
                       <div>
-                        <div className={labelCls + ' mb-1'}>团队描述</div>
+                        <div className={labelCls}>团队描述</div>
                         <input
                           className={inputCls}
                           value={teamForm.description}
@@ -1212,9 +1195,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         />
                       </div>
                       <div>
-                        <div className={labelCls + ' mb-1'}>团队负责人</div>
+                        <div className={labelCls}>团队负责人</div>
                         <select
-                          className={inputCls}
+                          className={selectCls}
                           value={teamForm.leaderId}
                           onChange={e => setTeamForm(f => ({ ...f, leaderId: e.target.value }))}
                         >
@@ -1242,51 +1225,51 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                   className="overflow-hidden shrink-0"
                 >
                   <div className="px-5 py-3">
-                    <div className={`${cardClass} p-5 space-y-3`}>
+                    <div className="bds-card space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <div className={labelCls + ' mb-1'}>项目名称</div>
+                          <div className={labelCls}>项目名称</div>
                           <input className={inputCls} value={projectForm.name}
                             onChange={e => setProjectForm(f => ({ ...f, name: e.target.value }))}
                             placeholder="如：2026秋冬季面料开发" />
                         </div>
                         <div>
-                          <div className={labelCls + ' mb-1'}>项目编号</div>
+                          <div className={labelCls}>项目编号</div>
                           <input className={inputCls} value={projectForm.code}
                             onChange={e => setProjectForm(f => ({ ...f, code: e.target.value }))}
                             placeholder="可选" />
                         </div>
                       </div>
                       <div>
-                        <div className={labelCls + ' mb-1'}>项目描述</div>
+                        <div className={labelCls}>项目描述</div>
                         <input className={inputCls} value={projectForm.description}
                           onChange={e => setProjectForm(f => ({ ...f, description: e.target.value }))}
                           placeholder="项目简介" />
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <div className={labelCls + ' mb-1'}>所属团队</div>
-                          <select className={inputCls} value={projectForm.teamId}
+                          <div className={labelCls}>所属团队</div>
+                          <select className={selectCls} value={projectForm.teamId}
                             onChange={e => setProjectForm(f => ({ ...f, teamId: e.target.value }))}>
                             <option value="">无</option>
                             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                           </select>
                         </div>
                         <div>
-                          <div className={labelCls + ' mb-1'}>优先级</div>
-                          <select className={inputCls} value={projectForm.priority}
+                          <div className={labelCls}>优先级</div>
+                          <select className={selectCls} value={projectForm.priority}
                             onChange={e => setProjectForm(f => ({ ...f, priority: e.target.value }))}>
                             {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
                         </div>
                         <div>
-                          <div className={labelCls + ' mb-1'}>开始日期</div>
+                          <div className={labelCls}>开始日期</div>
                           <input type="date" className={inputCls} value={projectForm.startDate}
                             onChange={e => setProjectForm(f => ({ ...f, startDate: e.target.value }))} />
                         </div>
                       </div>
                       <div>
-                        <div className={labelCls + ' mb-1'}>结束日期</div>
+                        <div className={labelCls}>结束日期</div>
                         <input type="date" className={inputCls} value={projectForm.endDate}
                           onChange={e => setProjectForm(f => ({ ...f, endDate: e.target.value }))} />
                       </div>
@@ -1310,31 +1293,31 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                   className="overflow-hidden shrink-0"
                 >
                   <div className="px-5 py-3">
-                    <div className={`${cardClass} p-5 space-y-3`}>
+                    <div className="bds-card space-y-3">
                       <div>
-                        <div className={labelCls + ' mb-1'}>任务标题</div>
+                        <div className={labelCls}>任务标题</div>
                         <input className={inputCls} value={assignmentForm.title}
                           onChange={e => setAssignmentForm(f => ({ ...f, title: e.target.value }))}
                           placeholder="如：安排面料打样" />
                       </div>
                       <div>
-                        <div className={labelCls + ' mb-1'}>任务描述</div>
+                        <div className={labelCls}>任务描述</div>
                         <input className={inputCls} value={assignmentForm.description}
                           onChange={e => setAssignmentForm(f => ({ ...f, description: e.target.value }))}
                           placeholder="任务详情" />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <div className={labelCls + ' mb-1'}>指派给</div>
-                          <select className={inputCls} value={assignmentForm.userId}
+                          <div className={labelCls}>指派给</div>
+                          <select className={selectCls} value={assignmentForm.userId}
                             onChange={e => setAssignmentForm(f => ({ ...f, userId: e.target.value }))}>
                             <option value="">选择人员</option>
                             {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
                           </select>
                         </div>
                         <div>
-                          <div className={labelCls + ' mb-1'}>关联项目</div>
-                          <select className={inputCls} value={assignmentForm.projectId}
+                          <div className={labelCls}>关联项目</div>
+                          <select className={selectCls} value={assignmentForm.projectId}
                             onChange={e => setAssignmentForm(f => ({ ...f, projectId: e.target.value }))}>
                             <option value="">无</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -1343,14 +1326,14 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <div className={labelCls + ' mb-1'}>优先级</div>
-                          <select className={inputCls} value={assignmentForm.priority}
+                          <div className={labelCls}>优先级</div>
+                          <select className={selectCls} value={assignmentForm.priority}
                             onChange={e => setAssignmentForm(f => ({ ...f, priority: e.target.value }))}>
                             {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
                         </div>
                         <div>
-                          <div className={labelCls + ' mb-1'}>截止日期</div>
+                          <div className={labelCls}>截止日期</div>
                           <input type="date" className={inputCls} value={assignmentForm.dueDate}
                             onChange={e => setAssignmentForm(f => ({ ...f, dueDate: e.target.value }))} />
                         </div>
@@ -1410,12 +1393,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 const StatCard: React.FC<{
   label: string;
   value: number;
-  isDarkMode: boolean;
-  cardClass: string;
-}> = ({ label, value, isDarkMode, cardClass }) => (
-  <div className={`${cardClass} p-4`}>
-    <div className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>{label}</div>
-    <div className={`text-2xl font-light mt-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{value}</div>
+}> = ({ label, value }) => (
+  <div className="bds-card">
+    <div className="bds-stat-label" style={{ color: 'var(--text-tertiary)' }}>{label}</div>
+    <div className="bds-stat-num mt-1">{value}</div>
   </div>
 );
 
