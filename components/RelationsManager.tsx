@@ -7,9 +7,10 @@ import {
   MoreHorizontal, Edit2, Trash2, X, Save,
   ChevronLeft, ChevronRight, ChevronDown,
   Briefcase, Landmark, Handshake, Globe2, Box, ArrowRight, Map,
-  LayoutGrid, List, Navigation, RefreshCw,
+  LayoutGrid, List, Navigation, RefreshCw, GitBranch,
   type LucideIcon,
 } from 'lucide-react';
+import { TraceabilityPanel } from './TraceabilityPanel';
 import ContactList from './ui/ContactList';
 import DetailPanel from './ui/DetailPanel';
 import OrgChart from './ui/OrgChart';
@@ -406,6 +407,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const [relationSortMode, setRelationSortMode] = useState<RelationSortMode>(() => previewState.relationSortMode || 'recent');
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showTracePanel, setShowTracePanel] = useState(false);
   const [editingItem, setEditingItem] = useState<Relation | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [relationSaveError, setRelationSaveError] = useState<string | null>(null);
@@ -1179,6 +1181,16 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             >
               <Plus size={14} strokeWidth={1.5} /> {navLevel === 'detail' ? '新增人员' : '新增组织'}
             </RelationsTitleSpotlightButton>
+          )}
+          {/* 一键溯源按钮：detail 视图展示 */}
+          {navLevel === 'detail' && selectedOrgId && (
+            <button
+              type="button"
+              onClick={() => setShowTracePanel(true)}
+              className={`flex h-8 items-center gap-1.5 rounded-control px-3 text-xs font-light transition-colors ${isDarkMode ? 'bg-white/8 text-white/70 hover:bg-white/12 hover:text-white/90' : 'bg-slate-200/50 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800'}`}
+            >
+              <GitBranch size={13} strokeWidth={1.5} /> 溯源
+            </button>
           )}
         </div>
           </>
@@ -2080,6 +2092,43 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 一键溯源侧边面板 */}
+      {showTracePanel && selectedOrgId && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end"
+          onClick={() => setShowTracePanel(false)}
+        >
+          <div className={`absolute inset-0 ${isDarkMode ? 'bg-black/40' : 'bg-black/20'}`} />
+          <div
+            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l ${isDarkMode ? 'border-white/10 bg-[#1a1a1f]/95' : 'border-slate-200/60 bg-white/95'} backdrop-blur-xl`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 面板标题栏 */}
+            <div className={`flex items-center justify-between border-b px-4 py-3 ${isDarkMode ? 'border-white/8' : 'border-slate-200/50'}`}>
+              <div className="flex items-center gap-2">
+                <GitBranch size={15} className={isDarkMode ? 'text-white/70' : 'text-slate-600'} />
+                <span className={`text-sm font-light ${isDarkMode ? 'text-white/88' : 'text-slate-800/88'}`}>客户全景溯源</span>
+                <span className={`text-[10px] font-light tracking-[0.14em] ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>Customer Panorama</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTracePanel(false)}
+                className={`flex h-7 w-7 items-center justify-center rounded-control transition-colors ${isDarkMode ? 'text-white/50 hover:bg-white/8 hover:text-white/80' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            {/* 溯源内容 */}
+            <TraceabilityPanel
+              isDarkMode={isDarkMode}
+              presetScenario="customerPanorama"
+              presetRootId={selectedOrgId}
+              embedded
+            />
           </div>
         </div>
       )}

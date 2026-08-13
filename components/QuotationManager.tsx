@@ -31,9 +31,11 @@ import {
   FileSpreadsheet,
   Calculator,
   X,
+  GitBranch,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { financeV2Service, type QuotationPricingResult } from '../services/financeV2Service';
+import { TraceabilityPanel } from './TraceabilityPanel';
 import { getExporterProfile } from './tools/exportDocs/exporterProfile';
 import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult, TrackAInput } from '../types';
 import { PageHeader } from './ui/PageHeader';
@@ -251,6 +253,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   // ── 阶段 P3c：历史报价导入向导（PRD 16.1/16.2）──
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [traceQuoteId, setTraceQuoteId] = useState<string | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
 
   // 创建表单状态（validUntil 默认报价日 +30 天）
@@ -419,6 +422,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setApplyingPricing(false);
     }
   }, [pricingQuoteId, pricingTrackA, pricingTrackB, fetchQuotations]);
+
+  // ── V2 查询定价校验（读取已保存的双轨快照 + 偏差分级，不写入）──
+  const handlePricingCheck = useCallback(async () => {
+    if (!pricingQuoteId) return;
+    setApplyingPricing(true);
+    setError(null);
+    try {
+      const result = await financeV2Service.getPricingCheck(pricingQuoteId);
+      setPricingResult(result);
+    } catch (e: any) {
+      setError(`查询定价校验失败：${e?.message || e}`);
+    } finally {
+      setApplyingPricing(false);
+    }
+  }, [pricingQuoteId]);
 
   // ── 创建报价单 ──
   const handleCreate = useCallback(async () => {
@@ -1027,6 +1045,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                           <span>生成 PI</span>
                                         </button>
                                       )}
+                                      <button
+                                        onClick={() => setTraceQuoteId(qt.id)}
+                                        className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                      >
+                                        <GitBranch size={12} />
+                                        <span>溯源</span>
+                                      </button>
                                       {qt.status === 'Accepted' && qt.convertedOrderId && (
                                         <div className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                                           <CheckCircle2 size={12} />
@@ -1139,6 +1164,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 关闭
               </button>
               <button
+                onClick={handlePricingCheck}
+                disabled={applyingPricing}
+                className={`px-4 py-2 rounded-full text-xs flex items-center gap-1.5 ${applyingPricing ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                <span>查询校验</span>
+              </button>
+              <button
                 onClick={handleApplyPricing}
                 disabled={applyingPricing || !pricingTrackB}
                 className={`px-4 py-2 rounded-full text-xs flex items-center gap-1.5 ${applyingPricing || !pricingTrackB ? 'opacity-50 cursor-not-allowed' : ''} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}
@@ -1147,6 +1180,41 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 <span>{applyingPricing ? '计算中...' : '应用定价'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 一键溯源侧边面板 */}
+      {traceQuoteId && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end"
+          onClick={() => setTraceQuoteId(null)}
+        >
+          <div className={`absolute inset-0 ${isDarkMode ? 'bg-black/40' : 'bg-black/20'}`} />
+          <div
+            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l ${isDarkMode ? 'border-white/10 bg-[#1a1a1f]/95' : 'border-slate-200/60 bg-white/95'} backdrop-blur-xl`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`flex items-center justify-between border-b px-4 py-3 ${isDarkMode ? 'border-white/8' : 'border-slate-200/50'}`}>
+              <div className="flex items-center gap-2">
+                <GitBranch size={15} className={isDarkMode ? 'text-white/70' : 'text-slate-600'} />
+                <span className={`text-sm font-light ${isDarkMode ? 'text-white/88' : 'text-slate-800/88'}`}>报价到发货链溯源</span>
+                <span className={`text-[10px] font-light tracking-[0.14em] ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>Quote to Ship</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTraceQuoteId(null)}
+                className={`flex h-7 w-7 items-center justify-center rounded-control transition-colors ${isDarkMode ? 'text-white/50 hover:bg-white/8 hover:text-white/80' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <TraceabilityPanel
+              isDarkMode={isDarkMode}
+              presetScenario="quoteToShip"
+              presetRootId={traceQuoteId}
+              embedded
+            />
           </div>
         </div>
       )}

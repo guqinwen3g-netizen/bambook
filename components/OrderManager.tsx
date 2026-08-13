@@ -9,8 +9,9 @@ import {
   Trash2, Edit2, Save, Calendar, User, Package, Hash,
   CloudUpload, Trash, AlertTriangle,
   Globe, List, MoreVertical, Activity, Shirt, Database, RefreshCw,
-  Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, ChevronDown
+  Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, ChevronDown, GitBranch
 } from 'lucide-react';
+import { TraceabilityPanel } from './TraceabilityPanel';
 import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
@@ -196,6 +197,7 @@ const ORDER_ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
 const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders, onSyncComplete, knowledge, viewMode, onViewModeChange, selectedOrder, onSelectOrder, isDarkMode = false, isMobile = false, orderType, onOrderTypeChange, relations = [], onCreateRelation, allowGlobeView = true, onFullscreenOpenChange, onNavigate }) => {
   // Local state removed, using props
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showTracePanel, setShowTracePanel] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Order | null>(null);
@@ -943,6 +945,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             >
               <Plus size={15} strokeWidth={1.5} /> {!isMobile && '录入订单'}
             </button>
+            {selectedOrder?.id && (
+              <button
+                type="button"
+                onClick={() => setShowTracePanel(true)}
+                className={`flex h-10 items-center gap-2 rounded-full border px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${titleActionClass}`}
+              >
+                <GitBranch size={15} strokeWidth={1.5} /> {!isMobile && '溯源'}
+              </button>
+            )}
           </>
         )}
       />
@@ -1942,6 +1953,41 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 一键溯源侧边面板 */}
+      {showTracePanel && selectedOrder?.id && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end"
+          onClick={() => setShowTracePanel(false)}
+        >
+          <div className={`absolute inset-0 ${isDarkMode ? 'bg-black/40' : 'bg-black/20'}`} />
+          <div
+            className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l ${isDarkMode ? 'border-white/10 bg-[#1a1a1f]/95' : 'border-slate-200/60 bg-white/95'} backdrop-blur-xl`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`flex items-center justify-between border-b px-4 py-3 ${isDarkMode ? 'border-white/8' : 'border-slate-200/50'}`}>
+              <div className="flex items-center gap-2">
+                <GitBranch size={15} className={isDarkMode ? 'text-white/70' : 'text-slate-600'} />
+                <span className={`text-sm font-light ${isDarkMode ? 'text-white/88' : 'text-slate-800/88'}`}>订单履约链溯源</span>
+                <span className={`text-[10px] font-light tracking-[0.14em] ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>Order Fulfillment</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTracePanel(false)}
+                className={`flex h-7 w-7 items-center justify-center rounded-control transition-colors ${isDarkMode ? 'text-white/50 hover:bg-white/8 hover:text-white/80' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <TraceabilityPanel
+              isDarkMode={isDarkMode}
+              presetScenario="orderFulfillment"
+              presetRootId={selectedOrder.id}
+              embedded
+            />
           </div>
         </div>
       )}

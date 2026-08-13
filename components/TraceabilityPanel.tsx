@@ -1,0 +1,392 @@
+/**
+ * TraceabilityPanel — 一键溯源可视化面板
+ *
+ * 后端数据源：GET /api/v2/trace/:scenario/:rootId
+ * 6 大场景：客户全景 / 订单履约链 / 报价到发货链 / 供应商全景 / 产品成本链 / 退税链
+ *
+ * 展示模式：
+ *   1. summary 统计卡片（KVP）
+ *   2. 节点按 type 分组卡片
+ *   3. 边关系连线列表
+ *
+ * 设计：flat 无阴影、RDL 原语、tabular-nums
+ */
+import React, { useCallback, useEffect, useState } from 'react';
+import { Loader2, AlertCircle, Search, GitBranch, ArrowRight, Boxes } from 'lucide-react';
+import { RdlSurface, RdlPill } from './ui/RDLPrimitives';
+import { PageHeader } from './ui/PageHeader';
+import {
+  traceabilityService,
+  TRACE_SCENARIOS,
+  type TraceScenario,
+  type TraceResult,
+  type TraceNode,
+} from '../services/traceabilityService';
+
+const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
+
+// ── 节点类型 → 显示标签 + 色调 ──
+const NODE_TYPE_META: Record<string, { label: string; tone: string }> = {
+  Relation:            { label: '业务伙伴', tone: 'text-sky-600' },
+  Order:               { label: '订单',     tone: 'text-violet-600' },
+  OrderLine:           { label: '订单行',   tone: 'text-violet-500' },
+  Quotation:           { label: '报价单',   tone: 'text-pink-600' },
+  Invoice:             { label: '发票',     tone: 'text-emerald-600' },
+  PaymentVoucher:      { label: '收付款',   tone: 'text-amber-600' },
+  Shipment:            { label: '出货',     tone: 'text-cyan-600' },
+  CustomsDeclaration:  { label: '报关',     tone: 'text-rose-600' },
+  ProductionStage:     { label: '生产阶段', tone: 'text-yellow-600' },
+  SampleNode:          { label: '样品',     tone: 'text-orange-600' },
+  InspectionReport:    { label: '检验报告', tone: 'text-teal-600' },
+  TradeDocument:       { label: '贸易单据', tone: 'text-indigo-600' },
+  TaxRefund:           { label: '退税',     tone: 'text-green-600' },
+  Product:             { label: '产品',     tone: 'text-blue-600' },
+};
+
+function nodeTypeLabel(type: string): string {
+  return NODE_TYPE_META[type]?.label || type;
+}
+
+function nodeTypeTone(type: string): string {
+  return NODE_TYPE_META[type]?.tone || 'text-slate-600';
+}
+
+// ── 边关系 → 中文标签 ──
+const EDGE_LABELS: Record<string, string> = {
+  has_order: '下单',
+  has_order_line: '包含行',
+  has_invoice: '开票',
+  has_payment: '收款',
+  has_shipment: '出货',
+  has_customs: '报关',
+  has_production: '生产',
+  has_sample: '打样',
+  has_inspection: '检验',
+  has_document: '单据',
+  has_tax_refund: '退税',
+  has_quotation: '报价',
+  has_product: '产品',
+  has_bom: 'BOM',
+  has_cost: '成本',
+  has_relation: '关联',
+};
+
+function edgeLabel(relation: string): string {
+  return EDGE_LABELS[relation] || relation;
+}
+
+// ── summary 格式化 ──
+function formatSummaryValue(value: any): string {
+  if (value == null) return '—';
+  if (typeof value === 'number') {
+    if (Number.isInteger(value)) return value.toLocaleString('zh-CN');
+    return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (typeof value === 'boolean') return value ? '是' : '否';
+  return String(value);
+}
+
+function formatSummaryKey(key: string): string {
+  const map: Record<string, string> = {
+    totalOrders: '订单总数',
+    totalInvoices: '发票总数',
+    totalPayments: '收款总数',
+    totalAmount: '总金额',
+    totalPaid: '已回款',
+    totalUnpaid: '未回款',
+    totalShipped: '已出货',
+    totalCustoms: '报关单',
+    totalProduction: '生产阶段',
+    totalSamples: '样品数',
+    totalInspections: '检验报告',
+    totalDocuments: '贸易单据',
+    totalTaxRefund: '退税总额',
+    totalQuotations: '报价单数',
+    totalProducts: '产品数',
+    arBalance: '应收余额',
+    apBalance: '应付余额',
+    paymentRate: '回款率',
+    orderCount: '订单数',
+    invoiceCount: '发票数',
+    paymentCount: '收款数',
+    shipCount: '出货数',
+    overdue: '逾期数',
+    pending: '待处理',
+    completed: '已完成',
+    inProgress: '进行中',
+  };
+  return map[key] || key;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 组件
+// ════════════════════════════════════════════════════════════════════
+
+export interface TraceabilityPanelProps {
+  isDarkMode: boolean;
+  endpoint?: string;
+  /** 嵌入模式：预设场景和 rootId，跳过选择器直接查询 */
+  presetScenario?: TraceScenario;
+  presetRootId?: string;
+  /** 嵌入模式不显示 PageHeader */
+  embedded?: boolean;
+}
+
+export function TraceabilityPanel({
+  isDarkMode,
+  endpoint,
+  presetScenario,
+  presetRootId,
+  embedded = false,
+}: TraceabilityPanelProps) {
+  const [scenario, setScenario] = useState<TraceScenario>(presetScenario || 'customerPanorama');
+  const [rootId, setRootId] = useState(presetRootId || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<TraceResult | null>(null);
+
+  const textPrimary = isDarkMode ? 'text-white/88' : 'text-slate-800/88';
+  const textSecondary = isDarkMode ? 'text-white/50' : 'text-slate-500/75';
+  const textFaint = isDarkMode ? 'text-white/35' : 'text-slate-400/80';
+  const divider = isDarkMode ? 'border-white/8' : 'border-slate-300/30';
+  const rowBg = isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40';
+  const inputBg = isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-white/50 border-slate-300/40';
+
+  const runTrace = useCallback(async (sc: TraceScenario, id: string) => {
+    if (!id.trim()) {
+      setError('请输入溯源根 ID');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await traceabilityService.trace(sc, id.trim(), endpoint);
+      setResult(res);
+    } catch (e: any) {
+      setError(e?.message || '溯源查询失败');
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint]);
+
+  // 嵌入模式自动查询
+  useEffect(() => {
+    if (presetScenario && presetRootId) {
+      runTrace(presetScenario, presetRootId);
+    }
+  }, [presetScenario, presetRootId, runTrace]);
+
+  // ── 按 type 分组节点 ──
+  const groupedNodes = React.useMemo(() => {
+    if (!result) return new Map<string, TraceNode[]>();
+    const map = new Map<string, TraceNode[]>();
+    for (const node of result.nodes) {
+      const list = map.get(node.type) || [];
+      list.push(node);
+      map.set(node.type, list);
+    }
+    return map;
+  }, [result]);
+
+  // ── 构建 node id → node 映射（用于边展示）──
+  const nodeMap = React.useMemo(() => {
+    if (!result) return new Map<string, TraceNode>();
+    return new Map(result.nodes.map((n) => [n.id, n]));
+  }, [result]);
+
+  const content = (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+      {/* ── 场景选择器 + rootId 输入 ── */}
+      {!presetScenario && (
+        <RdlSurface tone="panel" padding="compact" className="space-y-3">
+          {/* 场景 pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {TRACE_SCENARIOS.map((s) => (
+              <RdlPill
+                key={s.id}
+                active={scenario === s.id}
+                onClick={() => setScenario(s.id)}
+              >
+                {s.label}
+              </RdlPill>
+            ))}
+          </div>
+          {/* 当前场景描述 */}
+          <div className={cx('text-[11px] font-light', textSecondary)}>
+            {TRACE_SCENARIOS.find((s) => s.id === scenario)?.description}
+          </div>
+          {/* rootId 输入 + 查询按钮 */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={rootId}
+              onChange={(e) => setRootId(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') runTrace(scenario, rootId); }}
+              placeholder={TRACE_SCENARIOS.find((s) => s.id === scenario)?.rootLabel || '输入 ID...'}
+              className={cx('h-9 flex-1 rounded-field border px-3 text-xs font-light outline-none', inputBg, textPrimary)}
+            />
+            <button
+              onClick={() => runTrace(scenario, rootId)}
+              disabled={loading}
+              className={cx(
+                'flex h-9 items-center gap-1.5 rounded-field px-4 text-xs font-medium transition-colors',
+                'bg-slate-800/80 text-white hover:bg-slate-700/80',
+                'dark:bg-white/12 dark:hover:bg-white/18 dark:text-white/90',
+                loading && 'opacity-50',
+              )}
+            >
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+              溯源
+            </button>
+          </div>
+        </RdlSurface>
+      )}
+
+      {/* ── 错误提示 ── */}
+      {error && (
+        <div className={cx('flex items-center gap-2 rounded-card px-3 py-2 text-xs font-light', isDarkMode ? 'bg-rose-500/10 text-rose-300' : 'bg-rose-50 text-rose-600')}>
+          <AlertCircle size={14} />
+          {error}
+        </div>
+      )}
+
+      {/* ── 加载中 ── */}
+      {loading && (
+        <div className={cx('flex items-center justify-center gap-2 py-12 text-xs font-light', textSecondary)}>
+          <Loader2 size={16} className="animate-spin" />
+          正在查询溯源链路...
+        </div>
+      )}
+
+      {/* ── 溯源结果 ── */}
+      {result && !loading && (
+        <>
+          {/* summary 统计卡片 */}
+          {Object.keys(result.summary).length > 0 && (
+            <div>
+              <div className={cx('mb-1.5 flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textFaint)}>
+                <Boxes size={11} />
+                汇总 SUMMARY
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {Object.entries(result.summary).map(([key, value]) => (
+                  <RdlSurface key={key} tone="card" padding="compact" className="space-y-0.5">
+                    <div className={cx('text-[10px] font-light', textFaint)}>{formatSummaryKey(key)}</div>
+                    <div className={cx('text-sm font-light tabular-nums', textPrimary)}>{formatSummaryValue(value)}</div>
+                  </RdlSurface>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 节点分组展示 */}
+          <div>
+            <div className={cx('mb-1.5 flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textFaint)}>
+              <GitBranch size={11} />
+              节点 NODES ({result.nodes.length})
+            </div>
+            <div className="space-y-2">
+              {Array.from(groupedNodes.entries()).map(([type, nodes]) => (
+                <RdlSurface key={type} tone="card" padding="compact" className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={cx('text-[11px] font-medium', nodeTypeTone(type))}>
+                      {nodeTypeLabel(type)}
+                    </span>
+                    <span className={cx('text-[10px] font-light', textFaint)}>
+                      {nodes.length} 项
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {nodes.map((node) => (
+                      <div key={node.id} className={cx('flex items-center justify-between rounded-control px-2 py-1.5', rowBg)}>
+                        <div className="min-w-0 flex-1">
+                          <div className={cx('truncate text-xs font-light', textPrimary)}>
+                            {node.label || node.id}
+                          </div>
+                          {node.data?.number && (
+                            <div className={cx('truncate text-[10px] font-light', textFaint)}>
+                              {node.data.number}
+                            </div>
+                          )}
+                        </div>
+                        {node.data?.status && (
+                          <span className={cx('ml-2 shrink-0 text-[10px] font-light', textSecondary)}>
+                            {node.data.status}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </RdlSurface>
+              ))}
+            </div>
+          </div>
+
+          {/* 边关系列表 */}
+          {result.edges.length > 0 && (
+            <div>
+              <div className={cx('mb-1.5 flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textFaint)}>
+                <ArrowRight size={11} />
+                关联 EDGES ({result.edges.length})
+              </div>
+              <RdlSurface tone="card" padding="compact">
+                <div className="space-y-0.5">
+                  {result.edges.map((edge, i) => {
+                    const fromNode = nodeMap.get(edge.from);
+                    const toNode = nodeMap.get(edge.to);
+                    return (
+                      <div key={i} className={cx('flex items-center gap-2 rounded-control px-2 py-1.5 text-[11px]', rowBg)}>
+                        <span className={cx('min-w-0 flex-1 truncate font-light', textPrimary)}>
+                          {fromNode?.label || edge.from}
+                        </span>
+                        <span className={cx('shrink-0 rounded-control px-1.5 py-0.5 text-[9px] font-light', isDarkMode ? 'bg-white/8 text-white/60' : 'bg-slate-200/60 text-slate-600')}>
+                          {edgeLabel(edge.relation)}
+                        </span>
+                        <ArrowRight size={10} className={cx('shrink-0', textFaint)} />
+                        <span className={cx('min-w-0 flex-1 truncate text-right font-light', textPrimary)}>
+                          {toNode?.label || edge.to}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </RdlSurface>
+            </div>
+          )}
+
+          {/* 空结果 */}
+          {result.nodes.length === 0 && (
+            <div className={cx('py-12 text-center text-xs font-light', textFaint)}>
+              未找到溯源链路数据
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── 初始空状态 ── */}
+      {!result && !loading && !error && !presetScenario && (
+        <div className={cx('flex flex-col items-center justify-center gap-2 py-20 text-xs font-light', textFaint)}>
+          <GitBranch size={32} className="opacity-40" />
+          <div>选择场景并输入 ID 开始溯源查询</div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return <div className="flex h-full flex-col">{content}</div>;
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <PageHeader
+        title="一键溯源"
+        subtitle="Traceability"
+        contextLabel="Trace Panel"
+        isDarkMode={isDarkMode}
+      />
+      {content}
+    </div>
+  );
+}
