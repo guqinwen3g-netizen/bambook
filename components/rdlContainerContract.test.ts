@@ -105,6 +105,9 @@ describe('RDL global container contract', () => {
     expect(financeSource).not.toMatch(rdlSurfaceWithLocalPadding);
     expect(emailSource).toContain('padding="compact"');
     expect(emailSource).toContain('padding="loose"');
-    expect(financeSource).toContain('padding="regular"');
+    // FinanceManager 已迁移到 BDS 组件族（BDS v2.1），不再使用 RdlSurface；
+    // 同一契约延续：容器一律共享组件（bds-card），禁止页面局部 padding 配方。
+    expect(financeSource).not.toContain('<RdlSurface');
+    expect(financeSource).toContain('bds-card');
   });
 });

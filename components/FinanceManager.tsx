@@ -7,8 +7,7 @@ import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { apiService } from '../services/apiService';
 import { financeV2Service } from '../services/financeV2Service';
-import { BadgeCheck, Ban, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Send, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
-import { RdlMetricCard, RdlOverlayIconButton, RdlPill, RdlSearch, RdlSurface, RdlToolbar } from './ui/RDLPrimitives';
+import { BadgeCheck, Ban, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import type {
   Invoice as InvoiceEntity,
@@ -228,23 +227,18 @@ const formatCurrencyAggregate = (agg: Array<{ currency: string; total: number; c
   };
 };
 
-const financeStatusTone = (isDarkMode: boolean) =>
-  isDarkMode ? 'bg-white/[0.055] text-white/70' : 'bg-white/50 text-slate-700/76';
+/** BDS v2.1：状态徽章变体 —— Finance 页面禁用语义色族，统一 neutral；终态（作废/红冲）降透明度表达 inactive */
+const FINANCE_STATUS_BADGE = 'bds-badge sm neutral';
+const FINANCE_STATUS_BADGE_INACTIVE = 'bds-badge sm neutral opacity-60';
 
-const financeInactiveStatusTone = (isDarkMode: boolean) =>
-  isDarkMode ? 'bg-white/[0.035] text-white/42' : 'bg-white/34 text-slate-500/70';
+const invoiceStatusBadge = (status: InvoiceStatus) =>
+  status === 'Cancelled' ? FINANCE_STATUS_BADGE_INACTIVE : FINANCE_STATUS_BADGE;
 
-const invoiceStatusTone = (status: InvoiceStatus, isDarkMode: boolean) =>
-  status === 'Cancelled' ? financeInactiveStatusTone(isDarkMode) : financeStatusTone(isDarkMode);
+const voucherStatusBadge = (_status: VoucherStatus) => FINANCE_STATUS_BADGE;
 
-const voucherStatusTone = (_status: VoucherStatus, isDarkMode: boolean) => financeStatusTone(isDarkMode);
-
-/** C6 增值税发票状态 tone：终态（红冲/作废）降为 inactive，其余中性（Finance 页面禁用语义色族） */
-const vatStatusTone = (status: VatInvoiceStatus, isDarkMode: boolean) =>
-  status === 'RedFlushed' || status === 'Cancelled' ? financeInactiveStatusTone(isDarkMode) : financeStatusTone(isDarkMode);
-
-const financeAlertTone = (isDarkMode: boolean) =>
-  isDarkMode ? 'bg-white/[0.055] text-white/72' : 'bg-white/48 text-slate-700/78';
+/** C6 增值税发票状态徽章：终态（红冲/作废）降为 inactive，其余中性 */
+const vatStatusBadge = (status: VatInvoiceStatus) =>
+  status === 'RedFlushed' || status === 'Cancelled' ? FINANCE_STATUS_BADGE_INACTIVE : FINANCE_STATUS_BADGE;
 
 /** 核销状态说明 + 下一步指引（消费后端稳定枚举，不猜字符串） */
 const VOUCHER_STATUS_GUIDE: Record<VoucherStatus, { label: string; nextStep: string }> = {
@@ -254,38 +248,19 @@ const VOUCHER_STATUS_GUIDE: Record<VoucherStatus, { label: string; nextStep: str
   cancelled: { label: '已作废', nextStep: '该凭证已作废，不再参与核销。' },
 };
 
-const ToolbarFilterButton: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}> = ({ active, onClick, children }) => (
-  <RdlPill
-    type="button"
-    onClick={onClick}
-    active={active}
-    className="min-h-8 shrink-0 px-3 text-[11px]"
-  >
-    {children}
-  </RdlPill>
-);
-
 type KpiCard = {
   label: string;
   primary: string;
   secondary: string;
 };
 
-const KpiCard: React.FC<{ card: KpiCard; isDarkMode: boolean }> = ({ card, isDarkMode }) => {
-  const textPrimary = isDarkMode ? 'text-white/86' : 'text-slate-900';
-  const textSecondary = isDarkMode ? 'text-white/52' : 'text-slate-500';
-  return (
-    <RdlMetricCard className="min-h-[112px] justify-between">
-      <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondary)}>{card.label}</div>
-      <div className={cx('mt-2 text-lg font-light tabular-nums', textPrimary)}>{card.primary}</div>
-      <div className={cx('mt-1 text-[11px] font-light', textSecondary)}>{card.secondary}</div>
-    </RdlMetricCard>
-  );
-};
+const KpiCard: React.FC<{ card: KpiCard }> = ({ card }) => (
+  <div className="bds-card flex min-h-[112px] flex-col justify-between">
+    <div className="text-[10px] font-light tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>{card.label}</div>
+    <div className="bds-tnum mt-2 text-lg font-light" style={{ color: 'var(--text-primary)' }}>{card.primary}</div>
+    <div className="mt-1 text-[11px] font-light" style={{ color: 'var(--text-tertiary)' }}>{card.secondary}</div>
+  </div>
+);
 
 // ── Aggregation helpers ───────────────────────────────────────────────────
 type CurrencyAggItem = { currency: string; total: number; count: number };
@@ -1124,24 +1099,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // ── Theme tokens (mirrors what the two older components used) ───
-  const textPrimaryClass = isDarkMode ? 'text-white/86' : 'text-slate-950';
-  const textSecondaryClass = isDarkMode ? 'text-white/52' : 'text-slate-500';
-  const statusChipClass = isDarkMode
-    ? 'bg-white/[0.045] text-white/54'
-    : 'bg-white/42 text-slate-500';
-  const formInputClass = cx(
-    'w-full rounded-full px-4 py-2.5 text-xs font-light outline-none',
-    isDarkMode ? 'bg-white/[0.055] text-white/82 placeholder:text-white/34' : 'bg-white/55 text-slate-700 placeholder:text-slate-400',
-  );
-  const formSelectClass = cx(
-    'w-full rounded-full px-4 py-2.5 text-xs font-light outline-none',
-    isDarkMode ? 'bg-white/[0.055] text-white/82' : 'bg-white/55 text-slate-700',
-  );
-  const formStaticClass = cx(
-    'rounded-full px-4 py-2.5 text-xs font-light',
-    isDarkMode ? 'bg-white/[0.04] text-white/50' : 'bg-white/45 text-slate-400',
-  );
+  // ── BDS v2.1 语义文本/表单类（token 主题透明，无 isDarkMode 分支） ───
+  const textPrimaryClass = 'text-[var(--text-primary)]';
+  const textSecondaryClass = 'text-[var(--text-tertiary)]';
+  const formInputClass = 'bds-input sm';
+  const formSelectClass = 'bds-select';
+  const formSelectSmStyle = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' } as const;
+  const formStaticClass = 'rounded-field bg-[var(--bg-panel)] px-4 py-2.5 text-xs font-light text-[var(--text-tertiary)]';
 
   // ── KPI row (always derived from ALL invoices + ALL vouchers) ───
   const kpiCards: KpiCard[] = useMemo(() => {
@@ -1272,7 +1236,6 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           'rdl-data-row',
           TABLE_GRID_CLASS,
           'w-full text-left text-xs',
-          active && (isDarkMode ? 'bg-white/[0.075]' : 'bg-white/50'),
         )}
       >
         <div className="min-w-0 px-1 py-1">
@@ -1280,7 +1243,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{invoiceTypeLabel(item.type)} · {item.currency || '—'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
-          <span className={cx('inline-flex rounded-full px-3 py-1 text-[11px] font-light tracking-wide', invoiceStatusTone(item.status, isDarkMode))}>
+          <span className={invoiceStatusBadge(item.status)}>
             {item.status}
           </span>
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{invoiceTypeLabel(item.type)}</div>
@@ -1311,7 +1274,6 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           'rdl-data-row',
           TABLE_GRID_CLASS,
           'w-full text-left text-xs',
-          active && (isDarkMode ? 'bg-white/[0.075]' : 'bg-white/50'),
         )}
       >
         <div className="min-w-0 px-1 py-1">
@@ -1319,7 +1281,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{voucherTypeLabel(item.type)} · {item.currency || '—'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
-          <span className={cx('inline-flex rounded-full px-3 py-1 text-[11px] font-light tracking-wide', voucherStatusTone((item.status || 'unreconciled') as VoucherStatus, isDarkMode))}>
+          <span className={voucherStatusBadge((item.status || 'unreconciled') as VoucherStatus)}>
             {item.status || 'unreconciled'}
           </span>
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{voucherTypeLabel(item.type)}</div>
@@ -1352,7 +1314,6 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           'rdl-data-row',
           TABLE_GRID_CLASS,
           'w-full text-left text-xs',
-          active && (isDarkMode ? 'bg-white/[0.075]' : 'bg-white/50'),
         )}
       >
         <div className="min-w-0 px-1 py-1">
@@ -1360,7 +1321,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(item.direction)} · {vatTypeLabel(item.invoiceType)}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
-          <span className={cx('inline-flex rounded-full px-3 py-1 text-[11px] font-light tracking-wide', vatStatusTone(item.status, isDarkMode))}>
+          <span className={vatStatusBadge(item.status)}>
             {VAT_STATUS_LABELS[item.status] || item.status}
           </span>
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(item.direction)}</div>
@@ -1382,13 +1343,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     activeTab === 'invoices' ? '发票号 / 伙伴' : activeTab === 'vatInvoices' ? '发票号码 / 购销方' : '凭证号 / 伙伴';
 
   const renderEmptyState = () => (
-    <div className={cx('flex h-56 flex-col items-center justify-center text-center', textSecondaryClass)}>
-      {activeTab === 'invoices'
-        ? <FileText size={28} strokeWidth={1} className="mb-3 opacity-45" />
-        : activeTab === 'vatInvoices'
-          ? <Receipt size={28} strokeWidth={1} className="mb-3 opacity-45" />
-          : <CreditCard size={28} strokeWidth={1} className="mb-3 opacity-45" />}
-      <div className="text-sm font-light">
+    <div className="bds-empty">
+      <div className="glyph">
+        {activeTab === 'invoices'
+          ? <FileText size={24} strokeWidth={1} />
+          : activeTab === 'vatInvoices'
+            ? <Receipt size={24} strokeWidth={1} />
+            : <CreditCard size={24} strokeWidth={1} />}
+      </div>
+      <div className="title">
         {vatLoading && activeTab === 'vatInvoices'
           ? '加载中…'
           : activeTab === 'invoices'
@@ -1443,7 +1406,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     return (
       <>
         {vatListError && (
-          <div className={cx('shrink-0 px-4 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>
+          <div className="bds-alert danger shrink-0">
             {vatListError}
           </div>
         )}
@@ -1455,44 +1418,44 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(vat.direction)}{vatTypeLabel(vat.invoiceType)} · {vat.currency || 'CNY'}</div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              <span className={cx('mt-0.5 inline-flex rounded-full px-3 py-1 text-[11px] font-light tracking-wide', vatStatusTone(vat.status, isDarkMode))}>
+              <span className={cx('mt-0.5', vatStatusBadge(vat.status))}>
                 {VAT_STATUS_LABELS[vat.status] || vat.status}
               </span>
               {canEdit && (
-                <RdlPill type="button" onClick={() => openEditVat(vat)} className="min-h-8 px-2.5 text-[10.5px]">
+                <button type="button" onClick={() => openEditVat(vat)} className="bds-btn bds-btn-secondary sm">
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
-                </RdlPill>
+                </button>
               )}
               {canVerify && (
-                <RdlPill type="button" onClick={() => openVatTransition(vat, 'Verified')} className="min-h-8 px-2.5 text-[10.5px]">
+                <button type="button" onClick={() => openVatTransition(vat, 'Verified')} className="bds-btn bds-btn-secondary sm">
                   <BadgeCheck size={10} strokeWidth={1.3} />
                   认证
-                </RdlPill>
+                </button>
               )}
               {canDeclare && (
-                <RdlPill type="button" onClick={() => openVatTransition(vat, 'Declared')} className="min-h-8 px-2.5 text-[10.5px]">
+                <button type="button" onClick={() => openVatTransition(vat, 'Declared')} className="bds-btn bds-btn-secondary sm">
                   <Landmark size={10} strokeWidth={1.3} />
                   申报退税
-                </RdlPill>
+                </button>
               )}
               {canRedFlush && (
-                <RdlPill type="button" onClick={() => openVatTransition(vat, 'RedFlushed')} className="min-h-8 px-2.5 text-[10.5px]">
+                <button type="button" onClick={() => openVatTransition(vat, 'RedFlushed')} className="bds-btn bds-btn-secondary sm">
                   <RotateCcw size={10} strokeWidth={1.3} />
                   红冲
-                </RdlPill>
+                </button>
               )}
               {canCancel && (
-                <RdlPill type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatCancel(vat)} className="min-h-8 px-2.5 text-[10.5px]">
+                <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatCancel(vat)} className="bds-btn bds-btn-secondary sm">
                   {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Ban size={10} strokeWidth={1.3} />}
                   作废
-                </RdlPill>
+                </button>
               )}
               {canDelete && (
-                <RdlPill type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatDelete(vat)} className="min-h-8 px-2.5 text-[10.5px]">
+                <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatDelete(vat)} className="bds-btn bds-btn-secondary sm">
                   {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
-                </RdlPill>
+                </button>
               )}
             </div>
           </div>
@@ -1506,20 +1469,20 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
             ))}
           </div>
-          <RdlSurface tone="inset" padding="compact" className="mt-3">
+          <div className="mt-3 rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
             <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>状态说明</div>
             <div className={cx('mt-1 text-[11px] font-light leading-relaxed', textPrimaryClass)}>
               {VAT_STATUS_LABELS[vat.status] || vat.status}：{VAT_STATUS_GUIDE[vat.status] || '请检查发票状态。'}
             </div>
-          </RdlSurface>
-          <div className={cx('my-4 h-px w-full', isDarkMode ? 'bg-white/[0.055]' : 'bg-slate-200/55')} />
-          <RdlSurface tone="inset" padding="regular">
+          </div>
+          <div className="bds-divider" style={{ margin: 'var(--space-4) 0' }} />
+          <div className="rounded-inset p-4" style={{ background: 'var(--bg-panel)' }}>
             <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>价税合计</div>
             <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimaryClass)}>{formatAmount(Number(vat.totalAmount), vat.currency)}</div>
             <div className={cx('mt-1 text-[11px] font-light tabular-nums', textSecondaryClass)}>
               不含税 {formatAmount(Number(vat.netAmount), vat.currency)} + 税额 {formatAmount(Number(vat.taxAmount), vat.currency)}
             </div>
-          </RdlSurface>
+          </div>
           <div className="mt-4">
             <RelatedEntitiesPanel
               type="vatInvoice"
@@ -1556,8 +1519,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     const headerValue = isInvoice ? invoice!.invoiceNumber : voucher!.voucherNumber;
     const headerMeta = isInvoice ? `${invoiceTypeLabel(invoice!.type)} · ${invoice!.currency || '—'}` : `${voucherTypeLabel(voucher!.type)} · ${voucher!.currency || '—'}`;
     const statusChipClassApplied = isInvoice
-      ? invoiceStatusTone(invoice!.status, isDarkMode)
-      : voucherStatusTone((voucher!.status || 'unreconciled') as VoucherStatus, isDarkMode);
+      ? invoiceStatusBadge(invoice!.status)
+      : voucherStatusBadge((voucher!.status || 'unreconciled') as VoucherStatus);
     const statusLabel = isInvoice ? invoice!.status : (voucher!.status || 'unreconciled');
 
     const fieldRows = isInvoice
@@ -1595,7 +1558,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     return (
       <>
         {voidDeleteError && (
-          <div className={cx('shrink-0 px-4 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>
+          <div className="bds-alert danger shrink-0">
             {voidDeleteError}
           </div>
         )}
@@ -1607,33 +1570,33 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{headerMeta}</div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className={cx('mt-0.5 inline-flex rounded-full px-3 py-1 text-[11px] font-light tracking-wide', statusChipClassApplied)}>{statusLabel}</span>
+              <span className={cx('mt-0.5', statusChipClassApplied)}>{statusLabel}</span>
               {/* P0 invoice manual UI: 编辑发票入口 */}
               {isInvoice && invoice && (
-                <RdlPill
+                <button
                   type="button"
                   onClick={() => openEditInvoice(invoice)}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
-                </RdlPill>
+                </button>
               )}
               {/* Phase 1-04: PI 转换为正式应收发票（仅 Proforma 类型且非 Cancelled） */}
               {isInvoice && invoice && (invoice as any).type === 'Proforma' && invoice.status !== 'Cancelled' && (
-                <RdlPill
+                <button
                   type="button"
                   disabled={convertingPiId === invoice.id}
                   onClick={() => handleConvertToReceivable(invoice.id, invoice.invoiceNumber)}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   {convertingPiId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} strokeWidth={1.3} />}
                   转为应收
-                </RdlPill>
+                </button>
               )}
               {/* task_mqyusoio: 作废入口（只对非 Cancelled 发票显示） */}
               {isInvoice && invoice && invoice.status !== 'Cancelled' && (
-                <RdlPill
+                <button
                   type="button"
                   disabled={voidDeletingId === invoice.id}
                   onClick={async () => {
@@ -1650,15 +1613,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
                   作废
-                </RdlPill>
+                </button>
               )}
               {/* task_mqyusoio: 软删入口（所有发票可删，HAS_ALLOCATIONS 阻断） */}
               {isInvoice && invoice && (
-                <RdlPill
+                <button
                   type="button"
                   disabled={voidDeletingId === invoice.id}
                   onClick={async () => {
@@ -1675,48 +1638,48 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
-                </RdlPill>
+                </button>
               )}
               {/* voucher 编辑入口 */}
               {!isInvoice && voucher && (
-                <RdlPill
+                <button
                   type="button"
                   onClick={() => openEditVoucher(voucher)}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
-                </RdlPill>
+                </button>
               )}
               {/* F2 外汇核销闭环：结汇入口（仅外币收款凭证有结汇语义） */}
               {!isInvoice && voucher && voucher.type === 'Receipt' && voucher.currency !== 'CNY' && (
-                <RdlPill
+                <button
                   type="button"
                   onClick={() => openSettlementModal(voucher)}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Landmark size={10} strokeWidth={1.3} />
                   结汇
-                </RdlPill>
+                </button>
               )}
               {/* C6 付汇闭环：付汇入口（仅外币付款凭证有付汇语义，镜像结汇付款侧） */}
               {!isInvoice && voucher && voucher.type === 'Disbursement' && voucher.currency !== 'CNY' && (
-                <RdlPill
+                <button
                   type="button"
                   onClick={() => openRemittanceModal(voucher)}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Send size={10} strokeWidth={1.3} />
                   付汇
-                </RdlPill>
+                </button>
               )}
               {/* voucher 作废入口（非 cancelled 状态可作废） */}
               {!isInvoice && voucher && voucher.status !== 'cancelled' && (
-                <RdlPill
+                <button
                   type="button"
                   disabled={voidDeletingId === voucher.id}
                   onClick={async () => {
@@ -1732,15 +1695,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
                   作废
-                </RdlPill>
+                </button>
               )}
               {/* task_mqyusoio: voucher 软删入口（消费 paymentVoucherService.deletePaymentVoucher） */}
               {!isInvoice && voucher && (
-                <RdlPill
+                <button
                   type="button"
                   disabled={voidDeletingId === voucher.id}
                   onClick={async () => {
@@ -1757,11 +1720,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
-                </RdlPill>
+                </button>
               )}
             </div>
           </div>
@@ -1777,31 +1740,31 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
           {/* P0 payment manual path: voucher 核销状态说明 + 下一步（消费后端稳定枚举） */}
           {!isInvoice && voucher && (
-            <RdlSurface tone="inset" padding="compact" className="mt-3">
+            <div className="mt-3 rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
               <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>状态说明</div>
               <div className={cx('mt-1 text-[11px] font-light leading-relaxed', textPrimaryClass)}>
                 {VOUCHER_STATUS_GUIDE[voucher.status as VoucherStatus]?.label ?? '未知状态'}：{VOUCHER_STATUS_GUIDE[voucher.status as VoucherStatus]?.nextStep ?? '请检查凭证核销状态。'}
               </div>
-            </RdlSurface>
+            </div>
           )}
-          <div className={cx('my-4 h-px w-full', isDarkMode ? 'bg-white/[0.055]' : 'bg-slate-200/55')} />
-          <RdlSurface tone="inset" padding="regular">
+          <div className="bds-divider" style={{ margin: 'var(--space-4) 0' }} />
+          <div className="rounded-inset p-4" style={{ background: 'var(--bg-panel)' }}>
             <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>{summary.label}</div>
             <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimaryClass)}>{summary.value}</div>
-          </RdlSurface>
+          </div>
           {/* P1 payment reconcile manual UI: 核销明细 + 手动核销入口 */}
           <div className="mt-4">
-            <RdlSurface tone="inset" padding="regular">
+            <div className="rounded-inset p-4" style={{ background: 'var(--bg-panel)' }}>
               <div className="flex items-center justify-between">
                 <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>核销明细（{allocations.length}）</div>
-                <RdlPill
+                <button
                   type="button"
                   onClick={openCreateAlloc}
-                  className="min-h-8 px-2.5 text-[10.5px]"
+                  className="bds-btn bds-btn-secondary sm"
                 >
                   <Link2 size={10} strokeWidth={1.3} />
                   添加核销
-                </RdlPill>
+                </button>
               </div>
               {allocLoading ? (
                 <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>加载中...</div>
@@ -1820,14 +1783,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        <RdlOverlayIconButton type="button" onClick={() => { setEditingAllocId(alloc.id); setAllocForm({ targetId: isInvoiceContext ? alloc.voucherId : alloc.invoiceId, appliedAmount: String(alloc.appliedAmount), appliedDate: alloc.appliedDate }); setAllocError(null); setShowAllocModal(true); }}
-                          className="h-8 w-8">
+                        <button type="button" onClick={() => { setEditingAllocId(alloc.id); setAllocForm({ targetId: isInvoiceContext ? alloc.voucherId : alloc.invoiceId, appliedAmount: String(alloc.appliedAmount), appliedDate: alloc.appliedDate }); setAllocError(null); setShowAllocModal(true); }}
+                          className="bds-btn bds-btn-ghost bds-btn-icon sm">
                           <Pencil size={11} strokeWidth={1.3} />
-                        </RdlOverlayIconButton>
-                        <RdlOverlayIconButton type="button" onClick={() => handleDeleteAlloc(alloc.id)}
-                          className="h-8 w-8">
+                        </button>
+                        <button type="button" onClick={() => handleDeleteAlloc(alloc.id)}
+                          className="bds-btn bds-btn-ghost bds-btn-icon sm">
                           <Trash2 size={11} strokeWidth={1.3} />
-                        </RdlOverlayIconButton>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1837,7 +1800,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className={cx('mt-2 text-[10px] font-light', textSecondaryClass)}>
                 当前状态：{statusLabel}（核销操作后由后端重算并自动更新）
               </div>
-            </RdlSurface>
+            </div>
           </div>
           <div className="mt-4">
             <RelatedEntitiesPanel
@@ -1871,27 +1834,23 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
           {/* KPI row */}
           <div className="grid min-h-0 grid-cols-2 gap-3 xl:grid-cols-4">
-            {kpiCards.map(card => <KpiCard key={card.label} card={card} isDarkMode={isDarkMode} />)}
+            {kpiCards.map(card => <KpiCard key={card.label} card={card} />)}
           </div>
 
           {/* Segment switcher */}
           <div className="flex min-h-0 items-center gap-2">
-            <RdlToolbar density="compact">
-              {FINANCE_TABS.map(tab => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <RdlPill
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    active={isActive}
-                    className="min-h-8 px-4 text-[11px]"
-                  >
-                    {tab.label}
-                  </RdlPill>
-                );
-              })}
-            </RdlToolbar>
+            <div className="bds-segment">
+              {FINANCE_TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cx('seg', activeTab === tab.id && 'active')}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
               {activeTab === 'reports'
                 ? '账龄 / 对账单 / 汇率损益 / 外汇台账'
@@ -1907,81 +1866,80 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           {activeTab !== 'reports' && (
           <>
           {/* Shared toolbar (chips adapt per tab) */}
-          <RdlToolbar className="h-auto min-h-11 flex-wrap gap-x-2 gap-y-2">
-              <RdlSearch
-                density="compact"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder={activeSearchPlaceholder}
-                className="min-w-[220px] flex-[1_1_260px]"
-              />
-              <div className={cx('hidden h-4 w-px shrink-0 xl:block', isDarkMode ? 'bg-white/8' : 'bg-slate-300/32')} />
-              <div className="flex min-w-0 flex-[1_1_auto] items-center gap-1 overflow-x-auto">
+          <div className="bds-filterbar h-auto min-h-11 flex-wrap gap-x-2 gap-y-2">
+              <div className="relative min-w-[220px] flex-[1_1_260px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder={activeSearchPlaceholder}
+                  className="bds-input sm pl-9"
+                />
+              </div>
+              <div className="hidden h-4 w-px shrink-0 xl:block" style={{ background: 'var(--border-c-strong)' }} />
+              <div className="bds-segment min-w-0 flex-[1_1_auto] overflow-x-auto">
                 {activeTypeOptions.map(item => (
-                  <ToolbarFilterButton
+                  <button
                     key={item.id}
-                    active={selectedType === item.id}
+                    type="button"
                     onClick={() => setSelectedType(item.id)}
+                    className={cx('seg shrink-0', selectedType === item.id && 'active')}
                   >
                     {item.label}
-                  </ToolbarFilterButton>
+                  </button>
                 ))}
               </div>
-              <div className="flex min-w-0 flex-[1_1_auto] items-center gap-1 overflow-x-auto">
+              <div className="bds-segment min-w-0 flex-[1_1_auto] overflow-x-auto">
                 {activeStatusOptions.map(item => (
-                  <ToolbarFilterButton
+                  <button
                     key={item.id}
-                    active={selectedStatus === item.id}
+                    type="button"
                     onClick={() => setSelectedStatus(item.id)}
+                    className={cx('seg shrink-0', selectedStatus === item.id && 'active')}
                   >
                     {item.label}
-                  </ToolbarFilterButton>
+                  </button>
                 ))}
               </div>
               {/* P0 payment manual path: 无 Agent 手动创建凭证入口 */}
               {activeTab === 'vouchers' && (
-                <RdlPill
+                <button
                   type="button"
-                  active
-                  tone="accent"
-                  className="min-h-8 shrink-0 px-3 text-[11px]"
+                  className="bds-btn bds-btn-primary sm shrink-0"
                   onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
                 >
                   <Plus size={12} strokeWidth={1.4} />
                   新建凭证
-                </RdlPill>
+                </button>
               )}
               {/* P0 invoice manual UI: 无 Agent 手动创建发票入口 */}
               {activeTab === 'invoices' && (
-                <RdlPill
+                <button
                   type="button"
                   onClick={openCreateInvoice}
-                  active
-                  tone="accent"
-                  className="min-h-8 shrink-0 px-3 text-[11px]"
+                  className="bds-btn bds-btn-primary sm shrink-0"
                 >
                   <Plus size={12} strokeWidth={1.4} />
                   新建发票
-                </RdlPill>
+                </button>
               )}
               {/* C6 增值税发票：手动登记入口 */}
               {activeTab === 'vatInvoices' && (
-                <RdlPill
+                <button
                   type="button"
                   onClick={openCreateVat}
-                  active
-                  tone="accent"
-                  className="min-h-8 shrink-0 px-3 text-[11px]"
+                  className="bds-btn bds-btn-primary sm shrink-0"
                 >
                   <Plus size={12} strokeWidth={1.4} />
                   新建增值税票
-                </RdlPill>
+                </button>
               )}
-          </RdlToolbar>
+          </div>
 
           {/* Table + side panel */}
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_340px]" data-finance-layout="rdl-flush-table-canvas">
-            <RdlSurface tone="panel" padding="compact" className="flex h-full min-h-0 flex-col">
+            <div className="flex h-full min-h-0 flex-col rounded-panel p-3" style={{ background: 'var(--bg-card)' }}>
                 <div className={cx(TABLE_GRID_CLASS, 'px-4 pb-2 pt-1 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>
                   {columnHeaders.map(column => (
                     <div key={column.key} className="min-w-0">{column.label}</div>
@@ -1996,11 +1954,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         : (activeList as VoucherEntity[]).map((item) => renderVoucherRow(item)))
                   : renderEmptyState()}
               </div>
-            </RdlSurface>
+            </div>
 
-            <RdlSurface tone="panel" className="flex h-full min-h-0 flex-col overflow-hidden p-0">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-panel" style={{ background: 'var(--bg-card)' }}>
               {renderSidePanel()}
-            </RdlSurface>
+            </div>
           </div>
           </>
           )}
@@ -2009,8 +1967,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
       {/* P0 payment manual path: 创建凭证 modal */}
       {showCreateVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !voucherCreating && setShowCreateVoucher(false)}>
-          <RdlSurface tone="floating" padding="regular" className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="bds-modal-mask" onClick={() => !voucherCreating && setShowCreateVoucher(false)}>
+          <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
             <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>{editingVoucher ? '编辑收付款凭证' : '新建收付款凭证'}</h2>
             <div className="space-y-3">
               <div>
@@ -2069,24 +2027,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     className={formInputClass} />
                 </div>
               )}
-              {voucherError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{voucherError}</div>}
+              {voucherError && <div className="bds-alert danger">{voucherError}</div>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <RdlPill type="button" disabled={voucherCreating} onClick={() => setShowCreateVoucher(false)}
-                className="min-h-8 px-4 text-xs">取消</RdlPill>
-              <RdlPill type="button" disabled={voucherCreating} onClick={editingVoucher ? handleSaveVoucher : handleCreateVoucher}
-                active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+              <button type="button" disabled={voucherCreating} onClick={() => setShowCreateVoucher(false)}
+                className="bds-btn bds-btn-secondary sm">取消</button>
+              <button type="button" disabled={voucherCreating} onClick={editingVoucher ? handleSaveVoucher : handleCreateVoucher}
+                className="bds-btn bds-btn-primary sm">
                 {voucherCreating ? '保存中...' : editingVoucher ? '保存' : '创建'}
-              </RdlPill>
+              </button>
             </div>
-          </RdlSurface>
+          </div>
         </div>
       )}
 
       {/* P0 invoice manual UI: 创建/编辑发票 modal */}
       {showInvoiceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !invoiceSaving && setShowInvoiceModal(false)}>
-          <RdlSurface tone="floating" padding="regular" className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="bds-modal-mask" onClick={() => !invoiceSaving && setShowInvoiceModal(false)}>
+          <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
             <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>{editingInvoice ? '编辑发票' : '新建发票'}</h2>
             <div className="space-y-3">
               <div>
@@ -2164,24 +2122,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     className={formInputClass} />
                 </div>
               </div>
-              {invoiceError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{invoiceError}</div>}
+              {invoiceError && <div className="bds-alert danger">{invoiceError}</div>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <RdlPill type="button" disabled={invoiceSaving} onClick={() => setShowInvoiceModal(false)}
-                className="min-h-8 px-4 text-xs">取消</RdlPill>
-              <RdlPill type="button" disabled={invoiceSaving} onClick={handleSaveInvoice}
-                active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+              <button type="button" disabled={invoiceSaving} onClick={() => setShowInvoiceModal(false)}
+                className="bds-btn bds-btn-secondary sm">取消</button>
+              <button type="button" disabled={invoiceSaving} onClick={handleSaveInvoice}
+                className="bds-btn bds-btn-primary sm">
                 {invoiceSaving ? '保存中...' : '保存'}
-              </RdlPill>
+              </button>
             </div>
-          </RdlSurface>
+          </div>
         </div>
       )}
 
       {/* P1 payment reconcile manual UI: 核销 modal */}
       {showAllocModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !allocSaving && setShowAllocModal(false)}>
-          <RdlSurface tone="floating" padding="regular" className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="bds-modal-mask" onClick={() => !allocSaving && setShowAllocModal(false)}>
+          <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
             <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>{editingAllocId ? '编辑核销' : '添加核销'}</h2>
             <div className="space-y-3">
               <div>
@@ -2214,24 +2172,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     className={formInputClass} />
                 </div>
               </div>
-              {allocError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{allocError}</div>}
+              {allocError && <div className="bds-alert danger">{allocError}</div>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <RdlPill type="button" disabled={allocSaving} onClick={() => setShowAllocModal(false)}
-                className="min-h-8 px-4 text-xs">取消</RdlPill>
-              <RdlPill type="button" disabled={allocSaving} onClick={handleSaveAlloc}
-                active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+              <button type="button" disabled={allocSaving} onClick={() => setShowAllocModal(false)}
+                className="bds-btn bds-btn-secondary sm">取消</button>
+              <button type="button" disabled={allocSaving} onClick={handleSaveAlloc}
+                className="bds-btn bds-btn-primary sm">
                 {allocSaving ? '核销中...' : '确认核销'}
-              </RdlPill>
+              </button>
             </div>
-          </RdlSurface>
+          </div>
         </div>
       )}
 
       {/* F2 外汇核销闭环：结汇 modal（核销摘要 + 结汇记录 + 登记表单） */}
       {settlementVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !settlementSaving && setSettlementVoucher(null)}>
-          <RdlSurface tone="floating" padding="regular" className="flex max-h-[85vh] w-full max-w-lg flex-col" onClick={e => e.stopPropagation()}>
+        <div className="bds-modal-mask" onClick={() => !settlementSaving && setSettlementVoucher(null)}>
+          <div className="bds-modal flex max-h-[85vh] flex-col" style={{ width: '32rem' }} onClick={e => e.stopPropagation()}>
             <h2 className={cx('mb-3 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
               结汇核销 · {settlementVoucher.voucherNumber}
               <span className={cx('ml-2 text-[11px]', textSecondaryClass)}>{settlementVoucher.customerName || '—'}</span>
@@ -2244,13 +2202,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 { label: '已结汇', value: settlementSummary ? formatAmount(Number(settlementSummary.settledAmount), settlementSummary.currency) : '—' },
                 { label: '未结汇余额', value: settlementSummary ? formatAmount(Number(settlementSummary.remainingAmount), settlementSummary.currency) : '—', accent: true },
               ]).map(card => (
-                <RdlSurface key={card.label} tone="inset" padding="compact">
+                <div key={card.label} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
                   <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>{card.label}</div>
                   {/* 中性材质对比表达强调（Finance 页面禁用语义色族）：未结清用主色，结清降为次级 */}
                   <div className={cx('mt-1 text-sm font-light tabular-nums', card.accent && settlementSummary?.fullySettled ? textSecondaryClass : textPrimaryClass)}>
                     {settlementLoading ? '加载中…' : card.value}
                   </div>
-                </RdlSurface>
+                </div>
               ))}
             </div>
 
@@ -2265,7 +2223,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 )}
                 <div className="space-y-1">
                   {settlementSummary?.settlements.map(s => (
-                    <div key={s.id} className={cx('flex items-center gap-2 rounded-control px-3 py-2', isDarkMode ? 'bg-white/[0.035]' : 'bg-white/40')}>
+                    <div key={s.id} className="flex items-center gap-2 rounded-control px-3 py-2" style={{ background: 'var(--bg-panel)' }}>
                       <div className="min-w-0 flex-1">
                         <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
                           {s.settleDate}
@@ -2276,14 +2234,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                           {s.bank ? ` · ${s.bank}` : ''}{s.slipNumber ? ` · 水单 ${s.slipNumber}` : ''}
                         </div>
                       </div>
-                      <RdlOverlayIconButton
+                      <button
                         type="button"
                         disabled={settlementDeletingId === s.id}
                         onClick={() => handleDeleteSettlement(s.id, s.settlementNumber)}
                         title="删除结汇水单（回滚未结汇余额）"
+                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       >
                         {settlementDeletingId === s.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
-                      </RdlOverlayIconButton>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -2291,7 +2250,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
               {/* 登记结汇表单 */}
               {(!settlementSummary || !settlementSummary.fullySettled) && (
-                <div className={cx('rounded-field border p-3', isDarkMode ? 'border-white/8' : 'border-slate-300/30')}>
+                <div className="rounded-field p-3" style={{ border: 'var(--border-subtle)' }}>
                   <div className={cx('mb-2 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>登记结汇</div>
                   <div className="space-y-2.5">
                     <div className="grid grid-cols-2 gap-3">
@@ -2343,27 +2302,27 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
               )}
 
-              {settlementError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{settlementError}</div>}
+              {settlementError && <div className="bds-alert danger">{settlementError}</div>}
             </div>
 
             <div className="mt-3 flex shrink-0 justify-end gap-2">
-              <RdlPill type="button" disabled={settlementSaving} onClick={() => setSettlementVoucher(null)}
-                className="min-h-8 px-4 text-xs">关闭</RdlPill>
+              <button type="button" disabled={settlementSaving} onClick={() => setSettlementVoucher(null)}
+                className="bds-btn bds-btn-secondary sm">关闭</button>
               {(!settlementSummary || !settlementSummary.fullySettled) && (
-                <RdlPill type="button" disabled={settlementSaving || settlementLoading} onClick={handleCreateSettlement}
-                  active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+                <button type="button" disabled={settlementSaving || settlementLoading} onClick={handleCreateSettlement}
+                  className="bds-btn bds-btn-primary sm">
                   {settlementSaving ? '登记中…' : '登记结汇'}
-                </RdlPill>
+                </button>
               )}
             </div>
-          </RdlSurface>
+          </div>
         </div>
       )}
 
       {/* C6 增值税发票：创建/编辑 modal（编辑时 vatNumber/direction/invoiceType 服务端不可变，仅票面修正） */}
       {showVatModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !vatSaving && setShowVatModal(false)}>
-          <RdlSurface tone="floating" padding="regular" className="flex max-h-[85vh] w-full max-w-lg flex-col" onClick={e => e.stopPropagation()}>
+        <div className="bds-modal-mask" onClick={() => !vatSaving && setShowVatModal(false)}>
+          <div className="bds-modal flex max-h-[85vh] flex-col" style={{ width: '32rem' }} onClick={e => e.stopPropagation()}>
             <h2 className={cx('mb-3 shrink-0 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
               {editingVat ? `编辑增值税发票 · ${editingVat.vatNumber}` : '新建增值税发票'}
             </h2>
@@ -2470,24 +2429,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <input value={vatForm.notes} onChange={e => setVatForm(f => ({ ...f, notes: e.target.value }))}
                   className={formInputClass} />
               </div>
-              {vatError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{vatError}</div>}
+              {vatError && <div className="bds-alert danger">{vatError}</div>}
             </div>
             <div className="mt-3 flex shrink-0 justify-end gap-2">
-              <RdlPill type="button" disabled={vatSaving} onClick={() => setShowVatModal(false)}
-                className="min-h-8 px-4 text-xs">取消</RdlPill>
-              <RdlPill type="button" disabled={vatSaving} onClick={handleSaveVat}
-                active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+              <button type="button" disabled={vatSaving} onClick={() => setShowVatModal(false)}
+                className="bds-btn bds-btn-secondary sm">取消</button>
+              <button type="button" disabled={vatSaving} onClick={handleSaveVat}
+                className="bds-btn bds-btn-primary sm">
                 {vatSaving ? '保存中…' : '保存'}
-              </RdlPill>
+              </button>
             </div>
-          </RdlSurface>
+          </div>
         </div>
       )}
 
       {/* C6 增值税发票：状态机流转 modal（认证 / 申报退税 / 红冲，消费后端稳定状态机） */}
       {vatTransitionTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !vatTransitionSaving && setVatTransitionTarget(null)}>
-          <RdlSurface tone="floating" padding="regular" className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="bds-modal-mask" onClick={() => !vatTransitionSaving && setVatTransitionTarget(null)}>
+          <div className="bds-modal" style={{ width: '28rem' }} onClick={e => e.stopPropagation()}>
             <h2 className={cx('mb-1 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
               {VAT_TRANSITION_LABELS[vatTransitionAction]} · {vatTransitionTarget.vatNumber}
             </h2>
@@ -2545,24 +2504,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   </div>
                 </>
               )}
-              {vatTransitionError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{vatTransitionError}</div>}
+              {vatTransitionError && <div className="bds-alert danger">{vatTransitionError}</div>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <RdlPill type="button" disabled={vatTransitionSaving} onClick={() => setVatTransitionTarget(null)}
-                className="min-h-8 px-4 text-xs">取消</RdlPill>
-              <RdlPill type="button" disabled={vatTransitionSaving} onClick={handleVatTransition}
-                active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+              <button type="button" disabled={vatTransitionSaving} onClick={() => setVatTransitionTarget(null)}
+                className="bds-btn bds-btn-secondary sm">取消</button>
+              <button type="button" disabled={vatTransitionSaving} onClick={handleVatTransition}
+                className="bds-btn bds-btn-primary sm">
                 {vatTransitionSaving ? '流转中…' : `确认${VAT_TRANSITION_LABELS[vatTransitionAction]}`}
-              </RdlPill>
+              </button>
             </div>
-          </RdlSurface>
+          </div>
         </div>
       )}
 
       {/* C6 付汇闭环：付汇核销 modal（镜像结汇 modal，消费 /v1/finance/outward-remittances contract） */}
       {remittanceVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm" onClick={() => !remittanceSaving && setRemittanceVoucher(null)}>
-          <RdlSurface tone="floating" padding="regular" className="flex max-h-[85vh] w-full max-w-lg flex-col" onClick={e => e.stopPropagation()}>
+        <div className="bds-modal-mask" onClick={() => !remittanceSaving && setRemittanceVoucher(null)}>
+          <div className="bds-modal flex max-h-[85vh] flex-col" style={{ width: '32rem' }} onClick={e => e.stopPropagation()}>
             <h2 className={cx('mb-3 text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
               付汇核销 · {remittanceVoucher.voucherNumber}
               <span className={cx('ml-2 text-[11px]', textSecondaryClass)}>{remittanceVoucher.customerName || '—'}</span>
@@ -2575,13 +2534,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 { label: '已付汇', value: remittanceSummary ? formatAmount(Number(remittanceSummary.remittedAmount), remittanceSummary.currency) : '—' },
                 { label: '未付汇余额', value: remittanceSummary ? formatAmount(Number(remittanceSummary.remainingAmount), remittanceSummary.currency) : '—', accent: true },
               ]).map(card => (
-                <RdlSurface key={card.label} tone="inset" padding="compact">
+                <div key={card.label} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
                   <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>{card.label}</div>
                   {/* 中性材质对比表达强调（Finance 页面禁用语义色族）：未付清用主色，付清降为次级 */}
                   <div className={cx('mt-1 text-sm font-light tabular-nums', card.accent && remittanceSummary?.fullyRemitted ? textSecondaryClass : textPrimaryClass)}>
                     {remittanceLoading ? '加载中…' : card.value}
                   </div>
-                </RdlSurface>
+                </div>
               ))}
             </div>
 
@@ -2596,7 +2555,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 )}
                 <div className="space-y-1">
                   {remittanceSummary?.remittances.map(r => (
-                    <div key={r.id} className={cx('flex items-center gap-2 rounded-control px-3 py-2', isDarkMode ? 'bg-white/[0.035]' : 'bg-white/40')}>
+                    <div key={r.id} className="flex items-center gap-2 rounded-control px-3 py-2" style={{ background: 'var(--bg-panel)' }}>
                       <div className="min-w-0 flex-1">
                         <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
                           {r.remitDate}
@@ -2607,14 +2566,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                           {r.purpose ? ` · ${remittancePurposeLabel(r.purpose)}` : ''}{r.bank ? ` · ${r.bank}` : ''}{r.slipNumber ? ` · 水单 ${r.slipNumber}` : ''}
                         </div>
                       </div>
-                      <RdlOverlayIconButton
+                      <button
                         type="button"
                         disabled={remittanceDeletingId === r.id}
                         onClick={() => handleDeleteRemittance(r.id, r.remittanceNumber)}
                         title="删除付汇水单（回滚未付汇余额）"
+                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
                       >
                         {remittanceDeletingId === r.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
-                      </RdlOverlayIconButton>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -2622,7 +2582,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
               {/* 登记付汇表单 */}
               {(!remittanceSummary || !remittanceSummary.fullyRemitted) && (
-                <div className={cx('rounded-field border p-3', isDarkMode ? 'border-white/8' : 'border-slate-300/30')}>
+                <div className="rounded-field p-3" style={{ border: 'var(--border-subtle)' }}>
                   <div className={cx('mb-2 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>登记付汇</div>
                   <div className="space-y-2.5">
                     <div className="grid grid-cols-2 gap-3">
@@ -2690,20 +2650,20 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
               )}
 
-              {remittanceError && <div className={cx('rounded-field px-3 py-2 text-[11px] font-light', financeAlertTone(isDarkMode))}>{remittanceError}</div>}
+              {remittanceError && <div className="bds-alert danger">{remittanceError}</div>}
             </div>
 
             <div className="mt-3 flex shrink-0 justify-end gap-2">
-              <RdlPill type="button" disabled={remittanceSaving} onClick={() => setRemittanceVoucher(null)}
-                className="min-h-8 px-4 text-xs">关闭</RdlPill>
+              <button type="button" disabled={remittanceSaving} onClick={() => setRemittanceVoucher(null)}
+                className="bds-btn bds-btn-secondary sm">关闭</button>
               {(!remittanceSummary || !remittanceSummary.fullyRemitted) && (
-                <RdlPill type="button" disabled={remittanceSaving || remittanceLoading} onClick={handleCreateRemittance}
-                  active tone="accent" className="min-h-8 px-4 text-xs disabled:opacity-50">
+                <button type="button" disabled={remittanceSaving || remittanceLoading} onClick={handleCreateRemittance}
+                  className="bds-btn bds-btn-primary sm">
                   {remittanceSaving ? '登记中…' : '登记付汇'}
-                </RdlPill>
+                </button>
               )}
             </div>
-          </RdlSurface>
+          </div>
         </div>
       )}
     </div>

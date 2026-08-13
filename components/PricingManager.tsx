@@ -16,7 +16,8 @@
  *
  * 设计原则：
  *   - 轨道 B 派生值（netUsdCost / finalUnitPrice 等）一律以后端返回为准，前端不做本地计算
- *   - RDL flat 设计：statusSemanticClass 中性色阶，无阴影，大圆角
+ *   - BDS v2.1 组件族（bds-card/bds-btn/bds-input/bds-badge/bds-tabs/bds-modal 等），
+ *     状态徽章用 bds-badge 语义变体（CALC_STATUS_BADGE_VARIANT），主题透明无 isDarkMode 分支
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -56,7 +57,6 @@ import {
   Relation,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
-import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
@@ -82,7 +82,8 @@ const CALC_STATUS_LABELS: Record<PricingCalculationStatus, string> = {
   Archived: '已归档',
 };
 
-const CALC_STATUS_SEMANTIC: Record<PricingCalculationStatus, StatusSemantic> = {
+// BDS 徽章语义变体映射（bds-badge：neutral/info/success/danger/warning）
+const CALC_STATUS_BADGE_VARIANT: Record<PricingCalculationStatus, 'neutral' | 'success'> = {
   Draft: 'neutral',
   Confirmed: 'success',
   Archived: 'neutral',
@@ -130,13 +131,13 @@ function parseNum(raw: string): number | null {
 
 // ==================== 共享样式 ====================
 
-const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
-const actionButtonClass = "flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50";
+const inputClass = "bds-input";
+const selectClass = "bds-select";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="block text-xs text-text-tertiary mb-1">{label}</label>
+      <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>{label}</label>
       {children}
     </div>
   );
@@ -148,23 +149,24 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="bds-modal-mask"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-surface-elevated rounded-panel w-full max-w-lg max-h-[85vh] overflow-y-auto"
+        className="bds-modal"
+        style={{ width: '32rem', maxHeight: '85vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        {children}
       </motion.div>
     </motion.div>
   );
@@ -172,8 +174,8 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
-      <p className="text-sm">{text}</p>
+    <div className="bds-empty">
+      <div className="title">{text}</div>
     </div>
   );
 }
@@ -188,6 +190,8 @@ interface PricingManagerProps {
 
 // ==================== 主组件 ====================
 
+// ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
+// isDarkMode 仅保留在 props 签名与解构中兼容调用方，组件内不再使用
 export default function PricingManager({ isDarkMode, initialTab }: PricingManagerProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>(initialTab ?? 'calculator');
   useEffect(() => {
@@ -198,26 +202,24 @@ export default function PricingManager({ isDarkMode, initialTab }: PricingManage
     <div className="h-full flex flex-col">
       <PageHeader title="定价与利润" subtitle="Pricing & Profit" />
 
-      {/* 模块 Tab 栏 */}
-      <div className="px-7 flex items-center gap-1 border-b border-border-subtle shrink-0">
-        {MODULE_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-control transition-colors ${
-                isActive
-                  ? 'text-text-primary bg-surface-elevated border-b-2 border-border-action'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
+      <div className="px-7 shrink-0">
+        <div className="bds-tabs">
+          {MODULE_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`bds-tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tab 内容（切换即重挂载，保证数据新鲜） */}
@@ -231,11 +233,11 @@ export default function PricingManager({ isDarkMode, initialTab }: PricingManage
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'calculator' && <CalculatorPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'profitSheets' && <ProfitSheetsPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'taxRates' && <TaxRatesPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'priceHistory' && <PriceHistoryPanel isDarkMode={isDarkMode} />}
-            {activeTab === 'commissionRules' && <CommissionRulesPanel isDarkMode={isDarkMode} />}
+            {activeTab === 'calculator' && <CalculatorPanel />}
+            {activeTab === 'profitSheets' && <ProfitSheetsPanel />}
+            {activeTab === 'taxRates' && <TaxRatesPanel />}
+            {activeTab === 'priceHistory' && <PriceHistoryPanel />}
+            {activeTab === 'commissionRules' && <CommissionRulesPanel />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -245,7 +247,7 @@ export default function PricingManager({ isDarkMode, initialTab }: PricingManage
 
 // ==================== 定价计算器 Panel ====================
 
-function CalculatorPanel(_props: { isDarkMode?: boolean }) {
+function CalculatorPanel() {
   // 轨道 B 附加字段（保存定价记录用；试算本体在共享 TrackBPanel 内）
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
@@ -342,7 +344,7 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
             <button
               onClick={handleSave}
               disabled={saving || !trackBInputs}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-subtle hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50"
+              className="bds-btn bds-btn-primary sm"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               保存定价记录
@@ -364,16 +366,16 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
       </div>
 
       {/* 右：定价记录 */}
-      <div className="bg-surface-elevated rounded-card p-5">
+      <div className="bds-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-text-primary">定价记录</h3>
-          <button onClick={loadRecords} className={actionButtonClass}>
+          <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>定价记录</h3>
+          <button onClick={loadRecords} className="bds-btn bds-btn-secondary sm">
             <RefreshCw className="w-3.5 h-3.5" />
             刷新
           </button>
         </div>
         {recordsLoading ? (
-          <div className="flex items-center justify-center py-12 text-text-tertiary">
+          <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : records.length === 0 ? (
@@ -381,33 +383,33 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
         ) : (
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {records.map((rec) => (
-              <div key={rec.id} className="bg-surface-primary rounded-inset p-3">
+              <div key={rec.id} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm text-text-primary truncate">
+                    <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                       终价 ${rec.finalUnitPrice.toFixed(4)}
-                      <span className="text-text-tertiary"> · 成本 ¥{rec.purchaseCostCny.toFixed(2)} · 退税 {rec.refundRate}% · 汇率 {rec.exchangeRate}</span>
+                      <span style={{ color: 'var(--text-tertiary)' }}> · 成本 ¥{rec.purchaseCostCny.toFixed(2)} · 退税 {rec.refundRate}% · 汇率 {rec.exchangeRate}</span>
                     </p>
-                    <p className="text-xs text-text-tertiary mt-0.5">
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                       利润率 {rec.profitMargin}%{rec.commissionRate ? ` · 佣金 ${rec.commissionRate}%` : ''}{rec.hsCode ? ` · HS ${rec.hsCode}` : ''}{rec.quantity ? ` · 数量 ${rec.quantity}` : ''} · {formatTs(rec.createdAt)}
                     </p>
-                    {rec.notes && <p className="text-xs text-text-tertiary mt-0.5 truncate">{rec.notes}</p>}
+                    {rec.notes && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }}>{rec.notes}</p>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`px-2 py-0.5 text-xs rounded-control ${statusSemanticClass(CALC_STATUS_SEMANTIC[rec.status])}`}>
+                    <span className={`bds-badge sm ${CALC_STATUS_BADGE_VARIANT[rec.status]}`}>
                       {CALC_STATUS_LABELS[rec.status]}
                     </span>
                     {rec.status === 'Draft' && (
-                      <button onClick={() => handlePatchStatus(rec.id, 'Confirmed')} disabled={updatingId === rec.id} className={actionButtonClass} title="确认定价">
+                      <button onClick={() => handlePatchStatus(rec.id, 'Confirmed')} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="确认定价">
                         <Check className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {rec.status !== 'Archived' && (
-                      <button onClick={() => handlePatchStatus(rec.id, 'Archived')} disabled={updatingId === rec.id} className={actionButtonClass} title="归档">
+                      <button onClick={() => handlePatchStatus(rec.id, 'Archived')} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="归档">
                         <Archive className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <button onClick={() => handleDelete(rec.id)} disabled={updatingId === rec.id} className={actionButtonClass} title="删除">
+                    <button onClick={() => handleDelete(rec.id)} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -423,7 +425,7 @@ function CalculatorPanel(_props: { isDarkMode?: boolean }) {
 
 // ==================== 利润表 Panel ====================
 
-function ProfitSheetsPanel(_props: { isDarkMode?: boolean }) {
+function ProfitSheetsPanel() {
   const [sheets, setSheets] = useState<OrderProfitSheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState<OrderProfitSheet | null>(null);
@@ -513,8 +515,8 @@ function ProfitSheetsPanel(_props: { isDarkMode?: boolean }) {
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
       {/* 左：生成 + 列表 */}
       <div className="xl:col-span-2 space-y-4">
-        <div className="bg-surface-elevated rounded-card p-5">
-          <h3 className="text-sm font-medium text-text-primary mb-3">生成 / 重新生成利润表</h3>
+        <div className="bds-card">
+          <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>生成 / 重新生成利润表</h3>
           <Field label="订单（搜索 PO / 客户 / 产品）">
             <input
               className={inputClass}
@@ -524,12 +526,13 @@ function ProfitSheetsPanel(_props: { isDarkMode?: boolean }) {
             />
           </Field>
           {filteredOrders.length > 0 && !selectedOrder && (
-            <div className="mb-3 bg-surface-primary rounded-inset max-h-48 overflow-y-auto">
+            <div className="mb-3 rounded-inset max-h-48 overflow-y-auto" style={{ background: 'var(--bg-panel)' }}>
               {filteredOrders.map((o) => (
                 <button
                   key={o.id}
                   onClick={() => { setSelectedOrder(o); setOrderQuery(`${o.poNumber || o.id} · ${o.customer || ''}`); }}
-                  className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-surface-secondary transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--hover-darken)]"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   {o.poNumber || o.id} · {o.customer || '—'} · {o.product || '—'}
                 </button>
@@ -539,23 +542,23 @@ function ProfitSheetsPanel(_props: { isDarkMode?: boolean }) {
           <button
             onClick={handleGenerate}
             disabled={generating || !selectedOrder}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors disabled:opacity-50"
+            className="bds-btn bds-btn-primary sm"
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
             生成利润表
           </button>
         </div>
 
-        <div className="bg-surface-elevated rounded-card p-5">
+        <div className="bds-card">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-text-primary">已生成利润表</h3>
-            <button onClick={loadSheets} className={actionButtonClass}>
+            <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>已生成利润表</h3>
+            <button onClick={loadSheets} className="bds-btn bds-btn-secondary sm">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
           </div>
           {loading ? (
-            <div className="flex items-center justify-center py-8 text-text-tertiary">
+            <div className="flex items-center justify-center py-8" style={{ color: 'var(--text-quaternary)' }}>
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
           ) : sheets.length === 0 ? (
@@ -563,14 +566,14 @@ function ProfitSheetsPanel(_props: { isDarkMode?: boolean }) {
           ) : (
             <div className="space-y-2 max-h-[40vh] overflow-y-auto">
               {sheets.map((s) => (
-                <div key={s.id} className="bg-surface-primary rounded-inset p-3 flex items-center justify-between gap-2">
+                <div key={s.id} className="rounded-inset p-3 flex items-center justify-between gap-2" style={{ background: 'var(--bg-panel)' }}>
                   <button onClick={() => handleView(s.orderId)} className="min-w-0 text-left">
-                    <p className="text-sm text-text-primary truncate">订单 {s.orderId}</p>
-                    <p className="text-xs text-text-tertiary mt-0.5">
+                    <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>订单 {s.orderId}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                       毛利 {formatMoney(s.grossProfit, s.baseCurrency)}{s.grossMargin !== null && s.grossMargin !== undefined ? ` · 毛利率 ${s.grossMargin.toFixed(2)}%` : ''} · v{s.version} · {formatTs(s.generatedAt)}
                     </p>
                   </button>
-                  <button onClick={() => handleDelete(s.orderId)} className={`${actionButtonClass} shrink-0`} title="删除">
+                  <button onClick={() => handleDelete(s.orderId)} className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -585,7 +588,7 @@ function ProfitSheetsPanel(_props: { isDarkMode?: boolean }) {
         {current ? (
           <ProfitSheetDetail sheet={current} />
         ) : (
-          <div className="bg-surface-elevated rounded-card p-5 h-full flex items-center justify-center">
+          <div className="bds-card h-full flex items-center justify-center">
             <EmptyHint text="选择左侧订单生成利润表，或点击已生成记录查看详情" />
           </div>
         )}
@@ -597,37 +600,37 @@ function ProfitSheetsPanel(_props: { isDarkMode?: boolean }) {
 function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
   const d = sheet.details;
   return (
-    <div className="bg-surface-elevated rounded-card p-5 space-y-4">
+    <div className="bds-card space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text-primary">订单 {sheet.orderId} 利润表</h3>
-        <span className="text-xs text-text-tertiary">v{sheet.version} · 生成于 {formatTs(sheet.generatedAt)}</span>
+        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>订单 {sheet.orderId} 利润表</h3>
+        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>v{sheet.version} · 生成于 {formatTs(sheet.generatedAt)}</span>
       </div>
 
       {/* 汇总卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <div className="bg-surface-primary rounded-inset p-3">
-          <p className="text-xs text-text-tertiary">销售收入</p>
-          <p className="text-base font-medium text-text-primary">{formatMoney(sheet.salesRevenue, sheet.baseCurrency)}</p>
+        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>销售收入</p>
+          <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.salesRevenue, sheet.baseCurrency)}</p>
         </div>
-        <div className="bg-surface-primary rounded-inset p-3">
-          <p className="text-xs text-text-tertiary">采购成本</p>
-          <p className="text-base font-medium text-text-primary">{formatMoney(sheet.purchaseCost, sheet.baseCurrency)}</p>
+        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>采购成本</p>
+          <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.purchaseCost, sheet.baseCurrency)}</p>
         </div>
-        <div className="bg-surface-primary rounded-inset p-3">
-          <p className="text-xs text-text-tertiary">运费</p>
-          <p className="text-base font-medium text-text-primary">{formatMoney(sheet.freightCost, sheet.baseCurrency)}</p>
+        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>运费</p>
+          <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.freightCost, sheet.baseCurrency)}</p>
         </div>
-        <div className="bg-surface-primary rounded-inset p-3">
-          <p className="text-xs text-text-tertiary">杂费</p>
-          <p className="text-base font-medium text-text-primary">{formatMoney(sheet.miscCost, sheet.baseCurrency)}</p>
+        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>杂费</p>
+          <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.miscCost, sheet.baseCurrency)}</p>
         </div>
-        <div className="bg-surface-primary rounded-inset p-3 border border-border-action">
-          <p className="text-xs text-text-tertiary">毛利</p>
-          <p className="text-base font-medium text-text-primary">{formatMoney(sheet.grossProfit, sheet.baseCurrency)}</p>
+        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)', border: '1px solid var(--accent-tint-strong)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>毛利</p>
+          <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.grossProfit, sheet.baseCurrency)}</p>
         </div>
-        <div className="bg-surface-primary rounded-inset p-3 border border-border-action">
-          <p className="text-xs text-text-tertiary">毛利率</p>
-          <p className="text-base font-medium text-text-primary">
+        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)', border: '1px solid var(--accent-tint-strong)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>毛利率</p>
+          <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>
             {sheet.grossMargin !== null && sheet.grossMargin !== undefined ? `${sheet.grossMargin.toFixed(2)}%` : '—'}
           </p>
         </div>
@@ -641,17 +644,21 @@ function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
         ['杂费', d.misc],
       ] as Array<[string, typeof d.sales]>).map(([title, lines]) => (
         <div key={title}>
-          <p className="text-xs font-medium text-text-secondary mb-1.5">{title}（{lines.length}）</p>
+          <p className="bds-overline mb-1.5" style={{ color: 'var(--text-secondary)' }}>{title}（{lines.length}）</p>
           {lines.length === 0 ? (
-            <p className="text-xs text-text-tertiary">无明细</p>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>无明细</p>
           ) : (
-            <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
-              {lines.map((line) => (
-                <div key={line.id} className="flex items-center justify-between px-3 py-2 text-xs">
-                  <span className="text-text-secondary truncate">{line.label}</span>
-                  <span className="text-text-tertiary shrink-0 ml-3">
+            <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+              {lines.map((line, idx) => (
+                <div
+                  key={line.id}
+                  className="flex items-center justify-between px-3 py-2 text-xs"
+                  style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+                >
+                  <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{line.label}</span>
+                  <span className="shrink-0 ml-3" style={{ color: 'var(--text-tertiary)' }}>
                     {formatMoney(line.amount, line.currency)} × {line.rate}（{RATE_SOURCE_LABELS[line.rateSource] || line.rateSource}）
-                    <span className="text-text-primary ml-2">= {formatMoney(line.cnyAmount, sheet.baseCurrency)}</span>
+                    <span className="ml-2" style={{ color: 'var(--text-primary)' }}>= {formatMoney(line.cnyAmount, sheet.baseCurrency)}</span>
                   </span>
                 </div>
               ))}
@@ -663,12 +670,16 @@ function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
       {/* 未折算明细 */}
       {d.unconverted.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-text-secondary mb-1.5">未折算明细（缺汇率，未计入汇总）</p>
-          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle border border-border-action">
-            {d.unconverted.map((line) => (
-              <div key={line.id} className="flex items-center justify-between px-3 py-2 text-xs">
-                <span className="text-text-secondary truncate">{line.label}</span>
-                <span className="text-text-tertiary shrink-0 ml-3">
+          <p className="bds-overline mb-1.5" style={{ color: 'var(--text-secondary)' }}>未折算明细（缺汇率，未计入汇总）</p>
+          <div className="rounded-inset" style={{ background: 'var(--bg-panel)', border: '1px solid var(--accent-tint-strong)' }}>
+            {d.unconverted.map((line, idx) => (
+              <div
+                key={line.id}
+                className="flex items-center justify-between px-3 py-2 text-xs"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+              >
+                <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{line.label}</span>
+                <span className="shrink-0 ml-3" style={{ color: 'var(--text-tertiary)' }}>
                   {formatMoney(line.amount, line.currency)} · {line.reason}
                 </span>
               </div>
@@ -682,7 +693,7 @@ function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
 
 // ==================== 退税率 Panel ====================
 
-function TaxRatesPanel(_props: { isDarkMode?: boolean }) {
+function TaxRatesPanel() {
   const [items, setItems] = useState<TaxRefundRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -751,36 +762,37 @@ function TaxRatesPanel(_props: { isDarkMode?: boolean }) {
   return (
     <div className="space-y-4">
       {/* 命中测试 */}
-      <div className="bg-surface-elevated rounded-card p-5">
-        <h3 className="text-sm font-medium text-text-primary mb-3">最长前缀命中测试</h3>
+      <div className="bds-card">
+        <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>最长前缀命中测试</h3>
         <div className="flex items-center gap-2 max-w-lg">
           <input className={inputClass} value={testCode} onChange={(e) => { setTestCode(e.target.value); setTestResult(null); }} placeholder="输入完整 HS Code，如 5407520000" />
-          <button onClick={handleTest} className={actionButtonClass}>
+          <button onClick={handleTest} className="bds-btn bds-btn-secondary sm shrink-0">
             <Search className="w-3.5 h-3.5" />
             测试
           </button>
         </div>
-        {testResult && <p className="text-xs text-text-tertiary mt-2">{testResult}</p>}
+        {testResult && <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>{testResult}</p>}
       </div>
 
       {/* 退税率表 */}
-      <div className="bg-surface-elevated rounded-card p-5">
+      <div className="bds-card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <h3 className="text-sm font-medium text-text-primary">退税率表</h3>
-            <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer">
+            <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>退税率表</h3>
+            <label className="bds-check" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
               <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+              <span className="box"></span>
               显示已停用
             </label>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className={actionButtonClass}>
+            <button onClick={load} className="bds-btn bds-btn-secondary sm">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+              className="bds-btn bds-btn-primary sm"
             >
               <Plus className="w-3.5 h-3.5" />
               新增退税率
@@ -789,40 +801,45 @@ function TaxRatesPanel(_props: { isDarkMode?: boolean }) {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12 text-text-tertiary">
+          <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : items.length === 0 ? (
           <EmptyHint text="暂无退税率记录" />
         ) : (
-          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
-            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-2">HS Code</span>
               <span className="col-span-2">退税率</span>
               <span className="col-span-4">说明</span>
               <span className="col-span-2">状态</span>
               <span className="col-span-2 text-right">操作</span>
             </div>
-            {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
-                <span className="col-span-2 text-text-primary font-mono">{item.hsCode}</span>
-                <span className="col-span-2 text-text-primary">{item.rate}%</span>
-                <span className="col-span-4 text-text-secondary truncate">{item.description || '—'}</span>
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+              >
+                <span className="col-span-2 bds-mono" style={{ color: 'var(--text-primary)' }}>{item.hsCode}</span>
+                <span className="col-span-2 bds-tnum" style={{ color: 'var(--text-primary)' }}>{item.rate}%</span>
+                <span className="col-span-4 truncate" style={{ color: 'var(--text-secondary)' }}>{item.description || '—'}</span>
                 <span className="col-span-2">
                   <button
                     onClick={() => handleToggleActive(item)}
                     disabled={updatingId === item.id}
-                    className={`px-2 py-0.5 rounded-control ${statusSemanticClass(item.isActive ? 'success' : 'neutral')}`}
+                    className={`bds-badge sm ${item.isActive ? 'success' : 'neutral'}`}
+                    style={{ cursor: 'pointer' }}
                     title="点击切换启停"
                   >
                     {item.isActive ? '启用' : '停用'}
                   </button>
                 </span>
                 <span className="col-span-2 flex items-center justify-end gap-1.5">
-                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className={actionButtonClass} title="编辑">
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="编辑">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className={actionButtonClass} title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -901,10 +918,10 @@ function TaxRateForm({
         <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="如 化纤梭织面料" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
         <button
           onClick={handleSubmit}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -915,7 +932,7 @@ function TaxRateForm({
 
 // ==================== 价格历史 Panel ====================
 
-function PriceHistoryPanel(_props: { isDarkMode?: boolean }) {
+function PriceHistoryPanel() {
   const [items, setItems] = useState<MaterialPriceHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<MaterialPriceType | ''>('');
@@ -994,11 +1011,11 @@ function PriceHistoryPanel(_props: { isDarkMode?: boolean }) {
   return (
     <div className="space-y-4">
       {/* 筛选 + 趋势 */}
-      <div className="bg-surface-elevated rounded-card p-5">
+      <div className="bds-card">
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs text-text-tertiary mb-1">材料类型</label>
-            <select className={inputClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as MaterialPriceType | '')}>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>材料类型</label>
+            <select className={selectClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as MaterialPriceType | '')}>
               <option value="">全部</option>
               <option value="yarn">纱线</option>
               <option value="fabric">面料</option>
@@ -1006,21 +1023,21 @@ function PriceHistoryPanel(_props: { isDarkMode?: boolean }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-text-tertiary mb-1">起始日期</label>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>起始日期</label>
             <input type="date" className={inputClass} value={from} onChange={(e) => setFrom(e.target.value)} max={todayLocal()} />
           </div>
           <div>
-            <label className="block text-xs text-text-tertiary mb-1">截止日期</label>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>截止日期</label>
             <input type="date" className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} max={todayLocal()} />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => { load(); loadTrend(); }} className={actionButtonClass}>
+            <button onClick={() => { load(); loadTrend(); }} className="bds-btn bds-btn-secondary sm">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+              className="bds-btn bds-btn-primary sm"
             >
               <Plus className="w-3.5 h-3.5" />
               录入价格
@@ -1031,26 +1048,26 @@ function PriceHistoryPanel(_props: { isDarkMode?: boolean }) {
         {/* 趋势条形图（按时间升序，高度 ∝ 价格） */}
         {typeFilter && (
           <div className="mt-4">
-            <p className="text-xs text-text-tertiary mb-2">
+            <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
               {MATERIAL_TYPE_LABELS[typeFilter]}价格趋势
               {trendBounds && ` · 区间 ${trendBounds.min.toFixed(2)} ~ ${trendBounds.max.toFixed(2)}`}
             </p>
             {trendLoading ? (
-              <div className="flex items-center justify-center py-6 text-text-tertiary">
+              <div className="flex items-center justify-center py-6" style={{ color: 'var(--text-quaternary)' }}>
                 <Loader2 className="w-4 h-4 animate-spin" />
               </div>
             ) : trend.length === 0 ? (
-              <p className="text-xs text-text-tertiary">该类型下暂无价格数据</p>
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>该类型下暂无价格数据</p>
             ) : (
-              <div className="flex items-end gap-1 h-24 bg-surface-primary rounded-inset p-2 overflow-x-auto">
+              <div className="flex items-end gap-1 h-24 rounded-inset p-2 overflow-x-auto" style={{ background: 'var(--bg-panel)' }}>
                 {trend.map((p, idx) => {
                   const ratio = trendBounds && trendBounds.span > 0 ? (p.price - trendBounds.min) / trendBounds.span : 1;
                   const heightPct = 20 + ratio * 80;
                   return (
                     <div
                       key={`${p.priceDate}-${idx}`}
-                      className="bg-border-action rounded-t-control shrink-0 w-4"
-                      style={{ height: `${heightPct}%` }}
+                      className="rounded-t-control shrink-0 w-4"
+                      style={{ height: `${heightPct}%`, background: 'var(--accent)' }}
                       title={`${p.priceDate} · ${p.currency} ${p.price.toFixed(4)}/${p.unit}${p.supplierName ? ` · ${p.supplierName}` : ''}`}
                     />
                   );
@@ -1062,17 +1079,17 @@ function PriceHistoryPanel(_props: { isDarkMode?: boolean }) {
       </div>
 
       {/* 价格列表 */}
-      <div className="bg-surface-elevated rounded-card p-5">
-        <h3 className="text-sm font-medium text-text-primary mb-4">价格记录</h3>
+      <div className="bds-card">
+        <h3 className="bds-overline mb-4" style={{ color: 'var(--text-tertiary)' }}>价格记录</h3>
         {loading ? (
-          <div className="flex items-center justify-center py-12 text-text-tertiary">
+          <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : items.length === 0 ? (
           <EmptyHint text="暂无价格记录" />
         ) : (
-          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
-            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-1">类型</span>
               <span className="col-span-2">日期</span>
               <span className="col-span-3">名称 / 规格</span>
@@ -1081,25 +1098,29 @@ function PriceHistoryPanel(_props: { isDarkMode?: boolean }) {
               <span className="col-span-1">来源</span>
               <span className="col-span-1 text-right">操作</span>
             </div>
-            {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+              >
                 <span className="col-span-1">
-                  <span className={`px-2 py-0.5 rounded-control ${statusSemanticClass('info')}`}>
+                  <span className="bds-badge sm info">
                     {MATERIAL_TYPE_LABELS[item.materialType]}
                   </span>
                 </span>
-                <span className="col-span-2 text-text-secondary">{item.priceDate}</span>
-                <span className="col-span-3 text-text-primary truncate">
+                <span className="col-span-2" style={{ color: 'var(--text-secondary)' }}>{item.priceDate}</span>
+                <span className="col-span-3 truncate" style={{ color: 'var(--text-primary)' }}>
                   {item.name}{item.specification ? ` · ${item.specification}` : ''}
                 </span>
-                <span className="col-span-2 text-text-primary">{item.currency} {item.price.toFixed(4)}/{item.unit}</span>
-                <span className="col-span-2 text-text-secondary truncate">{item.supplierName || '—'}</span>
-                <span className="col-span-1 text-text-tertiary">{MATERIAL_SOURCE_LABELS[item.source] || item.source}</span>
+                <span className="col-span-2 bds-tnum" style={{ color: 'var(--text-primary)' }}>{item.currency} {item.price.toFixed(4)}/{item.unit}</span>
+                <span className="col-span-2 truncate" style={{ color: 'var(--text-secondary)' }}>{item.supplierName || '—'}</span>
+                <span className="col-span-1" style={{ color: 'var(--text-tertiary)' }}>{MATERIAL_SOURCE_LABELS[item.source] || item.source}</span>
                 <span className="col-span-1 flex items-center justify-end gap-1.5">
-                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className={actionButtonClass} title="编辑">
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="编辑">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className={actionButtonClass} title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -1193,7 +1214,7 @@ function MaterialPriceForm({
     <ModalShell title={editing ? '编辑价格记录' : '录入价格'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="材料类型">
-          <select className={inputClass} value={materialType} onChange={(e) => setMaterialType(e.target.value as MaterialPriceType)}>
+          <select className={selectClass} value={materialType} onChange={(e) => setMaterialType(e.target.value as MaterialPriceType)}>
             <option value="yarn">纱线</option>
             <option value="fabric">面料</option>
             <option value="trimming">辅料</option>
@@ -1232,10 +1253,10 @@ function MaterialPriceForm({
         </Field>
       </div>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
         <button
           onClick={handleSubmit}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
@@ -1246,7 +1267,7 @@ function MaterialPriceForm({
 
 // ==================== 佣金规则 Panel ====================
 
-function CommissionRulesPanel(_props: { isDarkMode?: boolean }) {
+function CommissionRulesPanel() {
   const [items, setItems] = useState<CommissionRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -1298,42 +1319,43 @@ function CommissionRulesPanel(_props: { isDarkMode?: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-surface-elevated rounded-card p-5">
+      <div className="bds-card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <h3 className="text-sm font-medium text-text-primary">佣金规则</h3>
-            <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer">
+            <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>佣金规则</h3>
+            <label className="bds-check" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
               <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+              <span className="box"></span>
               显示已停用
             </label>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className={actionButtonClass}>
+            <button onClick={load} className="bds-btn bds-btn-secondary sm">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+              className="bds-btn bds-btn-primary sm"
             >
               <Plus className="w-3.5 h-3.5" />
               新增规则
             </button>
           </div>
         </div>
-        <p className="text-xs text-text-tertiary mb-3">
+        <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>
           命中口径：定价计算器选择中间人时精确命中其启用规则；无精确命中时回退默认规则（中间人为空）。同一中间人仅允许一条启用规则。
         </p>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12 text-text-tertiary">
+          <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-quaternary)' }}>
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : items.length === 0 ? (
           <EmptyHint text="暂无佣金规则" />
         ) : (
-          <div className="bg-surface-primary rounded-inset divide-y divide-border-subtle">
-            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-text-tertiary">
+          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-3">规则名称</span>
               <span className="col-span-2">佣金率</span>
               <span className="col-span-2">中间人</span>
@@ -1341,27 +1363,32 @@ function CommissionRulesPanel(_props: { isDarkMode?: boolean }) {
               <span className="col-span-1">状态</span>
               <span className="col-span-2 text-right">操作</span>
             </div>
-            {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center">
-                <span className="col-span-3 text-text-primary truncate">{item.name}</span>
-                <span className="col-span-2 text-text-primary">E{item.rate}（{item.rate}%）</span>
-                <span className="col-span-2 text-text-secondary truncate">{item.intermediaryName || '默认规则'}</span>
-                <span className="col-span-2 text-text-secondary truncate">{item.notes || '—'}</span>
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-2 px-3 py-2 text-xs items-center"
+                style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
+              >
+                <span className="col-span-3 truncate" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                <span className="col-span-2 bds-tnum" style={{ color: 'var(--text-primary)' }}>E{item.rate}（{item.rate}%）</span>
+                <span className="col-span-2 truncate" style={{ color: 'var(--text-secondary)' }}>{item.intermediaryName || '默认规则'}</span>
+                <span className="col-span-2 truncate" style={{ color: 'var(--text-secondary)' }}>{item.notes || '—'}</span>
                 <span className="col-span-1">
                   <button
                     onClick={() => handleToggleActive(item)}
                     disabled={updatingId === item.id}
-                    className={`px-2 py-0.5 rounded-control ${statusSemanticClass(item.isActive ? 'success' : 'neutral')}`}
+                    className={`bds-badge sm ${item.isActive ? 'success' : 'neutral'}`}
+                    style={{ cursor: 'pointer' }}
                     title="点击切换启停"
                   >
                     {item.isActive ? '启用' : '停用'}
                   </button>
                 </span>
                 <span className="col-span-2 flex items-center justify-end gap-1.5">
-                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className={actionButtonClass} title="编辑">
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="编辑">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className={actionButtonClass} title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -1450,13 +1477,13 @@ function CommissionRuleForm({
         <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 E10-品牌中介" />
       </Field>
       <Field label="佣金率">
-        <select className={inputClass} value={rate} onChange={(e) => setRate(e.target.value)}>
+        <select className={selectClass} value={rate} onChange={(e) => setRate(e.target.value)}>
           <option value="5">E5（5%）</option>
           <option value="10">E10（10%）</option>
         </select>
       </Field>
       <Field label="中间人（空 = 默认规则）">
-        <select className={inputClass} value={intermediaryRelationId} onChange={(e) => setIntermediaryRelationId(e.target.value)}>
+        <select className={selectClass} value={intermediaryRelationId} onChange={(e) => setIntermediaryRelationId(e.target.value)}>
           <option value="">默认规则（不限中间人）</option>
           {relations.map((r) => (
             <option key={r.id} value={r.id}>{r.name}</option>
@@ -1467,10 +1494,10 @@ function CommissionRuleForm({
         <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="适用场景说明" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className={actionButtonClass}>取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
         <button
           onClick={handleSubmit}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-control bg-surface-primary text-text-primary border border-border-action hover:bg-surface-secondary transition-colors"
+          className="bds-btn bds-btn-primary sm"
         >
           保存
         </button>
