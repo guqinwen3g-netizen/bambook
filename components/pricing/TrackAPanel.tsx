@@ -64,9 +64,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export interface TrackAPanelProps {
   /** 估算中位（USD）变化时回传，供报价编辑器偏差校验使用；无汇率/无结果时回传 null */
   onMedianUsdChange?: (medianUsd: number | null, unit?: 'PC' | 'M') => void;
+  /** 有效输入变化时回传，供父组件收集 Track A 输入用于 applyTrackPricing */
+  onInputsChange?: (input: TrackAInput | null) => void;
 }
 
-export function TrackAPanel({ onMedianUsdChange }: TrackAPanelProps) {
+export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelProps) {
   const [category, setCategory] = useState<TrackACategory>('garment');
   // 成衣输入
   const [fabricCode, setFabricCode] = useState('');
@@ -98,6 +100,14 @@ export function TrackAPanel({ onMedianUsdChange }: TrackAPanelProps) {
   useEffect(() => {
     onMedianUsdChange?.(result?.priceMedianUsd ?? null, result?.unit);
   }, [result, onMedianUsdChange]);
+
+  // 输入变化时回传，供父组件收集 Track A 输入
+  useEffect(() => {
+    onInputsChange?.(buildInput());
+  }, [category, exchangeRate, profitBenchmark, fabricCode, fabricPriceCny,
+    fabricConsumptionM, fabricLossRate, trimmingCostCny, cmtCostCny,
+    packagingCostCny, complexity, yarnCode, yarnPriceCnyPerKg, weightGsm,
+    widthM, weavingCostCny, weaveType, dyeingCostCny, editedLines, onInputsChange]);
 
   const handleFetchLatestFx = async () => {
     try {

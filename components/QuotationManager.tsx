@@ -29,15 +29,17 @@ import {
   AlertTriangle,
   ArrowRight,
   FileSpreadsheet,
+  Calculator,
+  X,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
-import { financeV2Service } from '../services/financeV2Service';
+import { financeV2Service, type QuotationPricingResult } from '../services/financeV2Service';
 import { getExporterProfile } from './tools/exportDocs/exporterProfile';
-import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult } from '../types';
+import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult, TrackAInput } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import QuotationImportWizard from './import/QuotationImportWizard';
 import { TrackAPanel } from './pricing/TrackAPanel';
-import { TrackBPanel } from './pricing/TrackBPanel';
+import { TrackBPanel, type TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
 import { printHtmlDocument, escapeHtml } from './tools/printDocument';
@@ -276,6 +278,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [trackAMedian, setTrackAMedian] = useState<{ usd: number; unit: 'PC' | 'M' } | null>(null);
   const [trackBResult, setTrackBResult] = useState<TrackBResult | null>(null);
 
+  // ── V2 双轨定价 modal（对已保存报价单应用 Track A/B → 写入快照字段 + 偏差分级）──
+  const [pricingQuoteId, setPricingQuoteId] = useState<string | null>(null);
+  const [pricingTrackA, setPricingTrackA] = useState<TrackAInput | null>(null);
+  const [pricingTrackB, setPricingTrackB] = useState<TrackBValidInputs | null>(null);
+  const [pricingResult, setPricingResult] = useState<QuotationPricingResult | null>(null);
+  const [applyingPricing, setApplyingPricing] = useState(false);
+
   // 阶段 IA-3：开发案「发起报价」prime —— 挂载时自动打开创建表单并预填客户/明细
   useEffect(() => {
     const prime = readQuotationCreatePrime();
@@ -383,6 +392,33 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setActionLoading(null);
     }
   }, [fetchQuotations]);
+
+  // ── V2 应用双轨定价（对已保存报价单调用后端 Track A/B 计算 → 写入快照 + 偏差分级）──
+  const handleApplyPricing = useCallback(async () => {
+    if (!pricingQuoteId || !pricingTrackB) return;
+    setApplyingPricing(true);
+    setError(null);
+    try {
+      const input: any = {
+        category: pricingTrackA?.category || 'fabric',
+        ...(pricingTrackA || {}),
+        purchaseCostCny: pricingTrackB.purchaseCostCny,
+        refundRate: pricingTrackB.refundRate,
+        exchangeRate: pricingTrackB.exchangeRate,
+        profitMargin: pricingTrackB.profitMargin,
+        commissionRate: pricingTrackB.commissionRate,
+        commissionRuleId: pricingTrackB.commissionRuleId || undefined,
+        hsCode: pricingTrackB.hsCode || undefined,
+      };
+      const result = await financeV2Service.applyTrackPricing(pricingQuoteId, input);
+      setPricingResult(result);
+      await fetchQuotations();
+    } catch (e: any) {
+      setError(`应用定价失败：${e?.message || e}`);
+    } finally {
+      setApplyingPricing(false);
+    }
+  }, [pricingQuoteId, pricingTrackA, pricingTrackB, fetchQuotations]);
 
   // ── 创建报价单 ──
   const handleCreate = useCallback(async () => {
@@ -934,6 +970,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                 <div className="flex items-center gap-2 pt-2">
                                   {qt.status === 'Draft' && (
                                     <>
+                                      <button
+                                        onClick={() => { setPricingQuoteId(qt.id); setPricingResult(null); }}
+                                        className={`${actionBtnCls} ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`}
+                                      >
+                                        <Calculator size={12} />
+                                        <span>应用定价</span>
+                                      </button>
                                       <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className={`${actionBtnCls} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}>
                                         {actionLoading === `${qt.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                         <span>发送报价</span>
@@ -1047,6 +1090,67 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         onImported={() => { setShowImportWizard(false); fetchQuotations(); }}
         isDarkMode={isDarkMode}
       />
+
+      {/* V2 双轨定价 modal：对已保存报价单应用 Track A/B → 写入快照 + 偏差分级 */}
+      {pricingQuoteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setPricingQuoteId(null)}>
+          <div
+            className={`relative w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-panel p-6 ${isDarkMode ? 'bg-slate-900/95 border border-white/10' : 'bg-white/95 border border-slate-200'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-sm font-light ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                应用双轨定价 — Track A 估算 + Track B 退税定价
+              </h3>
+              <button onClick={() => setPricingQuoteId(null)} className={`p-1 rounded-lg ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
+                <X size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <TrackAPanel
+                onInputsChange={setPricingTrackA}
+                onMedianUsdChange={() => {}}
+              />
+              <div className="space-y-3">
+                <TrackBPanel
+                  onResultChange={() => {}}
+                  onInputsChange={setPricingTrackB}
+                />
+              </div>
+            </div>
+
+            {/* 定价结果 */}
+            {pricingResult && (
+              <div className={`mt-4 p-3 rounded-card text-xs ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-50 text-slate-600'}`}>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <span>Track A 中位: <strong>${pricingResult.trackAMedianUsd?.toFixed(4)}</strong></span>
+                  <span>Track B 终价: <strong>${pricingResult.trackBFinalUsd?.toFixed(4)}</strong></span>
+                  <span>偏差: <strong className={pricingResult.deviationLevel === 'ok' ? 'text-green-500' : pricingResult.deviationLevel === 'warn' ? 'text-amber-500' : 'text-red-500'}>{pricingResult.deviationPercent?.toFixed(1)}% ({pricingResult.deviationLevel})</strong></span>
+                  <span>可发送: <strong>{pricingResult.canSend ? '是' : '否'}</strong></span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                onClick={() => setPricingQuoteId(null)}
+                className={`px-4 py-2 rounded-full text-xs ${isDarkMode ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                关闭
+              </button>
+              <button
+                onClick={handleApplyPricing}
+                disabled={applyingPricing || !pricingTrackB}
+                className={`px-4 py-2 rounded-full text-xs flex items-center gap-1.5 ${applyingPricing || !pricingTrackB ? 'opacity-50 cursor-not-allowed' : ''} bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14`}
+              >
+                {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
+                <span>{applyingPricing ? '计算中...' : '应用定价'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
