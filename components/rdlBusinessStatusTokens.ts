@@ -16,6 +16,7 @@ export type StatusSemantic =
 // statusSemanticClass — 完整 chip 样式（bg + text + border）
 // dark: white opacity 组合（opacity 自 neutral -> danger 递增）
 // light: slate 标准值组合（slate-400/500/600/700，仅标准 Tailwind 值）
+// 防御性 fallback：无效 semantic 回退到 neutral，避免白屏
 export const statusSemanticClass = (semantic: StatusSemantic, isDarkMode?: boolean): string => {
   const tokens: Record<StatusSemantic, { dark: string; light: string }> = {
     neutral: {
@@ -51,7 +52,8 @@ export const statusSemanticClass = (semantic: StatusSemantic, isDarkMode?: boole
       light: 'bg-slate-100/50 text-slate-500 border-slate-200/50',
     },
   };
-  return tokens[semantic][isDarkMode ? 'dark' : 'light'];
+  const entry = tokens[semantic] ?? tokens.neutral;
+  return entry[isDarkMode ? 'dark' : 'light'];
 };
 
 // statusSemanticText — 仅文字色（用于 icon/label）
@@ -68,7 +70,8 @@ export const statusSemanticText = (semantic: StatusSemantic, isDarkMode?: boolea
     destructive: { dark: 'text-white/65', light: 'text-slate-600' },
     rebate:      { dark: 'text-white/60', light: 'text-slate-500' },
   };
-  return textTokens[semantic][isDarkMode ? 'dark' : 'light'];
+  const entry = textTokens[semantic] ?? textTokens.neutral;
+  return entry[isDarkMode ? 'dark' : 'light'];
 };
 
 // statusSemanticBg — 仅背景色（用于 dot/pulse 实心圆点）
@@ -85,7 +88,8 @@ export const statusSemanticBg = (semantic: StatusSemantic, isDarkMode?: boolean)
     destructive: { dark: 'bg-white/60', light: 'bg-slate-500' },
     rebate:      { dark: 'bg-white/55', light: 'bg-slate-500' },
   };
-  return bgTokens[semantic][isDarkMode ? 'dark' : 'light'];
+  const entry = bgTokens[semantic] ?? bgTokens.neutral;
+  return entry[isDarkMode ? 'dark' : 'light'];
 };
 
 // statusSemanticGradient — 渐变（用于 banner/card 强调态，仅 bg+border，不含 text）
@@ -102,5 +106,6 @@ export const statusSemanticGradient = (semantic: StatusSemantic, isDarkMode?: bo
     destructive: { dark: 'from-white/[0.07] to-transparent border-white/[0.11]', light: 'from-slate-100 to-transparent border-slate-300/55' },
     rebate:      { dark: 'from-white/[0.06] to-transparent border-white/[0.10]', light: 'from-slate-100 to-transparent border-slate-200/50' },
   };
-  return gradTokens[semantic][isDarkMode ? 'dark' : 'light'];
+  const entry = gradTokens[semantic] ?? gradTokens.neutral;
+  return entry[isDarkMode ? 'dark' : 'light'];
 };

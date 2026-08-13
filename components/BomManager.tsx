@@ -57,12 +57,25 @@ const MATERIAL_TYPES: Array<{ id: MaterialType; label: string; semantic: StatusS
   { id: 'Other', label: '其他', semantic: 'neutral' },
 ];
 
-const COST_TYPES: Array<{ id: CostType; label: string }> = [
-  { id: 'Material', label: '物料成本' },
-  { id: 'Labor', label: '人工成本' },
-  { id: 'Overhead', label: '制造费用' },
-  { id: 'Other', label: '其他' },
+const COST_TYPES: Array<{ id: CostType; label: string; semantic: StatusSemantic }> = [
+  { id: 'Material', label: '物料成本', semantic: 'info' },
+  { id: 'Labor', label: '人工成本', semantic: 'warning' },
+  { id: 'Overhead', label: '制造费用', semantic: 'neutral' },
+  { id: 'Other', label: '其他', semantic: 'neutral' },
 ];
+
+// BOM 业务状态 → StatusSemantic 语义映射（避免 as StatusSemantic 不安全强转）
+const BOM_STATUS_SEMANTIC: Record<BOMStatus, StatusSemantic> = {
+  Draft: 'neutral',
+  Confirmed: 'success',
+  Archived: 'info',
+};
+
+const BOM_STATUS_LABEL: Record<BOMStatus, string> = {
+  Draft: '草稿',
+  Confirmed: '已确认',
+  Archived: '已归档',
+};
 
 const ITEM_CATEGORIES = ['Fabric', 'Trimmings', 'Accessories', 'Garment', 'Other'];
 const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
@@ -307,8 +320,8 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                           <span className={`text-sm font-normal truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                             {bom.bomNumber}
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(bom.status as StatusSemantic, isDarkMode)}`}>
-                            {statusSemanticText(bom.status as StatusSemantic)}
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-light ${statusSemanticClass(BOM_STATUS_SEMANTIC[bom.status] ?? 'neutral', isDarkMode)}`}>
+                            {BOM_STATUS_LABEL[bom.status] ?? bom.status}
                           </span>
                           <span className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>v{bom.version}</span>
                         </div>
@@ -421,7 +434,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                         <tr key={line.id} className={`border-t ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
                                           <td className={`py-1.5 pr-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{line.lineNumber}</td>
                                           <td className="py-1.5 pr-2">
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(line.materialType as StatusSemantic, isDarkMode)}`}>
+                                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(MATERIAL_TYPES.find(m => m.id === line.materialType)?.semantic ?? 'neutral', isDarkMode)}`}>
                                               {MATERIAL_TYPES.find(m => m.id === line.materialType)?.label || line.materialType}
                                             </span>
                                           </td>
@@ -448,7 +461,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   {costEstimates.map((ce) => (
                                     <div key={ce.id} className={`flex items-center justify-between text-xs py-1 px-2 rounded-inset ${isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
                                       <div className="flex items-center gap-2">
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(ce.costType as StatusSemantic, isDarkMode)}`}>
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(COST_TYPES.find(c => c.id === ce.costType)?.semantic ?? 'neutral', isDarkMode)}`}>
                                           {COST_TYPES.find(c => c.id === ce.costType)?.label || ce.costType}
                                         </span>
                                         <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>{ce.description}</span>
