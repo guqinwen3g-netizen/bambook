@@ -168,7 +168,7 @@ interface RisksManagerProps {
 
 // ==================== 共享样式（BDS v2.1 组件族） ====================
 
-const actionBtnCls = 'bds-btn bds-btn-secondary sm';
+const actionBtnCls = 'bds-btn bds-btn-secondary';
 const selectSmStyle: React.CSSProperties = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)', width: 'auto' };
 
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
@@ -346,7 +346,7 @@ function AlertsPanel() {
             </div>
             <button
               onClick={refreshAll}
-              className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
+              className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
               title="刷新"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -593,7 +593,7 @@ function FxPanel() {
         extra={
           <button
             onClick={refreshAll}
-            className="bds-btn bds-btn-ghost bds-btn-icon sm"
+            className="bds-btn bds-btn-ghost bds-btn-icon"
             title="刷新"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -758,7 +758,7 @@ function FxPanel() {
                     <td className="num">
                       <button
                         onClick={() => handleDeleteLock(lock)}
-                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
                         title="删除锁定"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -882,7 +882,7 @@ function CreditPanel() {
         </button>
         <button
           onClick={loadRatings}
-          className="bds-btn bds-btn-ghost bds-btn-icon sm"
+          className="bds-btn bds-btn-ghost bds-btn-icon"
           title="刷新"
         >
           <RefreshCw className="w-3.5 h-3.5" />
@@ -1139,7 +1139,7 @@ function CompliancePanel() {
           </div>
           <button
             onClick={loadChecks}
-            className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
+            className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
             title="刷新"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -1255,7 +1255,7 @@ function QualityPanel() {
         </button>
         <button
           onClick={loadTrends}
-          className="bds-btn bds-btn-ghost bds-btn-icon sm"
+          className="bds-btn bds-btn-ghost bds-btn-icon"
           title="刷新"
         >
           <RefreshCw className="w-3.5 h-3.5" />

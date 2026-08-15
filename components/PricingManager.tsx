@@ -162,7 +162,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -344,7 +344,7 @@ function CalculatorPanel() {
             <button
               onClick={handleSave}
               disabled={saving || !trackBInputs}
-              className="bds-btn bds-btn-primary sm"
+              className="bds-btn bds-btn-primary"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               保存定价记录
@@ -369,7 +369,7 @@ function CalculatorPanel() {
       <div className="bds-card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>定价记录</h3>
-          <button onClick={loadRecords} className="bds-btn bds-btn-secondary sm">
+          <button onClick={loadRecords} className="bds-btn bds-btn-secondary">
             <RefreshCw className="w-3.5 h-3.5" />
             刷新
           </button>
@@ -400,16 +400,16 @@ function CalculatorPanel() {
                       {CALC_STATUS_LABELS[rec.status]}
                     </span>
                     {rec.status === 'Draft' && (
-                      <button onClick={() => handlePatchStatus(rec.id, 'Confirmed')} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="确认定价">
+                      <button onClick={() => handlePatchStatus(rec.id, 'Confirmed')} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="确认定价">
                         <Check className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {rec.status !== 'Archived' && (
-                      <button onClick={() => handlePatchStatus(rec.id, 'Archived')} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="归档">
+                      <button onClick={() => handlePatchStatus(rec.id, 'Archived')} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="归档">
                         <Archive className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <button onClick={() => handleDelete(rec.id)} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                    <button onClick={() => handleDelete(rec.id)} disabled={updatingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -542,7 +542,7 @@ function ProfitSheetsPanel() {
           <button
             onClick={handleGenerate}
             disabled={generating || !selectedOrder}
-            className="bds-btn bds-btn-primary sm"
+            className="bds-btn bds-btn-primary"
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
             生成利润表
@@ -552,7 +552,7 @@ function ProfitSheetsPanel() {
         <div className="bds-card">
           <div className="flex items-center justify-between mb-3">
             <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>已生成利润表</h3>
-            <button onClick={loadSheets} className="bds-btn bds-btn-secondary sm">
+            <button onClick={loadSheets} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
@@ -573,7 +573,7 @@ function ProfitSheetsPanel() {
                       毛利 {formatMoney(s.grossProfit, s.baseCurrency)}{s.grossMargin !== null && s.grossMargin !== undefined ? ` · 毛利率 ${s.grossMargin.toFixed(2)}%` : ''} · v{s.version} · {formatTs(s.generatedAt)}
                     </p>
                   </button>
-                  <button onClick={() => handleDelete(s.orderId)} className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0" title="删除">
+                  <button onClick={() => handleDelete(s.orderId)} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -766,7 +766,7 @@ function TaxRatesPanel() {
         <h3 className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>最长前缀命中测试</h3>
         <div className="flex items-center gap-2 max-w-lg">
           <input className={inputClass} value={testCode} onChange={(e) => { setTestCode(e.target.value); setTestResult(null); }} placeholder="输入完整 HS Code，如 5407520000" />
-          <button onClick={handleTest} className="bds-btn bds-btn-secondary sm shrink-0">
+          <button onClick={handleTest} className="bds-btn bds-btn-secondary shrink-0">
             <Search className="w-3.5 h-3.5" />
             测试
           </button>
@@ -786,13 +786,13 @@ function TaxRatesPanel() {
             </label>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className="bds-btn bds-btn-secondary sm">
+            <button onClick={load} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary sm"
+              className="bds-btn bds-btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
               新增退税率
@@ -836,10 +836,10 @@ function TaxRatesPanel() {
                   </button>
                 </span>
                 <span className="col-span-2 flex items-center justify-end gap-1.5">
-                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="编辑">
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="编辑">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -918,10 +918,10 @@ function TaxRateForm({
         <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="如 化纤梭织面料" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1031,13 +1031,13 @@ function PriceHistoryPanel() {
             <input type="date" className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} max={todayLocal()} />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => { load(); loadTrend(); }} className="bds-btn bds-btn-secondary sm">
+            <button onClick={() => { load(); loadTrend(); }} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary sm"
+              className="bds-btn bds-btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
               录入价格
@@ -1117,10 +1117,10 @@ function PriceHistoryPanel() {
                 <span className="col-span-2 truncate" style={{ color: 'var(--text-secondary)' }}>{item.supplierName || '—'}</span>
                 <span className="col-span-1" style={{ color: 'var(--text-tertiary)' }}>{MATERIAL_SOURCE_LABELS[item.source] || item.source}</span>
                 <span className="col-span-1 flex items-center justify-end gap-1.5">
-                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="编辑">
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="编辑">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -1253,10 +1253,10 @@ function MaterialPriceForm({
         </Field>
       </div>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1330,13 +1330,13 @@ function CommissionRulesPanel() {
             </label>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className="bds-btn bds-btn-secondary sm">
+            <button onClick={load} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary sm"
+              className="bds-btn bds-btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
               新增规则
@@ -1385,10 +1385,10 @@ function CommissionRulesPanel() {
                   </button>
                 </span>
                 <span className="col-span-2 flex items-center justify-end gap-1.5">
-                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="编辑">
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="编辑">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -1494,10 +1494,10 @@ function CommissionRuleForm({
         <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="适用场景说明" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>

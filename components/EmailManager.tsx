@@ -1472,7 +1472,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
         {/* Config / Sync Button at bottom - REFRESH MOVED TO TOP */}
         <div className="p-4 border-t flex justify-between items-center border-[var(--border-c-default)]">
-          <button type="button" onClick={() => setIsConfiguring(true)} className="bds-btn bds-btn-secondary sm">
+          <button type="button" onClick={() => setIsConfiguring(true)} className="bds-btn bds-btn-secondary">
             <Settings size={14} strokeWidth={1} /> 邮箱设置
           </button>
           <button
@@ -1480,7 +1480,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             onClick={handleSyncToErp}
             disabled={erpSyncBusy}
             data-erp-sync-busy={erpSyncBusy}
-            className={`bds-btn bds-btn-secondary sm ${erpSyncBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`bds-btn bds-btn-secondary ${erpSyncBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <RefreshCcw size={14} strokeWidth={1} className={erpSyncBusy ? 'animate-spin' : ''} />
             {erpSyncBusy ? '同步中…' : '同步到 ERP'}
@@ -1501,10 +1501,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-c-default)] bg-[var(--bg-card)]">
             <h2 className="text-lg font-light text-[var(--text-primary)]">{currentBox}</h2>
             <div className="flex gap-2">
-              <button onClick={() => setIsComposing(true)} className="bds-btn bds-btn-ghost bds-btn-icon sm">
+              <button onClick={() => setIsComposing(true)} className="bds-btn bds-btn-ghost bds-btn-icon">
                 <Edit size={18} strokeWidth={1} />
               </button>
-              <button onClick={() => handleSync(currentBox)} className={`bds-btn bds-btn-ghost bds-btn-icon sm ${isSyncing ? 'animate-spin' : ''}`}>
+              <button onClick={() => handleSync(currentBox)} className={`bds-btn bds-btn-ghost bds-btn-icon ${isSyncing ? 'animate-spin' : ''}`}>
                 <RefreshCcw size={18} strokeWidth={1} />
               </button>
             </div>
@@ -1632,7 +1632,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                     type="button"
                     onClick={() => handleSendOutbox(selectedEmail.id)}
                     disabled={outboxSendingId === selectedEmail.id}
-                    className="bds-btn bds-btn-secondary sm disabled:opacity-50"
+                    className="bds-btn bds-btn-secondary disabled:opacity-50"
                   >
                     {outboxSendingId === selectedEmail.id
                       ? <Loader2 size={14} strokeWidth={1} className="animate-spin" />
@@ -1640,10 +1640,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                     {outboxSendingId === selectedEmail.id ? '发送中...' : '发送'}
                   </button>
                 )}
-                <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary sm">
+                <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary">
                   <Reply size={14} strokeWidth={1} className="text-[var(--accent)]" /> Reply
                 </button>
-                <button type="button" onClick={handleReplyAll} className="bds-btn bds-btn-secondary sm">
+                <button type="button" onClick={handleReplyAll} className="bds-btn bds-btn-secondary">
                   <ReplyAll size={14} strokeWidth={1} className="text-[var(--accent)]" /> Reply All
                 </button>
                 {/* Outbox send 错误反馈（保持 Outbox UI 状态，显示后端错误） */}
@@ -1652,21 +1652,21 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                     <AlertCircle size={12} strokeWidth={1} /> {outboxError}
                   </span>
                 )}
-                <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary sm">
+                <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary">
                   <Forward size={14} strokeWidth={1} className="text-[var(--accent)]" /> Forward
                 </button>
                 <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
 
-                <button type="button" onClick={() => handleDelete(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="Delete"><Trash2 size={16} /></button>
-                <button type="button" onClick={() => handleArchive(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="Archive"><Archive size={16} strokeWidth={1} /></button>
-                <button type="button" onClick={() => handleSpam(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="Report Spam"><ShieldAlert size={16} strokeWidth={1} /></button>
+                <button type="button" onClick={() => handleDelete(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Delete"><Trash2 size={16} /></button>
+                <button type="button" onClick={() => handleArchive(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Archive"><Archive size={16} strokeWidth={1} /></button>
+                <button type="button" onClick={() => handleSpam(selectedId!)} className="bds-btn bds-btn-ghost bds-btn-icon" title="Report Spam"><ShieldAlert size={16} strokeWidth={1} /></button>
 
                 <div className="w-px h-4 mx-2 self-center bg-[var(--border-c-strong)]"></div>
 
                 <button
                   type="button"
                   onClick={() => handleToggleStar(selectedId!, selectedEmail.isStarred ?? false)}
-                  className={`bds-btn bds-btn-ghost bds-btn-icon sm ${selectedEmail.isStarred ? 'text-[var(--danger)]' : ''}`}
+                  className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isStarred ? 'text-[var(--danger)]' : ''}`}
                   title="Tag Flagged (Standard)"
                 >
                   <Flag size={16} strokeWidth={1} className={selectedEmail.isStarred ? 'fill-red-400' : ''} />
@@ -1675,7 +1675,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <button
                   type="button"
                   onClick={() => handleToggleImportant(selectedId!, !!selectedEmail.isImportant)}
-                  className={`bds-btn bds-btn-ghost bds-btn-icon sm ${selectedEmail.isImportant ? 'text-[var(--accent)]' : ''}`}
+                  className={`bds-btn bds-btn-ghost bds-btn-icon ${selectedEmail.isImportant ? 'text-[var(--accent)]' : ''}`}
                   title="Tag Important"
                 >
                   <Star size={16} strokeWidth={1} className={selectedEmail.isImportant ? 'fill-accent-cyan/50' : ''} />
@@ -1684,7 +1684,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <button
                   type="button"
                   onClick={() => handleToggleRead(selectedId!, selectedEmail.isRead)}
-                  className={`bds-btn bds-btn-ghost bds-btn-icon sm ${!selectedEmail.isRead ? 'text-[var(--accent)]' : ''}`}
+                  className={`bds-btn bds-btn-ghost bds-btn-icon ${!selectedEmail.isRead ? 'text-[var(--accent)]' : ''}`}
                   title={selectedEmail.isRead ? "Mark Unread" : "Mark Read"}
                 >
                   <Mail size={16} strokeWidth={1} />
@@ -1698,7 +1698,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                       type="button"
                       onClick={handleClassifyEmail}
                       disabled={classifyBusy}
-                      className="bds-btn bds-btn-secondary sm"
+                      className="bds-btn bds-btn-secondary"
                       title="规则 + AI 自动打标（投诉/紧急自动建跟进）"
                     >
                       {classifyBusy
@@ -1710,7 +1710,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                       type="button"
                       onClick={handleCreateFollowUp}
                       disabled={followUpBusy}
-                      className="bds-btn bds-btn-secondary sm"
+                      className="bds-btn bds-btn-secondary"
                       title="幂等生成 CRM 跟进任务"
                     >
                       {followUpBusy
@@ -1833,10 +1833,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
               <div className="p-4 border-t mt-auto overflow-hidden shrink-0 border-[var(--border-c-default)]">
                 <div className="bds-filterbar p-4">
                   <div className="flex gap-3">
-                    <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary sm">
+                    <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary">
                       <Reply size={16} strokeWidth={1} /> Reply
                     </button>
-                    <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary sm">
+                    <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary">
                       <Forward size={16} strokeWidth={1} /> Forward
                     </button>
                   </div>
@@ -1933,14 +1933,14 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   <button
                     type="button"
                     onClick={() => setTemplatePickerOpen(v => !v)}
-                    className={`bds-btn bds-btn-secondary sm ${templatePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
+                    className={`bds-btn bds-btn-secondary ${templatePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
                   >
                     <FileText size={14} strokeWidth={1} className="text-[var(--accent)]" /> 模板
                   </button>
                   <button
                     type="button"
                     onClick={() => setSignaturePickerOpen(v => !v)}
-                    className={`bds-btn bds-btn-secondary sm ${signaturePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
+                    className={`bds-btn bds-btn-secondary ${signaturePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
                   >
                     <PenLine size={14} strokeWidth={1} className="text-[var(--accent)]" /> 签名
                   </button>
@@ -1987,7 +1987,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                               key={tpl.id}
                               type="button"
                               onClick={() => handleSelectTemplate(tpl)}
-                              className="bds-btn bds-btn-secondary sm"
+                              className="bds-btn bds-btn-secondary"
                             >
                               <span className="text-[var(--text-tertiary)]">{EMAIL_TEMPLATE_TYPE_LABELS[tpl.type] || tpl.type} · </span>
                               {tpl.name}
@@ -2023,7 +2023,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                               key={sig.id}
                               type="button"
                               onClick={() => handleSelectSignature(sig)}
-                              className="bds-btn bds-btn-secondary sm"
+                              className="bds-btn bds-btn-secondary"
                             >
                               {sig.isDefault && <Star size={10} className="inline mr-1 fill-current opacity-60" />}
                               {sig.name}
@@ -2079,7 +2079,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <button
                   type="button"
                   onClick={() => setIsComposing(false)}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   Discard
                 </button>
@@ -2090,7 +2090,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   type="button"
                   onClick={handleSendNew}
                   disabled={isSending || !composeTo}
-                  className={`bds-btn bds-btn-primary sm ${isSending || !composeTo ? 'opacity-45 cursor-not-allowed' : ''}`}
+                  className={`bds-btn bds-btn-primary ${isSending || !composeTo ? 'opacity-45 cursor-not-allowed' : ''}`}
                 >
                   {isSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1} />}
                   Send Message

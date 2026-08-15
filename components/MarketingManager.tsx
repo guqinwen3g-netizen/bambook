@@ -128,7 +128,7 @@ function ModalShell({ title, onClose, wide, children }: { title: string; onClose
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -274,13 +274,13 @@ function LookbooksPanel() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className="bds-btn bds-btn-secondary sm">
+            <button onClick={load} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary sm"
+              className="bds-btn bds-btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
               新建画册
@@ -325,7 +325,7 @@ function LookbooksPanel() {
                   <button
                     onClick={() => setItemsEditing(item)}
                     disabled={updatingId === item.id || item.status === 'Archived'}
-                    className="bds-btn bds-btn-secondary sm"
+                    className="bds-btn bds-btn-secondary"
                     title={item.status === 'Archived' ? '已归档画册不可修改条目' : '管理条目'}
                   >
                     <ListOrdered className="w-3.5 h-3.5" />
@@ -334,7 +334,7 @@ function LookbooksPanel() {
                   <button
                     onClick={() => { setEditing(item); setShowForm(true); }}
                     disabled={updatingId === item.id || item.status === 'Archived'}
-                    className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                    className="bds-btn bds-btn-ghost bds-btn-icon"
                     title={item.status === 'Archived' ? '已归档画册不可编辑' : '编辑'}
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -343,7 +343,7 @@ function LookbooksPanel() {
                     <button
                       onClick={() => handleTransition(item, 'publish')}
                       disabled={updatingId === item.id || item.status === 'Archived'}
-                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
                       title="发布"
                     >
                       <Upload className="w-3.5 h-3.5" />
@@ -352,7 +352,7 @@ function LookbooksPanel() {
                     <button
                       onClick={() => handleTransition(item, 'unpublish')}
                       disabled={updatingId === item.id}
-                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
                       title="撤回为草稿"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -362,13 +362,13 @@ function LookbooksPanel() {
                     <button
                       onClick={() => handleTransition(item, 'archive')}
                       disabled={updatingId === item.id}
-                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
                       title="归档"
                     >
                       <Archive className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                  <button onClick={() => handleDelete(item.id)} disabled={updatingId === item.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -443,10 +443,10 @@ function LookbookForm({
         <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="目标客户 / 季节 / 用途说明" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -543,7 +543,7 @@ function LookbookItemsEditor({
             </option>
           ))}
         </select>
-        <button onClick={handleAdd} disabled={!pickId} className="bds-btn bds-btn-secondary sm shrink-0">
+        <button onClick={handleAdd} disabled={!pickId} className="bds-btn bds-btn-secondary shrink-0">
           <Plus className="w-3.5 h-3.5" />
           添加
         </button>
@@ -602,7 +602,7 @@ function LookbookItemsEditor({
                   />
                 </span>
                 <span className="col-span-1 flex justify-end">
-                  <button onClick={() => handleRemove(d.productAssetId)} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="移除">
+                  <button onClick={() => handleRemove(d.productAssetId)} className="bds-btn bds-btn-ghost bds-btn-icon" title="移除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -616,11 +616,11 @@ function LookbookItemsEditor({
         保存后服务端将按数字档案真源重新生成条目快照（SKU / 名称 / 主图），此处仅维护选择依据与展示参数。
       </p>
       <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           保存条目
@@ -748,7 +748,7 @@ function FabricRecommendPanel() {
           <button
             onClick={handleRun}
             disabled={running}
-            className="bds-btn bds-btn-primary sm"
+            className="bds-btn bds-btn-primary"
           >
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             执行推荐
@@ -807,7 +807,7 @@ function FabricRecommendPanel() {
       <div className="bds-card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>推荐历史</h3>
-          <button onClick={loadHistory} className="bds-btn bds-btn-secondary sm">
+          <button onClick={loadHistory} className="bds-btn bds-btn-secondary">
             <RefreshCw className="w-3.5 h-3.5" />
             刷新
           </button>
@@ -838,10 +838,10 @@ function FabricRecommendPanel() {
                 <span className="col-span-1 bds-tnum" style={{ color: 'var(--text-primary)' }}>{rec.results.length}</span>
                 <span className="col-span-3" style={{ color: 'var(--text-secondary)' }}>{formatTs(rec.createdAt)}</span>
                 <span className="col-span-2 flex items-center justify-end gap-1.5">
-                  <button onClick={() => setLatest(rec)} className="bds-btn bds-btn-secondary sm" title="查看结果">
+                  <button onClick={() => setLatest(rec)} className="bds-btn bds-btn-secondary" title="查看结果">
                     查看
                   </button>
-                  <button onClick={() => handleDelete(rec.id)} disabled={deletingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                  <button onClick={() => handleDelete(rec.id)} disabled={deletingId === rec.id} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </span>

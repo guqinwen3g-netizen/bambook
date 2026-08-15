@@ -241,13 +241,13 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
               onKeyDown={(e) => { if (e.key === 'Enter') loadBOMs(); }}
             />
           </div>
-          <button onClick={loadBOMs} className="bds-btn bds-btn-ghost sm">
+          <button onClick={loadBOMs} className="bds-btn bds-btn-ghost">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>刷新</span>
           </button>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="bds-btn bds-btn-primary sm"
+            className="bds-btn bds-btn-primary"
           >
             <Plus size={13} />
             <span>新建 BOM</span>
@@ -471,7 +471,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   <button
                                     onClick={() => handleConfirm(bom.id)}
                                     disabled={actionLoading === `confirm_${bom.id}`}
-                                    className="bds-btn bds-btn-primary sm"
+                                    className="bds-btn bds-btn-primary"
                                   >
                                     {actionLoading === `confirm_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                                     <span>确认 BOM</span>
@@ -479,7 +479,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   <button
                                     onClick={() => handleRecalculate(bom.id)}
                                     disabled={actionLoading === `recalc_${bom.id}`}
-                                    className="bds-btn bds-btn-ghost sm"
+                                    className="bds-btn bds-btn-ghost"
                                   >
                                     {actionLoading === `recalc_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Calculator size={13} />}
                                     <span>重新计算</span>
@@ -487,7 +487,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   <button
                                     onClick={() => handleDelete(bom.id)}
                                     disabled={actionLoading === `delete_${bom.id}`}
-                                    className="bds-btn bds-btn-danger sm"
+                                    className="bds-btn bds-btn-danger"
                                   >
                                     {actionLoading === `delete_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                                     <span>删除</span>
@@ -498,7 +498,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                 <button
                                   onClick={() => handleArchive(bom.id)}
                                   disabled={actionLoading === `archive_${bom.id}`}
-                                  className="bds-btn bds-btn-ghost sm"
+                                  className="bds-btn bds-btn-ghost"
                                 >
                                   {actionLoading === `archive_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />}
                                   <span>归档</span>
@@ -662,7 +662,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base" style={{ color: 'var(--text-primary)' }}>新建 BOM</h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon sm">
+          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon">
             <X size={18} />
           </button>
         </div>
@@ -702,7 +702,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <label className={labelCls}>物料明细</label>
-            <button onClick={handleAddLine} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
+            <button onClick={handleAddLine} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
               <Plus size={12} /> 添加行
             </button>
           </div>
@@ -743,7 +743,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                     <input type="number" value={line.unitCost || ''} onChange={(e) => handleLineChange(index, 'unitCost', parseFloat(e.target.value) || 0)} className="bds-input sm" />
                   </div>
                   <div className="col-span-1 flex justify-end">
-                    <button onClick={() => handleRemoveLine(index)} className="bds-btn bds-btn-danger bds-btn-icon sm">
+                    <button onClick={() => handleRemoveLine(index)} className="bds-btn bds-btn-danger bds-btn-icon">
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -757,7 +757,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <label className={labelCls}>成本估算项（人工/费用，可选）</label>
-            <button onClick={handleAddCost} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
+            <button onClick={handleAddCost} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
               <Plus size={12} /> 添加成本项
             </button>
           </div>
@@ -780,7 +780,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                     <input type="number" value={cost.amount || ''} onChange={(e) => handleCostChange(index, 'amount', parseFloat(e.target.value) || 0)} className="bds-input sm" />
                   </div>
                   <div className="col-span-1 flex justify-end">
-                    <button onClick={() => handleRemoveCost(index)} className="bds-btn bds-btn-danger bds-btn-icon sm">
+                    <button onClick={() => handleRemoveCost(index)} className="bds-btn bds-btn-danger bds-btn-icon">
                       <Trash2 size={12} />
                     </button>
                   </div>

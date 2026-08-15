@@ -221,9 +221,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const inputCls = 'bds-input';
   const selectCls = 'bds-select';
 
-  const primaryButtonCls = 'bds-btn bds-btn-primary sm';
-  const actionButtonCls = 'bds-btn bds-btn-ghost sm';
-  const subtleButtonCls = 'bds-btn bds-btn-secondary sm';
+  const primaryButtonCls = 'bds-btn bds-btn-primary';
+  const actionButtonCls = 'bds-btn bds-btn-ghost';
+  const subtleButtonCls = 'bds-btn bds-btn-secondary';
 
   const sectionTitleClass = 'text-sm font-light text-[var(--text-primary)]';
   const sectionMutedClass = 'text-xs font-light text-[var(--text-tertiary)]';

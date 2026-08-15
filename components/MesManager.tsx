@@ -425,7 +425,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
         contextLabel="MES Desk"
         isDarkMode={isDarkMode}
         actions={
-          <button onClick={refreshAll} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新全部">
+          <button onClick={refreshAll} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新全部">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         }
@@ -460,10 +460,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'plans' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowPlanForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowPlanForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增排产</span>
                 </button>
-                <button onClick={() => refreshTab('plans')} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={() => refreshTab('plans')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:plans' ? 'animate-spin' : ''} />
                 </button>
               </div>
@@ -595,10 +595,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'workStations' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowWsForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowWsForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增工位</span>
                 </button>
-                <button onClick={() => refreshTab('workStations')} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={() => refreshTab('workStations')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:workStations' ? 'animate-spin' : ''} />
                 </button>
               </div>
@@ -620,7 +620,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                             {statusLabel(WS_TYPES, ws.type)} · {ws.isActive ? '启用' : '停用'}
                           </div>
                         </div>
-                        <button onClick={() => deleteWs(ws.id)} disabled={actionLoading === `del:ws:${ws.id}`} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                        <button onClick={() => deleteWs(ws.id)} disabled={actionLoading === `del:ws:${ws.id}`} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -667,10 +667,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'outsourcing' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowOsoForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowOsoForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增外协</span>
                 </button>
-                <button onClick={() => refreshTab('outsourcing')} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={() => refreshTab('outsourcing')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:outsourcing' ? 'animate-spin' : ''} />
                 </button>
               </div>
@@ -785,10 +785,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'workHours' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowWhForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowWhForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>记录工时</span>
                 </button>
-                <button onClick={() => refreshTab('workHours')} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={() => refreshTab('workHours')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:workHours' ? 'animate-spin' : ''} />
                 </button>
               </div>
@@ -845,10 +845,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'pieceRateRules' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowRuleForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowRuleForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增规则</span>
                 </button>
-                <button onClick={() => refreshTab('pieceRateRules')} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={() => refreshTab('pieceRateRules')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:pieceRateRules' ? 'animate-spin' : ''} />
                 </button>
               </div>
@@ -874,7 +874,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                       <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                         {formatNum(Number(rule.ratePerUnit))} <span className="text-xs opacity-60">CNY/{rule.unit}</span>
                       </div>
-                      <button onClick={() => deleteRule(rule.id)} disabled={actionLoading === `del:rule:${rule.id}`} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="删除">
+                      <button onClick={() => deleteRule(rule.id)} disabled={actionLoading === `del:rule:${rule.id}`} className="bds-btn bds-btn-ghost bds-btn-icon" title="删除">
                         <Trash2 size={14} />
                       </button>
                     </motion.div>
@@ -915,10 +915,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'pieceRateRecords' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowRecordForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowRecordForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增计件</span>
                 </button>
-                <button onClick={() => refreshTab('pieceRateRecords')} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={() => refreshTab('pieceRateRecords')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:pieceRateRecords' ? 'animate-spin' : ''} />
                 </button>
               </div>
@@ -1014,7 +1014,7 @@ const ActionButton: React.FC<{
   <button
     onClick={onClick}
     disabled={loading}
-    className={`bds-btn sm ${danger ? 'bds-btn-danger' : 'bds-btn-ghost'}`}
+    className={`bds-btn ${danger ? 'bds-btn-danger' : 'bds-btn-ghost'}`}
   >
     {loading ? <Loader2 size={12} className="animate-spin" /> : icon}
     {children}
@@ -1052,7 +1052,7 @@ const CreateFormModal: React.FC<{
     >
       <div className="flex items-center justify-between mb-4">
         <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}>
           <X size={16} />
         </button>
       </div>
@@ -1060,8 +1060,8 @@ const CreateFormModal: React.FC<{
         {children}
       </div>
       <div className="flex items-center justify-end gap-2 mt-5 pt-4" style={{ borderTop: 'var(--border-subtle)' }}>
-        <button onClick={onClose} className="bds-btn bds-btn-secondary sm">取消</button>
-        <button onClick={onSubmit} disabled={loading} className="bds-btn bds-btn-primary sm">
+        <button onClick={onClose} className="bds-btn bds-btn-secondary">取消</button>
+        <button onClick={onSubmit} disabled={loading} className="bds-btn bds-btn-primary">
           {loading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
           <span>创建</span>
         </button>

@@ -293,7 +293,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               {/* 工具栏 */}
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowItemForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowItemForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增物料</span>
                 </button>
                 <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ ...selectSmStyle, maxWidth: 160 }}>
@@ -313,7 +313,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                   <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索物料..." className="bds-input sm pl-9" />
                 </div>
-                <button onClick={fetchItems} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={fetchItems} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                 </button>
               </div>
@@ -440,8 +440,8 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                                         </div>
                                         {movementError && <div className="text-xs mb-2" style={{ color: 'var(--danger-text)' }}>{movementError}</div>}
                                         <div className="flex items-center justify-end gap-2">
-                                          <button onClick={() => { setMovementTargetId(null); setMovementError(null); }} className="bds-btn bds-btn-ghost sm">取消</button>
-                                          <button onClick={handleCreateMovement} disabled={actionLoading === `movement_${item.id}`} className="bds-btn bds-btn-primary sm">
+                                          <button onClick={() => { setMovementTargetId(null); setMovementError(null); }} className="bds-btn bds-btn-ghost">取消</button>
+                                          <button onClick={handleCreateMovement} disabled={actionLoading === `movement_${item.id}`} className="bds-btn bds-btn-primary">
                                             {actionLoading === `movement_${item.id}` ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                                             <span>执行变动</span>
                                           </button>
@@ -453,7 +453,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
 
                                 {/* 操作按钮 */}
                                 <div className="flex items-center gap-2 pt-2 flex-wrap">
-                                  <button onClick={() => { setMovementTargetId(movementTargetId === item.id ? null : item.id); setMovementError(null); setMovementForm({ ...movementForm, type: 'Inbound', quantity: 0 }); }} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
+                                  <button onClick={() => { setMovementTargetId(movementTargetId === item.id ? null : item.id); setMovementError(null); setMovementForm({ ...movementForm, type: 'Inbound', quantity: 0 }); }} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
                                     <ArrowDownToLine size={12} /><span>{movementTargetId === item.id ? '收起' : '库存变动'}</span>
                                   </button>
                                 </div>
@@ -474,7 +474,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                     <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bds-modal" style={{ width: '42rem', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>新增库存物料</h3>
-                        <button onClick={() => setShowItemForm(false)} className="bds-btn bds-btn-ghost bds-btn-icon sm"><X size={18} /></button>
+                        <button onClick={() => setShowItemForm(false)} className="bds-btn bds-btn-ghost bds-btn-icon"><X size={18} /></button>
                       </div>
                       <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
                         <div><label className={labelCls}>仓库 *</label><select value={itemForm.warehouseId} onChange={(e) => setItemForm({ ...itemForm, warehouseId: e.target.value })} className="bds-select">{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
@@ -491,8 +491,8 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                       </div>
                       {itemFormError && <div className="mt-3 text-xs" style={{ color: 'var(--danger-text)' }}>{itemFormError}</div>}
                       <div className="flex items-center justify-end gap-2 mt-4">
-                        <button onClick={() => setShowItemForm(false)} className="bds-btn bds-btn-ghost sm">取消</button>
-                        <button onClick={handleCreateItem} disabled={actionLoading === 'create-item'} className="bds-btn bds-btn-primary sm">
+                        <button onClick={() => setShowItemForm(false)} className="bds-btn bds-btn-ghost">取消</button>
+                        <button onClick={handleCreateItem} disabled={actionLoading === 'create-item'} className="bds-btn bds-btn-primary">
                           {actionLoading === 'create-item' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}<span>创建</span>
                         </button>
                       </div>
@@ -507,10 +507,10 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'warehouses' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4">
-                <button onClick={() => setShowWarehouseForm(true)} className="bds-btn bds-btn-primary sm">
+                <button onClick={() => setShowWarehouseForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增仓库</span>
                 </button>
-                <button onClick={fetchWarehouses} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={fetchWarehouses} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} />
                 </button>
               </div>
@@ -547,7 +547,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                     <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bds-modal" style={{ width: '28rem', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>新增仓库</h3>
-                        <button onClick={() => setShowWarehouseForm(false)} className="bds-btn bds-btn-ghost bds-btn-icon sm"><X size={18} /></button>
+                        <button onClick={() => setShowWarehouseForm(false)} className="bds-btn bds-btn-ghost bds-btn-icon"><X size={18} /></button>
                       </div>
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
@@ -563,8 +563,8 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                       </div>
                       {warehouseFormError && <div className="mt-3 text-xs" style={{ color: 'var(--danger-text)' }}>{warehouseFormError}</div>}
                       <div className="flex items-center justify-end gap-2 mt-4">
-                        <button onClick={() => setShowWarehouseForm(false)} className="bds-btn bds-btn-ghost sm">取消</button>
-                        <button onClick={handleCreateWarehouse} disabled={actionLoading === 'create-warehouse'} className="bds-btn bds-btn-primary sm">
+                        <button onClick={() => setShowWarehouseForm(false)} className="bds-btn bds-btn-ghost">取消</button>
+                        <button onClick={handleCreateWarehouse} disabled={actionLoading === 'create-warehouse'} className="bds-btn bds-btn-primary">
                           {actionLoading === 'create-warehouse' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}<span>创建</span>
                         </button>
                       </div>
@@ -579,7 +579,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'alerts' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4">
-                <button onClick={fetchLowStock} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                <button onClick={fetchLowStock} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} />
                 </button>
               </div>

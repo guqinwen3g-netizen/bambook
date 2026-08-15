@@ -936,7 +936,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   type="button"
                   title="地球视图"
                   onClick={() => onViewModeChange('globe')}
-                  className={`bds-btn bds-btn-icon sm ${effectiveViewMode === 'globe' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
+                  className={`bds-btn bds-btn-icon ${effectiveViewMode === 'globe' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
                 >
                   <Globe size={14} strokeWidth={1.5} />
                 </button>
@@ -945,7 +945,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 type="button"
                 title="列表视图"
                 onClick={() => onViewModeChange('list')}
-                className={`bds-btn bds-btn-icon sm ${effectiveViewMode === 'list' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
+                className={`bds-btn bds-btn-icon ${effectiveViewMode === 'list' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
               >
                 <List size={14} strokeWidth={1.5} />
               </button>
@@ -1311,18 +1311,18 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               </div>
               <div className="pointer-events-auto relative bds-filterbar">
                 {isEditing ? (
-                  <button onClick={handleSaveEdit} className="bds-btn bds-btn-primary sm">
+                  <button onClick={handleSaveEdit} className="bds-btn bds-btn-primary">
                     <Save size={14} strokeWidth={1.5} />保存修改
                   </button>
                 ) : (
-                  <button onClick={() => { setIsEditing(true); setEditForm(selectedOrder ? { ...selectedOrder } : null); setEditLineForm(selectedLineItem ? { ...selectedLineItem } : (selectedOrder?.lines?.[0] ? { ...selectedOrder.lines[0] } as Partial<OrderLineItem> : null)); }} className="bds-btn bds-btn-secondary sm">
+                  <button onClick={() => { setIsEditing(true); setEditForm(selectedOrder ? { ...selectedOrder } : null); setEditLineForm(selectedLineItem ? { ...selectedLineItem } : (selectedOrder?.lines?.[0] ? { ...selectedOrder.lines[0] } as Partial<OrderLineItem> : null)); }} className="bds-btn bds-btn-secondary">
                     <Edit2 size={14} strokeWidth={1.5} />编辑项目
                   </button>
                 )}
                 <div className={`h-4 w-px ${DIVIDER_CLASS}`}></div>
                 <button
                   onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); setIsEditing(false); setEditForm(null); }}
-                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                  className="bds-btn bds-btn-ghost bds-btn-icon"
                 >
                   <X size={17} strokeWidth={1.5} />
                 </button>
@@ -1449,13 +1449,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           wrapClassName="flex flex-wrap items-end justify-between gap-3"
                           meta={(
                             <div className="flex flex-wrap items-center gap-2">
-                              <button type="button" onClick={handlePrimeProcurement} className="bds-btn bds-btn-secondary sm" title="跳转到采购管理并预填本订单明细">
+                              <button type="button" onClick={handlePrimeProcurement} className="bds-btn bds-btn-secondary" title="跳转到采购管理并预填本订单明细">
                                 <ShoppingCart size={14} strokeWidth={1.5} />生成采购单
                               </button>
-                              <button type="button" onClick={handlePrimeQc} className="bds-btn bds-btn-secondary sm" title="跳转到 QC 工作台并预选本订单">
+                              <button type="button" onClick={handlePrimeQc} className="bds-btn bds-btn-secondary" title="跳转到 QC 工作台并预选本订单">
                                 <ClipboardCheck size={14} strokeWidth={1.5} />发起验货
                               </button>
-                              <button type="button" onClick={handlePrimeShipment} className="bds-btn bds-btn-secondary sm" title="跳转到出运管理并预填本订单">
+                              <button type="button" onClick={handlePrimeShipment} className="bds-btn bds-btn-secondary" title="跳转到出运管理并预填本订单">
                                 <Ship size={14} strokeWidth={1.5} />创建出运
                               </button>
                             </div>
@@ -1863,17 +1863,17 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 <div className="pointer-events-auto relative bds-filterbar">
                   <button
                     onClick={() => { setShowAddModal(false); setShowImportWizard(true); }}
-                    className="bds-btn bds-btn-secondary sm"
+                    className="bds-btn bds-btn-secondary"
                   >
                     <Upload size={14} strokeWidth={1.5} /> 导入 PDF
                   </button>
-                  <button onClick={handleAddOrder} className="bds-btn bds-btn-primary sm">
+                  <button onClick={handleAddOrder} className="bds-btn bds-btn-primary">
                     <Save size={14} strokeWidth={1.5} />确认创建
                   </button>
                   <div className={`h-4 w-px ${DIVIDER_CLASS}`}></div>
                   <button
                     onClick={() => { setShowAddModal(false); resetNewOrder(); }}
-                    className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                    className="bds-btn bds-btn-ghost bds-btn-icon"
                   >
                     <X size={17} strokeWidth={1.5} />
                   </button>
@@ -1982,7 +1982,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               <button
                 type="button"
                 onClick={() => setShowTracePanel(false)}
-                className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                className="bds-btn bds-btn-ghost bds-btn-icon"
               >
                 <X size={15} />
               </button>

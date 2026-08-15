@@ -558,7 +558,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
           <button
             type="button"
             onClick={openCreateModal}
-            className="bds-btn bds-btn-primary sm"
+            className="bds-btn bds-btn-primary"
           >
             <Plus size={14} />
             新建运单
@@ -741,7 +741,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                           <button
                             type="button"
                             onClick={() => openEditModal(selectedShipment)}
-                            className="bds-btn bds-btn-secondary sm"
+                            className="bds-btn bds-btn-secondary"
                           >
                             <Pencil size={11} />
                             编辑
@@ -749,7 +749,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                           <button
                             type="button"
                             onClick={() => handleDelete(selectedShipment)} disabled={deletingId !== null}
-                            className="bds-btn bds-btn-danger sm"
+                            className="bds-btn bds-btn-danger"
                           >
                             <Trash2 size={11} />
                             删除
@@ -786,7 +786,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                               href={selectedShipment.carrierTrackingUrl}
                               target="_blank"
                               rel="noreferrer noopener"
-                              className="bds-btn bds-btn-secondary sm shrink-0"
+                              className="bds-btn bds-btn-secondary shrink-0"
                             >
                               <ExternalLink size={10} />
                               承运商查询
@@ -842,7 +842,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                 onClick={handlePullLines}
                                 disabled={pullingLines}
                                 title="从关联订单重新带出装运行（覆盖现有行）"
-                                className="bds-btn bds-btn-secondary sm"
+                                className="bds-btn bds-btn-secondary"
                               >
                                 {pullingLines ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
                                 从订单带出
@@ -852,7 +852,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                               <button
                                 type="button"
                                 onClick={() => setShowPackingEditor(true)}
-                                className="bds-btn bds-btn-secondary sm"
+                                className="bds-btn bds-btn-secondary"
                               >
                                 <Package size={10} />
                                 编辑装箱
@@ -959,7 +959,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
               source="ShipmentManager.form"
               leading={(
                 <div className="flex h-full items-center gap-1.5 min-w-0">
-                  <button type="button" onClick={closeFormModal} aria-label="返回货运管理" className="bds-btn bds-btn-secondary bds-btn-icon sm">
+                  <button type="button" onClick={closeFormModal} aria-label="返回货运管理" className="bds-btn bds-btn-secondary bds-btn-icon">
                     <ChevronLeft size={18} strokeWidth={1.4} />
                   </button>
                   <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
@@ -972,10 +972,10 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                   <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">
                     货运管理
                   </div>
-                  <button type="button" onClick={closeFormModal} disabled={isSaving} className="bds-btn bds-btn-secondary sm">
+                  <button type="button" onClick={closeFormModal} disabled={isSaving} className="bds-btn bds-btn-secondary">
                     取消
                   </button>
-                  <button type="submit" form="shipment-fullscreen-form" disabled={isSaving} className="bds-btn bds-btn-primary sm">
+                  <button type="submit" form="shipment-fullscreen-form" disabled={isSaving} className="bds-btn bds-btn-primary">
                     <Save size={14} strokeWidth={1.5} />
                     {isSaving ? '保存中…' : '保存'}
                   </button>
@@ -1257,7 +1257,7 @@ function PackingEditorModal({
           source="ShipmentManager.packing"
           leading={(
             <div className="flex h-full min-w-0 items-center gap-1.5">
-              <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon sm">
+              <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon">
                 <ChevronLeft size={18} strokeWidth={1.4} />
               </button>
               <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
@@ -1268,8 +1268,8 @@ function PackingEditorModal({
           actions={(
             <div className="flex h-full shrink-0 items-center gap-2">
               <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">货运管理</div>
-              <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-secondary sm">取消</button>
-              <button type="button" onClick={() => void handleSave()} disabled={saving} className="bds-btn bds-btn-primary sm">
+              <button type="button" onClick={onClose} disabled={saving} className="bds-btn bds-btn-secondary">取消</button>
+              <button type="button" onClick={() => void handleSave()} disabled={saving} className="bds-btn bds-btn-primary">
                 <Save size={14} strokeWidth={1.5} />
                 {saving ? '保存中…' : '保存'}
               </button>
@@ -1325,7 +1325,7 @@ function PackingEditorModal({
                 <button
                   type="button"
                   onClick={() => setLines(prev => [...prev, { key: nextDraftKey('PL'), productCode: '', productName: '', quantity: '', unit: '', cartons: '', grossWeight: '', netWeight: '', volume: '', hsCode: '' }])}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Plus size={11} strokeWidth={1.4} />添加装运行
                 </button>
@@ -1380,7 +1380,7 @@ function PackingEditorModal({
                           <button
                             type="button"
                             onClick={() => updateCarton(carton.key, { items: carton.items.filter(i => i.key !== item.key) })}
-                            className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0"
+                            className="bds-btn bds-btn-ghost bds-btn-icon shrink-0"
                             aria-label="移除分配"
                           >
                             <X size={10} strokeWidth={1.4} />
@@ -1402,7 +1402,7 @@ function PackingEditorModal({
                 <button
                   type="button"
                   onClick={() => setCartons(prev => [...prev, { key: nextDraftKey('PC'), cartonNo: String(prev.length + 1), description: '', length: '', width: '', height: '', grossWeight: '', netWeight: '', volume: '', items: [] }])}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Plus size={11} strokeWidth={1.4} />添加箱
                 </button>

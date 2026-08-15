@@ -353,7 +353,7 @@ function SeasonsPanel() {
             </div>
             <button
               onClick={refreshAll}
-              className="bds-btn bds-btn-ghost bds-btn-icon sm"
+              className="bds-btn bds-btn-ghost bds-btn-icon"
               title="刷新"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -373,7 +373,7 @@ function SeasonsPanel() {
             </div>
             <button
               onClick={() => { setEditingSeason(null); setShowForm(true); }}
-              className="bds-btn bds-btn-secondary sm ml-auto"
+              className="bds-btn bds-btn-secondary ml-auto"
             >
               <Plus className="w-3.5 h-3.5" />
               新建季度
@@ -460,14 +460,14 @@ function SeasonsPanel() {
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => { setEditingSeason(detail ?? selectedSeason); setShowForm(true); }}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   编辑季度
                 </button>
                 <button
                   onClick={() => handleDelete(detail ?? selectedSeason)}
-                  className="bds-btn bds-btn-danger sm ml-auto"
+                  className="bds-btn bds-btn-danger ml-auto"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   删除
@@ -521,7 +521,7 @@ function SeasonsPanel() {
                   <button
                     onClick={handleGenerateReview}
                     disabled={generatingReview}
-                    className="bds-btn bds-btn-secondary sm ml-auto"
+                    className="bds-btn bds-btn-secondary ml-auto"
                   >
                     {generatingReview ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
                     {review ? '重新生成回顾' : '生成季度回顾'}
@@ -741,14 +741,14 @@ function TrendsPanel() {
         </div>
         <button
           onClick={loadTags}
-          className="bds-btn bds-btn-ghost bds-btn-icon sm"
+          className="bds-btn bds-btn-ghost bds-btn-icon"
           title="刷新"
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => { setEditingTag(null); setShowForm(true); }}
-          className="bds-btn bds-btn-secondary sm ml-auto"
+          className="bds-btn bds-btn-secondary ml-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           新建标签
@@ -788,21 +788,21 @@ function TrendsPanel() {
                   <div className="mt-2.5 flex items-center gap-1.5">
                     <button
                       onClick={() => setExpandedId(expanded ? null : tag.id)}
-                      className="bds-btn bds-btn-ghost sm"
+                      className="bds-btn bds-btn-ghost"
                     >
                       <ArrowRight className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                       {expanded ? '收起面料' : '展开面料'}
                     </button>
                     <button
                       onClick={() => { setEditingTag(tag); setShowForm(true); }}
-                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
                       title="编辑"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDelete(tag)}
-                      className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
+                      className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
                       title="删除"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -838,7 +838,7 @@ function TrendsPanel() {
                                   </div>
                                   <button
                                     onClick={() => handleUnlinkFabric(tag.id, link.fabricId)}
-                                    className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0"
+                                    className="bds-btn bds-btn-ghost bds-btn-icon shrink-0"
                                     title="移除关联"
                                   >
                                     <X className="w-3 h-3" />
@@ -1151,7 +1151,7 @@ function ShowsPanel() {
             </select>
             <button
               onClick={refreshAll}
-              className="bds-btn bds-btn-ghost bds-btn-icon sm"
+              className="bds-btn bds-btn-ghost bds-btn-icon"
               title="刷新"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -1171,7 +1171,7 @@ function ShowsPanel() {
             </div>
             <button
               onClick={() => { setEditingShow(null); setShowForm(true); }}
-              className="bds-btn bds-btn-secondary sm ml-auto"
+              className="bds-btn bds-btn-secondary ml-auto"
             >
               <Plus className="w-3.5 h-3.5" />
               新建展会
@@ -1260,21 +1260,21 @@ function ShowsPanel() {
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => { setEditingShow(detail ?? selectedShow); setShowForm(true); }}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   编辑展会
                 </button>
                 <button
                   onClick={() => { setEditingLead(null); setShowLeadForm(true); }}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   新增线索
                 </button>
                 <button
                   onClick={() => handleDeleteShow(detail ?? selectedShow)}
-                  className="bds-btn bds-btn-danger sm ml-auto"
+                  className="bds-btn bds-btn-danger ml-auto"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   删除
@@ -1386,7 +1386,7 @@ function ShowsPanel() {
                                 {lead.status !== 'Converted' && (
                                   <button
                                     onClick={() => setConvertingLead(lead)}
-                                    className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                                    className="bds-btn bds-btn-ghost bds-btn-icon"
                                     title="转化为客户"
                                   >
                                     <ArrowRight className="w-3.5 h-3.5" />
@@ -1394,14 +1394,14 @@ function ShowsPanel() {
                                 )}
                                 <button
                                   onClick={() => { setEditingLead(lead); setShowLeadForm(true); }}
-                                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                                  className="bds-btn bds-btn-ghost bds-btn-icon"
                                   title="编辑"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteLead(lead)}
-                                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                                  className="bds-btn bds-btn-ghost bds-btn-icon"
                                   title="删除"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1470,7 +1470,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1600,7 +1600,7 @@ function SeasonForm({
           <label className="block text-xs" style={{ color: 'var(--text-tertiary)' }}>开发日历（里程碑节点）</label>
           <button
             onClick={() => setCalendar((rows) => [...rows, { key: '', label: '', startDate: '', endDate: '' }])}
-            className="bds-btn bds-btn-ghost sm"
+            className="bds-btn bds-btn-ghost"
           >
             <Plus className="w-3 h-3" />
             添加节点
@@ -1638,7 +1638,7 @@ function SeasonForm({
                 />
                 <button
                   onClick={() => setCalendar((rows) => rows.filter((_, i) => i !== idx))}
-                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                  className="bds-btn bds-btn-ghost bds-btn-icon"
                   title="删除节点"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -1650,12 +1650,12 @@ function SeasonForm({
       </div>
 
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1762,12 +1762,12 @@ function TrendTagForm({
         </Field>
       </div>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1877,12 +1877,12 @@ function TradeShowForm({
         <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1971,12 +1971,12 @@ function LeadForm({
         <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -2049,12 +2049,12 @@ function ConvertLeadForm({
         )}
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           确认转化
         </button>

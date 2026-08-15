@@ -1422,37 +1422,37 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 {VAT_STATUS_LABELS[vat.status] || vat.status}
               </span>
               {canEdit && (
-                <button type="button" onClick={() => openEditVat(vat)} className="bds-btn bds-btn-secondary sm">
+                <button type="button" onClick={() => openEditVat(vat)} className="bds-btn bds-btn-secondary">
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
                 </button>
               )}
               {canVerify && (
-                <button type="button" onClick={() => openVatTransition(vat, 'Verified')} className="bds-btn bds-btn-secondary sm">
+                <button type="button" onClick={() => openVatTransition(vat, 'Verified')} className="bds-btn bds-btn-secondary">
                   <BadgeCheck size={10} strokeWidth={1.3} />
                   认证
                 </button>
               )}
               {canDeclare && (
-                <button type="button" onClick={() => openVatTransition(vat, 'Declared')} className="bds-btn bds-btn-secondary sm">
+                <button type="button" onClick={() => openVatTransition(vat, 'Declared')} className="bds-btn bds-btn-secondary">
                   <Landmark size={10} strokeWidth={1.3} />
                   申报退税
                 </button>
               )}
               {canRedFlush && (
-                <button type="button" onClick={() => openVatTransition(vat, 'RedFlushed')} className="bds-btn bds-btn-secondary sm">
+                <button type="button" onClick={() => openVatTransition(vat, 'RedFlushed')} className="bds-btn bds-btn-secondary">
                   <RotateCcw size={10} strokeWidth={1.3} />
                   红冲
                 </button>
               )}
               {canCancel && (
-                <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatCancel(vat)} className="bds-btn bds-btn-secondary sm">
+                <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatCancel(vat)} className="bds-btn bds-btn-secondary">
                   {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Ban size={10} strokeWidth={1.3} />}
                   作废
                 </button>
               )}
               {canDelete && (
-                <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatDelete(vat)} className="bds-btn bds-btn-secondary sm">
+                <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatDelete(vat)} className="bds-btn bds-btn-secondary">
                   {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
                 </button>
@@ -1576,7 +1576,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => openEditInvoice(invoice)}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
@@ -1588,7 +1588,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   type="button"
                   disabled={convertingPiId === invoice.id}
                   onClick={() => handleConvertToReceivable(invoice.id, invoice.invoiceNumber)}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   {convertingPiId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} strokeWidth={1.3} />}
                   转为应收
@@ -1613,7 +1613,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
                   作废
@@ -1638,7 +1638,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
@@ -1649,7 +1649,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => openEditVoucher(voucher)}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Pencil size={10} strokeWidth={1.3} />
                   编辑
@@ -1660,7 +1660,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => openSettlementModal(voucher)}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Landmark size={10} strokeWidth={1.3} />
                   结汇
@@ -1671,7 +1671,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => openRemittanceModal(voucher)}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Send size={10} strokeWidth={1.3} />
                   付汇
@@ -1695,7 +1695,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
                   作废
@@ -1720,7 +1720,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       setVoidDeletingId(null);
                     }
                   }}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
                   删除
@@ -1760,7 +1760,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <button
                   type="button"
                   onClick={openCreateAlloc}
-                  className="bds-btn bds-btn-secondary sm"
+                  className="bds-btn bds-btn-secondary"
                 >
                   <Link2 size={10} strokeWidth={1.3} />
                   添加核销
@@ -1784,11 +1784,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <button type="button" onClick={() => { setEditingAllocId(alloc.id); setAllocForm({ targetId: isInvoiceContext ? alloc.voucherId : alloc.invoiceId, appliedAmount: String(alloc.appliedAmount), appliedDate: alloc.appliedDate }); setAllocError(null); setShowAllocModal(true); }}
-                          className="bds-btn bds-btn-ghost bds-btn-icon sm">
+                          className="bds-btn bds-btn-ghost bds-btn-icon">
                           <Pencil size={11} strokeWidth={1.3} />
                         </button>
                         <button type="button" onClick={() => handleDeleteAlloc(alloc.id)}
-                          className="bds-btn bds-btn-ghost bds-btn-icon sm">
+                          className="bds-btn bds-btn-ghost bds-btn-icon">
                           <Trash2 size={11} strokeWidth={1.3} />
                         </button>
                       </div>
@@ -1906,7 +1906,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {activeTab === 'vouchers' && (
                 <button
                   type="button"
-                  className="bds-btn bds-btn-primary sm shrink-0"
+                  className="bds-btn bds-btn-primary shrink-0"
                   onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
                 >
                   <Plus size={12} strokeWidth={1.4} />
@@ -1918,7 +1918,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <button
                   type="button"
                   onClick={openCreateInvoice}
-                  className="bds-btn bds-btn-primary sm shrink-0"
+                  className="bds-btn bds-btn-primary shrink-0"
                 >
                   <Plus size={12} strokeWidth={1.4} />
                   新建发票
@@ -1929,7 +1929,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <button
                   type="button"
                   onClick={openCreateVat}
-                  className="bds-btn bds-btn-primary sm shrink-0"
+                  className="bds-btn bds-btn-primary shrink-0"
                 >
                   <Plus size={12} strokeWidth={1.4} />
                   新建增值税票
@@ -2031,9 +2031,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" disabled={voucherCreating} onClick={() => setShowCreateVoucher(false)}
-                className="bds-btn bds-btn-secondary sm">取消</button>
+                className="bds-btn bds-btn-secondary">取消</button>
               <button type="button" disabled={voucherCreating} onClick={editingVoucher ? handleSaveVoucher : handleCreateVoucher}
-                className="bds-btn bds-btn-primary sm">
+                className="bds-btn bds-btn-primary">
                 {voucherCreating ? '保存中...' : editingVoucher ? '保存' : '创建'}
               </button>
             </div>
@@ -2126,9 +2126,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" disabled={invoiceSaving} onClick={() => setShowInvoiceModal(false)}
-                className="bds-btn bds-btn-secondary sm">取消</button>
+                className="bds-btn bds-btn-secondary">取消</button>
               <button type="button" disabled={invoiceSaving} onClick={handleSaveInvoice}
-                className="bds-btn bds-btn-primary sm">
+                className="bds-btn bds-btn-primary">
                 {invoiceSaving ? '保存中...' : '保存'}
               </button>
             </div>
@@ -2176,9 +2176,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" disabled={allocSaving} onClick={() => setShowAllocModal(false)}
-                className="bds-btn bds-btn-secondary sm">取消</button>
+                className="bds-btn bds-btn-secondary">取消</button>
               <button type="button" disabled={allocSaving} onClick={handleSaveAlloc}
-                className="bds-btn bds-btn-primary sm">
+                className="bds-btn bds-btn-primary">
                 {allocSaving ? '核销中...' : '确认核销'}
               </button>
             </div>
@@ -2239,7 +2239,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         disabled={settlementDeletingId === s.id}
                         onClick={() => handleDeleteSettlement(s.id, s.settlementNumber)}
                         title="删除结汇水单（回滚未结汇余额）"
-                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
                       >
                         {settlementDeletingId === s.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
                       </button>
@@ -2307,10 +2307,10 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
             <div className="mt-3 flex shrink-0 justify-end gap-2">
               <button type="button" disabled={settlementSaving} onClick={() => setSettlementVoucher(null)}
-                className="bds-btn bds-btn-secondary sm">关闭</button>
+                className="bds-btn bds-btn-secondary">关闭</button>
               {(!settlementSummary || !settlementSummary.fullySettled) && (
                 <button type="button" disabled={settlementSaving || settlementLoading} onClick={handleCreateSettlement}
-                  className="bds-btn bds-btn-primary sm">
+                  className="bds-btn bds-btn-primary">
                   {settlementSaving ? '登记中…' : '登记结汇'}
                 </button>
               )}
@@ -2433,9 +2433,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
             <div className="mt-3 flex shrink-0 justify-end gap-2">
               <button type="button" disabled={vatSaving} onClick={() => setShowVatModal(false)}
-                className="bds-btn bds-btn-secondary sm">取消</button>
+                className="bds-btn bds-btn-secondary">取消</button>
               <button type="button" disabled={vatSaving} onClick={handleSaveVat}
-                className="bds-btn bds-btn-primary sm">
+                className="bds-btn bds-btn-primary">
                 {vatSaving ? '保存中…' : '保存'}
               </button>
             </div>
@@ -2508,9 +2508,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" disabled={vatTransitionSaving} onClick={() => setVatTransitionTarget(null)}
-                className="bds-btn bds-btn-secondary sm">取消</button>
+                className="bds-btn bds-btn-secondary">取消</button>
               <button type="button" disabled={vatTransitionSaving} onClick={handleVatTransition}
-                className="bds-btn bds-btn-primary sm">
+                className="bds-btn bds-btn-primary">
                 {vatTransitionSaving ? '流转中…' : `确认${VAT_TRANSITION_LABELS[vatTransitionAction]}`}
               </button>
             </div>
@@ -2571,7 +2571,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         disabled={remittanceDeletingId === r.id}
                         onClick={() => handleDeleteRemittance(r.id, r.remittanceNumber)}
                         title="删除付汇水单（回滚未付汇余额）"
-                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
                       >
                         {remittanceDeletingId === r.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
                       </button>
@@ -2655,10 +2655,10 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
             <div className="mt-3 flex shrink-0 justify-end gap-2">
               <button type="button" disabled={remittanceSaving} onClick={() => setRemittanceVoucher(null)}
-                className="bds-btn bds-btn-secondary sm">关闭</button>
+                className="bds-btn bds-btn-secondary">关闭</button>
               {(!remittanceSummary || !remittanceSummary.fullyRemitted) && (
                 <button type="button" disabled={remittanceSaving || remittanceLoading} onClick={handleCreateRemittance}
-                  className="bds-btn bds-btn-primary sm">
+                  className="bds-btn bds-btn-primary">
                   {remittanceSaving ? '登记中…' : '登记付汇'}
                 </button>
               )}

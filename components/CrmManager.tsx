@@ -404,7 +404,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
         </select>
         <button
           onClick={loadRelations}
-          className="bds-btn bds-btn-ghost bds-btn-icon sm"
+          className="bds-btn bds-btn-ghost bds-btn-icon"
           title="刷新客户列表"
         >
           <RefreshCw className="w-4 h-4" />
@@ -603,7 +603,7 @@ function OpportunitiesTab({
       {/* 管线阶段卡片 */}
       <div className="flex items-center justify-between">
         <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>销售管线</h3>
-        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary">
           <Plus className="w-4 h-4" />
           新建商机
         </button>
@@ -715,7 +715,7 @@ function FollowUpsTab({
 
       <div className="flex items-center justify-between">
         <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>跟进记录 ({followUps.length})</h3>
-        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary">
           <Plus className="w-4 h-4" />
           新建跟进
         </button>
@@ -802,7 +802,7 @@ function ContactsTab({
         </div>
         <button
           onClick={onManageInRelations}
-          className="bds-btn bds-btn-secondary sm shrink-0"
+          className="bds-btn bds-btn-secondary shrink-0"
         >
           在关系智库中维护
           <ArrowRight className="w-4 h-4" />
@@ -877,7 +877,7 @@ function CreditLimitTab({
       {/* 当前生效 */}
       <div className="flex items-center justify-between">
         <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>当前信用额度</h3>
-        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary">
           <Plus className="w-4 h-4" />
           设置信用额度
         </button>
@@ -950,13 +950,13 @@ function CreditLimitTab({
             <div className="flex items-center gap-2 mt-3">
               <button
                 onClick={() => onUpdateStatus(activeCreditLimit.id, 'Frozen')}
-                className="bds-btn bds-btn-secondary sm"
+                className="bds-btn bds-btn-secondary"
               >
                 冻结
               </button>
               <button
                 onClick={() => onUpdateStatus(activeCreditLimit.id, 'Revoked')}
-                className="bds-btn bds-btn-danger sm"
+                className="bds-btn bds-btn-danger"
               >
                 撤销
               </button>
@@ -1013,7 +1013,7 @@ function CustomerTierTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>当前分层</h3>
-        <button onClick={onCreate} className="bds-btn bds-btn-secondary sm">
+        <button onClick={onCreate} className="bds-btn bds-btn-secondary">
           <Award className="w-4 h-4" />
           评定分层
         </button>
@@ -1130,7 +1130,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1232,8 +1232,8 @@ function OpportunityForm({
         <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
       </div>
     </ModalShell>
   );
@@ -1324,8 +1324,8 @@ function FollowUpForm({
         <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
       </div>
     </ModalShell>
   );
@@ -1387,8 +1387,8 @@ function CreditLimitForm({
         <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
       </div>
     </ModalShell>
   );
@@ -1467,8 +1467,8 @@ function CustomerTierForm({
         <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">取消</button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">保存</button>
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">保存</button>
       </div>
     </ModalShell>
   );

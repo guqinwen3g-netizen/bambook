@@ -326,7 +326,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="bds-btn bds-btn-secondary sm"
+              className="bds-btn bds-btn-secondary"
             >
               <RefreshCw size={13} className={cx(isRefreshing && 'animate-spin')} />
               刷新
@@ -334,7 +334,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
             <button
               type="button"
               onClick={openCreateModal}
-              className="bds-btn bds-btn-primary sm"
+              className="bds-btn bds-btn-primary"
             >
               <Plus size={14} />
               新建开发单
@@ -491,7 +491,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                                 onNavigate(View.Quotations);
                               }}
                               title="跳转到报价管理并预填本开发案客户/产品"
-                              className="bds-btn bds-btn-secondary sm"
+                              className="bds-btn bds-btn-secondary"
                             >
                               <FileText size={11} />
                               发起报价
@@ -500,7 +500,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                           <button
                             type="button"
                             onClick={openEditModal}
-                            className="bds-btn bds-btn-secondary sm"
+                            className="bds-btn bds-btn-secondary"
                           >
                             <Pencil size={11} />
                             编辑
@@ -508,7 +508,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                           <button
                             type="button"
                             onClick={handleDelete}
-                            className="bds-btn bds-btn-danger sm"
+                            className="bds-btn bds-btn-danger"
                           >
                             <Trash2 size={11} />
                             删除
@@ -590,7 +590,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               source="DevelopmentManager.form"
               leading={(
                 <div className="flex h-full items-center gap-1.5 min-w-0">
-                  <button type="button" onClick={closeFormModal} aria-label="返回开发管理" className="bds-btn bds-btn-secondary bds-btn-icon sm">
+                  <button type="button" onClick={closeFormModal} aria-label="返回开发管理" className="bds-btn bds-btn-secondary bds-btn-icon">
                     <ChevronLeft size={18} strokeWidth={1.4} />
                   </button>
                   <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
@@ -603,14 +603,14 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                   <div className="text-[11px] font-light tracking-wide text-[var(--text-tertiary)]">
                     开发管理
                   </div>
-                  <button type="button" onClick={closeFormModal} disabled={isSubmitting} className="bds-btn bds-btn-secondary sm">
+                  <button type="button" onClick={closeFormModal} disabled={isSubmitting} className="bds-btn bds-btn-secondary">
                     取消
                   </button>
                   <button
                     type="submit"
                     form="development-fullscreen-form"
                     disabled={isSubmitting || !form.code.trim() || !form.name.trim()}
-                    className="bds-btn bds-btn-primary sm"
+                    className="bds-btn bds-btn-primary"
                   >
                     <Save size={14} strokeWidth={1.5} />
                     {isSubmitting ? '保存中…' : '保存'}

@@ -488,7 +488,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
         actions={
           <button
             onClick={() => { setEditingProfile(null); setShowProfileForm(true); }}
-            className="bds-btn bds-btn-primary sm"
+            className="bds-btn bds-btn-primary"
           >
             <Plus className="w-4 h-4" />
             新建工厂档案
@@ -564,7 +564,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
               </div>
               <button
                 onClick={refreshAll}
-                className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                className="bds-btn bds-btn-ghost bds-btn-icon"
                 title="刷新"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -697,7 +697,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     onClick={() => { setEditingProfile(detail ?? selectedProfile); setShowProfileForm(true); }}
-                    className="bds-btn bds-btn-secondary sm"
+                    className="bds-btn bds-btn-secondary"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     编辑档案
@@ -708,7 +708,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                         primeRelationsOrgDetailPreview(selectedProfile.relationId);
                         onNavigate(View.Relations);
                       }}
-                      className="bds-btn bds-btn-secondary sm"
+                      className="bds-btn bds-btn-secondary"
                       title="在关系智库中查看该供应商的组织档案、联系人与跟进记录"
                     >
                       关系档案
@@ -718,7 +718,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null ? (
                     <button
                       onClick={() => handleUnblacklist(detail ?? selectedProfile)}
-                      className="bds-btn bds-btn-secondary sm"
+                      className="bds-btn bds-btn-secondary"
                     >
                       <CircleCheck className="w-3.5 h-3.5" />
                       解除拉黑
@@ -726,7 +726,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   ) : (
                     <button
                       onClick={() => setBlacklistTarget(detail ?? selectedProfile)}
-                      className="bds-btn bds-btn-secondary sm"
+                      className="bds-btn bds-btn-secondary"
                     >
                       <Ban className="w-3.5 h-3.5" />
                       拉黑
@@ -734,7 +734,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   )}
                   <button
                     onClick={() => handleDeleteProfile(detail ?? selectedProfile)}
-                    className="bds-btn bds-btn-danger sm ml-auto"
+                    className="bds-btn bds-btn-danger ml-auto"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     删除
@@ -980,7 +980,7 @@ function EvaluationsTab({
         </div>
         <button
           onClick={onCreate}
-          className="bds-btn bds-btn-secondary sm ml-auto"
+          className="bds-btn bds-btn-secondary ml-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           手动评分
@@ -1043,7 +1043,7 @@ function CertificationsTab({
         <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>共 {certifications.length} 项认证</div>
         <button
           onClick={onCreate}
-          className="bds-btn bds-btn-secondary sm"
+          className="bds-btn bds-btn-secondary"
         >
           <Plus className="w-3.5 h-3.5" />
           新增认证
@@ -1077,14 +1077,14 @@ function CertificationsTab({
                 </span>
                 <button
                   onClick={() => onEdit(cert)}
-                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                  className="bds-btn bds-btn-ghost bds-btn-icon"
                   title="编辑"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => onDelete(cert)}
-                  className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                  className="bds-btn bds-btn-ghost bds-btn-icon"
                   title="删除"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -1119,7 +1119,7 @@ function CapacityTab({
         </div>
         <button
           onClick={onCreate}
-          className="bds-btn bds-btn-secondary sm"
+          className="bds-btn bds-btn-secondary"
         >
           <Plus className="w-3.5 h-3.5" />
           设置月产能
@@ -1152,14 +1152,14 @@ function CapacityTab({
                   <div className="ml-auto flex items-center gap-1">
                     <button
                       onClick={() => onEdit(row)}
-                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
                       title="编辑"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onDelete(row)}
-                      className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                      className="bds-btn bds-btn-ghost bds-btn-icon"
                       title="删除"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1203,7 +1203,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon sm">
+          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1358,12 +1358,12 @@ function ProfileForm({
         <textarea className={textareaClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1415,12 +1415,12 @@ function EvaluationForm({
         <textarea className={textareaClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="评定依据说明" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1500,12 +1500,12 @@ function CertificationForm({
         长期有效（无到期日）
       </label>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1564,12 +1564,12 @@ function CapacityForm({
         <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="如：春节月减半" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           保存
         </button>
@@ -1608,12 +1608,12 @@ function BlacklistForm({
         <textarea className={textareaClass} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="如：连续两次验货不合格 / 严重延期" />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={handleSubmit}
-          className="bds-btn bds-btn-danger sm"
+          className="bds-btn bds-btn-danger"
         >
           确认拉黑
         </button>

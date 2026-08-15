@@ -599,7 +599,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 {/* 创建表单 */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>新建报价单</h2>
-                  <button onClick={() => setShowCreateForm(false)} className="bds-btn bds-btn-secondary sm">
+                  <button onClick={() => setShowCreateForm(false)} className="bds-btn bds-btn-secondary">
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
@@ -689,7 +689,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                   <div className="bds-card">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>报价明细</h3>
-                      <button onClick={addFormLine} className="bds-btn bds-btn-ghost sm" style={{ color: 'var(--accent-text)' }}>
+                      <button onClick={addFormLine} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
                         <Plus size={12} /> 添加行
                       </button>
                     </div>
@@ -794,17 +794,17 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
                 {/* 工具栏 */}
                 <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary sm">
+                  <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
                     <Plus size={14} /><span>新建报价单</span>
                   </button>
-                  <button onClick={() => setShowImportWizard(true)} className="bds-btn bds-btn-secondary sm">
+                  <button onClick={() => setShowImportWizard(true)} className="bds-btn bds-btn-secondary">
                     <FileSpreadsheet size={14} /><span>导入历史报价</span>
                   </button>
                   <div className="relative flex-1 max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className="bds-input sm pl-9" />
                   </div>
-                  <button onClick={fetchQuotations} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                  <button onClick={fetchQuotations} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                 </div>
@@ -989,12 +989,12 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                     <>
                                       <button
                                         onClick={() => { setPricingQuoteId(qt.id); setPricingResult(null); }}
-                                        className="bds-btn bds-btn-secondary sm"
+                                        className="bds-btn bds-btn-secondary"
                                       >
                                         <Calculator size={12} />
                                         <span>应用定价</span>
                                       </button>
-                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-primary sm">
+                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-primary">
                                         {actionLoading === `${qt.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                         <span>发送报价</span>
                                       </button>
@@ -1005,7 +1005,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                           偏差超 30%，需审批通过后发送
                                         </span>
                                       )}
-                                      <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className="bds-btn bds-btn-danger sm">
+                                      <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className="bds-btn bds-btn-danger">
                                         {actionLoading === `${qt.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                                         <span>删除</span>
                                       </button>
@@ -1013,11 +1013,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   )}
                                   {qt.status === 'Sent' && (
                                     <>
-                                      <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className="bds-btn bds-btn-primary sm">
+                                      <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className="bds-btn bds-btn-primary">
                                         {actionLoading === `${qt.id}_accept` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                         <span>接受</span>
                                       </button>
-                                      <button onClick={() => handleAction(qt.id, 'reject')} disabled={actionLoading === `${qt.id}_reject`} className="bds-btn bds-btn-danger sm">
+                                      <button onClick={() => handleAction(qt.id, 'reject')} disabled={actionLoading === `${qt.id}_reject`} className="bds-btn bds-btn-danger">
                                         {actionLoading === `${qt.id}_reject` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
                                         <span>拒绝</span>
                                       </button>
@@ -1029,7 +1029,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         <button
                                           onClick={() => handleAction(qt.id, 'convert')}
                                           disabled={actionLoading === `${qt.id}_convert`}
-                                          className="bds-btn bds-btn-primary sm"
+                                          className="bds-btn bds-btn-primary"
                                         >
                                           {actionLoading === `${qt.id}_convert` ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
                                           <span>转为订单</span>
@@ -1039,7 +1039,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         <button
                                           onClick={() => handleGeneratePi(qt.id)}
                                           disabled={actionLoading === `${qt.id}_generatePi`}
-                                          className="bds-btn bds-btn-secondary sm"
+                                          className="bds-btn bds-btn-secondary"
                                         >
                                           {actionLoading === `${qt.id}_generatePi` ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
                                           <span>生成 PI</span>
@@ -1047,7 +1047,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                       )}
                                       <button
                                         onClick={() => setTraceQuoteId(qt.id)}
-                                        className="bds-btn bds-btn-secondary sm"
+                                        className="bds-btn bds-btn-secondary"
                                       >
                                         <GitBranch size={12} />
                                         <span>溯源</span>
@@ -1082,7 +1082,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   <button
                                     type="button"
                                     onClick={() => printHtmlDocument({ title: `Quotation ${qt.quotationNumber}`, htmlBody: buildQuotationPrintHtml(qt) })}
-                                    className="bds-btn bds-btn-ghost sm"
+                                    className="bds-btn bds-btn-ghost"
                                   >
                                     <Printer size={12} />
                                     <span>打印报价单</span>
@@ -1128,7 +1128,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               <h3 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>
                 应用双轨定价 — Track A 估算 + Track B 退税定价
               </h3>
-              <button onClick={() => setPricingQuoteId(null)} className="bds-btn bds-btn-ghost sm" style={{ padding: '0 var(--space-2)' }}>
+              <button onClick={() => setPricingQuoteId(null)} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}>
                 <X size={16} />
               </button>
             </div>
@@ -1161,14 +1161,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
             <div className="flex items-center justify-end gap-2 mt-4">
               <button
                 onClick={() => setPricingQuoteId(null)}
-                className="bds-btn bds-btn-ghost sm"
+                className="bds-btn bds-btn-ghost"
               >
                 关闭
               </button>
               <button
                 onClick={handlePricingCheck}
                 disabled={applyingPricing}
-                className="bds-btn bds-btn-secondary sm"
+                className="bds-btn bds-btn-secondary"
               >
                 {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
                 <span>查询校验</span>
@@ -1176,7 +1176,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               <button
                 onClick={handleApplyPricing}
                 disabled={applyingPricing || !pricingTrackB}
-                className="bds-btn bds-btn-primary sm"
+                className="bds-btn bds-btn-primary"
               >
                 {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
                 <span>{applyingPricing ? '计算中...' : '应用定价'}</span>
@@ -1202,7 +1202,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               <button
                 type="button"
                 onClick={() => setTraceQuoteId(null)}
-                className="bds-btn bds-btn-ghost sm"
+                className="bds-btn bds-btn-ghost"
                 style={{ padding: '0 var(--space-2)' }}
               >
                 <X size={15} />

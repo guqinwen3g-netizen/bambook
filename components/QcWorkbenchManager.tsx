@@ -177,7 +177,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>{title}</h3>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon sm" title="关闭">
+          <button onClick={onClose} className="bds-btn bds-btn-ghost bds-btn-icon" title="关闭">
             <X size={16} />
           </button>
         </div>
@@ -393,7 +393,7 @@ function AssignmentsPanel() {
         )}
         <button
           onClick={loadWorkbench}
-          className="bds-btn bds-btn-ghost sm"
+          className="bds-btn bds-btn-ghost"
           style={{ padding: '0 var(--space-2)' }}
           title="刷新"
         >
@@ -402,7 +402,7 @@ function AssignmentsPanel() {
         <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>共 {totalCount} 项任务</span>
         <button
           onClick={() => setShowForm(true)}
-          className="ml-auto bds-btn bds-btn-primary sm"
+          className="ml-auto bds-btn bds-btn-primary"
         >
           <Plus size={14} />
           <span>新建任务</span>
@@ -478,26 +478,26 @@ function AssignmentsPanel() {
                         )}
                         <div className="mt-2 flex items-center gap-1.5">
                           {a.status === 'Assigned' && (
-                            <button onClick={() => handleStart(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-primary sm">
+                            <button onClick={() => handleStart(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-primary">
                               {updatingId === a.id ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
                               <span>开始</span>
                             </button>
                           )}
                           {canOperate && (
-                            <button onClick={() => setCompletingAssignment(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-secondary sm">
+                            <button onClick={() => setCompletingAssignment(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-secondary">
                               <CheckCheck size={14} />
                               <span>完成</span>
                             </button>
                           )}
                           {canOperate && (
-                            <button onClick={() => handleCancel(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-ghost sm">
+                            <button onClick={() => handleCancel(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-ghost">
                               <Ban size={14} />
                               <span>取消</span>
                             </button>
                           )}
                           <button
                             onClick={() => handleDelete(a)}
-                            className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
+                            className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
                             title="删除任务"
                           >
                             <Trash2 size={14} />
@@ -636,7 +636,7 @@ function AssignmentForm({
             </span>
             <button
               onClick={() => setSelectedOrder(null)}
-              className="bds-btn bds-btn-ghost bds-btn-icon sm shrink-0"
+              className="bds-btn bds-btn-ghost bds-btn-icon shrink-0"
               title="重新选择"
             >
               <X size={14} />
@@ -724,10 +724,10 @@ function AssignmentForm({
         <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">
           保存
         </button>
       </div>
@@ -764,13 +764,13 @@ function CompleteAssignmentForm({
         />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
           onClick={() => onSave(reportId.trim() || undefined)}
           disabled={saving}
-          className="bds-btn bds-btn-primary sm"
+          className="bds-btn bds-btn-primary"
         >
           {saving ? '提交中...' : '确认完成'}
         </button>
@@ -836,7 +836,7 @@ function LocationsPanel() {
         <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>QC 常驻验货驻地（如 温州驻场-服装 / 苏州驻场-面料）</span>
         <button
           onClick={loadLocations}
-          className="bds-btn bds-btn-ghost sm"
+          className="bds-btn bds-btn-ghost"
           style={{ padding: '0 var(--space-2)' }}
           title="刷新"
         >
@@ -844,7 +844,7 @@ function LocationsPanel() {
         </button>
         <button
           onClick={() => { setEditingLocation(null); setShowForm(true); }}
-          className="ml-auto bds-btn bds-btn-primary sm"
+          className="ml-auto bds-btn bds-btn-primary"
         >
           <Plus size={14} />
           <span>新建驻地</span>
@@ -887,14 +887,14 @@ function LocationsPanel() {
                 <div className="mt-2.5 flex items-center gap-1.5">
                   <button
                     onClick={() => { setEditingLocation(location); setShowForm(true); }}
-                    className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                    className="bds-btn bds-btn-ghost bds-btn-icon"
                     title="编辑"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(location)}
-                    className="bds-btn bds-btn-ghost bds-btn-icon sm ml-auto"
+                    className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
                     title="删除"
                   >
                     <Trash2 size={14} />
@@ -998,10 +998,10 @@ function LocationForm({
         <textarea className="bds-input bds-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">
           保存
         </button>
       </div>
@@ -1078,7 +1078,7 @@ function BusinessLinesPanel() {
         <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>业务线影响 MOQ 校验与报表口径</span>
         <button
           onClick={loadLines}
-          className="bds-btn bds-btn-ghost sm"
+          className="bds-btn bds-btn-ghost"
           style={{ padding: '0 var(--space-2)' }}
           title="刷新"
         >
@@ -1086,7 +1086,7 @@ function BusinessLinesPanel() {
         </button>
         <button
           onClick={() => { setEditingLine(null); setShowForm(true); }}
-          className="ml-auto bds-btn bds-btn-primary sm"
+          className="ml-auto bds-btn bds-btn-primary"
         >
           <Plus size={14} />
           <span>新建业务线</span>
@@ -1148,14 +1148,14 @@ function BusinessLinesPanel() {
                     <span className="flex items-center gap-0.5 justify-end">
                       <button
                         onClick={() => { setEditingLine(line); setShowForm(true); }}
-                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
                         title="编辑"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(line)}
-                        className="bds-btn bds-btn-ghost bds-btn-icon sm"
+                        className="bds-btn bds-btn-ghost bds-btn-icon"
                         title="删除"
                       >
                         <Trash2 size={14} />
@@ -1288,10 +1288,10 @@ function BusinessLineForm({
         <textarea className="bds-input bds-textarea" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={onClose} className="bds-btn bds-btn-ghost sm">
+        <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
-        <button onClick={handleSubmit} className="bds-btn bds-btn-primary sm">
+        <button onClick={handleSubmit} className="bds-btn bds-btn-primary">
           保存
         </button>
       </div>
