@@ -800,7 +800,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                   <button onClick={() => setShowImportWizard(true)} className="bds-btn bds-btn-secondary">
                     <FileSpreadsheet size={14} /><span>导入历史报价</span>
                   </button>
-                  <div className="bds-filterbar relative flex-1 max-w-xs">
+                  <div className="relative flex-1 max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className="bds-input sm pl-9" />
                   </div>

@@ -669,9 +669,9 @@
         <div class="specimen flat-bg col" style="align-items: flex-start;">
           <div class="demo-label">Modal 模态（点击预览）</div>
           <button class="bds-btn bds-btn-primary" onclick="document.getElementById('demoModal').style.display='grid'">打开模态框</button>
-          <div class="demo-label" style="margin-top: var(--space-4);">Filterbar 筛选条</div>
+          <div class="demo-label" style="margin-top: var(--space-4);">Filterbar 筛选条 — 仅控件组合时使用</div>
           <div class="bds-filterbar">
-            <input class="bds-input sm" placeholder="搜索…" style="width: 140px; background: var(--bg-panel);">
+            <input class="bds-input sm" placeholder="搜索…" style="width: 140px;">
             <button class="bds-btn bds-btn-ghost">状态 ▾</button>
             <button class="bds-btn bds-btn-ghost">业务员 ▾</button>
           </div>
@@ -790,7 +790,7 @@
     <section id="x-input">
       <div class="sec-head">
         <div class="sec-title">输入扩展<span class="en">Input Extended — 搜索 / 前后缀 / 校验 / 微控件</span></div>
-        <div class="sec-desc">收敛各 Manager 页搜索栏与手工拼装输入：同一填充式语言——无边框，focus 才出 accent 边。</div>
+        <div class="sec-desc">收敛各 Manager 页搜索栏与手工拼装输入：同一填充式语言——无边框，focus 才出 accent 边。搜索框两范式：独立搜索用 .bds-search 单层（输入框自身即容器，禁止再套外壳 bar）；仅当搜索与下拉/分段器等共组一条 bar 时，才内嵌于 .bds-filterbar（内嵌 input 用 bg-panel 与膜容器分层）。</div>
       </div>
       <div class="grid g2">
         <div class="specimen col">

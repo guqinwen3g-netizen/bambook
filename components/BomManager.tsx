@@ -230,7 +230,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
               </button>
             ))}
           </div>
-          <div className="bds-filterbar relative flex-1 min-w-[180px] max-w-xs">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
             <input
               type="text"

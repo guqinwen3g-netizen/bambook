@@ -340,7 +340,7 @@ function SeasonsPanel() {
       {/* ── 左侧：季度卡片列表 ── */}
       <div className="w-80 shrink-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
         <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
-          <div className="flex items-center bds-filterbar">
+          <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input

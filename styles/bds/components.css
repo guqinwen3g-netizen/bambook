@@ -726,6 +726,17 @@ select.bds-select:focus {
   -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
   border-radius: var(--radius-pill);
 }
+/* Filterbar 使用纪律（2026-08-16 用户裁决 — 搜索框两范式）：
+   1. 单层搜索框（默认）：搜索独立存在时，.bds-search + .bds-input 自身即容器，
+      禁止再套 filterbar 外壳形成双层容器；
+   2. 内嵌搜索（唯一例外）：仅当搜索与其他控件（下拉/分段器/按钮组）共组
+      一条 bar 时才使用 filterbar——bar 是容器，搜索是内嵌元素。
+   内嵌分层：bar 内 input 用 --bg-panel 实色底，与 frosted 膜容器拉开层次。 */
+.bds-filterbar .bds-input {
+  background: var(--bg-panel);
+}
+.bds-filterbar .bds-input:hover { background: var(--bg-panel); }
+.bds-filterbar .bds-input:focus { background: var(--bg-card); }
 /* Filterbar 内控件等高 + 同形纪律：
    1. input / select 强制拉齐 btn md 高度（40px），避免 input sm(34px) vs btn(40px) 不齐
    2. input / select 强制 pill 圆角，与容器 filterbar(--radius-pill) 和按钮(--r-btn pill) 同形，

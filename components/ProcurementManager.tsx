@@ -595,7 +595,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                   <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
                     <Plus size={14} /><span>新建采购单</span>
                   </button>
-                  <div className="bds-filterbar relative flex-1 max-w-xs">
+                  <div className="relative flex-1 max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className="bds-input sm pl-9" />
                   </div>
