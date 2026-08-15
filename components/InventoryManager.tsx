@@ -296,26 +296,28 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                 <button onClick={() => setShowItemForm(true)} className="bds-btn bds-btn-primary">
                   <Plus size={14} /><span>新增物料</span>
                 </button>
-                <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ ...selectSmStyle, maxWidth: 160 }}>
-                  <option value="">全部仓库</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </select>
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bds-select" style={{ ...selectSmStyle, maxWidth: 120 }}>
-                  <option value="">全部品类</option>
-                  {ITEM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <label className="bds-check" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-                  <input type="checkbox" checked={lowStockOnly} onChange={(e) => setLowStockOnly(e.target.checked)} />
-                  <span className="box"></span>
-                  仅低库存
-                </label>
-                <div className="relative flex-1 max-w-xs">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
-                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索物料..." className="bds-input sm pl-9" />
+                <div className="bds-filterbar flex-wrap">
+                  <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ fontSize: 'var(--text-xs)', maxWidth: 160 }}>
+                    <option value="">全部仓库</option>
+                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bds-select" style={{ ...selectSmStyle, maxWidth: 120 }}>
+                    <option value="">全部品类</option>
+                    {ITEM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <label className="bds-check" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                    <input type="checkbox" checked={lowStockOnly} onChange={(e) => setLowStockOnly(e.target.checked)} />
+                    <span className="box"></span>
+                    仅低库存
+                  </label>
+                  <div className="relative flex-1 max-w-xs">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索物料..." className="bds-input sm pl-9" />
+                  </div>
+                  <button onClick={fetchItems} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  </button>
                 </div>
-                <button onClick={fetchItems} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
-                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                </button>
               </div>
 
               {/* 列表 */}

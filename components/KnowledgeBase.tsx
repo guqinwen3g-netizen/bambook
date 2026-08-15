@@ -384,7 +384,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="搜索资产..."
-                className={`pl-9 pr-4 py-2 border rounded-control outline-none font-normal text-xs transition-all w-64 shadow-sm ${'bg-[var(--recessed-bg)] border-[var(--border-c-default)] focus:ring-2 focus:ring-[var(--border-c-default)] dark:bg-deep/60 dark:text-[var(--text-primary)] dark:placeholder-[var(--text-tertiary)]'}`}
+                className={`pl-9 pr-4 py-2 border rounded-control outline-none font-normal text-xs transition-all w-64 ${'bg-[var(--recessed-bg)] border-[var(--border-c-default)] focus:ring-2 focus:ring-[var(--border-c-default)] dark:bg-deep/60 dark:text-[var(--text-primary)] dark:placeholder-[var(--text-tertiary)]'}`}
               />
             </div>
             <button onClick={() => setShowAddModal(true)} className={`px-4 py-2 rounded-full flex items-center gap-2 transition-all text-[11px] font-light tracking-wide ${'bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] dark:bg-deep/80 dark:text-[var(--text-primary)] dark:hover:bg-deep'}`}>

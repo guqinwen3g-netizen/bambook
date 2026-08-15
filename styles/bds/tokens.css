@@ -12,7 +12,8 @@
    核心 DNA：
      1. rimless    — 静态面零阴影零边框；阴影仅属浮层（modal/toast/popover）
      2. pill       — 按钮/徽章/分段器/头像全 pill（--radius-pill）
-     3. 层级圆角   — 嵌套小卡 8-12 / 输入框 16 / 标准卡 24 / 展示卡 30 / 面板 34
+     3. 层级圆角   — 同心刻度（inner = outer − padding）：微件 8/12/14 · 控件 16/18
+                     · 嵌套 22 · 卡片 24/28 · 浮层/面板 30/34；嵌套必须外大内小保层次
      4. 氛围雾     — 页面底层三色弥散雾（雾蓝/雾绿/紫藤），磨砂玻璃为一级材质
      5. 雾化色彩   — accent 雾青蓝 #3F6E7E；语义色全部低饱和雾化，小面积 dot/tint
      6. 主题透明   — 组件只引用语义 token；暗色由本文件 [data-theme] 统一覆盖，
@@ -25,8 +26,12 @@
      - 暗色选择器双写 .dark + [data-theme="dark"]：.dark 兼容现有 Tailwind
        darkMode:'class' 机制（App.tsx 根 class），data-theme 为 v2 标准，
        App.tsx 已同步双写 documentElement.dataset.theme。
-   版本：v2.1.2（2026-08-14，审计收口：warning 补齐 tint-hover/active 阶梯、新增
-         --focus-ring-danger、删除零引用 --inset-highlight、章节 1-18 真实连号）
+   版本：v2.2（2026-08-16，圆角刻度实战校准：吸收 app 签名值 14/18/22/28 为一级
+         token（compact/control/inset/card-lg），纯净七级扩为同心层级 11 档 5 层，
+         以生成规则 inner = outer − padding 定义并确立新值准入纪律；新增
+         --r-control/--r-inset/--r-toolbar/--r-compact 组件映射；其余 token 零变化）
+         前版：v2.1.2（2026-08-14，审计收口：warning 补齐 tint-hover/active 阶梯、
+         新增 --focus-ring-danger、删除零引用 --inset-highlight、章节 1-18 真实连号）
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -131,14 +136,31 @@
   --mask-bg: rgba(11,12,11,0.30);    /* 全系统唯一遮罩入口（modal/cmdk 共用） */
   --dz-line: rgba(0,0,0,0.14);       /* dropzone 虚线框 */
 
-  /* ═══════════ 8. 圆角 — 纯净七级刻度（按容器层级分配，不是越大越好） ═══════════ */
-  --radius-xs: 8px;      /* tooltip、小标签 */
-  --radius-sm: 12px;     /* 导航项、列表行、小面板 */
-  --radius-md: 16px;     /* 输入框、嵌套小卡 */
-  --radius-lg: 24px;     /* 标准卡片 */
-  --radius-xl: 30px;     /* 大卡片、模态、展示卡 */
-  --radius-2xl: 34px;    /* 页面级面板（Bambook panel 签名） */
-  --radius-pill: 999px;  /* 按钮、徽章、分段器、头像 — RDL/Halo 签名 */
+  /* ═══════════ 8. 圆角 — 同心层级刻度 · 11 档 5 层（v2.2 实战校准） ═══════════
+     生成规则：inner = outer − padding。刻度不是等比数列，而是从 panel 34 出发
+     按标准间距同心内缩的闭合集合——每档都有生成理由，嵌套必须外大内小保层次。
+       panel 34 − gap 10 = card 24      panel 34 − gap 12 = inset 22
+       card-lg 28 − pad 12 = field 16   card 24 − pad 6  = control 18
+       card 24 − inset-px ≈ inset 22    card 24 − gap 10 = compact 14
+     准入纪律：新值必须证明是某档在标准间距 token 下的同心内层，否则不得入刻度。
+     分层绑定（禁止跨层乱用）：
+       微件层 8/12/14 · 控件层 16/18 · 嵌套层 22 · 卡片层 24/28 · 浮层/面板层 30/34 */
+  /* ── 微件层 ── */
+  --radius-xs: 8px;       /* tooltip、小标签 */
+  --radius-sm: 12px;      /* 导航项、小面板 */
+  --radius-compact: 14px; /* v2.2 新增：小标签、统计块、Assistant 快捷块 */
+  /* ── 控件层 ── */
+  --radius-md: 16px;      /* 输入框（field 角色） */
+  --radius-control: 18px; /* v2.2 新增：控件签名圆角 — 下拉/图标按钮/菜单项（= card 24 − pad 6） */
+  /* ── 嵌套层 ── */
+  --radius-inset: 22px;   /* v2.2 新增：列表行、嵌套小卡（= panel 34 − gap 12；外卡 24 内保 2px 层次差） */
+  /* ── 卡片层 ── */
+  --radius-lg: 24px;      /* 标准卡片（card 角色，全系统主力值） */
+  --radius-card-lg: 28px; /* v2.2 新增：工具栏、56px 大按钮、展示卡（56px 高恰为半球比例） */
+  /* ── 浮层/面板层 ── */
+  --radius-xl: 30px;      /* 大卡片、模态、浮层（floating 角色） */
+  --radius-2xl: 34px;     /* 页面级面板（Bambook panel 签名） */
+  --radius-pill: 999px;   /* 按钮、徽章、分段器、头像 — RDL/Halo 签名 */
 
   /* ═══════════ 9. 间距 — 4px 基准非线性刻度 ═══════════ */
   --space-1: 4px;
@@ -263,14 +285,19 @@
   --r-btn: var(--radius-pill);
   --r-input: var(--radius-md);
   --r-card: var(--radius-lg);
-  --r-card-lg: var(--radius-xl);
+  --r-card-lg: var(--radius-xl);        /* 展示大卡 30px — 注意与刻度 rung card-lg(28) 不同层 */
   --r-panel: var(--radius-2xl);
   --r-modal: var(--radius-xl);
   --r-toast: var(--radius-pill);
   --r-tooltip: var(--radius-xs);
   --r-chip: var(--radius-pill);
   --r-avatar: var(--radius-pill);
-  /* 组件内部微件光学圆角（七级刻度外的组件级特例，值锁定不随刻度调整） */
+  /* v2.2 新增映射 — 同心层级刻度 4 个实战档的组件入口 */
+  --r-control: var(--radius-control);   /* 下拉/图标按钮/菜单项 18px */
+  --r-inset: var(--radius-inset);       /* 列表行/嵌套小卡 22px */
+  --r-toolbar: var(--radius-card-lg);   /* 工具栏/56px 大按钮 28px */
+  --r-compact: var(--radius-compact);   /* 小标签/统计块 14px */
+  /* 组件内部微件光学圆角（刻度外的组件级特例，值锁定不随刻度调整） */
   --r-check: 6px;      /* 18px checkbox 盒体 */
   --r-tabline: 2px;    /* tab 激活下划线 */
   /* 内距映射 */

@@ -726,6 +726,15 @@ select.bds-select:focus {
   -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
   border-radius: var(--radius-pill);
 }
+/* Filterbar 内控件等高 + 同形纪律：
+   1. input / select 强制拉齐 btn md 高度（40px），避免 input sm(34px) vs btn(40px) 不齐
+   2. input / select 强制 pill 圆角，与容器 filterbar(--radius-pill) 和按钮(--r-btn pill) 同形，
+      避免胶囊容器里塞方角矩形的几何冲突。 */
+.bds-filterbar .bds-input,
+.bds-filterbar .bds-select {
+  height: var(--h-btn-md);
+  border-radius: var(--radius-pill);
+}
 
 /* ============ 22. Form / Settings 行 — 表单与设置页高频 ============ */
 .bds-formrows { display: flex; flex-direction: column; }

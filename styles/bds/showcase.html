@@ -253,17 +253,43 @@
     <!-- ═══ 3. 圆角与间距 ═══ -->
     <section id="radius">
       <div class="sec-head">
-        <div class="sec-title">圆角与间距<span class="en">Radius &amp; Space — 纯净七级刻度</span></div>
-        <div class="sec-desc">圆角按容器层级分配，不是越大越好；间距 4px 基准非线性刻度。</div>
+        <div class="sec-title">圆角与间距<span class="en">Radius &amp; Space — 同心层级刻度 · 11 档 5 层（v2.2）</span></div>
+        <div class="sec-desc">生成规则 inner = outer − padding：每档都是外层容器在标准间距下的同心内层，嵌套必须外大内小保层次；新值准入须满足同心规则。分层绑定：微件 8/12/14 · 控件 16/18 · 嵌套 22 · 卡片 24/28 · 浮层/面板 30/34。间距 4px 基准非线性刻度。</div>
       </div>
-      <div class="grid" style="grid-template-columns: repeat(7, 1fr);">
-        <div class="col"><div class="radius-box" style="border-radius: var(--radius-xs);"><span>xs 8</span></div><div style="font-size: 10px; color: var(--text-tertiary);">tooltip</div></div>
-        <div class="col"><div class="radius-box" style="border-radius: var(--radius-sm);"><span>sm 12</span></div><div style="font-size: 10px; color: var(--text-tertiary);">列表行</div></div>
-        <div class="col"><div class="radius-box" style="border-radius: var(--radius-md);"><span>md 16</span></div><div style="font-size: 10px; color: var(--text-tertiary);">输入框</div></div>
-        <div class="col"><div class="radius-box" style="border-radius: var(--radius-lg);"><span>lg 24</span></div><div style="font-size: 10px; color: var(--text-tertiary);">标准卡</div></div>
-        <div class="col"><div class="radius-box" style="border-radius: var(--radius-xl);"><span>xl 30</span></div><div style="font-size: 10px; color: var(--text-tertiary);">模态/大卡</div></div>
-        <div class="col"><div class="radius-box" style="border-radius: var(--radius-2xl);"><span>2xl 34</span></div><div style="font-size: 10px; color: var(--text-tertiary);">页面面板</div></div>
-        <div class="col"><div class="radius-box" style="border-radius: var(--radius-pill);"><span>pill</span></div><div style="font-size: 10px; color: var(--text-tertiary);">按钮/徽章</div></div>
+      <div class="grid" style="grid-template-columns: repeat(11, 1fr);">
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-xs);"><span>xs 8</span></div><div style="font-size: 10px; color: var(--text-tertiary);">tooltip</div><div style="font-size: 9px; color: var(--text-quaternary);">微件层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-sm);"><span>sm 12</span></div><div style="font-size: 10px; color: var(--text-tertiary);">导航项</div><div style="font-size: 9px; color: var(--text-quaternary);">微件层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-compact); border-width: 2px;"><span>compact 14</span></div><div style="font-size: 10px; color: var(--text-tertiary);">小标签/统计块</div><div style="font-size: 9px; color: var(--accent-text);">v2.2 · 微件层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-md);"><span>md 16</span></div><div style="font-size: 10px; color: var(--text-tertiary);">输入框</div><div style="font-size: 9px; color: var(--text-quaternary);">控件层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-control); border-width: 2px;"><span>control 18</span></div><div style="font-size: 10px; color: var(--text-tertiary);">下拉/图标按钮</div><div style="font-size: 9px; color: var(--accent-text);">v2.2 · 控件层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-inset); border-width: 2px;"><span>inset 22</span></div><div style="font-size: 10px; color: var(--text-tertiary);">列表行/嵌套卡</div><div style="font-size: 9px; color: var(--accent-text);">v2.2 · 嵌套层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-lg);"><span>lg 24</span></div><div style="font-size: 10px; color: var(--text-tertiary);">标准卡</div><div style="font-size: 9px; color: var(--text-quaternary);">卡片层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-card-lg); border-width: 2px;"><span>card-lg 28</span></div><div style="font-size: 10px; color: var(--text-tertiary);">工具栏/大按钮</div><div style="font-size: 9px; color: var(--accent-text);">v2.2 · 卡片层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-xl);"><span>xl 30</span></div><div style="font-size: 10px; color: var(--text-tertiary);">模态/大卡</div><div style="font-size: 9px; color: var(--text-quaternary);">浮层/面板层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-2xl);"><span>2xl 34</span></div><div style="font-size: 10px; color: var(--text-tertiary);">页面面板</div><div style="font-size: 9px; color: var(--text-quaternary);">浮层/面板层</div></div>
+        <div class="col"><div class="radius-box" style="border-radius: var(--radius-pill);"><span>pill</span></div><div style="font-size: 10px; color: var(--text-tertiary);">按钮/徽章</div><div style="font-size: 9px; color: var(--text-quaternary);">签名</div></div>
+      </div>
+      <div class="specimen" style="margin-top: var(--space-4);">
+        <div class="bds-overline" style="font-size: 10px; margin-bottom: var(--space-3);">同心生成规则 · inner = outer − padding</div>
+        <div style="display: flex; gap: var(--space-6); align-items: center; flex-wrap: wrap;">
+          <div style="border-radius: var(--radius-2xl); background: var(--bg-panel); padding: 12px;">
+            <div style="border-radius: var(--radius-inset); background: var(--bg-sunken); padding: 6px;">
+              <div style="border-radius: var(--radius-md); background: var(--accent-tint-strong); height: 44px; width: 132px; display: flex; align-items: flex-end; padding: 4px;">
+                <span style="font-size: 9px; font-family: var(--font-mono); color: var(--accent-text);">34 → 22 → 16</span>
+              </div>
+            </div>
+          </div>
+          <div style="font-size: var(--text-xs); color: var(--text-secondary); line-height: 2; font-family: var(--font-mono);">
+            panel 34 − gap 10 = card 24<br>
+            panel 34 − gap 12 = inset 22<br>
+            card-lg 28 − pad 12 = field 16<br>
+            card 24 − pad 6 = control 18<br>
+            card 24 − gap 10 = compact 14
+          </div>
+          <div style="font-size: var(--text-xs); color: var(--text-tertiary); max-width: 320px; line-height: 1.8;">
+            刻度不是等比数列，而是从 panel 34 出发按标准间距同心内缩的闭合集合。嵌套必须外大内小保层次（如外卡 24 + 内卡 22 的 2px 层次差）；新值准入须证明是某档在标准间距 token 下的同心内层，否则不得进入刻度。
+          </div>
+        </div>
       </div>
       <div class="specimen" style="margin-top: var(--space-6);">
         <div class="col" style="gap: var(--space-2);">
@@ -1552,7 +1578,7 @@
     </section>
 
     <footer>
-      Bambook Design System v2.1 · token 真源 styles/bds/tokens.css · 组件真源 styles/bds/components.css · 防回退 npm run check:tokens
+      Bambook Design System v2.2 · token 真源 styles/bds/tokens.css · 组件真源 styles/bds/components.css · 防回退 npm run check:tokens
     </footer>
   </div>
 </div>

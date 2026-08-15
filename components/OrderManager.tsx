@@ -913,11 +913,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               placeholder="搜索订单号/客户/品号..."
               className="bds-input sm min-w-[100px] max-w-[180px] flex-1"
             />
-            <div className="relative h-8 shrink-0">
+            <div className="relative shrink-0">
               <select
                 value={orderFilterStatus}
                 onChange={e => setOrderFilterStatus(e.target.value)}
-                className="bds-select h-8 pl-3.5 pr-8 text-xs"
+                className="bds-select pl-3.5 pr-8 text-xs"
               >
                 <option value="all">全部状态</option>
                 <option value="Pending">待确认</option>
@@ -930,7 +930,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
             </div>
             <div className={`h-5 w-px shrink-0 ${DIVIDER_CLASS}`} />
-            <div className="flex h-8 items-center gap-0.5">
+            <div className="flex items-center gap-0.5">
               {allowGlobeView && (
                 <button
                   type="button"
@@ -1759,7 +1759,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               }}
               className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light bg-[var(--bg-sunken)] ${TXT_SECONDARY}`}
             >
-              <div className={`p-2 rounded-2xl bg-[var(--hover-darken)] ${TXT_MUTED}`}><Edit2 size={18} /></div>
+              <div className={`p-2 rounded-control bg-[var(--hover-darken)] ${TXT_MUTED}`}><Edit2 size={18} /></div>
               编辑详情
             </button>
             <div className="p-4 rounded-inset space-y-4 bg-[var(--bg-sunken)]">
@@ -1797,7 +1797,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               }}
               className="w-full p-4 rounded-inset flex items-center gap-4 text-left font-light bg-[var(--danger-tint)] text-[var(--danger-text)]"
             >
-              <div className="p-2 rounded-2xl bg-[var(--danger-tint-hover)] text-[var(--danger-text)]"><Trash2 size={18} /></div>
+              <div className="p-2 rounded-control bg-[var(--danger-tint-hover)] text-[var(--danger-text)]"><Trash2 size={18} /></div>
               归档订单
             </button>
           </div>

@@ -214,7 +214,7 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
   return (
     <div className="bg-surface-elevated rounded-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-text-primary">轨道 A 估算（系统推荐 · 仅内部）</h3>
+        <h3 className="text-sm font-light text-text-primary">轨道 A 估算（系统推荐 · 仅内部）</h3>
         <div className="flex items-center gap-1">
           {(['garment', 'fabric'] as TrackACategory[]).map((c) => (
             <button
@@ -350,7 +350,7 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
               ))}
               <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-border-subtle">
                 <span className="text-xs text-text-secondary">成本合计（中位）</span>
-                <span className="text-sm font-medium text-text-primary">¥{formatMoney(result.costTotalCny)}</span>
+                <span className="text-sm font-light text-text-primary">¥{formatMoney(result.costTotalCny)}</span>
               </div>
             </div>
           </div>
@@ -358,17 +358,17 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-surface-primary rounded-inset p-3">
               <p className="text-xs text-text-tertiary">估算下限</p>
-              <p className="text-base font-medium text-text-primary">¥{formatMoney(result.priceLowCny)}</p>
+              <p className="text-base font-light text-text-primary">¥{formatMoney(result.priceLowCny)}</p>
               {result.priceLowUsd !== null && <p className="text-xs text-text-tertiary mt-0.5">${formatMoney(result.priceLowUsd)}</p>}
             </div>
             <div className="bg-surface-primary rounded-inset p-3 border border-border-action">
               <p className="text-xs text-text-tertiary">估算中位（含利润 {result.profitBenchmark}%）</p>
-              <p className="text-base font-medium text-text-primary">¥{formatMoney(result.priceMedianCny)}</p>
+              <p className="text-base font-light text-text-primary">¥{formatMoney(result.priceMedianCny)}</p>
               {result.priceMedianUsd !== null && <p className="text-xs text-text-tertiary mt-0.5">${formatMoney(result.priceMedianUsd)}</p>}
             </div>
             <div className="bg-surface-primary rounded-inset p-3">
               <p className="text-xs text-text-tertiary">估算上限</p>
-              <p className="text-base font-medium text-text-primary">¥{formatMoney(result.priceHighCny)}</p>
+              <p className="text-base font-light text-text-primary">¥{formatMoney(result.priceHighCny)}</p>
               {result.priceHighUsd !== null && <p className="text-xs text-text-tertiary mt-0.5">${formatMoney(result.priceHighUsd)}</p>}
             </div>
           </div>

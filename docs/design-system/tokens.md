@@ -1,5 +1,14 @@
 # Tokens
 
+> **权威声明（2026-08-16 · BDS v2.2 起）**：本文描述的是 **legacy 三层 token 体系**
+> （os-vnext.css / bambookOsTokens.ts / bambookDesignSystem.ts），仅用于维护旧组件。
+> **现行唯一设计真源是 BDS v2.2**：
+> - Token 真源：`styles/bds/tokens.css`（含同心层级圆角刻度 11 档 5 层）
+> - 组件真源：`styles/bds/components.css`（.bds-* 类）
+> - 可视规范：`styles/bds/showcase.html`
+> - 新代码必须引用 BDS v2.2 token 与 .bds-* 类；下文的 legacy 映射仅供收编迁移参考，
+>   legacy 轨将按批次退役，最终目标全量 BDS 化。
+
 Bambook OS uses three token layers.
 
 ## Primitive Tokens

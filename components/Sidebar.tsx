@@ -100,7 +100,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
           onClick={() => setIsCollapsed(false)}
           aria-label="展开侧边栏"
           data-sidebar-collapsed-expand-button
-          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-[20px] bg-[rgb(255_255_255/0.68)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[rgb(255_255_255/0.84)]"
+          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[rgb(255_255_255/0.68)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[rgb(255_255_255/0.84)]"
         >
           <ChevronRight size={18} strokeWidth={1.35} />
         </button>

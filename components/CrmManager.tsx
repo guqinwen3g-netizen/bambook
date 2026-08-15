@@ -379,7 +379,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
 
       {/* 客户选择器 + 搜索 */}
       <div className="px-7 pt-3 pb-3 flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+        <div className="bds-filterbar flex-1 min-w-[240px]">
           <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
           <input
             type="text"
@@ -388,20 +388,20 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
             onChange={(e) => setSearch(e.target.value)}
             className="bds-input sm flex-1"
           />
+          <select
+            value={selectedRelationId ?? ''}
+            onChange={(e) => setSelectedRelationId(e.target.value || null)}
+            className="bds-select"
+            style={{ width: 'auto', minWidth: 200 }}
+          >
+            <option value="">选择客户...</option>
+            {relations.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} ({r.category})
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={selectedRelationId ?? ''}
-          onChange={(e) => setSelectedRelationId(e.target.value || null)}
-          className="bds-select"
-          style={{ width: 'auto', minWidth: 200 }}
-        >
-          <option value="">选择客户...</option>
-          {relations.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name} ({r.category})
-            </option>
-          ))}
-        </select>
         <button
           onClick={loadRelations}
           className="bds-btn bds-btn-ghost bds-btn-icon"

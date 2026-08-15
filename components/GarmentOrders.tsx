@@ -102,7 +102,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
   const textSecondaryClass = 'text-[var(--text-tertiary)]';
   // ── 主题自适应单配方（P2 收口）：暗色由 .dark 根 class + token 翻转承载，禁止 isDarkMode 三元拼类 ──
   const surfaceClass = 'bg-[var(--bg-card)] border-[var(--border-c-default)]';
-  const orderCardActiveClass = 'bg-[var(--bg-card)] border-[var(--border-c-strong)] shadow-md';
+  const orderCardActiveClass = 'bg-[var(--bg-card)] border-[var(--border-c-strong)]';
   const orderCardIdleClass = 'bg-[var(--recessed-bg-strong)] border-[var(--border-c-default)] hover:bg-[var(--active-darken)]';
   const errorTextClass = 'text-[var(--danger-text)]';
   const progressTrackClass = 'bg-[var(--recessed-bg-strong)]';

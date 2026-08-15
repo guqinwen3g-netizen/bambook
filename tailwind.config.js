@@ -70,24 +70,27 @@ export default {
         black: 300,
       },
       // ── Bambook Flat Design 圆角 token（legacy 语义类，视觉零变化保留） ──
-      // 映射 os-vnext.css / --bambook-rdl-radius-* token 到语义类，
-      // 组件用 rounded-card / rounded-inset 等，不再写 rounded-[22px]。
-      // 值与实际渲染一致，替换后视觉零变化。
-      // 新代码优先使用 BDS v2 纯净刻度（rounded-bds-*，映射 var(--radius-*)）。
+      // v2.2 收编（2026-08-16）：值从裸 px 改为 var() 引用，全部指向
+      // styles/bds/tokens.css 同心层级刻度——legacy 轨与 BDS 轨从此同源，
+      // 裸值只许存在于 tokens.css。值与原裸值完全一致，视觉零变化。
       borderRadius: {
-        'panel': '34px',     // --os-vnext-radius-panel / --bambook-rdl-radius-panel
-        'card': '24px',      // --os-vnext-radius-card
-        'card-lg': '28px',   // --bambook-rdl-radius-card / --bambook-rdl-radius-toolbar
-        'inset': '22px',     // --bambook-rdl-radius-inset
-        'floating': '30px',  // --bambook-rdl-radius-floating
-        'control': '18px',   // --os-vnext-radius-control
-        'field': '16px',     // --os-vnext-radius-field
-        'compact': '14px',   // 新增：覆盖 Assistant.tsx 等的 14px 用法
-        // ── BDS v2 纯净刻度（styles/bds/tokens.css var 引用，主题无关） ──
+        'panel': 'var(--radius-2xl)',      // 34px 页面级面板
+        'card': 'var(--radius-lg)',        // 24px 标准卡片
+        'card-lg': 'var(--radius-card-lg)',// 28px 工具栏/大按钮
+        'inset': 'var(--radius-inset)',    // 22px 列表行/嵌套卡
+        'floating': 'var(--radius-xl)',    // 30px 浮层/大卡
+        'control': 'var(--radius-control)',// 18px 控件签名圆角
+        'field': 'var(--radius-md)',       // 16px 输入框
+        'compact': 'var(--radius-compact)',// 14px 小标签/统计块
+        // ── BDS v2.2 同心层级刻度（styles/bds/tokens.css var 引用，主题无关） ──
         'bds-xs': 'var(--radius-xs)',       // 8px  tooltip/小标签
         'bds-sm': 'var(--radius-sm)',       // 12px 导航项/列表行
+        'bds-compact': 'var(--radius-compact)',   // 14px 小标签/统计块（v2.2）
         'bds-md': 'var(--radius-md)',       // 16px 输入框/嵌套小卡
+        'bds-control': 'var(--radius-control)',   // 18px 控件签名圆角（v2.2）
+        'bds-inset': 'var(--radius-inset)',       // 22px 列表行/嵌套卡（v2.2）
         'bds-lg': 'var(--radius-lg)',       // 24px 标准卡片
+        'bds-card-lg': 'var(--radius-card-lg)',   // 28px 工具栏/大按钮（v2.2）
         'bds-xl': 'var(--radius-xl)',       // 30px 大卡/模态
         'bds-2xl': 'var(--radius-2xl)',     // 34px 页面级面板（Bambook panel 签名）
         'bds-pill': 'var(--radius-pill)',   // 999px 按钮/徽章/分段器

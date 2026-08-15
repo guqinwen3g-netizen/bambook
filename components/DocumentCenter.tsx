@@ -401,7 +401,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           {isExpanded ? <ChevronDown size={13} className="shrink-0 opacity-60" /> : <ChevronRight size={13} className="shrink-0 opacity-60" />}
-                          <span className="text-sm font-medium">{doc.documentNumber}</span>
+                          <span className="text-sm font-light">{doc.documentNumber}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusSemanticClass(si.semantic, isDarkMode)} ${statusSemanticText(si.semantic, isDarkMode)}`}>{si.label}</span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                             {docTypeLabel(doc.type)}
@@ -492,7 +492,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                                   <div key={v.id} className={`rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                                     <div className="flex items-center justify-between gap-2 px-3 py-2">
                                       <div className="flex items-center gap-2 min-w-0 text-xs">
-                                        <span className={`font-medium text-[var(--text-primary)]`}>v{v.version}</span>
+                                        <span className={`font-light text-[var(--text-primary)]`}>v{v.version}</span>
                                         <span className="opacity-70">{v.changeReason || '—'}</span>
                                         <span className="opacity-50">{v.changedBy || '—'} · {fmtTs(v.createdAt)}</span>
                                       </div>
@@ -893,7 +893,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
                 return (
                   <div key={item.id} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                     <div className="flex items-center gap-2 min-w-0 text-xs flex-wrap">
-                      <span className={`font-medium text-[var(--text-primary)]`}>{item.documentNumber}</span>
+                      <span className={`font-light text-[var(--text-primary)]`}>{item.documentNumber}</span>
                       <span className="opacity-70">{docTypeLabel(item.type)}</span>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(si.semantic, isDarkMode)} ${statusSemanticText(si.semantic, isDarkMode)}`}>{si.label}</span>
                       <span className="opacity-50">{item.latestVersion != null ? `v${item.latestVersion}` : '无版本'}</span>

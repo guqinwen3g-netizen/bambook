@@ -23,9 +23,16 @@ EXCLUDE_GLOBS=(
 )
 
 # ── 基线（2026-08-06 根背景色 token 化后收拢，只减不增）──
-BASELINE_ROUNDED=3        # 壁纸缩略图 17px / checkbox 等豁免边缘值（2026-08-06 阶段 B 收拢 4→3）
+BASELINE_ROUNDED=1        # 2026-08-16 批 1 收拢 3→1：Sidebar/Settings 2 处改语义类；
+                          # 余 1 处为 pwa/mobile/MobileWebNavigation.tsx rounded-[20px]（移动端冻结区，搁置不动）
 BASELINE_HEX_TAILWIND=0   # 全部 hex 颜色已 token 化（bg-app-dark/bg-app-light/text-deep 等）
 BASELINE_HEX_INLINE=8     # 内联 style 中的灰色（已 token 化的排除）
+# ── BDS v2.2 新增守卫基线（2026-08-16 批 2 建立，只减不增）──
+# v2.2 同心层级刻度收编后，裸 Tailwind 圆角刻度类（rounded-xs/sm/md/lg/xl/2xl/3xl）
+# 与 font-medium/semibold/bold 写法（全局 Light 300 纪律，机制已坍缩 300 但写法必须统一
+# 为 font-light）均属违例；现存基线全部为 pwa/mobile 移动端冻结区存量（搁置不动）。
+BASELINE_BARE_RADIUS=4    # pwa/mobile 裸圆角档：MobileWebNavigation 3 + MobileWebApp 1
+BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + MobileWebApp 1
 # ── BDS v2 主题耦合基线（2026-08-13 建立，只减不增）──
 # v2 纪律：新组件对主题机制透明（无 isDarkMode 三元），
 # 暗色优先由 tokens.css [data-theme] 覆盖承载；
@@ -137,15 +144,46 @@ echo "  📊 BDS v2 采用度：${bds_adopt_files} 个 tsx 文件已使用 .bds-
 errors=$((errors + coupling_errors))
 echo ""
 
+# ── 6. 检查裸 Tailwind 圆角刻度类（BDS v2.2 同心层级刻度收编后属违例）──
+echo "▸ 检查裸 Tailwind 圆角刻度类（rounded-xs/sm/md/lg/xl/2xl/3xl）..."
+bare_radius_count=$(rg -c 'rounded-(xs|sm|md|lg|xl|2xl|3xl)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+if [ "$bare_radius_count" -gt "$BASELINE_BARE_RADIUS" ]; then
+  echo "  ❌ 裸 Tailwind 圆角刻度类增加（基线 ${BASELINE_BARE_RADIUS} → 当前 ${bare_radius_count}）"
+  echo "  请使用 BDS v2.2 语义类：rounded-panel/card/card-lg/inset/control/field/compact/floating"
+  echo "  或同心刻度 var 引用类：rounded-bds-xs/sm/compact/md/control/inset/lg/card-lg/xl/2xl/pill"
+  rg -n 'rounded-(xs|sm|md|lg|xl|2xl|3xl)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  errors=$((errors + 1))
+elif [ "$bare_radius_count" -lt "$BASELINE_BARE_RADIUS" ]; then
+  echo "  ✅ 裸圆角刻度类减少（基线 ${BASELINE_BARE_RADIUS} → 当前 ${bare_radius_count}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ 裸圆角刻度类维持基线（$bare_radius_count 处，均为移动端冻结区存量）"
+fi
+echo ""
+
+# ── 7. 检查 font-medium/semibold/bold 字重写法（全局 Light 300 纪律）──
+echo "▸ 检查 font-medium/semibold/bold 字重写法..."
+font_weight_count=$(rg -c 'font-(medium|semibold|bold)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+if [ "$font_weight_count" -gt "$BASELINE_FONT_WEIGHT" ]; then
+  echo "  ❌ 过重字重写法增加（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）"
+  echo "  全局 Light 300 纪律：请写 font-light（机制已坍缩 font-medium→300，但写法必须统一）"
+  rg -n 'font-(medium|semibold|bold)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  errors=$((errors + 1))
+elif [ "$font_weight_count" -lt "$BASELINE_FONT_WEIGHT" ]; then
+  echo "  ✅ 过重字重写法减少（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ 字重写法维持基线（$font_weight_count 处，均为移动端冻结区存量）"
+fi
+echo ""
+
 # ── 总结 ──
 echo "═══ 总结 ═══"
 if [ "$errors" -gt 0 ]; then
-  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex Tailwind 类）"
-  echo "   基线：rounded=$BASELINE_ROUNDED, hex_tailwind=$BASELINE_HEX_TAILWIND"
+  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex/裸刻度/过重字重）"
+  echo "   基线：rounded=$BASELINE_ROUNDED, hex_tailwind=$BASELINE_HEX_TAILWIND, bare_radius=$BASELINE_BARE_RADIUS, font_weight=$BASELINE_FONT_WEIGHT"
   echo "   如需更新基线，请编辑 scripts/check-design-tokens.sh 并在 commit 中说明"
   exit 1
 else
-  echo "✅ 设计 token 防回退检查通过（基线模式）"
-  echo "   当前：rounded=$rounded_count, hex_tailwind=$hex_tailwind_count, hex_inline=$hex_inline_count"
+  echo "✅ 设计 token 防回退检查通过（基线模式 · BDS v2.2）"
+  echo "   当前：rounded=$rounded_count, hex_tailwind=$hex_tailwind_count, hex_inline=$hex_inline_count, bare_radius=$bare_radius_count, font_weight=$font_weight_count"
   exit 0
 fi

@@ -180,7 +180,7 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
 
   return (
     <div className="bg-surface-elevated rounded-card p-5">
-      <h3 className="text-sm font-medium text-text-primary mb-4">{title ?? '轨道 B 试算（退税美元定价）'}</h3>
+      <h3 className="text-sm font-light text-text-primary mb-4">{title ?? '轨道 B 试算（退税美元定价）'}</h3>
       <div className="grid grid-cols-2 gap-3">
         <Field label="采购成本（CNY 单价）">
           <input className={inputClass} value={purchaseCostCny} onChange={(e) => { setPurchaseCostCny(e.target.value); setPreview(null); }} placeholder="如 32.50" inputMode="decimal" />
@@ -246,19 +246,19 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="bg-surface-primary rounded-inset p-3">
             <p className="text-xs text-text-tertiary">退税后美元成本</p>
-            <p className="text-lg font-medium text-text-primary">${preview.netUsdCost.toFixed(4)}</p>
+            <p className="text-lg font-light text-text-primary">${preview.netUsdCost.toFixed(4)}</p>
           </div>
           <div className="bg-surface-primary rounded-inset p-3">
             <p className="text-xs text-text-tertiary">利润额</p>
-            <p className="text-lg font-medium text-text-primary">${preview.profitAmount.toFixed(4)}</p>
+            <p className="text-lg font-light text-text-primary">${preview.profitAmount.toFixed(4)}</p>
           </div>
           <div className="bg-surface-primary rounded-inset p-3">
             <p className="text-xs text-text-tertiary">佣金额</p>
-            <p className="text-lg font-medium text-text-primary">${preview.commissionAmount.toFixed(4)}</p>
+            <p className="text-lg font-light text-text-primary">${preview.commissionAmount.toFixed(4)}</p>
           </div>
           <div className="bg-surface-primary rounded-inset p-3 border border-border-action">
             <p className="text-xs text-text-tertiary">终价美元单价</p>
-            <p className="text-lg font-medium text-text-primary">${preview.finalUnitPrice.toFixed(4)}</p>
+            <p className="text-lg font-light text-text-primary">${preview.finalUnitPrice.toFixed(4)}</p>
           </div>
         </div>
       )}

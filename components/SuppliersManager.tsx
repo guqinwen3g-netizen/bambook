@@ -551,7 +551,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
         {/* ── 左侧：排名列表 ── */}
         <div className="w-80 shrink-0 flex flex-col bds-card overflow-hidden" style={{ padding: 0 }}>
           <div className="p-3 space-y-2" style={{ borderBottom: 'var(--border-subtle)' }}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center bds-filterbar">
               <div className="relative flex-1 min-w-0">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                 <input
@@ -664,7 +664,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                 <div className="flex items-start gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-base font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      <h2 className="text-base font-light truncate" style={{ color: 'var(--text-primary)' }}>
                         {detail?.relation?.name || selectedProfile.relation?.name || selectedProfile.relationId}
                       </h2>
                       {(detail?.blacklistedAt ?? selectedProfile.blacklistedAt) != null && (
@@ -874,7 +874,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
 function ScoreBadge({ label, score }: { label: string; score: number }) {
   return (
     <div className="flex flex-col items-center px-3 py-2 rounded-card" style={SEMANTIC_TINT_STYLE[scoreSemantic(score)]}>
-      <span className="text-lg font-medium leading-none">{Math.round(score)}</span>
+      <span className="text-lg font-light leading-none">{Math.round(score)}</span>
       <span className="text-[10px] mt-1 opacity-70">{label}分</span>
     </div>
   );
@@ -1141,7 +1141,7 @@ function CapacityTab({
             return (
               <div key={row.id} className="bds-card flat" style={{ padding: 'var(--space-3)' }}>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium w-20" style={{ color: 'var(--text-primary)' }}>{row.month}</span>
+                  <span className="text-sm font-light w-20" style={{ color: 'var(--text-primary)' }}>{row.month}</span>
                   <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                     计划 {formatNumber(cap)} {row.unit || ''}
                   </span>

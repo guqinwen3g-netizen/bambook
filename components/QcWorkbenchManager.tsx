@@ -374,14 +374,14 @@ function AssignmentsPanel() {
 
   return (
     <div className="h-full flex flex-col min-h-0 gap-4">
-      {/* 操作条：QC 人员筛选 + 刷新 + 新建 */}
-      <div className="shrink-0 flex items-center gap-2 flex-wrap">
+      {/* 操作条：QC 人员筛选 + 刷新 + 新建（bds-filterbar：内控 40px 等高 + pill 同形） */}
+      <div className="shrink-0 bds-filterbar flex-wrap">
         <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>QC 人员</span>
         <select
           value={qcUserFilter}
           onChange={(e) => setQcUserFilter(e.target.value)}
           className="bds-select"
-          style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
+          style={{ width: 'auto', fontSize: 'var(--text-xs)' }}
         >
           <option value="">全部</option>
           {users.map((u) => (

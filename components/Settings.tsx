@@ -804,7 +804,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                                   <button
                                     type="button"
                                     onClick={() => handleUpdate('backgroundImage', preset.url)}
-                                    className="group/wp relative flex h-20 w-full flex-col justify-end overflow-hidden rounded-[17px] p-2 text-left"
+                                    className="group/wp relative flex h-20 w-full flex-col justify-end overflow-hidden rounded-control p-2 text-left"
                                   >
                                     {preset.url ? (
                                       <>

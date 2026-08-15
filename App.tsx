@@ -1299,7 +1299,7 @@ const App: React.FC = () => {
   if (authState.isLoading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-300 dark:bg-none dark:bg-app-dark">
-        <div className="text-xs font-medium tracking-[0.22em] uppercase text-slate-400 dark:text-slate-500">
+        <div className="text-xs font-light tracking-[0.22em] uppercase text-slate-400 dark:text-slate-500">
           Checking session...
         </div>
       </div>
@@ -1386,7 +1386,7 @@ const App: React.FC = () => {
           <div className="flex items-start gap-3">
             <ShieldAlert size={16} className="mt-0.5 shrink-0 text-red-200" />
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Agent 浮窗已关闭</div>
+              <div className="font-light">Agent 浮窗已关闭</div>
               <div className="mt-1 line-clamp-3 break-words text-xs leading-5 text-red-100/80">
                 {agentPetRendererError.message}
               </div>

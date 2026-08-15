@@ -450,7 +450,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
 
           {/* 工具栏（制单工具 tab 为本地面板，无列表工具栏） */}
           {!TOOL_TAB_IDS.has(activeTab) && (
-          <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <div className="flex items-center bds-filterbar mb-4 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input
@@ -463,7 +463,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
               />
             </div>
             {activeTab !== 'hsCodes' && (
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bds-select" style={{ maxWidth: 140, height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bds-select" style={{ maxWidth: 140, fontSize: 'var(--text-xs)' }}>
                 <option value="">全部状态</option>
                 {activeTab === 'declarations' && DECLARATION_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                 {activeTab === 'lettersOfCredit' && LC_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
@@ -516,7 +516,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             {isExpanded ? <ChevronDown size={14} style={{ color: 'var(--text-quaternary)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-quaternary)' }} />}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium truncate bds-mono">{decl.declarationNumber}</span>
+                                <span className="text-sm font-light truncate bds-mono">{decl.declarationNumber}</span>
                                 <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[si.semantic]}`}>{si.label}</span>
                                 <span className={`bds-badge sm ${CUSTOMS_TYPES.find(t => t.id === decl.type)?.id === 'Export' ? 'info' : 'warning'}`}>
                                   {CUSTOMS_TYPES.find(t => t.id === decl.type)?.label || decl.type}
@@ -528,7 +528,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <div className="text-sm font-medium bds-tnum">{decl.currency || ''} {formatNum(decl.totalValue)}</div>
+                              <div className="text-sm font-light bds-tnum">{decl.currency || ''} {formatNum(decl.totalValue)}</div>
                               <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>{formatDate(decl.declarationDate)}</div>
                             </div>
                           </div>
@@ -668,7 +668,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-medium bds-mono">{lc.lcNumber}</span>
+                                <span className="text-sm font-light bds-mono">{lc.lcNumber}</span>
                                 <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[si.semantic]}`}>{si.label}</span>
                                 <span className="bds-badge sm neutral">
                                   {LC_TYPES.find(t => t.id === lc.type)?.label || lc.type}
@@ -684,7 +684,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <div className="text-sm font-medium bds-tnum">{lc.currency} {formatNum(lc.amount)}</div>
+                              <div className="text-sm font-light bds-tnum">{lc.currency} {formatNum(lc.amount)}</div>
                               {lc.availableAmount && lc.availableAmount !== lc.amount && (
                                 <div className="text-[10px] bds-tnum" style={{ color: 'var(--text-quaternary)' }}>可用: {formatNum(lc.availableAmount)}</div>
                               )}
@@ -727,7 +727,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                         </div>
                                         <div className={`flex-1 min-w-0 ${isLast ? 'pb-1' : 'pb-3'}`}>
                                           <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-xs font-medium" style={{ color: SEMANTIC_TEXT_COLOR[evStatus.semantic] }}>{evStatus.label}</span>
+                                            <span className="text-xs font-light" style={{ color: SEMANTIC_TEXT_COLOR[evStatus.semantic] }}>{evStatus.label}</span>
                                             <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>{formatDate(ev.eventDate)}</span>
                                             {ev.actorId && <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>操作人: {ev.actorId}</span>}
                                           </div>
@@ -779,7 +779,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-medium bds-mono">{tr.refundNumber}</span>
+                                <span className="text-sm font-light bds-mono">{tr.refundNumber}</span>
                                 <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[si.semantic]}`}>{si.label}</span>
                               </div>
                               <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -791,7 +791,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 <div><span className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>FOB 金额</span><span className="bds-tnum">{tr.exportAmountFobCurrency || ''} {formatNum(tr.exportAmountFob)}</span></div>
                                 <div><span className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>折人民币</span><span className="bds-tnum">CNY {formatNum(tr.exportAmountCny)}</span></div>
                                 <div><span className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>退税率</span><span className="bds-tnum">{tr.refundableRate ? `${formatNum(tr.refundableRate, 4)}%` : '—'}</span></div>
-                                <div><span className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>退税额</span><span className="font-medium bds-tnum" style={{ color: 'var(--success-text)' }}>CNY {formatNum(tr.refundAmount)}</span></div>
+                                <div><span className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>退税额</span><span className="font-light bds-tnum" style={{ color: 'var(--success-text)' }}>CNY {formatNum(tr.refundAmount)}</span></div>
                               </div>
                               {tr.reviewNotes && (
                                 <div className={`bds-alert ${SEMANTIC_BADGE_VARIANT[si.semantic] === 'neutral' ? 'info' : SEMANTIC_BADGE_VARIANT[si.semantic]} mt-2`}>

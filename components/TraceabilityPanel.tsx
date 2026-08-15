@@ -230,7 +230,7 @@ export function TraceabilityPanel({
               onClick={() => runTrace(scenario, rootId)}
               disabled={loading}
               className={cx(
-                'flex h-9 items-center gap-1.5 rounded-field px-4 text-xs font-medium transition-colors',
+                'flex h-9 items-center gap-1.5 rounded-field px-4 text-xs font-light transition-colors',
                 'bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-[var(--invert-bg-hover)]',
                 loading && 'opacity-50',
               )}
@@ -289,7 +289,7 @@ export function TraceabilityPanel({
               {Array.from(groupedNodes.entries()).map(([type, nodes]) => (
                 <RdlSurface key={type} tone="card" padding="compact" className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className={cx('text-[11px] font-medium', nodeTypeTone(type))}>
+                    <span className={cx('text-[11px] font-light', nodeTypeTone(type))}>
                       {nodeTypeLabel(type)}
                     </span>
                     <span className={cx('text-[10px] font-light', textFaint)}>
