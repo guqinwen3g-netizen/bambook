@@ -32,7 +32,14 @@ BASELINE_HEX_INLINE=8     # 内联 style 中的灰色（已 token 化的排除�
 # P2 收口（2026-08-15）允许单写自适应类内使用 Tailwind `dark:` 变体
 # （.dark 根 class，替代旧 isDarkMode JS 三元 + _DARK/_LIGHT 双写常量），
 # dark: 变体因此成为合规载体并一次性上调基线，此后只减不增。
-BASELINE_DARK_VARIANT=198      # dark: Tailwind 变体（P2 自适应单配方坍缩产物，2026-08-15 上调 34→162；
+BASELINE_DARK_VARIANT=196      # dark: Tailwind 变体（P2 自适应单配方坍缩产物，2026-08-15 上调 34→162；
+                               # 2026-08-15 P3-2 sidebar/sidepanel 双写坍缩 199→196（净 -3）：
+                               # Sidebar 导航 / ContactList idle+active / OrgChart press 的 dark:active:bg 覆盖
+                               # 随 listRow 单配方（--active-darken 主题自适应）消除 4 处，
+                               # CONTACT_LIST_ACTIVE_CLASS 并入 dark:text-[var(--text-primary)] 1 处；
+                               # 2026-08-15 P3-1 compiledRelationsTemplates 双写常量坍缩 198→199：
+                               # RELATIONS_TOOLBAR_SEGMENT_ACTIVE LIGHT/DARK 双写 → 单写自适应（dark: 变体承载暗色），
+                               # 同步删除 relationsFormStyles 4 条兼容垫片导出；
                                # 2026-08-15 sidebar/shell 家族收口 162→172：Sidebar press 差异 1 +
                                # FolderTabCard SVG stop/stroke 3 + ToggleSwitch 轨道/滑块 3 + 同批未提交存量漂移 3；
                                # 2026-08-15 order/ui 长尾家族收口 +6：DesignTuner 面板/控件 5 + UserAvatar halo 阴影 1；

@@ -33,10 +33,10 @@ import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import {
   CompiledInteractiveCard,
   COMPILED_SIDE_PANEL_BASE_CLASS,
-  COMPILED_SIDE_PANEL_DARK_CLASS
+  COMPILED_SIDE_PANEL_CLASS
 } from './ui/osCompiler/compiledPrimitives';
 import { PageHeader } from './ui/PageHeader';
-import { SIDEBAR_HOVER_DARK_CLASS } from './ui/osCompiler/compiledSidebarTemplates';
+import { SIDEBAR_HOVER_CLASS } from './ui/osCompiler/compiledSidebarTemplates';
 import { Relation, Order, View } from '../types';
 
 interface Tool {
@@ -152,9 +152,9 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
     setSelectedTool(null);
   };
 
-  // COMPILED_SIDE_PANEL_DARK_CLASS 与 LIGHT 版已坍缩为同一自适应配方（BAMBOOK_OS.material.glassColor），
-  // SIDEBAR_HOVER_DARK_CLASS 与 LIGHT 版同为 hover:bg-[var(--recessed-bg)]，故单类承载双主题
-  const cardClass = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_DARK_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_DARK_CLASS}`;
+  // P3-2 收编：COMPILED_SIDE_PANEL_CLASS / SIDEBAR_HOVER_CLASS 单写自适应承载双主题
+  // （真源 BAMBOOK_OS.material.glassColor / controls.listRow.hover）。
+  const cardClass = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_CLASS}`;
 
   return (
     <div

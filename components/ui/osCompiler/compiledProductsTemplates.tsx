@@ -30,8 +30,8 @@ import {
 } from '../relationsFormStyles';
 import {
   SIDEBAR_ACTIVE_CLASS,
-  SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_PRESS_DARK_CLASS,
+  SIDEBAR_HOVER_CLASS,
+  SIDEBAR_PRESS_CLASS,
 } from './compiledSidebarTemplates';
 import {
   COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS,
@@ -3327,8 +3327,8 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                   const ProductAvatarIcon = PRODUCT_MAIN_CATEGORY_DEFINITIONS.find(category => category.id === p.mainCategory)?.icon || Box;
                   
                   const activeClass = SIDEBAR_ACTIVE_CLASS;
-                  const hoverClass = SIDEBAR_HOVER_DARK_CLASS;
-                  const pressClass = SIDEBAR_PRESS_DARK_CLASS;
+                  const hoverClass = SIDEBAR_HOVER_CLASS;
+                  const pressClass = SIDEBAR_PRESS_CLASS;
                   
                   return (
                     <button

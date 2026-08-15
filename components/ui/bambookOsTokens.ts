@@ -196,6 +196,14 @@ export const BAMBOOK_OS = {
       title: 'block text-sm font-light tracking-tight',
       desc: 'mt-1 block text-xs font-light leading-snug',
     },
+    // P3-2 收编：列表/导航行交互态单配方真源（BDS 纪律：hover 统一 --hover-darken /
+    // active 用 --active-darken，见 components.css v2.1.1）。消除原 Sidebar.tsx
+    // （recessed-bg 系）与 compiledSidebarTemplates 双真源、双写常量的配方分歧。
+    listRow: {
+      hover: 'hover:bg-[var(--hover-darken)] hover:shadow-none',
+      press: 'active:scale-[0.98] active:bg-[var(--active-darken)]',
+      idleIcon: '!text-[var(--text-tertiary)]',
+    },
     recessedField: {
       base: recessedFieldRecipe,
     },

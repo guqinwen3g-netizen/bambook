@@ -20,10 +20,9 @@ import { setWallpaperAccentSample } from '../../../utils/wallpaperAccent';
 import { PageHeader } from '../PageHeader';
 import {
   SIDEBAR_ACTIVE_CLASS,
-  SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_IDLE_ICON_DARK_CLASS,
-  SIDEBAR_IDLE_ICON_LIGHT_CLASS,
-  SIDEBAR_PRESS_DARK_CLASS,
+  SIDEBAR_HOVER_CLASS,
+  SIDEBAR_IDLE_ICON_CLASS,
+  SIDEBAR_PRESS_CLASS,
 } from './compiledSidebarTemplates';
 import {
   CompiledSplitMainPanel,
@@ -260,7 +259,7 @@ export const CompiledSettingsPage: React.FC<CompiledSettingsPageProps> = ({ mode
   const iconWellCls = `flex h-9 w-9 shrink-0 items-center justify-center rounded-field border ${BAMBOOK_OS.tone.surface.quietIcon} border-[var(--border-c-subtle)] ${BAMBOOK_OS.tone.text.brandEmphasis}`;
   const optionActiveCls = `${SIDEBAR_ACTIVE_CLASS} text-[var(--text-primary)]`;
   // SIDEBAR_HOVER/PRESS 的 DARK 与 LIGHT 版已坍缩为同一自适应配方，单类承载双主题
-  const optionIdleCls = `border border-transparent bg-transparent shadow-none text-[var(--text-secondary)] ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`;
+  const optionIdleCls = `border border-transparent bg-transparent shadow-none text-[var(--text-secondary)] ${SIDEBAR_HOVER_CLASS} ${SIDEBAR_PRESS_CLASS}`;
   const rangeCls = 'bambook-settings-range w-full appearance-none cursor-pointer';
   const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
     ? BAMBOOK_OS.controls.selectedSurface.base
@@ -461,7 +460,7 @@ export const CompiledSettingsPage: React.FC<CompiledSettingsPageProps> = ({ mode
                   onClick={() => setActiveTab(tab.id)}
                   className={`text-left rounded-control px-3 py-2.5 transition-all flex items-start gap-2 border ${BAMBOOK_OS.typography.weight.ui} ${on ? optionActiveCls : optionIdleCls}`}
                 >
-                  <Icon size={16} strokeWidth={1.5} className={`mt-0.5 shrink-0 transition-colors ${on ? 'text-current' : SIDEBAR_IDLE_ICON_DARK_CLASS}`} />
+                  <Icon size={16} strokeWidth={1.5} className={`mt-0.5 shrink-0 transition-colors ${on ? 'text-current' : SIDEBAR_IDLE_ICON_CLASS}`} />
                   <span>
                     <span className="block text-sm font-light leading-tight">{tab.label}</span>
                     <span className={`block text-[10px] mt-0.5 ${hintCls}`}>{tab.hint}</span>

@@ -2,24 +2,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   SIDEBAR_ACTIVE_CLASS,
-  SIDEBAR_ACTIVE_GLASS_DARK_CLASS,
-  SIDEBAR_ACTIVE_GLASS_LIGHT_CLASS,
-  SIDEBAR_ACTIVE_ICON_DARK_CLASS,
-  SIDEBAR_ACTIVE_ICON_LIGHT_CLASS,
-  SIDEBAR_AMBIENT_DARK_CLASS,
-  SIDEBAR_AMBIENT_LIGHT_CLASS,
-  SIDEBAR_HARMONY_PANEL_DARK_CLASS,
-  SIDEBAR_HARMONY_PANEL_LIGHT_CLASS,
-  SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_HOVER_LIGHT_CLASS,
-  SIDEBAR_IDLE_ICON_DARK_CLASS,
-  SIDEBAR_IDLE_ICON_LIGHT_CLASS,
-  SIDEBAR_IDLE_TEXT_DARK_CLASS,
-  SIDEBAR_IDLE_TEXT_LIGHT_CLASS,
-  SIDEBAR_PRESS_DARK_CLASS,
-  SIDEBAR_PRESS_LIGHT_CLASS,
-  SIDEBAR_SETTINGS_ACTIVE_DARK_CLASS,
-  SIDEBAR_SETTINGS_ACTIVE_LIGHT_CLASS,
+  SIDEBAR_ACTIVE_GLASS_CLASS,
+  SIDEBAR_ACTIVE_ICON_CLASS,
+  SIDEBAR_AMBIENT_CLASS,
+  SIDEBAR_HARMONY_PANEL_CLASS,
+  SIDEBAR_IDLE_TEXT_CLASS,
+  SIDEBAR_SETTINGS_ACTIVE_CLASS,
 } from './Sidebar';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 
@@ -41,10 +29,8 @@ describe('Sidebar reveal material system', () => {
       source.indexOf('{/* Nav Items */}')
     );
 
-    expect(SIDEBAR_HARMONY_PANEL_DARK_CLASS).toBe('');
-    expect(SIDEBAR_HARMONY_PANEL_LIGHT_CLASS).toBe('');
-    expect(SIDEBAR_AMBIENT_DARK_CLASS).toBe('');
-    expect(SIDEBAR_AMBIENT_LIGHT_CLASS).toBe('');
+    expect(SIDEBAR_HARMONY_PANEL_CLASS).toBe('');
+    expect(SIDEBAR_AMBIENT_CLASS).toBe('');
 
     expect(BAMBOOK_OS.material.panelBase).toContain('rounded-[24px]');
     expect(BAMBOOK_OS.material.panelBase).toContain('backdrop-blur-[15px]');
@@ -125,18 +111,15 @@ describe('Sidebar reveal material system', () => {
       source.indexOf('{/* Bottom Utility Bar */}')
     );
 
-    expect(SIDEBAR_HOVER_DARK_CLASS).toContain('hover:bg-[var(--recessed-bg-hover)]');
-    expect(SIDEBAR_HOVER_DARK_CLASS).not.toContain('hover:text-');
-    expect(SIDEBAR_HOVER_LIGHT_CLASS).toContain('hover:bg-[var(--recessed-bg-hover)]');
-    expect(SIDEBAR_HOVER_LIGHT_CLASS).toContain('hover:shadow-none');
-    expect(SIDEBAR_HOVER_LIGHT_CLASS).not.toContain('0_10px_22px_-14px_rgba(15,23,42,0.13)');
-    expect(SIDEBAR_HOVER_LIGHT_CLASS).not.toContain('0_2px_8px_-6px_rgba(15,23,42,0.08)');
-    expect(SIDEBAR_HOVER_LIGHT_CLASS).not.toContain('0_8px_16px_-12px_rgba(0,0,0,0.04)');
-    expect(SIDEBAR_HOVER_LIGHT_CLASS).not.toContain('hover:text-');
-    expect(SIDEBAR_PRESS_DARK_CLASS).toContain('active:scale-[0.98]');
-    expect(SIDEBAR_PRESS_DARK_CLASS).toContain('active:bg-[var(--recessed-bg)]');
-    expect(SIDEBAR_PRESS_LIGHT_CLASS).toContain('active:scale-[0.98]');
-    expect(SIDEBAR_PRESS_LIGHT_CLASS).toContain('active:bg-[var(--recessed-bg-strong)]');
+    // P3-2：hover/press 真源坍缩至 BAMBOOK_OS.controls.listRow（BDS 纪律：hover 统一 --hover-darken / active 用 --active-darken）
+    expect(BAMBOOK_OS.controls.listRow.hover).toContain('hover:bg-[var(--hover-darken)]');
+    expect(BAMBOOK_OS.controls.listRow.hover).toContain('hover:shadow-none');
+    expect(BAMBOOK_OS.controls.listRow.hover).not.toContain('0_10px_22px_-14px_rgba(15,23,42,0.13)');
+    expect(BAMBOOK_OS.controls.listRow.hover).not.toContain('0_2px_8px_-6px_rgba(15,23,42,0.08)');
+    expect(BAMBOOK_OS.controls.listRow.hover).not.toContain('0_8px_16px_-12px_rgba(0,0,0,0.04)');
+    expect(BAMBOOK_OS.controls.listRow.hover).not.toContain('hover:text-');
+    expect(BAMBOOK_OS.controls.listRow.press).toContain('active:scale-[0.98]');
+    expect(BAMBOOK_OS.controls.listRow.press).toContain('active:bg-[var(--active-darken)]');
     expect(SIDEBAR_ACTIVE_CLASS).toBe('bambook-selected-surface');
     expect(osVnextCss).toContain('.bambook-selected-surface');
     expect(osVnextCss).toContain('.bambook-selected-surface--light');
@@ -155,15 +138,11 @@ describe('Sidebar reveal material system', () => {
     expect(SIDEBAR_ACTIVE_CLASS).not.toContain('rgba(255,255,255,0.6)');
     expect(SIDEBAR_ACTIVE_CLASS).not.toContain('rgba(255,255,255,0.85)');
     expect(source).toContain("'text-deep-alt dark:text-white'");
-    expect(SIDEBAR_ACTIVE_GLASS_DARK_CLASS).toBe('');
-    expect(SIDEBAR_ACTIVE_GLASS_LIGHT_CLASS).toBe('');
-    expect(SIDEBAR_ACTIVE_ICON_DARK_CLASS).toBe('text-current');
-    expect(SIDEBAR_ACTIVE_ICON_LIGHT_CLASS).toBe('text-current');
-    expect(SIDEBAR_IDLE_TEXT_DARK_CLASS).toBe('!text-[var(--text-secondary)]');
-    expect(SIDEBAR_IDLE_TEXT_LIGHT_CLASS).toBe('!text-[var(--text-secondary)]');
-    expect(SIDEBAR_IDLE_ICON_DARK_CLASS).toBe('!text-[var(--text-tertiary)]');
-    expect(SIDEBAR_IDLE_ICON_LIGHT_CLASS).toBe('!text-[var(--text-tertiary)]');
-    expect(navSource).not.toContain("isDarkMode ? 'text-os-adaptive-primary' : SIDEBAR_IDLE_TEXT_LIGHT_CLASS");
+    expect(SIDEBAR_ACTIVE_GLASS_CLASS).toBe('');
+    expect(SIDEBAR_ACTIVE_ICON_CLASS).toBe('text-current');
+    expect(SIDEBAR_IDLE_TEXT_CLASS).toBe('!text-[var(--text-secondary)]');
+    expect(BAMBOOK_OS.controls.listRow.idleIcon).toBe('!text-[var(--text-tertiary)]');
+    expect(navSource).not.toContain("isDarkMode ? 'text-os-adaptive-primary' : SIDEBAR_IDLE_TEXT_CLASS");
   });
 
   it('aligns nested surface material to selected button color and secondary panel shadow', () => {
@@ -195,12 +174,12 @@ describe('Sidebar reveal material system', () => {
     );
 
     expect(navSource).toContain('SIDEBAR_ACTIVE_CLASS');
-    expect(navSource).toContain('SIDEBAR_HOVER_DARK_CLASS');
-    expect(navSource).toContain('SIDEBAR_PRESS_LIGHT_CLASS');
-    expect(navSource).toContain('dark:active:bg-[var(--recessed-bg)]');
-    expect(navSource).toContain('SIDEBAR_IDLE_TEXT_DARK_CLASS');
-    expect(navSource).toContain('SIDEBAR_ACTIVE_ICON_DARK_CLASS');
-    expect(navSource).toContain('SIDEBAR_IDLE_ICON_DARK_CLASS');
+    expect(navSource).toContain('BAMBOOK_OS.controls.listRow.hover');
+    expect(navSource).toContain('BAMBOOK_OS.controls.listRow.press');
+    expect(navSource).not.toContain('dark:active:bg-[var(--recessed-bg)]');
+    expect(navSource).toContain('SIDEBAR_IDLE_TEXT_CLASS');
+    expect(navSource).toContain('SIDEBAR_ACTIVE_ICON_CLASS');
+    expect(navSource).toContain('BAMBOOK_OS.controls.listRow.idleIcon');
     expect(navSource).not.toMatch(/isDarkMode\s*\?/);
     expect(navSource).toContain('data-sidebar-nav-item');
     expect(navSource).toContain("data-sidebar-nav-active={isActive ? 'true' : 'false'}");
@@ -224,8 +203,7 @@ describe('Sidebar reveal material system', () => {
     expect(indexCss).toContain('overflow-x: hidden;');
     expect(indexCss).toContain('overscroll-behavior-x: none;');
 
-    expect(SIDEBAR_SETTINGS_ACTIVE_DARK_CLASS).toBe(SIDEBAR_ACTIVE_CLASS);
-    expect(SIDEBAR_SETTINGS_ACTIVE_LIGHT_CLASS).toBe(SIDEBAR_ACTIVE_CLASS);
+    expect(SIDEBAR_SETTINGS_ACTIVE_CLASS).toBe(SIDEBAR_ACTIVE_CLASS);
     expect(source).toContain('账号设置');
     expect(source).toContain('系统设置');
     expect(utilitySource).toContain('h-11 w-11');

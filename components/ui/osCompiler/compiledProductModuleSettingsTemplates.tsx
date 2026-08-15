@@ -4,7 +4,7 @@ import { apiService } from '../../../services/apiService';
 import { COMPOSITION_TERMS } from '../../../data/compositionTerms';
 import type { MainCategory, ProductAsset, ProductSubCategory } from '../../../types';
 import {
-  RELATIONS_FORM_NESTED_ROW_DARK_CLASS,
+  RELATIONS_FORM_NESTED_ROW_CLASS,
 } from '../relationsFormStyles';
 import { BAMBOOK_OS } from '../bambookOsTokens';
 import {
@@ -250,7 +250,7 @@ export const CompiledProductModuleSettingsWorkspace = ({
   const inputClass = `h-9 w-full rounded-full border px-3 text-xs font-light outline-none transition ${BAMBOOK_OS.controls.recessedField.base}`;
   const quietButtonClass = `h-9 rounded-full border px-3 text-[11px] font-light transition ${BAMBOOK_OS.controls.actionControl.base}`;
   const selectedButtonClass = `${BAMBOOK_OS.controls.selectedSurface.base} text-[var(--text-primary)]`;
-  const tertiaryRowClass = `rounded-inset border p-3 ${RELATIONS_FORM_NESTED_ROW_DARK_CLASS}`;
+  const tertiaryRowClass = `rounded-inset border p-3 ${RELATIONS_FORM_NESTED_ROW_CLASS}`;
   const tinyActionClass = `h-8 rounded-full border px-3 text-[11px] font-light transition border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`;
   const switchControlClass = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
     ? BAMBOOK_OS.controls.selectedSurface.base

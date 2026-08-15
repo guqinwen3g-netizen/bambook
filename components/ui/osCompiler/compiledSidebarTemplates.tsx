@@ -19,25 +19,18 @@ import {
   CompiledEdgeFade,
 } from './compiledPrimitives';
 
-export const SIDEBAR_HOVER_DARK_CLASS = 'hover:bg-[var(--recessed-bg)] hover:shadow-none';
-export const SIDEBAR_HOVER_LIGHT_CLASS = 'hover:bg-[var(--recessed-bg)] hover:shadow-none';
-export const SIDEBAR_PRESS_DARK_CLASS = 'active:scale-[0.98] active:bg-[var(--active-darken)]';
-export const SIDEBAR_PRESS_LIGHT_CLASS = 'active:scale-[0.98] active:bg-[var(--active-darken)]';
+// P3-2 收编：双写常量坍缩为单写自适应，真源 BAMBOOK_OS.controls.listRow / selectedSurface。
+// BDS 纪律：hover 统一 --hover-darken、active 用 --active-darken（styles/bds/components.css v2.1.1）。
+export const SIDEBAR_HOVER_CLASS = BAMBOOK_OS.controls.listRow.hover;
+export const SIDEBAR_PRESS_CLASS = BAMBOOK_OS.controls.listRow.press;
 export const SIDEBAR_ACTIVE_CLASS = BAMBOOK_OS.controls.selectedSurface.base;
-export const SIDEBAR_ACTIVE_GLASS_DARK_CLASS = '';
-export const SIDEBAR_ACTIVE_GLASS_LIGHT_CLASS = '';
-export const SIDEBAR_ACTIVE_ICON_DARK_CLASS = 'text-current';
-export const SIDEBAR_ACTIVE_ICON_LIGHT_CLASS = 'text-current';
-export const SIDEBAR_IDLE_TEXT_DARK_CLASS = '!text-[var(--text-secondary)]';
-export const SIDEBAR_IDLE_TEXT_LIGHT_CLASS = '!text-[var(--text-secondary)]';
-export const SIDEBAR_IDLE_ICON_DARK_CLASS = '!text-[var(--text-tertiary)]';
-export const SIDEBAR_IDLE_ICON_LIGHT_CLASS = '!text-[var(--text-tertiary)]';
-export const SIDEBAR_AMBIENT_DARK_CLASS = '';
-export const SIDEBAR_AMBIENT_LIGHT_CLASS = '';
-export const SIDEBAR_SETTINGS_ACTIVE_DARK_CLASS = SIDEBAR_ACTIVE_CLASS;
-export const SIDEBAR_SETTINGS_ACTIVE_LIGHT_CLASS = SIDEBAR_ACTIVE_CLASS;
-export const SIDEBAR_HARMONY_PANEL_DARK_CLASS = '';
-export const SIDEBAR_HARMONY_PANEL_LIGHT_CLASS = '';
+export const SIDEBAR_ACTIVE_GLASS_CLASS = '';
+export const SIDEBAR_ACTIVE_ICON_CLASS = 'text-current';
+export const SIDEBAR_IDLE_TEXT_CLASS = '!text-[var(--text-secondary)]';
+export const SIDEBAR_IDLE_ICON_CLASS = BAMBOOK_OS.controls.listRow.idleIcon;
+export const SIDEBAR_AMBIENT_CLASS = '';
+export const SIDEBAR_SETTINGS_ACTIVE_CLASS = SIDEBAR_ACTIVE_CLASS;
+export const SIDEBAR_HARMONY_PANEL_CLASS = '';
 
 type CompiledSidebarBlueprint = {
   template: 'CompiledSidebar';
@@ -250,8 +243,8 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
                           className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
                             ${isActive
                               ? 'text-[var(--text-primary)]'
-                              : `${SIDEBAR_IDLE_TEXT_DARK_CLASS} ${SIDEBAR_HOVER_DARK_CLASS}`}
-                            ${SIDEBAR_PRESS_DARK_CLASS}`}
+                              : `${SIDEBAR_IDLE_TEXT_CLASS} ${SIDEBAR_HOVER_CLASS}`}
+                            ${SIDEBAR_PRESS_CLASS}`}
                         >
                           {/* OS-level spring active sliding indicator */}
                           {isActive && (
@@ -268,7 +261,7 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
                               size={20}
                               strokeWidth={1}
                               data-sidebar-nav-icon
-                              className={`transition-colors duration-300 ${isActive ? SIDEBAR_ACTIVE_ICON_DARK_CLASS : SIDEBAR_IDLE_ICON_DARK_CLASS}`}
+                              className={`transition-colors duration-300 ${isActive ? SIDEBAR_ACTIVE_ICON_CLASS : SIDEBAR_IDLE_ICON_CLASS}`}
                             />
                             <span data-sidebar-nav-label className={`text-sm font-light tracking-tight transition-[color,opacity] duration-300 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
                               {item.label}

@@ -4,8 +4,8 @@ import { BAMBOOK_OS } from './bambookOsTokens';
 import { OS_MATERIAL, OS_SHADOW, type OSMaterialRole, type OSShadowMode, type OSShadowRole } from './osMaterial';
 
 export const SIDE_PANEL_BASE_CLASS = BAMBOOK_OS.material.panelBase;
-export const SIDE_PANEL_DARK_CLASS = BAMBOOK_OS.material.glassColor;
-export const SIDE_PANEL_LIGHT_CLASS = BAMBOOK_OS.material.glassColor;
+// P3-2 收编：DARK/LIGHT 双写已坍缩为单写自适应（BAMBOOK_OS.material.glassColor 双主题同配方）。
+export const SIDE_PANEL_CLASS = BAMBOOK_OS.material.glassColor;
 export const SIDE_PANEL_OUTER_CLASS = 'bambook-outer-panel';
 export const SIDE_PANEL_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight.panelDarkColor;
 export const SIDE_PANEL_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.panelLightColor;
@@ -55,10 +55,10 @@ const SidePanelContainer = React.forwardRef<HTMLElement, SidePanelContainerProps
   const resolvedShadowRole: OSShadowRole = shadowRole === 'none' ? shadowRole : 'none';
   const resolvedShadowMode: OSShadowMode = shadowMode === 'none' ? shadowMode : 'none';
   const resolvedSpotlightSizing = spotlightSizing ?? (resolvedSurfaceRole === 'framePanel' ? 'frame' : 'auto');
-  // SIDE_PANEL_DARK_CLASS 与 LIGHT 版已坍缩为同一自适应配方（BAMBOOK_OS.material.glassColor），单类承载双主题
+  // SIDE_PANEL_CLASS 单写自适应承载双主题（BAMBOOK_OS.material.glassColor）
   const materialToneClass = materialTone === 'nested'
     ? BAMBOOK_OS.material.nestedSurface
-    : SIDE_PANEL_DARK_CLASS;
+    : SIDE_PANEL_CLASS;
   const panelExtraClass = `${wrapperClassName} ${className}`.trim().replace(/\s+/g, ' ');
   const panelClassName = `${SIDE_PANEL_BASE_CLASS} ${materialToneClass} ${SIDE_PANEL_OUTER_CLASS} ${OS_MATERIAL[resolvedSurfaceRole]} ${panelExtraClass}`;
   const content = (

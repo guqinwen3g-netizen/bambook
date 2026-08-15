@@ -98,9 +98,8 @@ import {
 import { OS_MATERIAL } from './ui/osMaterial';
 import {
   SIDEBAR_ACTIVE_CLASS,
-  SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_PRESS_DARK_CLASS,
-  SIDEBAR_PRESS_LIGHT_CLASS,
+  SIDEBAR_HOVER_CLASS,
+  SIDEBAR_PRESS_CLASS,
 } from './Sidebar';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import type { Relation } from '../types';
@@ -476,15 +475,15 @@ describe('RelationsManager title system', () => {
 
     expect(contactListSource).toContain("import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives'");
     expect(contactListSource).not.toContain("import SidePanelContainer from './SidePanelContainer'");
-    expect(contactListSource).toContain('CONTACT_LIST_ACTIVE_DARK_CLASS');
-    expect(contactListSource).toContain('CONTACT_LIST_ACTIVE_LIGHT_CLASS');
-    expect(contactListSource).toContain('CONTACT_LIST_HOVER_DARK_CLASS');
-    expect(contactListSource).toContain('CONTACT_LIST_HOVER_LIGHT_CLASS');
+    expect(contactListSource).toContain('CONTACT_LIST_ACTIVE_CLASS');
+    expect(contactListSource).toContain('CONTACT_LIST_HOVER_CLASS');
+    expect(contactListSource).not.toContain('CONTACT_LIST_ACTIVE_DARK_CLASS');
+    expect(contactListSource).not.toContain('CONTACT_LIST_HOVER_DARK_CLASS');
     expect(contactListSource).toContain('const activeItemClass =');
-    expect(contactListSource).toContain('${CONTACT_LIST_ACTIVE_LIGHT_CLASS} dark:text-[var(--text-primary)]');
+    expect(contactListSource).toContain('${SIDEBAR_ACTIVE_CLASS} text-deep-alt dark:text-[var(--text-primary)]');
     expect(contactListSource).toContain('? activeItemClass');
     expect(contactListSource).toContain('const idleItemClass =');
-    expect(contactListSource).toContain('border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_LIGHT_CLASS}');
+    expect(contactListSource).toContain('border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_CLASS} ${BAMBOOK_OS.controls.listRow.press}');
     expect(contactListSource).toContain(': idleItemClass');
     expect(contactListSource).not.toContain('border-transparent ${SIDEBAR_ACTIVE_DARK_CLASS}');
     expect(contactListSource).not.toContain('border-transparent ${SIDEBAR_ACTIVE_LIGHT_CLASS}');
@@ -772,8 +771,8 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('!border-transparent');
     expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('shadow-none');
     expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('text-[var(--os-adaptive-primary)]');
-    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
-    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain(SIDEBAR_PRESS_DARK_CLASS);
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain(SIDEBAR_HOVER_CLASS);
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain(SIDEBAR_PRESS_CLASS);
     expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('hover:text-[#4A90E2]');
     expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('0_0_0_1px_rgba(96,165,250,0.20)');
     expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('inset_0_0_0_1px');
@@ -1021,14 +1020,14 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bambook-blue-white-light');
     expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('bg-white/80');
     expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).toBe(SIDEBAR_ACTIVE_CLASS);
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain(SIDEBAR_PRESS_DARK_CLASS);
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain(SIDEBAR_PRESS_CLASS);
     expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).toContain('bambook-selected-surface');
     expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('border-[#4A90E2]');
     expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('bg-[#4A90E2]');
     expect(RELATIONS_TOOLBAR_CONTROL_IDLE_CLASS).toContain('text-[var(--text-tertiary)]');
-    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
+    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_CLASS).toContain(SIDEBAR_HOVER_CLASS);
     expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('bg-white');
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain(SIDEBAR_PRESS_LIGHT_CLASS);
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain(SIDEBAR_PRESS_CLASS);
     expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('border-slate-300/40');
     expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('bg-slate-100/80');
     expect(toolbarSelectButtonSource).not.toContain('bambook-dashboard-glass-color');
@@ -1085,18 +1084,18 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('bambook-dashboard-glass-color');
     expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(OS_MATERIAL.raisedCard);
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-outer-panel');
-    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(SIDEBAR_HOVER_CLASS);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR).toBe(BAMBOOK_OS.spotlight.cardLightColor);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE).toBe(BAMBOOK_OS.spotlight.panelDarkSize);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE).toBe(BAMBOOK_OS.spotlight.panelLightSize);
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(SIDEBAR_PRESS_DARK_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(SIDEBAR_PRESS_CLASS);
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('active:');
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-blue-white-surface');
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('relations-card-outer-ring');
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('hover:border-[#4A90E2]/42');
-    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(SIDEBAR_PRESS_LIGHT_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(SIDEBAR_PRESS_CLASS);
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('hover:shadow-[0_0_0_1px_rgba(74,144,226,0.14)');
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('active:border');
     expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('active:shadow');

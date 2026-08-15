@@ -4,8 +4,7 @@ import { BAMBOOK_OS } from '../bambookOsTokens';
 import { OS_MATERIAL, OS_SHADOW } from '../osMaterial';
 import SidePanelContainer, {
   SIDE_PANEL_BASE_CLASS,
-  SIDE_PANEL_DARK_CLASS,
-  SIDE_PANEL_LIGHT_CLASS,
+  SIDE_PANEL_CLASS,
   SIDE_PANEL_OUTER_CLASS,
   SIDE_PANEL_SPOTLIGHT_DARK_COLOR,
   SIDE_PANEL_SPOTLIGHT_DARK_SIZE,
@@ -75,8 +74,7 @@ export const COMPILED_MODULE_TITLE_PAGE_LABEL_CLASS = BAMBOOK_OS.controls.title.
 export const COMPILED_MODULE_TITLE_SEPARATOR_CLASS = 'h-9 w-5 flex items-center justify-center shrink-0';
 export const COMPILED_MODULE_TITLE_ICON_BUTTON_CLASS = BAMBOOK_OS.controls.title.iconButton;
 export const COMPILED_MODULE_TITLE_ACTION_BUTTON_CLASS = BAMBOOK_OS.controls.title.actionButton;
-export const COMPILED_MODULE_TITLE_BUTTON_DARK_CLASS = BAMBOOK_OS.controls.actionControl.base;
-export const COMPILED_MODULE_TITLE_BUTTON_LIGHT_CLASS = BAMBOOK_OS.controls.actionControl.base;
+export const COMPILED_MODULE_TITLE_BUTTON_CLASS = BAMBOOK_OS.controls.actionControl.base;
 
 export const COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,316px)] justify-center gap-6 content-start';
 export const COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,300px)] justify-center gap-6 content-start';
@@ -85,12 +83,10 @@ export const COMPILED_COLLECTION_MOBILE_CARD_GRID_CLASS = 'grid grid-cols-2 gap-
 export const COMPILED_FORM_PANEL_CLASS = 'scroll-mt-28 p-5 bambook-relations-form-panel';
 export const COMPILED_FORM_MAP_PANEL_CLASS = 'p-4 bambook-relations-form-map-panel';
 export const COMPILED_FORM_PANEL_SPOTLIGHT_SIZING = 'width';
-export const COMPILED_FORM_SECTION_TITLE_DARK_CLASS = 'text-[var(--text-primary)]';
-export const COMPILED_FORM_SECTION_TITLE_LIGHT_CLASS = 'text-[var(--text-primary)]';
+export const COMPILED_FORM_SECTION_TITLE_CLASS = 'text-[var(--text-primary)]';
 export const COMPILED_FORM_NOTE_PANEL_CLASS = 'p-4 text-xs';
 export const COMPILED_SIDE_PANEL_BASE_CLASS = SIDE_PANEL_BASE_CLASS;
-export const COMPILED_SIDE_PANEL_DARK_CLASS = SIDE_PANEL_DARK_CLASS;
-export const COMPILED_SIDE_PANEL_LIGHT_CLASS = SIDE_PANEL_LIGHT_CLASS;
+export const COMPILED_SIDE_PANEL_CLASS = SIDE_PANEL_CLASS;
 export const COMPILED_SIDE_PANEL_OUTER_CLASS = SIDE_PANEL_OUTER_CLASS;
 export const COMPILED_SIDE_PANEL_SPOTLIGHT_DARK_COLOR = SIDE_PANEL_SPOTLIGHT_DARK_COLOR;
 export const COMPILED_SIDE_PANEL_SPOTLIGHT_DARK_SIZE = SIDE_PANEL_SPOTLIGHT_DARK_SIZE;
@@ -307,7 +303,7 @@ export const CompiledFormSectionPanel = ({
     data-os-compiler-role="form-section-panel"
     data-os-compiler-source="CompiledFormSectionPanel"
   >
-    <h4 className={cx('mb-4 text-xs font-light tracking-wide', COMPILED_FORM_SECTION_TITLE_DARK_CLASS, titleClassName)}>
+    <h4 className={cx('mb-4 text-xs font-light tracking-wide', COMPILED_FORM_SECTION_TITLE_CLASS, titleClassName)}>
       {title}
     </h4>
     <div className={cx(contentBaseClassName, contentClassName)}>

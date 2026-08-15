@@ -13,10 +13,6 @@ import {
     Building2, Users,
     ZoomIn, ZoomOut, RotateCcw
 } from 'lucide-react';
-import {
-    SIDEBAR_HOVER_LIGHT_CLASS,
-    SIDEBAR_PRESS_LIGHT_CLASS,
-} from '../Sidebar';
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
 
@@ -77,7 +73,7 @@ const isDescendantContact = (contacts: Relation[], sourceId: string, maybeDescen
 };
 
 const ORG_CHART_NODE_CLASS = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel !rounded-inset`;
-const ORG_CHART_PRESS_CLASS = `${SIDEBAR_PRESS_LIGHT_CLASS} dark:active:bg-[var(--recessed-bg)]`;
+const ORG_CHART_PRESS_CLASS = BAMBOOK_OS.controls.listRow.press;
 const ORG_CHART_MIN_ZOOM = 0.65;
 const ORG_CHART_MAX_ZOOM = 1.35;
 const ORG_CHART_ZOOM_STEP = 0.1;
@@ -181,7 +177,7 @@ const OrgNodeCard: React.FC<{
                 <div
                     className={`
           p-3.5 rounded-inset
-          ${ORG_CHART_NODE_CLASS} ${isDropTarget || isFocused ? BAMBOOK_OS.controls.selectedSurface.base : SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS}
+          ${ORG_CHART_NODE_CLASS} ${isDropTarget || isFocused ? BAMBOOK_OS.controls.selectedSurface.base : BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS}
           ${draggingContactId && !canDropHere && !isDragging ? 'opacity-45' : ''}
         `}>
                     {isDropTarget && (
@@ -231,7 +227,7 @@ const OrgNodeCard: React.FC<{
                     onClick={(e) => { e.stopPropagation(); onEdit(contact); }}
                     className={`
               absolute -top-2 -right-2 z-30 p-1.5 rounded-control opacity-0 group-hover:opacity-100 transition-all
-              ${metaEditClass} ${SIDEBAR_HOVER_LIGHT_CLASS}
+              ${metaEditClass} ${BAMBOOK_OS.controls.listRow.hover}
             `}
                     aria-label={`编辑${contact.name}`}
                 >
@@ -496,7 +492,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current - ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
                         aria-label="缩小组织架构"
                     >
                         <ZoomOut size={14} strokeWidth={1.6} />
@@ -507,7 +503,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                             updateZoom(1);
                             setPan({ x: 0, y: 0 });
                         }}
-                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
+                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
                         aria-label="重置组织架构缩放"
                     >
                         <span className="inline-flex items-center gap-1">
@@ -518,7 +514,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current + ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
                         aria-label="放大组织架构"
                     >
                         <ZoomIn size={14} strokeWidth={1.6} />

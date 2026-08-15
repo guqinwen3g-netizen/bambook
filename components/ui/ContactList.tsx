@@ -14,21 +14,15 @@ import {
 } from 'lucide-react';
 import {
     SIDEBAR_ACTIVE_CLASS,
-    SIDEBAR_HOVER_DARK_CLASS,
-    SIDEBAR_HOVER_LIGHT_CLASS,
-    SIDEBAR_PRESS_LIGHT_CLASS,
 } from '../Sidebar';
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
 
-export const CONTACT_LIST_ACTIVE_DARK_CLASS =
-    `${SIDEBAR_ACTIVE_CLASS} text-[var(--text-primary)]`;
-export const CONTACT_LIST_ACTIVE_LIGHT_CLASS =
-    `${SIDEBAR_ACTIVE_CLASS} text-deep-alt`;
-export const CONTACT_LIST_HOVER_DARK_CLASS =
-    SIDEBAR_HOVER_DARK_CLASS;
-export const CONTACT_LIST_HOVER_LIGHT_CLASS =
-    SIDEBAR_HOVER_LIGHT_CLASS;
+// P3-2 收编：双写坍缩为单写自适应（真源 BAMBOOK_OS.controls.listRow / selectedSurface）。
+export const CONTACT_LIST_ACTIVE_CLASS =
+    `${SIDEBAR_ACTIVE_CLASS} text-deep-alt dark:text-[var(--text-primary)]`;
+export const CONTACT_LIST_HOVER_CLASS =
+    BAMBOOK_OS.controls.listRow.hover;
 
 interface ContactListProps {
     organization: Relation;
@@ -66,9 +60,9 @@ const ContactList: React.FC<ContactListProps> = ({
     const actionButtonClass = BAMBOOK_OS.controls.actionControl.bordered;
     const brandTextClass = BAMBOOK_OS.tone.text.brandEmphasis;
     const idleItemClass =
-        `border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} dark:active:bg-[var(--recessed-bg)]`;
+        `border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_CLASS} ${BAMBOOK_OS.controls.listRow.press}`;
     const activeItemClass =
-        `${CONTACT_LIST_ACTIVE_LIGHT_CLASS} dark:text-[var(--text-primary)]`;
+        CONTACT_LIST_ACTIVE_CLASS;
 
     return (
         <div className={BAMBOOK_OS.layout.relationsDetailListShellClass}>
