@@ -16,7 +16,6 @@ interface FolderTabCardProps {
 export const FolderTabCard: React.FC<FolderTabCardProps> = ({
     children,
     title,
-    isDarkMode,
     accentColor = '#0EA5E9',
     className = ''
 }) => {
@@ -27,8 +26,8 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
                 <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
                     <defs>
                         <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={isDarkMode ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255, 255, 255, 0.8)'} />
-                            <stop offset="100%" stopColor={isDarkMode ? 'rgba(15, 23, 42, 0.8)' : 'rgba(248, 250, 252, 0.9)'} />
+                            <stop offset="0%" className="[stop-color:rgba(255,255,255,0.8)] dark:[stop-color:rgba(30,41,59,0.7)]" />
+                            <stop offset="100%" className="[stop-color:rgba(248,250,252,0.9)] dark:[stop-color:rgba(15,23,42,0.8)]" />
                         </linearGradient>
                     </defs>
 
@@ -56,7 +55,7 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
                            C 0,100 0,100 0,90
                            Z"
                         fill="url(#glassGrad)"
-                        stroke={isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.95)'}
+                        className="[stroke:rgba(255,255,255,0.95)] dark:[stroke:rgba(255,255,255,0.08)]"
                         strokeWidth="0.5"
                     />
                 </svg>
@@ -68,7 +67,7 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
             <div className="relative z-10 w-full h-full">
                 {/* Top Tab Title */}
                 <div className="absolute top-0 left-0 w-[140px] h-[58px] flex items-center px-8">
-                    <span className={`text-[13px] font-light tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={`text-[13px] font-light tracking-tight text-[var(--text-primary)]`}>
                         {title}
                     </span>
                 </div>
@@ -80,7 +79,7 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
             </div>
 
             {/* 3. OPTICAL INNER GLOW (Subtle rim light at top left) */}
-            <div className="absolute top-[2px] left-[15px] w-[80px] h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
+            <div className="absolute top-[2px] left-[15px] w-[80px] h-[1px] bg-gradient-to-r from-transparent via-[var(--border-c-strong)] to-transparent pointer-events-none" />
         </div>
     );
 };

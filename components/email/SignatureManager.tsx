@@ -111,16 +111,14 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
     }
   };
 
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm font-light outline-none border transition-colors ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white/70 border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
+  const fieldClass = `w-full px-3 py-2 rounded-control text-sm font-light outline-none border transition-colors bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`;
 
   return (
-    <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-sm z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
+    <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
       <RdlSurface tone="panel" className="w-full max-w-2xl overflow-hidden flex flex-col h-[70vh] animate-in zoom-in duration-300">
         {/* 头部 */}
-        <div className={`px-8 py-5 flex items-center justify-between backdrop-blur-md ${isDarkMode ? 'bg-white/5' : 'bg-white/28'}`}>
-          <h3 className={`text-lg font-light flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+        <div className="px-8 py-5 flex items-center justify-between backdrop-blur-md bg-[var(--recessed-bg)]">
+          <h3 className="text-lg font-light flex items-center gap-3 text-[var(--text-primary)]">
             <RdlSurface tone="inset" className="w-10 h-10 flex items-center justify-center text-[var(--os-vnext-brand-blue-strong)]">
               <PenLine size={18} strokeWidth={1} />
             </RdlSurface>
@@ -135,7 +133,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
             <button
               type="button"
               onClick={onClose}
-              className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors ${isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'}`}
+              className="h-9 w-9 rounded-full flex items-center justify-center transition-colors text-[var(--text-tertiary)] hover:bg-[var(--active-darken)] hover:text-[var(--text-primary)]"
             >
               <X size={20} strokeWidth={1} />
             </button>
@@ -145,7 +143,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
         {/* 内容 */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-5 space-y-3">
           {error && (
-            <div className={`p-3 rounded-inset border flex items-center gap-2 text-xs ${isDarkMode ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-600'}`}>
+            <div className={`p-3 rounded-inset border flex items-center gap-2 text-xs border-danger/20 bg-[var(--danger-tint)] text-[var(--danger-text)]`}>
               <AlertCircle size={14} /> {error}
             </div>
           )}
@@ -155,18 +153,18 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
             <div className="space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>签名名称</label>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>签名名称</label>
                   <input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="如：默认英文签名" className={fieldClass} />
                 </div>
                 <div className="w-36">
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>语言</label>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>语言</label>
                   <select value={draft.language} onChange={e => setDraft({ ...draft, language: e.target.value as SignatureLanguage })} className={fieldClass}>
                     {LANGUAGES.map(l => <option key={l} value={l}>{LANGUAGE_LABELS[l]}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                   签名内容（支持 {'{{variable}}'} 占位符，如 {'{{senderName}}'}）
                 </label>
                 <textarea
@@ -180,7 +178,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-xs font-light cursor-pointer">
                   <input type="checkbox" checked={draft.isDefault} onChange={e => setDraft({ ...draft, isDefault: e.target.checked })} className="accent-[var(--os-vnext-brand-blue)]" />
-                  <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>设为该语言默认签名</span>
+                  <span className="text-[var(--text-secondary)]">设为该语言默认签名</span>
                 </label>
                 <input value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="备注（可选）" className={`flex-1 ${fieldClass}`} />
               </div>
@@ -193,11 +191,11 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
               </div>
             </div>
           ) : items === null ? (
-            <div className="flex items-center gap-2 text-xs font-light text-slate-400 py-4">
+            <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] py-4">
               <Loader2 size={14} className="animate-spin" /> 加载签名列表...
             </div>
           ) : items.length === 0 ? (
-            <div className={`text-xs font-light py-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`text-xs font-light py-4 text-[var(--text-tertiary)]`}>
               暂无签名，点击右上角「新建签名」创建统一公司签名格式
             </div>
           ) : (
@@ -205,21 +203,21 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
               {items.map(sig => (
                 <li
                   key={sig.id}
-                  className={`rounded-inset border px-4 py-3 flex items-center gap-3 ${isDarkMode ? 'border-white/[0.06] bg-white/[0.03]' : 'border-slate-200/80 bg-white/50'}`}
+                  className="rounded-inset border px-4 py-3 flex items-center gap-3 border-[var(--border-c-subtle)] bg-[var(--recessed-bg)]"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-light truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{sig.name}</span>
+                      <span className="text-sm font-light truncate text-[var(--text-primary)]">{sig.name}</span>
                       {sig.isDefault && (
-                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${isDarkMode ? 'bg-amber-500/15 text-amber-300' : 'bg-amber-50 text-amber-600'}`}>
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-[var(--warning-tint)] text-[var(--warning-text)]`}>
                           <Star size={10} /> 默认
                         </span>
                       )}
                       {!sig.isActive && (
-                        <span className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>已停用</span>
+                        <span className={`text-[10px] text-[var(--text-tertiary)]`}>已停用</span>
                       )}
                     </div>
-                    <div className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <div className={`text-[11px] mt-0.5 text-[var(--text-tertiary)]`}>
                       {LANGUAGE_LABELS[sig.language] ?? sig.language}
                       {sig.variables.length > 0 && ` · 变量: ${sig.variables.map(v => `{{${v}}}`).join(' ')}`}
                     </div>
@@ -227,7 +225,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                   <button
                     type="button"
                     onClick={() => { setDraft({ id: sig.id, name: sig.name, language: sig.language, content: sig.content, isDefault: sig.isDefault, notes: sig.notes || '' }); setError(null); }}
-                    className={`shrink-0 h-7 px-2.5 rounded-control text-[11px] font-light transition-colors ${isDarkMode ? 'bg-white/[0.06] hover:bg-white/10 text-slate-300' : 'bg-white/70 hover:bg-white text-slate-600'}`}
+                    className="shrink-0 h-7 px-2.5 rounded-control text-[11px] font-light transition-colors bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]"
                   >
                     编辑
                   </button>
@@ -235,7 +233,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                     type="button"
                     onClick={() => handleDelete(sig.id)}
                     disabled={busy}
-                    className={`shrink-0 h-7 w-7 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 ${isDarkMode ? 'text-slate-500 hover:bg-red-500/10 hover:text-red-300' : 'text-slate-400 hover:bg-red-50 hover:text-red-500'}`}
+                    className={`shrink-0 h-7 w-7 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:text-danger`}
                     title="删除签名"
                   >
                     <Trash2 size={13} />

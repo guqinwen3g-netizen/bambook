@@ -1038,7 +1038,11 @@
 
 .bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface--light,
 .ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface--light,
-[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface--light {
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface--light,
+/* P2 自适应基类：与 --light 修饰类等效（本规则已限定浅色非壁纸根） */
+.bambook-os-root:not(.bambook-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface,
+.ui-lab-real-os-root:not(.ui-lab-real-os-root--dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface,
+[data-ui-lab-2-root]:not(.dark):not([data-wallpaper-mode="on"]) .app-sidebar .bambook-selected-surface {
   background-color: var(--bambook-rdl-sidebar-active-fill-light) !important;
   background-image: none !important;
   border: 0 !important;

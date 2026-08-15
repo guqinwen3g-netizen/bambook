@@ -41,16 +41,9 @@ export const AgentLiveStatusBar: React.FC<AgentLiveStatusBarProps> = ({
     ? getAgentEventSemanticTone(last)
     : 'info';
 
-  const iconColor =
-    tone === 'danger'
-      ? 'text-slate-400'
-      : tone === 'warning'
-        ? 'text-slate-400'
-        : 'text-slate-400';
+  const iconColor = 'text-[var(--text-tertiary)]';
 
-  const textClass = isDarkMode
-    ? BAMBOOK_OS.tone.text.quietDark
-    : BAMBOOK_OS.tone.text.quietLight;
+  const textClass = BAMBOOK_OS.tone.text.quiet;
 
   const Icon = (tone === 'danger' || tone === 'warning') ? AlertCircle : Activity;
 

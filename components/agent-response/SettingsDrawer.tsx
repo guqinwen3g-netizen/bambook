@@ -40,8 +40,8 @@ const ToolCatalogSection: React.FC<{
   isDarkMode?: boolean;
 }> = ({ catalog, status, error, onRetry, isDarkMode }) => {
   const [openDomains, setOpenDomains] = useState<Record<string, boolean>>({});
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const surfaceClass = isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/70';
+  const quietText = BAMBOOK_OS.tone.text.quiet;
+  const surfaceClass = 'border-[var(--border-c-subtle)]';
   const groups = catalog?.groupedByDomain ?? [];
 
   if (status === 'idle' || status === 'loading') {
@@ -50,7 +50,7 @@ const ToolCatalogSection: React.FC<{
 
   if (status === 'error') {
     return (
-      <div className={`text-[11px] py-2 ${isDarkMode ? 'text-white/75' : 'text-slate-600'}`}>
+      <div className={`text-[11px] py-2 text-[var(--text-secondary)]`}>
         {error || '加载失败'}
         <button type="button" onClick={onRetry} className="ml-2 underline">重试</button>
       </div>
@@ -74,27 +74,23 @@ const ToolCatalogSection: React.FC<{
             <button
               type="button"
               onClick={() => setOpenDomains(prev => ({ ...prev, [group.domain]: !isOpen }))}
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left ${isDarkMode ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.03]'} rounded-inset`}
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--hover-darken)] rounded-inset`}
             >
-              <Wrench size={11} strokeWidth={1.5} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
-              <span className={`text-[11px] font-light flex-1 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{meta.label}</span>
+              <Wrench size={11} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
+              <span className={`text-[11px] font-light flex-1 text-[var(--text-primary)]`}>{meta.label}</span>
               <span className={`text-[10px] ${quietText}`}>{group.tools.length}</span>
               <ChevronRight size={12} strokeWidth={1.5} className={`transition-transform ${isOpen ? 'rotate-90' : ''} ${quietText}`} />
             </button>
             {isOpen && (
               <div className={`border-t ${surfaceClass} px-1.5 py-1 space-y-0.5`}>
                 {group.tools.map(tool => (
-                  <div key={tool.id} className={`rounded-compact px-2 py-1.5 ${isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-black/[0.03]'}`}>
+                  <div key={tool.id} className={`rounded-compact px-2 py-1.5 hover:bg-[var(--hover-darken)]`}>
                     <div className="flex items-center gap-1.5">
-                      <span className={`text-[11px] font-light truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{tool.name}</span>
+                      <span className={`text-[11px] font-light truncate text-[var(--text-primary)]`}>{tool.name}</span>
                       <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded border ${riskPillClass(tool.risk, isDarkMode)}`}>{tool.risk}</span>
                       <ApprovalIcon
                         approval={tool.safety.approval}
-                        className={`shrink-0 ml-auto ${
-                          tool.safety.approval === 'always' ? (isDarkMode ? 'text-white/70' : 'text-slate-600')
-                          : tool.safety.approval === 'risk_based' ? (isDarkMode ? 'text-white/70' : 'text-slate-600')
-                          : (isDarkMode ? 'text-white/70' : 'text-slate-600')
-                        }`}
+                        className={`shrink-0 ml-auto text-[var(--text-secondary)]`}
                       />
                     </div>
                     <div className={`mt-0.5 text-[10px] leading-3.5 ${quietText} truncate`}>{tool.description}</div>
@@ -118,10 +114,10 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onRetryCatalog,
   isDarkMode,
 }) => {
-  const bodyBg = isDarkMode ? 'bg-slate-950' : 'bg-white';
-  const mainText = isDarkMode ? 'text-white/85' : 'text-slate-800';
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const surfaceClass = isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/70';
+  const bodyBg = 'bg-[var(--bg-card)]';
+  const mainText = 'text-[var(--text-primary)]';
+  const quietText = BAMBOOK_OS.tone.text.quiet;
+  const surfaceClass = 'border-[var(--border-c-subtle)]';
 
   return (
     <AnimatePresence>
@@ -133,7 +129,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[100] bg-black/20"
+            className="fixed inset-0 z-[100] bg-[var(--mask-bg)]"
             onClick={onClose}
           />
           {/* 抽屉 */}
@@ -153,7 +149,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className={`h-8 w-8 rounded-control flex items-center justify-center transition-colors ${isDarkMode ? 'hover:bg-white/[0.06]' : 'hover:bg-slate-100'}`}
+                className={`h-8 w-8 rounded-control flex items-center justify-center transition-colors hover:bg-[var(--recessed-bg-hover)]`}
                 aria-label="关闭设置"
               >
                 <X size={14} className={quietText} />

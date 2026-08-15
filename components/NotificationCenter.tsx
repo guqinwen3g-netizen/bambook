@@ -80,8 +80,7 @@ const levelColorFor = (level: string, dark: boolean): string => {
 };
 
 const levelBgFor = (level: string, dark: boolean): string => {
-  if (level === 'critical') return dark ? 'bg-white/[0.07]' : 'bg-slate-900/[0.06]';
-  if (level === 'warning') return dark ? 'bg-white/[0.05]' : 'bg-slate-900/[0.045]';
+  if (level === 'critical' || level === 'warning') return 'bg-[var(--recessed-bg)]';
   return dark ? 'bg-[rgb(var(--bambook-brand-link-rgb)/0.08)]' : 'bg-[rgb(var(--bambook-brand-link-rgb)/0.06)]';
 };
 
@@ -139,9 +138,7 @@ export function NotificationCenterTrigger({
   if (!ctx) return null;
   const { isOpen, toggle, unreadCount, criticalCount, isDarkMode } = ctx;
   const hasUnread = unreadCount > 0;
-  const pillClass = isDarkMode
-    ? BAMBOOK_OS.controls.actionControl.dark
-    : BAMBOOK_OS.controls.actionControl.light;
+  const pillClass = BAMBOOK_OS.controls.actionControl.base;
   const sizeClass = variant === 'header'
     ? 'h-10 w-10 rounded-full'
     : 'h-14 w-14 rounded-card-lg';
@@ -163,15 +160,15 @@ export function NotificationCenterTrigger({
         <span
           className={`absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-light leading-none
             ${criticalCount > 0
-              ? `${statusSemanticBg('danger', isDarkMode)} ${isDarkMode ? 'text-slate-950 ring-2 ring-white/25' : 'text-white ring-2 ring-slate-400/50'}`
-              : isDarkMode ? 'bg-accent-blue text-slate-950' : 'bg-action text-white'}
+              ? `${statusSemanticBg('danger', isDarkMode)} text-[var(--text-primary)] ring-2 ring-[var(--border-c-strong)]`
+              : `bg-[var(--os-vnext-brand-blue)] text-[var(--text-primary)]`}
           `}
         >
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}
       {criticalCount > 0 && !isOpen && (
-        <span className={`absolute -right-1 -top-1 h-2.5 w-2.5 animate-ping rounded-full ${isDarkMode ? 'bg-white/50' : 'bg-slate-500/70'}`} />
+        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 animate-ping rounded-full bg-[var(--accent)]" />
       )}
     </button>
   );
@@ -480,46 +477,44 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
   const dk = isDarkMode;
   const ui = {
     /** Tab 选中态 / 面板标题 */
-    title: dk ? 'text-white/95' : 'text-slate-900',
-    tabIdle: dk ? 'text-white/40 hover:text-white/70' : 'text-slate-400 hover:text-slate-600',
+    title: 'text-[var(--text-primary)]',
+    tabIdle: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]',
     /** 一级正文（通知标题未读、审批标题） */
-    primary: dk ? 'text-white/90' : 'text-slate-800',
+    primary: 'text-[var(--text-primary)]',
     /** 二级正文（通知正文未读） */
-    body: dk ? 'text-white/65' : 'text-slate-600',
+    body: 'text-[var(--text-secondary)]',
     /** 三级辅助（meta/说明） */
-    muted: dk ? 'text-white/50' : 'text-slate-500',
-    faint: dk ? 'text-white/40' : 'text-slate-400',
-    ghost: dk ? 'text-white/30' : 'text-slate-400',
+    muted: 'text-[var(--text-tertiary)]',
+    faint: 'text-[var(--text-tertiary)]',
+    ghost: 'text-[var(--text-quaternary)]',
     /** 空态大图标 */
-    iconEmpty: dk ? 'text-white/20' : 'text-slate-300',
+    iconEmpty: 'text-[var(--text-quaternary)]',
     /** 已读态 */
-    readTitle: dk ? 'font-light text-white/55' : 'font-light text-slate-500',
-    readBody: dk ? 'text-white/35' : 'text-slate-400',
+    readTitle: 'font-light text-[var(--text-tertiary)]',
+    readBody: 'text-[var(--text-tertiary)]',
     /** 行/条目 hover */
-    rowHover: dk ? 'hover:bg-white/4' : 'hover:bg-slate-900/[0.035]',
+    rowHover: 'hover:bg-[var(--hover-darken)]',
     /** 未读行 hover（底色之上再加深） */
-    rowHoverUnread: dk ? 'hover:bg-white/6' : 'hover:bg-slate-900/[0.055]',
+    rowHoverUnread: 'hover:bg-[var(--recessed-bg-hover)]',
     /** 审批卡片 / 决策意见底板 */
-    card: dk ? 'bg-white/4' : 'bg-slate-900/[0.035]',
-    chipSurface: dk ? 'bg-white/5' : 'bg-slate-900/[0.05]',
+    card: 'bg-[var(--hover-darken)]',
+    chipSurface: 'bg-[var(--recessed-bg)]',
     /** 待办/已办 小 Tab */
-    tabPillActive: dk ? 'bg-white/10 text-white/90' : 'bg-slate-900/[0.07] text-slate-800',
-    tabPillIdle: dk ? 'text-white/40 hover:bg-white/5 hover:text-white/70' : 'text-slate-400 hover:bg-slate-900/[0.05] hover:text-slate-600',
+    tabPillActive: 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]',
+    tabPillIdle: 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]',
     /** 头部/行内图标按钮 */
-    iconBtn: dk ? 'text-white/50 hover:bg-white/10 hover:text-white/90' : 'text-slate-400 hover:bg-slate-900/[0.06] hover:text-slate-700',
-    iconBtnRow: dk ? 'text-white/40 hover:bg-white/10' : 'text-slate-400 hover:bg-slate-900/[0.06]',
+    iconBtn: 'text-[var(--text-tertiary)] hover:bg-[var(--active-darken)] hover:text-[var(--text-primary)]',
+    iconBtnRow: 'text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]',
     /** 文本按钮（全部已读） */
-    textBtn: dk ? 'text-white/60 hover:bg-white/10 hover:text-white/90' : 'text-slate-500 hover:bg-slate-900/[0.06] hover:text-slate-800',
+    textBtn: 'text-[var(--text-tertiary)] hover:bg-[var(--active-darken)] hover:text-[var(--text-primary)]',
     /** 中性小按钮（取消/驳回） */
-    ghostBtn: dk ? 'text-white/50 hover:bg-white/8' : 'text-slate-500 hover:bg-slate-900/[0.06]',
+    ghostBtn: 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]',
     /** 输入控件（忽略原因/驳回意见） */
-    input: dk
-      ? 'bg-white/6 text-white/90 placeholder-white/25 focus:bg-white/8'
-      : 'bg-slate-900/[0.04] text-slate-800 placeholder-slate-400 focus:bg-slate-900/[0.07]',
+    input: 'bg-[var(--recessed-bg)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:bg-[var(--recessed-bg-hover)]',
     /** 语义按钮 hover 加深（通过/驳回/确认忽略：statusSemanticClass 之上） */
-    semanticBtnHover: dk ? 'hover:bg-white/[0.10]' : 'hover:bg-slate-900/[0.08]',
+    semanticBtnHover: 'hover:bg-[var(--active-darken)]',
     /** 开关关闭态轨道 */
-    switchOff: dk ? 'bg-white/12' : 'bg-slate-300/80',
+    switchOff: 'bg-[var(--recessed-bg-strong)]',
   };
 
   // Context value — 仅暴露 Trigger 所需的最小状态，避免 stats 轮询导致全局 re-render
@@ -549,9 +544,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
           <div
             ref={drawerRef}
             className={`fixed right-0 top-0 z-[90] flex h-full w-[420px] flex-col overflow-hidden rounded-l-panel border-l backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
-              ${isDarkMode
-                ? 'bg-[rgb(var(--bambook-bg-deep-rgb)/0.82)] border-white/[0.08] text-white/90'
-                : 'bg-white/90 border-slate-200/70 text-slate-800'}
+              bg-[var(--bg-card)] dark:bg-[rgb(var(--bambook-bg-deep-rgb)/0.82)] border-[var(--border-c-default)] text-[var(--text-primary)]
             `}
             style={{
               backdropFilter: 'blur(32px) saturate(1.4)',
@@ -656,7 +649,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                           key={entry.type}
                           className={`flex items-center gap-3 rounded-control px-4 py-3 transition-colors duration-200 ${ui.rowHover}`}
                         >
-                          <div className={`shrink-0 ${entry.isEnabled ? (dk ? 'text-white/70' : 'text-slate-600') : (dk ? 'text-white/25' : 'text-slate-400')}`}>
+                          <div className={`shrink-0 ${entry.isEnabled ? 'text-[var(--text-secondary)]' : (dk ? 'text-[var(--text-quaternary)]' : 'text-[var(--text-tertiary)]')}`}>
                             <Icon size={17} strokeWidth={1.3} />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -762,7 +755,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                               </div>
                               {/* 已办：决策意见 */}
                               {item.status !== 'pending' && item.decisionNote && (
-                                <div className={`mt-1.5 rounded-control px-2.5 py-1.5 text-[11px] font-light ${ui.chipSurface} ${dk ? 'text-white/55' : 'text-slate-600'}`}>
+                                <div className={`mt-1.5 rounded-control px-2.5 py-1.5 text-[11px] font-light ${ui.chipSurface} ${dk ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'}`}>
                                   审批意见：{item.decisionNote}
                                 </div>
                               )}
@@ -824,7 +817,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                                     type="button"
                                     disabled={deciding}
                                     onClick={() => { setRejectingId(item.id); setRejectNote(''); }}
-                                    className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-light transition-colors disabled:opacity-40 ${dk ? 'bg-white/6 text-white/60 hover:bg-white/10' : 'bg-slate-900/[0.05] text-slate-600 hover:bg-slate-900/[0.08]'}`}
+                                    className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-light transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`}
                                   >
                                     <X size={12} strokeWidth={1.5} />
                                     驳回
@@ -855,7 +848,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                   <button
                     type="button"
                     onClick={fetchItems}
-                    className={`mt-1 rounded-control px-3 py-1.5 text-xs font-light text-link ${dk ? 'hover:bg-white/10' : 'hover:bg-slate-900/[0.06]'}`}
+                    className={`mt-1 rounded-control px-3 py-1.5 text-xs font-light text-link hover:bg-[var(--active-darken)]`}
                   >
                     重试
                   </button>
@@ -936,7 +929,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                                 <button
                                   type="button"
                                   onClick={() => { setDismissingId(null); setDismissReason(''); setDismissError(null); }}
-                                  className={`rounded-control px-2.5 py-1 text-[10px] font-light transition-colors ${dk ? 'text-white/45 hover:bg-white/8' : 'text-slate-500 hover:bg-slate-900/[0.06]'}`}
+                                  className={`rounded-control px-2.5 py-1 text-[10px] font-light transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]`}
                                 >
                                   取消
                                 </button>
@@ -968,7 +961,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                                 e.stopPropagation();
                                 handleMarkAsRead(item.id);
                               }}
-                              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-white/80' : 'hover:text-slate-700'}`}
+                              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} hover:text-[var(--text-primary)]`}
                               title="标记已读"
                             >
                               <Check size={13} strokeWidth={1.5} />
@@ -983,7 +976,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                               setDismissReason('');
                               setDismissError(null);
                             }}
-                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-white/70' : 'hover:text-slate-600'}`}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} hover:text-[var(--text-secondary)]`}
                             title="忽略（需填原因）"
                           >
                             <BellOff size={13} strokeWidth={1.5} />
@@ -994,7 +987,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                               e.stopPropagation();
                               handleDelete(item.id);
                             }}
-                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-white/75' : 'hover:text-slate-700'}`}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-[var(--text-secondary)]' : 'hover:text-[var(--text-primary)]'}`}
                             title="删除"
                           >
                             <Trash2 size={13} strokeWidth={1.5} />

@@ -5,9 +5,9 @@ import { OS_MATERIAL } from '../ui/osMaterial';
 import type { AgentBlockComponentProps } from './AgentMarkdownBlock';
 
 export const AgentDiagramBlock: React.FC<AgentBlockComponentProps<AgentDiagramBlockModel>> = ({ block, isDarkMode }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
   const nodeById = new Map(block.nodes.map(node => [node.id, node]));
 
   return (
@@ -22,7 +22,7 @@ export const AgentDiagramBlock: React.FC<AgentBlockComponentProps<AgentDiagramBl
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {block.nodes.map(node => (
           <div key={node.id} className={`min-w-0 rounded-compact border px-3 py-2 ${borderClass}`}>
-            <div className={`truncate text-xs ${isDarkMode ? 'text-white/78' : 'text-slate-800'}`}>{node.label}</div>
+            <div className={`truncate text-xs text-[var(--text-primary)]`}>{node.label}</div>
             {node.subtitle && <div className={`mt-0.5 truncate text-[11px] ${quietTextClass}`}>{node.subtitle}</div>}
           </div>
         ))}
@@ -35,7 +35,7 @@ export const AgentDiagramBlock: React.FC<AgentBlockComponentProps<AgentDiagramBl
             {block.edges.slice(0, 6).map((edge, index) => (
               <div key={`${edge.from}-${edge.to}-${index}`} className={`flex min-w-0 items-center gap-2 text-[11px] ${quietTextClass}`}>
                 <span className="truncate">{nodeById.get(edge.from)?.label ?? edge.from}</span>
-                <span className={isDarkMode ? 'text-white/30' : 'text-slate-400'}>→</span>
+                <span className="text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]">→</span>
                 <span className="truncate">{nodeById.get(edge.to)?.label ?? edge.to}</span>
                 {edge.label && <span className={`shrink-0 rounded-full border px-1.5 py-0.5 ${borderClass}`}>{edge.label}</span>}
               </div>

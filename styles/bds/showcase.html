@@ -138,6 +138,14 @@
     <a href="#table">表格与列表 Table</a>
     <a href="#overlay">浮层 Overlay</a>
     <a href="#feedback">反馈 Feedback</a>
+    <div class="nav-cap">扩展组件 Extended</div>
+    <a href="#x-input">输入扩展 Input+</a>
+    <a href="#x-select">选择与标签 Choice</a>
+    <a href="#x-data">数据展示 Data</a>
+    <a href="#x-list">列表与组织 List</a>
+    <a href="#x-feedback">反馈扩展 Feedback+</a>
+    <a href="#x-overlay">浮层扩展 Overlay+</a>
+    <a href="#x-ai">AI 协作 Agent</a>
     <div class="nav-cap">组合 Patterns</div>
     <a href="#page">页面组合 Page</a>
   </nav>
@@ -192,10 +200,10 @@
 
       <div class="demo-label">① 中性画布 Surface — 页面 → 卡片 → 面板 → 下沉</div>
       <div class="grid g5" style="margin-bottom: var(--space-6);">
-        <div class="swatch" style="background: var(--bg-page); border: var(--border-default);"><div class="nm">--bg-page</div><div class="vl">#FAFAF9</div></div>
+        <div class="swatch" style="background: var(--bg-page); border: var(--border-default);"><div class="nm">--bg-page</div><div class="vl">#F3F5F6</div></div>
         <div class="swatch" style="background: var(--bg-card); border: var(--border-default);"><div class="nm">--bg-card</div><div class="vl">#FFFFFF</div></div>
-        <div class="swatch" style="background: var(--bg-panel);"><div class="nm">--bg-panel</div><div class="vl">#F5F5F4</div></div>
-        <div class="swatch" style="background: var(--bg-sunken);"><div class="nm">--bg-sunken</div><div class="vl">#EFEFEE</div></div>
+        <div class="swatch" style="background: var(--bg-panel);"><div class="nm">--bg-panel</div><div class="vl">#EAEDEE</div></div>
+        <div class="swatch" style="background: var(--bg-sunken);"><div class="nm">--bg-sunken</div><div class="vl">#E1E5E6</div></div>
         <div class="swatch" style="background: var(--bg-raised); border: var(--border-default);"><div class="nm">--bg-raised</div><div class="vl">浮层表面</div></div>
       </div>
 
@@ -278,7 +286,7 @@
         <div class="sec-desc">rimless 纪律：静态面零结构阴影；阴影仅属浮层。发光纪律：仅徽章/进度条等小型彩色状态元素发光；控件与大表面不发光。页面本身发光，卡片浮于光斑之上。</div>
       </div>
       <div class="grid g3">
-        <div class="bds-card glass" style="min-height: 110px;">
+        <div class="bds-card" style="min-height: 110px;">
           <div class="bds-overline" style="font-size: 10px;">Frosted 磨砂</div>
           <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: var(--space-2);">blur 20px · saturate 180%<br>浮层与玻璃卡专用材质</div>
         </div>
@@ -291,13 +299,29 @@
           <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: var(--space-2);">零阴影零边框<br>层级靠表面色差递进</div>
         </div>
       </div>
+      <div class="grid g3" style="margin-top: var(--space-3);">
+        <div class="bds-surface" style="min-height: 110px; border-radius: var(--r-card); padding: var(--p-card);">
+          <div class="bds-overline" style="font-size: 10px;">.bds-surface 玻璃面工具类</div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: var(--space-2);">非 card 主容器同源玻璃<br>统计条 / 表格容器 / 自定义面板</div>
+        </div>
+        <div class="bds-frosted" style="min-height: 110px; border-radius: var(--r-card); padding: var(--p-card);">
+          <div class="bds-overline" style="font-size: 10px;">.bds-frosted 浮层玻璃</div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: var(--space-2);">玻璃膜 + 弱白边<br>dropdown / popover 专用</div>
+        </div>
+        <div class="bds-card mist" style="padding: var(--space-3); min-height: 110px;">
+          <div class="bds-frosted-dark" style="height: 100%; border-radius: var(--radius-md); padding: var(--space-3);">
+            <div class="bds-overline" style="font-size: 10px; color: var(--on-mist);">.bds-frosted-dark 暗岛玻璃</div>
+            <div class="bds-text-xs" style="color: var(--on-mist-2); margin-top: var(--space-2);">深材质 / 雾面上的浮层</div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ═══ 5. 按钮 ═══ -->
     <section id="button">
       <div class="sec-head">
-        <div class="sec-title">按钮<span class="en">Button — pill 签名 · 6 变体 × 3 尺寸</span></div>
-        <div class="sec-desc">控件不发光——rimless 纯色实底，hover 只换底色。发光仅属徽章/进度条等小型彩色状态元素。</div>
+        <div class="sec-title">按钮<span class="en">Button — pill 签名 · 8 变体 × 3 尺寸</span></div>
+        <div class="sec-desc">尺寸纪律：默认标准 md（40px）——页面级操作一律 md 起步；sm 仅表格行内/微件关闭叉等高密度场景，lg 仅 hero。控件不发光——rimless 纯色实底，hover 只换底色。发光仅属徽章/进度条等小型彩色状态元素。</div>
       </div>
       <div class="specimen col" style="gap: var(--space-5);">
         <div>
@@ -309,6 +333,8 @@
             <button class="bds-btn bds-btn-ghost">幽灵按钮</button>
             <button class="bds-btn bds-btn-outline">描边按钮</button>
             <button class="bds-btn bds-btn-danger">危险操作</button>
+            <button class="bds-btn bds-btn-success">成功操作</button>
+            <button class="bds-btn bds-btn-link">链接按钮</button>
           </div>
         </div>
         <div>
@@ -547,6 +573,12 @@
               <span class="bds-badge info sm">跟进中</span>
               <span class="lr-chevron">›</span>
             </div>
+            <div class="bds-listrow rowsel">
+              <div class="bds-avatar" style="background: var(--accent-tint); color: var(--accent-text);">B</div>
+              <div class="lr-main"><div class="lr-title">Client B — 船样已确认（rowsel 选中态）</div><div class="lr-sub">强 tint + accent 引导脊 · Ben · 2 小时前</div></div>
+              <span class="bds-badge info sm">已选中</span>
+              <span class="lr-chevron">›</span>
+            </div>
             <div class="bds-listrow">
               <div class="bds-avatar" style="background: var(--accent-tint); color: var(--accent-text);">B</div>
               <div class="lr-main"><div class="lr-title">Client B — 船样确认待回复</div><div class="lr-sub">David · 2 小时前</div></div>
@@ -589,14 +621,14 @@
       <div class="grid g3">
         <div class="specimen flat-bg col" style="align-items: flex-start;">
           <div class="demo-label">Toast 轻提示</div>
-          <div class="bds-toast"><span class="ico" style="background: var(--accent); color:#fff;">i</span>报价单已保存为草稿</div>
+          <div class="bds-toast"><span class="ico" style="background: var(--accent); color: var(--on-accent);">i</span>报价单已保存为草稿</div>
           <div class="bds-toast success"><span class="ico">✓</span>PI-2026-0042 已生成</div>
           <div class="bds-toast danger"><span class="ico">!</span>汇率获取失败，请重试</div>
         </div>
         <div class="specimen flat-bg col" style="align-items: flex-start;">
           <div class="demo-label">Tooltip（hover 查看）</div>
           <span class="bds-tooltip">
-            <button class="bds-btn bds-btn-secondary sm"> hover 我</button>
+            <button class="bds-btn bds-btn-secondary"> hover 我</button>
             <span class="tip-body">偏差 3.2% · 无需审批</span>
           </span>
           <div class="demo-label" style="margin-top: var(--space-4);">Segment 分段器</div>
@@ -614,8 +646,8 @@
           <div class="demo-label" style="margin-top: var(--space-4);">Filterbar 筛选条</div>
           <div class="bds-filterbar">
             <input class="bds-input sm" placeholder="搜索…" style="width: 140px; background: var(--bg-panel);">
-            <button class="bds-btn bds-btn-ghost sm">状态 ▾</button>
-            <button class="bds-btn bds-btn-ghost sm">业务员 ▾</button>
+            <button class="bds-btn bds-btn-ghost">状态 ▾</button>
+            <button class="bds-btn bds-btn-ghost">业务员 ▾</button>
           </div>
         </div>
       </div>
@@ -623,7 +655,7 @@
         <div class="specimen flat-bg col" style="align-items: flex-start;">
           <div class="demo-label">Dropdown 下拉浮层 — 收敛四套选择器</div>
           <div style="position: relative;">
-            <button class="bds-btn bds-btn-secondary sm">客户：Client A ▾</button>
+            <button class="bds-btn bds-btn-secondary">客户：Client A ▾</button>
             <div class="bds-pop" style="position: static; margin-top: var(--space-2);">
               <div class="search"><input class="bds-input sm" placeholder="搜索客户…" style="background: var(--bg-panel);"></div>
               <div class="cap">最近往来</div>
@@ -689,6 +721,12 @@
             <div class="title">暂无贸易单据</div>
             <div class="desc">从订单一键生成形式发票开始</div>
           </div>
+          <div class="demo-label" style="margin-top: var(--space-4);">mist 签名空状态 — 雾面白字（每屏至多一处）</div>
+          <div class="bds-empty mist">
+            <div class="glyph"><svg class="bds-icon lg w-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg></div>
+            <div class="title">AI 洞察待生成</div>
+            <div class="desc">选择时间范围，让经营数据弥散为氛围洞察</div>
+          </div>
         </div>
       </div>
       <div class="grid g2" style="margin-top: var(--space-3);">
@@ -722,6 +760,709 @@
       </div>
     </section>
 
+    <!-- ═══ 扩展 1. 输入扩展 ═══ -->
+    <section id="x-input">
+      <div class="sec-head">
+        <div class="sec-title">输入扩展<span class="en">Input Extended — 搜索 / 前后缀 / 校验 / 微控件</span></div>
+        <div class="sec-desc">收敛各 Manager 页搜索栏与手工拼装输入：同一填充式语言——无边框，focus 才出 accent 边。</div>
+      </div>
+      <div class="grid g2">
+        <div class="specimen col">
+          <div class="demo-label">搜索 SearchInput — 图标前缀 + 清除</div>
+          <div class="bds-search">
+            <svg class="bds-icon bds-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input class="bds-input" value="GO-2026-0312">
+            <button class="bds-search-clear show">✕</button>
+          </div>
+          <div class="bds-search">
+            <svg class="bds-icon bds-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input class="bds-input" placeholder="搜索订单号 / 客户 / 款号…">
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-3);">前缀 / 后缀 Prefix · Suffix</div>
+          <div class="bds-input-wrap">
+            <span class="prefix"><svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+            <input class="bds-input" placeholder="按客户名称检索…">
+          </div>
+          <div class="bds-input-wrap">
+            <input class="bds-input bds-tnum" value="4.82" style="padding-right: 64px;">
+            <span class="suffix" style="font-size: var(--text-xs);">USD / m</span>
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-3);">胶囊 Capsule — pill 圆角输入变体</div>
+          <input class="bds-input capsule" placeholder="胶囊式快速检索…">
+          <div class="demo-label" style="margin-top: var(--space-3);">校验 Error</div>
+          <div class="bds-input-wrap error">
+            <input class="bds-input" value="2026-08-01">
+          </div>
+          <div class="bds-text-xs" style="color: var(--danger-text);">交期不能早于船样确认日期（2026-08-12）</div>
+        </div>
+        <div class="col">
+          <div class="specimen col">
+            <div class="demo-label">表单字段 FormField</div>
+            <div class="bds-formfield">
+              <div class="ff-label">客户名称 <span class="req">*</span></div>
+              <input class="bds-input" placeholder="选择或新建客户">
+              <div class="ff-hint">与客户档案自动关联</div>
+            </div>
+            <div class="bds-formfield error">
+              <div class="ff-label">报价偏差 <span class="req">*</span> <span class="opt">Track A/B</span></div>
+              <input class="bds-input" value="7.8%">
+              <div class="ff-error">偏差超 5% 阈值，提交后进入主管审批</div>
+            </div>
+          </div>
+          <div class="specimen col">
+            <div class="demo-label">微控件 Controls — 胶囊 / 滑块 / 步进 / 按键</div>
+            <input class="bds-input capsule" placeholder="胶囊输入 — AI 对话 / 全局搜索…">
+            <div class="row">
+              <input type="range" class="bds-slider" value="62" style="flex: 1;">
+              <span class="bds-tnum" style="font-size: var(--text-xs); color: var(--text-tertiary);">62%</span>
+            </div>
+            <div class="row">
+              <div class="bds-stepper">
+                <button class="sp-btn" data-step="-50">−</button>
+                <input class="sp-input" value="800">
+                <button class="sp-btn" data-step="50">+</button>
+              </div>
+              <span class="bds-text-xs" style="color: var(--text-tertiary);">MOQ 起订量（米）</span>
+            </div>
+            <div class="row">
+              <span class="bds-text-sm" style="color: var(--text-secondary);">命令面板</span>
+              <span class="bds-kbd">⌘</span><span class="bds-kbd">K</span>
+              <span class="bds-text-sm" style="color: var(--text-secondary); margin-left: var(--space-3);">新建</span>
+              <span class="bds-kbd">⌘</span><span class="bds-kbd">N</span>
+            </div>
+          </div>
+          <div class="specimen">
+            <div class="demo-label">表单分组 FormSection</div>
+            <div class="bds-formsection">
+              <div class="bds-fs-title">付款与交付 Payment &amp; Delivery</div>
+              <div class="bds-fs-body">
+                <div class="row">
+                  <select class="bds-select" style="flex: 1;"><option>T/T 30 天</option><option>T/T 60 天</option><option>L/C 即期</option></select>
+                  <select class="bds-select" style="flex: 1;"><option>FOB 上海</option><option>CIF 汉堡</option><option>EXW</option></select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 扩展 2. 选择与标签 ═══ -->
+    <section id="x-select">
+      <div class="sec-head">
+        <div class="sec-title">选择与标签<span class="en">Choice &amp; Chips — 组合选择 / 关联输入 / 可移除标签</span></div>
+        <div class="sec-desc">收敛 RelationCombobox / SmartLinkedInput / CustomSelect 等四套手工拼装——浮层壳统一 r-pop + p-pop + shadow-sm。</div>
+      </div>
+      <div class="grid g2">
+        <div class="specimen col">
+          <div class="demo-label">组合选择器 Combobox（展开态）</div>
+          <div class="bds-combobox open">
+            <div class="cb-input-wrap">
+              <input class="bds-input" value="Client">
+              <svg class="bds-icon cb-toggle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+            <div class="cb-results" style="position: static; margin-top: var(--space-1);">
+              <div class="cb-group-cap">最近往来</div>
+              <div class="cb-opt sel">Client A<span class="cb-opt-meta">USD · T/T 30</span></div>
+              <div class="cb-opt">Client B<span class="cb-opt-meta">EUR · T/T 60</span></div>
+              <div class="cb-opt">Client C<span class="cb-opt-meta">USD · L/C</span></div>
+              <div class="cb-create">新建客户 “Client…”</div>
+            </div>
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-3);">关联输入 LinkedInput — 订单/报价互链</div>
+          <div class="bds-linked-input">
+            <span class="li-chip">FO-2026-0801<button class="li-unlink">✕</button></span>
+            <span class="li-chip">GO-2026-0312<button class="li-unlink">✕</button></span>
+            <input class="li-input" placeholder="关联订单 / 报价 / 运单…">
+          </div>
+        </div>
+        <div class="col">
+          <div class="specimen col">
+            <div class="demo-label">可移除标签 Chip</div>
+            <div class="row">
+              <span class="bds-chip">40S 全棉府绸<button class="chip-remove">✕</button></span>
+              <span class="bds-chip accent">Client A<button class="chip-remove">✕</button></span>
+              <span class="bds-chip success">已商检<button class="chip-remove">✕</button></span>
+              <span class="bds-chip warning">待排产<button class="chip-remove">✕</button></span>
+              <span class="bds-chip danger">逾期<button class="chip-remove">✕</button></span>
+            </div>
+          </div>
+          <div class="specimen col">
+            <div class="demo-label">切换按钮组 ToggleButton — 视图切换</div>
+            <div class="bds-toggle-group">
+              <button class="bds-toggle active"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>卡片</button>
+              <button class="bds-toggle"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>列表</button>
+              <button class="bds-toggle"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/></svg>看板</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 扩展 3. 数据展示 ═══ -->
+    <section id="x-data">
+      <div class="sec-head">
+        <div class="sec-title">数据展示<span class="en">Data Display — 指标 / 环仪 / 迷你图 / 滚动数字</span></div>
+        <div class="sec-desc">大数字 300 细字重 + tabular-nums；图表色只走 accent 与雾化语义三色，零高饱和。</div>
+      </div>
+      <div class="grid g3">
+        <div class="bds-stat-inset">
+          <div class="bds-stat-label">准交率 OTIF</div>
+          <div class="bds-stat-num">96.4%</div>
+          <div class="bds-stat-delta up">↑ 1.2 pts vs 上月</div>
+        </div>
+        <div class="bds-stat-inset">
+          <div class="bds-stat-label">在产订单 WIP</div>
+          <div class="bds-stat-num">26</div>
+          <div class="bds-stat-delta up">↑ 4 单</div>
+        </div>
+        <div class="bds-stat-inset">
+          <div class="bds-stat-label">逾期金额 Overdue</div>
+          <div class="bds-stat-num" style="color: var(--danger-text);">$32.4k</div>
+          <div class="bds-stat-delta down">↓ 2 单待催收</div>
+        </div>
+      </div>
+      <div class="grid g3" style="margin-top: var(--space-3);">
+        <div class="specimen col" style="align-items: center; text-align: center;">
+          <div class="demo-label" style="align-self: flex-start;">环形进度 CircularProgress</div>
+          <div class="row" style="justify-content: center;">
+            <div class="bds-progress-circle">
+              <svg width="72" height="72" viewBox="0 0 72 72">
+                <circle class="track" cx="36" cy="36" r="31" stroke-width="5"/>
+                <circle class="fill" cx="36" cy="36" r="31" stroke-width="5" stroke-dasharray="194.8" stroke-dashoffset="58.4"/>
+              </svg>
+              <span class="pct">70%</span>
+            </div>
+            <div class="bds-progress-circle success">
+              <svg width="72" height="72" viewBox="0 0 72 72">
+                <circle class="track" cx="36" cy="36" r="31" stroke-width="5"/>
+                <circle class="fill" cx="36" cy="36" r="31" stroke-width="5" stroke-dasharray="194.8" stroke-dashoffset="11.7"/>
+              </svg>
+              <span class="pct">94%</span>
+            </div>
+          </div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary);">生产进度 / 回款进度</div>
+        </div>
+        <div class="specimen col" style="align-items: center; text-align: center;">
+          <div class="demo-label" style="align-self: flex-start;">半圆仪表 CircularProgress.arc</div>
+          <div class="bds-progress-circle arc" style="margin-top: var(--space-3);">
+            <svg width="132" height="72" viewBox="0 0 120 64">
+              <path class="track" d="M 8 60 A 52 52 0 0 1 112 60" stroke-width="8"/>
+              <path class="fill" d="M 8 60 A 52 52 0 0 1 112 60" stroke-width="8" stroke-dasharray="163.4" stroke-dashoffset="45.7"/>
+            </svg>
+            <span class="pct">72</span>
+            <span class="lbl">订单健康分</span>
+          </div>
+        </div>
+        <div class="specimen col" style="align-items: center; text-align: center;">
+          <div class="demo-label" style="align-self: flex-start;">滚动数字 RollingTicker</div>
+          <div class="bds-roller" style="font-size: var(--text-3xl); margin-top: var(--space-2);">
+            <span class="rl-digit"><span class="rl-strip" style="transform: translateY(-9em);"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span>
+            <span class="rl-digit"><span class="rl-strip" style="transform: translateY(-4em);"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span>
+            <span style="width: 0.3em;">.</span>
+            <span class="rl-digit"><span class="rl-strip" style="transform: translateY(-2em);"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></span></span>
+          </div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary);">年度回款率 %</div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen col">
+          <div class="demo-label">迷你折线 Sparkline — 趋势嵌入表格/指标</div>
+          <div class="row">
+            <span class="bds-sparkline">
+              <svg width="96" height="28" viewBox="0 0 96 28">
+                <path class="sp-area" d="M2 22 L14 18 L26 20 L38 12 L50 14 L62 8 L74 10 L94 4 L94 28 L2 28 Z"/>
+                <path class="sp-line" d="M2 22 L14 18 L26 20 L38 12 L50 14 L62 8 L74 10 L94 4"/>
+                <circle class="sp-dot" cx="94" cy="4" r="2.5"/>
+              </svg>
+            </span>
+            <span class="bds-text-sm">月度报价额</span>
+            <span class="bds-badge success sm">↑ 8.6%</span>
+          </div>
+          <div class="row">
+            <span class="bds-sparkline danger">
+              <svg width="96" height="28" viewBox="0 0 96 28">
+                <path class="sp-area" d="M2 6 L16 10 L30 8 L44 14 L58 13 L72 19 L86 18 L94 24 L94 28 L2 28 Z"/>
+                <path class="sp-line" d="M2 6 L16 10 L30 8 L44 14 L58 13 L72 19 L86 18 L94 24"/>
+                <circle class="sp-dot" cx="94" cy="24" r="2.5"/>
+              </svg>
+            </span>
+            <span class="bds-text-sm">逾期账龄</span>
+            <span class="bds-badge danger sm">↑ 2 单</span>
+          </div>
+        </div>
+        <div class="specimen col">
+          <div class="demo-label">描述列表 DescriptionList — 详情页 label:value</div>
+          <div class="bds-desclist">
+            <div class="bds-descrow"><div class="bds-dt">客户 Client</div><div class="bds-dd">Client B</div></div>
+            <div class="bds-descrow"><div class="bds-dt">付款 Payment</div><div class="bds-dd">T/T 60 天 · EUR 结算</div></div>
+            <div class="bds-descrow"><div class="bds-dt">交期 Exmill</div><div class="bds-dd bds-tnum">2026-10-02</div></div>
+            <div class="bds-descrow"><div class="bds-dt">船样 Sample</div><div class="bds-dd"><span class="bds-badge success sm"><span class="dot"></span>已确认</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="specimen" style="margin-top: var(--space-3); padding: 0; overflow: hidden;">
+        <div class="bds-code">
+          <div class="bds-code-head"><span class="lang">JSON · 报价快照</span><button class="copy">复制</button></div>
+          <div class="bds-code-body"><pre>{
+  <span class="kw">"order_no"</span>: <span class="str">"QT-2026-1042"</span>,
+  <span class="kw">"track_a"</span>: <span class="str">"$4.72 / m"</span>,   <span class="com">// 系统推荐估算</span>
+  <span class="kw">"track_b"</span>: <span class="str">"$4.82 / m"</span>,   <span class="com">// 终价 · 随单锁定</span>
+  <span class="kw">"deviation"</span>: <span class="str">"2.1%"</span>
+}</pre></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 扩展 4. 列表与组织 ═══ -->
+    <section id="x-list">
+      <div class="sec-head">
+        <div class="sec-title">列表与组织<span class="en">List &amp; Structure — 时间线 / 手风琴 / 条目 / 卡片结构</span></div>
+        <div class="sec-desc">行间 hairline 分隔，hover 整行浮底；嵌套块用 radius-md（16px）下沉一级。</div>
+      </div>
+      <div class="grid g2">
+        <div class="specimen">
+          <div class="demo-label">时间线 Timeline — 订单履约轨迹</div>
+          <div class="bds-timeline">
+            <div class="bds-tl-item">
+              <div class="bds-tl-dot success"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+              <div class="bds-tl-body">
+                <div class="bds-tl-title">船样已确认</div>
+                <div class="bds-tl-desc">Client A 现场确认通过 · 品质部</div>
+                <div class="bds-tl-time">2026-08-12 14:30</div>
+              </div>
+            </div>
+            <div class="bds-tl-item">
+              <div class="bds-tl-dot warning"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+              <div class="bds-tl-body">
+                <div class="bds-tl-title">大货生产中 · 82%</div>
+                <div class="bds-tl-desc">湖州织厂 · 预计 09-28 完工</div>
+                <div class="bds-tl-time">2026-08-14 09:12</div>
+              </div>
+            </div>
+            <div class="bds-tl-item">
+              <div class="bds-tl-dot"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
+              <div class="bds-tl-body">
+                <div class="bds-tl-title">待商检与出运安排</div>
+                <div class="bds-tl-desc">触发条件：生产完工 + 船样归档</div>
+                <div class="bds-tl-time">预计 2026-10-02</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="specimen">
+          <div class="demo-label">手风琴 Accordion — 设置页/帮助页分组</div>
+          <div class="bds-accordion">
+            <div class="bds-acc-item open">
+              <button class="bds-acc-head">双轨成本如何计算？<svg class="bds-icon acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+              <div class="bds-acc-body bds-text-sm" style="color: var(--text-secondary); line-height: 1.7;">
+                Track A 基于原料价 + 加工费 + 市场行情系统推荐估算，用于内部洽谈；Track B 以人民币成本退税后折算美元 + 销售利润 + 居间费，为最终报价。
+              </div>
+            </div>
+            <div class="bds-acc-item">
+              <button class="bds-acc-head">船样确认的时限要求？<svg class="bds-icon acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+              <div class="bds-acc-body bds-text-sm" style="color: var(--text-secondary); line-height: 1.7;">
+                出运前 2 周完成船样确认；Separates 产品需提前 1 周追加匹头样确认。
+              </div>
+            </div>
+            <div class="bds-acc-item">
+              <button class="bds-acc-head">作废单号可以回收复用吗？<svg class="bds-icon acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+              <div class="bds-acc-body bds-text-sm" style="color: var(--text-secondary); line-height: 1.7;">
+                不可以。全部单据编号全局唯一、作废不回收，保留审计轨迹。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen" style="padding: var(--space-2) 0;">
+          <div class="demo-label" style="padding: 0 var(--space-4);">通知条目 NotificationItem — 未读 accent 点</div>
+          <div class="bds-notify unread">
+            <div class="nf-ico warning"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+            <div class="nf-body">
+              <div class="nf-title">GO-2026-0288 交付逾期预警</div>
+              <div class="nf-desc">交期 2026-08-05 已过 3 天 · 生产进度 82%</div>
+              <div class="nf-time">10 分钟前</div>
+            </div>
+          </div>
+          <div class="bds-notify" style="border-top: var(--border-subtle);">
+            <div class="nf-ico success"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg></div>
+            <div class="nf-body">
+              <div class="nf-title">PI-2026-0042 已签回归档</div>
+              <div class="nf-desc">Client A · 水单待财务核销</div>
+              <div class="nf-time">昨天 18:42</div>
+            </div>
+          </div>
+        </div>
+        <div class="specimen" style="padding: var(--space-3);">
+          <div class="demo-label">联系人条目 ContactItem — hover 浮出操作</div>
+          <div class="bds-contact">
+            <div class="bds-avatar">A</div>
+            <div class="ct-info"><div class="ct-name">Amy Zhang</div><div class="ct-role">业务员 · 面料一组</div></div>
+            <div class="ct-actions">
+              <button class="ct-act"><svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg></button>
+              <button class="ct-act"><svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+            </div>
+          </div>
+          <div class="bds-contact">
+            <div class="bds-avatar" style="background: var(--accent-tint); color: var(--accent-text);">D</div>
+            <div class="ct-info"><div class="ct-name">David Chen</div><div class="ct-role">跟单 · 成衣组</div></div>
+            <div class="ct-actions">
+              <button class="ct-act"><svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg></button>
+              <button class="ct-act"><svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+            </div>
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-4);">头像组 AvatarGroup</div>
+          <div class="bds-avatar-group">
+            <div class="bds-avatar">A</div>
+            <div class="bds-avatar" style="background: var(--accent-tint); color: var(--accent-text);">D</div>
+            <div class="bds-avatar" style="background: var(--success-tint); color: var(--success-text);">L</div>
+            <div class="bds-more">+5</div>
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-4);">面包屑 Breadcrumb</div>
+          <div class="bds-breadcrumb">
+            <a href="#">经营总览</a><span class="sep">/</span>
+            <a href="#">订单履约</a><span class="sep">/</span>
+            <span class="current bds-mono">FO-2026-0801</span>
+          </div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen col">
+          <div class="demo-label">工具条 Toolbar / 分割线变体</div>
+          <div class="bds-toolbar">
+            <div class="tb-left">
+              <span class="tb-count">128 条记录</span>
+              <div class="bds-divider vertical"></div>
+              <button class="bds-btn bds-btn-ghost">批量导出</button>
+            </div>
+            <div class="tb-right">
+              <button class="bds-btn bds-btn-secondary">列设置</button>
+              <button class="bds-btn bds-btn-primary"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>新建订单</button>
+            </div>
+          </div>
+          <div class="bds-divider with-label"><span class="label">或 OR</span></div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary); text-align: center;">with-label 变体 — 表单/登录分野</div>
+        </div>
+        <div class="specimen col">
+          <div class="demo-label">文件夹标签 FolderTab — 档案分区</div>
+          <div>
+            <div class="bds-folder-tabs">
+              <button class="bds-folder-tab active">面料档案</button>
+              <button class="bds-folder-tab">成衣款式</button>
+              <button class="bds-folder-tab">辅资料</button>
+            </div>
+            <div class="bds-card" style="border-radius: 0 var(--r-card) var(--r-card) var(--r-card);">
+              <div class="bds-text-sm" style="color: var(--text-secondary);">激活页签与内容卡同色相接——文件夹隐喻，零边框零阴影。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen col">
+          <div class="demo-label">卡片结构变体 — compact / flush</div>
+          <div class="bds-card compact" style="background: var(--bg-panel);">
+            <div class="bds-text-sm">compact — 紧凑内距（space-4），用于密集网格</div>
+          </div>
+          <div class="bds-card flush">
+            <div class="bds-card-head-row">
+              <span class="bds-text-sm">flush — 头/体/脚结构卡</span>
+              <button class="bds-btn bds-btn-ghost sm">编辑</button>
+            </div>
+            <div class="bds-card-body bds-text-sm" style="color: var(--text-secondary);">padding 归零，区块间以 hairline 分隔。</div>
+            <div class="bds-card-foot">
+              <button class="bds-btn bds-btn-secondary">取消</button>
+              <button class="bds-btn bds-btn-primary">保存</button>
+            </div>
+          </div>
+        </div>
+        <div class="specimen" style="padding: var(--space-3) 0;">
+          <div class="demo-label" style="padding: 0 var(--space-4);">表格变体 — compact 紧凑行 + 选中行</div>
+          <table class="bds-table compact">
+            <thead><tr><th>款号</th><th>品名</th><th>状态</th><th class="num">数量</th></tr></thead>
+            <tbody>
+              <tr><td class="bds-mono">ST-2601</td><td>男士休闲夹克</td><td><span class="bds-badge warning sm">打样中</span></td><td class="num bds-tnum">12 件</td></tr>
+              <tr class="rowsel"><td class="bds-mono">FB-1140</td><td>40S 全棉府绸</td><td><span class="bds-badge info sm">已选中</span></td><td class="num bds-tnum">126,000 m</td></tr>
+              <tr><td class="bds-mono">ST-2602</td><td>女装连衣裙</td><td><span class="bds-badge success sm">已确认</span></td><td class="num bds-tnum">800 件</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="specimen" style="margin-top: var(--space-3);">
+        <div class="demo-label">滚动边缘渐变 ScrollEdgeFade — 滚动列表上下雾隐</div>
+        <div class="bds-scroll-fade" style="max-height: 148px; border-radius: var(--radius-md); background: var(--bg-card);">
+          <div class="bds-listrows">
+            <div class="bds-listrow"><div class="lr-main"><div class="lr-title">GO-2026-0312 · 男士休闲夹克</div><div class="lr-sub">Client A · 生产中</div></div><span class="bds-badge warning sm">WIP</span></div>
+            <div class="bds-listrow"><div class="lr-main"><div class="lr-title">FO-2026-0801 · 40S 全棉府绸</div><div class="lr-sub">Client B · 已确认</div></div><span class="bds-badge info sm">Confirmed</span></div>
+            <div class="bds-listrow"><div class="lr-main"><div class="lr-title">GO-2026-0288 · 女装连衣裙</div><div class="lr-sub">Client C · 逾期</div></div><span class="bds-badge danger sm">Overdue</span></div>
+            <div class="bds-listrow"><div class="lr-main"><div class="lr-title">FO-2026-0795 · T/R 斜纹布</div><div class="lr-sub">Client A · 已出运</div></div><span class="bds-badge success sm">Shipped</span></div>
+            <div class="bds-listrow"><div class="lr-main"><div class="lr-title">QT-2026-1042 · 报价单</div><div class="lr-sub">Client A · 报价中</div></div><span class="bds-badge info sm">Quoted</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 扩展 5. 反馈扩展 ═══ -->
+    <section id="x-feedback">
+      <div class="sec-head">
+        <div class="sec-title">反馈扩展<span class="en">Feedback Extended — Spinner / CountBadge / StatusDot / Banner / Alert</span></div>
+        <div class="sec-desc">发光纪律重申：仅状态点、数字徽章等小面积彩色元素发光；按钮与横幅一律哑光雾化。</div>
+      </div>
+      <div class="grid g3">
+        <div class="specimen col">
+          <div class="demo-label">加载指示 Spinner</div>
+          <div class="row">
+            <span class="bds-spinner sm"></span>
+            <span class="bds-spinner"></span>
+            <span class="bds-spinner lg"></span>
+            <span class="bds-text-xs" style="color: var(--text-tertiary);">sm / md / lg</span>
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-4);">状态点 StatusDot — 仅此处允许发光</div>
+          <div class="row">
+            <span class="row" style="gap: 6px;"><span class="bds-statusdot online"></span><span class="bds-text-xs">在线</span></span>
+            <span class="row" style="gap: 6px;"><span class="bds-statusdot busy"></span><span class="bds-text-xs">忙碌</span></span>
+            <span class="row" style="gap: 6px;"><span class="bds-statusdot away"></span><span class="bds-text-xs">离开</span></span>
+            <span class="row" style="gap: 6px;"><span class="bds-statusdot offline"></span><span class="bds-text-xs">离线</span></span>
+          </div>
+        </div>
+        <div class="specimen col">
+          <div class="demo-label">数字徽章 CountBadge — 页签/导航计数</div>
+          <div class="bds-tabs" style="width: 100%;">
+            <button class="bds-tab active">全部<span class="bds-count">12</span></button>
+            <button class="bds-tab">待审批<span class="bds-count">3</span></button>
+            <button class="bds-tab">预警<span class="bds-count accent">5</span></button>
+          </div>
+          <div class="row" style="margin-top: var(--space-3);">
+            <span class="bds-count">3</span>
+            <span class="bds-count accent">5</span>
+            <span class="bds-count neutral">12</span>
+            <span class="bds-count">99+</span>
+          </div>
+        </div>
+        <div class="specimen col">
+          <div class="demo-label">按钮变体 — success / link</div>
+          <div class="row">
+            <button class="bds-btn bds-btn-success"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>确认收款</button>
+            <button class="bds-btn bds-btn-link">查看核销明细 →</button>
+          </div>
+          <div class="bds-text-xs" style="color: var(--text-tertiary);">success 与 danger 同语言：tint 底 + 语义文字；实底仅 accent / invert。</div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen col">
+          <div class="demo-label">页面级通告 Banner — 标题 + 描述 + 关闭</div>
+          <div class="bds-banner info">
+            <svg class="bds-icon bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <div class="bn-body"><div class="bn-title">汇率已更新</div><div class="bn-desc">USD/CNY 7.0912 · 今日 09:30 与中间价同步</div></div>
+            <button class="bn-close">✕</button>
+          </div>
+          <div class="bds-banner warning">
+            <svg class="bds-icon bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <div class="bn-body"><div class="bn-title">2 张订单临近交期</div><div class="bn-desc">GO-2026-0288 / GO-2026-0291 · 7 天内到期</div></div>
+            <button class="bn-close">✕</button>
+          </div>
+        </div>
+        <div class="specimen col">
+          <div class="demo-label">内联通告 Alert — 表单/列表行内反馈</div>
+          <div class="bds-alert danger">Track A/B 偏差 7.8%，超 5% 阈值 — 需主管审批后生效</div>
+          <div class="bds-alert success">PI-2026-0042 已签回归档，水单待核销</div>
+          <div class="bds-alert warning">船样确认截止 2026-08-19，还剩 5 天</div>
+          <div class="bds-alert info">报关资料已同步至单据中心</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 扩展 6. 浮层扩展 ═══ -->
+    <section id="x-overlay">
+      <div class="sec-head">
+        <div class="sec-title">浮层扩展<span class="en">Overlay Extended — 命令面板 / 底部弹层 / 面板骨架</span></div>
+        <div class="sec-desc">阴影的唯一合法场景重申：浮层（cmd / sheet / popover）用 --bds-shadow-* 空气感蓝黑阴影；静态面板保持 rimless。</div>
+      </div>
+      <div class="grid g2">
+        <div class="specimen flat-bg col">
+          <div class="demo-label">命令面板 CommandPalette — ⌘K 全局入口</div>
+          <div class="bds-cmd" style="width: 100%; box-shadow: var(--bds-shadow-sm);">
+            <div class="cmd-search">
+              <svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input value="发票">
+              <span class="bds-kbd cmd-esc">ESC</span>
+            </div>
+            <div class="cmd-list">
+              <div class="cmd-group-cap">单据 Documents</div>
+              <div class="cmd-item focused">
+                <svg class="bds-icon cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                <span class="cmd-label">PI-2026-0042 · Client A</span><span class="cmd-meta">形式发票</span>
+              </div>
+              <div class="cmd-item">
+                <svg class="bds-icon cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                <span class="cmd-label">CI-2026-0118 · Client B</span><span class="cmd-meta">商业发票</span>
+              </div>
+              <div class="cmd-group-cap">操作 Actions</div>
+              <div class="cmd-item">
+                <svg class="bds-icon cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                <span class="cmd-label">新建形式发票</span><span class="cmd-meta">⌘ N</span>
+              </div>
+            </div>
+            <div class="cmd-foot">
+              <span class="cmd-hint"><span class="bds-kbd">↑↓</span>选择</span>
+              <span class="cmd-hint"><span class="bds-kbd">↵</span>打开</span>
+              <span class="cmd-hint"><span class="bds-kbd">ESC</span>关闭</span>
+            </div>
+          </div>
+          <button class="bds-btn bds-btn-secondary" style="margin-top: var(--space-3);" onclick="document.getElementById('demoCmdMask').style.display='grid'">打开命令面板（含 .bds-cmd-mask 磨砂遮罩）</button>
+        </div>
+        <div class="col">
+          <div class="specimen flat-bg col" style="align-items: flex-start;">
+            <div class="demo-label">底部弹层 BottomSheet（点击预览）</div>
+            <button class="bds-btn bds-btn-primary" id="openBsBtn">打开底部弹层</button>
+            <div class="sec-desc" style="font-size: var(--text-xs);">大圆角顶缘（r-card-lg）+ 握把 + 全量磨砂遮罩，与 Modal 同材质语言。</div>
+          </div>
+          <div class="specimen flat-bg col">
+            <div class="demo-label">光斑卡片 SpotlightCard — hover 雾光随指针</div>
+            <div class="bds-card bds-spotlight" style="width: 100%;">
+              <div class="bds-stat-label" style="color: var(--text-tertiary);">本季回款进度</div>
+              <div class="bds-stat-num" style="margin-top: var(--space-2);">88.6<span class="frac">%</span></div>
+              <div class="bds-stat-cap">移动鼠标查看 accent 雾光 — 10% 透明度，不喧宾夺主</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top: var(--space-3);">
+        <div class="specimen flat-bg">
+          <div class="demo-label">内联详情面板 DetailPanel — 头/体/脚骨架</div>
+          <div class="bds-detailpanel">
+            <div class="dp-head">
+              <div>
+                <div class="dp-title"><span class="bds-mono">FO-2026-0801</span> · 40S 全棉府绸</div>
+                <div class="dp-sub">Client B · 126,000 m · $4.12 / m</div>
+              </div>
+              <span class="bds-badge info sm"><span class="dot"></span>已确认</span>
+            </div>
+            <div class="dp-body">
+              <div class="bds-desclist">
+                <div class="bds-descrow"><div class="bds-dt">交期 Exmill</div><div class="bds-dd bds-tnum">2026-10-02</div></div>
+                <div class="bds-descrow"><div class="bds-dt">付款 Payment</div><div class="bds-dd">T/T 60 天 · EUR</div></div>
+                <div class="bds-descrow"><div class="bds-dt">毛利 Margin</div><div class="bds-dd"><span class="bds-badge success sm">22.5%</span></div></div>
+              </div>
+            </div>
+            <div class="dp-foot">
+              <button class="bds-btn bds-btn-ghost">打印</button>
+              <button class="bds-btn bds-btn-primary">生成出运单</button>
+            </div>
+          </div>
+        </div>
+        <div class="specimen flat-bg">
+          <div class="demo-label">侧边面板 SidePanel — hairline 分隔，零阴影</div>
+          <div style="display: flex; height: 236px; border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-card);">
+            <div class="bds-sidepanel" style="width: 192px; flex-shrink: 0;">
+              <div class="sp-head"><span class="sp-title">筛选 Filters</span></div>
+              <div class="sp-body">
+                <div class="bds-listrows">
+                  <div class="bds-listrow"><div class="lr-main"><div class="lr-title">全部状态</div></div><span class="bds-count neutral">26</span></div>
+                  <div class="bds-listrow"><div class="lr-main"><div class="lr-title">生产中</div></div><span class="bds-count accent">9</span></div>
+                  <div class="bds-listrow"><div class="lr-main"><div class="lr-title">逾期</div></div><span class="bds-count">2</span></div>
+                </div>
+              </div>
+            </div>
+            <div style="flex: 1; padding: var(--space-4); display: grid; place-items: center;">
+              <div class="bds-text-xs" style="color: var(--text-tertiary);">主内容区 — SidePanel 以 hairline 分隔</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 扩展 7. AI 协作 ═══ -->
+    <section id="x-ai">
+      <div class="sec-head">
+        <div class="sec-title">AI 协作<span class="en">Agent Blocks — 图表 / 证据 / 下一步 / 审批 / 产物</span></div>
+        <div class="sec-desc">Agent 输出结构化块统一走雾化嵌套卡（radius-md + bg-panel/sunken），审批用 warning tint 小面积提示，不打扰主流程。</div>
+      </div>
+      <div class="grid g2">
+        <div class="specimen col">
+          <div class="demo-label">图表块 MermaidBlock — 流程/关系图容器</div>
+          <div class="bds-mermaid">
+            <div class="mm-head">
+              <svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="15" width="6" height="6" rx="1.5"/><path d="M9 6h6a3 3 0 0 1 3 3v6"/></svg>
+              <span class="mm-type">mermaid · flowchart</span>
+            </div>
+            <div class="mm-body">
+              <svg width="380" height="56" viewBox="0 0 380 56">
+                <rect x="4" y="12" width="104" height="32" rx="16" style="fill: var(--accent-tint);"/>
+                <text x="56" y="32" text-anchor="middle" font-size="11" style="fill: var(--accent-text);">报价 Quotation</text>
+                <path d="M112 28 h22" style="stroke: var(--text-quaternary); stroke-width: 1.5;"/>
+                <rect x="138" y="12" width="104" height="32" rx="16" style="fill: var(--accent-tint);"/>
+                <text x="190" y="32" text-anchor="middle" font-size="11" style="fill: var(--accent-text);">订单 Order</text>
+                <path d="M246 28 h22" style="stroke: var(--text-quaternary); stroke-width: 1.5;"/>
+                <rect x="272" y="12" width="104" height="32" rx="16" style="fill: var(--accent);"/>
+                <text x="324" y="32" text-anchor="middle" font-size="11" style="fill: var(--on-accent);">出运 Shipment</text>
+              </svg>
+            </div>
+          </div>
+          <div class="demo-label" style="margin-top: var(--space-4);">证据块 EvidenceBlock — RAG 溯源</div>
+          <div class="bds-evidence">
+            <div class="ev-item">
+              <div class="ev-source"><svg class="bds-icon xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>合同 SC-2026-089</div>
+              <div class="ev-text">“付款方式：T/T 30 天，凭提单副本付款；溢短装 ±3% 以内由买方承担。”</div>
+            </div>
+            <div class="ev-item">
+              <div class="ev-source"><svg class="bds-icon xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>报价 QT-2026-1041</div>
+              <div class="ev-text">“Track B 终价 $12.40/pc，含 5% 销售利润与居间费。”</div>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="specimen col">
+            <div class="demo-label">下一步操作 NextActions</div>
+            <div class="bds-next-actions">
+              <div class="na-title">建议下一步 NEXT ACTIONS</div>
+              <div class="na-item">
+                <svg class="bds-icon na-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                发送船样确认邮件<span class="na-arrow">›</span>
+              </div>
+              <div class="na-item">
+                <svg class="bds-icon na-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                生成形式发票草稿<span class="na-arrow">›</span>
+              </div>
+            </div>
+          </div>
+          <div class="specimen col">
+            <div class="demo-label">审批卡 ApprovalCard — 双轨偏差分级审批</div>
+            <div class="bds-approval">
+              <div class="ap-head">
+                <svg class="bds-icon ap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span class="ap-title">报价偏差审批 · QT-2026-1041</span>
+              </div>
+              <div class="ap-body">Track B 终价 $12.40 / pc，与 Track A 推荐价偏差 7.8%（阈值 5%）。</div>
+              <div class="ap-meta">
+                <div class="ap-m-item"><span class="ap-m-label">提交人</span><span>Amy</span></div>
+                <div class="ap-m-item"><span class="ap-m-label">时间</span><span class="bds-tnum">2026-08-14 10:22</span></div>
+                <div class="ap-m-item"><span class="ap-m-label">金额</span><span class="bds-tnum">$62,000</span></div>
+              </div>
+              <div class="ap-actions">
+                <button class="bds-btn bds-btn-secondary">驳回</button>
+                <button class="bds-btn bds-btn-primary">批准报价</button>
+              </div>
+            </div>
+          </div>
+          <div class="specimen col">
+            <div class="demo-label">文件产物 ArtifactBlock</div>
+            <div class="bds-artifact">
+              <div class="af-ico"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+              <div class="af-info">
+                <div class="af-name bds-mono" style="font-size: var(--text-sm);">PI-2026-0042-ClientA.pdf</div>
+                <div class="af-meta">形式发票 · 248 KB · 刚刚生成</div>
+              </div>
+              <div class="af-actions">
+                <button class="bds-btn bds-btn-icon sm bds-btn-ghost"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button class="bds-btn bds-btn-icon sm bds-btn-ghost"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ═══ 12. 页面组合 ═══ -->
     <section id="page">
       <div class="sec-head">
@@ -735,8 +1476,8 @@
             <div class="ph-sub">双轨成本校验 · Track A/B 偏差分级审批</div>
           </div>
           <div class="ph-side">
-            <div class="bds-crumb"><a href="#">经营总览</a><span class="sep">/</span><a href="#">财务与成本</a><span class="sep">/</span><span>报价管理</span></div>
-            <button class="bds-btn bds-btn-primary sm"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>新建报价</button>
+            <div class="bds-breadcrumb"><a href="#">经营总览</a><span class="sep">/</span><a href="#">财务与成本</a><span class="sep">/</span><span class="current">报价管理</span></div>
+            <button class="bds-btn bds-btn-primary"><svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>新建报价</button>
           </div>
         </div>
         <div class="mock-body">
@@ -863,6 +1604,55 @@
   </div>
 </div>
 
+<!-- ═══ CommandPalette 遮罩演示 ═══ -->
+<div class="bds-cmd-mask" id="demoCmdMask" style="display: none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="bds-cmd" style="width: 520px;">
+    <div class="cmd-search">
+      <svg class="bds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input placeholder="搜索订单 / 客户 / 单据，或输入命令…">
+      <span class="bds-kbd cmd-esc">ESC</span>
+    </div>
+    <div class="cmd-list">
+      <div class="cmd-group-cap">快捷操作</div>
+      <div class="cmd-item"><span class="cmd-ico"><svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="cmd-label">新建报价单</span><span class="cmd-meta">⌘ N</span></div>
+      <div class="cmd-item"><span class="cmd-ico"><svg class="bds-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span><span class="cmd-label">检索 FO-2026-0801</span><span class="cmd-meta">订单</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BottomSheet 演示 ═══ -->
+<div class="bds-bottomsheet-mask" id="demoBsMask" style="display: none;"></div>
+<div class="bds-bottomsheet" id="demoBs" style="display: none;">
+  <div class="bs-grip"></div>
+  <div class="bs-head">
+    <div>
+      <div style="font-size: var(--text-base); font-weight: 300;">选择关联订单</div>
+      <div class="bds-text-xs" style="color: var(--text-tertiary); margin-top: 2px;">BottomSheet — 大圆角顶缘 + 握把 + 磨砂遮罩</div>
+    </div>
+    <button class="bds-btn bds-btn-ghost sm" data-bs-close>✕</button>
+  </div>
+  <div class="bs-body">
+    <div class="bds-listrows">
+      <div class="bds-listrow">
+        <div class="lr-main"><div class="lr-title bds-mono" style="font-size: var(--text-sm);">FO-2026-0801</div><div class="lr-sub">Client B · 40S 全棉府绸 · 已确认</div></div>
+        <span class="bds-badge info sm"><span class="dot"></span>可关联</span>
+      </div>
+      <div class="bds-listrow">
+        <div class="lr-main"><div class="lr-title bds-mono" style="font-size: var(--text-sm);">GO-2026-0312</div><div class="lr-sub">Client A · 男士休闲夹克 · 生产中</div></div>
+        <span class="bds-badge warning sm"><span class="dot"></span>生产中</span>
+      </div>
+      <div class="bds-listrow">
+        <div class="lr-main"><div class="lr-title bds-mono" style="font-size: var(--text-sm);">FO-2026-0795</div><div class="lr-sub">Client A · T/R 斜纹布 · 已出运</div></div>
+        <span class="bds-badge success sm"><span class="dot"></span>已出运</span>
+      </div>
+    </div>
+  </div>
+  <div class="bs-foot">
+    <button class="bds-btn bds-btn-ghost" data-bs-close>取消</button>
+    <button class="bds-btn bds-btn-primary" style="flex: 1;" data-bs-close>确认关联</button>
+  </div>
+</div>
+
 <script>
   // 主题切换：data-theme 是 v2 标准入口（tokens.css [data-theme="dark"] 覆盖），
   // 同时双写 .dark class 兼容 Tailwind darkMode:'class'（与 App.tsx 机制一致）
@@ -894,6 +1684,44 @@
       day.classList.add('sel');
     });
   });
+  // Accordion 开合演示
+  document.querySelectorAll('.bds-acc-head').forEach(head => {
+    head.addEventListener('click', () => head.closest('.bds-acc-item').classList.toggle('open'));
+  });
+  // ToggleButton / FolderTab 组内单选演示
+  document.querySelectorAll('.bds-toggle-group, .bds-folder-tabs').forEach(group => {
+    group.addEventListener('click', (e) => {
+      const item = e.target.closest('.bds-toggle, .bds-folder-tab');
+      if (!item) return;
+      group.querySelectorAll('.bds-toggle, .bds-folder-tab').forEach(t => t.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+  // Stepper 步进演示
+  document.querySelectorAll('.bds-stepper').forEach(sp => {
+    const input = sp.querySelector('.sp-input');
+    sp.querySelectorAll('.sp-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = parseInt(input.value, 10) || 0;
+        input.value = Math.max(0, v + Number(btn.dataset.step || 0));
+      });
+    });
+  });
+  // SpotlightCard 光斑跟随
+  document.querySelectorAll('.bds-spotlight').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--spot-x', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--spot-y', (e.clientY - r.top) + 'px');
+    });
+  });
+  // BottomSheet 开合演示
+  const bsMask = document.getElementById('demoBsMask');
+  const bs = document.getElementById('demoBs');
+  const setBs = (show) => { bsMask.style.display = show ? 'block' : 'none'; bs.style.display = show ? 'flex' : 'none'; };
+  document.getElementById('openBsBtn').addEventListener('click', () => setBs(true));
+  bsMask.addEventListener('click', () => setBs(false));
+  document.querySelectorAll('[data-bs-close]').forEach(b => b.addEventListener('click', () => setBs(false)));
 </script>
 </body>
 </html>

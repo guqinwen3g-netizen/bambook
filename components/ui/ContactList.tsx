@@ -13,20 +13,18 @@ import {
     ChevronRight
 } from 'lucide-react';
 import {
-    SIDEBAR_ACTIVE_DARK_CLASS,
-    SIDEBAR_ACTIVE_LIGHT_CLASS,
+    SIDEBAR_ACTIVE_CLASS,
     SIDEBAR_HOVER_DARK_CLASS,
     SIDEBAR_HOVER_LIGHT_CLASS,
-    SIDEBAR_PRESS_DARK_CLASS,
     SIDEBAR_PRESS_LIGHT_CLASS,
 } from '../Sidebar';
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
 
 export const CONTACT_LIST_ACTIVE_DARK_CLASS =
-    `${SIDEBAR_ACTIVE_DARK_CLASS} text-slate-50`;
+    `${SIDEBAR_ACTIVE_CLASS} text-[var(--text-primary)]`;
 export const CONTACT_LIST_ACTIVE_LIGHT_CLASS =
-    `${SIDEBAR_ACTIVE_LIGHT_CLASS} text-deep-alt`;
+    `${SIDEBAR_ACTIVE_CLASS} text-deep-alt`;
 export const CONTACT_LIST_HOVER_DARK_CLASS =
     SIDEBAR_HOVER_DARK_CLASS;
 export const CONTACT_LIST_HOVER_LIGHT_CLASS =
@@ -64,21 +62,13 @@ const ContactList: React.FC<ContactListProps> = ({
     }, [contacts, searchTerm]);
 
     const isOrgSelected = selectedId === null;
-    const searchInputClass = isDarkMode
-        ? BAMBOOK_OS.controls.recessedField.dark
-        : BAMBOOK_OS.controls.recessedField.light;
-    const actionButtonClass = isDarkMode
-        ? BAMBOOK_OS.controls.actionControl.borderedDark
-        : BAMBOOK_OS.controls.actionControl.borderedLight;
-    const brandTextClass = isDarkMode
-        ? BAMBOOK_OS.tone.text.brandDark
-        : BAMBOOK_OS.tone.text.brandLight;
-    const idleItemClass = isDarkMode
-        ? `border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`
-        : `border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`;
-    const activeItemClass = isDarkMode
-        ? CONTACT_LIST_ACTIVE_DARK_CLASS
-        : CONTACT_LIST_ACTIVE_LIGHT_CLASS;
+    const searchInputClass = BAMBOOK_OS.controls.recessedField.base;
+    const actionButtonClass = BAMBOOK_OS.controls.actionControl.bordered;
+    const brandTextClass = BAMBOOK_OS.tone.text.brandEmphasis;
+    const idleItemClass =
+        `border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} dark:active:bg-[var(--recessed-bg)]`;
+    const activeItemClass =
+        `${CONTACT_LIST_ACTIVE_LIGHT_CLASS} dark:text-[var(--text-primary)]`;
 
     return (
         <div className={BAMBOOK_OS.layout.relationsDetailListShellClass}>
@@ -92,21 +82,21 @@ const ContactList: React.FC<ContactListProps> = ({
             <div className="px-4 pt-4 pb-3 shrink-0">
                 <div className="mb-3 flex items-end justify-between gap-3">
                     <div>
-                        <p className={`text-[10px] font-light uppercase tracking-[0.2em] ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                        <p className={`text-[10px] font-light uppercase tracking-[0.2em] text-[var(--text-tertiary)]`}>
                             通讯录
                         </p>
-                        <p className={`mt-1 text-xs font-light ${isDarkMode ? 'text-white/62' : 'text-slate-500'}`}>
+                        <p className={`mt-1 text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>
                             {filteredContacts.length} 位联系人
                         </p>
                     </div>
-                    <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/38' : 'text-slate-500'}`}>
+                    <span className={`text-[10px] font-light text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]`}>
                         {selectedId ? '联系人' : '组织'}
                     </span>
                 </div>
                 <div className="relative">
                     <Search
                         size={14}
-                        className={`absolute left-3 top-1/2 z-10 -translate-y-1/2 ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}
+                        className={`absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--text-tertiary)]`}
                     />
                     <input
                         type="text"
@@ -141,10 +131,10 @@ const ContactList: React.FC<ContactListProps> = ({
                     />
 
                     <div className="flex-1 min-w-0 text-left">
-                        <p className={`font-light text-sm truncate ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+                        <p className={`font-light text-sm truncate text-[var(--text-primary)]`}>
                             {organization.name}
                         </p>
-                        <p className={`text-[10px] font-light uppercase tracking-wider ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                        <p className={`text-[10px] font-light uppercase tracking-wider text-[var(--text-tertiary)]`}>
                             公司信息
                         </p>
                     </div>
@@ -156,7 +146,7 @@ const ContactList: React.FC<ContactListProps> = ({
             </div>
 
             {/* 联系人列表 (可滚动) */}
-            <div className={`mx-4 mb-1 h-px shrink-0 ${isDarkMode ? 'bg-white/[0.06]' : 'bg-slate-200/50'}`} />
+            <div className={`mx-4 mb-1 h-px shrink-0 bg-[var(--recessed-bg-strong)] dark:bg-[var(--recessed-bg)]`} />
             <CompiledEdgeFade
                 scrollRef={contactListScrollRef}
                 isDarkMode={isDarkMode}
@@ -190,17 +180,17 @@ const ContactList: React.FC<ContactListProps> = ({
                                     className={`w-4 shrink-0 text-center text-sm font-light transition-colors duration-200 ${
                                         isSelected
                                             ? brandTextClass
-                                            : (isDarkMode ? 'text-white/58 group-hover:text-white/78' : 'text-slate-500 group-hover:text-slate-700')
+                                            : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] dark:text-[var(--text-secondary)] dark:group-hover:text-[var(--text-primary)]'
                                     }`}
                                 >
                                     {contact.name.charAt(0).toUpperCase()}
                                 </span>
 
                                 <div className="flex-1 min-w-0 text-left">
-                                    <p className={`font-light text-sm truncate ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+                                    <p className={`font-light text-sm truncate text-[var(--text-primary)]`}>
                                         {contact.name}
                                     </p>
-                                    <p className={`text-[11px] truncate ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+                                    <p className={`text-[11px] truncate text-[var(--text-tertiary)]`}>
                                         {contact.role || contact.department || '未设置职位'}
                                     </p>
                                 </div>
@@ -217,7 +207,7 @@ const ContactList: React.FC<ContactListProps> = ({
 
                 {/* 空状态 */}
                 {filteredContacts.length === 0 && (
-                    <div className={`py-8 text-center ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>
+                    <div className={`py-8 text-center text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]`}>
                         <User size={24} className="mx-auto mb-2 opacity-50" />
                         <p className="text-xs font-light">
                             {searchTerm ? '未找到匹配的联系人' : '暂无联系人'}

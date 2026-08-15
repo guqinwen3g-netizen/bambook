@@ -138,34 +138,30 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
     }
   };
 
-  const panelClass = isDarkMode
-    ? `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceDark}`
-    : `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceLight}`;
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm font-light outline-none border transition-colors ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white/70 border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
-  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
+  const panelClass = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface}`;
+  const fieldClass = `w-full px-3 py-2 rounded-control text-sm font-light outline-none border transition-colors bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`;
+  const labelClass = `block text-xs mb-1 text-[var(--text-tertiary)]`;
 
   return (
     <div className="flex gap-4 h-full min-h-0">
       {/* 左列：类型筛选 + 模板列表 */}
       <div className={`w-80 shrink-0 flex flex-col rounded-card border overflow-hidden ${panelClass}`}>
-        <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
-          <span className={`text-xs font-light uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>单据模板</span>
+        <div className={`px-4 py-3 border-b flex items-center justify-between border-[var(--border-c-subtle)]`}>
+          <span className={`text-xs font-light uppercase tracking-[0.18em] text-[var(--text-secondary)]`}>单据模板</span>
           <button
             type="button"
             onClick={() => openCreate(typeFilter === 'all' ? 'CommercialInvoice' : typeFilter)}
-            className={`h-7 px-2.5 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors ${isDarkMode ? 'bg-white/[0.06] hover:bg-white/10 text-slate-200' : 'bg-white/70 hover:bg-white text-slate-600'}`}
+            className={`h-7 px-2.5 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`}
           >
             <Plus size={12} /> 新建
           </button>
         </div>
         {/* 类型筛选 */}
-        <div className={`px-3 py-2 flex flex-wrap gap-1.5 border-b ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
+        <div className={`px-3 py-2 flex flex-wrap gap-1.5 border-b border-[var(--border-c-subtle)]`}>
           <button
             type="button"
             onClick={() => setTypeFilter('all')}
-            className={`px-2 py-1 rounded-full text-[11px] font-light transition-colors ${typeFilter === 'all' ? 'bg-[var(--os-vnext-brand-blue)] text-white' : isDarkMode ? 'bg-white/[0.06] text-slate-300 hover:bg-white/10' : 'bg-white/60 text-slate-600 hover:bg-white'}`}
+            className={`px-2 py-1 rounded-full text-[11px] font-light transition-colors ${typeFilter === 'all' ? 'bg-[var(--os-vnext-brand-blue)] text-white' : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}`}
           >
             全部
           </button>
@@ -174,7 +170,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
               key={t}
               type="button"
               onClick={() => setTypeFilter(t)}
-              className={`px-2 py-1 rounded-full text-[11px] font-light transition-colors ${typeFilter === t ? 'bg-[var(--os-vnext-brand-blue)] text-white' : isDarkMode ? 'bg-white/[0.06] text-slate-300 hover:bg-white/10' : 'bg-white/60 text-slate-600 hover:bg-white'}`}
+              className={`px-2 py-1 rounded-full text-[11px] font-light transition-colors ${typeFilter === t ? 'bg-[var(--os-vnext-brand-blue)] text-white' : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}`}
             >
               {TYPE_LABELS[t]}
             </button>
@@ -183,11 +179,11 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
         {/* 列表 */}
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
           {items === null ? (
-            <div className="flex items-center gap-2 text-xs font-light text-slate-400 px-2 py-3">
+            <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-2 py-3">
               <Loader2 size={13} className="animate-spin" /> 加载模板...
             </div>
           ) : items.length === 0 ? (
-            <div className={`text-xs font-light px-2 py-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <div className={`text-xs font-light px-2 py-3 text-[var(--text-tertiary)]`}>
               暂无模板，点击「新建」创建
             </div>
           ) : (
@@ -195,25 +191,25 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
               <div
                 key={tpl.id}
                 className={`group rounded-inset border px-3 py-2 cursor-pointer transition-colors ${draft?.id === tpl.id
-                  ? isDarkMode ? 'border-[var(--os-vnext-brand-blue)]/40 bg-[var(--os-vnext-brand-blue)]/10' : 'border-[var(--os-vnext-brand-blue)]/40 bg-[var(--os-vnext-brand-blue)]/5'
-                  : isDarkMode ? 'border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05]' : 'border-slate-200/80 bg-white/50 hover:bg-white/70'}`}
+                  ? 'border-[var(--os-vnext-brand-blue)]/40 bg-[var(--os-vnext-brand-blue)]/10'
+                  : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] hover:bg-[var(--recessed-bg-hover)]'}`}
                 onClick={() => openEdit(tpl)}
               >
                 <div className="flex items-center gap-1.5">
-                  <FileText size={12} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
-                  <span className={`text-xs font-light truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{tpl.name}</span>
+                  <FileText size={12} className="text-[var(--text-tertiary)]" />
+                  <span className={`text-xs font-light truncate text-[var(--text-primary)]`}>{tpl.name}</span>
                   {tpl.isDefault && <Star size={10} className="shrink-0 text-amber-500" />}
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); handleDelete(tpl.id); }}
                     disabled={busy}
-                    className={`ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isDarkMode ? 'text-slate-500 hover:text-red-300' : 'text-slate-400 hover:text-red-500'}`}
+                    className={`ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-danger`}
                     title="删除模板"
                   >
                     <Trash2 size={12} />
                   </button>
                 </div>
-                <div className={`text-[10px] mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                <div className={`text-[10px] mt-0.5 text-[var(--text-tertiary)]`}>
                   {TYPE_LABELS[tpl.type]} · {LANGUAGE_LABELS[tpl.language]}
                   {!tpl.isActive && ' · 已停用'}
                   {tpl.variables.length > 0 && ` · ${tpl.variables.length} 个变量`}
@@ -227,27 +223,27 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
       {/* 右列：编辑器 */}
       <div className={`flex-1 min-w-0 flex flex-col rounded-card border overflow-hidden ${panelClass}`}>
         {error && (
-          <div className={`mx-4 mt-4 p-3 rounded-inset border flex items-center gap-2 text-xs ${isDarkMode ? 'border-red-500/20 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-600'}`}>
+          <div className={`mx-4 mt-4 p-3 rounded-inset border flex items-center gap-2 text-xs border-[var(--danger-tint-active)] bg-[var(--danger-tint)] text-[var(--danger-text)]`}>
             <AlertCircle size={14} /> {error}
           </div>
         )}
         {draft === null ? (
-          <div className={`flex-1 flex flex-col items-center justify-center gap-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+          <div className={`flex-1 flex flex-col items-center justify-center gap-2 text-[var(--text-tertiary)]`}>
             <FileText size={28} strokeWidth={1} />
             <p className="text-xs font-light">选择左侧模板进行编辑，或点击「新建」创建模板</p>
             <p className="text-[11px] font-light">内容支持 {'{{variable}}'} 占位符，保存时服务端自动解析变量清单</p>
           </div>
         ) : (
           <>
-            <div className={`px-5 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.055]'}`}>
-              <span className={`text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            <div className={`px-5 py-3 border-b flex items-center justify-between border-[var(--border-c-subtle)]`}>
+              <span className={`text-sm font-light text-[var(--text-primary)]`}>
                 {draft.id ? '编辑模板' : '新建模板'}
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => { setDraft(null); setError(null); }}
-                  className={`h-8 px-3 rounded-control text-xs font-light transition-colors ${isDarkMode ? 'text-slate-400 hover:bg-white/[0.06] hover:text-white' : 'text-slate-500 hover:bg-white/60 hover:text-slate-900'}`}
+                  className={`h-8 px-3 rounded-control text-xs font-light transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
                 >
                   取消
                 </button>
@@ -301,7 +297,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-xs font-light cursor-pointer">
                   <input type="checkbox" checked={draft.isDefault} onChange={e => setDraft({ ...draft, isDefault: e.target.checked })} className="accent-[var(--os-vnext-brand-blue)]" />
-                  <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>设为该类型+语言默认模板</span>
+                  <span className="text-[var(--text-secondary)]">设为该类型+语言默认模板</span>
                 </label>
                 <input value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="备注（可选）" className={`flex-1 ${fieldClass}`} />
               </div>

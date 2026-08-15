@@ -121,24 +121,20 @@ export default function CustomerSearchInput({
     onChange('', undefined);
     inputRef.current?.focus();
   };
-  const fieldClass = isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light;
+  const fieldClass = BAMBOOK_OS.controls.recessedField.base;
   const menu = BAMBOOK_OS.controls.overlayMenu;
-  const menuSurfaceClass = `${menu.surfaceBase} ${isDarkMode ? menu.surfaceDark : menu.surfaceLight}`;
-  const optionIdleClass = `${menu.itemBase} h-auto min-h-[56px] py-3 flex items-start gap-3 ${isDarkMode ? menu.itemDark : menu.itemLight}`;
-  const optionSelectedClass = isDarkMode ? menu.itemSelectedDark : menu.itemSelectedLight;
-  const iconShellClass = isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light;
-  const compactActionClass = isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light;
+  const menuSurfaceClass = `${menu.surfaceBase} ${menu.surface}`;
+  const optionIdleClass = `${menu.itemBase} h-auto min-h-[56px] py-3 flex items-start gap-3 ${menu.item}`;
+  const optionSelectedClass = menu.itemSelected;
+  const iconShellClass = BAMBOOK_OS.controls.actionControl.base;
+  const compactActionClass = BAMBOOK_OS.controls.actionControl.base;
 
   return (
     <div ref={containerRef} className="relative">
       {/* 输入框 */}
       <div className={`relative group ${isOpen ? 'z-50' : ''}`}>
         <Search
-          className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${
-            isDarkMode
-              ? 'text-slate-500 group-focus-within:text-slate-300'
-              : 'text-slate-400 group-focus-within:text-slate-500'
-          }`}
+          className="absolute left-3 top-1/2 -translate-y-1/2 transition-colors text-[var(--text-tertiary)] group-focus-within:text-[var(--text-tertiary)] dark:group-focus-within:text-[var(--text-secondary)]"
           size={14}
         />
         <input
@@ -163,7 +159,7 @@ export default function CustomerSearchInput({
             onClick={clearSelection}
             className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-colors ${compactActionClass}`}
           >
-            <X size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+            <X size={14} className="text-[var(--text-tertiary)]" />
           </button>
         )}
       </div>
@@ -187,14 +183,14 @@ export default function CustomerSearchInput({
                   className={`${optionIdleClass} ${idx === highlightedIndex ? optionSelectedClass : ''}`}
                 >
                   <div className={`p-1.5 rounded-control mt-0.5 ${iconShellClass}`}>
-                    <Building2 size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+                    <Building2 size={14} className="text-[var(--text-tertiary)]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className={`font-light text-sm truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <div className={`font-light text-sm truncate text-[var(--text-primary)]`}>
                       {customer.label}
                     </div>
                     {customer.description && (
-                      <div className={`text-xs mt-0.5 truncate ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      <div className={`text-xs mt-0.5 truncate text-[var(--text-tertiary)]`}>
                         <MapPin size={10} className="inline mr-1" />
                         {customer.description}
                       </div>
@@ -203,12 +199,12 @@ export default function CustomerSearchInput({
                     {(customer.billingAddress || customer.shippingAddress) && (
                       <div className="flex gap-3 mt-1">
                         {customer.billingAddress && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDarkMode ? 'bg-white/10 text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
                             Bill To
                           </span>
                         )}
                         {customer.shippingAddress && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDarkMode ? 'bg-white/10 text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
                             Ship To
                           </span>
                         )}
@@ -232,13 +228,7 @@ export default function CustomerSearchInput({
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className={`
-              absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-card border
-              ${isDarkMode
-                ? 'bg-deep/95 border-white/10 text-slate-500'
-                : 'bg-white border-slate-200 text-slate-400'
-              }
-            `}
+            className="absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-card border bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-tertiary)] dark:bg-deep/95"
           >
             <User size={20} className="mx-auto mb-2 opacity-50" />
             <p className="text-sm">未找到匹配的客户</p>

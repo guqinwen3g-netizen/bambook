@@ -620,11 +620,7 @@ const toolLabels: Array<{ id: TwinTool; label: string; hint: string }> = [
 ];
 
 const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterEndpoint }) => {
-  const buttonCls = `h-9 rounded-control px-4 text-xs font-light transition-all flex items-center justify-center border ${
-    isDarkMode
-      ? BAMBOOK_OS.controls.actionControl.dark
-      : BAMBOOK_OS.controls.actionControl.light
-  }`;
+  const buttonCls = `h-9 rounded-control px-4 text-xs font-light transition-all flex items-center justify-center border ${BAMBOOK_OS.controls.actionControl.base}`;
   const [initialLayout] = React.useState<LayoutSnapshot>(() => readCachedLayoutSnapshot() ?? createDefaultLayoutSnapshot());
   const [tool, setTool] = React.useState<TwinTool>('select');
   const [officeFrame, setOfficeFrame] = React.useState<OfficeFrame>(() => ({ ...initialLayout.officeFrame }));
@@ -1155,10 +1151,10 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
   };
 
   const tabButtonClass = (tab: DataCenterTab) =>
-    `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-all ${activeTab === tab ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : (isDarkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700')}`;
+    `px-6 py-1.5 rounded-compact text-[11px] font-light tracking-wide transition-all ${activeTab === tab ? BAMBOOK_OS.controls.selectedSurface.base : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`;
 
   return (
-    <div className={`w-full h-full flex flex-col bg-transparent overflow-hidden ${isDarkMode ? 'text-slate-100' : 'text-deep-alt'}`}>
+    <div className={`w-full h-full flex flex-col bg-transparent overflow-hidden text-[var(--text-primary)]`}>
       <PageHeader
         title="数据中心"
         subtitle="Data Center"
@@ -1207,7 +1203,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
       <div className={`${BAMBOOK_OS.layout.desktopSinglePanelBodyClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`}>
         {/* Tab Bar */}
         <div className={`${BAMBOOK_OS.layout.desktopSubtoolbarClass} justify-center bg-transparent`}>
-          <div className={`inline-flex p-1 rounded-full ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}>
+          <div className={`inline-flex p-1 rounded-full ${BAMBOOK_OS.controls.actionControl.base}`}>
             <button onClick={() => switchTab('overview')} className={tabButtonClass('overview')}>数据看板</button>
             <button onClick={() => switchTab('twin')} className={tabButtonClass('twin')}>数字孪生</button>
           </div>
@@ -1218,41 +1214,41 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
               {/* 看板简介 */}
               <div className="flex items-start gap-3 px-1">
-                <Sparkles size={18} strokeWidth={1.2} className={`mt-0.5 shrink-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+                <Sparkles size={18} strokeWidth={1.2} className={`mt-0.5 shrink-0 text-[var(--text-tertiary)]`} />
                 <div className="min-w-0">
-                  <h2 className={`text-base font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>企业知识智能问答</h2>
-                  <p className={`mt-1 text-[11px] font-light leading-relaxed ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <h2 className={`text-base font-light text-[var(--text-primary)]`}>企业知识智能问答</h2>
+                  <p className={`mt-1 text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]`}>
                     向量检索企业知识语料（邮件 / 文档 / SOP / 历史问答），LLM 流式生成回答并列出命中片段；有价值的一键归档回知识库。
                   </p>
                 </div>
               </div>
 
               {/* 提问区 */}
-              <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
+              <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)] dark:bg-deep/48`}>
                 <textarea
                   rows={3}
                   value={qaQuestion}
                   onChange={(e) => setQaQuestion(e.target.value)}
                   placeholder="向企业知识库提问，如：面料尾期验货的抽样标准是什么？"
-                  className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                  className={`w-full px-5 py-4 border rounded-control outline-none font-light resize-none text-sm leading-relaxed transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
                 />
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {QA_SUGGESTED_QUESTIONS.map((q) => (
                     <button
                       key={q}
                       onClick={() => setQaQuestion(q)}
-                      className={`px-3 py-1.5 rounded-full border text-[10px] font-light tracking-wide transition-all ${isDarkMode ? 'border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5' : 'border-slate-200/70 text-slate-500 hover:text-slate-700 hover:bg-white/60'}`}
+                      className={`px-3 py-1.5 rounded-full border text-[10px] font-light tracking-wide transition-all border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
                     >
                       {q}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>向量检索知识语料 + LLM 流式回答，命中片段在下方列出</span>
+                  <span className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>向量检索知识语料 + LLM 流式回答，命中片段在下方列出</span>
                   <button
                     onClick={handleAsk}
                     disabled={qaBusy || !qaQuestion.trim()}
-                    className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+                    className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                   >
                     {qaBusy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} strokeWidth={1.2} />}
                     {qaBusy ? '检索回答中…' : '提问'}
@@ -1261,34 +1257,34 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
               </div>
 
               {qaError && (
-                <div className={`px-5 py-3 rounded-control border text-xs font-light ${isDarkMode ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-500'}`}>{qaError}</div>
+                <div className={`px-5 py-3 rounded-control border text-xs font-light border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-300`}>{qaError}</div>
               )}
 
               {/* 回答区 */}
               {(qaAnswer || qaBusy) && (
-                <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
-                  <div className={`mb-3 text-[10px] font-light tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>回答</div>
-                  <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)] dark:bg-deep/48`}>
+                  <div className={`mb-3 text-[10px] font-light tracking-[0.18em] text-[var(--text-tertiary)]`}>回答</div>
+                  <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed text-[var(--text-secondary)]`}>
                     {qaAnswer}
                     {qaBusy && <span className="inline-block w-2 h-4 ml-0.5 align-middle animate-pulse bg-current opacity-40" />}
                   </p>
                   {!qaBusy && qaAnswer.trim() && (
-                    <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 ${isDarkMode ? 'border-white/10' : 'border-white/30'}`}>
+                    <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 border-[var(--border-c-default)]`}>
                       {qaArchived ? (
-                        <span className={`text-[11px] font-light ${isDarkMode ? 'text-emerald-300/80' : 'text-emerald-600'}`}>已归档到企业知识库</span>
+                        <span className={`text-[11px] font-light text-emerald-600 dark:text-emerald-300/80`}>已归档到企业知识库</span>
                       ) : (
                         <>
                           <select
                             value={qaArchiveCategory}
                             onChange={(e) => setQaArchiveCategory(e.target.value)}
-                            className={`px-3 py-2 border rounded-control outline-none text-[11px] font-light appearance-none ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`}
+                            className={`px-3 py-2 border rounded-control outline-none text-[11px] font-light appearance-none ${BAMBOOK_OS.controls.recessedField.base}`}
                           >
                             {QA_ARCHIVE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <button
                             onClick={handleArchiveQa}
                             disabled={qaArchiving}
-                            className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`}
+                            className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                           >
                             {qaArchiving ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} strokeWidth={1.2} />}
                             归档此问答
@@ -1302,16 +1298,16 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
 
               {/* 引用片段 */}
               {qaCitations.length > 0 && (
-                <div className={`p-6 ${BAMBOOK_OS.material.cardLight} ${isDarkMode ? 'bg-deep/48' : 'bg-white/46'}`}>
-                  <div className={`mb-3 text-[10px] font-light tracking-[0.18em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>命中片段 ({qaCitations.length})</div>
+                <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)] dark:bg-deep/48`}>
+                  <div className={`mb-3 text-[10px] font-light tracking-[0.18em] text-[var(--text-tertiary)]`}>命中片段 ({qaCitations.length})</div>
                   <div className="space-y-3">
                     {qaCitations.map((c) => (
-                      <div key={c.id} className={`rounded-control border px-4 py-3 ${isDarkMode ? 'border-white/[0.055] bg-white/[0.02]' : 'border-slate-200/55 bg-white/40'}`}>
+                      <div key={c.id} className={`rounded-control border px-4 py-3 border-[var(--border-c-subtle)] bg-[var(--recessed-bg)]`}>
                         <div className="flex items-center justify-between gap-3">
-                          <span className={`text-[11px] font-light truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{c.title}</span>
-                          <span className={`shrink-0 text-[9px] font-light tracking-wide ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{Math.round(c.score * 100)}%</span>
+                          <span className={`text-[11px] font-light truncate text-[var(--text-secondary)]`}>{c.title}</span>
+                          <span className={`shrink-0 text-[9px] font-light tracking-wide text-[var(--text-tertiary)]`}>{Math.round(c.score * 100)}%</span>
                         </div>
-                        <p className={`mt-1 line-clamp-2 text-[11px] font-light leading-relaxed ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{c.content}</p>
+                        <p className={`mt-1 line-clamp-2 text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]`}>{c.content}</p>
                       </div>
                     ))}
                   </div>
@@ -1525,7 +1521,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
         {isEditingLayout && (
           <>
             <SidePanelContainer isDarkMode={isDarkMode} spotlight className="absolute left-0 top-2 z-20 w-[184px] rounded-inset p-3 bambook-outer-panel" contentClassName="relative z-10 flex min-h-0 flex-col">
-              <h2 className="mb-2 px-2 text-[10px] font-normal uppercase tracking-[0.16em] text-slate-500">绘制组件</h2>
+              <h2 className="mb-2 px-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--text-tertiary)]">绘制组件</h2>
               <div className="space-y-1.5">
                 {toolLabels.map((item) => (
                   <button
@@ -1533,14 +1529,12 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
                     onClick={() => { setTool(item.id); setWallStart(null); }}
                     className={`w-full rounded-compact px-3 py-2 text-left transition-all border ${
                       tool === item.id
-                        ? (isDarkMode
-                            ? `${BAMBOOK_OS.controls.selectedSurface.dark} text-white`
-                            : `${BAMBOOK_OS.controls.selectedSurface.light} text-deep-alt`)
-                        : `border-transparent ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`
+                        ? `${BAMBOOK_OS.controls.selectedSurface.base} text-[var(--text-primary)]`
+                        : `border-transparent ${BAMBOOK_OS.controls.actionControl.base}`
                     }`}
                   >
                     <span className="block text-[13px] font-light">{item.label}</span>
-                    <span className="mt-0.5 block text-[9px] font-light text-slate-500">{item.hint}</span>
+                    <span className="mt-0.5 block text-[9px] font-light text-[var(--text-tertiary)]">{item.hint}</span>
                   </button>
                 ))}
               </div>
@@ -1548,7 +1542,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
 
             <div className="absolute bottom-0 left-0 z-40">
             <SidePanelContainer isDarkMode={isDarkMode} spotlight className="w-[232px] rounded-inset p-3 bambook-outer-panel" contentClassName="relative z-10 flex min-h-0 flex-col">
-              <h2 className="mb-3 px-2 text-[10px] font-normal uppercase tracking-[0.16em] text-slate-500">属性</h2>
+              <h2 className="mb-3 px-2 text-[10px] font-normal uppercase tracking-[0.16em] text-[var(--text-tertiary)]">属性</h2>
               {selectedObject ? (
                 <div className="space-y-2">
                   <Field label="名称" isDarkMode={isDarkMode}>
@@ -1581,10 +1575,8 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
                               onClick={() => updateSelectedObject({ seat: option.value })}
                               className={`h-8 rounded-full text-[9px] font-light transition-all ${
                                 (selectedObject.seat ?? 'north') === option.value
-                                  ? (isDarkMode 
-                                      ? 'bg-[var(--os-vnext-brand-blue-strong)]/24 text-[var(--os-vnext-brand-blue-soft)] shadow-[inset_0_0_0_1px_rgb(var(--os-vnext-brand-blue-soft-rgb)/0.25)]' 
-                                      : 'bg-[var(--os-vnext-brand-blue-strong)]/12 text-[var(--os-vnext-brand-blue-strong)] shadow-[inset_0_0_0_1px_rgb(var(--os-vnext-brand-blue-strong-rgb)/.22)]')
-                                  : (isDarkMode ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-white/45')
+                                  ? 'bg-[var(--os-vnext-brand-blue-strong)]/12 dark:bg-[var(--os-vnext-brand-blue-strong)]/24 text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)] shadow-[inset_0_0_0_1px_rgb(var(--os-vnext-brand-blue-strong-rgb)/.22)] dark:shadow-[inset_0_0_0_1px_rgb(var(--os-vnext-brand-blue-soft-rgb)/0.25)]'
+                                  : 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
                               }`}
                             >
                               {option.label}
@@ -1636,12 +1628,12 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
                   <Field label="位置" isDarkMode={isDarkMode}>
                     <span>x {Math.round(officeFrame.x)} / y {Math.round(officeFrame.y)}</span>
                   </Field>
-                  <p className="px-2 text-xs font-light leading-5 text-slate-500">直接拖动外框移动，拖四角调整大小。</p>
+                  <p className="px-2 text-xs font-light leading-5 text-[var(--text-tertiary)]">直接拖动外框移动，拖四角调整大小。</p>
                 </div>
               ) : (
-                <p className="px-2 text-xs font-light text-slate-500">选择对象后编辑属性。</p>
+                <p className="px-2 text-xs font-light text-[var(--text-tertiary)]">选择对象后编辑属性。</p>
               )}
-              <button onClick={deleteSelected} disabled={!selectedId || selectedId === 'office-frame'} className={`mt-3 h-8 w-full rounded-compact border transition-colors text-[11px] font-light disabled:opacity-35 ${isDarkMode ? 'border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'}`}>
+              <button onClick={deleteSelected} disabled={!selectedId || selectedId === 'office-frame'} className={`mt-3 h-8 w-full rounded-compact border transition-colors text-[11px] font-light disabled:opacity-35 border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20`}>
                 删除选中对象
               </button>
             </SidePanelContainer>
@@ -1658,13 +1650,9 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
 
 function Field({ label, children, isDarkMode = false }: { label: string; children: React.ReactNode; isDarkMode?: boolean }) {
   return (
-    <label className={`block rounded-compact border px-3 py-2 text-[11px] font-light ${
-      isDarkMode 
-        ? 'border-white/5 bg-white/[0.02] text-slate-400' 
-        : 'border-[var(--os-vnext-brand-blue)]/15 bg-white/35 text-slate-500'
-    }`}>
-      <span className={`mb-0.5 block text-[9px] uppercase tracking-[0.14em] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{label}</span>
-      <span className={`block ${isDarkMode ? 'text-white' : 'text-deep-alt'}`}>{children}</span>
+    <label className={`block rounded-compact border px-3 py-2 text-[11px] font-light border-[var(--os-vnext-brand-blue)]/15 dark:border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
+      <span className={`mb-0.5 block text-[9px] uppercase tracking-[0.14em] text-[var(--text-tertiary)]`}>{label}</span>
+      <span className={`block text-[var(--text-primary)]`}>{children}</span>
     </label>
   );
 }

@@ -108,12 +108,16 @@ export const ADMIN_PANEL_BODY_CLASS = `${BAMBOOK_OS.layout.desktopPanelRowClass}
 export const ADMIN_PANEL_SURFACE_CLASS = 'h-full min-h-0 overflow-hidden';
 export const ADMIN_PANEL_SCROLL_CLASS = 'h-full min-h-0 overflow-y-auto custom-scrollbar';
 export const ADMIN_USER_LIST_SCROLL_CLASS = 'min-h-0 flex-1 overflow-y-auto custom-scrollbar';
-export const ADMIN_PANEL_GLASS_DARK_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceDark} border-transparent bg-[rgba(13,27,42,0.30)] shadow-none`;
-export const ADMIN_PANEL_GLASS_LIGHT_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceLight} border-transparent bg-white/42 shadow-none`;
-export const ADMIN_USER_CARD_DARK_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceDark} border-white/[0.055] bg-white/[0.018]`;
-export const ADMIN_USER_CARD_LIGHT_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceLight} border-white/45 bg-white/24`;
-export const ADMIN_USER_FIELD_DARK_CLASS = BAMBOOK_OS.controls.recessedField.dark;
-export const ADMIN_USER_FIELD_LIGHT_CLASS = BAMBOOK_OS.controls.recessedField.light;
+export const ADMIN_PANEL_GLASS_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-transparent bg-[var(--recessed-bg)] dark:bg-[rgba(13,27,42,0.30)] shadow-none`;
+export const ADMIN_USER_CARD_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-[var(--border-c-strong)] dark:border-[var(--border-c-default)] bg-[var(--recessed-bg)]`;
+export const ADMIN_USER_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
+// 旧导出别名（配方已坍缩为自适应单条，外部引用与测试保持不变）
+export const ADMIN_PANEL_GLASS_DARK_CLASS = ADMIN_PANEL_GLASS_CLASS;
+export const ADMIN_PANEL_GLASS_LIGHT_CLASS = ADMIN_PANEL_GLASS_CLASS;
+export const ADMIN_USER_CARD_DARK_CLASS = ADMIN_USER_CARD_CLASS;
+export const ADMIN_USER_CARD_LIGHT_CLASS = ADMIN_USER_CARD_CLASS;
+export const ADMIN_USER_FIELD_DARK_CLASS = ADMIN_USER_FIELD_CLASS;
+export const ADMIN_USER_FIELD_LIGHT_CLASS = ADMIN_USER_FIELD_CLASS;
 
 const formatAdminDate = (value?: string | null) => {
   if (!value) return '未记录';
@@ -218,34 +222,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const [showNewUser, setShowNewUser] = useState(false);
   const [newUser, setNewUser] = useState({ displayName: '', email: '', password: '', roles: 'viewer' as string, departmentId: '' });
 
-  const adminGlassClass = isDarkMode ? ADMIN_PANEL_GLASS_DARK_CLASS : ADMIN_PANEL_GLASS_LIGHT_CLASS;
-  const userCardClass = isDarkMode ? ADMIN_USER_CARD_DARK_CLASS : ADMIN_USER_CARD_LIGHT_CLASS;
+  const adminGlassClass = ADMIN_PANEL_GLASS_CLASS;
+  const userCardClass = ADMIN_USER_CARD_CLASS;
   const card = `rounded-inset border transition-[background,border-color,box-shadow] duration-300 ${userCardClass}`;
-  const labelCls = `text-[10px] font-light tracking-wide ${isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight}`;
-  const inputCls = `w-full h-9 px-3 rounded-control border outline-none text-xs font-light transition-[background,border-color,box-shadow,transform] duration-200 ${isDarkMode ? ADMIN_USER_FIELD_DARK_CLASS : ADMIN_USER_FIELD_LIGHT_CLASS}`;
-  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${isDarkMode ? BAMBOOK_OS.controls.actionControl.borderedDark : BAMBOOK_OS.controls.actionControl.borderedLight}`;
-  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${isDarkMode ? BAMBOOK_OS.controls.stateControl.baseDark + ' ' + BAMBOOK_OS.controls.stateControl.interactionDark : BAMBOOK_OS.controls.stateControl.baseLight + ' ' + BAMBOOK_OS.controls.stateControl.interactionLight}`;
-  const brandTextCls = isDarkMode ? BAMBOOK_OS.tone.text.brandDark : BAMBOOK_OS.tone.text.brandLight;
-  const neutralChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light ${isDarkMode ? 'bg-white/[0.045] text-white/48' : 'bg-white/34 text-slate-500'}`;
-  const brandChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)]' : 'bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)]'}`;
-  const dangerChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100/60 text-slate-600'}`;
-  const brandActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/14' : 'bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)] hover:bg-[var(--os-vnext-brand-blue)]/12'}`;
-  const dangerActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100/80'}`;
-  const quietDangerActionCls = `h-9 px-3 rounded-control border text-[11px] font-light transition-colors disabled:opacity-50 inline-flex items-center gap-1 ${isDarkMode ? 'border-white/[0.08] text-white/55 hover:bg-white/[0.04]' : 'border-slate-300/40 text-slate-500 hover:bg-slate-100/40'}`;
+  const labelCls = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
+  const inputCls = `w-full h-9 px-3 rounded-control border outline-none text-xs font-light transition-[background,border-color,box-shadow,transform] duration-200 ${ADMIN_USER_FIELD_CLASS}`;
+  const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
+  const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`;
+  const brandTextCls = BAMBOOK_OS.tone.text.brandEmphasis;
+  const neutralChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`;
+  const brandChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--os-vnext-brand-blue)]/8 dark:bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]`;
+  const dangerChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`;
+  const brandActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--os-vnext-brand-blue)]/8 dark:bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/12 dark:hover:bg-[var(--os-vnext-brand-blue)]/14`;
+  const dangerActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`;
+  const quietDangerActionCls = `h-9 px-3 rounded-control border text-[11px] font-light transition-colors disabled:opacity-50 inline-flex items-center gap-1 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`;
   const adminTitleClass = `${BAMBOOK_OS.layout.desktopTitleTextClass} text-os-adaptive-title`;
-  const adminPanelEyebrowClass = `text-[10px] font-light uppercase ${BAMBOOK_OS.typography.tracking.overline} ${isDarkMode ? 'text-white/38' : 'text-slate-500'}`;
-  const sectionTitleClass = `text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`;
-  const sectionMutedClass = `text-xs font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`;
-  const inlinePanelClass = `rounded-control border ${isDarkMode ? 'border-white/[0.055] bg-white/[0.018]' : 'border-white/38 bg-white/20'}`;
-  const inlineRowClass = `rounded-compact ${isDarkMode ? 'bg-white/[0.018]' : 'bg-white/22'}`;
-  const subtleButtonCls = `h-8 px-2.5 rounded-field border inline-flex items-center justify-center gap-1 text-[10px] font-light transition-colors ${isDarkMode ? 'border-white/12 text-white/58 hover:text-white/82 hover:bg-white/[0.035]' : 'border-white/45 text-slate-600 hover:text-slate-700 hover:bg-white/30'}`;
+  const adminPanelEyebrowClass = `text-[10px] font-light uppercase ${BAMBOOK_OS.typography.tracking.overline} text-[var(--text-tertiary)]`;
+  const sectionTitleClass = `text-sm font-light text-[var(--text-primary)]`;
+  const sectionMutedClass = `text-xs font-light text-[var(--text-tertiary)]`;
+  const inlinePanelClass = 'rounded-control border border-[var(--border-c-default)] bg-[var(--recessed-bg)]';
+  const inlineRowClass = `rounded-compact bg-[var(--recessed-bg)]`;
+  const subtleButtonCls = `h-8 px-2.5 rounded-field border inline-flex items-center justify-center gap-1 text-[10px] font-light transition-colors border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]`;
   const navItemBaseClass = `flex items-center gap-2.5 px-3 h-9 rounded-full text-[11px] font-light tracking-wide transition-all duration-200`;
-  const navItemActiveClass = isDarkMode
-    ? `bg-white/[0.08] text-white`
-    : `bg-slate-100/60 text-slate-900`;
-  const navItemIdleClass = isDarkMode
-    ? `text-white/50 hover:text-white/80 hover:bg-white/[0.03]`
-    : `text-slate-500 hover:text-slate-700 hover:bg-slate-100/40`;
+  const navItemActiveClass = 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]';
+  const navItemIdleClass = 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]';
 
   const apiBase = getApiBaseUrl().replace(/\/$/, '');
   const authToken = () => localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
@@ -527,7 +527,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   if (!hasRole('owner', 'admin')) {
-    return <div className="px-5 py-4 text-center text-slate-500">需要管理员权限</div>;
+    return <div className="px-5 py-4 text-center text-[var(--text-tertiary)]">需要管理员权限</div>;
   }
 
   return (
@@ -581,7 +581,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
             className={`${activeTab === 'users' ? 'h-full min-h-0 overflow-hidden' : ADMIN_PANEL_SCROLL_CLASS} px-5 py-4`}
           >
             {loadError && (
-              <div className={`mb-3 rounded-full border px-4 py-2 text-xs font-light ${isDarkMode ? 'border-white/[0.08] bg-white/[0.04] text-white/55' : 'border-slate-200 bg-slate-100/60 text-slate-500'}`}>
+              <div className={`mb-3 rounded-full border px-4 py-2 text-xs font-light border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                 {loadError}
               </div>
             )}
@@ -597,8 +597,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
                       <p className={adminPanelEyebrowClass}>Identity Control</p>
-                      <p data-ui-lab-wallpaper-contrast="primary" className={`mt-1 text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>用户管理</p>
-                      <p className={`mt-1 text-[11px] font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>
+                      <p data-ui-lab-wallpaper-contrast="primary" className={`mt-1 text-sm font-light text-[var(--text-primary)]`}>用户管理</p>
+                      <p className={`mt-1 text-[11px] font-light text-[var(--text-tertiary)]`}>
                         {users.length} 个用户 · {activeUsers.length} 个账号 · {pendingUsers.length} 个待审批
                       </p>
                     </div>
@@ -611,8 +611,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                   {showNewUser && (
                     <div className={card + ' p-5 space-y-4'}>
                       <div>
-                        <h3 className={`text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>新建用户</h3>
-                        <p className={`mt-1 text-[11px] font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>
+                        <h3 className={`text-sm font-light text-[var(--text-primary)]`}>新建用户</h3>
+                        <p className={`mt-1 text-[11px] font-light text-[var(--text-tertiary)]`}>
                           用户 ID 将自动生成；密码只在创建/重置时可设置，数据库不会保存明文密码。
                         </p>
                       </div>
@@ -651,8 +651,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                     <div className={card + ' p-5 space-y-5'}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <p className={`text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>编辑用户</p>
-                          <p className={`mt-1 truncate text-[11px] font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>
+                          <p className={`text-sm font-light text-[var(--text-primary)]`}>编辑用户</p>
+                          <p className={`mt-1 truncate text-[11px] font-light text-[var(--text-tertiary)]`}>
                             {editingUser.displayName} 的账号信息、密码管理与角色权限
                           </p>
                         </div>
@@ -726,7 +726,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         </div>
                       </div>
 
-                      <div className={`border-t pt-4 ${isDarkMode ? 'border-white/10' : 'border-slate-200/50'}`}>
+                      <div className={`border-t pt-4 border-[var(--border-c-default)]`}>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                           <div>
                             <label className={labelCls}>角色权限</label>
@@ -778,18 +778,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                     </div>
                   ) : (
                   <>
-                  <div className={card + ` p-4 ${isDarkMode ? 'border-white/[0.06]' : 'border-white/42'}`}>
+                  <div className={card + ` p-4 border-[var(--border-c-default)]`}>
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
                         <UserPlus size={14} className={brandTextCls} />
-                        <h3 className={`text-sm font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        <h3 className={`text-sm font-light text-[var(--text-primary)]`}>
                           注册申请待审批 ({pendingUsers.length})
                         </h3>
                       </div>
-                      {loading && <span className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>加载中...</span>}
+                      {loading && <span className={`text-[10px] text-[var(--text-tertiary)]`}>加载中...</span>}
                     </div>
                     {pendingUsers.length === 0 ? (
-                      <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                      <p className={`text-xs text-[var(--text-tertiary)]`}>
                         暂无待审批注册申请。新用户通过登录页「申请注册」并完成邮箱验证码后，会出现在这里。
                       </p>
                     ) : (
@@ -798,14 +798,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           const requestedDept = u.metadata?.requestedDepartment || '';
                           const emailVerified = u.metadata?.emailVerified !== false;
                           return (
-                            <div key={u.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-inset border ${isDarkMode ? 'border-white/[0.055] bg-white/[0.025]' : 'border-white/42 bg-white/28'}`}>
+                            <div key={u.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-inset border border-[var(--border-c-default)] bg-[var(--recessed-bg)]`}>
                               <UserAvatar name={u.displayName} email={u.email} avatarUrl={u.avatarUrl} isDarkMode={isDarkMode} sizeClassName="h-8 w-8" textClassName="text-xs" />
                               <div className="flex-1 min-w-0">
-                                <div className={`text-sm font-light truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                <div className={`text-sm font-light truncate text-[var(--text-primary)]`}>
                                   {u.displayName}
                                   {emailVerified && <span className={brandChipCls + ' ml-2'}>邮箱已验证</span>}
                                 </div>
-                                <div className={`text-[11px] truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <div className={`text-[11px] truncate text-[var(--text-tertiary)]`}>
                                   {maskAdminEmail(u.email)}
                                   {requestedDept && <><span className="mx-1 opacity-50">·</span>{requestedDept}</>}
                                 </div>
@@ -813,7 +813,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                               <select
                                 value={pendingRoles[u.id] || 'viewer'}
                                 onChange={e => setPendingRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
-                                className={`h-9 rounded-control border px-3 text-[11px] font-light outline-none ${isDarkMode ? ADMIN_USER_FIELD_DARK_CLASS : ADMIN_USER_FIELD_LIGHT_CLASS}`}
+                                className={`h-9 rounded-control border px-3 text-[11px] font-light outline-none ${ADMIN_USER_FIELD_CLASS}`}
                                 disabled={actionBusyId === u.id}
                               >
                                 {AVAILABLE_ROLES.map(role => <option key={role} value={role}>{formatRoleLabel(role)}</option>)}
@@ -847,10 +847,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <col className="w-[36%]" />
                         <col className="w-[12%]" />
                       </colgroup>
-                      <thead className={`${isDarkMode ? 'text-white/38' : 'text-slate-400'}`}>
+                      <thead className={`text-[var(--text-tertiary)]`}>
                         <tr>
                           {['用户', '状态', '角色', ''].map(header => (
-                            <th key={header} className={`border-b px-4 py-3 text-[10px] font-light tracking-[0.16em] ${isDarkMode ? 'border-white/[0.035] bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.018)]' : 'border-white/28 bg-white/14'}`}>{header}</th>
+                            <th key={header} className={`border-b px-4 py-3 text-[10px] font-light tracking-[0.16em] bg-[var(--recessed-bg-strong)] dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.018)] border-[var(--border-c-default)]`}>{header}</th>
                           ))}
                         </tr>
                       </thead>
@@ -877,14 +877,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           const privilegedRole = roles.includes('owner') ? 'owner' : roles.includes('admin') ? 'admin' : null;
                           const userRowBorderClass = idx === activeUsers.length - 1
                             ? 'border-transparent'
-                            : (isDarkMode ? 'border-white/[0.030]' : 'border-white/24');
+                            : 'border-[var(--border-c-default)]';
                           return (
-                            <tr key={u.id} className={`transition-[background,box-shadow,color] duration-200 ${isDarkMode ? 'hover:bg-white/[0.035]' : 'hover:bg-white/28'}`}>
+                            <tr key={u.id} className={`transition-[background,box-shadow,color] duration-200 hover:bg-[var(--hover-darken)]`}>
                               <td className={`border-b px-4 py-3 ${userRowBorderClass}`}>
                                 <div className="flex min-w-0 items-center gap-3">
                                   <UserAvatar name={u.displayName} email={u.email} avatarUrl={u.avatarUrl} isDarkMode={isDarkMode} sizeClassName="h-8 w-8" textClassName="text-xs" />
                                   <div className="flex min-w-0 items-center gap-1.5">
-                                    <div className={`min-w-0 truncate text-sm font-light ${isDarkMode ? 'text-white/88' : 'text-slate-900'}`}>{u.displayName}</div>
+                                    <div className={`min-w-0 truncate text-sm font-light text-[var(--text-primary)]`}>{u.displayName}</div>
                                     {privilegedRole && (
                                       <Crown
                                         size={13}
@@ -906,7 +906,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   )) : (
                                     <span className={neutralChipCls}>无角色</span>
                                   )}
-                                  {roles.length > 3 && <span className={`rounded-full px-2 py-0.5 text-[10px] font-light ${isDarkMode ? 'text-white/36' : 'text-slate-400'}`}>+{roles.length - 3}</span>}
+                                  {roles.length > 3 && <span className={`rounded-full px-2 py-0.5 text-[10px] font-light text-[var(--text-tertiary)]`}>+{roles.length - 3}</span>}
                                 </div>
                               </td>
                               <td className={`border-b px-4 py-3 text-right ${userRowBorderClass}`}>
@@ -945,7 +945,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           <Shield size={14} className={brandTextCls} />
                           <span className={sectionTitleClass}>{formatRoleLabel(r.name)}</span>
                           {r.isSystem && <span className={brandChipCls}>系统内置</span>}
-                          <span className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{currentPerms.length} 项权限</span>
+                          <span className={`text-[10px] text-[var(--text-tertiary)]`}>{currentPerms.length} 项权限</span>
                           {!isEditingPerms && (
                             <button onClick={() => { setPermEditingRoleId(r.id); setPermDraft([...(r.permissions || [])]); }}
                               className={`${subtleButtonCls} ml-auto`}>
@@ -953,11 +953,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             </button>
                           )}
                         </div>
-                        <div className={`text-xs mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{r.description || '无描述'}</div>
+                        <div className={`text-xs mb-3 text-[var(--text-tertiary)]`}>{r.description || '无描述'}</div>
 
                         {isEditingPerms ? (
-                          <div className={`mt-2 pt-3 border-t ${isDarkMode ? 'border-white/[0.055]' : 'border-white/35'}`}>
-                            <div className={`text-[10px] mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>勾选该角色应当拥有的权限</div>
+                          <div className={`mt-2 pt-3 border-t border-[var(--border-c-default)]`}>
+                            <div className={`text-[10px] mb-2 text-[var(--text-tertiary)]`}>勾选该角色应当拥有的权限</div>
                             <div className="flex flex-wrap gap-1.5 mb-3">
                               {allPermissions.map((p: any) => {
                                 const on = permDraft.includes(p.scope);
@@ -965,8 +965,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   <button key={p.id} type="button" onClick={() => setPermDraft(prev => on ? prev.filter(s => s !== p.scope) : [...prev, p.scope])}
                                     className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
                                       on
-                                        ? (isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/16 border-[var(--os-vnext-brand-blue)]/28 text-white' : 'bg-[var(--os-vnext-brand-blue)]/8 border-[var(--os-vnext-brand-blue)]/20 text-slate-700')
-                                        : (isDarkMode ? 'bg-white/[0.018] border-white/[0.055] text-white/44 hover:text-white/78' : 'bg-white/22 border-white/40 text-slate-500 hover:text-slate-700')
+                                        ? 'bg-[var(--os-vnext-brand-blue)]/8 dark:bg-[var(--os-vnext-brand-blue)]/16 border-[var(--os-vnext-brand-blue)]/20 dark:border-[var(--os-vnext-brand-blue)]/28 text-[var(--text-primary)]'
+                                        : 'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                                     }`}>
                                     {on && <Check size={10} className="inline mr-1" />}
                                     {formatPermissionLabel(p.scope)}
@@ -995,9 +995,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           </div>
                         ) : (
                           <div className="flex flex-wrap gap-1">
-                            {(r.permissions || []).length === 0 && <span className={`text-[10px] ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>暂无权限</span>}
+                            {(r.permissions || []).length === 0 && <span className={`text-[10px] text-[var(--text-tertiary)]`}>暂无权限</span>}
                             {(r.permissions || []).map((p: string) => (
-                              <span key={p} className={`text-[10px] px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{formatPermissionLabel(p)}</span>
+                              <span key={p} className={`text-[10px] px-2 py-0.5 rounded-full bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>{formatPermissionLabel(p)}</span>
                             ))}
                           </div>
                         )}
@@ -1017,10 +1017,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div className="flex items-center justify-between">
                           <div className="min-w-0 flex-1">
                             <span className={sectionMutedClass}>{a.actionType}</span>
-                            <span className={`text-[10px] ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{a.risk} risk</span>
+                            <span className={`text-[10px] ml-2 text-[var(--text-tertiary)]`}>{a.risk} risk</span>
                             {/* PRD 8.6 双轨偏差业务审批上下文（报价单号 + 轨道 A/B + 偏差） */}
                             {a.actionType === 'quotation:price-deviation' && a.payload && (
-                              <div className={`mt-1 text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <div className={`mt-1 text-[11px] text-[var(--text-tertiary)]`}>
                                 报价单 {a.payload.quotationNumber || a.targetId}
                                 {' · '}轨道 A 中位 ${Number(a.payload.trackAMedianUsd ?? 0).toFixed(4)}/{a.payload.trackAUnit === 'PC' ? '件' : '米'}
                                 {' · '}轨道 B 终价 ${Number(a.payload.trackBFinalUsd ?? 0).toFixed(4)}
@@ -1045,7 +1045,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div className="flex items-center justify-between">
                           <div>
                             <span className={sectionMutedClass}>{s.suggestionType}</span>
-                            <span className={`text-[10px] ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>confidence: {s.confidence}</span>
+                            <span className={`text-[10px] ml-2 text-[var(--text-tertiary)]`}>confidence: {s.confidence}</span>
                           </div>
                           <div className="flex gap-1">
                             <button disabled={actionBusyId !== null} onClick={() => decideSuggestion(s.id, 'accepted')}
@@ -1069,31 +1069,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                   {/* task_mr1ncdp9: audit query filter UI */}
                   <div className={`flex flex-wrap items-center gap-2 p-2 text-xs ${inlineRowClass}`}>
                     <input value={auditFilter.targetType} onChange={(e) => setAuditFilter(s => ({ ...s, targetType: e.target.value }))}
-                      placeholder="targetType" className={`w-24 rounded border px-1.5 py-0.5 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/86' : 'border-slate-300 bg-white text-slate-900'}`} />
+                      placeholder="targetType" className={`w-24 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.targetId} onChange={(e) => setAuditFilter(s => ({ ...s, targetId: e.target.value }))}
-                      placeholder="targetId" className={`w-28 rounded border px-1.5 py-0.5 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/86' : 'border-slate-300 bg-white text-slate-900'}`} />
+                      placeholder="targetId" className={`w-28 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.action} onChange={(e) => setAuditFilter(s => ({ ...s, action: e.target.value }))}
-                      placeholder="action" className={`w-24 rounded border px-1.5 py-0.5 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/86' : 'border-slate-300 bg-white text-slate-900'}`} />
+                      placeholder="action" className={`w-24 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.actorId} onChange={(e) => setAuditFilter(s => ({ ...s, actorId: e.target.value }))}
-                      placeholder="actorId" className={`w-24 rounded border px-1.5 py-0.5 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/86' : 'border-slate-300 bg-white text-slate-900'}`} />
+                      placeholder="actorId" className={`w-24 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.createdFrom} onChange={(e) => setAuditFilter(s => ({ ...s, createdFrom: e.target.value }))}
-                      placeholder="createdFrom(ms)" className={`w-28 rounded border px-1.5 py-0.5 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/86' : 'border-slate-300 bg-white text-slate-900'}`} />
+                      placeholder="createdFrom(ms)" className={`w-28 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.createdTo} onChange={(e) => setAuditFilter(s => ({ ...s, createdTo: e.target.value }))}
-                      placeholder="createdTo(ms)" className={`w-28 rounded border px-1.5 py-0.5 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/86' : 'border-slate-300 bg-white text-slate-900'}`} />
+                      placeholder="createdTo(ms)" className={`w-28 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <button onClick={() => { setAuditFilter({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' }); setAuditFilterError(''); fetchAuditLogs({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' }); }}
-                      className={`rounded border px-2 py-0.5 ${isDarkMode ? 'border-white/10 text-white/70 hover:bg-white/5' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}>清空</button>
+                      className={`rounded border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}>清空</button>
                     <button onClick={() => fetchAuditLogs()}
-                      className={`rounded border px-2 py-0.5 ${isDarkMode ? 'border-white/[0.08] text-white/55 hover:bg-white/[0.04]' : 'border-slate-300/40 text-slate-500 hover:bg-slate-100/40'}`}>刷新</button>
+                      className={`rounded border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`}>刷新</button>
                   </div>
-                  {auditFilterError && <div className="text-xs text-slate-500">{auditFilterError}</div>}
+                  {auditFilterError && <div className="text-xs text-[var(--text-tertiary)]">{auditFilterError}</div>}
                   <span className={sectionTitleClass}>{auditLogs.length} 条日志</span>
                   {auditLogs.map((l: any) => (
                     <div key={l.id} className={`flex items-center gap-3 p-2 text-xs ${inlineRowClass}`}>
-                      <span className="font-mono text-[10px] text-slate-500">{new Date(l.createdAt).toLocaleString()}</span>
-                      <span className={`font-light ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>{l.action}</span>
-                      <span className="text-slate-500">{l.actorId}</span>
-                      {l.targetType && <span className="text-slate-600">{l.targetType}:{l.targetId}</span>}
-                      {l.ip && <span className="text-slate-600 ml-auto">{l.ip}</span>}
+                      <span className="font-mono text-[10px] text-[var(--text-tertiary)]">{new Date(l.createdAt).toLocaleString()}</span>
+                      <span className={`font-light text-[var(--text-primary)]`}>{l.action}</span>
+                      <span className="text-[var(--text-tertiary)]">{l.actorId}</span>
+                      {l.targetType && <span className="text-[var(--text-secondary)]">{l.targetType}:{l.targetId}</span>}
+                      {l.ip && <span className="text-[var(--text-secondary)] ml-auto">{l.ip}</span>}
                     </div>
                   ))}
                 </div>
@@ -1184,10 +1184,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           <div className="flex items-center gap-3">
                             <BookOpen size={14} className={`${brandTextCls} shrink-0`} />
                             <div className="flex-1 min-w-0">
-                              <div className={`text-sm font-light truncate ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>
+                              <div className={`text-sm font-light truncate text-[var(--text-primary)]`}>
                                 {acl.documentTitle || acl.documentId}
                               </div>
-                              <div className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <div className={`text-[11px] text-[var(--text-tertiary)]`}>
                                 {acl.roleName && <span className="mr-2">角色: {formatRoleLabel(acl.roleName)}</span>}
                                 {acl.departmentName && <span className="mr-2">部门: {acl.departmentName}</span>}
                                 {!acl.roleName && !acl.departmentName && <span className="mr-2">适用所有</span>}
@@ -1290,17 +1290,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           <div className="flex items-center gap-2 mb-2">
                             <Wrench size={14} className={brandTextCls} />
                             <span className={sectionTitleClass}>{t.name}</span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{t.scope}</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>{t.scope}</span>
                             <span className={t.risk === 'high' ? dangerChipCls : t.risk === 'medium' ? neutralChipCls : brandChipCls}>{t.risk} risk</span>
-                            {t.description && <span className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{t.description}</span>}
+                            {t.description && <span className={`text-[10px] text-[var(--text-tertiary)]`}>{t.description}</span>}
                           </div>
                           {t.permissions.length === 0 ? (
-                            <p className={`text-[10px] ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>暂无角色授权</p>
+                            <p className={`text-[10px] text-[var(--text-tertiary)]`}>暂无角色授权</p>
                           ) : (
                             <div className="space-y-1.5">
                               {t.permissions.map((p: any) => (
                                 <div key={p.id} className={`flex items-center gap-2 px-3 py-1.5 text-xs ${inlineRowClass}`}>
-                                  <span className={`font-light ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>{formatRoleLabel(p.roleName)}</span>
+                                  <span className={`font-light text-[var(--text-primary)]`}>{formatRoleLabel(p.roleName)}</span>
                                   <span className={p.access === 'admin' ? dangerChipCls : p.access === 'none' ? neutralChipCls : brandChipCls}>{formatAccessLabel(p.access)}</span>
                                   <span className={p.riskMode === 'disabled' ? dangerChipCls : p.riskMode === 'approval' ? neutralChipCls : brandChipCls}>{formatRiskModeLabel(p.riskMode)}</span>
                                   <button disabled={actionBusyId !== null} onClick={async () => {

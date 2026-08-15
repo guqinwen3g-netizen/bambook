@@ -20,11 +20,9 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
   }, [results]);
 
   // rgba() 任意值绕开 flat-experimental 护栏，保持卡片描边可见
-  const card = isDarkMode
-    ? 'bg-deep/40 border border-[rgba(255,255,255,0.10)]'
-    : 'bg-[rgba(255,255,255,0.70)] border border-[rgba(15,23,42,0.10)]';
-  const labelCls = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const valueCls = isDarkMode ? 'text-slate-100' : 'text-slate-900';
+  const card = 'bg-[rgba(255,255,255,0.70)] dark:bg-deep/40 border border-[rgba(15,23,42,0.10)] dark:border-[rgba(255,255,255,0.10)]';
+  const labelCls = 'text-[var(--text-tertiary)]';
+  const valueCls = 'text-[var(--text-primary)]';
 
   return (
     <div className="space-y-4">
@@ -34,11 +32,11 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
         </h4>
         <div className="grid grid-cols-3 gap-4">
           <Stat label="文件数" value={String(results.length)} valueCls={valueCls} labelCls={labelCls} />
-          <Stat label="可入库订单" value={String(summary.ok.length)} valueCls={valueCls} labelCls={labelCls} accent="text-slate-600" />
-          <Stat label="解析失败" value={String(summary.failed.length)} valueCls={valueCls} labelCls={labelCls} accent={summary.failed.length ? 'text-slate-500' : undefined} />
+          <Stat label="可入库订单" value={String(summary.ok.length)} valueCls={valueCls} labelCls={labelCls} accent="text-[var(--text-secondary)]" />
+          <Stat label="解析失败" value={String(summary.failed.length)} valueCls={valueCls} labelCls={labelCls} accent={summary.failed.length ? 'text-[var(--text-tertiary)]' : undefined} />
         </div>
         {summary.totalsByCcy.size > 0 && (
-          <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
+          <div className={`mt-4 pt-4 border-t border-[var(--border-c-default)]`}>
             <p className={`text-[10px] uppercase tracking-widest mb-2 ${labelCls}`}>合计 (按币种)</p>
             <ul className="text-sm font-mono space-y-1">
               {[...summary.totalsByCcy.entries()].map(([ccy, total]) => (
@@ -66,9 +64,9 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
               className={`flex items-center gap-3 text-xs ${valueCls}`}
             >
               {r.order && !r.error ? (
-                <CheckCircle2 size={14} className="text-slate-600" />
+                <CheckCircle2 size={14} className="text-[var(--text-secondary)]" />
               ) : (
-                <AlertCircle size={14} className="text-slate-500" />
+                <AlertCircle size={14} className="text-[var(--text-tertiary)]" />
               )}
               <span className="truncate flex-1">{r.filename}</span>
               <span className={labelCls}>
@@ -82,11 +80,7 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
       </div>
 
       <div
-        className={`rounded-inset p-4 flex items-start gap-3 ${
-          isDarkMode
-            ? 'bg-white/10 border border-white/15 text-white/55'
-            : 'bg-slate-50 border border-slate-200 text-slate-500'
-        }`}
+        className={`rounded-inset p-4 flex items-start gap-3 bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-tertiary)]`}
       >
         <Info size={18} className="shrink-0 mt-0.5" />
         <div className="text-xs leading-relaxed">

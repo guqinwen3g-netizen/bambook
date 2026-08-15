@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   compareRelationsForList,
-  RELATIONS_CATEGORY_CARD_HIGHLIGHT_DARK_CLASS,
-  RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS,
-  RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_POSITION_CLASS,
+  RELATIONS_CATEGORY_CARD_CLASS,
   RELATIONS_CATEGORY_CARD_GRID_CLASS,
+  RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS,
+  RELATIONS_CATEGORY_CARD_HIGHLIGHT_POSITION_CLASS,
   RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR,
   RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE,
   RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR,
@@ -15,8 +15,6 @@ import {
   RELATIONS_CARD_COLUMN_WIDTH,
   RELATIONS_CARD_GRID_CLASS,
   RELATIONS_CARD_LAYOUT_TRANSITION,
-  RELATIONS_CATEGORY_CARD_DARK_CLASS,
-  RELATIONS_CATEGORY_CARD_LIGHT_CLASS,
   RELATIONS_MOBILE_CATEGORY_CARD_CLASS,
   RELATIONS_MOBILE_CATEGORY_GRID_CLASS,
   RELATIONS_FORM_TITLE_BAR_CLASS,
@@ -26,81 +24,52 @@ import {
   RELATIONS_FORM_PANEL_CLASS,
   RELATIONS_FORM_TITLE_SECONDARY_BUTTON_CLASS,
   RELATIONS_FORM_TITLE_SUBMIT_BUTTON_CLASS,
-  RELATIONS_FORM_FIELD_DARK_CLASS,
-  RELATIONS_FORM_FIELD_LIGHT_CLASS,
-  RELATIONS_FORM_MAP_INDEX_DARK_CLASS,
-  RELATIONS_FORM_MAP_INDEX_LIGHT_CLASS,
-  RELATIONS_FORM_NESTED_ROW_DARK_CLASS,
-  RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS,
-  RELATIONS_FORM_ICON_ADD_DARK_CLASS,
-  RELATIONS_FORM_ICON_ADD_LIGHT_CLASS,
-  RELATIONS_FORM_ICON_REMOVE_DARK_CLASS,
-  RELATIONS_FORM_ICON_REMOVE_LIGHT_CLASS,
-  RELATIONS_FORM_ICON_COMPACT_REMOVE_DARK_CLASS,
-  RELATIONS_FORM_ICON_COMPACT_REMOVE_LIGHT_CLASS,
-  RELATIONS_FORM_INLINE_DANGER_DARK_CLASS,
-  RELATIONS_FORM_INLINE_DANGER_LIGHT_CLASS,
-  RELATIONS_FORM_QUIET_ACTION_DARK_CLASS,
-  RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS,
-  RELATIONS_COORDINATE_PANEL_DARK_CLASS,
-  RELATIONS_COORDINATE_PANEL_LIGHT_CLASS,
-  RELATIONS_COORDINATE_ICON_DARK_CLASS,
-  RELATIONS_COORDINATE_ICON_LIGHT_CLASS,
+  RELATIONS_FORM_FIELD_CLASS,
+  RELATIONS_FORM_MAP_INDEX_CLASS,
+  RELATIONS_FORM_NESTED_ROW_CLASS,
+  RELATIONS_FORM_ICON_ADD_CLASS,
+  RELATIONS_FORM_ICON_REMOVE_CLASS,
+  RELATIONS_FORM_ICON_COMPACT_REMOVE_CLASS,
+  RELATIONS_FORM_INLINE_DANGER_CLASS,
+  RELATIONS_FORM_QUIET_ACTION_CLASS,
+  RELATIONS_COORDINATE_PANEL_CLASS,
+  RELATIONS_COORDINATE_ICON_CLASS,
   getRelationsCoordinateStatusClass,
   RELATIONS_BRAND_INLINE_CLASS,
-  RELATIONS_FORM_LABEL_DARK_CLASS,
-  RELATIONS_FORM_LABEL_LIGHT_CLASS,
-  RELATIONS_FORM_SECTION_TITLE_DARK_CLASS,
-  RELATIONS_FORM_SECTION_TITLE_LIGHT_CLASS,
-  RELATIONS_ORGANIZATION_TIER_BADGE_DARK_CLASS,
-  RELATIONS_ORGANIZATION_TIER_BADGE_LIGHT_CLASS,
-  RELATIONS_ORGANIZATION_COMPLETION_DONE_DARK_CLASS,
-  RELATIONS_ORGANIZATION_COMPLETION_DONE_LIGHT_CLASS,
-  RELATIONS_ORGANIZATION_COMPLETION_MISSING_DARK_CLASS,
-  RELATIONS_ORGANIZATION_COMPLETION_MISSING_LIGHT_CLASS,
+  RELATIONS_FORM_LABEL_CLASS,
+  RELATIONS_FORM_SECTION_TITLE_CLASS,
+  RELATIONS_ORGANIZATION_TIER_BADGE_CLASS,
+  RELATIONS_ORGANIZATION_COMPLETION_DONE_CLASS,
+  RELATIONS_ORGANIZATION_COMPLETION_MISSING_CLASS,
   getRelationsOrganizationCompletionClass,
-  RELATIONS_TABLE_HEADER_DARK_CLASS,
-  RELATIONS_TABLE_HEADER_LIGHT_CLASS,
-  RELATIONS_TABLE_ROW_HOVER_DARK_CLASS,
-  RELATIONS_TABLE_ROW_HOVER_LIGHT_CLASS,
-  RELATIONS_TABLE_ROW_SEPARATOR_DARK_CLASS,
-  RELATIONS_TABLE_ROW_SEPARATOR_LIGHT_CLASS,
-  RELATIONS_TABLE_CELL_MUTED_DARK_CLASS,
-  RELATIONS_TABLE_CELL_MUTED_LIGHT_CLASS,
-  RELATIONS_TABLE_EDIT_ACTION_DARK_CLASS,
-  RELATIONS_TABLE_EDIT_ACTION_LIGHT_CLASS,
-  RELATIONS_TABLE_EMPTY_ACTION_DARK_CLASS,
-  RELATIONS_TABLE_EMPTY_ACTION_LIGHT_CLASS,
-  RELATIONS_PANEL_DIVIDER_DARK_CLASS,
-  RELATIONS_PANEL_DIVIDER_LIGHT_CLASS,
+  RELATIONS_TABLE_HEADER_CLASS,
+  RELATIONS_TABLE_ROW_HOVER_CLASS,
+  RELATIONS_TABLE_ROW_SEPARATOR_CLASS,
+  RELATIONS_TABLE_CELL_MUTED_CLASS,
+  RELATIONS_TABLE_EDIT_ACTION_CLASS,
+  RELATIONS_TABLE_EMPTY_ACTION_CLASS,
+  RELATIONS_PANEL_DIVIDER_CLASS,
   RELATIONS_PAGE_X_COLLAPSED_CLASS,
   RELATIONS_PAGE_X_NORMAL_CLASS,
-  RELATIONS_PROGRESS_TRACK_DARK_CLASS,
-  RELATIONS_PROGRESS_TRACK_LIGHT_CLASS,
+  RELATIONS_PROGRESS_TRACK_CLASS,
   RELATIONS_TOOLBAR_CLASS,
   RELATIONS_TOOLBAR_AMBIENT_CLASS,
   RELATIONS_TOOLBAR_CONTENT_CLASS,
-  RELATIONS_TOOLBAR_CONTROL_DARK_CLASS,
-  RELATIONS_TOOLBAR_CONTROL_IDLE_DARK_CLASS,
-  RELATIONS_TOOLBAR_CONTROL_IDLE_LIGHT_CLASS,
-  RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS,
-  RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS,
-  RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS,
+  RELATIONS_TOOLBAR_CONTROL_CLASS,
+  RELATIONS_TOOLBAR_CONTROL_IDLE_CLASS,
+  RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS,
   RELATIONS_TOOLBAR_OFFSET_CLASS,
   RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS,
   RELATIONS_TOOLBAR_SEGMENT_CLASS,
-  RELATIONS_TOOLBAR_SEGMENT_ACTIVE_DARK_CLASS,
-  RELATIONS_TOOLBAR_SEGMENT_ACTIVE_LIGHT_CLASS,
+  RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS,
   RELATIONS_TOOLBAR_SPOTLIGHT_DARK_COLOR,
   RELATIONS_TOOLBAR_SPOTLIGHT_DARK_SIZE,
   RELATIONS_TOOLBAR_SPOTLIGHT_LIGHT_COLOR,
   RELATIONS_TOOLBAR_SPOTLIGHT_LIGHT_SIZE,
-  RELATIONS_TOOLBAR_SURFACE_DARK_CLASS,
-  RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS,
+  RELATIONS_TOOLBAR_SURFACE_CLASS,
   RELATIONS_TOOLBAR_SEARCH_COMPACT_CLASS,
-  RELATIONS_TOOLBAR_SEARCH_DARK_CLASS,
+  RELATIONS_TOOLBAR_SEARCH_CLASS,
   RELATIONS_TOOLBAR_SEARCH_EXPANDED_CLASS,
-  RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS,
   RELATIONS_TOOLBAR_SEARCH_SHELL_CLASS,
   RELATIONS_TOOLBAR_SORT_CLASS,
   RELATIONS_TOOLBAR_VIEW_GROUP_CLASS,
@@ -110,8 +79,7 @@ import {
   RELATIONS_TITLE_ARROW_ICON_SIZE,
   RELATIONS_TITLE_BACK_BUTTON_CLASS,
   RELATIONS_TITLE_BACK_NAV_GROUP_CLASS,
-  RELATIONS_TITLE_BUTTON_DARK_CLASS,
-  RELATIONS_TITLE_BUTTON_LIGHT_CLASS,
+  RELATIONS_TITLE_BUTTON_CLASS,
   RELATIONS_TITLE_NAV_GROUP_CLASS,
   RELATIONS_TITLE_PAGE_LABEL_CLASS,
   RELATIONS_TITLE_SEPARATOR_CLASS,
@@ -129,10 +97,8 @@ import {
 } from './RelationsManager';
 import { OS_MATERIAL } from './ui/osMaterial';
 import {
-  SIDEBAR_ACTIVE_DARK_CLASS,
-  SIDEBAR_ACTIVE_LIGHT_CLASS,
+  SIDEBAR_ACTIVE_CLASS,
   SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_HOVER_LIGHT_CLASS,
   SIDEBAR_PRESS_DARK_CLASS,
   SIDEBAR_PRESS_LIGHT_CLASS,
 } from './Sidebar';
@@ -381,7 +347,7 @@ describe('RelationsManager title system', () => {
     expect(formSource).not.toContain('RELATIONS_FORM_PANEL_BASE_CLASS');
     expect(formSource).not.toContain('RELATIONS_FORM_PANEL_DARK_CLASS');
     expect(formSource).not.toContain('RELATIONS_FORM_PANEL_LIGHT_CLASS');
-    expect(formSource).not.toContain(RELATIONS_CATEGORY_CARD_LIGHT_CLASS);
+    expect(formSource).not.toContain(RELATIONS_CATEGORY_CARD_CLASS);
     expect(formSource).not.toContain('rounded-[28px]');
     expect(formSource).not.toContain('border-white/42 shadow-sm');
     expect(formSource).not.toContain('hover:bg-slate-50');
@@ -391,66 +357,41 @@ describe('RelationsManager title system', () => {
     const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
     const detailPanelSource = readFileSync(new URL('./ui/DetailPanel.tsx', import.meta.url), 'utf8');
 
-    expect(RELATIONS_PANEL_DIVIDER_DARK_CLASS).toBe(BAMBOOK_OS.tone.divider.panelDark);
-    expect(RELATIONS_PANEL_DIVIDER_LIGHT_CLASS).toBe(BAMBOOK_OS.tone.divider.panelLight);
-    expect(RELATIONS_PROGRESS_TRACK_DARK_CLASS).toBe(BAMBOOK_OS.tone.surface.progressTrackDark);
-    expect(RELATIONS_PROGRESS_TRACK_LIGHT_CLASS).toBe(BAMBOOK_OS.tone.surface.progressTrackLight);
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toBe(BAMBOOK_OS.controls.recessedField.dark);
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain(OS_MATERIAL.insetSurface);
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.recessedField.light);
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain(OS_MATERIAL.insetSurface);
-    expect(RELATIONS_FORM_MAP_INDEX_DARK_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexDark}`);
-    expect(RELATIONS_FORM_MAP_INDEX_LIGHT_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexLight}`);
-    expect(BAMBOOK_OS.tone.surface.formNestedRowDark).toBe('');
-    expect(BAMBOOK_OS.tone.surface.formNestedRowLight).toBe('');
-    expect(RELATIONS_FORM_NESTED_ROW_DARK_CLASS).toBe(OS_MATERIAL.insetSurface);
-    expect(RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS).toBe(OS_MATERIAL.insetSurface);
-    expect(RELATIONS_FORM_ICON_ADD_DARK_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.addDark);
-    expect(RELATIONS_FORM_ICON_ADD_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.addLight);
-    expect(RELATIONS_FORM_ICON_REMOVE_DARK_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.removeDark);
-    expect(RELATIONS_FORM_ICON_REMOVE_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.removeLight);
-    expect(RELATIONS_FORM_ICON_COMPACT_REMOVE_DARK_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.compactRemoveDark);
-    expect(RELATIONS_FORM_ICON_COMPACT_REMOVE_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.compactRemoveLight);
-    expect(RELATIONS_FORM_INLINE_DANGER_DARK_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.inlineDangerDark);
-    expect(RELATIONS_FORM_INLINE_DANGER_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.inlineDangerLight);
-    expect(RELATIONS_FORM_QUIET_ACTION_DARK_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.quietActionDark);
-    expect(RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.quietActionLight);
-    expect(RELATIONS_COORDINATE_PANEL_DARK_CLASS).toBe(BAMBOOK_OS.tone.status.coordinate.panelDark);
-    expect(RELATIONS_COORDINATE_PANEL_LIGHT_CLASS).toBe(BAMBOOK_OS.tone.status.coordinate.panelLight);
-    expect(RELATIONS_COORDINATE_ICON_DARK_CLASS).toBe(BAMBOOK_OS.tone.status.coordinate.iconDark);
-    expect(RELATIONS_COORDINATE_ICON_LIGHT_CLASS).toBe(BAMBOOK_OS.tone.status.coordinate.iconLight);
+    expect(RELATIONS_PANEL_DIVIDER_CLASS).toBe(BAMBOOK_OS.tone.divider.panel);
+    expect(RELATIONS_PROGRESS_TRACK_CLASS).toBe(BAMBOOK_OS.tone.surface.progressTrack);
+    expect(RELATIONS_FORM_FIELD_CLASS).toBe(BAMBOOK_OS.controls.recessedField.base);
+    expect(RELATIONS_FORM_FIELD_CLASS).not.toContain(OS_MATERIAL.insetSurface);
+    expect(RELATIONS_FORM_MAP_INDEX_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`);
+    expect(BAMBOOK_OS.tone.surface.formNestedRow).toBe('');
+    expect(RELATIONS_FORM_NESTED_ROW_CLASS).toBe(OS_MATERIAL.insetSurface);
+    expect(RELATIONS_FORM_ICON_ADD_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.add);
+    expect(RELATIONS_FORM_ICON_REMOVE_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.remove);
+    expect(RELATIONS_FORM_ICON_COMPACT_REMOVE_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.compactRemove);
+    expect(RELATIONS_FORM_INLINE_DANGER_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.inlineDanger);
+    expect(RELATIONS_FORM_QUIET_ACTION_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.quietAction);
+    expect(RELATIONS_COORDINATE_PANEL_CLASS).toBe(BAMBOOK_OS.tone.status.coordinate.panel);
+    expect(RELATIONS_COORDINATE_ICON_CLASS).toBe(BAMBOOK_OS.tone.status.coordinate.icon);
     expect(RELATIONS_BRAND_INLINE_CLASS).toBe(BAMBOOK_OS.tone.text.brandInline);
-    expect(RELATIONS_FORM_LABEL_DARK_CLASS).toBe(BAMBOOK_OS.tone.text.formLabelDark);
-    expect(RELATIONS_FORM_LABEL_LIGHT_CLASS).toBe(BAMBOOK_OS.tone.text.formLabelLight);
-    expect(RELATIONS_FORM_SECTION_TITLE_DARK_CLASS).toBe('text-white/62');
-    expect(RELATIONS_FORM_SECTION_TITLE_LIGHT_CLASS).toBe('text-slate-950');
-    expect(source).toContain('const relationFormSectionTitleClass = isDarkMode ? RELATIONS_FORM_SECTION_TITLE_DARK_CLASS : RELATIONS_FORM_SECTION_TITLE_LIGHT_CLASS;');
+    expect(RELATIONS_FORM_LABEL_CLASS).toBe(BAMBOOK_OS.tone.text.formLabel);
+    expect(RELATIONS_FORM_SECTION_TITLE_CLASS).toBe('text-[var(--text-primary)] dark:text-[var(--text-secondary)]');
+    expect(source).toContain('const relationFormSectionTitleClass = RELATIONS_FORM_SECTION_TITLE_CLASS;');
     expect(source).toContain('Form Map</p>');
     expect(source).toContain('${relationFormSectionTitleClass}`}>Form Map</p>');
     expect(source).toContain('<h4 className={`text-xs font-light tracking-wide mb-4 ${relationFormSectionTitleClass}`}>');
     expect(source).not.toContain("text-white/62' : 'text-slate-400");
-    expect(RELATIONS_ORGANIZATION_TIER_BADGE_DARK_CLASS).toBe(BAMBOOK_OS.tone.chip.organizationTierDark);
-    expect(RELATIONS_ORGANIZATION_TIER_BADGE_LIGHT_CLASS).toBe(BAMBOOK_OS.tone.chip.organizationTierLight);
-    expect(RELATIONS_TABLE_HEADER_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.headerDark);
-    expect(RELATIONS_TABLE_HEADER_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.headerLight);
-    expect(RELATIONS_TABLE_ROW_HOVER_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.rowHoverDark);
-    expect(RELATIONS_TABLE_ROW_HOVER_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.rowHoverLight);
-    expect(RELATIONS_TABLE_ROW_SEPARATOR_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.rowSeparatorDark);
-    expect(RELATIONS_TABLE_ROW_SEPARATOR_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.rowSeparatorLight);
-    expect(RELATIONS_TABLE_CELL_MUTED_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.cellMutedDark);
-    expect(RELATIONS_TABLE_CELL_MUTED_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.cellMutedLight);
-    expect(RELATIONS_TABLE_EDIT_ACTION_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.editActionDark);
-    expect(RELATIONS_TABLE_EDIT_ACTION_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.editActionLight);
-    expect(RELATIONS_TABLE_EMPTY_ACTION_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.emptyActionDark);
-    expect(RELATIONS_TABLE_EMPTY_ACTION_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.emptyActionLight);
-    expect(getRelationsCoordinateStatusClass('existing', true)).toBe(BAMBOOK_OS.tone.status.coordinate.savedDark);
-    expect(getRelationsCoordinateStatusClass('city', false)).toBe(BAMBOOK_OS.tone.status.coordinate.cityLight);
-    expect(getRelationsCoordinateStatusClass('postcode', true)).toBe(BAMBOOK_OS.tone.status.coordinate.postcodeDark);
-    expect(getRelationsCoordinateStatusClass('fallback', false)).toBe(BAMBOOK_OS.tone.status.coordinate.fallbackLight);
-    expect(getRelationsOrganizationCompletionClass(true, true)).toBe(RELATIONS_ORGANIZATION_COMPLETION_DONE_DARK_CLASS);
-    expect(getRelationsOrganizationCompletionClass(true, false)).toBe(RELATIONS_ORGANIZATION_COMPLETION_DONE_LIGHT_CLASS);
-    expect(getRelationsOrganizationCompletionClass(false, true)).toBe(RELATIONS_ORGANIZATION_COMPLETION_MISSING_DARK_CLASS);
-    expect(getRelationsOrganizationCompletionClass(false, false)).toBe(RELATIONS_ORGANIZATION_COMPLETION_MISSING_LIGHT_CLASS);
+    expect(RELATIONS_ORGANIZATION_TIER_BADGE_CLASS).toBe(BAMBOOK_OS.tone.chip.organizationTier);
+    expect(RELATIONS_TABLE_HEADER_CLASS).toBe(BAMBOOK_OS.controls.table.header);
+    expect(RELATIONS_TABLE_ROW_HOVER_CLASS).toBe(BAMBOOK_OS.controls.table.rowHover);
+    expect(RELATIONS_TABLE_ROW_SEPARATOR_CLASS).toBe(BAMBOOK_OS.controls.table.rowSeparator);
+    expect(RELATIONS_TABLE_CELL_MUTED_CLASS).toBe(BAMBOOK_OS.controls.table.cellMuted);
+    expect(RELATIONS_TABLE_EDIT_ACTION_CLASS).toBe(BAMBOOK_OS.controls.table.editAction);
+    expect(RELATIONS_TABLE_EMPTY_ACTION_CLASS).toBe(BAMBOOK_OS.controls.table.emptyAction);
+    expect(getRelationsCoordinateStatusClass('existing')).toBe(BAMBOOK_OS.tone.status.coordinate.saved);
+    expect(getRelationsCoordinateStatusClass('city')).toBe(BAMBOOK_OS.tone.status.coordinate.city);
+    expect(getRelationsCoordinateStatusClass('postcode')).toBe(BAMBOOK_OS.tone.status.coordinate.postcode);
+    expect(getRelationsCoordinateStatusClass('fallback')).toBe(BAMBOOK_OS.tone.status.coordinate.fallback);
+    expect(getRelationsOrganizationCompletionClass(true)).toBe(RELATIONS_ORGANIZATION_COMPLETION_DONE_CLASS);
+    expect(getRelationsOrganizationCompletionClass(false)).toBe(RELATIONS_ORGANIZATION_COMPLETION_MISSING_CLASS);
     expect(source).toContain('relationsPanelDividerClass');
     expect(source).toContain('relationProgressTrackClass');
     expect(source).toContain('relationFormMapIndexClass');
@@ -472,14 +413,14 @@ describe('RelationsManager title system', () => {
     expect(source).toContain('relationTableCellMutedClass');
     expect(source).toContain('relationTableEditActionClass');
     expect(source).toContain('relationTableEmptyActionClass');
-    expect(source).toContain('getRelationsCoordinateStatusClass(resolvedCoords.source, isDarkMode)');
-    expect(source).not.toContain('getRelationsOrganizationCompletionClass(organizationMissingFields(org).length === 0, isDarkMode)');
+    expect(source).toContain('getRelationsCoordinateStatusClass(resolvedCoords.source)');
+    expect(source).not.toContain('getRelationsCoordinateStatusClass(resolvedCoords.source, isDarkMode)');
     expect(source).not.toContain("font-light text-[#4A90E2]\">智库");
     expect(source).not.toContain("border-white/[0.035] bg-[rgba(74,144,226,0.018)]");
     expect(source).not.toContain("hover:bg-[rgba(74,144,226,0.050)] hover:shadow-[inset_1px_0_0_rgba(125,183,255,0.30)]");
     expect(source).not.toContain("bg-[rgba(74,144,226,0.034)] text-white/35 hover:text-white hover:bg-[rgba(74,144,226,0.070)]");
-    expect(detailPanelSource).toContain('BAMBOOK_OS.tone.divider.panelDark');
-    expect(detailPanelSource).toContain('BAMBOOK_OS.tone.divider.sectionDark');
+    expect(detailPanelSource).toContain('BAMBOOK_OS.tone.divider.panel');
+    expect(detailPanelSource).toContain('BAMBOOK_OS.tone.divider.section');
     expect(detailPanelSource).not.toContain("border-white/[0.055]' : 'border-slate-200/45");
   });
 
@@ -539,12 +480,10 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).toContain('CONTACT_LIST_ACTIVE_LIGHT_CLASS');
     expect(contactListSource).toContain('CONTACT_LIST_HOVER_DARK_CLASS');
     expect(contactListSource).toContain('CONTACT_LIST_HOVER_LIGHT_CLASS');
-    expect(contactListSource).toContain('const activeItemClass = isDarkMode');
-    expect(contactListSource).toContain('? CONTACT_LIST_ACTIVE_DARK_CLASS');
-    expect(contactListSource).toContain(': CONTACT_LIST_ACTIVE_LIGHT_CLASS');
+    expect(contactListSource).toContain('const activeItemClass =');
+    expect(contactListSource).toContain('${CONTACT_LIST_ACTIVE_LIGHT_CLASS} dark:text-[var(--text-primary)]');
     expect(contactListSource).toContain('? activeItemClass');
-    expect(contactListSource).toContain('const idleItemClass = isDarkMode');
-    expect(contactListSource).toContain('border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_DARK_CLASS}');
+    expect(contactListSource).toContain('const idleItemClass =');
     expect(contactListSource).toContain('border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_LIGHT_CLASS}');
     expect(contactListSource).toContain(': idleItemClass');
     expect(contactListSource).not.toContain('border-transparent ${SIDEBAR_ACTIVE_DARK_CLASS}');
@@ -571,14 +510,12 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).toContain('className={BAMBOOK_OS.layout.relationsDetailListShellClass}');
     expect(contactListSource).toContain('className={BAMBOOK_OS.layout.relationsDetailListPanelClass}');
     expect(contactListSource).toContain("import { BAMBOOK_OS } from './bambookOsTokens'");
-    expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.dark');
-    expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.light');
-    expect(BAMBOOK_OS.controls.recessedField.dark).toContain('placeholder-white/34');
+    expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.base');
+    expect(BAMBOOK_OS.controls.recessedField.base).toContain('placeholder-white/34');
     // recessedField 为 flat 雕刻配方：rgba 任意值绕开护栏，保留可见描边（禁 backdrop-blur 触发子串）
-    expect(BAMBOOK_OS.controls.recessedField.dark).toContain('border-[rgba(255,255,255,0.10)]');
-    expect(BAMBOOK_OS.controls.recessedField.light).toContain('border-[rgba(15,23,42,0.10)]');
-    expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.borderedDark');
-    expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.borderedLight');
+    expect(BAMBOOK_OS.controls.recessedField.base).toContain('border-[rgba(255,255,255,0.10)]');
+    expect(BAMBOOK_OS.controls.recessedField.base).toContain('border-[rgba(15,23,42,0.10)]');
+    expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.bordered');
     expect(contactListSource).not.toContain('border-r backdrop-blur-xl');
     expect(contactListSource).not.toContain('focus:border-[#4A90E2]');
     expect(contactListSource).not.toContain('bambook-blue-white-light');
@@ -605,8 +542,7 @@ describe('RelationsManager title system', () => {
     expect(orgChartSource).toContain('style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`, transformOrigin:');
     expect(orgChartSource).toContain('w-4 shrink-0 text-center');
     expect(orgChartSource).toContain('contact.name.charAt(0)');
-    expect(orgChartSource).toContain('ORG_CHART_NODE_DARK_CLASS');
-    expect(orgChartSource).toContain('ORG_CHART_NODE_LIGHT_CLASS');
+    expect(orgChartSource).toContain('ORG_CHART_NODE_CLASS');
     expect(orgChartSource).toContain('BAMBOOK_OS.material.panelBase');
     expect(orgChartSource).toContain('BAMBOOK_OS.material.glassColor');
     expect(orgChartSource).toContain('bambook-outer-panel !rounded-inset');
@@ -614,17 +550,14 @@ describe('RelationsManager title system', () => {
     expect(orgChartSource).not.toContain('BAMBOOK_OS.material.compactCardLight');
     expect(orgChartSource).not.toContain('BAMBOOK_OS.spotlight.compactCardDarkColor');
     expect(orgChartSource).not.toContain('BAMBOOK_OS.spotlight.compactCardLightColor');
-    expect(orgChartSource).toContain('BAMBOOK_OS.controls.floatingToolCluster.surfaceDark');
-    expect(orgChartSource).toContain('BAMBOOK_OS.controls.floatingToolCluster.surfaceLight');
+    expect(orgChartSource).toContain('BAMBOOK_OS.controls.floatingToolCluster.surface');
     expect(orgChartSource).toContain('className="absolute right-6 top-5 z-30"');
     expect(orgChartSource).toContain('className="relative z-20 mr-[158px] p-3"');
     expect(orgChartSource).not.toContain('absolute right-6 top-[72px] z-30');
-    expect(orgChartSource).toContain('BAMBOOK_OS.controls.orgChartMeta.editDark');
-    expect(orgChartSource).toContain('BAMBOOK_OS.controls.orgChartMeta.editLight');
+    expect(orgChartSource).toContain('BAMBOOK_OS.controls.orgChartMeta.edit');
     expect(orgChartSource).toContain('absolute -top-2 -right-2 z-30 p-1.5');
     expect(orgChartSource).toContain('aria-label={`编辑${contact.name}`}');
-    expect(orgChartSource).toContain('BAMBOOK_OS.controls.orgChartMeta.childrenBadgeDark');
-    expect(orgChartSource).toContain('BAMBOOK_OS.controls.orgChartMeta.childrenBadgeLight');
+    expect(orgChartSource).toContain('BAMBOOK_OS.controls.orgChartMeta.childrenBadge');
     expect(orgChartSource).toContain('<CompiledSurfacePanel');
     expect(orgChartSource).toContain('source="OrgChart.LegendPanel"');
     expect(orgChartSource).not.toContain('<SidePanelContainer');
@@ -639,8 +572,7 @@ describe('RelationsManager title system', () => {
     expect(detailPanelSource).not.toContain("import ScrollEdgeFades from './ScrollEdgeFades'");
     expect(detailPanelSource).toContain("import { BAMBOOK_OS } from './bambookOsTokens'");
     expect(detailPanelSource).toContain('const detailScrollRef = useRef<HTMLDivElement | null>(null);');
-    expect(detailPanelSource).toContain('BAMBOOK_OS.controls.actionControl.borderedDark');
-    expect(detailPanelSource).toContain('BAMBOOK_OS.controls.actionControl.borderedLight');
+    expect(detailPanelSource).toContain('BAMBOOK_OS.controls.actionControl.bordered');
     expect(detailPanelSource).toContain('const detailMaterialClass = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-outer-panel`;');
     expect(detailPanelSource).toContain('const inlinePanelClass = `${detailMaterialClass} bambook-tertiary-surface !rounded-control relative isolate overflow-hidden`;');
     expect(detailPanelSource).not.toContain('const linkedPanelClass');
@@ -665,7 +597,7 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).not.toContain("import ScrollEdgeFades from './ScrollEdgeFades'");
     expect(contactListSource).toContain('scrollRef={contactListScrollRef}');
     expect(contactListSource).not.toContain('spotlight');
-    expect(contactListSource).toContain('const idleItemClass = isDarkMode');
+    expect(contactListSource).toContain('const idleItemClass =');
     expect(contactListSource).toContain('? activeItemClass');
     expect(contactListSource).toContain('border border-transparent bg-transparent shadow-none');
     expect(contactListSource).not.toContain('idleItemMaterialClass');
@@ -692,21 +624,21 @@ describe('RelationsManager title system', () => {
     const dataTwinSource = readFileSync(new URL('./DataCenter.tsx', import.meta.url), 'utf8');
     const appCss = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 
-    expect(BAMBOOK_OS.tone.text.quietLight).toBe('text-slate-600');
-    expect(BAMBOOK_OS.tone.text.formLabelLight).toBe('text-slate-500');
+    expect(BAMBOOK_OS.tone.text.quiet).toContain('text-slate-600');
+    expect(BAMBOOK_OS.tone.text.formLabel).toContain('text-slate-500');
     expect(appCss).toContain('html:not(.dark) .glass-panel .text-slate-400');
     expect(appCss).toContain('html:not(.dark) .bambook-panel-glass .text-slate-400');
     expect(appCss).toContain('color: rgb(71, 85, 105)');
     expect(appCss).toContain('html:not(.dark) .glass-panel .text-slate-500');
     expect(appCss).toContain('color: rgb(71, 85, 105)');
-    expect(BAMBOOK_OS.tone.surface.formMapIndexLight).toContain('text-slate-500');
-    expect(BAMBOOK_OS.tone.surface.formMapIndexLight).not.toContain('text-slate-400');
-    expect(BAMBOOK_OS.controls.formIconButton.removeLight).toContain('text-slate-500');
-    expect(BAMBOOK_OS.controls.formIconButton.removeLight).not.toContain('text-slate-300');
-    expect(BAMBOOK_OS.controls.formIconButton.compactRemoveLight).toContain('text-slate-500');
-    expect(BAMBOOK_OS.controls.formIconButton.quietActionLight).toContain('text-slate-500');
-    expect(BAMBOOK_OS.controls.orgChartMeta.editLight).toContain('text-slate-500');
-    expect(BAMBOOK_OS.controls.orgChartMeta.childrenBadgeLight).toContain('text-slate-500');
+    expect(BAMBOOK_OS.tone.surface.formMapIndex).toContain('text-slate-500');
+    expect(BAMBOOK_OS.tone.surface.formMapIndex).not.toContain('text-slate-400');
+    expect(BAMBOOK_OS.controls.formIconButton.remove).toContain('text-slate-500');
+    expect(BAMBOOK_OS.controls.formIconButton.remove).not.toContain('text-slate-300');
+    expect(BAMBOOK_OS.controls.formIconButton.compactRemove).toContain('text-slate-500');
+    expect(BAMBOOK_OS.controls.formIconButton.quietAction).toContain('text-slate-500');
+    expect(BAMBOOK_OS.controls.orgChartMeta.edit).toContain('text-slate-500');
+    expect(BAMBOOK_OS.controls.orgChartMeta.childrenBadge).toContain('text-slate-500');
 
     expect(detailPanelSource).not.toContain("isDarkMode ? 'text-white/40' : 'text-slate-400'");
     expect(detailPanelSource).not.toContain("isDarkMode ? 'text-white/46' : 'text-slate-400'");
@@ -832,37 +764,25 @@ describe('RelationsManager title system', () => {
       source.indexOf('const RelationsManager')
     );
 
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('bg-transparent');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('!border-transparent');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('shadow-none');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('text-[var(--os-adaptive-primary)]');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain(SIDEBAR_PRESS_DARK_CLASS);
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:text-[#4A90E2]');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('0_0_0_1px_rgba(96,165,250,0.20)');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).toContain('active:scale-[0.98]');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:bg-[#4A90E2]/15');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:text-[#4A90E2]');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS).not.toContain('hover:border-[#4A90E2]');
-    expect(RELATIONS_TITLE_BUTTON_DARK_CLASS.split(' ')).not.toContain('bg-[#4A90E2]/15');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('bg-transparent');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('!border-transparent');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('shadow-none');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('text-[var(--os-adaptive-primary)]');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain(SIDEBAR_HOVER_LIGHT_CLASS);
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain(SIDEBAR_PRESS_LIGHT_CLASS);
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:text-[#0A2746]');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('0_0_0_1px_rgba(74,144,226,0.24)');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).toContain('active:scale-[0.98]');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:bg-blue-50/80');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:text-[#4A90E2]');
-    expect(RELATIONS_TITLE_BUTTON_LIGHT_CLASS).not.toContain('hover:border-blue');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('bambook-dashboard-glass-color');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('bambook-blue-white-light');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('bg-transparent');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('!border-transparent');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('shadow-none');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('text-[var(--os-adaptive-primary)]');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain(SIDEBAR_PRESS_DARK_CLASS);
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('hover:text-[#4A90E2]');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('0_0_0_1px_rgba(96,165,250,0.20)');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('inset_0_0_0_1px');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).toContain('active:scale-[0.98]');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('hover:bg-[#4A90E2]/15');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('hover:border-[#4A90E2]');
+    expect(RELATIONS_TITLE_BUTTON_CLASS.split(' ')).not.toContain('bg-[#4A90E2]/15');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('hover:text-[#0A2746]');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('0_0_0_1px_rgba(74,144,226,0.24)');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('hover:bg-blue-50/80');
+    expect(RELATIONS_TITLE_BUTTON_CLASS).not.toContain('hover:border-blue');
     expect(RELATIONS_TITLE_SPOTLIGHT_DARK_COLOR).toBe(RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR);
     expect(RELATIONS_TITLE_SPOTLIGHT_LIGHT_COLOR).toBe(RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR);
     expect(RELATIONS_TITLE_SPOTLIGHT_DARK_SIZE).toBe(180);
@@ -874,8 +794,7 @@ describe('RelationsManager title system', () => {
     expect(titleSpotlightButtonSource).toContain('activeSpotlightOpacity={1}');
     expect(titleSpotlightButtonSource).not.toContain('spotlightClassName="inset-0"');
     expect(combinedTitleSource).toContain('<RelationsTitleSpotlightButton');
-    expect(combinedTitleSource).toContain('RELATIONS_TITLE_BUTTON_DARK_CLASS');
-    expect(combinedTitleSource).toContain('RELATIONS_TITLE_BUTTON_LIGHT_CLASS');
+    expect(combinedTitleSource).toContain('RELATIONS_TITLE_BUTTON_CLASS');
     expect(titleSource).toContain('RELATIONS_TITLE_TEXT_BUTTON_CLASS');
     expect(titleSource).toContain('RELATIONS_TITLE_SECTION_BUTTON_CLASS');
     expect(formTitleSource).toContain('RELATIONS_TITLE_TEXT_BUTTON_CLASS');
@@ -935,10 +854,8 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_TOOLBAR_VIEW_GROUP_CLASS).toContain('gap-1');
     expect(RELATIONS_TOOLBAR_SORT_CLASS).toBe('w-[104px] shrink-0');
     expect(RELATIONS_TOOLBAR_AMBIENT_CLASS).toBe('hidden');
-    expect(RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS).toContain('glass-panel');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('glass-panel');
-    expect(RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS).toContain('bambook-blue-white-surface');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('bambook-blue-white-surface');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).toContain('glass-panel');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).toContain('bambook-blue-white-surface');
     expect(getRelationsCardRowWidth(624)).toBe(316);
     expect(getRelationsCardRowWidth(656)).toBe(656);
     expect(getRelationsCardRowWidth(948)).toBe(656);
@@ -1001,16 +918,15 @@ describe('RelationsManager title system', () => {
 
     expect(toolbarSource).not.toContain('RELATIONS_TOOLBAR_SEGMENT_THUMB_CLASS');
     expect(toolbarSource).not.toContain('translate-x-[');
-    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SEGMENT_ACTIVE_DARK_CLASS');
-    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SEGMENT_ACTIVE_LIGHT_CLASS');
+    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS');
     expect(toolbarSource).toContain("onClick={() => setRelationListDisplayMode(relationListDisplayMode === 'grid' ? 'table' : 'grid')}");
     expect(toolbarSource).toContain("relationListDisplayMode === 'grid' ? (");
     expect(toolbarSource).toContain('<List size={13} strokeWidth={1.5} />');
     expect(toolbarSource).toContain('<LayoutGrid size={13} strokeWidth={1.5} />');
-    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_LIGHT_CLASS).toContain('text-[var(--os-vnext-brand-blue)]');
-    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_DARK_CLASS).toContain('text-slate-50');
-    expect(toolbarSource).not.toContain("relationListDisplayMode === 'grid' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS");
-    expect(toolbarSource).not.toContain("relationListDisplayMode === 'table' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS");
+    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS).toContain('text-[var(--os-vnext-brand-blue)]');
+    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS).toContain('dark:text-[var(--text-primary)]');
+    expect(toolbarSource).not.toContain("relationListDisplayMode === 'grid' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED");
+    expect(toolbarSource).not.toContain("relationListDisplayMode === 'table' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED");
   });
 
   it('uses one outer toolbar frame with floating inner controls', () => {
@@ -1021,67 +937,55 @@ describe('RelationsManager title system', () => {
     );
     const customSelectSource = readFileSync(new URL('./ui/CustomSelect.tsx', import.meta.url), 'utf8');
     const toolbarSelectSource = customSelectSource.slice(
-      customSelectSource.indexOf('const darkTriggerOpenClass'),
-      customSelectSource.indexOf('const darkMenuClass')
+      customSelectSource.indexOf('const toolbarBaseClass'),
+      customSelectSource.indexOf('const overlayMenu')
     );
 
     expect(RELATIONS_TOOLBAR_CLASS).toContain('border');
     expect(RELATIONS_TOOLBAR_CLASS).not.toContain('shadow');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('glass-panel');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('bambook-blue-white-surface');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).not.toContain('border-white/10');
-    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).toContain('glass-panel');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).toContain('bambook-blue-white-surface');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).not.toContain('inset_0_0_0_1px');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).not.toContain('border-white/10');
+    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SURFACE_CLASS');
     expect(toolbarSource).not.toContain('style={relationToolbarStyle}');
     expect(toolbarSource).not.toContain('bg-white/30 shadow-[inset_0_0_0_1px');
     expect(toolbarSource).not.toContain('bg-white/45 border-white/60 shadow-sm');
-    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).toContain('text-slate-700');
+    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SEARCH_CLASS');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bambook-dashboard-glass-color');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bambook-blue-white-light');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).toContain('text-slate-700');
     expect(toolbarSource).not.toContain('bg-white/35 border border-white/45');
     expect(RELATIONS_TOOLBAR_SEGMENT_CLASS).not.toContain('border-transparent');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).toContain('!border-transparent');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).not.toContain('bg-[#0d1b2a]/80');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).toContain('relations-toolbar-search-dark');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).toContain('focus:!border-transparent');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).toContain('focus:bg-transparent');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).toContain('focus:shadow-none');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('focus:translate-y-[1px]');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('focus:bg-black');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('0_0_0_1px_rgba(74,144,226,0.14)');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bg-white/80');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).toContain('focus:!border-transparent');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).toContain('focus:bg-transparent');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).toContain('focus:shadow-none');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).not.toContain('focus:translate-y-[1px]');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).not.toContain('inset_0_2px_5px');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).not.toContain('0_0_0_1px_rgba(74,144,226,0.20)');
-    expect(RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bg-[#0d1b2a]/80');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('bambook-dashboard-glass-color');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).toContain('bambook-blue-white-light');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).toContain('!border-transparent');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('bg-[#0d1b2a]/80');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).toContain('focus:!border-transparent');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).toContain('focus:bg-transparent');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).toContain('focus:shadow-none');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('focus:translate-y-[1px]');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('focus:bg-black');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('0_0_0_1px_rgba(74,144,226,0.14)');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('inset_0_0_0_1px');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bg-white/80');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('inset_0_2px_5px');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('0_0_0_1px_rgba(74,144,226,0.20)');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bg-[#0d1b2a]/80');
     expect(toolbarSource).not.toContain('transition-all duration-200 shadow-sm');
     expect(toolbarSelectSource).not.toContain('bambook-dashboard-glass-color');
-    expect(toolbarSelectSource).toContain('toolbarDarkInlineClass');
-    expect(toolbarSelectSource).toContain('toolbarLightInlineClass');
+    expect(toolbarSelectSource).toContain('toolbarInlineClass');
     expect(customSelectSource).toContain("import { BAMBOOK_OS } from './bambookOsTokens'");
-    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarDarkBase');
-    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarLightBase');
-    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarDarkSelected');
-    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarLightSelected');
+    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarBase');
+    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarSelected');
     expect(customSelectSource).toContain('BAMBOOK_OS.controls.overlayMenu');
-    expect(customSelectSource).toContain('overlayMenu.itemSelectedDark');
+    expect(customSelectSource).toContain('overlayMenu.itemSelected');
     expect(customSelectSource).not.toContain("const toolbarDarkBaseClass = '!bg-[rgba(6,14,24,0.18)]");
     expect(customSelectSource).not.toContain("const toolbarDarkSelectedClass = '!bg-[rgba(7,18,32,0.30)]");
-    expect(BAMBOOK_OS.controls.select.toolbarDarkInline).toContain('hover:bg-transparent');
-    expect(BAMBOOK_OS.controls.select.toolbarDarkInline).toContain('active:bg-transparent');
-    expect(toolbarSelectSource).toContain('toolbarDarkSelectedClass');
-    expect(toolbarSelectSource).toContain('toolbarDarkHoverClass');
+    expect(BAMBOOK_OS.controls.select.toolbarInline).toContain('hover:bg-transparent');
+    expect(BAMBOOK_OS.controls.select.toolbarInline).toContain('active:bg-transparent');
+    expect(toolbarSelectSource).toContain('toolbarSelectedClass');
+    expect(toolbarSelectSource).toContain('toolbarHoverClass');
     expect(toolbarSelectSource).not.toContain('SIDEBAR_HOVER_DARK_CLASS');
     expect(toolbarSelectSource).not.toContain('bg-[#0d1b2a]/80');
   });
@@ -1094,64 +998,50 @@ describe('RelationsManager title system', () => {
     );
     const customSelectSource = readFileSync(new URL('./ui/CustomSelect.tsx', import.meta.url), 'utf8');
     const toolbarSelectSource = customSelectSource.slice(
-      customSelectSource.indexOf('const darkTriggerOpenClass'),
-      customSelectSource.indexOf('const menu = (')
+      customSelectSource.indexOf('const toolbarBaseClass'),
+      customSelectSource.indexOf('const overlayMenu')
     );
     const toolbarSelectButtonSource = customSelectSource.slice(
-      customSelectSource.indexOf('const darkTriggerOpenClass'),
-      customSelectSource.indexOf('const darkMenuClass')
-    );
-    const lightToolbarSelectButtonSource = customSelectSource.slice(
-      customSelectSource.indexOf('const lightTriggerOpenClass'),
-      customSelectSource.indexOf('const darkTriggerIdleClass')
-    );
-    const lightToolbarSelectIdleSource = customSelectSource.slice(
-      customSelectSource.indexOf('const lightTriggerIdleClass'),
-      customSelectSource.indexOf('const darkMenuClass')
+      customSelectSource.indexOf('const triggerOpenClass'),
+      customSelectSource.indexOf('const overlayMenu')
     );
 
-    expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).toContain('!border-transparent');
-    expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).not.toContain('bg-white/35');
-    expect(RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS).not.toContain('border-white/45');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('glass-panel');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).toContain('bambook-blue-white-surface');
-    expect(RELATIONS_TOOLBAR_SURFACE_DARK_CLASS).not.toContain('border-white/10');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_TOOLBAR_SEARCH_DARK_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).not.toContain('bg-white/80');
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS).toBe(SIDEBAR_ACTIVE_DARK_CLASS);
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS).not.toContain(SIDEBAR_PRESS_DARK_CLASS);
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS).toContain('bambook-selected-surface--dark');
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS).not.toContain('border-[#4A90E2]');
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS).not.toContain('bg-[#4A90E2]');
-    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_DARK_CLASS).toContain('text-slate-400');
-    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_DARK_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
-    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_LIGHT_CLASS).toContain(SIDEBAR_HOVER_LIGHT_CLASS);
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS).not.toContain('bg-white');
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS).toBe(SIDEBAR_ACTIVE_LIGHT_CLASS);
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS).not.toContain(SIDEBAR_PRESS_LIGHT_CLASS);
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS).toContain('bambook-selected-surface--light');
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS).not.toContain('border-slate-300/40');
-    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS).not.toContain('bg-slate-100/80');
-    expect(lightToolbarSelectButtonSource).not.toContain('bambook-dashboard-glass-color');
-    expect(lightToolbarSelectButtonSource).toContain('toolbarLightSelectedClass');
-    expect(lightToolbarSelectIdleSource).not.toContain('bambook-dashboard-glass-color');
-    expect(lightToolbarSelectIdleSource).toContain('toolbarLightHoverClass');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('bambook-dashboard-glass-color');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).toContain('bambook-blue-white-light');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).toContain('!border-transparent');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('bg-white/35');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('border-white/45');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).toContain('glass-panel');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).toContain('bambook-blue-white-surface');
+    expect(RELATIONS_TOOLBAR_SURFACE_CLASS).not.toContain('border-white/10');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bambook-dashboard-glass-color');
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bambook-blue-white-light');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('bg-white/80');
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).toBe(SIDEBAR_ACTIVE_CLASS);
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain(SIDEBAR_PRESS_DARK_CLASS);
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).toContain('bambook-selected-surface');
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('border-[#4A90E2]');
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('bg-[#4A90E2]');
+    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_CLASS).toContain('text-[var(--text-tertiary)]');
+    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('bg-white');
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain(SIDEBAR_PRESS_LIGHT_CLASS);
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('border-slate-300/40');
+    expect(RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS).not.toContain('bg-slate-100/80');
+    expect(toolbarSelectButtonSource).not.toContain('bambook-dashboard-glass-color');
+    expect(toolbarSelectButtonSource).toContain('toolbarSelectedClass');
+    expect(toolbarSelectButtonSource).toContain('toolbarHoverClass');
     expect(customSelectSource).not.toContain('SIDEBAR_PRESS_LIGHT_CLASS');
     expect(toolbarSelectSource).not.toContain('hover:border-[#4A90E2]');
     expect(toolbarSelectButtonSource).not.toContain('SIDEBAR_ACTIVE_DARK_CLASS');
     expect(customSelectSource).not.toContain('SIDEBAR_PRESS_DARK_CLASS');
-    expect(lightToolbarSelectButtonSource).not.toContain('SIDEBAR_ACTIVE_LIGHT_CLASS');
-    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarDarkInline');
+    expect(toolbarSelectButtonSource).not.toContain('SIDEBAR_ACTIVE_LIGHT_CLASS');
+    expect(customSelectSource).toContain('BAMBOOK_OS.controls.select.toolbarInline');
     expect(toolbarSelectButtonSource).not.toContain('circle_at_50%_');
     expect(toolbarSelectSource).not.toContain("bg-[#4A90E2]/15 text-[#4A90E2]");
     expect(toolbarSource).not.toMatch(/#123d68|#1f4c73|#17466f|#0d2438|blue-(?:100|50)(?![0-9])/);
-    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SURFACE_DARK_CLASS');
-    expect(RELATIONS_TOOLBAR_CONTROL_DARK_CLASS).not.toMatch(/\/(?:12|15|35)\b/);
+    expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SURFACE_CLASS');
+    expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toMatch(/\/(?:12|15|35)\b/);
   });
 
   it('keeps category card icons frameless and uses toolbar-style highlight', () => {
@@ -1167,12 +1057,11 @@ describe('RelationsManager title system', () => {
     const sharedCardStart = source.indexOf('const renderRelationCard = ({');
     const sharedCardSource = source.slice(sharedCardStart, source.indexOf('\n\n  return (', sharedCardStart));
 
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_DARK_CLASS).toBe(SIDEBAR_ACTIVE_DARK_CLASS);
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).toBe(SIDEBAR_ACTIVE_LIGHT_CLASS);
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).toContain('bambook-selected-surface--light');
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).not.toContain('shadow-[');
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).not.toContain('inset_0_0_0_1px');
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_POSITION_CLASS).toBe('inset-0 rounded-[inherit]');
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).toBe(SIDEBAR_ACTIVE_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).toContain('bambook-selected-surface');
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).not.toContain('shadow-[');
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).not.toContain('inset_0_0_0_1px');
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_POSITION_CLASS).toBe('inset-0 rounded-[inherit]');
     expect(source).not.toContain('RELATIONS_CATEGORY_CARD_OUTER_RING_CLASS');
     expect(readFileSync(new URL('../index.css', import.meta.url), 'utf8')).not.toContain('relations-card-outer-ring');
     expect(RELATIONS_CARD_LAYOUT_TRANSITION).toEqual({ duration: 0.36, ease: [0.16, 1, 0.3, 1] });
@@ -1188,49 +1077,41 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_MOBILE_CATEGORY_GRID_CLASS).toBe('grid grid-cols-2 gap-3 content-start');
     expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('h-[190px]');
     expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('p-4');
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain('rounded-[24px]');
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain('backdrop-blur-[15px]');
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain(OS_MATERIAL.raisedCard);
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).not.toContain('bambook-outer-panel');
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('rounded-[24px]');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('backdrop-blur-[15px]');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('bambook-dashboard-glass-color');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(OS_MATERIAL.raisedCard);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-outer-panel');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(SIDEBAR_HOVER_DARK_CLASS);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR).toBe(BAMBOOK_OS.spotlight.cardLightColor);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE).toBe(BAMBOOK_OS.spotlight.panelDarkSize);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE).toBe(BAMBOOK_OS.spotlight.panelLightSize);
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).not.toContain(SIDEBAR_PRESS_DARK_CLASS);
-    expect(RELATIONS_CATEGORY_CARD_DARK_CLASS).not.toContain('active:');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).toContain('rounded-[24px]');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).toContain(OS_MATERIAL.raisedCard);
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('bambook-outer-panel');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).toContain(SIDEBAR_HOVER_LIGHT_CLASS);
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('bambook-blue-white-surface');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('relations-card-outer-ring');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('hover:border-[#4A90E2]/42');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain(SIDEBAR_PRESS_LIGHT_CLASS);
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('hover:shadow-[0_0_0_1px_rgba(74,144,226,0.14)');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('active:border');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('active:shadow');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('active:translate-y-px');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('relations-card-edge');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('inset_var(--relations-card-edge');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('inset_0_0_0_1px_rgba(74,144,226');
-    expect(RELATIONS_CATEGORY_CARD_LIGHT_CLASS).not.toContain('inset_0_0_0_1px_rgba(255,255,255,0.14)');
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).toContain('bambook-selected-surface--light');
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).not.toContain('inset_0_1px_0_rgba(255,255,255,0.14)');
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).not.toContain('rgba(255,255,255,0.6)');
-    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS).not.toContain('rgba(255,255,255,0.85)');
-    expect(categorySource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_DARK_CLASS');
-    expect(categorySource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS');
-    expect(categorySource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_POSITION_CLASS');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-blue-white-light');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(SIDEBAR_PRESS_DARK_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('active:');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-blue-white-surface');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('relations-card-outer-ring');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('hover:border-[#4A90E2]/42');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(SIDEBAR_PRESS_LIGHT_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('hover:shadow-[0_0_0_1px_rgba(74,144,226,0.14)');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('active:border');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('active:shadow');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('active:translate-y-px');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('relations-card-edge');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('inset_var(--relations-card-edge');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('inset_0_0_0_1px_rgba(74,144,226');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('inset_0_0_0_1px_rgba(255,255,255,0.14)');
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).not.toContain('inset_0_1px_0_rgba(255,255,255,0.14)');
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).not.toContain('rgba(255,255,255,0.6)');
+    expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).not.toContain('rgba(255,255,255,0.85)');
+    expect(categorySource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS');
+    expect(categorySource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_POSITION_CLASS');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_LIGHT_CLASS');
+    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_CLASS');
     expect(categorySource).toContain('relationCategoryGridClass');
     expect(categorySource).toContain('relationCategoryViewportClass');
     expect(sharedCardSource).toContain('relationCategoryCardClass');
@@ -1285,12 +1166,13 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('inset-px rounded-[15px]');
     expect(sharedCardSource).toContain('-ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center');
     expect(sharedCardSource).toContain("transition-transform duration-300 group-hover:translate-x-1");
-    expect(sharedCardSource).toContain("text-white/30");
-    expect(sharedCardSource).toContain("text-slate-300");
+    expect(sharedCardSource).toContain("text-[var(--text-quaternary)]");
+    expect(sharedCardSource).not.toContain("text-white/30");
+    expect(sharedCardSource).not.toContain("text-slate-300");
     expect(sharedCardSource).not.toContain("ArrowRight size={14} strokeWidth={1.5} className={`transition-all duration-300");
     expect(sharedCardSource).not.toContain('text-white/30 group-hover:text-[#4a9eff]');
     expect(sharedCardSource).not.toContain('text-slate-300 group-hover:text-blue-500');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_DARK_CLASS');
+    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_CLASS');
     expect(source).not.toContain('RELATIONS_TABLE_ROW_MATERIAL_CLASS');
     expect(source).not.toContain('${RELATIONS_TABLE_ROW_MATERIAL_CLASS} ${relationTableRowHoverClass}');
     expect(source).toContain('relative isolate overflow-hidden ${relationTableRowHoverClass}');
@@ -1311,7 +1193,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('hover:bg-white/80 hover:border-white/70');
     expect(sharedCardSource).not.toContain('group-hover:text-blue-600');
     expect(sharedCardSource).not.toContain("text-slate-400 group-hover:text-[#4A90E2]");
-    expect(sharedCardSource).toContain(": 'text-[var(--os-vnext-brand-blue)]'");
+    expect(sharedCardSource).toContain('text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]');
     expect(sharedCardSource).not.toContain('bg-blue-50 text-[#4A90E2]');
     expect(sharedCardSource).not.toContain('bg-[#4A90E2]/10 text-[#4A90E2]');
     expect(sharedCardSource).not.toContain('rounded-xl mb-4 flex items-center justify-center');
@@ -1368,9 +1250,8 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).toContain('group relative isolate overflow-hidden flex flex-col items-start text-left');
     expect(sharedCardSource).toContain('${relationCategoryCardClass} transition-colors duration-200');
     expect(sharedCardSource).toContain('-ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center');
-    expect(sharedCardSource).toContain('text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_DARK_CLASS');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_LIGHT_CLASS');
+    expect(sharedCardSource).toContain('text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]');
+    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_CLASS');
     expect(organizationGridSource).not.toContain('{tierLabel(org.rating)}');
     expect(organizationGridSource).not.toContain('relationOrganizationTierBadgeClass');
     expect(organizationGridSource).not.toContain('relative z-10 flex justify-between items-start mb-3');
@@ -1477,25 +1358,23 @@ describe('RelationsManager title system', () => {
     expect(spotlightSource).toContain('setOpacity(idleSpotlightOpacity)');
     expect(spotlightSource).toContain('const handlePointerDown');
     expect(spotlightSource).toContain('if (fadeOnPointerDown) setOpacity(0)');
-    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_DARK_CLASS).not.toContain('hover:bg-[#4A90E2]');
+    expect(RELATIONS_TOOLBAR_CONTROL_IDLE_CLASS).not.toContain('hover:bg-[#4A90E2]');
   });
 
   it('matches the toolbar OS surface language in the custom select menu', () => {
     const customSelectSource = readFileSync(new URL('./ui/CustomSelect.tsx', import.meta.url), 'utf8');
-    const menuStart = customSelectSource.indexOf('const darkMenuClass');
+    const menuStart = customSelectSource.indexOf('const overlayMenu');
     const menuSource = customSelectSource.slice(
       menuStart,
       customSelectSource.indexOf('export default CustomSelect')
     );
 
     expect(menuSource).toContain('overlayMenu.surfaceBase');
-    expect(menuSource).toContain('overlayMenu.surfaceDark');
-    expect(menuSource).toContain('overlayMenu.surfaceLight');
+    expect(menuSource).toContain('overlayMenu.surface');
     expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('p-1');
     expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('rounded-2xl');
-    expect(BAMBOOK_OS.controls.overlayMenu.surfaceDark).toContain('bambook-dashboard-glass-color');
-    expect(menuSource).toContain('darkMenuSurfaceClass');
-    expect(menuSource).toContain('lightMenuSurfaceClass');
+    expect(BAMBOOK_OS.controls.overlayMenu.surface).toContain('bambook-dashboard-glass-color');
+    expect(menuSource).toContain('menuSurfaceClass');
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('h-9');
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('rounded-2xl');
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('mx-0.5');
@@ -1503,8 +1382,7 @@ describe('RelationsManager title system', () => {
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('text-xs');
     expect(menuSource).toContain('BAMBOOK_OS.typography.weight.ui');
     expect(menuSource).toContain('text-[10px] mt-0.5');
-    expect(BAMBOOK_OS.controls.overlayMenu.itemDark).toContain('border border-transparent');
-    expect(BAMBOOK_OS.controls.overlayMenu.itemLight).toContain('border border-transparent');
+    expect(BAMBOOK_OS.controls.overlayMenu.item).toContain('border border-transparent');
     expect(menuSource).toContain('data-glass-edge-mask');
     expect(menuSource).toContain('data-os-shadow-mode="flat"');
     expect(menuSource).not.toContain('SIDEBAR_HOVER_DARK_CLASS');
@@ -1588,29 +1466,22 @@ describe('RelationsManager title system', () => {
       source.indexOf('<div data-scroll-edge-bottom-sentinel')
     );
 
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-[rgba(255,255,255,0.055)]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('!bg-none');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('text-xs');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('border-[rgba(255,255,255,0.10)]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!bg-[rgba(255,255,255,0.085)]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!bg-none');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).toContain('focus:!border-[rgba(255,255,255,0.22)]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('focus:translate-y-[1px]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('focus:border-[#4A90E2]');
-    expect(RELATIONS_FORM_FIELD_DARK_CLASS).not.toContain('rgba(74,144,226');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-[rgba(15,23,42,0.06)]');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('!bg-none');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('text-xs');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('border-[rgba(15,23,42,0.10)]');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('placeholder-slate-400');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-[rgba(15,23,42,0.08)]');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!bg-none');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).toContain('focus:!border-[rgba(15,23,42,0.24)]');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('focus:translate-y-[1px]');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('focus:border-[#4A90E2]');
-    expect(RELATIONS_FORM_FIELD_LIGHT_CLASS).not.toContain('rgba(74,144,226');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('!bg-[rgba(255,255,255,0.055)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('!bg-none');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('text-xs');
+    expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('bambook-blue-white-light');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('border-[rgba(255,255,255,0.10)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!bg-[rgba(255,255,255,0.085)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!bg-none');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!border-[rgba(255,255,255,0.22)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('focus:translate-y-[1px]');
+    expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('focus:border-[#4A90E2]');
+    expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('rgba(74,144,226');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('!bg-[rgba(15,23,42,0.06)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('border-[rgba(15,23,42,0.10)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('placeholder-slate-400');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!bg-[rgba(15,23,42,0.08)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!border-[rgba(15,23,42,0.24)]');
     expect(formSource).toContain('relationFormFieldClass');
     expect(formSource).toContain('rounded-full border outline-none font-light');
     expect(formSource).toContain('type="date"');

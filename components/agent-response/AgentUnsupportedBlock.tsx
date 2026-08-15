@@ -5,8 +5,8 @@ import { OS_MATERIAL } from '../ui/osMaterial';
 import type { AgentBlockComponentProps } from './AgentMarkdownBlock';
 
 export const AgentUnsupportedBlock: React.FC<AgentBlockComponentProps<AgentResponseBlock>> = ({ block, isDarkMode }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
 
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3`}>

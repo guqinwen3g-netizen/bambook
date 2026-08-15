@@ -32,9 +32,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ isVisible, isDarkMode, onAn
 
     if (!shouldRender) return null;
 
-    const wordmarkClass = isDarkMode
-        ? 'drop-shadow-[0_0_28px_rgb(var(--os-vnext-brand-blue-rgb)/0.34)]'
-        : 'drop-shadow-[0_16px_34px_rgb(var(--os-vnext-brand-blue-rgb)/0.16)]';
+    const wordmarkClass = 'drop-shadow-[0_16px_34px_rgb(var(--os-vnext-brand-blue-rgb)/0.16)] dark:drop-shadow-[0_0_28px_rgb(var(--os-vnext-brand-blue-rgb)/0.34)]';
 
     return (
         <div
@@ -47,7 +45,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ isVisible, isDarkMode, onAn
                     : 'scale-100 opacity-100'
                     }`}
             >
-                <div className={`${wordmarkClass} transform translate-y-[-2px] ${isDarkMode ? 'text-white' : ''}`}>
+                <div className={`${wordmarkClass} transform translate-y-[-2px]`}>
                     <BambookWordmark className="w-64 h-auto md:w-96" variant="dual" isDarkMode={isDarkMode} bamColor="var(--os-vnext-brand-blue)" />
                 </div>
             </div>

@@ -48,7 +48,7 @@ function nodeTypeLabel(type: string): string {
 }
 
 function nodeTypeTone(type: string): string {
-  return NODE_TYPE_META[type]?.tone || 'text-slate-600';
+  return NODE_TYPE_META[type]?.tone || 'text-[var(--text-secondary)]';
 }
 
 // ── 边关系 → 中文标签 ──
@@ -145,12 +145,12 @@ export function TraceabilityPanel({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TraceResult | null>(null);
 
-  const textPrimary = isDarkMode ? 'text-white/88' : 'text-slate-800/88';
-  const textSecondary = isDarkMode ? 'text-white/50' : 'text-slate-500/75';
-  const textFaint = isDarkMode ? 'text-white/35' : 'text-slate-400/80';
-  const divider = isDarkMode ? 'border-white/8' : 'border-slate-300/30';
-  const rowBg = isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40';
-  const inputBg = isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-white/50 border-slate-300/40';
+  const textPrimary = 'text-[var(--text-primary)]';
+  const textSecondary = 'text-[var(--text-tertiary)]';
+  const textFaint = 'text-[var(--text-quaternary)]';
+  const divider = 'border-[var(--border-c-default)]';
+  const rowBg = 'bg-[var(--recessed-bg)]';
+  const inputBg = 'bg-[var(--recessed-bg)] border-[var(--border-c-default)]';
 
   const runTrace = useCallback(async (sc: TraceScenario, id: string) => {
     if (!id.trim()) {
@@ -231,8 +231,7 @@ export function TraceabilityPanel({
               disabled={loading}
               className={cx(
                 'flex h-9 items-center gap-1.5 rounded-field px-4 text-xs font-medium transition-colors',
-                'bg-slate-800/80 text-white hover:bg-slate-700/80',
-                'dark:bg-white/12 dark:hover:bg-white/18 dark:text-white/90',
+                'bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-[var(--invert-bg-hover)]',
                 loading && 'opacity-50',
               )}
             >
@@ -245,7 +244,7 @@ export function TraceabilityPanel({
 
       {/* ── 错误提示 ── */}
       {error && (
-        <div className={cx('flex items-center gap-2 rounded-card px-3 py-2 text-xs font-light', isDarkMode ? 'bg-rose-500/10 text-rose-300' : 'bg-rose-50 text-rose-600')}>
+        <div className={cx('flex items-center gap-2 rounded-card px-3 py-2 text-xs font-light bg-[var(--danger-tint)] text-[var(--danger-text)]')}>
           <AlertCircle size={14} />
           {error}
         </div>
@@ -340,7 +339,7 @@ export function TraceabilityPanel({
                         <span className={cx('min-w-0 flex-1 truncate font-light', textPrimary)}>
                           {fromNode?.label || edge.from}
                         </span>
-                        <span className={cx('shrink-0 rounded-control px-1.5 py-0.5 text-[9px] font-light', isDarkMode ? 'bg-white/8 text-white/60' : 'bg-slate-200/60 text-slate-600')}>
+                        <span className={cx('shrink-0 rounded-control px-1.5 py-0.5 text-[9px] font-light', 'bg-[var(--recessed-bg-strong)]', 'text-[var(--text-secondary)]')}>
                           {edgeLabel(edge.relation)}
                         </span>
                         <ArrowRight size={10} className={cx('shrink-0', textFaint)} />

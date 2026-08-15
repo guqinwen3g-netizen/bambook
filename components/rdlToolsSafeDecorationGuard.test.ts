@@ -31,7 +31,7 @@ describe('RDL tools safe decoration [业务语义保留]', () => {
   it('Fabric status banner/destructive 保留 (emerald/rose)', () => {
     expect(FABRIC).toContain('bg-emerald-500/10');
     expect(FABRIC).toContain('bg-rose-500/10');
-    expect(FABRIC).toContain('hover:text-rose-400');
+    expect(FABRIC).toContain('hover:text-rose-500');
   });
   it('Shipping destructive 语义保留（经 rdlBusinessStatusTokens 中性 token）', () => {
     expect(SHIPPING).toContain("statusSemanticText('destructive'");

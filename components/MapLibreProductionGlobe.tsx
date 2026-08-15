@@ -1704,13 +1704,13 @@ const MapLibreProductionGlobeImpl: React.FC<MapLibreProductionGlobeProps> = ({
     ? markerItems.some(item => item.id === tooltipTarget.id)
     : false;
   const mapOverlayControlClass = isDarkMode
-    ? 'bg-[rgba(13,27,42,0.34)] text-slate-200'
+    ? 'bg-[rgba(13,27,42,0.34)] text-[var(--text-secondary)]'
     : 'bg-[rgba(255,255,255,0.46)] text-[var(--os-vnext-brand-blue-strong)]'
   const mapOverlayHoverClass = isDarkMode
     ? 'hover:bg-[rgba(255,255,255,0.07)] hover:text-white'
     : 'hover:bg-[rgba(255,255,255,0.58)] hover:text-[var(--os-vnext-brand-blue-strong)]';
-  const mapOverlaySubtleTextClass = isDarkMode ? 'text-slate-300/64' : 'text-slate-600';
-  const mapOverlayPrimaryTextClass = isDarkMode ? 'text-slate-50' : 'text-[var(--os-vnext-brand-blue-strong)]';
+  const mapOverlaySubtleTextClass = 'text-[var(--text-secondary)]';
+  const mapOverlayPrimaryTextClass = isDarkMode ? 'text-[var(--text-primary)]' : 'text-[var(--os-vnext-brand-blue-strong)]';
   const isMapVisible = isLoaded;
 
   return (

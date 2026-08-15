@@ -1392,7 +1392,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         <div className="flex-1 overflow-y-auto px-3 space-y-6">
           {/* Primary Hub Section */}
           <section>
-            {!isSidebarCollapsed && <div className="px-4 py-2 text-[10px] font-light text-slate-400 uppercase tracking-[0.2em]">Primary Hub</div>}
+            {!isSidebarCollapsed && <div className="px-4 py-2 text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-[0.2em]">Primary Hub</div>}
             <div className="space-y-0.5 mt-1">
               <NavItem
                 icon={Inbox}
@@ -1432,8 +1432,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             {!isSidebarCollapsed && (
               <div className="px-4 py-2 flex items-center justify-between group cursor-pointer">
                 <div className="flex items-center gap-1">
-                  <ChevronDown size={12} strokeWidth={1} className="text-slate-400" />
-                  <span className="text-[10px] font-light text-slate-400 uppercase tracking-[0.2em]">System</span>
+                  <ChevronDown size={12} strokeWidth={1} className="text-[var(--text-tertiary)]" />
+                  <span className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-[0.2em]">System</span>
                 </div>
               </div>
             )}

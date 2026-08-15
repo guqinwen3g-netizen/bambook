@@ -85,11 +85,9 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
   const exactMatch = candidates.find((r) => r.name.toLowerCase() === query.trim().toLowerCase());
   const showCreateOption = !!onCreateNew && query.trim().length > 0 && !exactMatch;
 
-  // 兜底输入框配方与全局胶囊字段同源（recessedField）；旧 bg-slate-800/border-slate-200
-  // 组合会被 flat-experimental 护栏强制 border:0，导致输入框隐形。
-  const baseInputCls = isDarkMode
-    ? BAMBOOK_OS.controls.recessedField.dark
-    : BAMBOOK_OS.controls.recessedField.light;
+  // 兜底输入框配方与全局胶囊字段同源（recessedField）；旧硬编码深底/浅描边组合
+  // 会被 flat-experimental 护栏强制 border:0，导致输入框隐形。
+  const baseInputCls = BAMBOOK_OS.controls.recessedField.base;
   const resolvedInputCls = inputClassName ?? `w-full pl-3 pr-9 py-3 border rounded-control outline-none text-xs font-light ${baseInputCls}`;
 
   return (
@@ -114,7 +112,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle dropdown"
-          className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors ${isDarkMode ? 'text-white/35 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}
+          className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
         >
           <ChevronDown size={14} strokeWidth={2} />
         </button>
@@ -122,7 +120,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
       {/* FK 关联提示：内联在输入框下方，与 SmartLinkedInput 的「已关联」行同款，
           不再以贴纸形式压在胶囊边框上 */}
       {relationId && (
-        <div className={`mt-1 flex items-center gap-1 text-[9px] ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>
+        <div className={`mt-1 flex items-center gap-1 text-[9px] text-[var(--text-tertiary)]`}>
           <Link2 size={10} />
           <span>已关联关系档案</span>
         </div>
@@ -130,12 +128,10 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
 
       {open && (
         <div
-          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border ${
-            isDarkMode ? 'bg-deep border-[rgba(255,255,255,0.12)]' : 'bg-white border-[rgba(15,23,42,0.12)]'
-          }`}
+          className={`absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border bg-[var(--recessed-bg)] border-[var(--border-c-default)]`}
         >
           {candidates.length === 0 && !showCreateOption && (
-            <div className={`px-3 py-3 text-[11px] flex items-center gap-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <div className={`px-3 py-3 text-[11px] flex items-center gap-2 text-[var(--text-tertiary)]`}>
               <Search size={12} />
               <span>无匹配的关系档案</span>
             </div>
@@ -150,12 +146,10 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
                 setOpen(false);
                 onChange({ name: r.name, relationId: r.id, relation: r });
               }}
-              className={`w-full text-left px-3 py-2 text-[11px] flex items-center justify-between gap-3 ${
-                isDarkMode ? 'hover:bg-white/5 text-slate-200' : 'hover:bg-slate-50 text-slate-700'
-              }`}
+              className={`w-full text-left px-3 py-2 text-[11px] flex items-center justify-between gap-3 hover:bg-[var(--hover-darken)] text-[var(--text-primary)]`}
             >
               <span className="font-light truncate">{r.name}</span>
-              <span className={`shrink-0 text-[9px] uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              <span className={`shrink-0 text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]`}>
                 {r.category}
               </span>
             </button>
@@ -172,9 +166,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
                 }
                 setOpen(false);
               }}
-              className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 border-t ${
-                isDarkMode ? 'border-white/10 text-white/70 hover:bg-white/5' : 'border-slate-100 text-slate-600 hover:bg-slate-50'
-              }`}
+              className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 border-t border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]`}
             >
               <Plus size={12} />
               <span>创建新档案 "{query.trim()}"</span>

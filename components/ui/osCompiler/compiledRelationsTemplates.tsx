@@ -17,8 +17,7 @@ import { resolveCoordinates, extractAddressFromRelation, type ResolvedCoordinate
 import { apiService } from '../../../services/apiService';
 import { primeSuppliersFactoryPreview } from '../../SuppliersManager';
 import {
-  SIDEBAR_ACTIVE_DARK_CLASS,
-  SIDEBAR_ACTIVE_LIGHT_CLASS,
+  SIDEBAR_ACTIVE_CLASS,
   SIDEBAR_HOVER_DARK_CLASS,
   SIDEBAR_HOVER_LIGHT_CLASS,
   SIDEBAR_PRESS_DARK_CLASS,
@@ -80,12 +79,12 @@ const RELATION_CATEGORY_IDS: RelationCategory[] = ['Supplier', 'Customer', 'Agen
 export const RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET = 64;
 export type RelationCategoryDefinition = { id: RelationCategory; label: string; icon: LucideIcon; color: string; desc: string };
 export const RELATION_CATEGORY_DEFINITIONS: RelationCategoryDefinition[] = [
-  { id: 'Supplier', label: '供应商', icon: Box, color: 'text-slate-600 bg-slate-50', desc: '原材料、零部件及生产服务供应商库。' },
-  { id: 'Customer', label: '客户', icon: Users, color: 'text-slate-600 bg-slate-50', desc: 'B2B 经销商与战略大客户名录。' },
-  { id: 'Agent', label: '代理商', icon: Briefcase, color: 'text-slate-600 bg-slate-50', desc: '区域总代与分销渠道合作伙伴。' },
-  { id: 'Partner', label: '合作伙伴', icon: Handshake, color: 'text-slate-600 bg-slate-50', desc: '技术、物流及联合研发战略伙伴。' },
-  { id: 'Government', label: '政府/机构', icon: Landmark, color: 'text-slate-600 bg-slate-50', desc: '监管部门、行业协会与标准组织。' },
-  { id: 'Other', label: '其他', icon: Globe2, color: 'text-slate-600 bg-slate-50', desc: '媒体、咨询机构及其他利益相关方。' },
+  { id: 'Supplier', label: '供应商', icon: Box, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '原材料、零部件及生产服务供应商库。' },
+  { id: 'Customer', label: '客户', icon: Users, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: 'B2B 经销商与战略大客户名录。' },
+  { id: 'Agent', label: '代理商', icon: Briefcase, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '区域总代与分销渠道合作伙伴。' },
+  { id: 'Partner', label: '合作伙伴', icon: Handshake, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '技术、物流及联合研发战略伙伴。' },
+  { id: 'Government', label: '政府/机构', icon: Landmark, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '监管部门、行业协会与标准组织。' },
+  { id: 'Other', label: '其他', icon: Globe2, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '媒体、咨询机构及其他利益相关方。' },
 ];
 
 type CompiledRelationsPageBlueprint = {
@@ -257,17 +256,17 @@ export const RELATIONS_TOOLBAR_SORT_CLASS = 'w-[104px] shrink-0';
 export const RELATIONS_TOOLBAR_SEGMENT_CLASS = 'relative h-9 shrink-0 overflow-visible rounded-none p-0 flex items-center';
 export const RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS = `relative z-20 h-9 w-7 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
 export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_LIGHT_CLASS = 'text-[var(--os-vnext-brand-blue)] opacity-100 drop-shadow-none';
-export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_DARK_CLASS = 'text-slate-50 opacity-100 drop-shadow-none';
-export const RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS = BAMBOOK_OS.controls.stateControl.baseLight;
-export const RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS = BAMBOOK_OS.controls.toolbar.surfaceLight;
-export const RELATIONS_TOOLBAR_SURFACE_DARK_CLASS = BAMBOOK_OS.controls.toolbar.surfaceDark;
-export const RELATIONS_TOOLBAR_SURFACE_LIGHT_SHADOW_CLASS = BAMBOOK_OS.controls.toolbar.surfaceLightShadow;
-export const RELATIONS_TOOLBAR_SURFACE_DARK_SHADOW_CLASS = BAMBOOK_OS.controls.toolbar.surfaceDarkShadow;
-export const RELATIONS_TOOLBAR_CONTROL_DARK_CLASS = BAMBOOK_OS.controls.stateControl.baseDark;
-export const RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS = SIDEBAR_ACTIVE_DARK_CLASS;
-export const RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS = SIDEBAR_ACTIVE_LIGHT_CLASS;
-export const RELATIONS_CATEGORY_CARD_HIGHLIGHT_DARK_CLASS = SIDEBAR_ACTIVE_DARK_CLASS;
-export const RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS = SIDEBAR_ACTIVE_LIGHT_CLASS;
+export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_DARK_CLASS = 'text-[var(--text-primary)] opacity-100 drop-shadow-none';
+export const RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS = BAMBOOK_OS.controls.stateControl.base;
+export const RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS = BAMBOOK_OS.controls.toolbar.surface;
+export const RELATIONS_TOOLBAR_SURFACE_DARK_CLASS = BAMBOOK_OS.controls.toolbar.surface;
+export const RELATIONS_TOOLBAR_SURFACE_LIGHT_SHADOW_CLASS = BAMBOOK_OS.controls.toolbar.surfaceShadow;
+export const RELATIONS_TOOLBAR_SURFACE_DARK_SHADOW_CLASS = BAMBOOK_OS.controls.toolbar.surfaceShadow;
+export const RELATIONS_TOOLBAR_CONTROL_DARK_CLASS = BAMBOOK_OS.controls.stateControl.base;
+export const RELATIONS_TOOLBAR_CONTROL_SELECTED_DARK_CLASS = SIDEBAR_ACTIVE_CLASS;
+export const RELATIONS_TOOLBAR_CONTROL_SELECTED_LIGHT_CLASS = SIDEBAR_ACTIVE_CLASS;
+export const RELATIONS_CATEGORY_CARD_HIGHLIGHT_DARK_CLASS = SIDEBAR_ACTIVE_CLASS;
+export const RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS = SIDEBAR_ACTIVE_CLASS;
 export const RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_POSITION_CLASS = 'inset-0 rounded-[inherit]';
 export const RELATIONS_CATEGORY_CARD_DARK_CLASS = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_DARK_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_DARK_CLASS}`;
 export const RELATIONS_CATEGORY_CARD_LIGHT_CLASS = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_LIGHT_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_LIGHT_CLASS}`;
@@ -275,10 +274,10 @@ export const RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight
 export const RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.cardLightColor;
 export const RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE = COMPILED_SIDE_PANEL_SPOTLIGHT_DARK_SIZE;
 export const RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE = COMPILED_SIDE_PANEL_SPOTLIGHT_LIGHT_SIZE;
-export const RELATIONS_TOOLBAR_CONTROL_IDLE_DARK_CLASS = `${RELATIONS_TOOLBAR_CONTROL_DARK_CLASS} text-slate-400 ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`;
-export const RELATIONS_TOOLBAR_CONTROL_IDLE_LIGHT_CLASS = `${RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS} text-slate-500 ${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`;
-export const RELATIONS_TOOLBAR_SEARCH_DARK_CLASS = BAMBOOK_OS.controls.toolbar.searchDark;
-export const RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS = BAMBOOK_OS.controls.toolbar.searchLight;
+export const RELATIONS_TOOLBAR_CONTROL_IDLE_DARK_CLASS = `${RELATIONS_TOOLBAR_CONTROL_DARK_CLASS} text-[var(--text-tertiary)] ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`;
+export const RELATIONS_TOOLBAR_CONTROL_IDLE_LIGHT_CLASS = `${RELATIONS_TOOLBAR_CONTROL_LIGHT_CLASS} text-[var(--text-tertiary)] ${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`;
+export const RELATIONS_TOOLBAR_SEARCH_DARK_CLASS = BAMBOOK_OS.controls.toolbar.search;
+export const RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS = BAMBOOK_OS.controls.toolbar.search;
 export const RELATIONS_TOOLBAR_SPOTLIGHT_DARK_COLOR = RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR;
 export const RELATIONS_TOOLBAR_SPOTLIGHT_LIGHT_COLOR = RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR;
 export const RELATIONS_TOOLBAR_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.controls.toolbar.spotlightDarkSize;
@@ -298,8 +297,8 @@ export const RELATIONS_TITLE_SPOTLIGHT_DARK_COLOR = RELATIONS_CATEGORY_CARD_SPOT
 export const RELATIONS_TITLE_SPOTLIGHT_LIGHT_COLOR = RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR;
 export const RELATIONS_TITLE_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.controls.title.spotlightDarkSize;
 export const RELATIONS_TITLE_SPOTLIGHT_LIGHT_SIZE = BAMBOOK_OS.controls.title.spotlightLightSize;
-export const RELATIONS_TITLE_BUTTON_DARK_CLASS = `bg-transparent !border-transparent shadow-none text-slate-400 ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`;
-export const RELATIONS_TITLE_BUTTON_LIGHT_CLASS = `bg-transparent !border-transparent shadow-none text-slate-500 ${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`;
+export const RELATIONS_TITLE_BUTTON_DARK_CLASS = `bg-transparent !border-transparent shadow-none text-[var(--text-tertiary)] ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`;
+export const RELATIONS_TITLE_BUTTON_LIGHT_CLASS = `bg-transparent !border-transparent shadow-none text-[var(--text-tertiary)] ${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`;
 export const RELATIONS_TITLE_VIEW_SWITCH_CLASS = BAMBOOK_OS.controls.title.viewSwitch;
 export const RELATIONS_TITLE_VIEW_SWITCH_BUTTON_CLASS = BAMBOOK_OS.controls.title.viewSwitchButton;
 export const RELATIONS_FORM_TITLE_BAR_CLASS = `${RELATIONS_TITLE_BAR_CLASS} ${BAMBOOK_OS.layout.desktopTitleBarInsetClass} flex`;
@@ -310,53 +309,53 @@ export const RELATIONS_FORM_TITLE_SUBMIT_BUTTON_CLASS = `h-9 px-4 rounded-full b
 export const RELATIONS_FORM_PANEL_CLASS = COMPILED_FORM_PANEL_CLASS;
 export const RELATIONS_FORM_MAP_PANEL_CLASS = COMPILED_FORM_MAP_PANEL_CLASS;
 export const RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING = COMPILED_FORM_PANEL_SPOTLIGHT_SIZING;
-export const RELATIONS_FORM_FIELD_DARK_CLASS = BAMBOOK_OS.controls.recessedField.dark;
-export const RELATIONS_FORM_FIELD_LIGHT_CLASS = BAMBOOK_OS.controls.recessedField.light;
-export const RELATIONS_PANEL_DIVIDER_DARK_CLASS = BAMBOOK_OS.tone.divider.panelDark;
-export const RELATIONS_PANEL_DIVIDER_LIGHT_CLASS = BAMBOOK_OS.tone.divider.panelLight;
-export const RELATIONS_PROGRESS_TRACK_DARK_CLASS = BAMBOOK_OS.tone.surface.progressTrackDark;
-export const RELATIONS_PROGRESS_TRACK_LIGHT_CLASS = BAMBOOK_OS.tone.surface.progressTrackLight;
-export const RELATIONS_FORM_MAP_INDEX_DARK_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexDark}`;
-export const RELATIONS_FORM_MAP_INDEX_LIGHT_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexLight}`;
+export const RELATIONS_FORM_FIELD_DARK_CLASS = BAMBOOK_OS.controls.recessedField.base;
+export const RELATIONS_FORM_FIELD_LIGHT_CLASS = BAMBOOK_OS.controls.recessedField.base;
+export const RELATIONS_PANEL_DIVIDER_DARK_CLASS = BAMBOOK_OS.tone.divider.panel;
+export const RELATIONS_PANEL_DIVIDER_LIGHT_CLASS = BAMBOOK_OS.tone.divider.panel;
+export const RELATIONS_PROGRESS_TRACK_DARK_CLASS = BAMBOOK_OS.tone.surface.progressTrack;
+export const RELATIONS_PROGRESS_TRACK_LIGHT_CLASS = BAMBOOK_OS.tone.surface.progressTrack;
+export const RELATIONS_FORM_MAP_INDEX_DARK_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`;
+export const RELATIONS_FORM_MAP_INDEX_LIGHT_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`;
 export const RELATIONS_FORM_NESTED_ROW_DARK_CLASS = OS_MATERIAL.insetSurface;
 export const RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS = OS_MATERIAL.insetSurface;
-export const RELATIONS_FORM_ICON_ADD_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.addDark;
-export const RELATIONS_FORM_ICON_ADD_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.addLight;
-export const RELATIONS_FORM_ICON_REMOVE_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.removeDark;
-export const RELATIONS_FORM_ICON_REMOVE_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.removeLight;
-export const RELATIONS_FORM_ICON_COMPACT_REMOVE_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.compactRemoveDark;
-export const RELATIONS_FORM_ICON_COMPACT_REMOVE_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.compactRemoveLight;
-export const RELATIONS_FORM_INLINE_DANGER_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.inlineDangerDark;
-export const RELATIONS_FORM_INLINE_DANGER_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.inlineDangerLight;
-export const RELATIONS_FORM_QUIET_ACTION_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.quietActionDark;
-export const RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.quietActionLight;
-export const RELATIONS_COORDINATE_PANEL_DARK_CLASS = BAMBOOK_OS.tone.status.coordinate.panelDark;
-export const RELATIONS_COORDINATE_PANEL_LIGHT_CLASS = BAMBOOK_OS.tone.status.coordinate.panelLight;
-export const RELATIONS_COORDINATE_ICON_DARK_CLASS = BAMBOOK_OS.tone.status.coordinate.iconDark;
-export const RELATIONS_COORDINATE_ICON_LIGHT_CLASS = BAMBOOK_OS.tone.status.coordinate.iconLight;
+export const RELATIONS_FORM_ICON_ADD_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.add;
+export const RELATIONS_FORM_ICON_ADD_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.add;
+export const RELATIONS_FORM_ICON_REMOVE_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.remove;
+export const RELATIONS_FORM_ICON_REMOVE_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.remove;
+export const RELATIONS_FORM_ICON_COMPACT_REMOVE_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.compactRemove;
+export const RELATIONS_FORM_ICON_COMPACT_REMOVE_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.compactRemove;
+export const RELATIONS_FORM_INLINE_DANGER_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.inlineDanger;
+export const RELATIONS_FORM_INLINE_DANGER_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.inlineDanger;
+export const RELATIONS_FORM_QUIET_ACTION_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.quietAction;
+export const RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.quietAction;
+export const RELATIONS_COORDINATE_PANEL_DARK_CLASS = BAMBOOK_OS.tone.status.coordinate.panel;
+export const RELATIONS_COORDINATE_PANEL_LIGHT_CLASS = BAMBOOK_OS.tone.status.coordinate.panel;
+export const RELATIONS_COORDINATE_ICON_DARK_CLASS = BAMBOOK_OS.tone.status.coordinate.icon;
+export const RELATIONS_COORDINATE_ICON_LIGHT_CLASS = BAMBOOK_OS.tone.status.coordinate.icon;
 export const RELATIONS_BRAND_INLINE_CLASS = BAMBOOK_OS.tone.text.brandInline;
-export const RELATIONS_FORM_LABEL_DARK_CLASS = BAMBOOK_OS.tone.text.formLabelDark;
-export const RELATIONS_FORM_LABEL_LIGHT_CLASS = BAMBOOK_OS.tone.text.formLabelLight;
+export const RELATIONS_FORM_LABEL_DARK_CLASS = BAMBOOK_OS.tone.text.formLabel;
+export const RELATIONS_FORM_LABEL_LIGHT_CLASS = BAMBOOK_OS.tone.text.formLabel;
 export const RELATIONS_FORM_SECTION_TITLE_DARK_CLASS = COMPILED_FORM_SECTION_TITLE_DARK_CLASS;
 export const RELATIONS_FORM_SECTION_TITLE_LIGHT_CLASS = COMPILED_FORM_SECTION_TITLE_LIGHT_CLASS;
-export const RELATIONS_ORGANIZATION_TIER_BADGE_DARK_CLASS = BAMBOOK_OS.tone.chip.organizationTierDark;
-export const RELATIONS_ORGANIZATION_TIER_BADGE_LIGHT_CLASS = BAMBOOK_OS.tone.chip.organizationTierLight;
-export const RELATIONS_ORGANIZATION_COMPLETION_DONE_DARK_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.doneDark;
-export const RELATIONS_ORGANIZATION_COMPLETION_DONE_LIGHT_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.doneLight;
-export const RELATIONS_ORGANIZATION_COMPLETION_MISSING_DARK_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.missingDark;
-export const RELATIONS_ORGANIZATION_COMPLETION_MISSING_LIGHT_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.missingLight;
-export const RELATIONS_TABLE_HEADER_DARK_CLASS = BAMBOOK_OS.controls.table.headerDark;
-export const RELATIONS_TABLE_HEADER_LIGHT_CLASS = BAMBOOK_OS.controls.table.headerLight;
-export const RELATIONS_TABLE_ROW_HOVER_DARK_CLASS = BAMBOOK_OS.controls.table.rowHoverDark;
-export const RELATIONS_TABLE_ROW_HOVER_LIGHT_CLASS = BAMBOOK_OS.controls.table.rowHoverLight;
-export const RELATIONS_TABLE_ROW_SEPARATOR_DARK_CLASS = BAMBOOK_OS.controls.table.rowSeparatorDark;
-export const RELATIONS_TABLE_ROW_SEPARATOR_LIGHT_CLASS = BAMBOOK_OS.controls.table.rowSeparatorLight;
-export const RELATIONS_TABLE_CELL_MUTED_DARK_CLASS = BAMBOOK_OS.controls.table.cellMutedDark;
-export const RELATIONS_TABLE_CELL_MUTED_LIGHT_CLASS = BAMBOOK_OS.controls.table.cellMutedLight;
-export const RELATIONS_TABLE_EDIT_ACTION_DARK_CLASS = BAMBOOK_OS.controls.table.editActionDark;
-export const RELATIONS_TABLE_EDIT_ACTION_LIGHT_CLASS = BAMBOOK_OS.controls.table.editActionLight;
-export const RELATIONS_TABLE_EMPTY_ACTION_DARK_CLASS = BAMBOOK_OS.controls.table.emptyActionDark;
-export const RELATIONS_TABLE_EMPTY_ACTION_LIGHT_CLASS = BAMBOOK_OS.controls.table.emptyActionLight;
+export const RELATIONS_ORGANIZATION_TIER_BADGE_DARK_CLASS = BAMBOOK_OS.tone.chip.organizationTier;
+export const RELATIONS_ORGANIZATION_TIER_BADGE_LIGHT_CLASS = BAMBOOK_OS.tone.chip.organizationTier;
+export const RELATIONS_ORGANIZATION_COMPLETION_DONE_DARK_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.done;
+export const RELATIONS_ORGANIZATION_COMPLETION_DONE_LIGHT_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.done;
+export const RELATIONS_ORGANIZATION_COMPLETION_MISSING_DARK_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.missing;
+export const RELATIONS_ORGANIZATION_COMPLETION_MISSING_LIGHT_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.missing;
+export const RELATIONS_TABLE_HEADER_DARK_CLASS = BAMBOOK_OS.controls.table.header;
+export const RELATIONS_TABLE_HEADER_LIGHT_CLASS = BAMBOOK_OS.controls.table.header;
+export const RELATIONS_TABLE_ROW_HOVER_DARK_CLASS = BAMBOOK_OS.controls.table.rowHover;
+export const RELATIONS_TABLE_ROW_HOVER_LIGHT_CLASS = BAMBOOK_OS.controls.table.rowHover;
+export const RELATIONS_TABLE_ROW_SEPARATOR_DARK_CLASS = BAMBOOK_OS.controls.table.rowSeparator;
+export const RELATIONS_TABLE_ROW_SEPARATOR_LIGHT_CLASS = BAMBOOK_OS.controls.table.rowSeparator;
+export const RELATIONS_TABLE_CELL_MUTED_DARK_CLASS = BAMBOOK_OS.controls.table.cellMuted;
+export const RELATIONS_TABLE_CELL_MUTED_LIGHT_CLASS = BAMBOOK_OS.controls.table.cellMuted;
+export const RELATIONS_TABLE_EDIT_ACTION_DARK_CLASS = BAMBOOK_OS.controls.table.editAction;
+export const RELATIONS_TABLE_EDIT_ACTION_LIGHT_CLASS = BAMBOOK_OS.controls.table.editAction;
+export const RELATIONS_TABLE_EMPTY_ACTION_DARK_CLASS = BAMBOOK_OS.controls.table.emptyAction;
+export const RELATIONS_TABLE_EMPTY_ACTION_LIGHT_CLASS = BAMBOOK_OS.controls.table.emptyAction;
 export const RELATIONS_CARD_LAYOUT_TRANSITION = BAMBOOK_OS.motion.layoutTransition;
 
 export const getRelationsCardRowWidth = (availableWidth: number) => {
@@ -370,22 +369,22 @@ export const getRelationsCoordinateStatusClass = (
   isDarkMode: boolean
 ) => {
   if (source === 'existing') {
-    return isDarkMode ? BAMBOOK_OS.tone.status.coordinate.savedDark : BAMBOOK_OS.tone.status.coordinate.savedLight;
+    return BAMBOOK_OS.tone.status.coordinate.saved;
   }
   if (source === 'city') {
-    return isDarkMode ? BAMBOOK_OS.tone.status.coordinate.cityDark : BAMBOOK_OS.tone.status.coordinate.cityLight;
+    return BAMBOOK_OS.tone.status.coordinate.city;
   }
   if (source === 'postcode') {
-    return isDarkMode ? BAMBOOK_OS.tone.status.coordinate.postcodeDark : BAMBOOK_OS.tone.status.coordinate.postcodeLight;
+    return BAMBOOK_OS.tone.status.coordinate.postcode;
   }
-  return isDarkMode ? BAMBOOK_OS.tone.status.coordinate.fallbackDark : BAMBOOK_OS.tone.status.coordinate.fallbackLight;
+  return BAMBOOK_OS.tone.status.coordinate.fallback;
 };
 
 export const getRelationsOrganizationCompletionClass = (isComplete: boolean, isDarkMode: boolean) => {
   if (isComplete) {
-    return isDarkMode ? RELATIONS_ORGANIZATION_COMPLETION_DONE_DARK_CLASS : RELATIONS_ORGANIZATION_COMPLETION_DONE_LIGHT_CLASS;
+    return RELATIONS_ORGANIZATION_COMPLETION_DONE_LIGHT_CLASS;
   }
-  return isDarkMode ? RELATIONS_ORGANIZATION_COMPLETION_MISSING_DARK_CLASS : RELATIONS_ORGANIZATION_COMPLETION_MISSING_LIGHT_CLASS;
+  return RELATIONS_ORGANIZATION_COMPLETION_MISSING_LIGHT_CLASS;
 };
 
 type RelationsTitleSpotlightButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -796,16 +795,16 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
       // 布局类（max-width / margin / inset）→ 外层 sibling-stack
       wrapperClassName={`max-w-[560px] ${toolbarInsetClass} ${includeOffset ? RELATIONS_TOOLBAR_OFFSET_CLASS : ''}`}
       // 视觉类（base + surface bg/border + backdrop-filter）→ 玻璃面板自身（不含 box-shadow）
-      className={`${BAMBOOK_OS.controls.toolbar.base} ${isDarkMode ? RELATIONS_TOOLBAR_SURFACE_DARK_CLASS : RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS}`}
+      className={`${BAMBOOK_OS.controls.toolbar.base} ${RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS}`}
       // 阴影（独立 caster）
-      shadowClassName={isDarkMode ? RELATIONS_TOOLBAR_SURFACE_DARK_SHADOW_CLASS : RELATIONS_TOOLBAR_SURFACE_LIGHT_SHADOW_CLASS}
+      shadowClassName={RELATIONS_TOOLBAR_SURFACE_LIGHT_SHADOW_CLASS}
       // 滑光
       ambientClassName={RELATIONS_TOOLBAR_AMBIENT_CLASS}
     >
       <div className={RELATIONS_TOOLBAR_CONTENT_CLASS}>
         <div className={`${RELATIONS_TOOLBAR_SEARCH_SHELL_CLASS} ${RELATIONS_TOOLBAR_SEARCH_COMPACT_CLASS}`}>
           <span
-            className="pointer-events-none absolute left-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-control text-slate-400"
+            className="pointer-events-none absolute left-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-control text-[var(--text-tertiary)]"
             aria-hidden="true"
           >
             <Search size={14} strokeWidth={1.5} />
@@ -814,7 +813,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="搜索组织..."
-            className={`h-9 w-full rounded-control border pl-10 pr-3 outline-none font-normal text-xs ${isDarkMode ? RELATIONS_TOOLBAR_SEARCH_DARK_CLASS : RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS}`}
+            className={`h-9 w-full rounded-control border pl-10 pr-3 outline-none font-normal text-xs ${RELATIONS_TOOLBAR_SEARCH_LIGHT_CLASS}`}
           />
         </div>
 
@@ -835,7 +834,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
             <button
               type="button"
               onClick={() => setRelationListDisplayMode(relationListDisplayMode === 'grid' ? 'table' : 'grid')}
-              className={`${RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TOOLBAR_SEGMENT_ACTIVE_DARK_CLASS : RELATIONS_TOOLBAR_SEGMENT_ACTIVE_LIGHT_CLASS}`}
+              className={`${RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS} text-[var(--os-vnext-brand-blue)] dark:text-[var(--text-primary)] opacity-100 drop-shadow-none`}
               aria-label={relationListDisplayMode === 'grid' ? '切换到表格视图' : '切换到格子视图'}
             >
               {relationListDisplayMode === 'grid' ? (
@@ -1010,29 +1009,29 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
   const pageInsetClass = sidebarCollapsed ? RELATIONS_PAGE_X_COLLAPSED_CLASS : RELATIONS_PAGE_X_NORMAL_CLASS;
   const scrollContainerExpandedClass = 'left-[-16px] right-[-16px] md:left-[-32px] md:right-[-32px]';
   const pageInsetExpandedClass = 'px-5';
-  const relationFormFieldClass = isDarkMode ? RELATIONS_FORM_FIELD_DARK_CLASS : RELATIONS_FORM_FIELD_LIGHT_CLASS;
-  const relationsPanelDividerClass = isDarkMode ? RELATIONS_PANEL_DIVIDER_DARK_CLASS : RELATIONS_PANEL_DIVIDER_LIGHT_CLASS;
-  const relationProgressTrackClass = isDarkMode ? RELATIONS_PROGRESS_TRACK_DARK_CLASS : RELATIONS_PROGRESS_TRACK_LIGHT_CLASS;
-  const relationFormMapIndexClass = isDarkMode ? RELATIONS_FORM_MAP_INDEX_DARK_CLASS : RELATIONS_FORM_MAP_INDEX_LIGHT_CLASS;
-  const relationActionButtonClass = isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light;
-  const relationFormNestedRowClass = isDarkMode ? RELATIONS_FORM_NESTED_ROW_DARK_CLASS : RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS;
-  const relationQuietIconSurfaceClass = isDarkMode ? BAMBOOK_OS.tone.surface.quietIconDark : BAMBOOK_OS.tone.surface.quietIconLight;
-  const relationFormIconAddClass = isDarkMode ? RELATIONS_FORM_ICON_ADD_DARK_CLASS : RELATIONS_FORM_ICON_ADD_LIGHT_CLASS;
-  const relationFormIconRemoveClass = isDarkMode ? RELATIONS_FORM_ICON_REMOVE_DARK_CLASS : RELATIONS_FORM_ICON_REMOVE_LIGHT_CLASS;
-  const relationFormIconCompactRemoveClass = isDarkMode ? RELATIONS_FORM_ICON_COMPACT_REMOVE_DARK_CLASS : RELATIONS_FORM_ICON_COMPACT_REMOVE_LIGHT_CLASS;
-  const relationFormInlineDangerClass = isDarkMode ? RELATIONS_FORM_INLINE_DANGER_DARK_CLASS : RELATIONS_FORM_INLINE_DANGER_LIGHT_CLASS;
-  const relationFormQuietActionClass = isDarkMode ? RELATIONS_FORM_QUIET_ACTION_DARK_CLASS : RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS;
-  const relationCoordinatePanelClass = isDarkMode ? RELATIONS_COORDINATE_PANEL_DARK_CLASS : RELATIONS_COORDINATE_PANEL_LIGHT_CLASS;
-  const relationCoordinateIconClass = isDarkMode ? RELATIONS_COORDINATE_ICON_DARK_CLASS : RELATIONS_COORDINATE_ICON_LIGHT_CLASS;
+  const relationFormFieldClass = RELATIONS_FORM_FIELD_LIGHT_CLASS;
+  const relationsPanelDividerClass = RELATIONS_PANEL_DIVIDER_LIGHT_CLASS;
+  const relationProgressTrackClass = RELATIONS_PROGRESS_TRACK_LIGHT_CLASS;
+  const relationFormMapIndexClass = RELATIONS_FORM_MAP_INDEX_LIGHT_CLASS;
+  const relationActionButtonClass = BAMBOOK_OS.controls.actionControl.base;
+  const relationFormNestedRowClass = RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS;
+  const relationQuietIconSurfaceClass = BAMBOOK_OS.tone.surface.quietIcon;
+  const relationFormIconAddClass = RELATIONS_FORM_ICON_ADD_LIGHT_CLASS;
+  const relationFormIconRemoveClass = RELATIONS_FORM_ICON_REMOVE_LIGHT_CLASS;
+  const relationFormIconCompactRemoveClass = RELATIONS_FORM_ICON_COMPACT_REMOVE_LIGHT_CLASS;
+  const relationFormInlineDangerClass = RELATIONS_FORM_INLINE_DANGER_LIGHT_CLASS;
+  const relationFormQuietActionClass = RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS;
+  const relationCoordinatePanelClass = RELATIONS_COORDINATE_PANEL_LIGHT_CLASS;
+  const relationCoordinateIconClass = RELATIONS_COORDINATE_ICON_LIGHT_CLASS;
   const relationBrandInlineClass = RELATIONS_BRAND_INLINE_CLASS;
-  const relationFormLabelClass = isDarkMode ? RELATIONS_FORM_LABEL_DARK_CLASS : RELATIONS_FORM_LABEL_LIGHT_CLASS;
-  const relationFormSectionTitleClass = isDarkMode ? RELATIONS_FORM_SECTION_TITLE_DARK_CLASS : RELATIONS_FORM_SECTION_TITLE_LIGHT_CLASS;
-  const relationTableHeaderClass = isDarkMode ? RELATIONS_TABLE_HEADER_DARK_CLASS : RELATIONS_TABLE_HEADER_LIGHT_CLASS;
-  const relationTableRowHoverClass = isDarkMode ? RELATIONS_TABLE_ROW_HOVER_DARK_CLASS : RELATIONS_TABLE_ROW_HOVER_LIGHT_CLASS;
-  const relationTableRowSeparatorClass = isDarkMode ? RELATIONS_TABLE_ROW_SEPARATOR_DARK_CLASS : RELATIONS_TABLE_ROW_SEPARATOR_LIGHT_CLASS;
-  const relationTableCellMutedClass = isDarkMode ? RELATIONS_TABLE_CELL_MUTED_DARK_CLASS : RELATIONS_TABLE_CELL_MUTED_LIGHT_CLASS;
-  const relationTableEditActionClass = isDarkMode ? RELATIONS_TABLE_EDIT_ACTION_DARK_CLASS : RELATIONS_TABLE_EDIT_ACTION_LIGHT_CLASS;
-  const relationTableEmptyActionClass = isDarkMode ? RELATIONS_TABLE_EMPTY_ACTION_DARK_CLASS : RELATIONS_TABLE_EMPTY_ACTION_LIGHT_CLASS;
+  const relationFormLabelClass = RELATIONS_FORM_LABEL_LIGHT_CLASS;
+  const relationFormSectionTitleClass = 'text-[var(--text-primary)] dark:text-[var(--text-secondary)]';
+  const relationTableHeaderClass = RELATIONS_TABLE_HEADER_LIGHT_CLASS;
+  const relationTableRowHoverClass = RELATIONS_TABLE_ROW_HOVER_LIGHT_CLASS;
+  const relationTableRowSeparatorClass = RELATIONS_TABLE_ROW_SEPARATOR_LIGHT_CLASS;
+  const relationTableCellMutedClass = RELATIONS_TABLE_CELL_MUTED_LIGHT_CLASS;
+  const relationTableEditActionClass = RELATIONS_TABLE_EDIT_ACTION_LIGHT_CLASS;
+  const relationTableEmptyActionClass = RELATIONS_TABLE_EMPTY_ACTION_LIGHT_CLASS;
   const relationCategoryGridClass = isMobile ? RELATIONS_MOBILE_CATEGORY_GRID_CLASS : RELATIONS_CATEGORY_CARD_GRID_CLASS;
   const relationCategoryViewportClass = isMobile ? 'px-7 pt-[92px] pb-28' : `${pageInsetExpandedClass} pt-[104px] pb-12`;
   const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS : 'p-6 h-[220px] rounded-card-lg';
@@ -1074,30 +1073,30 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
       className={`
         group relative isolate overflow-hidden flex flex-col items-start text-left
         ${relationCategoryCardClass} transition-colors duration-200
-        ${isDarkMode ? RELATIONS_CATEGORY_CARD_DARK_CLASS : RELATIONS_CATEGORY_CARD_LIGHT_CLASS}
+        ${RELATIONS_CATEGORY_CARD_LIGHT_CLASS}
       `}
       data-glass-edge-mask
     >
       <div className={`
         relative z-10 -ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center
         transition-colors duration-300
-        ${isDarkMode ? 'text-white/70 group-hover:text-slate-100' : 'text-slate-600'}
+        ${'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}
       `}>
         {icon}
       </div>
 
-      <h3 className={`relative z-10 ${relationCategoryTitleClass} font-light tracking-tight ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+      <h3 className={`relative z-10 ${relationCategoryTitleClass} font-light tracking-tight text-[var(--text-primary)]`}>
         {title}
       </h3>
-      <p className={`relative z-10 ${relationCategoryDescriptionClass} font-light ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+      <p className={`relative z-10 ${relationCategoryDescriptionClass} font-light text-[var(--text-tertiary)]`}>
         {description}
       </p>
 
       <div className={`relative z-10 mt-auto ${isMobile ? 'pt-3' : 'pt-4'} border-t w-full flex justify-between items-center ${relationsPanelDividerClass}`}>
-        <span className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
+        <span className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>
           {footerLabel}
         </span>
-        <ArrowRight size={14} strokeWidth={1.5} className={`transition-transform duration-300 group-hover:translate-x-1 ${isDarkMode ? 'text-white/30' : 'text-slate-300'}`} />
+        <ArrowRight size={14} strokeWidth={1.5} className={`transition-transform duration-300 group-hover:translate-x-1 text-[var(--text-tertiary)]`} />
       </div>
     </CompiledMotionInteractiveCard>
   );
@@ -1140,7 +1139,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                     setSearchTerm('');
                   }
                 }}
-                wrapperClassName={`${RELATIONS_TITLE_BACK_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TITLE_BUTTON_DARK_CLASS : RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
+                wrapperClassName={`${RELATIONS_TITLE_BACK_BUTTON_CLASS} ${RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
                 aria-label="返回上一级"
               >
                 <ChevronLeft size={RELATIONS_TITLE_ARROW_ICON_SIZE} strokeWidth={RELATIONS_TITLE_ARROW_STROKE_WIDTH} />
@@ -1182,13 +1181,13 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
             {navLevel === 'organizations' && renderRelationListToolbar('', false)}
 
             {navLevel === 'detail' && (
-              <div className={`${RELATIONS_TITLE_VIEW_SWITCH_CLASS} ${isDarkMode ? RELATIONS_TOOLBAR_SURFACE_DARK_CLASS : RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS}`}>
+              <div className={`${RELATIONS_TITLE_VIEW_SWITCH_CLASS} ${RELATIONS_TOOLBAR_SURFACE_LIGHT_CLASS}`}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('contacts')}
                   className={`${RELATIONS_TITLE_VIEW_SWITCH_BUTTON_CLASS} ${activeTab === 'contacts'
-                    ? (isDarkMode ? SIDEBAR_ACTIVE_DARK_CLASS : SIDEBAR_ACTIVE_LIGHT_CLASS)
-                    : (isDarkMode ? 'text-white/46 hover:text-white/76' : 'text-slate-500 hover:text-slate-800')
+                    ? BAMBOOK_OS.controls.selectedSurface.base
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   通讯录
@@ -1197,8 +1196,8 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   type="button"
                   onClick={() => setActiveTab('structure')}
                   className={`${RELATIONS_TITLE_VIEW_SWITCH_BUTTON_CLASS} ${activeTab === 'structure'
-                    ? (isDarkMode ? SIDEBAR_ACTIVE_DARK_CLASS : SIDEBAR_ACTIVE_LIGHT_CLASS)
-                    : (isDarkMode ? 'text-white/46 hover:text-white/76' : 'text-slate-500 hover:text-slate-800')
+                    ? BAMBOOK_OS.controls.selectedSurface.base
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   组织架构
@@ -1218,7 +1217,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                 primeSuppliersFactoryPreview(selectedOrganization.id);
                 onNavigate(View.Suppliers);
               }}
-              wrapperClassName={`${RELATIONS_TITLE_ACTION_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TITLE_BUTTON_DARK_CLASS : RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
+              wrapperClassName={`${RELATIONS_TITLE_ACTION_BUTTON_CLASS} ${RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
             >
               <Building2 size={14} strokeWidth={1.5} /> 工厂档案
             </RelationsTitleSpotlightButton>
@@ -1229,7 +1228,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
               isDarkMode={isDarkMode}
               type="button"
               onClick={() => setShowAddModal(true)}
-              wrapperClassName={`${RELATIONS_TITLE_ACTION_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TITLE_BUTTON_DARK_CLASS : RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
+              wrapperClassName={`${RELATIONS_TITLE_ACTION_BUTTON_CLASS} ${RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
             >
               <Plus size={14} strokeWidth={1.5} /> {navLevel === 'detail' ? '新增人员' : '新增组织'}
             </RelationsTitleSpotlightButton>
@@ -1297,12 +1296,12 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
 
             {/* Empty state */}
             {currentOrganizations.length === 0 && (
-              <div className={`col-span-full py-20 flex flex-col items-center justify-center ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
+              <div className={`col-span-full py-20 flex flex-col items-center justify-center text-[var(--text-tertiary)]`}>
                 <div className={`w-20 h-20 rounded-card-lg flex items-center justify-center mb-6 ${relationQuietIconSurfaceClass}`}>
                   <Building2 size={40} strokeWidth={1} className="opacity-40" />
                 </div>
                 <p className="text-sm font-light tracking-wide mb-2">暂无组织</p>
-                <p className={`text-xs mb-4 ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>点击下方按钮创建第一个组织</p>
+                <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>点击下方按钮创建第一个组织</p>
                 <button
                   onClick={() => setShowAddModal(true)}
                   className={`px-4 py-2 rounded-full text-xs font-light transition-all ${relationTableEmptyActionClass}`}
@@ -1330,7 +1329,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                         <col key={index} className={widthClass} />
                       ))}
                     </colgroup>
-                    <thead className={`${isDarkMode ? 'text-white/38' : 'text-slate-400'}`}>
+                    <thead className={`text-[var(--text-tertiary)]`}>
                       <tr>
                         {BAMBOOK_OS.layout.relationsTableHeaders.map(header => (
                           <th key={header} className={`${BAMBOOK_OS.layout.relationsTableHeaderCellClass} ${relationTableHeaderClass}`}>{header}</th>
@@ -1370,24 +1369,24 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                         <span className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px ${relationTableRowSeparatorClass}`} aria-hidden="true" />
                         <div className="relative z-10 px-4 py-4">
                           <div className="min-w-0">
-                            <div className={`truncate font-light ${isDarkMode ? 'text-white/85' : 'text-slate-900'}`}>{org.name}</div>
-                            <div className={`${isDarkMode ? 'text-white/30' : 'text-slate-400'} mt-1 truncate`}>{org.chineseName || org.englishName || org.type}</div>
+                            <div className={`truncate font-light text-[var(--text-primary)]`}>{org.name}</div>
+                            <div className={`text-[var(--text-tertiary)] mt-1 truncate`}>{org.chineseName || org.englishName || org.type}</div>
                           </div>
-                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100/60 text-slate-600'}`}>
+                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                             {tierLabel(org.rating)}
                           </span>
                         </div>
                         <div className="relative z-10 px-4 py-4">
-                          <div className={`truncate ${isDarkMode ? 'text-white/72' : 'text-slate-700'}`}>{org.primaryContactName || '未填'}</div>
-                          <div className={`${isDarkMode ? 'text-white/35' : 'text-slate-400'} mt-1 truncate`}>{org.primaryContactEmail || org.contactInfo || '邮箱未填'}</div>
-                          <div className={`${isDarkMode ? 'text-white/28' : 'text-slate-400'} mt-1 text-[10px]`}>{orgContactCount(org.id)} 位联系人</div>
+                          <div className={`truncate text-[var(--text-primary)]`}>{org.primaryContactName || '未填'}</div>
+                          <div className={`text-[var(--text-tertiary)] mt-1 truncate`}>{org.primaryContactEmail || org.contactInfo || '邮箱未填'}</div>
+                          <div className={`text-[var(--text-tertiary)] mt-1 text-[10px]`}>{orgContactCount(org.id)} 位联系人</div>
                         </div>
                         <div className="relative z-10 px-4 py-4">
                           <div className="truncate">{relationLocationLabel(org)}</div>
                         </div>
                         <div className="relative z-10 px-4 py-4">
                           <div className="truncate">{(org.shipToAddresses || []).length > 0 ? `${org.shipToAddresses?.length} 个 Ship To` : org.shippingAddress || 'Ship To 未填'}</div>
-                          <div className={`${isDarkMode ? 'text-white/35' : 'text-slate-400'} mt-1 truncate`}>{org.paymentTerms || org.paymentPreference || '付款未填'}</div>
+                          <div className={`text-[var(--text-tertiary)] mt-1 truncate`}>{org.paymentTerms || org.paymentPreference || '付款未填'}</div>
                         </div>
                         <div className="relative z-10 pl-2 pr-4 py-4 text-right">
                           <button
@@ -1404,12 +1403,12 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   </div>
               </CompiledTableShell>
               {currentOrganizations.length === 0 && (
-                <div className={`col-span-full py-20 flex flex-col items-center justify-center ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
+                <div className={`col-span-full py-20 flex flex-col items-center justify-center text-[var(--text-tertiary)]`}>
                   <div className={`w-20 h-20 rounded-card-lg flex items-center justify-center mb-6 ${relationQuietIconSurfaceClass}`}>
                     <Building2 size={40} strokeWidth={1} className="opacity-40" />
                   </div>
                   <p className="text-sm font-light tracking-wide mb-2">暂无组织</p>
-                  <p className={`text-xs mb-4 ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>点击下方按钮创建第一个组织</p>
+                  <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>点击下方按钮创建第一个组织</p>
                   <button
                     onClick={() => setShowAddModal(true)}
                     className={`px-4 py-2 rounded-full text-xs font-light transition-all ${relationTableEmptyActionClass}`}
@@ -1536,25 +1535,25 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   isDarkMode={isDarkMode}
                   type="button"
                   onClick={() => { setShowAddModal(false); setEditingItem(null); }}
-                  wrapperClassName={`${RELATIONS_TITLE_BACK_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TITLE_BUTTON_DARK_CLASS : RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
+                  wrapperClassName={`${RELATIONS_TITLE_BACK_BUTTON_CLASS} ${RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
                   aria-label="返回关系智库"
                 >
                   <ChevronLeft size={RELATIONS_TITLE_ARROW_ICON_SIZE} strokeWidth={RELATIONS_TITLE_ARROW_STROKE_WIDTH} />
                 </RelationsTitleSpotlightButton>
-                <div className={`${RELATIONS_FORM_TITLE_CRUMB_CLASS} ${isDarkMode ? 'text-white/48' : 'text-slate-400'}`}>
+                <div className={`${RELATIONS_FORM_TITLE_CRUMB_CLASS} text-[var(--text-tertiary)]`}>
                   <button
                     type="button"
                     onClick={() => { setShowAddModal(false); setEditingItem(null); }}
-                    className={`${RELATIONS_TITLE_TEXT_BUTTON_CLASS} ${isDarkMode ? 'text-white hover:text-white' : 'text-slate-900 hover:text-[var(--os-vnext-brand-blue)]'}`}
+                    className={`${RELATIONS_TITLE_TEXT_BUTTON_CLASS} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}
                   >
-                    <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} text-[var(--text-primary)]`}>
                           关系智库
                     </span>
                   </button>
                   <span data-ui-lab-wallpaper-contrast="secondary" className={RELATIONS_TITLE_SEPARATOR_CLASS}>
                     <ChevronRight size={RELATIONS_TITLE_ARROW_ICON_SIZE} strokeWidth={RELATIONS_TITLE_ARROW_STROKE_WIDTH} />
                   </span>
-                  <h3 data-ui-lab-wallpaper-contrast="primary" className={`${RELATIONS_FORM_TITLE_HEADING_CLASS} ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>
+                  <h3 data-ui-lab-wallpaper-contrast="primary" className={`${RELATIONS_FORM_TITLE_HEADING_CLASS} text-[var(--text-primary)]`}>
                     {editingItem ? '编辑资料' : (relationFormIsOrganization ? '新建组织' : '添加联系人')}
                   </h3>
                 </div>
@@ -1566,7 +1565,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(editingItem.id)}
-                    className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border ${isDarkMode ? 'text-white/55 border-white/10 hover:bg-white/8 hover:border-white/20' : 'text-slate-500 border-slate-200 hover:bg-slate-100 hover:border-slate-300'}`}
+                    className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border text-[var(--text-tertiary)] border-[var(--border-c-default)] hover:bg-[var(--recessed-bg-hover)] hover:border-[var(--border-c-strong)]`}
                   >
                     <Trash2 size={13} strokeWidth={1.5} /> 移除
                   </button>
@@ -1575,7 +1574,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   isDarkMode={isDarkMode}
                   type="button"
                   onClick={() => { setShowAddModal(false); setEditingItem(null); }}
-                  wrapperClassName={`${RELATIONS_FORM_TITLE_SECONDARY_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TITLE_BUTTON_DARK_CLASS : RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
+                  wrapperClassName={`${RELATIONS_FORM_TITLE_SECONDARY_BUTTON_CLASS} ${RELATIONS_TITLE_BUTTON_LIGHT_CLASS}`}
                 >
                   取消
                 </RelationsTitleSpotlightButton>
@@ -1583,7 +1582,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   isDarkMode={isDarkMode}
                   type="submit"
                   form="relation-fullscreen-form"
-                  wrapperClassName={`${RELATIONS_FORM_TITLE_SUBMIT_BUTTON_CLASS} ${isDarkMode ? RELATIONS_TITLE_BUTTON_DARK_CLASS : RELATIONS_TITLE_BUTTON_LIGHT_CLASS} ${isDeleting ? 'pointer-events-none opacity-50' : ''}`}
+                  wrapperClassName={`${RELATIONS_FORM_TITLE_SUBMIT_BUTTON_CLASS} ${RELATIONS_TITLE_BUTTON_LIGHT_CLASS} ${isDeleting ? 'pointer-events-none opacity-50' : ''}`}
                 >
                   <Save size={14} strokeWidth={1.5} /> {isDeleting ? '保存中…' : '保存资料'}
                 </RelationsTitleSpotlightButton>
@@ -1592,7 +1591,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
             />
 
             {deleteError && (
-              <div className={`w-full px-5 pt-3 text-xs font-light ${isDarkMode ? 'text-white/55' : 'text-slate-500'}`}>
+              <div className={`w-full px-5 pt-3 text-xs font-light text-[var(--text-tertiary)]`}>
                 保存失败：{deleteError}
               </div>
             )}
@@ -1620,7 +1619,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                         <div className="flex items-center gap-3">
                           <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${relationFormMapIndexClass}`}>{idx + 1}</span>
                           <div className="min-w-0">
-                            <div className={`text-xs font-light ${isDarkMode ? 'text-white/75' : 'text-slate-800'}`}>{section.label}</div>
+                            <div className={`text-xs font-light text-[var(--text-primary)]`}>{section.label}</div>
                             <div className={`text-[10px] mt-0.5 truncate ${relationFormLabelClass}`}>{section.desc}</div>
                           </div>
                         </div>
@@ -1859,7 +1858,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                           <div className={`flex items-center justify-between p-3 rounded-inset ${relationCoordinatePanelClass}`}>
                             <div className="flex items-center gap-2">
                               <Navigation size={14} className={relationCoordinateIconClass} />
-                              <span className={`text-xs font-mono ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                              <span className={`text-xs font-mono text-[var(--text-secondary)]`}>
                                 {resolvedCoords.lat.toFixed(4)}, {resolvedCoords.lng.toFixed(4)}
                               </span>
                               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getRelationsCoordinateStatusClass(resolvedCoords.source, isDarkMode)}`}>
@@ -2161,19 +2160,19 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
 
       {confirmDeleteId && (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`${isDarkMode ? 'bg-deep/90 border border-white/10' : 'bg-white'} rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}>
+          <div className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-default)] rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}>
             <div className="p-10 text-center space-y-6">
-              <div className={`w-20 h-20 rounded-floating flex items-center justify-center mx-auto mb-2 border ${isDarkMode ? 'bg-white/8 text-white/55 border-white/10' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+              <div className={`w-20 h-20 rounded-floating flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-default)]`}>
                 <Trash2 size={32} strokeWidth={1.5} />
               </div>
               <div>
-                <h3 className={`text-base font-light mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>确认移除此组织？</h3>
-                <p className={`text-xs font-light leading-relaxed ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+                <h3 className={`text-base font-light mb-2 text-[var(--text-primary)]`}>确认移除此组织？</h3>
+                <p className={`text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>
                   移除后该组织将从关系智库列表消失。相关历史订单与记录仍会保留，此操作可由管理员恢复。
                 </p>
               </div>
               {deleteError && (
-                <div className={`text-xs font-light leading-relaxed px-1 ${isDarkMode ? 'text-white/55' : 'text-slate-500'}`}>
+                <div className={`text-xs font-light leading-relaxed px-1 text-[var(--text-tertiary)]`}>
                   删除失败：{deleteError}
                 </div>
               )}
@@ -2182,7 +2181,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   type="button"
                   disabled={isDeleting}
                   onClick={() => confirmDeleteId && handleDelete(confirmDeleteId)}
-                  className="w-full py-4 rounded-full text-sm font-light text-white bg-slate-500 hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 rounded-full text-sm font-light text-white bg-[var(--accent)] hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDeleting ? '正在移除…' : '确认移除'}
                 </button>
@@ -2190,7 +2189,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   type="button"
                   disabled={isDeleting}
                   onClick={() => { setConfirmDeleteId(null); setDeleteError(''); }}
-                  className={`w-full py-4 rounded-full text-sm font-light transition-colors disabled:opacity-50 ${isDarkMode ? 'text-white/60 hover:text-white/90' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`w-full py-4 rounded-full text-sm font-light transition-colors disabled:opacity-50 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}
                 >
                   取消
                 </button>

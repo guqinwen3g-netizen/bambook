@@ -21,9 +21,9 @@ const anchorKindLabel = (kind: AgentReferenceAnchor['kind']) => {
 };
 
 export const AgentEvidenceBlock: React.FC<AgentBlockComponentProps<AgentEvidenceBlockModel>> = ({ block, isDarkMode, onReferenceClick }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
   const anchorsByRef = new Map((block.anchors ?? []).map(anchor => [anchor.refId, anchor]));
 
   return (
@@ -40,7 +40,7 @@ export const AgentEvidenceBlock: React.FC<AgentBlockComponentProps<AgentEvidence
           return (
             <div key={item.refId} className={`rounded-compact border px-3 py-2 ${borderClass}`}>
               <div className="flex items-center justify-between gap-2">
-                <div className={`text-xs ${isDarkMode ? 'text-white/78' : 'text-slate-800'}`}>{item.label}</div>
+                <div className={`text-xs text-[var(--text-primary)]`}>{item.label}</div>
                 <div className={`text-[10px] uppercase tracking-widest ${quietTextClass}`}>{confidenceLabel(item.confidence)}</div>
               </div>
               <div className={`mt-1 text-xs leading-5 ${quietTextClass}`}>{item.summary}</div>

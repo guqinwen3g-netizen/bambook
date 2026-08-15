@@ -98,9 +98,34 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
     return selectedOrder.lines[0] as any;
   }, [selectedOrder]);
 
-  const textPrimaryClass = isDarkMode ? 'text-white' : 'text-slate-900';
-  const textSecondaryClass = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const surfaceClass = isDarkMode ? 'bg-deep/40 border-white/5' : 'bg-white/60 border-slate-200/60';
+  const textPrimaryClass = 'text-[var(--text-primary)]';
+  const textSecondaryClass = 'text-[var(--text-tertiary)]';
+  // ── 主题自适应单配方（P2 收口）：暗色由 .dark 根 class + token 翻转承载，禁止 isDarkMode 三元拼类 ──
+  const surfaceClass = 'bg-[var(--bg-card)] border-[var(--border-c-default)]';
+  const orderCardActiveClass = 'bg-[var(--bg-card)] border-[var(--border-c-strong)] shadow-md';
+  const orderCardIdleClass = 'bg-[var(--recessed-bg-strong)] border-[var(--border-c-default)] hover:bg-[var(--active-darken)]';
+  const errorTextClass = 'text-[var(--danger-text)]';
+  const progressTrackClass = 'bg-[var(--recessed-bg-strong)]';
+  const sizeBarTrackClass = 'bg-[var(--recessed-bg)]';
+  const connectorLineClass = 'bg-[var(--recessed-bg-strong)]';
+  const statusBadgeClass: Partial<Record<Order['status'], string>> = {
+    Delivered: 'border-success/30 text-success',
+    Alert: 'border-danger/30 text-danger',
+    Production: 'border-accent/30 text-accent',
+  };
+  const statusBadgeFallbackClass = 'border-warning/30 text-warning';
+  const stepBadgeClass: Record<ProductionStep['status'], string> = {
+    done: 'bg-[var(--success-tint)] border-success/30 text-[var(--success-text)]',
+    in_progress: 'bg-[var(--warning-tint)] border-warning/30 text-[var(--warning-text)]',
+    pending: 'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-tertiary)]',
+  };
+  const stepConnectorDoneClass = 'bg-success/30';
+  const bomTypeChipClass: Record<string, string> = {
+    fabric: 'bg-[var(--accent-tint)] text-[var(--accent-text)]',
+    lining: 'bg-[var(--accent-tint-light)] text-accent',
+    trim: 'bg-[var(--warning-tint)] text-[var(--warning-text)]',
+  };
+  const bomTypeChipFallbackClass = 'bg-[var(--wisteria-tint)] text-[var(--wisteria-text)]';
 
   if (loading) {
     return (
@@ -120,7 +145,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
         />
         <div className="flex-1 flex items-center justify-center">
           {loadError ? (
-            <div className={cx('flex items-center gap-2 text-sm', isDarkMode ? 'text-red-400' : 'text-red-600')}>
+            <div className={cx('flex items-center gap-2 text-sm', errorTextClass)}>
               <AlertCircle size={14} strokeWidth={1.5} />
               <span>订单加载失败：{loadError}</span>
             </div>
@@ -159,9 +184,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                 onClick={() => setSelectedOrderId(order.id)}
                 className={cx(
                   'text-left rounded-inset border p-4 transition-all duration-200',
-                  isActive
-                    ? isDarkMode ? 'bg-deep/60 border-white/10' : 'bg-white/80 border-slate-300/80 shadow-md'
-                    : isDarkMode ? 'bg-deep/20 border-white/5 hover:bg-deep/40' : 'bg-white/30 border-slate-200/40 hover:bg-white/50',
+                  isActive ? orderCardActiveClass : orderCardIdleClass,
                 )}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
@@ -175,10 +198,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                   </div>
                   <span className={cx(
                     'shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[9px] font-light tracking-wide',
-                    order.status === 'Delivered' ? (isDarkMode ? 'border-emerald-500/30 text-emerald-400' : 'border-emerald-300 text-emerald-600') :
-                    order.status === 'Alert' ? (isDarkMode ? 'border-red-500/30 text-red-400' : 'border-red-300 text-red-600') :
-                    order.status === 'Production' ? (isDarkMode ? 'border-blue-500/30 text-blue-400' : 'border-blue-300 text-blue-600') :
-                    (isDarkMode ? 'border-amber-500/30 text-amber-400' : 'border-amber-300 text-amber-600'),
+                    statusBadgeClass[order.status] ?? statusBadgeFallbackClass,
                   )}>
                     {order.status}
                   </span>
@@ -190,7 +210,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                     <span>生产进度</span>
                     <span>{progress}%</span>
                   </div>
-                  <div className={cx('h-1 rounded-full overflow-hidden', isDarkMode ? 'bg-slate-800' : 'bg-slate-200')}>
+                  <div className={cx('h-1 rounded-full overflow-hidden', progressTrackClass)}>
                     <div
                       className={cx(
                         'h-full rounded-full transition-all duration-500',
@@ -230,7 +250,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
             <div className={cx('rounded-inset border p-4', surfaceClass)}>
               <div className={cx('mb-2 text-[10px] font-light uppercase tracking-widest', textSecondaryClass)}>当前状态: {selectedOrder.status}</div>
               {actionError && (
-                <div className={cx('mb-2 flex items-center gap-1.5 text-[11px]', isDarkMode ? 'text-red-400' : 'text-red-600')}>
+                <div className={cx('mb-2 flex items-center gap-1.5 text-[11px]', errorTextClass)}>
                   <AlertCircle size={12} strokeWidth={1.5} />
                   <span>{actionError}</span>
                 </div>
@@ -271,7 +291,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
             {garmentLine?.sizeBreakdown && (
               <div className={cx('rounded-inset border p-5', surfaceClass)}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Ruler size={14} className={isDarkMode ? 'text-blue-400' : 'text-blue-500'} />
+                  <Ruler size={14} className="text-accent" />
                   <span className={cx('text-[10px] font-light uppercase tracking-widest', textSecondaryClass)}>尺码分配</span>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
@@ -281,14 +301,14 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                     return (
                       <div key={size} className="flex flex-col items-center gap-1">
                         <span className={cx('text-[9px] font-light tracking-wide', textSecondaryClass)}>{size}</span>
-                        <div className={cx('w-full h-16 rounded-control overflow-hidden flex items-end', isDarkMode ? 'bg-slate-800/50' : 'bg-slate-100')}>
+                        <div className={cx('w-full h-16 rounded-control overflow-hidden flex items-end', sizeBarTrackClass)}>
                           <motion.div
                             initial={{ height: 0 }}
                             animate={{ height: `${ratio * 100}%` }}
                             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                             className={cx(
                               'w-full rounded-t-md',
-                              isDarkMode ? 'bg-blue-500/60' : 'bg-blue-400/60',
+                              'bg-accent/60',
                             )}
                           />
                         </div>
@@ -304,7 +324,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
             {garmentLine?.productionSteps && (
               <div className={cx('rounded-inset border p-5', surfaceClass)}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Layers size={14} className={isDarkMode ? 'text-amber-400' : 'text-amber-500'} />
+                  <Layers size={14} className="text-warning" />
                   <span className={cx('text-[10px] font-light uppercase tracking-widest', textSecondaryClass)}>生产工序</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -313,11 +333,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                       <div className="flex flex-col items-center gap-1.5 min-w-[56px]">
                         <div className={cx(
                           'w-8 h-8 rounded-control flex items-center justify-center border transition-all',
-                          step.status === 'done'
-                            ? isDarkMode ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                            : step.status === 'in_progress'
-                            ? isDarkMode ? 'bg-amber-500/20 border-amber-500/30 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-600'
-                            : isDarkMode ? 'bg-slate-800/50 border-white/5 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400',
+                          stepBadgeClass[step.status] ?? stepBadgeClass.pending,
                         )}>
                           {STEP_ICONS[step.step]}
                         </div>
@@ -331,9 +347,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                       {idx < garmentLine.productionSteps!.length - 1 && (
                         <div className={cx(
                           'flex-1 h-px min-w-[8px]',
-                          step.status === 'done'
-                            ? isDarkMode ? 'bg-emerald-500/30' : 'bg-emerald-300'
-                            : isDarkMode ? 'bg-white/5' : 'bg-slate-200',
+                          step.status === 'done' ? stepConnectorDoneClass : connectorLineClass,
                         )} />
                       )}
                     </React.Fragment>
@@ -346,22 +360,19 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
             {garmentLine?.bomItems && (
               <div className={cx('rounded-inset border p-5', surfaceClass)}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Package size={14} className={isDarkMode ? 'text-violet-400' : 'text-violet-500'} />
+                  <Package size={14} className="text-[var(--wisteria-text)]" />
                   <span className={cx('text-[10px] font-light uppercase tracking-widest', textSecondaryClass)}>BOM 物料清单</span>
                 </div>
                 <div className="space-y-2">
                   {garmentLine.bomItems.map((item, idx) => (
                     <div key={idx} className={cx(
                       'flex items-center justify-between rounded-control px-3 py-2',
-                      isDarkMode ? 'bg-deep/30' : 'bg-slate-50/80',
+                      sizeBarTrackClass,
                     )}>
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={cx(
                           'shrink-0 inline-flex rounded-full px-1.5 py-0.5 text-[8px] font-light uppercase tracking-widest',
-                          item.type === 'fabric' ? (isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600') :
-                          item.type === 'lining' ? (isDarkMode ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-50 text-cyan-600') :
-                          item.type === 'trim' ? (isDarkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-50 text-amber-600') :
-                          (isDarkMode ? 'bg-violet-500/20 text-violet-400' : 'bg-violet-50 text-violet-600'),
+                          bomTypeChipClass[item.type] ?? bomTypeChipFallbackClass,
                         )}>
                           {BOM_TYPE_LABELS[item.type] || item.type}
                         </span>
@@ -381,7 +392,7 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
             {timeline.length > 0 && (
               <div className={cx('rounded-inset border p-5', surfaceClass)}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Clock size={14} className={isDarkMode ? 'text-emerald-400' : 'text-emerald-500'} />
+                  <Clock size={14} className="text-success" />
                   <span className={cx('text-[10px] font-light uppercase tracking-widest', textSecondaryClass)}>状态时间线</span>
                 </div>
                 <div className="space-y-3">
@@ -392,12 +403,10 @@ const GarmentOrders: React.FC<GarmentOrdersProps> = ({
                         <div className="flex flex-col items-center">
                           <div className={cx(
                             'w-2.5 h-2.5 rounded-full shrink-0 mt-1',
-                            idx === timeline.length - 1
-                              ? isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'
-                              : isDarkMode ? 'bg-slate-600' : 'bg-slate-300',
+                            idx === timeline.length - 1 ? 'bg-success' : connectorLineClass,
                           )} />
                           {idx < timeline.length - 1 && (
-                            <div className={cx('w-px h-4', isDarkMode ? 'bg-white/5' : 'bg-slate-200')} />
+                            <div className={cx('w-px h-4', connectorLineClass)} />
                           )}
                         </div>
                         <div className="min-w-0">

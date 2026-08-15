@@ -83,10 +83,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   const [ledgerTo, setLedgerTo] = useState(today());
   const [ledger, setLedger] = useState<FxLedger | null>(null);
 
-  const textPrimary = isDarkMode ? 'text-white/88' : 'text-slate-800/88';
-  const textSecondary = isDarkMode ? 'text-white/50' : 'text-slate-500/75';
-  const textFaint = isDarkMode ? 'text-white/35' : 'text-slate-400/80';
-  const divider = isDarkMode ? 'border-white/8' : 'border-slate-300/30';
+  const textPrimary = 'text-[var(--text-primary)]';
+  const textSecondary = 'text-[var(--text-tertiary)]';
+  const textFaint = 'text-[var(--text-quaternary)]';
+  const divider = 'border-[var(--border-c-default)]';
 
   // ── 数据加载 ──
   const loadAging = useCallback(async () => {
@@ -228,7 +228,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           </div>
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
             {aging.rows.map(row => (
-              <div key={`${row.customerRelationId ?? row.customerName}-${row.currency}`} className={cx(gridCls, 'items-center rounded-control px-4 py-2.5', isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40')}>
+              <div key={`${row.customerRelationId ?? row.customerName}-${row.currency}`} className={cx(gridCls, 'items-center rounded-control px-4 py-2.5', 'bg-[var(--recessed-bg)]')}>
                 <div className="min-w-0">
                   <div className={cx('truncate font-light', textPrimary)}>{row.customerName}</div>
                   <div className={cx('text-[10px] font-light', textFaint)}>{row.currency} · {row.invoiceCount} 张发票</div>
@@ -351,7 +351,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           </div>
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
             {fx.rows.map(row => (
-              <div key={row.allocationId} className={cx('grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.7fr)] items-center rounded-control px-4 py-2.5', isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40')}>
+              <div key={row.allocationId} className={cx('grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.7fr)] items-center rounded-control px-4 py-2.5', 'bg-[var(--recessed-bg)]')}>
                 <div className={cx('font-light tabular-nums', textSecondary)}>{row.appliedDate}</div>
                 <div className={cx('truncate font-light', textPrimary)}>
                   {row.invoiceNumber}
@@ -421,7 +421,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               {ledger.rows.map(row => {
                 const diff = formatDiff(row.fxDiffEstimate);
                 return (
-                  <div key={row.currency} className={cx(gridCls, 'items-center rounded-control px-4 py-2.5', isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40')}>
+                  <div key={row.currency} className={cx(gridCls, 'items-center rounded-control px-4 py-2.5', 'bg-[var(--recessed-bg)]')}>
                     <div className={cx('font-light', textPrimary)}>{row.currency}</div>
                     <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(row.receivedTotal), row.currency)}</div>
                     <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(row.settledTotal), row.currency)}</div>
@@ -447,7 +447,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
             </div>
             <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
               {ledger.unsettledVouchers.map(v => (
-                <div key={v.voucherId} className={cx('grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] items-center rounded-control px-4 py-2.5', isDarkMode ? 'bg-white/[0.03]' : 'bg-white/40')}>
+                <div key={v.voucherId} className={cx('grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] items-center rounded-control px-4 py-2.5', 'bg-[var(--recessed-bg)]')}>
                   <div className={cx('font-light tabular-nums', textSecondary)}>{v.paymentDate}</div>
                   <div className={cx('truncate font-light', textPrimary)}>{v.voucherNumber}</div>
                   <div className={cx('truncate font-light', textSecondary)}>{v.customerName || '—'}</div>

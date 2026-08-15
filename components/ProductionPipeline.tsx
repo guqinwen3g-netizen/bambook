@@ -106,7 +106,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
   // 状态色唯一来源：RDL 语义 token（success/danger 中性 opacity）；当前态锚点用 accent 品牌蓝
   const successText = statusSemanticText('success', isDarkMode);
   const dangerText = statusSemanticText('danger', isDarkMode);
-  const accentText = isDarkMode ? 'text-accent-blue' : 'text-link';
+  const accentText = 'text-[var(--os-vnext-brand-blue)]';
   const signedChipCls = statusSemanticClass('success', isDarkMode);
 
   const inspection = inspections.find(i => (i.inspectionType ?? 'final') === inspType) ?? null;

@@ -1257,18 +1257,12 @@ const Assistant: React.FC<AssistantProps> = ({
 
   const getAgentEventToneClass = (event: AgentWorkEvent) => {
     if (event.status === 'complete') {
-      return isDarkMode
-        ? 'text-white/70'
-        : 'text-slate-600';
+      return 'text-[var(--text-secondary)]';
     }
     if (event.status === 'failed' || event.status === 'blocked') {
-      return isDarkMode
-        ? 'text-white/55'
-        : 'text-slate-500';
+      return 'text-[var(--text-tertiary)]';
     }
-    return isDarkMode
-      ? 'text-white/70'
-      : 'text-slate-600';
+    return 'text-[var(--text-secondary)]';
   };
 
   useEffect(() => {
@@ -2064,19 +2058,19 @@ const Assistant: React.FC<AssistantProps> = ({
       : 'Document';
   const currentAgentStatusText = getAgentLiveStatusText(agentEvents, isLoading);
   const currentAgentEvent = agentEvents[agentEvents.length - 1];
-  const titleTextClass = isDarkMode ? 'text-white' : 'text-slate-900';
-  const bodyTextClass = isDarkMode ? 'text-white/72' : 'text-slate-700';
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const panelDividerClass = isDarkMode ? BAMBOOK_OS.tone.divider.panelDark : BAMBOOK_OS.tone.divider.panelLight;
-  const sectionDividerClass = isDarkMode ? BAMBOOK_OS.tone.divider.sectionDark : BAMBOOK_OS.tone.divider.sectionLight;
-  const actionControlClass = isDarkMode ? BAMBOOK_OS.controls.actionControl.borderedDark : BAMBOOK_OS.controls.actionControl.borderedLight;
-  const fieldClass = isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light;
+  const titleTextClass = 'text-[var(--text-primary)]';
+  const bodyTextClass = 'text-[var(--text-primary)]';
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const panelDividerClass = BAMBOOK_OS.tone.divider.panel;
+  const sectionDividerClass = BAMBOOK_OS.tone.divider.section;
+  const actionControlClass = BAMBOOK_OS.controls.actionControl.bordered;
+  const fieldClass = BAMBOOK_OS.controls.recessedField.base;
   const inlineSurfaceClass = `${OS_MATERIAL.insetSurface} rounded-inset border`;
   const workspaceTabClass = (selected: boolean) => selected
-    ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light)
-    : `border-transparent ${isDarkMode ? 'text-white/50 hover:text-white/82 hover:bg-white/[0.04]' : 'text-slate-500 hover:text-slate-900 hover:bg-white/35'}`;
-  const agentFullscreenBackgroundClass = isDarkMode ? 'bg-app-dark' : 'bg-app-light';
+    ? BAMBOOK_OS.controls.selectedSurface.base
+    : `border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]`;
+  const agentFullscreenBackgroundClass = 'bg-app-light dark:bg-app-dark';
   const agentRootClass = isAgentFullscreen
     ? `fixed inset-0 z-[420] flex h-dvh min-h-0 flex-col overflow-hidden ${agentFullscreenBackgroundClass}`
     : 'flex h-full min-h-0 w-full flex-col overflow-hidden';
@@ -2249,18 +2243,18 @@ const Assistant: React.FC<AssistantProps> = ({
                                 onClick={() => selectAgent(agent.id)}
                                 className={`w-full rounded-inset px-2.5 py-2 flex items-center gap-3 text-left transition-all ${
                                   isActive
-                                    ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light)
-                                    : `hover:bg-black/[0.03] dark:hover:bg-white/[0.03] text-slate-600 dark:text-slate-300`
+                                    ? BAMBOOK_OS.controls.selectedSurface.base
+                                    : `hover:bg-[var(--hover-darken)] text-[var(--text-secondary)]`
                                 }`}
                               >
                                 <Icon size={14} strokeWidth={1.35} className={`shrink-0 ${
                                   isActive
-                                    ? (isDarkMode ? 'text-white' : 'text-slate-800')
-                                    : 'text-slate-400 dark:text-slate-500'
+                                    ? 'text-[var(--text-primary)]'
+                                    : 'text-[var(--text-tertiary)]'
                                 }`} />
                                 <div className="min-w-0 flex-1">
-                                  <div className={`text-[12px] font-light leading-4 ${isActive ? (isDarkMode ? 'text-white' : 'text-slate-900') : 'text-slate-700 dark:text-slate-200'}`}>{agent.name}</div>
-                                  <div className={`text-[10px] font-light leading-3 truncate ${isActive ? (isDarkMode ? 'text-white/60' : 'text-slate-500') : 'text-slate-400 dark:text-slate-500'}`}>{agent.desc}</div>
+                                  <div className={`text-[12px] font-light leading-4 ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{agent.name}</div>
+                                  <div className={`text-[10px] font-light leading-3 truncate ${isActive ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>{agent.desc}</div>
                                 </div>
                               </button>
                             );
@@ -2269,13 +2263,13 @@ const Assistant: React.FC<AssistantProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col min-h-0 mt-[20px] pt-3 border-t border-dashed border-slate-200 dark:border-slate-800 no-drag">
+                    <div className="flex-1 flex flex-col min-h-0 mt-[20px] pt-3 border-t border-dashed border-[var(--border-c-subtle)] no-drag">
                       <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light mb-1.5 shrink-0 ${labelTextClass}`}>最近对话</div>
                       {isHistoryLoading && sessions.length === 0 && (
                         <div className={`rounded-inset border px-2.5 py-2 text-[11px] shrink-0 ${actionControlClass}`}>正在加载...</div>
                       )}
                       {!isHistoryLoading && historyError && (
-                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${isDarkMode ? 'border-white/10 bg-white/5 text-white/55' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 border-[var(--border-c-default)] bg-[var(--hover-darken)] text-[var(--text-tertiary)]`}>
                           {historyError === 'Login required.' ? '登录后显示个人历史对话。' : historyError}
                         </div>
                       )}
@@ -2296,7 +2290,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 compilerRole="history-item"
                                 source="Assistant.history"
                                 idleSpotlightOpacity={0}
-                                className={`w-full rounded-inset text-left transition-all ${isActive ? (isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light) : ''}`}
+                                className={`w-full rounded-inset text-left transition-all ${isActive ? BAMBOOK_OS.controls.selectedSurface.base : ''}`}
                               >
                                 {isEditing ? (
                                   <div className="p-2">
@@ -2343,7 +2337,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                       onClick={() => loadSession(session.id)}
                                       className="block min-h-10 w-full py-1.5 pl-2.5 pr-[32px] text-left"
                                     >
-                                      <div className={`truncate text-[12px] font-light leading-4 ${isDarkMode ? 'text-white/[0.84]' : 'text-slate-800'}`}>{session.title}</div>
+                                      <div className={`truncate text-[12px] font-light leading-4 text-[var(--text-primary)]`}>{session.title}</div>
                                       <div className={`mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[10px] font-light leading-3 ${quietTextClass}`}>
                                         <span>{formatSessionTime(session.updatedAt)}</span>
                                         {typeof session.messageCount === 'number' && <span className="truncate">{session.messageCount} 条</span>}
@@ -2353,7 +2347,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                        <button
                                          type="button"
                                          onClick={(e) => { e.stopPropagation(); beginRenameSession(session); }}
-                                         className={`p-0.5 transition-colors ${isDarkMode ? 'text-white/40 hover:text-white/80' : 'text-slate-400 hover:text-slate-700'}`}
+                                         className={`p-0.5 transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}
                                          title="重命名"
                                        >
                                          <Pencil size={11} strokeWidth={1.4} />
@@ -2362,7 +2356,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                          type="button"
                                          disabled={isActing}
                                          onClick={(e) => { e.stopPropagation(); archiveSession(session.id); }}
-                                         className={`p-0.5 transition-colors disabled:opacity-40 ${isDarkMode ? 'text-white/40 hover:text-white/55' : 'text-slate-400 hover:text-slate-500'}`}
+                                         className={`p-0.5 transition-colors disabled:opacity-40 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
                                          title="删除"
                                        >
                                          <Trash2 size={11} strokeWidth={1.4} />
@@ -2370,7 +2364,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                      </div>
                                      {isActive && (
                                        <div className="absolute right-1.5 top-0 bottom-0 flex items-center pointer-events-none group-hover:opacity-0 transition-opacity">
-                                         <ChevronRight size={14} strokeWidth={1.25} className={isDarkMode ? 'text-white/[0.45]' : 'text-slate-400'} />
+                                         <ChevronRight size={14} strokeWidth={1.25} className="text-[var(--text-tertiary)]" />
                                        </div>
                                      )}
                                   </div>
@@ -2384,11 +2378,11 @@ const Assistant: React.FC<AssistantProps> = ({
                   </div>
 
                   {/* 底部设置按钮 */}
-                  <div className={`shrink-0 border-t px-2.5 py-2 flex items-center gap-2 ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/70'}`}>
+                  <div className={`shrink-0 border-t px-2.5 py-2 flex items-center gap-2 border-[var(--border-c-subtle)]`}>
                     <button
                       type="button"
                       onClick={() => setIsSettingsDrawerOpen(true)}
-                      className={`w-full flex items-center gap-2 rounded-inset px-2.5 py-1.5 text-left transition-colors no-drag ${isDarkMode ? 'hover:bg-white/[0.04] text-white/50' : 'hover:bg-slate-100 text-slate-500'}`}
+                      className={`w-full flex items-center gap-2 rounded-inset px-2.5 py-1.5 text-left transition-colors no-drag hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]`}
                       title="设置"
                     >
                       <Settings size={14} strokeWidth={1.4} className="shrink-0" />
@@ -2405,7 +2399,7 @@ const Assistant: React.FC<AssistantProps> = ({
               onMouseDown={handleResizeStart}
             >
               {/* Inner visual separator line */}
-              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] group-hover:w-[2px] group-active:w-[2px] transition-all ${isDarkMode ? 'bg-white/10 group-hover:bg-[var(--os-vnext-brand-blue-soft)]' : 'bg-slate-200 group-hover:bg-[var(--os-vnext-brand-blue-strong)]'}`} />
+              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] group-hover:w-[2px] group-active:w-[2px] transition-all bg-[var(--recessed-bg-strong)] group-hover:bg-[var(--os-vnext-brand-blue-strong)] dark:group-hover:bg-[var(--os-vnext-brand-blue-soft)]`} />
             </div>
           )}
 
@@ -2503,7 +2497,7 @@ const Assistant: React.FC<AssistantProps> = ({
                               event.stopPropagation();
                               closeWorkspaceItem(item.id);
                             }}
-                            className={`ml-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-900/10'}`}
+                            className={`ml-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 hover:bg-[var(--active-darken)]`}
                             aria-label={`关闭 ${item.title}`}
                             title="关闭"
                           >
@@ -2623,7 +2617,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 <div className={`mt-4 rounded-compact border px-3 py-2 text-xs font-light ${actionControlClass}`}>正在读取工具运行审计详情...</div>
                               )}
                               {activeWorkspaceItem.referenceHydration?.status === 'error' && (
-                                <div className={`mt-4 rounded-compact border px-3 py-2 text-xs font-light ${isDarkMode ? 'border-white/10 text-white/55' : 'border-slate-200 text-slate-500'}`}>
+                                <div className={`mt-4 rounded-compact border px-3 py-2 text-xs font-light border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
                                   {activeWorkspaceItem.referenceHydration.error || '审计详情读取失败'}
                                 </div>
                               )}
@@ -2653,7 +2647,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                     </div>
                                   </div>
                                   {activeWorkspaceItem.toolRunDetail.error && (
-                                    <div className={`rounded-compact border px-3 py-2 text-xs font-light leading-6 ${isDarkMode ? 'border-white/10 text-white/55' : 'border-slate-200 text-slate-500'}`}>
+                                    <div className={`rounded-compact border px-3 py-2 text-xs font-light leading-6 border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
                                       {activeWorkspaceItem.toolRunDetail.error}
                                     </div>
                                   )}
@@ -2698,7 +2692,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                 {activeWorkspaceItem.entityHydration?.status === 'loading' && <span>正在读取详情...</span>}
                                 {activeWorkspaceItem.entityHydration?.status === 'loaded' && <span>详情已读取</span>}
                                 {activeWorkspaceItem.entityHydration?.status === 'error' && (
-                                  <span className={isDarkMode ? 'text-white/55' : 'text-slate-500'}>
+                                  <span className="text-[var(--text-tertiary)]">
                                     {activeWorkspaceItem.entityHydration.error || '详情读取失败'}
                                   </span>
                                 )}
@@ -2746,14 +2740,14 @@ const Assistant: React.FC<AssistantProps> = ({
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('bambook')}
-                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'bambook' ? (isDarkMode ? 'bg-white/12 text-white' : 'bg-slate-900/10 text-slate-900') : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'bambook' ? 'bg-[var(--invert-bg)] text-[var(--invert-text)]' : quietTextClass}`}
                           >
                             Bambook 内容
                           </button>
                           <button
                             type="button"
                             onClick={() => setWorkspaceFileSource('local')}
-                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'local' ? (isDarkMode ? 'bg-white/12 text-white' : 'bg-slate-900/10 text-slate-900') : quietTextClass}`}
+                            className={`h-8 rounded-full px-3 text-xs font-light transition-all ${workspaceFileSource === 'local' ? 'bg-[var(--invert-bg)] text-[var(--invert-text)]' : quietTextClass}`}
                           >
                             本地文件
                           </button>
@@ -2810,7 +2804,7 @@ const Assistant: React.FC<AssistantProps> = ({
                             {isWorkspaceSearching ? (
                               <div>正在搜索数据中心...</div>
                             ) : workspaceSearchError ? (
-                              <div className={isDarkMode ? 'text-white/55' : 'text-slate-500'}>{workspaceSearchError}</div>
+                              <div className="text-[var(--text-tertiary)]">{workspaceSearchError}</div>
                             ) : workspaceSearchResults.length > 0 ? (
                               <div className="space-y-2">
                                 {workspaceSearchResults.map(item => (
@@ -2886,7 +2880,7 @@ const Assistant: React.FC<AssistantProps> = ({
           </div>
 
           {/* Center Column: Dialogue */}
-          <div className={`order-2 flex flex-col transition-all duration-300 ease-in-out overflow-hidden flex-1 min-w-[320px] sm:min-w-[400px] ${isDarkMode ? 'bg-black/10' : 'bg-white/10'}`}>
+          <div className={`order-2 flex flex-col transition-all duration-300 ease-in-out overflow-hidden flex-1 min-w-[320px] sm:min-w-[400px] bg-[var(--recessed-bg-strong)]`}>
           <div
             className={`min-h-12 shrink-0 border-b px-4 py-1.5 flex items-center justify-between gap-2 ${panelDividerClass} ${isAgentFullscreen && !isHistoryOpen ? 'pl-16' : ''}`}
             style={isAgentFullscreen ? { WebkitAppRegion: 'drag' } as React.CSSProperties : { WebkitAppRegion: 'no-drag' } as React.CSSProperties}
@@ -2905,7 +2899,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={() => setIsWorkspaceOpen(!isWorkspaceOpen)}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isWorkspaceOpen ? (isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]') : ''}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isWorkspaceOpen ? 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]' : ''}`}
                 title={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
                 aria-label={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
               >
@@ -2914,7 +2908,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={toggleTTS}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isTTSEnabled ? (isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]') : ''}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isTTSEnabled ? 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]' : ''}`}
                 title={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
                 aria-label={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
               >
@@ -2938,11 +2932,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={() => scrollMainToBottom('smooth')}
-                className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[11px] font-light shadow-none transition-opacity ${
-                  isDarkMode
-                    ? 'border-white/10 bg-black/60 text-white/80 hover:bg-black/75'
-                    : 'border-slate-200 bg-white/85 text-slate-700 hover:bg-white'
-                }`}
+                className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border px-3 py-1.5 text-[11px] font-light shadow-none transition-opacity border-[var(--border-c-default)] bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-[var(--invert-bg-hover)]`}
                 aria-label="滚动到最新"
               >
                 ↓ 跳到最新
@@ -2952,7 +2942,7 @@ const Assistant: React.FC<AssistantProps> = ({
               {activeAttachment && (
                 <section className={`${inlineSurfaceClass} px-4 py-3`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`h-10 w-10 shrink-0 rounded-inset border flex items-center justify-center overflow-hidden ${isDarkMode ? 'border-white/[0.06] text-white/45' : 'border-slate-200/45 text-slate-500'}`}>
+                    <div className={`h-10 w-10 shrink-0 rounded-inset border flex items-center justify-center overflow-hidden border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>
                       {activeAttachment.mimeType.startsWith('image/') ? (
                         <img src={activeAttachment.previewUrl} alt={activeAttachment.name} className="h-full w-full object-cover" />
                       ) : (
@@ -2979,7 +2969,7 @@ const Assistant: React.FC<AssistantProps> = ({
                     </div>
                     <div className={`text-sm font-light ${bodyTextClass}`}>{currentAgent.name}</div>
                     <div className={`mt-1 text-xs font-light ${quietTextClass}`}>{currentAgent.desc}</div>
-                    <div className={`mt-4 max-w-sm text-xs leading-5 ${quietTextClass} border border-dashed rounded-inset p-3 bg-slate-500/[0.02]`}>
+                    <div className={`mt-4 max-w-sm text-xs leading-5 ${quietTextClass} border border-dashed rounded-inset p-3 bg-[var(--hover-darken)]`}>
                       {activeAgentId === 'default' && '我是您的全能助手。可以直接提问，或上传文档、订单进行分析与处理。'}
                       {activeAgentId === 'translation' && '支持中英日韩等十余种语言互译，以及学术/商务格式化润色。可以直接发送你想翻译的段落。'}
                       {activeAgentId === 'analysis' && '已为您连接 Bambook 数据中心。可以输入例如“分析上个月销量最好的三个服装款式”或“生成客户关系图表”。'}
@@ -3080,7 +3070,7 @@ const Assistant: React.FC<AssistantProps> = ({
                           event.stopPropagation();
                           setAttachments(prev => prev.filter((_, idx) => idx !== i));
                         }}
-                        className={`absolute right-0 top-0 rounded-bl-xl p-0.5 ${isDarkMode ? 'bg-black/35 text-white/78' : 'bg-slate-900/70 text-white'}`}
+                        className={`absolute right-0 top-0 rounded-bl-xl p-0.5 bg-[var(--invert-bg)] text-[var(--invert-text)]`}
                       >
                         <Plus size={11} className="rotate-45" />
                       </button>
@@ -3107,11 +3097,11 @@ const Assistant: React.FC<AssistantProps> = ({
                 disabled={isLoading}
                 placeholder="输入任务，或添加 PDF / 图片让 Agent 处理..."
                 rows={3}
-                className={`block w-full resize-none bg-transparent px-1 text-sm leading-6 outline-none disabled:opacity-50 ${isDarkMode ? 'text-white/78 placeholder-white/32' : 'text-slate-800 placeholder-slate-400'}`}
+                className={`block w-full resize-none bg-transparent px-1 text-sm leading-6 outline-none disabled:opacity-50 text-[var(--text-primary)] placeholder-[var(--text-tertiary)]`}
               />
               {voiceStatus && (
                 <div className={`mt-1 px-1 text-[11px] ${isVoiceRecording
-                  ? (isDarkMode ? 'text-white/70' : 'text-slate-600')
+                  ? 'text-[var(--text-secondary)]'
                   : quietTextClass}`}
                 >
                   {voiceStatus}
@@ -3131,7 +3121,7 @@ const Assistant: React.FC<AssistantProps> = ({
                   onClick={toggleVoiceInput}
                   disabled={isLoading}
                   className={`h-8 w-8 rounded-field border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isVoiceRecording
-                    ? (isDarkMode ? 'border-white/15 bg-white/10 text-white/80' : 'border-slate-300 bg-slate-100 text-slate-600')
+                    ? 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-secondary)]'
                     : actionControlClass}`}
                   title={isVoiceRecording ? '停止语音输入' : '本地语音输入'}
                   aria-label={isVoiceRecording ? '停止语音输入' : '本地语音输入'}
@@ -3141,17 +3131,17 @@ const Assistant: React.FC<AssistantProps> = ({
                 <div className="min-w-0 flex-1" />
                 <div className={`relative h-8 rounded-field border ${fieldClass}`}>
                   <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2">
-                    <Cpu size={13} className={isDarkMode ? 'text-white/42' : 'text-slate-400'} />
+                    <Cpu size={13} className="text-[var(--text-tertiary)]" />
                   </div>
                   <select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
-                    className={`h-full max-w-[132px] appearance-none bg-transparent pl-8 pr-7 text-[11px] outline-none ${isDarkMode ? 'text-white/70' : 'text-slate-600'} [&>option]:text-black`}
+                    className={`h-full max-w-[132px] appearance-none bg-transparent pl-8 pr-7 text-[11px] outline-none text-[var(--text-secondary)] [&>option]:text-black`}
                   >
                     <option value={MODELS.ARK_CODE}>Ark Code</option>
                   </select>
                   <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
-                    <ChevronDown size={10} className={isDarkMode ? 'text-white/34' : 'text-slate-400'} />
+                    <ChevronDown size={10} className="text-[var(--text-tertiary)]" />
                   </div>
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileSelect} />
@@ -3167,8 +3157,8 @@ const Assistant: React.FC<AssistantProps> = ({
                   disabled={!isLoading && (isVoiceRecording || (!input.trim() && attachments.length === 0))}
                   title={isLoading ? '停止当前任务' : '运行任务'}
                   className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isLoading
-                    ? (isDarkMode ? 'bg-white/10 text-white/55 hover:bg-white/16' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')
-                    : (isDarkMode ? 'bg-white text-slate-950 hover:bg-white/90' : 'bg-slate-950 text-white hover:bg-slate-800')}`}
+                    ? 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]'
+                    : 'bg-[var(--invert-bg)] text-[var(--invert-text)] hover:bg-[var(--invert-bg-hover)]'}`}
                 >
                   {isLoading ? <StopCircle size={16} /> : <Send size={16} />}
                 </button>

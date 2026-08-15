@@ -40,12 +40,10 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
 
   const query = String(value || '').trim();
   const canSearch = query.length >= MIN_QUERY_LENGTH && entityTypes.length > 0 && !disabled;
-  // 兜底输入框配方与全局胶囊字段同源（recessedField）；旧 bg-slate-800/border-slate-200
-  // 组合会被 flat-experimental 护栏强制 border:0，导致输入框隐形。
+  // 兜底输入框配方与全局胶囊字段同源（recessedField）；旧硬编码深底/浅描边组合
+  // 会被 flat-experimental 护栏强制 border:0，导致输入框隐形。
   const inputCls = className || `w-full px-3 py-3 border rounded-control outline-none text-xs font-light ${
-    isDarkMode
-      ? BAMBOOK_OS.controls.recessedField.dark
-      : BAMBOOK_OS.controls.recessedField.light
+    BAMBOOK_OS.controls.recessedField.base
   } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`;
 
   const entityLabel = useMemo(() => {
@@ -127,13 +125,13 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
           }}
           className={`${inputCls} pr-9`}
         />
-        <span className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+        <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]`}>
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
         </span>
       </div>
 
       {entityLabel && (
-        <div className={`mt-1 flex items-center gap-1 text-[9px] ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+        <div className={`mt-1 flex items-center gap-1 text-[9px] text-[var(--text-secondary)]`}>
           <Link2 size={10} />
           <span>{entityLabel}: {linked?.title}</span>
           <button type="button" onClick={() => setLinked(null)} className="ml-1 opacity-70 hover:opacity-100">
@@ -143,21 +141,17 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
       )}
 
       {open && items.length > 0 && (
-        <div className={`absolute z-50 mt-1 w-full overflow-hidden rounded-inset border ${
-          isDarkMode ? 'bg-slate-900 border-[rgba(255,255,255,0.12)]' : 'bg-white border-[rgba(15,23,42,0.12)]'
-        }`}>
+        <div className={`absolute z-50 mt-1 w-full overflow-hidden rounded-inset border bg-[var(--recessed-bg)] border-[var(--border-c-default)]`}>
           {items.map((item) => (
             <button
               key={`${item.entityType}:${item.id}:${item.targetPath || ''}`}
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose(item)}
-              className={`w-full text-left px-3 py-2 border-b last:border-b-0 ${
-                isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-              }`}
+              className={`w-full text-left px-3 py-2 border-b last:border-b-0 border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
             >
-              <div className={`truncate text-xs font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.title}</div>
-              <div className={`truncate text-[10px] mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <div className={`truncate text-xs font-light text-[var(--text-primary)]`}>{item.title}</div>
+              <div className={`truncate text-[10px] mt-0.5 text-[var(--text-tertiary)]`}>
                 {[item.entityType, item.subtitle, item.snippet].filter(Boolean).join(' · ')}
               </div>
             </button>

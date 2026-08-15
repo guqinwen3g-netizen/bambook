@@ -35,10 +35,10 @@ describe('Settings permission visibility', () => {
     expect(source).toContain("import { BAMBOOK_OS } from './ui/bambookOsTokens'");
     expect(source).toContain('BAMBOOK_OS.material.nestedSurface');
     expect(source).toContain('bambook-outer-panel');
-    expect(source).toContain('BAMBOOK_OS.controls.recessedField.dark');
-    expect(source).toContain('BAMBOOK_OS.controls.actionControl.borderedDark');
-    expect(source).toContain('SIDEBAR_ACTIVE_DARK_CLASS');
-    expect(source).toContain('SIDEBAR_HOVER_DARK_CLASS');
+    expect(source).toContain('bg-[var(--recessed-bg)]');
+    expect(source).toContain('const actionControlCls');
+    expect(source).toContain("const optionActiveCls = 'bg-[var(--active-darken)] text-[var(--text-primary)]'");
+    expect(source).toContain('const optionIdleCls');
     expect(source).toContain('const settingsFrameClass = `${BAMBOOK_OS.layout.desktopWorkspaceFrameClass} bambook-settings-frame`');
     expect(source).toContain('bambook-settings-frame');
     expect(source).toContain('bambook-settings-nav-panel');
@@ -74,8 +74,7 @@ describe('Settings permission visibility', () => {
 
   it('renders boolean settings as iOS-style switches instead of segmented pills', () => {
     expect(source).toContain('const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px]');
-    expect(source).toContain('bambook-state-switch-track--checked-dark');
-    expect(source).toContain('bambook-state-switch-track--checked-light');
+    expect(source).toContain('bg-[var(--os-vnext-brand-blue)] border-[var(--os-vnext-brand-blue)]');
     expect(source).not.toContain('border-[#7DB7FF]/20 bg-[rgba(74,144,226,0.30)]');
     expect(source).not.toContain('border-[#126DCC]/18 bg-[rgba(74,144,226,0.24)]');
     expect(source).not.toContain('inset_0_0_0_1px_rgba(255,255,255,0.018)');

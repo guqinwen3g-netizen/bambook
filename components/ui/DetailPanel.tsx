@@ -43,17 +43,15 @@ const InfoItem: React.FC<{
     isLink?: boolean;
 }> = ({ icon, label, value, isDarkMode, isLink }) => {
     if (!value && value !== 0) return null;
-    const brandTextClass = isDarkMode
-        ? BAMBOOK_OS.tone.text.brandDark
-        : BAMBOOK_OS.tone.text.brandLight;
+    const brandTextClass = BAMBOOK_OS.tone.text.brandEmphasis;
 
     return (
         <div className="flex items-start gap-3 py-2">
-            <div className={`mt-0.5 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+            <div className={`mt-0.5 text-[var(--text-tertiary)]`}>
                 {icon}
             </div>
             <div className="flex-1 min-w-0">
-                <p className={`text-[10px] font-light uppercase tracking-[0.18em] mb-0.5 ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                <p className={`text-[10px] font-light uppercase tracking-[0.18em] mb-0.5 text-[var(--text-tertiary)]`}>
                     {label}
                 </p>
                 {isLink ? (
@@ -66,7 +64,7 @@ const InfoItem: React.FC<{
                         {value}
                     </a>
                 ) : (
-                    <p className={`text-sm font-light whitespace-pre-line ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
+                    <p className={`text-sm font-light whitespace-pre-line text-[var(--text-primary)]`}>
                         {value}
                     </p>
                 )}
@@ -82,9 +80,7 @@ const InfoSection: React.FC<{
     children: React.ReactNode;
     isDarkMode: boolean;
 }> = ({ title, icon, children, isDarkMode }) => {
-    const sectionDividerClass = isDarkMode
-        ? BAMBOOK_OS.tone.divider.sectionDark
-        : BAMBOOK_OS.tone.divider.sectionLight;
+    const sectionDividerClass = BAMBOOK_OS.tone.divider.section;
 
     return (
         <motion.div
@@ -103,8 +99,8 @@ const InfoSection: React.FC<{
                 source="DetailPanel.InfoSection"
             >
                 <div className={`flex items-center gap-2 mb-2.5 pb-2 border-b ${sectionDividerClass}`}>
-                    <span className={isDarkMode ? 'text-white/58' : 'text-slate-600'}>{icon}</span>
-                    <h4 className={`text-[11px] font-light uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/66' : 'text-slate-700'}`}>
+                    <span className="text-[var(--text-secondary)]">{icon}</span>
+                    <h4 className={`text-[11px] font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
                         {title}
                     </h4>
                 </div>
@@ -255,45 +251,35 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
         }
     };
 
-    const actionButtonClass = isDarkMode
-        ? BAMBOOK_OS.controls.actionControl.borderedDark
-        : BAMBOOK_OS.controls.actionControl.borderedLight;
-    const brandTextClass = isDarkMode
-        ? BAMBOOK_OS.tone.text.brandDark
-        : BAMBOOK_OS.tone.text.brandLight;
-    const dataChipClass = isDarkMode
-        ? BAMBOOK_OS.tone.chip.dataDark
-        : BAMBOOK_OS.tone.chip.dataLight;
-    const accentChipClass = isDarkMode
-        ? BAMBOOK_OS.tone.chip.accentDark
-        : BAMBOOK_OS.tone.chip.accentLight;
+    const actionButtonClass = BAMBOOK_OS.controls.actionControl.bordered;
+    const brandTextClass = BAMBOOK_OS.tone.text.brandEmphasis;
+    const dataChipClass = BAMBOOK_OS.tone.chip.data;
+    const accentChipClass = BAMBOOK_OS.tone.chip.accent;
     const detailMaterialClass = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-outer-panel`;
     const inlinePanelClass = `${detailMaterialClass} bambook-tertiary-surface !rounded-control relative isolate overflow-hidden`;
-    const panelDividerClass = isDarkMode
-        ? BAMBOOK_OS.tone.divider.panelDark
-        : BAMBOOK_OS.tone.divider.panelLight;
+    const panelDividerClass = BAMBOOK_OS.tone.divider.panel;
     const detailScrollRef = useRef<HTMLDivElement | null>(null);
 
     // 互动历史区块（组织/联系人两种布局共用，真源：CRM FollowUpRecord）
     const interactionHistorySection = (
         <InfoSection title="互动历史" icon={<Calendar size={14} />} isDarkMode={isDarkMode}>
-            <div className={`text-sm ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+            <div className={`text-sm text-[var(--text-tertiary)]`}>
                 <div className="flex items-center gap-2 mb-2">
                     <Calendar size={14} />
                     <span>最近互动: {new Date(data.lastInteraction).toLocaleDateString('zh-CN')}</span>
                 </div>
                 {followUps === null ? (
-                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>加载中…</p>
+                    <p className={`text-xs text-[var(--text-tertiary)]`}>加载中…</p>
                 ) : followUps.length === 0 ? (
-                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>暂无跟进记录，可在 CRM 模块添加</p>
+                    <p className={`text-xs text-[var(--text-tertiary)]`}>暂无跟进记录，可在 CRM 模块添加</p>
                 ) : (
                     <ul className="space-y-1.5">
                         {followUps.map(fu => (
-                            <li key={fu.id} className={`text-xs leading-5 ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                            <li key={fu.id} className={`text-xs leading-5 text-[var(--text-secondary)]`}>
                                 <span className={`inline-block px-1.5 py-0.5 rounded mr-1.5 text-[10px] ${dataChipClass}`}>
                                     {FOLLOW_UP_TYPE_LABELS[fu.type] ?? fu.type}
                                 </span>
-                                <span className={isDarkMode ? 'text-white/40' : 'text-slate-500'}>{fu.followUpAt}</span>
+                                <span className="text-[var(--text-tertiary)]">{fu.followUpAt}</span>
                                 <span className="mx-1">·</span>
                                 <span className="break-all">{fu.content}</span>
                             </li>
@@ -307,27 +293,27 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
     // ── 阶段 P3b：品牌线区块（PRD 6.2，仅组织布局）──
     const brandLinesSection = isOrg ? (
         <InfoSection title="品牌线" icon={<Layers size={14} />} isDarkMode={isDarkMode}>
-            <div className={`text-sm ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+            <div className={`text-sm text-[var(--text-tertiary)]`}>
                 {brandLines === null ? (
-                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>加载中…</p>
+                    <p className={`text-xs text-[var(--text-tertiary)]`}>加载中…</p>
                 ) : brandLines.length === 0 ? (
-                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>暂无品牌线档案</p>
+                    <p className={`text-xs text-[var(--text-tertiary)]`}>暂无品牌线档案</p>
                 ) : (
                     <ul className="space-y-1.5">
                         {brandLines.map(bl => (
-                            <li key={bl.id} className={`group flex items-center gap-1.5 text-xs leading-5 ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                            <li key={bl.id} className={`group flex items-center gap-1.5 text-xs leading-5 text-[var(--text-secondary)]`}>
                                 <span className="break-all">{bl.name}</span>
                                 {bl.code && (
                                     <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${dataChipClass}`}>{bl.code}</span>
                                 )}
                                 {!bl.isActive && (
-                                    <span className={`text-[10px] ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>已停用</span>
+                                    <span className={`text-[10px] text-[var(--text-tertiary)]`}>已停用</span>
                                 )}
                                 <button
                                     type="button"
                                     onClick={() => handleDeleteBrandLine(bl.id)}
                                     disabled={brandLineBusy}
-                                    className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity ${isDarkMode ? 'text-white/30 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
                                     title="删除品牌线"
                                 >
                                     <Trash2 size={12} />
@@ -342,19 +328,19 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         value={brandLineForm.name}
                         onChange={e => setBrandLineForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="品牌线名称"
-                        className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-white/30' : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400'}`}
+                        className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
                     />
                     <input
                         value={brandLineForm.code}
                         onChange={e => setBrandLineForm(prev => ({ ...prev, code: e.target.value }))}
                         placeholder="编码(可选)"
-                        className={`w-20 px-2 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-white/30' : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400'}`}
+                        className={`w-20 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
                     />
                     <button
                         type="button"
                         onClick={handleAddBrandLine}
                         disabled={brandLineBusy || !brandLineForm.name.trim()}
-                        className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 ${isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white/70' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+                        className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]`}
                         title="添加品牌线"
                     >
                         {brandLineBusy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
@@ -367,25 +353,25 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
     // ── 阶段 P3b：沟通日志区块（PRD 12.3 全渠道沟通流水，组织/联系人布局共用）──
     const commLogsSection = (
         <InfoSection title="沟通日志" icon={<MessagesSquare size={14} />} isDarkMode={isDarkMode}>
-            <div className={`text-sm ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+            <div className={`text-sm text-[var(--text-tertiary)]`}>
                 {commLogs === null ? (
-                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>加载中…</p>
+                    <p className={`text-xs text-[var(--text-tertiary)]`}>加载中…</p>
                 ) : commLogs.length === 0 ? (
-                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-500'}`}>暂无沟通记录</p>
+                    <p className={`text-xs text-[var(--text-tertiary)]`}>暂无沟通记录</p>
                 ) : (
                     <ul className="space-y-1.5">
                         {commLogs.map(cl => (
-                            <li key={cl.id} className={`group flex items-baseline gap-1.5 text-xs leading-5 ${isDarkMode ? 'text-white/60' : 'text-slate-600'}`}>
+                            <li key={cl.id} className={`group flex items-baseline gap-1.5 text-xs leading-5 text-[var(--text-secondary)]`}>
                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] shrink-0 ${dataChipClass}`}>
                                     {COMM_TYPE_LABELS[cl.type] ?? cl.type}
                                 </span>
-                                <span className={`shrink-0 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>{cl.occurredAt}</span>
+                                <span className={`shrink-0 text-[var(--text-tertiary)]`}>{cl.occurredAt}</span>
                                 <span className="break-all">{cl.summary}</span>
                                 <button
                                     type="button"
                                     onClick={() => handleDeleteCommLog(cl.id)}
                                     disabled={commLogBusy}
-                                    className={`ml-auto self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ${isDarkMode ? 'text-white/30 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`ml-auto self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
                                     title="删除沟通日志"
                                 >
                                     <Trash2 size={12} />
@@ -399,7 +385,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                     <select
                         value={commLogForm.type}
                         onChange={e => setCommLogForm(prev => ({ ...prev, type: e.target.value as CommunicationType }))}
-                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white/60 border-slate-200 text-slate-800'}`}
+                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)]`}
                     >
                         {COMM_TYPES.map(t => (
                             <option key={t} value={t}>{COMM_TYPE_LABELS[t]}</option>
@@ -409,19 +395,19 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         type="date"
                         value={commLogForm.occurredAt}
                         onChange={e => setCommLogForm(prev => ({ ...prev, occurredAt: e.target.value }))}
-                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white/60 border-slate-200 text-slate-800'}`}
+                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)]`}
                     />
                     <input
                         value={commLogForm.summary}
                         onChange={e => setCommLogForm(prev => ({ ...prev, summary: e.target.value }))}
                         placeholder="沟通摘要"
-                        className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border ${isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-white/30' : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400'}`}
+                        className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
                     />
                     <button
                         type="button"
                         onClick={handleAddCommLog}
                         disabled={commLogBusy || !commLogForm.summary.trim()}
-                        className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 ${isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white/70' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+                        className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]`}
                         title="添加沟通日志"
                     >
                         {commLogBusy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
@@ -479,13 +465,13 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
                     {/* 基本信息 */}
                     <div className="flex-1 min-w-0">
-                        <h2 className={`text-lg font-light truncate ${isDarkMode ? 'text-white/95' : 'text-slate-900'}`}>
+                        <h2 className={`text-lg font-light truncate text-[var(--text-primary)]`}>
                             {data.name}
                         </h2>
                         <div className="flex items-center gap-3 mt-1.5">
                             {isOrg ? (
                                 <>
-                                    <span className={`text-xs font-light ${isDarkMode ? 'text-white/58' : 'text-slate-600'}`}>
+                                    <span className={`text-xs font-light text-[var(--text-secondary)]`}>
                                         {data.type}
                                     </span>
                                     <span className={`flex items-center gap-1 text-xs font-light ${brandTextClass}`}>
@@ -494,11 +480,11 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                 </>
                             ) : (
                                 <>
-                                    <span className={`flex items-center gap-1 text-xs font-light ${isDarkMode ? 'text-white/58' : 'text-slate-600'}`}>
+                                    <span className={`flex items-center gap-1 text-xs font-light text-[var(--text-secondary)]`}>
                                         <Briefcase size={12} /> {data.role || '未设置职位'}
                                     </span>
                                     {data.department && (
-                                        <span className={`text-xs ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+                                        <span className={`text-xs text-[var(--text-tertiary)]`}>
                                             · {data.department}
                                         </span>
                                     )}
@@ -521,7 +507,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                     </span>
                                 ))}
                                 {data.tags.length > 4 && (
-                                    <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+                                    <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
                                         +{data.tags.length - 4}
                                     </span>
                                 )}
@@ -566,8 +552,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             {data.factoryAddresses && data.factoryAddresses.length > 0 && (
                                 <div className="py-2">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Factory size={14} className={isDarkMode ? 'text-white/40' : 'text-slate-500'} />
-                                        <p className={`text-[10px] font-light uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                                        <Factory size={14} className="text-[var(--text-tertiary)]" />
+                                        <p className={`text-[10px] font-light uppercase tracking-[0.18em] text-[var(--text-tertiary)]`}>
                                             工厂地址 ({data.factoryAddresses.length})
                                         </p>
                                     </div>
@@ -594,8 +580,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
                             {data.coordinates && (
                                 <div className="flex items-center gap-2 py-2">
-                                    <Navigation size={14} className={isDarkMode ? 'text-white/40' : 'text-slate-500'} />
-                                    <span className={`text-[10px] font-mono ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+                                    <Navigation size={14} className="text-[var(--text-tertiary)]" />
+                                    <span className={`text-[10px] font-mono text-[var(--text-tertiary)]`}>
                                         {data.coordinates.lat.toFixed(6)}, {data.coordinates.lng.toFixed(6)}
                                     </span>
                                 </div>
@@ -621,7 +607,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         {/* 备注与偏好 */}
                         {data.preferences && (
                             <InfoSection title="备注与偏好" icon={<FileText size={14} />} isDarkMode={isDarkMode}>
-                                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+                                <p className={`text-sm leading-relaxed text-[var(--text-secondary)]`}>
                                     {data.preferences}
                                 </p>
                             </InfoSection>
@@ -693,7 +679,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         {/* 个人简介 */}
                         {data.personalNote && (
                             <InfoSection title="个人备注" icon={<FileText size={14} />} isDarkMode={isDarkMode}>
-                                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+                                <p className={`text-sm leading-relaxed text-[var(--text-secondary)]`}>
                                     {data.personalNote}
                                 </p>
                             </InfoSection>
@@ -721,10 +707,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         onClick={onDelete}
                         className={`
               w-full h-9 rounded-control flex items-center justify-center gap-2 text-xs font-light uppercase tracking-wider transition-all
-              ${isDarkMode
-                                ? 'text-white/55 hover:bg-white/8'
-                                : 'text-slate-500 hover:bg-slate-100'
-                            }
+              text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]
             `}
                     >
                         <Trash2 size={14} />

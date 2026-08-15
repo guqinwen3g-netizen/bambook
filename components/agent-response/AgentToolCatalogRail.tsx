@@ -39,9 +39,9 @@ const approvalTooltip = (approval: AgentToolManifestEntry['safety']['approval'])
  * - 不消费上下文：纯展示组件，不触发 agent 调用，也不联动右栏
  */
 export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, onRetry, isDarkMode }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const surfaceClass = isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const surfaceClass = 'border-[var(--border-c-subtle)]';
 
   const [openDomains, setOpenDomains] = useState<Record<string, boolean>>({});
 
@@ -62,10 +62,10 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
     return (
       <div className="flex flex-col space-y-1.5 no-drag">
         <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>工具目录</div>
-        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 ${isDarkMode ? 'border-white/15 bg-white/[0.06] text-white/75' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
+        <div className={`rounded-inset border px-2.5 py-2 text-[11px] leading-4 shrink-0 border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
           {error || '工具目录加载失败'}
           {onRetry && (
-            <button type="button" onClick={onRetry} className={`ml-2 underline ${isDarkMode ? 'text-white/80' : 'text-slate-700'}`}>
+            <button type="button" onClick={onRetry} className={`ml-2 underline text-[var(--text-primary)]`}>
               重试
             </button>
           )}
@@ -102,11 +102,11 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
               <button
                 type="button"
                 onClick={() => setOpenDomains(prev => ({ ...prev, [group.domain]: !isOpen }))}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left ${isDarkMode ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.03]'} rounded-inset`}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--hover-darken)] rounded-inset`}
                 title={meta.hint}
               >
-                <Wrench size={11} strokeWidth={1.5} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
-                <span className={`text-[11px] font-light ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{meta.label}</span>
+                <Wrench size={11} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
+                <span className={`text-[11px] font-light text-[var(--text-primary)]`}>{meta.label}</span>
                 <span className={`text-[10px] ${quietTextClass}`}>{group.tools.length}</span>
                 {approvalCount > 0 && (
                   <span
@@ -127,11 +127,11 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
                   {group.tools.map(tool => (
                     <div
                       key={tool.id}
-                      className={`group rounded-compact px-2 py-1.5 ${isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-black/[0.03]'}`}
+                      className={`group rounded-compact px-2 py-1.5 hover:bg-[var(--hover-darken)]`}
                       title={tool.inputHint || tool.description || tool.name}
                     >
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-light leading-4 truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                        <span className={`text-[11px] font-light leading-4 truncate text-[var(--text-primary)]`}>
                           {tool.name}
                         </span>
                         <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded border ${riskPillClass(tool.risk, isDarkMode)}`}>
@@ -139,11 +139,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
                         </span>
                         <ApprovalIcon
                           approval={tool.safety.approval}
-                          className={`shrink-0 ml-auto ${
-                            tool.safety.approval === 'always' ? (isDarkMode ? 'text-white/70' : 'text-slate-600')
-                            : tool.safety.approval === 'risk_based' ? (isDarkMode ? 'text-white/70' : 'text-slate-600')
-                            : (isDarkMode ? 'text-white/70' : 'text-slate-600')
-                          }`}
+                          className={`shrink-0 ml-auto text-[var(--text-secondary)]`}
                         />
                       </div>
                       <div className={`mt-0.5 text-[10px] leading-3.5 ${quietTextClass} truncate`}>

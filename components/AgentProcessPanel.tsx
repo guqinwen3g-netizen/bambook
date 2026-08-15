@@ -29,21 +29,21 @@ interface AgentProcessPanelProps {
 const iconFor = (kind: AgentEventIconKind): React.ReactElement => {
   switch (kind) {
     case 'complete':
-      return <CheckCircle2 size={13} className="text-slate-400" />;
+      return <CheckCircle2 size={13} className="text-[var(--text-tertiary)]" />;
     case 'blocked':
-      return <AlertCircle size={13} className="text-slate-400" />;
+      return <AlertCircle size={13} className="text-[var(--text-tertiary)]" />;
     case 'tool':
       return <Wrench size={13} className="text-[var(--os-vnext-brand-blue)]" />;
     case 'cognitive':
-      return <Activity size={13} className="text-slate-400" />;
+      return <Activity size={13} className="text-[var(--text-tertiary)]" />;
     case 'identity':
-      return <Settings size={13} className="text-slate-400" />;
+      return <Settings size={13} className="text-[var(--text-tertiary)]" />;
     case 'final':
-      return <Cpu size={13} className="text-slate-400" />;
+      return <Cpu size={13} className="text-[var(--text-tertiary)]" />;
     case 'running':
-      return <CircleDashed size={13} className="text-slate-400 animate-spin" />;
+      return <CircleDashed size={13} className="text-[var(--text-tertiary)] animate-spin" />;
     default:
-      return <CircleDashed size={13} className="text-slate-400" />;
+      return <CircleDashed size={13} className="text-[var(--text-tertiary)]" />;
   }
 };
 
@@ -68,7 +68,7 @@ const renderEventRow = (item: AgentNarrativeLine, bodyClass: string, quietClass:
       <div className="min-w-0 flex-1">
         <div className={`text-[12px] leading-relaxed ${bodyClass}`}>{item.line}</div>
         {item.toolLabel && (
-          <div className={`mt-1 inline-block rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] ${quietClass}`}>
+          <div className={`mt-1 inline-block rounded-full border border-[var(--border-c-default)] px-1.5 py-0.5 text-[10px] ${quietClass}`}>
             {item.toolLabel}
           </div>
         )}
@@ -101,10 +101,10 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
   const hasFallback = !!fallbackText.trim();
   if (!hasEvents && !hasFallback && !isRunning) return null;
 
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const bodyTextClass = isDarkMode ? 'text-white/72' : 'text-slate-700';
-  const borderClass = isDarkMode ? 'border-white/10' : 'border-slate-200';
-  const hoverBgClass = isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50';
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const bodyTextClass = 'text-[var(--text-primary)]';
+  const borderClass = 'border-[var(--border-c-default)]';
+  const hoverBgClass = 'hover:bg-[var(--hover-darken)]';
   const stepCount = hasEvents ? displayItems.length : 1;
   const liveItems = hasEvents ? displayItems : [{
     id: 'agent-live-waiting',
@@ -121,7 +121,7 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
           <Activity size={13} className="text-[var(--os-vnext-brand-blue)] animate-pulse" />
           <span>工作过程</span>
         </div>
-        <div className={`space-y-3 border-l pl-3 ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
+        <div className={`space-y-3 border-l pl-3 border-[var(--border-c-default)]`}>
           {liveItems.map(item => renderEventRow(item, bodyTextClass, quietTextClass))}
         </div>
       </div>
@@ -168,7 +168,7 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
                   {isRunning && (
                     <div className="flex items-start gap-2.5 opacity-60">
                       <div className="mt-[3px] shrink-0">
-                        <CircleDashed size={13} className="text-slate-400 animate-spin" />
+                        <CircleDashed size={13} className="text-[var(--text-tertiary)] animate-spin" />
                       </div>
                       <div className={`text-[12px] leading-relaxed ${quietTextClass}`}>
                         执行中...

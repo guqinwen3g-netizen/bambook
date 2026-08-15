@@ -25,11 +25,11 @@ const HOOK_TYPE_LABEL: Record<AgentProcessDraftPostCommitHook['type'], string> =
 };
 
 const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolean }> = ({ draft, isDarkMode }) => {
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const labelCls = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const beforeCls = isDarkMode ? 'text-white/55 line-through' : 'text-slate-500 line-through';
-  const afterCls = isDarkMode ? 'text-white/70' : 'text-slate-600';
-  const rowBorder = isDarkMode ? 'border-white/[0.05]' : 'border-slate-200/50';
+  const quietText = BAMBOOK_OS.tone.text.quiet;
+  const labelCls = BAMBOOK_OS.tone.text.formLabel;
+  const beforeCls = 'text-[var(--text-tertiary)] line-through';
+  const afterCls = 'text-[var(--text-secondary)]';
+  const rowBorder = 'border-[var(--border-c-subtle)]';
 
   return (
     <div className={`mt-2 flex flex-col gap-2 rounded-compact border ${rowBorder} px-2.5 py-2`}>
@@ -42,7 +42,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           <div className="flex flex-col gap-1">
             {draft.beforeAfterDiff.map((diff: AgentProcessDraftFieldDiff, idx: number) => (
               <div key={`${diff.entity}_${diff.entityId}_${diff.field}_${idx}`} className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11.5px] leading-relaxed">
-                <span className={`font-light ${isDarkMode ? 'text-white/75' : 'text-slate-700'}`}>{diff.entity}.{diff.field}</span>
+                <span className={`font-light text-[var(--text-primary)]`}>{diff.entity}.{diff.field}</span>
                 {diff.before != null && diff.before !== '' && (
                   <span className={`break-all ${beforeCls}`}>{formatDraftValue(diff.before)}</span>
                 )}
@@ -63,7 +63,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
             {draft.subOperations.map((op, idx) => (
               <div key={`${op.toolId}_${op.entityId}_${idx}`} className={`flex items-center gap-1.5 text-[11px] ${quietText}`}>
                 <span className="tabular-nums">{idx + 1}.</span>
-                <span className={`font-light ${isDarkMode ? 'text-white/65' : 'text-slate-600'}`}>{op.action}</span>
+                <span className={`font-light text-[var(--text-secondary)]`}>{op.action}</span>
                 <span>→</span>
                 <span className="truncate">{op.toolId}</span>
               </div>
@@ -79,7 +79,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           </div>
           <div className="flex flex-wrap gap-1">
             {draft.impactScope.map((scope: string, idx: number) => (
-              <span key={idx} className={`rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>{scope}</span>
+              <span key={idx} className={`rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>{scope}</span>
             ))}
           </div>
         </div>
@@ -87,13 +87,13 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {(draft.irreversible || draft.postCommitHooks.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {draft.irreversible && (
-            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
               <AlertTriangle size={10} />
               <span>不可逆操作</span>
             </span>
           )}
           {draft.postCommitHooks.map((hook: AgentProcessDraftPostCommitHook, idx: number) => (
-            <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
               <Mail size={10} />
               <span>提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
             </span>
@@ -112,9 +112,9 @@ const approvalLabel: Record<AgentApprovalBlockModel['approvalStatus'], string> =
 };
 
 export const AgentApprovalBlock: React.FC<AgentBlockComponentProps<AgentApprovalBlockModel>> = ({ block, isDarkMode, onExecuteAction }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
 
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
@@ -124,7 +124,7 @@ export const AgentApprovalBlock: React.FC<AgentBlockComponentProps<AgentApproval
         </div>
         <div className="min-w-0 flex-1">
           <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '需要确认'}</div>
-          <div className={`mt-1 text-xs leading-5 ${isDarkMode ? 'text-white/78' : 'text-slate-800'}`}>{block.proposedAction}</div>
+          <div className={`mt-1 text-xs leading-5 text-[var(--text-primary)]`}>{block.proposedAction}</div>
           {block.processDraft && <ProcessDraftView draft={block.processDraft} isDarkMode={isDarkMode} />}
           <div className={`mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-widest ${quietTextClass}`}>
             <span className={`rounded-full border px-2 py-1 ${borderClass}`}>{approvalLabel[block.approvalStatus]}</span>

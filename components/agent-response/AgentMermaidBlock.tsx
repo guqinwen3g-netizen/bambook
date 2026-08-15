@@ -46,9 +46,9 @@ let renderCounter = 0;
 const nextId = () => `bambook-mermaid-${Date.now().toString(36)}-${(++renderCounter).toString(36)}`;
 
 export const AgentMermaidBlock: React.FC<AgentBlockComponentProps<AgentMermaidBlockModel>> = ({ block, isDarkMode }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
@@ -115,12 +115,12 @@ export const AgentMermaidBlock: React.FC<AgentBlockComponentProps<AgentMermaidBl
 
       <div
         ref={containerRef}
-        className={`mt-3 overflow-x-auto rounded-compact border px-3 py-3 ${borderClass} ${isDarkMode ? 'bg-black/20' : 'bg-white/60'}`}
+        className={`mt-3 overflow-x-auto rounded-compact border px-3 py-3 ${borderClass} bg-[var(--recessed-bg)] dark:bg-black/20`}
         style={{ minHeight: 80 }}
       >
         {error ? (
           <div className="flex flex-col gap-1 text-[11px]">
-            <span className={isDarkMode ? 'text-white/70' : 'text-slate-600'}>无法渲染 mermaid 图：{error}</span>
+            <span className="text-[var(--text-secondary)]">无法渲染 mermaid 图：{error}</span>
             <details>
               <summary className={`cursor-pointer ${quietTextClass}`}>查看源码</summary>
               <pre className={`mt-2 whitespace-pre-wrap text-[10px] ${quietTextClass}`}>{block.code}</pre>

@@ -736,9 +736,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
     const dashboardVelocityHubClass = useExpandedDashboardLayout
         ? 'min-w-0 w-full perspective-[1200px] h-full pointer-events-auto'
         : 'col-start-7 col-span-6 row-start-1 min-w-0 w-full perspective-[1200px] h-full pointer-events-auto';
-    const dashboardHeaderPillClass = isDarkMode
-        ? BAMBOOK_OS.controls.actionControl.dark
-        : BAMBOOK_OS.controls.actionControl.light;
+    const dashboardHeaderPillClass = BAMBOOK_OS.controls.actionControl.base;
 
     const dashboardContent = (
         <div className={`relative w-full h-full bg-transparent selection:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.30)] pointer-events-none ${mobileSpatialClass}`}>
@@ -755,7 +753,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                     {/* Keep the title row flexible so it can make room for mobile chrome. */}
                     <div className={dashboardHeaderFrameClass}>
                         <div className="flex w-full flex-row flex-wrap justify-between items-center gap-4">
-                            <div className={`flex min-w-0 flex-1 items-center gap-5 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                            <div className={`flex min-w-0 flex-1 items-center gap-5 text-[var(--text-primary)]`}>
                                 <h1
                                     className="bambook-title-adaptive-ink text-3xl md:text-4xl font-light tracking-tight whitespace-nowrap text-os-adaptive-title transition-all"
                                 >
@@ -874,7 +872,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                             {productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}
                                         </div>
-                                        <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-white/[0.06]">
+                                        <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg)]">
                                             <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${outputPercent}%` }} />
                                         </div>
                                         </div>
@@ -886,7 +884,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="primary" className="mt-2 text-[24px] font-light leading-none tracking-tight text-os-adaptive-primary tabular-nums">
                                                     ${(totalValue / 1000).toFixed(1)}k
                                                 </div>
-                                                <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-white/[0.06]">
+                                                <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg)]">
                                                     <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
                                                 </div>
                                             </div>
@@ -1065,7 +1063,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <>
                                                     <div className="flex items-baseline gap-1">
                                                         <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-normal text-os-adaptive-subtitle">$</span>
-                                                        <div data-ui-lab-wallpaper-contrast="primary" className={`text-[30px] font-light leading-none tabular-nums tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                                        <div data-ui-lab-wallpaper-contrast="primary" className={`text-[30px] font-light leading-none tabular-nums tracking-tight text-[var(--text-primary)]`}>
                                                             {(totalValue / 1000).toFixed(1)}<span className="text-sm ml-0.5 font-light">k</span>
                                                         </div>
                                                     </div>
@@ -1125,7 +1123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             >
                                                 Fabric
                                             </button>
-                                            <div className="w-[1px] h-2 bg-slate-500/20" />
+                                            <div className="w-[1px] h-2 bg-accent/20" />
                                             <button
                                                 onClick={() => setActiveVelocity('garment')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'garment' ? 'brand' : 'muted'}
@@ -1182,7 +1180,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                                             ? (((d.weekly - d.prevWeekly) / d.prevWeekly) * 100).toFixed(1)
                                                                             : null;
                                                                     return (
-                                                                        <div className={`px-3 py-2 border rounded-control max-w-[240px] ${DASHBOARD_FLOATING_OVERLAY_CLASS} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                                                        <div className={`px-3 py-2 border rounded-control max-w-[240px] ${DASHBOARD_FLOATING_OVERLAY_CLASS} text-[var(--text-primary)]`}>
                                                                             <div className="text-[13px] font-normal tracking-wide mb-2">{kindLabel} · {d.weekRange ?? d.name}</div>
                                                                             <div className="flex flex-col gap-1">
                                                                                 <div className="flex justify-between gap-3">
@@ -1201,7 +1199,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                                                         </span>
                                                                                     </div>
                                                                                 )}
-                                                                                <div className="pt-1 mt-1 border-t border-white/10 flex justify-between gap-3">
+                                                                                <div className="pt-1 mt-1 border-t border-[var(--border-c-default)] flex justify-between gap-3">
                                                                                     <span className="text-[13px]">13w sum</span>
                                                                                     <span className="text-[13px] font-mono font-normal text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.cumulative)}</span>
                                                                                 </div>

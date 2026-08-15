@@ -185,14 +185,14 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
   const subPillCls = (active: boolean) =>
     `h-8 px-4 rounded-full text-[11px] font-light tracking-wide transition-all duration-200 ${
       active
-        ? isDarkMode ? 'bg-white/[0.09] text-white' : 'bg-white/70 text-slate-900'
-        : isDarkMode ? 'text-white/50 hover:text-white/80' : 'text-slate-500 hover:text-slate-800'
+        ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
+        : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
     }`;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center gap-2 px-1">
-        <div className={`flex items-center gap-1 rounded-full p-0.5 ${isDarkMode ? 'bg-white/[0.04]' : 'bg-white/30'}`}>
+        <div className={`flex items-center gap-1 rounded-full p-0.5 bg-[var(--recessed-bg)]`}>
           <button className={subPillCls(subView === 'runs')} onClick={() => setSubView('runs')}>工资单</button>
           <button className={subPillCls(subView === 'salary')} onClick={() => setSubView('salary')}>薪资结构</button>
         </div>
@@ -273,7 +273,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
             <div className={`${t.cardClass} flex min-h-0 flex-col overflow-hidden`}>
               {runDetail ? (
                 <>
-                  <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+                  <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
                     <span className={t.sectionTitleClass}>{runDetail.period} 工资单</span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-light ${statusSemanticClass(runSemantic(runDetail.status), isDarkMode)}`}>
                       {hrOptionLabel(PAYROLL_STATUS_OPTIONS, runDetail.status)}
@@ -294,7 +294,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-[minmax(0,1fr)_90px_80px_80px_80px_80px_80px_100px_72px] border-b border-white/[0.06]">
+                  <div className="grid grid-cols-[minmax(0,1fr)_90px_80px_80px_80px_80px_80px_100px_72px] border-b border-[var(--border-c-default)]">
                     <div className={t.thCls}>员工</div>
                     <div className={t.thCls}>基本</div>
                     <div className={t.thCls}>津贴</div>
@@ -327,7 +327,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                           </div>
                         </div>
                         {editingItemId === item.id && (
-                          <div className="grid grid-cols-[repeat(5,minmax(0,1fr))_auto] items-end gap-2 border-b border-white/[0.05] bg-white/[0.015] px-4 py-3">
+                          <div className="grid grid-cols-[repeat(5,minmax(0,1fr))_auto] items-end gap-2 border-b border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-4 py-3">
                             <div>
                               <div className={t.labelCls + ' mb-1'}>加班费</div>
                               <input type="number" step="0.01" className={t.inputCls} value={itemForm.overtimePay}
@@ -424,7 +424,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
           )}
 
           <div className={`${t.cardClass} mx-1 flex-1 min-h-0 flex flex-col overflow-hidden`}>
-            <div className="grid grid-cols-[110px_110px_120px_120px_minmax(0,1fr)] border-b border-white/[0.06]">
+            <div className="grid grid-cols-[110px_110px_120px_120px_minmax(0,1fr)] border-b border-[var(--border-c-default)]">
               <div className={t.thCls}>基本工资</div>
               <div className={t.thCls}>岗位津贴</div>
               <div className={t.thCls}>生效起</div>

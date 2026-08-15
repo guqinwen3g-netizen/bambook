@@ -31,22 +31,12 @@ import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import {
-  RELATIONS_FORM_NESTED_ROW_DARK_CLASS,
-  RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS,
   RELATIONS_FORM_MAP_PANEL_CLASS,
+  RELATIONS_FORM_NESTED_ROW_CLASS,
   RELATIONS_FORM_PANEL_CLASS,
   RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING,
-  RELATIONS_FORM_QUIET_ACTION_DARK_CLASS,
-  RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS,
+  RELATIONS_FORM_QUIET_ACTION_CLASS,
 } from './ui/relationsFormStyles';
-import {
-  SIDEBAR_ACTIVE_DARK_CLASS,
-  SIDEBAR_ACTIVE_LIGHT_CLASS,
-  SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_HOVER_LIGHT_CLASS,
-  SIDEBAR_PRESS_DARK_CLASS,
-  SIDEBAR_PRESS_LIGHT_CLASS,
-} from './Sidebar';
 
 interface ProductsProps {
   products: ProductAsset[];
@@ -160,13 +150,11 @@ export const PRODUCT_TITLE_PAGE_LABEL_CLASS = BAMBOOK_OS.controls.title.pageLabe
 export const PRODUCT_TITLE_SEPARATOR_CLASS = 'h-9 w-5 flex items-center justify-center shrink-0';
 export const PRODUCT_TITLE_ICON_BUTTON_CLASS = BAMBOOK_OS.controls.title.iconButton;
 export const PRODUCT_TITLE_ACTION_BUTTON_CLASS = BAMBOOK_OS.controls.title.actionButton;
-export const PRODUCT_TITLE_BUTTON_DARK_CLASS = BAMBOOK_OS.controls.actionControl.dark;
-export const PRODUCT_TITLE_BUTTON_LIGHT_CLASS = BAMBOOK_OS.controls.actionControl.light;
+export const PRODUCT_TITLE_BUTTON_CLASS = BAMBOOK_OS.controls.actionControl.base;
 export const PRODUCT_CATEGORY_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,316px)] justify-center gap-6 content-start';
 export const PRODUCT_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,300px)] justify-center gap-6 content-start';
 export const PRODUCT_CARD_CLASS = 'p-6 h-[220px] rounded-card-lg';
-export const PRODUCT_CARD_DARK_CLASS = `${OS_MATERIAL.raisedCard} bambook-panel-glass`;
-export const PRODUCT_CARD_LIGHT_CLASS = `${OS_MATERIAL.raisedCard} bambook-panel-glass`;
+export const PRODUCT_CARD_SURFACE_CLASS = `${OS_MATERIAL.raisedCard} bambook-panel-glass`;
 export const PRODUCT_CARD_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight.cardDarkColor;
 export const PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.cardLightColor;
 export const PRODUCT_CARD_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.spotlight.panelDarkSize;
@@ -180,27 +168,18 @@ export const PRODUCT_EDGE_FADE_BOTTOM_HEIGHT = 72;
 export const PRODUCT_TOOLBAR_CLASS = BAMBOOK_OS.controls.toolbar.base;
 export const PRODUCT_TOOLBAR_CONTENT_CLASS = BAMBOOK_OS.controls.toolbar.content;
 export const PRODUCT_TOOLBAR_AMBIENT_CLASS = BAMBOOK_OS.controls.toolbar.ambient;
-export const PRODUCT_TOOLBAR_SURFACE_DARK_CLASS = BAMBOOK_OS.controls.toolbar.surfaceDark;
-export const PRODUCT_TOOLBAR_SURFACE_LIGHT_CLASS = BAMBOOK_OS.controls.toolbar.surfaceLight;
-export const PRODUCT_TOOLBAR_SEARCH_DARK_CLASS = BAMBOOK_OS.controls.toolbar.searchDark;
-export const PRODUCT_TOOLBAR_SEARCH_LIGHT_CLASS = BAMBOOK_OS.controls.toolbar.searchLight;
+export const PRODUCT_TOOLBAR_SURFACE_CLASS = BAMBOOK_OS.controls.toolbar.surface;
+export const PRODUCT_TOOLBAR_SEARCH_CLASS = BAMBOOK_OS.controls.toolbar.search;
 export const PRODUCT_TOOLBAR_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.controls.toolbar.spotlightDarkSize;
 export const PRODUCT_TOOLBAR_SPOTLIGHT_LIGHT_SIZE = BAMBOOK_OS.controls.toolbar.spotlightLightSize;
 export const PRODUCT_SEGMENT_BUTTON_CLASS = `relative z-20 h-9 w-7 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
-export const PRODUCT_FORM_FIELD_DARK_CLASS = BAMBOOK_OS.controls.recessedField.dark;
-export const PRODUCT_FORM_FIELD_LIGHT_CLASS = BAMBOOK_OS.controls.recessedField.light;
-export const PRODUCT_FORM_LABEL_DARK_CLASS = BAMBOOK_OS.tone.text.formLabelDark;
-export const PRODUCT_FORM_LABEL_LIGHT_CLASS = BAMBOOK_OS.tone.text.formLabelLight;
-export const PRODUCT_FORM_SECTION_TITLE_DARK_CLASS = 'text-white/62';
-export const PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS = 'text-slate-950';
-export const PRODUCT_FORM_MAP_INDEX_DARK_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexDark}`;
-export const PRODUCT_FORM_MAP_INDEX_LIGHT_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexLight}`;
-export const PRODUCT_TABLE_HEADER_DARK_CLASS = BAMBOOK_OS.controls.table.headerDark;
-export const PRODUCT_TABLE_HEADER_LIGHT_CLASS = BAMBOOK_OS.controls.table.headerLight;
-export const PRODUCT_TABLE_ROW_HOVER_DARK_CLASS = BAMBOOK_OS.controls.table.rowHoverDark;
-export const PRODUCT_TABLE_ROW_HOVER_LIGHT_CLASS = BAMBOOK_OS.controls.table.rowHoverLight;
-export const PRODUCT_TABLE_CELL_BORDER_DARK_CLASS = BAMBOOK_OS.controls.table.cellBorderDark;
-export const PRODUCT_TABLE_CELL_BORDER_LIGHT_CLASS = BAMBOOK_OS.controls.table.cellBorderLight;
+export const PRODUCT_FORM_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
+export const PRODUCT_FORM_LABEL_CLASS = BAMBOOK_OS.tone.text.formLabel;
+export const PRODUCT_FORM_SECTION_TITLE_CLASS = 'text-[var(--text-primary)] dark:text-[var(--text-secondary)]';
+export const PRODUCT_FORM_MAP_INDEX_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`;
+export const PRODUCT_TABLE_HEADER_CLASS = BAMBOOK_OS.controls.table.header;
+export const PRODUCT_TABLE_ROW_HOVER_CLASS = BAMBOOK_OS.controls.table.rowHover;
+export const PRODUCT_TABLE_CELL_BORDER_CLASS = BAMBOOK_OS.controls.table.cellBorder;
 export const PRODUCT_DETAIL_PANEL_LAYOUT_CLASS = 'w-full h-full max-h-full min-h-0 overflow-hidden';
 export const PRODUCT_DETAIL_PANEL_CONTENT_CLASS = 'relative z-10 grid h-full min-h-0 grid-cols-[360px_minmax(0,1fr)] overflow-hidden';
 export const PRODUCT_DETAIL_MEDIA_PANEL_CLASS = 'min-h-0 p-6 flex flex-col gap-4';
@@ -236,7 +215,7 @@ const ProductFormSection = ({
     spotlightSizing={RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING}
     className={RELATIONS_FORM_PANEL_CLASS}
   >
-    <h4 className={`text-xs font-light tracking-wide mb-4 ${isDarkMode ? PRODUCT_FORM_SECTION_TITLE_DARK_CLASS : PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS}`}>{title}</h4>
+    <h4 className={`text-xs font-light tracking-wide mb-4 ${PRODUCT_FORM_SECTION_TITLE_CLASS}`}>{title}</h4>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
       {children}
     </div>
@@ -266,39 +245,39 @@ const RelatedOrders: React.FC<{
 
   if (!millQuality) {
     return (
-      <div className={`${PRODUCT_DETAIL_HISTORY_PANEL_CLASS} text-xs leading-relaxed ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+      <div className={`${PRODUCT_DETAIL_HISTORY_PANEL_CLASS} text-xs leading-relaxed text-[var(--text-tertiary)]`}>
         填写 Mill Quality 后可自动关联历史订单。
       </div>
     );
   }
 
   if (loading) {
-    return <div className={`text-xs ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>加载关联订单中…</div>;
+    return <div className={`text-xs text-[var(--text-tertiary)]`}>加载关联订单中…</div>;
   }
 
   if (lines.length === 0) {
     return (
-      <div className={`${PRODUCT_DETAIL_HISTORY_PANEL_CLASS} text-xs leading-relaxed ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+      <div className={`${PRODUCT_DETAIL_HISTORY_PANEL_CLASS} text-xs leading-relaxed text-[var(--text-tertiary)]`}>
         暂无关联订单（Mill Quality: {millQuality}）。历史调样、关联成衣将在样品/服装模块接入后补齐。
       </div>
     );
   }
 
   return (
-    <div className={`rounded-inset border overflow-hidden ${isDarkMode ? 'border-white/[0.08]' : 'border-slate-100'}`}>
-      <div className={`px-4 py-2.5 text-xs font-light ${isDarkMode ? 'bg-deep/60 text-white/60 border-b border-white/5' : 'bg-slate-50 text-slate-600'}`}>
+    <div className={`rounded-inset border overflow-hidden border-[var(--border-c-default)]`}>
+      <div className={`px-4 py-2.5 text-xs font-light bg-[var(--recessed-bg)] dark:bg-deep/60 dark:border-b dark:border-[var(--border-c-subtle)] text-[var(--text-secondary)]`}>
         关联订单 ({lines.length})
       </div>
       <div className="divide-y divide-white/5">
         {lines.map((line: any) => (
-          <div key={line.id} className={`px-4 py-2.5 flex items-center justify-between text-xs ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>
+          <div key={line.id} className={`px-4 py-2.5 flex items-center justify-between text-xs text-[var(--text-secondary)]`}>
             <div className="flex items-center gap-3 min-w-0">
               <span className="font-mono font-light">{line.order?.poNumber || '-'}-{String(line.itemNo || line.lineNumber).padStart(3, '0')}</span>
               <span className="truncate">{line.description || line.cloth || '-'}</span>
             </div>
             <div className="flex items-center gap-4 shrink-0">
               <span>{line.quantity?.toLocaleString() ?? '-'} {line.unit || ''}</span>
-              <span className={isDarkMode ? 'text-white/40' : 'text-slate-400'}>{line.order?.dueDate || ''}</span>
+              <span className={'text-[var(--text-tertiary)]'}>{line.order?.dueDate || ''}</span>
             </div>
           </div>
         ))}
@@ -369,15 +348,13 @@ const CertificationCheckboxes: React.FC<{
   };
 
   const labelCls = `text-[11px] font-light cursor-pointer select-none ${
-    isDarkMode ? 'text-slate-300' : 'text-slate-700'
+    'text-[var(--text-secondary)]'
   }`;
   const boxCls = (on: boolean) =>
     `w-4 h-4 rounded border transition-colors ${
       on
         ? 'bg-[var(--os-vnext-brand-blue-strong)] border-[var(--os-vnext-brand-blue-strong)]'
-        : isDarkMode
-          ? 'bg-white/5 border-white/20'
-          : 'bg-white border-slate-300'
+        : 'bg-[var(--bg-card)] border-[var(--border-c-strong)] dark:bg-[var(--recessed-bg)]'
     }`;
 
   return (
@@ -405,9 +382,7 @@ const CertificationCheckboxes: React.FC<{
       {customCerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customCerts.map(cert => (
-            <span key={cert} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-light ${
-              isDarkMode ? 'bg-[var(--os-vnext-brand-blue-strong)]/20 text-[var(--os-vnext-brand-blue-strong)]' : 'bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)]'
-            }`}>
+            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)] dark:bg-[var(--os-vnext-brand-blue-strong)]/20 dark:text-[var(--os-vnext-brand-blue-strong)]">
               {cert}
               <button type="button" onClick={() => removeCustom(cert)} className="opacity-60 hover:opacity-100">&times;</button>
             </span>
@@ -421,14 +396,14 @@ const CertificationCheckboxes: React.FC<{
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="其他认证（回车添加）"
           className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-all ${
-            isDarkMode ? 'bg-deep/60 border-white/10 text-white placeholder-white/20 focus:border-[var(--os-vnext-brand-blue-strong)]/40' : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-[var(--os-vnext-brand-blue)]'
+            'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--os-vnext-brand-blue)] dark:bg-deep/60 dark:focus:ring-0 dark:focus:border-[var(--os-vnext-brand-blue-strong)]/40'
           }`}
         />
         <button
           type="button"
           onClick={addCustom}
           className={`px-4 py-3 text-xs rounded-control font-light transition-all ${
-            isDarkMode ? 'bg-deep/80 text-slate-300 border border-white/10 hover:bg-deep' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)] dark:bg-deep/80 dark:border dark:border-[var(--border-c-default)] dark:hover:bg-deep'
           }`}
         >
           添加
@@ -1359,14 +1334,14 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
   const DetailItem = ({ label, value, wide = false }: { label: string; value?: string | number | null; wide?: boolean }) => (
     <div className={`${wide ? 'md:col-span-2' : ''} ${PRODUCT_DETAIL_ITEM_CLASS}`}>
-      <div className={`text-[10px] font-light tracking-wide ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>{label}</div>
-      <div className={`mt-1 text-sm font-light whitespace-pre-wrap break-words ${isDarkMode ? 'text-white/80' : 'text-slate-800'}`}>{detailValue(value)}</div>
+      <div className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>{label}</div>
+      <div className={`mt-1 text-sm font-light whitespace-pre-wrap break-words text-[var(--text-primary)]`}>{detailValue(value)}</div>
     </div>
   );
 
   const DetailSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <section className="space-y-3">
-      <h4 className={`text-xs font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>{title}</h4>
+      <h4 className={`text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>{title}</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{children}</div>
     </section>
   );
@@ -1394,26 +1369,26 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
   };
 
   const productFieldShellClass = `rounded-full border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all`;
-  const productInputClass = `w-full h-9 px-3 ${productFieldShellClass} leading-none ${isDarkMode ? PRODUCT_FORM_FIELD_DARK_CLASS : PRODUCT_FORM_FIELD_LIGHT_CLASS}`;
-  const productTextareaClass = `w-full px-3 py-3 ${productFieldShellClass} leading-relaxed resize-none ${isDarkMode ? PRODUCT_FORM_FIELD_DARK_CLASS : PRODUCT_FORM_FIELD_LIGHT_CLASS}`;
-  const productLabelClass = `text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ml-1 ${isDarkMode ? PRODUCT_FORM_LABEL_DARK_CLASS : PRODUCT_FORM_LABEL_LIGHT_CLASS}`;
-  const productFormSectionTitleClass = isDarkMode ? PRODUCT_FORM_SECTION_TITLE_DARK_CLASS : PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS;
-  const productFormMapIndexClass = isDarkMode ? PRODUCT_FORM_MAP_INDEX_DARK_CLASS : PRODUCT_FORM_MAP_INDEX_LIGHT_CLASS;
-  const productFormNestedRowClass = isDarkMode ? RELATIONS_FORM_NESTED_ROW_DARK_CLASS : RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS;
-  const productFormQuietActionClass = isDarkMode ? RELATIONS_FORM_QUIET_ACTION_DARK_CLASS : RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS;
-  const productActionButtonClass = isDarkMode ? PRODUCT_TITLE_BUTTON_DARK_CLASS : PRODUCT_TITLE_BUTTON_LIGHT_CLASS;
-  const productCardClass = isDarkMode ? PRODUCT_CARD_DARK_CLASS : PRODUCT_CARD_LIGHT_CLASS;
-  const productToolbarSurfaceClass = isDarkMode ? PRODUCT_TOOLBAR_SURFACE_DARK_CLASS : PRODUCT_TOOLBAR_SURFACE_LIGHT_CLASS;
-  const productTableHeaderClass = isDarkMode ? PRODUCT_TABLE_HEADER_DARK_CLASS : PRODUCT_TABLE_HEADER_LIGHT_CLASS;
-  const productTableRowHoverClass = isDarkMode ? PRODUCT_TABLE_ROW_HOVER_DARK_CLASS : PRODUCT_TABLE_ROW_HOVER_LIGHT_CLASS;
-  const productTableCellBorderClass = isDarkMode ? PRODUCT_TABLE_CELL_BORDER_DARK_CLASS : PRODUCT_TABLE_CELL_BORDER_LIGHT_CLASS;
-  const productMutedTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
+  const productInputClass = `w-full h-9 px-3 ${productFieldShellClass} leading-none ${PRODUCT_FORM_FIELD_CLASS}`;
+  const productTextareaClass = `w-full px-3 py-3 ${productFieldShellClass} leading-relaxed resize-none ${PRODUCT_FORM_FIELD_CLASS}`;
+  const productLabelClass = `text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ml-1 ${PRODUCT_FORM_LABEL_CLASS}`;
+  const productFormSectionTitleClass = PRODUCT_FORM_SECTION_TITLE_CLASS;
+  const productFormMapIndexClass = PRODUCT_FORM_MAP_INDEX_CLASS;
+  const productFormNestedRowClass = RELATIONS_FORM_NESTED_ROW_CLASS;
+  const productFormQuietActionClass = RELATIONS_FORM_QUIET_ACTION_CLASS;
+  const productActionButtonClass = PRODUCT_TITLE_BUTTON_CLASS;
+  const productCardClass = PRODUCT_CARD_SURFACE_CLASS;
+  const productToolbarSurfaceClass = PRODUCT_TOOLBAR_SURFACE_CLASS;
+  const productTableHeaderClass = PRODUCT_TABLE_HEADER_CLASS;
+  const productTableRowHoverClass = PRODUCT_TABLE_ROW_HOVER_CLASS;
+  const productTableCellBorderClass = PRODUCT_TABLE_CELL_BORDER_CLASS;
+  const productMutedTextClass = BAMBOOK_OS.tone.text.quiet;
   const productGlassPanelClass = `${OS_MATERIAL.framePanel} bambook-panel-glass bambook-outer-panel`;
   const productFloatingPanelClass = `${OS_MATERIAL.floatingOverlay} bambook-panel-glass`;
   const productStatusChipClass = (complete: boolean) =>
     complete
-      ? (isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-soft)] border-white/10 shadow-none' : 'bg-[var(--os-vnext-brand-blue)]/6 text-[var(--os-vnext-brand-blue-strong)] border-slate-200/50')
-      : (isDarkMode ? 'bg-white/[0.02] text-white/40 border-white/[0.04]' : 'bg-black/[0.02] text-slate-400 border-slate-200/30');
+      ? 'bg-[var(--os-vnext-brand-blue)]/6 text-[var(--os-vnext-brand-blue-strong)] border-[var(--border-c-default)] dark:bg-[var(--os-vnext-brand-blue)]/10 dark:text-[var(--os-vnext-brand-blue-soft)] dark:shadow-none'
+      : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-subtle)]';
   const enabledProductTableColumnIds = new Set(
     moduleSettings?.visibleTableColumnIds?.length
       ? moduleSettings.visibleTableColumnIds
@@ -1432,8 +1407,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       widthClass: 'w-[16%]',
       render: (product: ProductAsset) => (
         <div className="px-4 py-3 min-w-[180px]">
-          <div className={`font-light ${isDarkMode ? 'text-white/85' : 'text-slate-900'}`}>{product.name}</div>
-          <div className={`${isDarkMode ? 'text-white/30' : 'text-slate-400'} mt-1`}>{product.status}</div>
+          <div className={`font-light text-[var(--text-primary)]`}>{product.name}</div>
+          <div className={`text-[var(--text-tertiary)] mt-1`}>{product.status}</div>
         </div>
       ),
     },
@@ -1494,7 +1469,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             {fabricCompleteness(product).complete ? '完整' : `缺 ${fabricCompleteness(product).missing.length} 项`}
           </span>
           {!fabricCompleteness(product).complete && (
-            <div className={`mt-1 text-[10px] truncate ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+            <div className={`mt-1 text-[10px] truncate text-[var(--text-tertiary)]`}>
               {fabricCompleteness(product).missing.slice(0, 2).join('、')}
               {fabricCompleteness(product).missing.length > 2 ? '…' : ''}
             </div>
@@ -1523,7 +1498,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       >
         <span className={PRODUCT_TOOLBAR_AMBIENT_CLASS} aria-hidden="true" />
         <div className={PRODUCT_TOOLBAR_CONTENT_CLASS}>
-        <span className={`relative z-10 px-2 text-[10px] font-light tracking-[0.18em] uppercase ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+        <span className={`relative z-10 px-2 text-[10px] font-light tracking-[0.18em] uppercase text-[var(--text-tertiary)]`}>
           筛选
         </span>
         <CustomSelect
@@ -1559,12 +1534,12 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       <span className={PRODUCT_TOOLBAR_AMBIENT_CLASS} aria-hidden="true" />
       <div className={PRODUCT_TOOLBAR_CONTENT_CLASS}>
       <div className="relative h-9 min-w-0 flex-1">
-        <Search className={`absolute left-3 top-1/2 z-10 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} size={14} />
+        <Search className={`absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--text-tertiary)]`} size={14} />
         <input
           placeholder="搜索 SKU、款名..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className={`h-9 w-full rounded-control border pl-10 pr-3 outline-none font-light text-xs ${isDarkMode ? PRODUCT_TOOLBAR_SEARCH_DARK_CLASS : PRODUCT_TOOLBAR_SEARCH_LIGHT_CLASS}`}
+          className={`h-9 w-full rounded-control border pl-10 pr-3 outline-none font-light text-xs ${PRODUCT_TOOLBAR_SEARCH_CLASS}`}
         />
       </div>
 
@@ -1588,7 +1563,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         <button
           type="button"
           onClick={() => setListDisplayMode(listDisplayMode === 'grid' ? 'table' : 'grid')}
-          className={`${PRODUCT_SEGMENT_BUTTON_CLASS} ${isDarkMode ? 'text-slate-50 opacity-100 ' : 'text-[var(--os-vnext-brand-blue)] opacity-100 '}`}
+          className={`${PRODUCT_SEGMENT_BUTTON_CLASS} text-[var(--text-primary)] opacity-100 `}
           aria-label={listDisplayMode === 'grid' ? '切换到表格视图' : '切换到格子视图'}
         >
           {listDisplayMode === 'grid' ? (
@@ -1933,7 +1908,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             </button>
             </SpotlightCard>
           )}
-          <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+          <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
             {selectedMain && (
               <>
                 <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
@@ -1947,7 +1922,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     setSearchTerm('');
                   }}
                   data-ui-lab-wallpaper-contrast="primary"
-                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors ${isDarkMode ? 'text-white/70 hover:text-white' : 'text-slate-700 hover:text-[var(--os-vnext-brand-blue)]'}`}
+                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors text-[var(--text-secondary)] hover:text-[var(--os-vnext-brand-blue)] dark:hover:text-[var(--text-primary)]`}
                 >
                   {mainCategories.find(c => c.id === selectedMain)?.label}
                 </button>
@@ -1958,7 +1933,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
                   <ChevronRight size={18} strokeWidth={1.4} />
                 </span>
-                <span data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>
+                <span data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} text-[var(--text-secondary)]`}>
                   {selectedSubId === ALL_PRODUCTS_CATEGORY_ID
                     ? '全部档案'
                     : categoryGroups.find(group => group.id === selectedSubId)?.name || '列表'}
@@ -1981,7 +1956,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           <>
         <div className="flex h-full items-center gap-2 shrink-0">
           {productWriteError && (
-            <div className={`max-w-[280px] truncate text-[11px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+            <div className={`max-w-[280px] truncate text-[11px] font-light text-[var(--text-secondary)]`}>
               {productWriteError}
             </div>
           )}
@@ -2080,20 +2055,20 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 className={`group relative isolate overflow-hidden ${isMobile ? 'p-4 h-[190px] rounded-inset' : 'p-6 h-[220px] rounded-card-lg'} flex flex-col items-start text-left transition-colors duration-200 ${productCardClass}`}
                 data-glass-edge-mask
               >
-                <div className={`relative z-10 -ml-1 -mt-1 ${isMobile ? 'mb-3 flex h-9 w-9' : 'mb-4 flex h-10 w-10'} items-center justify-center transition-colors duration-300 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100' : 'text-[var(--os-vnext-brand-blue)]'}`}>
+                <div className={`relative z-10 -ml-1 -mt-1 ${isMobile ? 'mb-3 flex h-9 w-9' : 'mb-4 flex h-10 w-10'} items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
                   <cat.icon size={24} strokeWidth={1} />
                 </div>
 
-                <h3 className={`relative z-10 ${isMobile ? 'text-sm' : 'text-base'} font-light tracking-tight ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+                <h3 className={`relative z-10 ${isMobile ? 'text-sm' : 'text-base'} font-light tracking-tight text-[var(--text-primary)]`}>
                   {cat.label}
                 </h3>
-                <p className={`relative z-10 ${isMobile ? 'text-[10px] line-clamp-2' : 'text-[12px] line-clamp-3'} mt-2 font-light leading-relaxed ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+                <p className={`relative z-10 ${isMobile ? 'text-[10px] line-clamp-2' : 'text-[12px] line-clamp-3'} mt-2 font-light leading-relaxed text-[var(--text-tertiary)]`}>
                   {cat.desc}
                 </p>
 
-                <div className={`relative z-10 mt-auto flex items-center gap-2 pt-4 border-t w-full ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}>
-                  <span className={`text-[9px] font-light tracking-wide flex items-center gap-1.5 ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
-                    <Library size={12} strokeWidth={1.5} className={isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]'} />
+                <div className={`relative z-10 mt-auto flex items-center gap-2 pt-4 border-t w-full border-[var(--border-c-default)]`}>
+                  <span className={`text-[9px] font-light tracking-wide flex items-center gap-1.5 text-[var(--text-tertiary)]`}>
+                    <Library size={12} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]" />
                     {products.filter(p => p.mainCategory === cat.id && !p.deletedAt).length} SKU 档案
                   </span>
                 </div>
@@ -2110,7 +2085,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION }}
               className={`${productGlassPanelClass} overflow-hidden flex h-full min-h-0 flex-col`}
             >
-              <div className={`hidden md:grid shrink-0 grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] items-center gap-5 border-b px-6 py-3 text-[10px] font-light tracking-wide ${isDarkMode ? 'border-white/[0.06] text-white/35' : 'border-white/50 text-slate-400'}`}>
+              <div className={`hidden md:grid shrink-0 grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] items-center gap-5 border-b px-6 py-3 text-[10px] font-light tracking-wide border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
                 <span>索引</span>
                 <span>档案</span>
                 <span>摘要</span>
@@ -2119,8 +2094,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               <div ref={subIndexScrollRef} className={`flex-1 min-h-0 overflow-y-scroll ${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}>
                 {categoryGroups.length === 0 && (
                   <div className={`flex min-h-[360px] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
-                    <Archive size={34} strokeWidth={1} className={isDarkMode ? 'text-white/30' : 'text-slate-400'} />
-                    <div className={`mt-4 text-sm font-light ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>当前分类暂无索引</div>
+                    <Archive size={34} strokeWidth={1} className={'text-[var(--text-tertiary)]'} />
+                    <div className={`mt-4 text-sm font-light text-[var(--text-secondary)]`}>当前分类暂无索引</div>
                     <div className="mt-2 max-w-sm text-xs font-light leading-relaxed">
                       这个主类目还没有子分类或可分组档案。可以新增子分类，或返回选择有数据的类目。
                     </div>
@@ -2156,39 +2131,39 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     idleSpotlightOpacity={0}
                     liquidSpotlight
                     liquidSpotlightTone="light"
-                    className={`group relative isolate cursor-pointer overflow-hidden ${PRODUCT_SUB_INDEX_ROW_CLASS} px-4 py-0 text-left transition-[background,box-shadow,color,transform] duration-200 ${isDarkMode ? 'border-white/[0.045] hover:bg-white/[0.035]' : 'border-white/45 hover:bg-white/28'}`}
+                    className={`group relative isolate cursor-pointer overflow-hidden ${PRODUCT_SUB_INDEX_ROW_CLASS} px-4 py-0 text-left transition-[background,box-shadow,color,transform] duration-200 border-[var(--border-c-default)] hover:bg-[var(--hover-darken)]`}
                     data-glass-edge-mask
                   >
                     <div className="relative z-10 grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] md:gap-5">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors duration-300 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100' : 'text-[var(--os-vnext-brand-blue)]'}`}>
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
                           {group.id === UNCATEGORIZED_CATEGORY_ID
                             ? <Archive size={20} strokeWidth={1} />
                             : <LayoutGrid size={20} strokeWidth={1} />
                           }
                         </div>
                         <div className="min-w-0">
-                          <h4 className={`truncate text-sm font-light ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>{group.name}</h4>
-                          <p className={`mt-1 truncate text-[10px] font-light md:hidden ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>{group.description}</p>
+                          <h4 className={`truncate text-sm font-light text-[var(--text-primary)]`}>{group.name}</h4>
+                          <p className={`mt-1 truncate text-[10px] font-light md:hidden text-[var(--text-tertiary)]`}>{group.description}</p>
                         </div>
                       </div>
 
                       <div className="hidden md:flex min-w-0 flex-col gap-1">
-                        <span className={`text-sm font-light ${isDarkMode ? 'text-white/82' : 'text-slate-900'}`}>{group.count}</span>
-                        <div className={`h-1 w-full overflow-hidden rounded-full ${isDarkMode ? 'bg-white/[0.055]' : 'bg-white/45'}`}>
+                        <span className={`text-sm font-light text-[var(--text-primary)]`}>{group.count}</span>
+                        <div className={`h-1 w-full overflow-hidden rounded-full bg-[var(--recessed-bg)]`}>
                           <span
-                            className={`block h-full rounded-full ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/55' : 'bg-[var(--os-vnext-brand-blue)]/45'}`}
+                            className={`block h-full rounded-full bg-[var(--os-vnext-brand-blue)]/45 dark:bg-[var(--os-vnext-brand-blue)]/55`}
                             style={{ width: `${Math.min(100, Math.max(4, ratio))}%` }}
                           />
                         </div>
                       </div>
 
-                      <p className={`hidden md:block min-w-0 truncate text-xs font-light ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>
+                      <p className={`hidden md:block min-w-0 truncate text-xs font-light text-[var(--text-tertiary)]`}>
                         {group.description}
                       </p>
 
                       <div className="flex items-center justify-end gap-1">
-                        <span className={`md:hidden text-xs font-light ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>{group.count}</span>
+                        <span className={`md:hidden text-xs font-light text-[var(--text-secondary)]`}>{group.count}</span>
                         {editableCategory && (
                           <>
                             <button
@@ -2215,7 +2190,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                             </button>
                           </>
                         )}
-                        <ChevronRight size={16} strokeWidth={1.4} className={isDarkMode ? 'text-white/32' : 'text-slate-400'} />
+                        <ChevronRight size={16} strokeWidth={1.4} className={'text-[var(--text-tertiary)]'} />
                       </div>
                     </div>
                   </CompiledMotionInteractiveCard>
@@ -2231,17 +2206,17 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             {isPdmlRawView ? (
               <div className={BAMBOOK_OS.layout.desktopTablePanelShellClass}>
                 <div className={`flex h-full min-h-0 w-full flex-col rounded-card border overflow-hidden ${productGlassPanelClass}`}>
-                  <div className={`shrink-0 px-6 py-4 border-b ${isDarkMode ? 'border-white/[0.055]' : 'border-white/40'}`}>
+                  <div className={`shrink-0 px-6 py-4 border-b border-[var(--border-c-default)]`}>
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <div className={`text-sm font-light ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>庞大面料原始缓存</div>
+                        <div className={`text-sm font-light text-[var(--text-primary)]`}>庞大面料原始缓存</div>
                         <div className={`mt-1 text-[11px] font-light ${productMutedTextClass}`}>
                           {pdmlRawLoading && pdmlRawFabrics.length === 0 ? '读取中' : `已加载 ${pdmlRawFabrics.length} / ${pdmlRawTotal || pdmlRawFabrics.length} 条缓存记录`}
                           {pdmlRawSyncedAt ? ` · 最近同步 ${new Date(pdmlRawSyncedAt).toLocaleString()}` : ''}
                         </div>
                       </div>
                       {pdmlRawError && (
-                        <div className={`max-w-[420px] truncate text-[11px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+                        <div className={`max-w-[420px] truncate text-[11px] font-light text-[var(--text-secondary)]`}>
                           {pdmlRawError}
                         </div>
                       )}
@@ -2270,14 +2245,14 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         <col className="w-[7%]" />
                         <col className="w-[4%]" />
                       </colgroup>
-                      <thead className={`${productTableHeaderClass} ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
+                      <thead className={`${productTableHeaderClass} text-[var(--text-tertiary)]`}>
                         <tr>
                           {['条码', '公司品号', '工厂品号', '供应商', '系列', '成份', '克重', '门幅', '登记', '状态'].map(header => (
                             <th key={header} className={`px-4 py-3 ${BAMBOOK_OS.typography.weight.tableHeader} tracking-wide whitespace-nowrap ${productTableCellBorderClass}`}>{header}</th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className={`divide-y ${isDarkMode ? 'divide-white/[0.045]' : 'divide-white/28'}`}>
+                      <tbody className={`divide-y divide-white/28 dark:divide-white/[0.045]`}>
                         {currentPdmlRawFabrics.map(row => (
                           <tr key={row.id} className={`transition-[background,box-shadow] ${productTableRowHoverClass}`}>
                             <td className={`px-4 py-3 font-light whitespace-nowrap ${productTableCellBorderClass}`}>{row.sourceId}</td>
@@ -2342,7 +2317,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       data-glass-edge-mask
                     >
                       <div className="relative z-10 flex justify-between items-start mb-3">
-                        <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100' : 'text-[var(--os-vnext-brand-blue)]'}`}>
+                        <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
                           <Library size={22} strokeWidth={1} />
                         </div>
                         <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(fabricCompleteness(product).complete)}`}>
@@ -2350,29 +2325,29 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         </span>
                       </div>
 
-                      <h3 className={`relative z-10 text-base font-light line-clamp-1 ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+                      <h3 className={`relative z-10 text-base font-light line-clamp-1 text-[var(--text-primary)]`}>
                         {product.name}
                       </h3>
-                      <p className={`relative z-10 text-xs font-light mt-1 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+                      <p className={`relative z-10 text-xs font-light mt-1 text-[var(--text-tertiary)]`}>
                         {product.fabricProfile?.articleNo || product.sku}
                       </p>
 
                       <div className="relative z-10 mt-3 space-y-1.5 flex-1 min-h-0">
-                        <div className={`flex items-center gap-2 text-xs font-light ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
-                          <Tag size={12} strokeWidth={1.5} className={isDarkMode ? 'text-white/30' : 'text-slate-400'} />
+                        <div className={`flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)]`}>
+                          <Tag size={12} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
                           <span className="truncate">{product.fabricProfile?.millQuality || 'Mill Quality 未填'}</span>
                         </div>
-                        <div className={`flex items-center gap-2 text-xs font-light ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
-                          <Box size={12} strokeWidth={1.5} className={isDarkMode ? 'text-white/30' : 'text-slate-400'} />
+                        <div className={`flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)]`}>
+                          <Box size={12} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
                           <span className="truncate">{product.fabricProfile?.millOrganizationId || '供应商未填'}</span>
                         </div>
                       </div>
 
-                      <div className={`relative z-10 mt-auto pt-3 border-t flex items-center justify-between gap-3 ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}>
+                      <div className={`relative z-10 mt-auto pt-3 border-t flex items-center justify-between gap-3 border-[var(--border-c-default)]`}>
                         <span className={`min-w-0 truncate text-[9px] font-light ${productMutedTextClass}`}>
                           {clientCodeText(product)}
                         </span>
-                        <span className={`shrink-0 text-[9px] font-light ${isDarkMode ? 'text-white/46' : 'text-slate-400'}`}>
+                        <span className={`shrink-0 text-[9px] font-light text-[var(--text-tertiary)]`}>
                           {formatPrice(product, 'factory')}
                         </span>
                       </div>
@@ -2381,8 +2356,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 </AnimatePresence>
                 {currentProducts.length === 0 && (
                   <div className={`col-span-full flex min-h-[360px] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
-                    <Archive size={34} strokeWidth={1} className={isDarkMode ? 'text-white/30' : 'text-slate-400'} />
-                    <div className={`mt-4 text-sm font-light ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>当前视图下暂无档案</div>
+                    <Archive size={34} strokeWidth={1} className={'text-[var(--text-tertiary)]'} />
+                    <div className={`mt-4 text-sm font-light text-[var(--text-secondary)]`}>当前视图下暂无档案</div>
                     <div className="mt-2 max-w-sm text-xs font-light leading-relaxed">
                       可以调整筛选、切换分类方式，或点击右上角录入档案。
                     </div>
@@ -2399,7 +2374,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 edgeFade={{ topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT, topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START, bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT }}
                 header={(
                   <div className="shrink-0 overflow-hidden">
-                    <div className={`flex w-full min-w-[1000px] text-left text-xs ${productTableHeaderClass} ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
+                    <div className={`flex w-full min-w-[1000px] text-left text-xs ${productTableHeaderClass} text-[var(--text-tertiary)]`}>
                       {productTableColumns.map(column => (
                         <div key={column.id} className={`${column.widthClass} px-4 py-3 ${BAMBOOK_OS.typography.weight.tableHeader} tracking-wide whitespace-nowrap ${productTableCellBorderClass}`}>{column.header}</div>
                       ))}
@@ -2411,7 +2386,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                   <div className={`p-12 text-center text-sm ${productMutedTextClass}`}>当前视图下暂无档案</div>
                 ) : undefined}
               >
-                <div className={`flex flex-col min-w-[1000px] text-left text-xs divide-y ${isDarkMode ? 'divide-white/[0.045]' : 'divide-white/28'}`}>
+                <div className={`flex flex-col min-w-[1000px] text-left text-xs divide-y divide-white/28 dark:divide-white/[0.045]`}>
                       {currentProducts.map((product, idx) => (
                         <CompiledMotionInteractiveCard
                           as="div"
@@ -2439,7 +2414,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setEditingProd(product); }}
-                                className={`p-2 rounded-control ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
+                                className={`p-2 rounded-control ${BAMBOOK_OS.controls.table.editAction}`}
                                 aria-label="编辑档案"
                               >
                                 <Edit2 size={13} />
@@ -2447,7 +2422,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setDeleteProdId(product.id); }}
-                                className={`p-2 rounded-control ${isDarkMode ? BAMBOOK_OS.controls.table.editActionDark : BAMBOOK_OS.controls.table.editActionLight}`}
+                                className={`p-2 rounded-control ${BAMBOOK_OS.controls.table.editAction}`}
                                 aria-label="归档档案"
                               >
                                 <Trash2 size={13} />
@@ -2475,13 +2450,13 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           <div className="space-y-4 py-4">
             <button
               onClick={() => { if (showOptionsSheet) { setEditingProd(showOptionsSheet); setShowOptionsSheet(null); } }}
-              className={`w-full p-4 rounded-full flex items-center gap-4 text-left font-light ${isDarkMode ? 'bg-slate-800/50 text-slate-200' : 'bg-slate-50 text-slate-700'}`}
+              className={`w-full p-4 rounded-full flex items-center gap-4 text-left font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}
             >
               <Edit2 size={18} /> 编辑产品信息
             </button>
             <button
               onClick={() => { if (showOptionsSheet) { setDeleteProdId(showOptionsSheet.id); setShowOptionsSheet(null); } }}
-              className={`w-full p-4 rounded-full flex items-center gap-4 text-left font-light ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100/60 text-slate-600'}`}
+              className={`w-full p-4 rounded-full flex items-center gap-4 text-left font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}
             >
               <Trash2 size={18} /> 归档此产品
             </button>
@@ -2500,12 +2475,12 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             materialRole="framePanel"
             spotlight
             isDarkMode={isDarkMode}
-            className={`${PRODUCT_DETAIL_PANEL_LAYOUT_CLASS} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}
+            className={`${PRODUCT_DETAIL_PANEL_LAYOUT_CLASS} text-[var(--text-primary)]`}
             contentClassName={PRODUCT_DETAIL_PANEL_CONTENT_CLASS}
             data-os-compiler-role="product-detail-panel"
           >
             <div
-              className={`${PRODUCT_DETAIL_MEDIA_PANEL_CLASS} ${isDarkMode ? 'border-r border-white/[0.07]' : 'border-r border-white/45'}`}
+              className={`${PRODUCT_DETAIL_MEDIA_PANEL_CLASS} border-r border-[var(--border-c-default)]`}
               data-os-compiler-role="product-detail-media-panel"
             >
               {(() => {
@@ -2518,7 +2493,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       {primaryImageSrc ? (
                         <img src={primaryImageSrc} alt={primaryImage?.fileName || selectedProduct.name} className="absolute inset-0 h-full w-full object-cover" />
                       ) : (
-                        <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                        <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center text-[var(--text-tertiary)]`}>
                           <ImageIcon size={34} strokeWidth={1.3} />
                           <div className="text-xs font-light leading-relaxed">
                             暂无产品图片
@@ -2532,27 +2507,27 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         <span className={`px-3 py-1 rounded-full border text-[10px] font-light tracking-wide ${productStatusChipClass(selectedProduct.status === 'Active')}`}>
                           {selectedProduct.status}
                         </span>
-                        <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>{selectedProduct.mainCategory}</span>
+                        <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>{selectedProduct.mainCategory}</span>
                       </div>
-                      <h3 className={`mt-4 text-xl font-light leading-tight tracking-tight ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>
+                      <h3 className={`mt-4 text-xl font-light leading-tight tracking-tight text-[var(--text-primary)]`}>
                         {selectedProduct.name}
                       </h3>
-                      <div className={`mt-3 flex items-center gap-2 text-xs ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>
+                      <div className={`mt-3 flex items-center gap-2 text-xs text-[var(--text-tertiary)]`}>
                         <Tag size={13} strokeWidth={1.5} />
                         <span className="min-w-0 truncate">{selectedProduct.sku}</span>
                       </div>
-                      <p className={`mt-2 text-xs font-light leading-relaxed ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                      <p className={`mt-2 text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>
                         {selectedProduct.fabricProfile?.colorDescription || selectedProduct.fabricProfile?.millQuality || selectedProduct.subCategoryId || '产品详情档案'}
                       </p>
                     </div>
 
                     {selectedProduct.mainCategory === 'Fabric' && (
                       <div className={PRODUCT_DETAIL_STATUS_PANEL_CLASS}>
-                        <div className={`text-xs font-light flex items-center gap-2 ${fabricCompleteness(selectedProduct).complete ? (isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]') : productMutedTextClass}`}>
+                        <div className={`text-xs font-light flex items-center gap-2 ${fabricCompleteness(selectedProduct).complete ? 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]' : productMutedTextClass}`}>
                           {fabricCompleteness(selectedProduct).complete ? <CheckCircle2 size={16} strokeWidth={1.5} /> : <AlertTriangle size={16} strokeWidth={1.5} />}
                           {fabricCompleteness(selectedProduct).complete ? '核心档案信息已完整' : `核心档案待补全：缺 ${fabricCompleteness(selectedProduct).missing.length} 项`}
                         </div>
-                        <div className={`mt-3 h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-white/70'}`}>
+                        <div className={`mt-3 h-2 rounded-full overflow-hidden bg-[var(--recessed-bg)]`}>
                           <div
                             className="h-full rounded-full bg-[var(--os-vnext-brand-blue)]"
                             style={{ width: `${fabricCompleteness(selectedProduct).percent}%` }}
@@ -2571,10 +2546,10 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     )}
 
                     <div className={`mt-auto ${PRODUCT_DETAIL_MEDIA_META_CLASS}`}>
-                      <div className={`text-[10px] font-light tracking-[0.22em] uppercase ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                      <div className={`text-[10px] font-light tracking-[0.22em] uppercase text-[var(--text-tertiary)]`}>
                         Media
                       </div>
-                      <div className={`mt-1 text-xs font-light leading-relaxed ${isDarkMode ? 'text-white/58' : 'text-slate-500'}`}>
+                      <div className={`mt-1 text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>
                         {displayImages.length > 0 ? `${displayImages.length} 张图片 · 主图预览` : '编辑档案后可上传产品图片。'}
                       </div>
                       {displayImages.length > 1 && (
@@ -2596,7 +2571,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             </div>
 
             <div className={PRODUCT_DETAIL_MAIN_PANEL_CLASS} data-os-compiler-role="product-detail-main-panel">
-              <div className={`${PRODUCT_DETAIL_HEADER_LAYOUT_CLASS} justify-end ${isDarkMode ? 'bg-deep/52 border-white/[0.08]' : 'bg-white/52 border-white/55'}`}>
+              <div className={`${PRODUCT_DETAIL_HEADER_LAYOUT_CLASS} justify-end bg-[var(--recessed-bg)] border-[var(--border-c-default)] dark:bg-deep/52`}>
                 <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
@@ -2647,25 +2622,25 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               </DetailSection>
 
               <section className="space-y-3">
-                <h4 className={`text-xs font-light tracking-wide ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>价格历史</h4>
+                <h4 className={`text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>价格历史</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {(['factory', 'customer'] as const).map(type => (
                     <div key={type} className={PRODUCT_DETAIL_HISTORY_PANEL_CLASS}>
-                      <div className={`text-[10px] font-light tracking-wide mb-3 ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>
+                      <div className={`text-[10px] font-light tracking-wide mb-3 text-[var(--text-tertiary)]`}>
                         {type === 'factory' ? '工厂价格历史' : '售价历史'}
                       </div>
                       <div className="space-y-2">
                         {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
-                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 ${isDarkMode ? 'bg-deep/40' : 'bg-white'}`}>
-                            <span className={`text-xs font-light ${isDarkMode ? 'text-white/80' : 'text-slate-800'}`}>
+                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 bg-white dark:bg-deep/40`}>
+                            <span className={`text-xs font-light text-[var(--text-primary)]`}>
                               {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
                             </span>
-                            <span className={`text-[10px] ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                            <span className={`text-[10px] text-[var(--text-tertiary)]`}>
                               {price.effectiveDate || new Date(price.updatedAt).toLocaleDateString()}
                             </span>
                           </div>
                         )) : (
-                          <div className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-slate-400'}`}>暂无历史价格</div>
+                          <div className={`text-xs text-[var(--text-tertiary)]`}>暂无历史价格</div>
                         )}
                       </div>
                     </div>
@@ -2694,14 +2669,14 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           <BottomSheet isOpen={showAddSubModal || !!editingSub} onClose={() => { setshowAddSubModal(false); setEditingSub(null); }} title={editingSub ? '编辑类目' : '新增子分类'} height="auto" isDarkMode={isDarkMode}>
             <form onSubmit={editingSub ? handleEditSub : handleAddSub} className="space-y-6 pt-4 pb-12">
               <div className="space-y-4">
-                <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">分类名称</label>
-                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类名称</label>
+                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
               </div>
               <div className="space-y-4">
-                <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">分类说明</label>
-                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-full outline-none font-light resize-none ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类说明</label>
+                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-full outline-none font-light resize-none bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
               </div>
-              <button type="submit" className={`w-full py-4 rounded-full font-light tracking-wide transition-all ${isDarkMode ? 'bg-white/10 text-white/80 hover:bg-white/15' : 'bg-white/70 border border-slate-200/60 text-slate-700 hover:bg-white/90 hover:text-slate-900'}`}>{editingSub ? '保存' : '确认'}</button>
+              <button type="submit" className={`w-full py-4 rounded-full font-light tracking-wide transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] border border-[var(--border-c-default)] hover:bg-[var(--active-darken)]`}>{editingSub ? '保存' : '确认'}</button>
             </form>
           </BottomSheet>
 
@@ -2710,7 +2685,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             <form onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="space-y-6 pt-2 pb-24">
               {editingProd && (
                 <div className="space-y-3">
-                  <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">产品图片</label>
+                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">产品图片</label>
                   <ImageUploader
                     productId={editingProd.id}
                     images={editingImages}
@@ -2721,26 +2696,26 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 </div>
               )}
               <div className="space-y-3">
-                <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">档案款名 (Name)</label>
-                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">档案款名 (Name)</label>
+                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">SKU</label>
-                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">SKU</label>
+                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">Season</label>
-                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Season</label>
+                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">Cost ($)</label>
-                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-full outline-none font-light ${isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-slate-50 border-slate-100'}`} />
+                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Cost ($)</label>
+                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
                 </div>
               </div>
               {renderFabricProfileFields(editingProd)}
               <div className="space-y-3">
-                <label className="text-[10px] font-light text-slate-400 tracking-wide ml-1">Status</label>
+                <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Status</label>
                 <input type="hidden" name="status" value={productStatusValue} />
                 <CustomSelect
                   value={productStatusValue}
@@ -2752,7 +2727,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                   className="w-full"
                 />
               </div>
-              <button type="submit" className={`w-full py-5 rounded-full font-light tracking-wide mt-4 transition-all ${isDarkMode ? 'bg-white/10 text-white/80 hover:bg-white/15' : 'bg-white/70 border border-slate-200/60 text-slate-700 hover:bg-white/90 hover:text-slate-900'}`}>{editingProd ? '保存修正' : '确认录入'}</button>
+              <button type="submit" className={`w-full py-5 rounded-full font-light tracking-wide mt-4 transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] border border-[var(--border-c-default)] hover:bg-[var(--active-darken)]`}>{editingProd ? '保存修正' : '确认录入'}</button>
             </form>
           </BottomSheet>
         </>
@@ -2760,7 +2735,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         <>
           {(showAddSubModal || editingSub) && (
             <motion.div
-              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md ${isDarkMode ? 'bg-slate-950/45' : 'bg-slate-950/15'}`}
+              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md bg-slate-950/60`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -2774,11 +2749,11 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 exit={{ opacity: 0, y: 12, scale: 0.98 }}
                 transition={{ duration: 0.22, ease: 'easeOut' }}
               >
-                <div className={`px-8 py-6 border-b ${isDarkMode ? 'border-white/[0.08]' : 'border-white/60'}`}>
-                  <p className={`text-[10px] font-light tracking-[0.24em] uppercase ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                <div className={`px-8 py-6 border-b border-[var(--border-c-default)]`}>
+                  <p className={`text-[10px] font-light tracking-[0.24em] uppercase text-[var(--text-tertiary)]`}>
                     {mainCategories.find(c => c.id === selectedMain)?.label || 'Digital Archive'}
                   </p>
-                  <h3 className={`mt-1 text-xl font-light tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  <h3 className={`mt-1 text-xl font-light tracking-tight text-[var(--text-primary)]`}>
                     {editingSub ? '编辑子分类' : '新增子分类'}
                   </h3>
                 </div>
@@ -2805,7 +2780,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     />
                   </div>
                 </div>
-                <div className={`px-8 py-5 border-t flex justify-end gap-3 ${isDarkMode ? 'border-white/10 bg-deep/26' : 'border-white/60 bg-white/22'}`}>
+                <div className={`px-8 py-5 border-t flex justify-end gap-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)] dark:bg-deep/26`}>
                   <button
                     type="button"
                     onClick={() => { setshowAddSubModal(false); setEditingSub(null); }}
@@ -2852,16 +2827,16 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         <ChevronLeft size={18} strokeWidth={1.4} />
                       </button>
                     </SpotlightCard>
-                    <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide ${isDarkMode ? 'text-white/48' : 'text-slate-400'}`}>
-                      <button type="button" onClick={() => { setShowAddProdModal(false); setEditingProd(null); }} className={`${PRODUCT_TITLE_TEXT_BUTTON_CLASS} ${isDarkMode ? 'text-white hover:text-white' : 'text-slate-900 hover:text-[var(--os-vnext-brand-blue)]'}`}>
-                        <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
+                      <button type="button" onClick={() => { setShowAddProdModal(false); setEditingProd(null); }} className={`${PRODUCT_TITLE_TEXT_BUTTON_CLASS} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}>
+                        <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} text-[var(--text-primary)]`}>
                           数字档案
                         </span>
                       </button>
                       <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
                         <ChevronRight size={18} strokeWidth={1.4} />
                       </span>
-                      <h3 data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>{editingProd ? '修正档案' : '录入档案'}</h3>
+                      <h3 data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} text-[var(--text-secondary)]`}>{editingProd ? '修正档案' : '录入档案'}</h3>
                     </div>
                   </div>
                     </>
@@ -2873,7 +2848,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       <button
                         type="button"
                         onClick={() => setDeleteProdId(editingProd.id)}
-                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border ${isDarkMode ? 'text-white/70 border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.08]' : 'text-slate-600 border-slate-300/40 hover:bg-slate-100/60 hover:border-slate-300/40'}`}
+                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border text-[var(--text-secondary)] border-[var(--border-c-default)] hover:bg-[var(--recessed-bg-hover)] hover:border-[var(--border-c-default)]`}
                       >
                         <Trash2 size={13} strokeWidth={1.5} /> 归档
                       </button>
@@ -2894,7 +2869,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       spotlightSize={isDarkMode ? 180 : 140}
                       idleSpotlightOpacity={0}
                       activeSpotlightOpacity={1}
-                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${compositionTotalIsComplete ? productActionButtonClass : 'bg-slate-200/50 text-slate-400 border-transparent cursor-not-allowed'}`}
+                      className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${compositionTotalIsComplete ? productActionButtonClass : 'bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)] border-transparent cursor-not-allowed'}`}
                     >
                       <button
                         type="submit"
@@ -2927,7 +2902,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <div className="flex items-center gap-3">
                                 <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>
                                 <div className="min-w-0">
-                                  <div className={`text-xs font-light ${isDarkMode ? 'text-white/75' : 'text-slate-800'}`}>{section.label}</div>
+                                  <div className={`text-xs font-light text-[var(--text-secondary)]`}>{section.label}</div>
                                   <div className={`text-[10px] mt-0.5 truncate ${productLabelClass}`}>{section.desc}</div>
                                 </div>
                               </div>
@@ -2964,7 +2939,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                           />
                         </div>
                         <div className={`rounded-inset border p-4 flex items-center ${productFormNestedRowClass}`}>
-                          <div className="w-[116px] h-[116px] rounded-inset bg-white border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-[116px] h-[116px] rounded-inset bg-[var(--bg-card)] border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
                             {skuQrDataUrl ? (
                               <img src={skuQrDataUrl} alt={`${skuForQr} QR Code`} className="w-full h-full object-contain" />
                             ) : (
@@ -3012,7 +2987,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                             ))}
                           </datalist>
                           <div className={`rounded-inset border p-4 space-y-3 ${productFormNestedRowClass}`}>
-                            <div className={`grid grid-cols-[90px_100px_minmax(0,1fr)_minmax(0,1fr)_40px] gap-3 px-1 text-[10px] font-light tracking-wide ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                            <div className={`grid grid-cols-[90px_100px_minmax(0,1fr)_minmax(0,1fr)_40px] gap-3 px-1 text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>
                               <span>比例</span>
                               <span>缩写</span>
                               <span>中文名称</span>
@@ -3067,7 +3042,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               </div>
                             ))}
                             <div className="flex items-center justify-between gap-3 pt-1">
-                              <p className={`text-[11px] leading-relaxed ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                              <p className={`text-[11px] leading-relaxed text-[var(--text-tertiary)]`}>
                                 成分词条以《成份符号.xls》为准；输入符号、全称或名称会自动补齐，不在表内的词条不能保存。
                               </p>
                               <button
@@ -3078,12 +3053,12 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                                 添加成分
                               </button>
                             </div>
-                            <div className={`rounded-inset border px-4 py-3 text-[11px] font-light ${productFormNestedRowClass} ${compositionTotalIsComplete ? (isDarkMode ? 'text-white/70' : 'text-slate-600') : compositionTotalIsOver ? (isDarkMode ? 'text-white/70' : 'text-slate-600') : (isDarkMode ? 'text-white/70' : 'text-slate-600')}`}>
+                            <div className={`rounded-inset border px-4 py-3 text-[11px] font-light ${productFormNestedRowClass} text-[var(--text-secondary)]`}>
                               成分合计：{compositionTotal}% · {compositionValidationMessage}
                             </div>
                           </div>
                           {compositionDraftText() && (
-                            <div className={`text-[11px] font-light ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+                            <div className={`text-[11px] font-light text-[var(--text-tertiary)]`}>
                               当前成分：{compositionDraftText()}
                             </div>
                           )}
@@ -3100,27 +3075,27 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
       {(deleteSubId || deleteProdId) && (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`${isDarkMode ? 'bg-deep/90 border border-white/10' : 'bg-white'} rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
+          <div className={`bg-[var(--bg-card)] dark:bg-deep/90 dark:border dark:border-[var(--border-c-default)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
-              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${isDarkMode ? 'bg-white/[0.06] text-white/70 border-white/[0.08]' : 'bg-slate-100/60 text-slate-600 border-slate-300/40'}`}>
+              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-[var(--border-c-default)]`}>
                 <AlertTriangle size={32} strokeWidth={1} />
               </div>
               <div className="space-y-2">
-                <h3 className={`text-lg font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{deleteSubId ? '确认移除分类？' : '确认归档产品？'}</h3>
-                <p className="text-sm text-slate-400 font-light leading-relaxed">
+                <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{deleteSubId ? '确认移除分类？' : '确认归档产品？'}</h3>
+                <p className="text-sm text-[var(--text-tertiary)] font-light leading-relaxed">
                   {deleteSubId ? '该分类下的所有 SKU 将失去此分类关联，但原始档案不会被删除。' : '该产品 SKU 将从当前活跃列表中移除并存入历史档案库。'}
                 </p>
               </div>
               <div className="flex flex-col gap-3 pt-4">
                 <button
                   onClick={deleteSubId ? handleDeleteSub : handleDeleteProduct}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all ${isDarkMode ? 'bg-white/[0.06] text-white/70 hover:bg-white/[0.08] border border-white/[0.08]' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-200/60'}`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)] border border-[var(--border-c-default)]`}
                 >
                   确认{deleteSubId ? '移除' : '归档'}
                 </button>
                 <button
                   onClick={() => { setDeleteSubId(null); setDeleteProdId(null); }}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all ${isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]`}
                 >
                   取消
                 </button>

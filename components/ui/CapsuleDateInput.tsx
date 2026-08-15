@@ -57,7 +57,7 @@ const CapsuleDateInput: React.FC<CapsuleDateInputProps> = ({ value, onChange, di
         disabled={disabled}
         onClick={openPicker}
         aria-label="选择日期"
-        className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors ${isDarkMode ? 'text-white/35 hover:text-white/70' : 'text-slate-400 hover:text-slate-600'}`}
+        className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
       >
         <Calendar size={14} strokeWidth={1.5} />
       </button>

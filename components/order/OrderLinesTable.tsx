@@ -20,13 +20,13 @@ interface OrderLinesTableProps {
  */
 const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = false, currency }) => {
   const orderSpec = createOrderUiSpec(isDarkMode);
-  const tableHeaderClass = isDarkMode ? BAMBOOK_OS.controls.table.headerDark : BAMBOOK_OS.controls.table.headerLight;
-  const tableRowHoverClass = isDarkMode ? BAMBOOK_OS.controls.table.rowHoverDark : BAMBOOK_OS.controls.table.rowHoverLight;
+  const tableHeaderClass = BAMBOOK_OS.controls.table.header;
+  const tableRowHoverClass = BAMBOOK_OS.controls.table.rowHover;
   // 亮色模式用 slate-200/45（原 divide-white/45 是笔误：白色 45% 透明度叠在浅色背景上不可见）
-  const tableRowDividerClass = isDarkMode ? 'divide-white/[0.045]' : 'divide-slate-200/45';
-  const tableCellBorderClass = isDarkMode ? BAMBOOK_OS.controls.table.cellBorderDark : BAMBOOK_OS.controls.table.cellBorderLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const mutedCellClass = isDarkMode ? BAMBOOK_OS.controls.table.cellMutedDark : BAMBOOK_OS.controls.table.cellMutedLight;
+  const tableRowDividerClass = 'divide-slate-200/45 dark:divide-white/[0.045]';
+  const tableCellBorderClass = BAMBOOK_OS.controls.table.cellBorder;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const mutedCellClass = BAMBOOK_OS.controls.table.cellMuted;
   const primaryTextClass = orderSpec.textPrimary;
   const secondaryTextClass = orderSpec.textSecondary;
 

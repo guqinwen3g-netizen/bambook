@@ -25,9 +25,9 @@ export class AgentBlockErrorBoundary extends React.Component<AgentBlockErrorBoun
   render() {
     if (!this.state.hasError) return this.props.children;
 
-    const labelTextClass = this.props.isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-    const quietTextClass = this.props.isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-    const borderClass = this.props.isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+    const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+    const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+    const borderClass = 'border-[var(--border-c-default)]';
 
     return (
       <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>

@@ -6,9 +6,9 @@ import { OS_MATERIAL } from '../ui/osMaterial';
 import type { AgentBlockComponentProps } from './AgentMarkdownBlock';
 
 export const AgentNextActionsBlock: React.FC<AgentBlockComponentProps<AgentNextActionsBlockModel>> = ({ block, isDarkMode, onExecuteAction }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
 
   return (
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
@@ -24,7 +24,7 @@ export const AgentNextActionsBlock: React.FC<AgentBlockComponentProps<AgentNextA
           >
             <ChevronRight size={14} className={`mt-0.5 shrink-0 ${quietTextClass}`} />
             <span className="min-w-0">
-              <span className={`block text-xs ${isDarkMode ? 'text-white/78' : 'text-slate-800'}`}>{action.label}</span>
+              <span className={`block text-xs text-[var(--text-primary)]`}>{action.label}</span>
               {action.description && <span className={`mt-0.5 block text-xs leading-5 ${quietTextClass}`}>{action.description}</span>}
             </span>
           </button>

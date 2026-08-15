@@ -19,24 +19,23 @@ import {
   CompiledEdgeFade,
 } from './compiledPrimitives';
 
-export const SIDEBAR_HOVER_DARK_CLASS = 'hover:bg-white/[0.055] hover:shadow-none';
-export const SIDEBAR_HOVER_LIGHT_CLASS = 'hover:bg-white/44 hover:shadow-none';
-export const SIDEBAR_PRESS_DARK_CLASS = 'active:scale-[0.98] active:bg-white/[0.04]';
-export const SIDEBAR_PRESS_LIGHT_CLASS = 'active:scale-[0.98] active:bg-white/34';
-export const SIDEBAR_ACTIVE_DARK_CLASS = BAMBOOK_OS.controls.selectedSurface.dark;
-export const SIDEBAR_ACTIVE_LIGHT_CLASS = BAMBOOK_OS.controls.selectedSurface.light;
+export const SIDEBAR_HOVER_DARK_CLASS = 'hover:bg-[var(--recessed-bg)] hover:shadow-none';
+export const SIDEBAR_HOVER_LIGHT_CLASS = 'hover:bg-[var(--recessed-bg)] hover:shadow-none';
+export const SIDEBAR_PRESS_DARK_CLASS = 'active:scale-[0.98] active:bg-[var(--active-darken)]';
+export const SIDEBAR_PRESS_LIGHT_CLASS = 'active:scale-[0.98] active:bg-[var(--active-darken)]';
+export const SIDEBAR_ACTIVE_CLASS = BAMBOOK_OS.controls.selectedSurface.base;
 export const SIDEBAR_ACTIVE_GLASS_DARK_CLASS = '';
 export const SIDEBAR_ACTIVE_GLASS_LIGHT_CLASS = '';
 export const SIDEBAR_ACTIVE_ICON_DARK_CLASS = 'text-current';
 export const SIDEBAR_ACTIVE_ICON_LIGHT_CLASS = 'text-current';
-export const SIDEBAR_IDLE_TEXT_DARK_CLASS = '!text-slate-300';
-export const SIDEBAR_IDLE_TEXT_LIGHT_CLASS = '!text-slate-600';
-export const SIDEBAR_IDLE_ICON_DARK_CLASS = '!text-slate-400';
-export const SIDEBAR_IDLE_ICON_LIGHT_CLASS = '!text-slate-500';
+export const SIDEBAR_IDLE_TEXT_DARK_CLASS = '!text-[var(--text-secondary)]';
+export const SIDEBAR_IDLE_TEXT_LIGHT_CLASS = '!text-[var(--text-secondary)]';
+export const SIDEBAR_IDLE_ICON_DARK_CLASS = '!text-[var(--text-tertiary)]';
+export const SIDEBAR_IDLE_ICON_LIGHT_CLASS = '!text-[var(--text-tertiary)]';
 export const SIDEBAR_AMBIENT_DARK_CLASS = '';
 export const SIDEBAR_AMBIENT_LIGHT_CLASS = '';
-export const SIDEBAR_SETTINGS_ACTIVE_DARK_CLASS = SIDEBAR_ACTIVE_DARK_CLASS;
-export const SIDEBAR_SETTINGS_ACTIVE_LIGHT_CLASS = SIDEBAR_ACTIVE_LIGHT_CLASS;
+export const SIDEBAR_SETTINGS_ACTIVE_DARK_CLASS = SIDEBAR_ACTIVE_CLASS;
+export const SIDEBAR_SETTINGS_ACTIVE_LIGHT_CLASS = SIDEBAR_ACTIVE_CLASS;
 export const SIDEBAR_HARMONY_PANEL_DARK_CLASS = '';
 export const SIDEBAR_HARMONY_PANEL_LIGHT_CLASS = '';
 
@@ -131,10 +130,10 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
   const accountName = authUser?.displayName || authUser?.email || 'Bambook 用户';
   const accountMeta = authUser?.email || authUser?.roles?.[0] || '账号设置';
   const overlayMenu = BAMBOOK_OS.controls.overlayMenu;
-  const accountMenuSurfaceClass = `${overlayMenu.surfaceBase} ${isDarkMode ? overlayMenu.surfaceDark : overlayMenu.surfaceLight}`;
-  const accountMenuLayerClass = isDarkMode ? overlayMenu.surfaceLayerDark : overlayMenu.surfaceLayerLight;
-  const accountMenuItemClass = `${overlayMenu.itemBase} flex items-center gap-2 ${isDarkMode ? overlayMenu.itemDark : overlayMenu.itemLight}`;
-  const accountMenuIconClass = `transition-colors duration-[260ms] ${isDarkMode ? overlayMenu.iconDark : overlayMenu.iconLight}`;
+  const accountMenuSurfaceClass = `${overlayMenu.surfaceBase} ${overlayMenu.surface}`;
+  const accountMenuLayerClass = overlayMenu.surfaceLayer;
+  const accountMenuItemClass = `${overlayMenu.itemBase} flex items-center gap-2 ${overlayMenu.item}`;
+  const accountMenuIconClass = `transition-colors duration-[260ms] ${overlayMenu.icon}`;
 
   return (
     <motion.aside
@@ -161,7 +160,7 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
           onClick={() => setIsCollapsed(false)}
           aria-label="展开侧边栏"
           data-sidebar-collapsed-expand-button
-          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[rgb(255_255_255/0.68)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[rgb(255_255_255/0.84)]"
+          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--recessed-bg)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[var(--recessed-bg-strong)]"
         >
           <ChevronRight size={18} strokeWidth={1.35} />
         </button>
@@ -250,16 +249,16 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
                           data-sidebar-nav-active={isActive ? 'true' : 'false'}
                           className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
                             ${isActive
-                              ? (isDarkMode ? 'text-white' : 'text-deep-alt')
-                              : `${isDarkMode ? SIDEBAR_IDLE_TEXT_DARK_CLASS : SIDEBAR_IDLE_TEXT_LIGHT_CLASS} ${isDarkMode ? SIDEBAR_HOVER_DARK_CLASS : SIDEBAR_HOVER_LIGHT_CLASS}`}
-                            ${isDarkMode ? SIDEBAR_PRESS_DARK_CLASS : SIDEBAR_PRESS_LIGHT_CLASS}`}
+                              ? 'text-[var(--text-primary)]'
+                              : `${SIDEBAR_IDLE_TEXT_DARK_CLASS} ${SIDEBAR_HOVER_DARK_CLASS}`}
+                            ${SIDEBAR_PRESS_DARK_CLASS}`}
                         >
                           {/* OS-level spring active sliding indicator */}
                           {isActive && (
                             <motion.div
                               layoutId="activeNavIndicator"
                               className={`absolute inset-0 rounded-control z-0
-                                ${isDarkMode ? SIDEBAR_ACTIVE_DARK_CLASS : SIDEBAR_ACTIVE_LIGHT_CLASS}`}
+                                ${SIDEBAR_ACTIVE_CLASS}`}
                               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                             />
                           )}
@@ -269,7 +268,7 @@ export const CompiledSidebar: React.FC<CompiledSidebarProps> = ({ currentView, o
                               size={20}
                               strokeWidth={1}
                               data-sidebar-nav-icon
-                              className={`transition-colors duration-300 ${isActive ? (isDarkMode ? SIDEBAR_ACTIVE_ICON_DARK_CLASS : SIDEBAR_ACTIVE_ICON_LIGHT_CLASS) : (isDarkMode ? SIDEBAR_IDLE_ICON_DARK_CLASS : SIDEBAR_IDLE_ICON_LIGHT_CLASS)}`}
+                              className={`transition-colors duration-300 ${isActive ? SIDEBAR_ACTIVE_ICON_DARK_CLASS : SIDEBAR_IDLE_ICON_DARK_CLASS}`}
                             />
                             <span data-sidebar-nav-label className={`text-sm font-light tracking-tight transition-[color,opacity] duration-300 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
                               {item.label}

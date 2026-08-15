@@ -266,8 +266,8 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
 
   if (!isOpen) return null;
 
-  const mutedText = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const cellBorder = isDarkMode ? 'border-white/[0.06]' : 'border-slate-100';
+  const mutedText = 'text-[var(--text-tertiary)]';
+  const cellBorder = 'border-[var(--border-c-subtle)]';
 
   return (
     <AnimatePresence>
@@ -281,11 +281,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
       >
         <motion.div
           key="dialog"
-          className={`relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-inset shadow-none overflow-hidden ${
-            isDarkMode
-              ? 'bg-deep/95 border border-white/10 text-slate-100'
-              : 'bg-white/95 border border-slate-200 text-slate-900'
-          }`}
+          className={`relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-inset shadow-none overflow-hidden border border-[var(--border-c-default)] text-[var(--text-primary)] bg-[var(--bg-card)] dark:bg-deep/95`}
           initial={{ y: 24, opacity: 0, scale: 0.98 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -293,9 +289,9 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
+          <div className={`flex items-center justify-between px-6 py-4 border-b border-[var(--border-c-default)]`}>
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-control ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/10'}`}>
+              <div className={`p-2 rounded-control bg-[var(--os-vnext-brand-blue)]/10 dark:bg-[var(--os-vnext-brand-blue)]/20`}>
                 <FileSpreadsheet size={18} className="text-[var(--os-vnext-brand-blue)]" />
               </div>
               <div>
@@ -306,7 +302,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
             <button
               onClick={onClose}
               disabled={busy}
-              className={`p-2 rounded transition-colors disabled:opacity-30 ${isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'}`}
+              className={`p-2 rounded transition-colors disabled:opacity-30 text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
               aria-label="关闭"
             >
               <X size={18} />
@@ -314,7 +310,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
           </div>
 
           {/* Step indicator */}
-          <div className={`flex items-center gap-3 px-6 py-3 border-b ${isDarkMode ? 'border-white/10 bg-deep/50' : 'border-slate-200 bg-slate-50/50'}`}>
+          <div className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50 dark:bg-deep/50`}>
             <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={12} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 2} isDarkMode={isDarkMode} />
             <StepDot n={2} label="校验预览" active={step >= 2} current={step === 2} icon={<ScanLine size={12} />} isDarkMode={isDarkMode} />
@@ -325,7 +321,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
           {/* Body */}
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {serverError && (
-              <div className={`mb-4 rounded-inset px-4 py-3 text-sm flex items-center gap-2 ${isDarkMode ? 'bg-white/10 border border-white/15 text-white/70' : 'bg-slate-50 border border-slate-200 text-slate-600'}`}>
+              <div className={`mb-4 rounded-inset px-4 py-3 text-sm flex items-center gap-2 bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-secondary)]`}>
                 <AlertCircle size={15} className="flex-shrink-0" />
                 <span>{serverError}</span>
               </div>
@@ -333,7 +329,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
 
             {step === 1 && (
               <div className="space-y-4">
-                <div className={`flex items-center justify-between rounded-inset border px-4 py-3 ${isDarkMode ? 'border-white/[0.08] bg-white/[0.02]' : 'border-slate-200 bg-slate-50/60'}`}>
+                <div className={`flex items-center justify-between rounded-inset border px-4 py-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)]/60`}>
                   <div className={`text-xs ${mutedText}`}>
                     模板列：报价号* / 客户*（须匹配客户档案）/ 金额 / 币种 / 报价日期*（YYYY-MM-DD）/ 有效期 / 状态 / 业务员 / 备注
                   </div>
@@ -349,11 +345,11 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
 
                 <label
                   className={`flex flex-col items-center justify-center gap-2 rounded-inset border border-dashed px-6 py-10 cursor-pointer transition-colors ${
-                    isDarkMode ? 'border-white/15 hover:border-white/30 hover:bg-white/[0.03]' : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+                    'border-[var(--border-c-strong)] hover:border-[var(--accent)] hover:bg-[var(--hover-darken)]'
                   }`}
                 >
                   <Upload size={22} className={mutedText} />
-                  <span className={`text-sm font-light ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                  <span className={`text-sm font-light ${'text-[var(--text-primary)]'}`}>
                     {fileName ?? '点击选择 Excel 文件（.xlsx / .xls / .csv）'}
                   </span>
                   {rows.length > 0 && (
@@ -373,7 +369,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                 </label>
 
                 {parseError && (
-                  <div className={`rounded-inset px-4 py-3 text-sm flex items-center gap-2 ${isDarkMode ? 'bg-white/10 border border-white/15 text-white/70' : 'bg-slate-50 border border-slate-200 text-slate-600'}`}>
+                  <div className={`rounded-inset px-4 py-3 text-sm flex items-center gap-2 bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-secondary)]`}>
                     <AlertCircle size={15} className="flex-shrink-0" />
                     <span>{parseError}</span>
                   </div>
@@ -393,10 +389,10 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                 {preview.errors.length > 0 && (
                   <div>
                     <p className={`text-xs mb-2 ${mutedText}`}>错误明细（这些行不会被导入，修正后可重新导入）</p>
-                    <div className={`rounded-inset border overflow-hidden ${isDarkMode ? 'border-white/[0.08]' : 'border-slate-200'}`}>
+                    <div className={`rounded-inset border overflow-hidden border-[var(--border-c-default)]`}>
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className={isDarkMode ? 'bg-white/[0.04] text-slate-400' : 'bg-slate-50 text-slate-500'}>
+                          <tr className="bg-[var(--recessed-bg)] text-[var(--text-tertiary)]">
                             <th className="text-left px-3 py-2 font-light w-16">行号</th>
                             <th className="text-left px-3 py-2 font-light w-24">字段</th>
                             <th className="text-left px-3 py-2 font-light">错误说明</th>
@@ -422,10 +418,10 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                 {validPreviewRows.length > 0 && (
                   <div>
                     <p className={`text-xs mb-2 ${mutedText}`}>合法行预览（前 {validPreviewRows.length} 条）</p>
-                    <div className={`rounded-inset border overflow-hidden ${isDarkMode ? 'border-white/[0.08]' : 'border-slate-200'}`}>
+                    <div className={`rounded-inset border overflow-hidden border-[var(--border-c-default)]`}>
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className={isDarkMode ? 'bg-white/[0.04] text-slate-400' : 'bg-slate-50 text-slate-500'}>
+                          <tr className="bg-[var(--recessed-bg)] text-[var(--text-tertiary)]">
                             <th className="text-left px-3 py-2 font-light w-16">行号</th>
                             <th className="text-left px-3 py-2 font-light">报价号</th>
                             <th className="text-left px-3 py-2 font-light">客户</th>
@@ -466,10 +462,10 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                   <SummaryCard label="失败行" value={report.errors.length} isDarkMode={isDarkMode} />
                 </div>
                 {report.errors.length > 0 && (
-                  <div className={`rounded-inset border overflow-hidden ${isDarkMode ? 'border-white/[0.08]' : 'border-slate-200'}`}>
+                  <div className={`rounded-inset border overflow-hidden border-[var(--border-c-default)]`}>
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className={isDarkMode ? 'bg-white/[0.04] text-slate-400' : 'bg-slate-50 text-slate-500'}>
+                        <tr className="bg-[var(--recessed-bg)] text-[var(--text-tertiary)]">
                           <th className="text-left px-3 py-2 font-light w-16">行号</th>
                           <th className="text-left px-3 py-2 font-light w-24">字段</th>
                           <th className="text-left px-3 py-2 font-light">错误说明</th>
@@ -495,12 +491,12 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
           </div>
 
           {/* Footer */}
-          <div className={`flex items-center justify-between px-6 py-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
+          <div className={`flex items-center justify-between px-6 py-4 border-t border-[var(--border-c-default)]`}>
             <button
               type="button"
               onClick={() => setStep(s => (s - 1) as Step)}
               disabled={step === 1 || busy}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${'text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}`}
             >
               <ChevronLeft size={16} /> 上一步
             </button>
@@ -509,7 +505,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className={`px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 ${isDarkMode ? 'text-slate-400 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'}`}
+                className={`px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 ${'text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]'}`}
               >
                 关闭
               </button>
@@ -532,9 +528,9 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
 };
 
 const SummaryCard: React.FC<{ label: string; value: number; isDarkMode: boolean; accent?: boolean }> = ({ label, value, isDarkMode, accent }) => (
-  <div className={`rounded-inset border px-4 py-3 ${isDarkMode ? 'border-white/[0.08] bg-white/[0.02]' : 'border-slate-200 bg-slate-50/60'}`}>
-    <div className={`text-xl font-light tabular-nums ${accent ? 'text-[var(--os-vnext-brand-blue)]' : isDarkMode ? 'text-white' : 'text-slate-900'}`}>{value}</div>
-    <div className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{label}</div>
+  <div className={`rounded-inset border px-4 py-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)]/60`}>
+    <div className={`text-xl font-light tabular-nums ${accent ? 'text-[var(--os-vnext-brand-blue)]' : 'text-[var(--text-primary)]'}`}>{value}</div>
+    <div className={`text-[11px] mt-0.5 ${'text-[var(--text-tertiary)]'}`}>{label}</div>
   </div>
 );
 
@@ -551,23 +547,21 @@ const StepDot: React.FC<{
       className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-light transition-all ${
         current
           ? 'bg-[var(--os-vnext-brand-blue)] text-white shadow-none'
-          : active
-            ? 'bg-[var(--os-vnext-brand-blue)]/60 text-white shadow-none'
-            : isDarkMode
-              ? 'bg-white/[0.06] text-slate-400'
-              : 'bg-slate-100 text-slate-400'
+            : active
+              ? 'bg-[var(--os-vnext-brand-blue)]/60 text-white shadow-none'
+              : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)]'
       }`}
     >
       {active && !current ? icon : n}
     </div>
-    <span className={`text-xs font-light ${current ? 'text-[var(--os-vnext-brand-blue)]' : active ? 'text-slate-300' : 'text-slate-500'}`}>
+    <span className={`text-xs font-light ${current ? 'text-[var(--os-vnext-brand-blue)]' : active ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>
       {label}
     </span>
   </div>
 );
 
 const Connector: React.FC<{ active: boolean; isDarkMode: boolean }> = ({ active, isDarkMode }) => (
-  <div className={`flex-1 h-px transition-colors ${active ? 'bg-[var(--os-vnext-brand-blue)]/60' : isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`} />
+  <div className={`flex-1 h-px transition-colors ${active ? 'bg-[var(--os-vnext-brand-blue)]/60' : 'bg-[var(--recessed-bg-strong)]'}`} />
 );
 
 export default QuotationImportWizard;

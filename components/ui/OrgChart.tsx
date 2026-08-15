@@ -14,11 +14,7 @@ import {
     ZoomIn, ZoomOut, RotateCcw
 } from 'lucide-react';
 import {
-    SIDEBAR_ACTIVE_DARK_CLASS,
-    SIDEBAR_ACTIVE_LIGHT_CLASS,
-    SIDEBAR_HOVER_DARK_CLASS,
     SIDEBAR_HOVER_LIGHT_CLASS,
-    SIDEBAR_PRESS_DARK_CLASS,
     SIDEBAR_PRESS_LIGHT_CLASS,
 } from '../Sidebar';
 import { BAMBOOK_OS } from './bambookOsTokens';
@@ -80,8 +76,8 @@ const isDescendantContact = (contacts: Relation[], sourceId: string, maybeDescen
     return false;
 };
 
-const ORG_CHART_NODE_DARK_CLASS = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel !rounded-inset`;
-const ORG_CHART_NODE_LIGHT_CLASS = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel !rounded-inset`;
+const ORG_CHART_NODE_CLASS = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel !rounded-inset`;
+const ORG_CHART_PRESS_CLASS = `${SIDEBAR_PRESS_LIGHT_CLASS} dark:active:bg-[var(--recessed-bg)]`;
 const ORG_CHART_MIN_ZOOM = 0.65;
 const ORG_CHART_MAX_ZOOM = 1.35;
 const ORG_CHART_ZOOM_STEP = 0.1;
@@ -130,27 +126,17 @@ const OrgNodeCard: React.FC<{
     const canDropHere = canDropOnContact(contact.id);
     const isDropTarget = dropTargetId === contact.id && canDropHere;
     const isFocused = focusedContactId === contact.id;
-    const brandTextClass = isDarkMode
-        ? BAMBOOK_OS.tone.text.brandDark
-        : BAMBOOK_OS.tone.text.brandLight;
-    const subtleChipClass = isDarkMode
-        ? BAMBOOK_OS.tone.chip.subtleDark
-        : BAMBOOK_OS.tone.chip.subtleLight;
-    const dropTargetChipClass = isDarkMode
-        ? BAMBOOK_OS.tone.chip.dropTargetDark
-        : BAMBOOK_OS.tone.chip.dropTargetLight;
-    const metaEditClass = isDarkMode
-        ? BAMBOOK_OS.controls.orgChartMeta.editDark
-        : BAMBOOK_OS.controls.orgChartMeta.editLight;
-    const childrenBadgeClass = isDarkMode
-        ? BAMBOOK_OS.controls.orgChartMeta.childrenBadgeDark
-        : BAMBOOK_OS.controls.orgChartMeta.childrenBadgeLight;
+    const brandTextClass = BAMBOOK_OS.tone.text.brandEmphasis;
+    const subtleChipClass = BAMBOOK_OS.tone.chip.subtle;
+    const dropTargetChipClass = BAMBOOK_OS.tone.chip.dropTarget;
+    const metaEditClass = BAMBOOK_OS.controls.orgChartMeta.edit;
+    const childrenBadgeClass = BAMBOOK_OS.controls.orgChartMeta.childrenBadge;
 
     return (
         <div className="flex flex-col items-center">
             {/* 连接线 - 向上 */}
             {!isRoot && (
-                <div className={`w-px h-8 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
+                <div className="w-px h-8 bg-[var(--recessed-bg-strong)]" />
             )}
 
             {/* 节点卡片 */}
@@ -195,10 +181,7 @@ const OrgNodeCard: React.FC<{
                 <div
                     className={`
           p-3.5 rounded-inset
-          ${isDarkMode
-                        ? `${ORG_CHART_NODE_DARK_CLASS} ${isDropTarget || isFocused ? SIDEBAR_ACTIVE_DARK_CLASS : SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`
-                        : `${ORG_CHART_NODE_LIGHT_CLASS} ${isDropTarget || isFocused ? SIDEBAR_ACTIVE_LIGHT_CLASS : SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`
-                    }
+          ${ORG_CHART_NODE_CLASS} ${isDropTarget || isFocused ? BAMBOOK_OS.controls.selectedSurface.base : SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS}
           ${draggingContactId && !canDropHere && !isDragging ? 'opacity-45' : ''}
         `}>
                     {isDropTarget && (
@@ -215,11 +198,11 @@ const OrgNodeCard: React.FC<{
                         </span>
 
                         <div className="flex-1 min-w-0">
-                            <h4 className={`text-sm font-light truncate ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+                            <h4 className="text-sm font-light truncate text-[var(--text-primary)]">
                                 {contact.name}
                             </h4>
                             <div className="mt-0.5">
-                                <span className={`text-[10px] font-light truncate ${isDarkMode ? 'text-white/58' : 'text-slate-500'}`}>
+                                <span className={`text-[10px] font-light truncate text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>
                                     {contact.role || '未设置职位'}
                                 </span>
                             </div>
@@ -227,7 +210,7 @@ const OrgNodeCard: React.FC<{
                     </div>
 
                     {/* 底部：部门 + 展开按钮 */}
-                    <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-white/5">
+                    <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-[var(--border-c-subtle)]">
                         {contact.department && (
                             <span className={`text-[10px] font-light px-2 py-0.5 rounded-full ${subtleChipClass}`}>
                                 {contact.department}
@@ -235,7 +218,7 @@ const OrgNodeCard: React.FC<{
                         )}
 
                         {hasChildren && (
-                            <span className={`text-[9px] font-light ${isDarkMode ? 'text-white/42' : 'text-slate-500'}`}>
+                            <span className={`text-[9px] font-light text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]`}>
                                 {children.length} 下级
                             </span>
                         )}
@@ -248,7 +231,7 @@ const OrgNodeCard: React.FC<{
                     onClick={(e) => { e.stopPropagation(); onEdit(contact); }}
                     className={`
               absolute -top-2 -right-2 z-30 p-1.5 rounded-control opacity-0 group-hover:opacity-100 transition-all
-              ${metaEditClass} ${isDarkMode ? SIDEBAR_HOVER_DARK_CLASS : SIDEBAR_HOVER_LIGHT_CLASS}
+              ${metaEditClass} ${SIDEBAR_HOVER_LIGHT_CLASS}
             `}
                     aria-label={`编辑${contact.name}`}
                 >
@@ -277,11 +260,11 @@ const OrgNodeCard: React.FC<{
                         className="flex flex-col items-center"
                     >
                         {/* 连接线 - 向下 */}
-                        <div className={`w-px h-8 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
+                        <div className="w-px h-8 bg-[var(--recessed-bg-strong)]" />
 
                         {/* 横向连接线 */}
                         {children.length > 1 && (
-                            <div className={`h-px ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`}
+                            <div className="h-px bg-[var(--recessed-bg-strong)]"
                                 style={{ width: `${Math.min(children.length * 240, 800)}px` }} />
                         )}
 
@@ -435,18 +418,10 @@ const OrgChart: React.FC<OrgChartProps> = ({
         const dragged = contacts.find(contact => contact.id === draggingContactId);
         return !!dragged && !!dragged.reportsToId;
     };
-    const brandTextClass = isDarkMode
-        ? BAMBOOK_OS.tone.text.brandDark
-        : BAMBOOK_OS.tone.text.brandLight;
-    const actionButtonClass = isDarkMode
-        ? BAMBOOK_OS.controls.actionControl.borderedDark
-        : BAMBOOK_OS.controls.actionControl.borderedLight;
-    const quietIconSurfaceClass = isDarkMode
-        ? BAMBOOK_OS.tone.surface.quietIconDark
-        : BAMBOOK_OS.tone.surface.quietIconLight;
-    const floatingToolClusterClass = isDarkMode
-        ? BAMBOOK_OS.controls.floatingToolCluster.surfaceDark
-        : BAMBOOK_OS.controls.floatingToolCluster.surfaceLight;
+    const brandTextClass = BAMBOOK_OS.tone.text.brandEmphasis;
+    const actionButtonClass = BAMBOOK_OS.controls.actionControl.bordered;
+    const quietIconSurfaceClass = BAMBOOK_OS.tone.surface.quietIcon;
+    const floatingToolClusterClass = BAMBOOK_OS.controls.floatingToolCluster.surface;
 
     const clearDragState = () => {
         setDraggingContactId(null);
@@ -478,12 +453,12 @@ const OrgChart: React.FC<OrgChartProps> = ({
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8">
                 <div className={`w-20 h-20 rounded-card flex items-center justify-center mb-5 ${quietIconSurfaceClass}`}>
-                    <Users size={40} strokeWidth={1} className={isDarkMode ? 'text-white/20' : 'text-slate-500'} />
+                    <Users size={40} strokeWidth={1} className="text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]" />
                 </div>
-                <h3 className={`text-base font-light mb-2 ${isDarkMode ? 'text-white/80' : 'text-slate-900'}`}>
+                <h3 className="text-base font-light mb-2 text-[var(--text-primary)]">
                     暂无组织架构
                 </h3>
-                <p className={`text-sm text-center max-w-md mb-6 ${isDarkMode ? 'text-white/40' : 'text-slate-500'}`}>
+                <p className="text-sm text-center max-w-md mb-6 text-[var(--text-tertiary)]">
                     开始添加团队成员并设置汇报关系，构建 {organization.name} 的组织架构图。
                 </p>
                 <button
@@ -521,7 +496,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current - ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/58` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
                         aria-label="缩小组织架构"
                     >
                         <ZoomOut size={14} strokeWidth={1.6} />
@@ -532,7 +507,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                             updateZoom(1);
                             setPan({ x: 0, y: 0 });
                         }}
-                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/62` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
+                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
                         aria-label="重置组织架构缩放"
                     >
                         <span className="inline-flex items-center gap-1">
@@ -543,7 +518,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current + ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${isDarkMode ? `${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} text-white/58` : `${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS} text-slate-500`}`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${SIDEBAR_HOVER_LIGHT_CLASS} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
                         aria-label="放大组织架构"
                     >
                         <ZoomIn size={14} strokeWidth={1.6} />
@@ -559,22 +534,22 @@ const OrgChart: React.FC<OrgChartProps> = ({
                 compilerRole="relation-org-chart-legend-panel"
                 source="OrgChart.LegendPanel"
             >
-                <span className={`text-[10px] font-light uppercase tracking-[0.2em] ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                <span className="text-[10px] font-light uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
                     架构视图：
                 </span>
                 <div className="flex items-center gap-1.5">
                     <Building2 size={12} className={brandTextClass} />
-                    <span className={`text-xs font-light ${isDarkMode ? 'text-white/62' : 'text-slate-500'}`}>组织</span>
+                    <span className={`text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>组织</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <User size={12} className={brandTextClass} />
-                    <span className={`text-xs font-light ${isDarkMode ? 'text-white/62' : 'text-slate-500'}`}>人员</span>
+                    <span className={`text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>人员</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <ChevronDown size={12} className={isDarkMode ? 'text-white/46' : 'text-slate-500'} />
-                    <span className={`text-xs font-light ${isDarkMode ? 'text-white/62' : 'text-slate-500'}`}>下级关系</span>
+                    <ChevronDown size={12} className="text-[var(--text-tertiary)]" />
+                    <span className={`text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>下级关系</span>
                 </div>
-                <span className={`text-[11px] ml-auto font-light ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                <span className="text-[11px] ml-auto font-light text-[var(--text-tertiary)]">
                     拖动人员卡片到另一张卡片下方，或拖到组织卡片设为顶层
                 </span>
             </CompiledSurfacePanel>
@@ -603,19 +578,16 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     data-org-node-card
                     className={`
           w-[200px] p-3.5 rounded-inset mb-2
-          ${isDarkMode
-                            ? `${ORG_CHART_NODE_DARK_CLASS} ${dropTargetId === '__organization__' ? SIDEBAR_ACTIVE_DARK_CLASS : ''}`
-                            : `${ORG_CHART_NODE_LIGHT_CLASS} ${dropTargetId === '__organization__' ? SIDEBAR_ACTIVE_LIGHT_CLASS : ''}`
-                    }
+          ${ORG_CHART_NODE_CLASS} ${dropTargetId === '__organization__' ? BAMBOOK_OS.controls.selectedSurface.base : ''}
         `}
                 >
                     <div className="flex items-center gap-2.5">
                         <Building2 size={20} className={`shrink-0 ${brandTextClass}`} />
                         <div>
-                            <h3 className={`text-sm font-light ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+                            <h3 className="text-sm font-light text-[var(--text-primary)]">
                                 {organization.name}
                             </h3>
-                            <span className={`text-[10px] font-light ${isDarkMode ? 'text-white/46' : 'text-slate-500'}`}>
+                            <span className="text-[10px] font-light text-[var(--text-tertiary)]">
                                 {dropTargetId === '__organization__' ? '松手设为顶层成员' : `${contacts.length} 位成员`}
                             </span>
                         </div>
@@ -623,7 +595,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                 </div>
 
                 {/* 连接线 */}
-                <div className={`w-px h-8 ${isDarkMode ? 'bg-white/10' : 'bg-slate-300'}`} />
+                <div className="w-px h-8 bg-[var(--recessed-bg-strong)]" />
 
                 {/* 树形结构 */}
                 <div className="flex gap-6 items-start">

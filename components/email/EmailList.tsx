@@ -43,9 +43,9 @@ interface EmailListProps {
 
 const getAvatarColor = (name: string) => {
     const colors = [
-        'bg-slate-400', 'bg-slate-500', 'bg-slate-600',
-        'bg-slate-500', 'bg-slate-400', 'bg-slate-600',
-        'bg-slate-500', 'bg-slate-400'
+        'bg-[var(--accent)]', 'bg-[var(--accent)]', 'bg-[var(--accent)]',
+        'bg-[var(--accent)]', 'bg-[var(--accent)]', 'bg-[var(--accent)]',
+        'bg-[var(--accent)]', 'bg-[var(--accent)]'
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -64,15 +64,9 @@ const getInitials = (name: string) => {
  * F5 意图 chip 样式（RDL flat 纪律：本文件禁语义彩色，意图区分靠文字而非颜色）。
  * 信号 chip 前置 AlertTriangle 图标表达紧急/风险，保持中性色板。
  */
-const INTENT_CHIP_CLASS = {
-  dark: 'bg-white/[0.07] text-slate-300',
-  light: 'bg-slate-500/[0.08] text-slate-500',
-};
+const INTENT_CHIP_CLASS = 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)]';
 
-const SIGNAL_CHIP_CLASS = {
-  dark: 'bg-white/[0.10] text-slate-200',
-  light: 'bg-slate-500/[0.12] text-slate-700',
-};
+const SIGNAL_CHIP_CLASS = 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]';
 
 export const EmailList: React.FC<EmailListProps> = ({
     emails,
@@ -85,15 +79,15 @@ export const EmailList: React.FC<EmailListProps> = ({
     isDarkMode = false,
     intentByUid
 }) => {
-    const actionControlClass = isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light;
-    const selectedSurfaceClass = isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light;
+    const actionControlClass = BAMBOOK_OS.controls.actionControl.base;
+    const selectedSurfaceClass = BAMBOOK_OS.controls.selectedSurface.base;
     const Footer = () => {
-        if (!hasMore) return <div className={`p-8 text-center text-[10px] font-light uppercase tracking-widest bg-transparent ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>Bottom of sync stream</div>;
+        if (!hasMore) return <div className="p-8 text-center text-[10px] font-light uppercase tracking-widest bg-transparent text-[var(--text-tertiary)]">Bottom of sync stream</div>;
         return (
-            <div className={`p-6 flex justify-center bg-transparent border-t ${isDarkMode ? 'border-white/10' : 'border-white/40'}`}>
+            <div className="p-6 flex justify-center bg-transparent border-t border-[var(--border-c-default)]">
                 {isLoadingMore ? (
-                    <div className="flex items-center gap-3 text-slate-400 text-[10px] font-light uppercase tracking-widest">
-                        <Loader2 size={14} className="animate-spin text-slate-400" /> Connecting to node...
+                    <div className="flex items-center gap-3 text-[var(--text-tertiary)] text-[10px] font-light uppercase tracking-widest">
+                        <Loader2 size={14} className="animate-spin text-[var(--text-tertiary)]" /> Connecting to node...
                     </div>
                 ) : (
                     <button
@@ -130,9 +124,9 @@ export const EmailList: React.FC<EmailListProps> = ({
                     return (
                         <div
                             onClick={() => onSelect(email)}
-                            className={`group flex items-start gap-3 px-4 py-4 border-b cursor-pointer transition-all ${isDarkMode ? 'border-white/[0.055]' : 'border-white/35'} ${isSelected
+                            className={`group flex items-start gap-3 px-4 py-4 border-b cursor-pointer transition-all border-[var(--border-c-subtle)] ${isSelected
                                 ? `${selectedSurfaceClass} relative after:absolute after:left-0 after:top-0 after:bottom-0 after:w-px after:bg-[var(--os-vnext-brand-blue)]`
-                                : (isDarkMode ? 'hover:bg-white/[0.045] active:bg-white/[0.06]' : 'hover:bg-white/38 active:bg-white/48')
+                                : 'hover:bg-[var(--recessed-bg-hover)] active:bg-[var(--active-darken)]'
                                 }`}
                         >
                             {/* Avatar or Unread Dot */}
@@ -141,25 +135,25 @@ export const EmailList: React.FC<EmailListProps> = ({
                                     {initials}
                                 </div>
                                 {!email.isRead && (
-                                    <div className={`absolute -top-1 -right-1 w-3 h-3 bg-[var(--os-vnext-brand-blue)] rounded-full border-2 shadow-none ring-0 ${isDarkMode ? 'border-deep' : 'border-white'}`}></div>
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--os-vnext-brand-blue)] rounded-full border-2 shadow-none ring-0 border-[var(--bg-card)]"></div>
                                 )}
                             </div>
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-baseline mb-0.5">
-                                    <span className={`text-[13px] truncate pr-2 ${!email.isRead ? (isDarkMode ? 'font-light text-white' : 'font-light text-slate-900') : (isDarkMode ? 'font-light text-slate-400' : 'font-light text-slate-600')}`}>
+                                    <span className={`text-[13px] truncate pr-2 ${!email.isRead ? 'font-light text-[var(--text-primary)]' : 'font-light text-[var(--text-secondary)]'}`}>
                                         {email.sender.split('<')[0].trim() || 'Internal Node'}
                                     </span>
-                                    <span className="text-[10px] font-light text-slate-400 shrink-0 tabular-nums">
+                                    <span className="text-[10px] font-light text-[var(--text-tertiary)] shrink-0 tabular-nums">
                                         {formatTime(email.date)}
                                     </span>
                                 </div>
 
-                                <div className={`text-[12px] truncate mb-1 ${!email.isRead ? (isDarkMode ? 'font-light text-slate-200' : 'font-light text-slate-900') : (isDarkMode ? 'font-light text-slate-500' : 'font-light text-slate-700')}`}>
+                                <div className={`text-[12px] truncate mb-1 ${!email.isRead ? 'font-light text-[var(--text-primary)]' : 'font-light text-[var(--text-secondary)]'}`}>
                                     {email.subject || '(No Subject)'}
                                 </div>
 
-                                <div className={`text-[11px] line-clamp-1 leading-relaxed ${isDarkMode ? 'text-slate-500 opacity-80' : 'text-slate-500 opacity-70'}`}>
+                                <div className="text-[11px] line-clamp-1 leading-relaxed text-[var(--text-tertiary)] opacity-70">
                                     {email.snippet && email.snippet !== email.subject
                                         ? email.snippet
                                         : email.body
@@ -172,25 +166,25 @@ export const EmailList: React.FC<EmailListProps> = ({
                                     {intentInfo && intentInfo.intent && intentInfo.intent !== 'other' && (
                                         <span
                                             title={intentInfo.summary || undefined}
-                                            className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? INTENT_CHIP_CLASS.dark : INTENT_CHIP_CLASS.light}`}
+                                            className={`px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${INTENT_CHIP_CLASS}`}
                                         >
                                             {EMAIL_INTENT_LABELS[intentInfo.intent]}
                                         </span>
                                     )}
                                     {signalLabel && (
-                                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${isDarkMode ? SIGNAL_CHIP_CLASS.dark : SIGNAL_CHIP_CLASS.light}`}>
+                                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${SIGNAL_CHIP_CLASS}`}>
                                             <AlertTriangle size={10} strokeWidth={1.5} />
                                             {signalLabel}
                                         </span>
                                     )}
                                     {email.attachments && email.attachments.length > 0 && (
-                                        <Paperclip size={12} strokeWidth={1} className="text-slate-400" />
+                                        <Paperclip size={12} strokeWidth={1} className="text-[var(--text-tertiary)]" />
                                     )}
                                     {email.isStarred && (
-                                        <Flag size={12} strokeWidth={1} className="text-slate-500 fill-slate-500" />
+                                        <Flag size={12} strokeWidth={1} className="text-[var(--text-tertiary)] fill-slate-500" />
                                     )}
                                     {email.isImportant && (
-                                        <Star size={12} strokeWidth={1} className="text-slate-400 fill-slate-400" />
+                                        <Star size={12} strokeWidth={1} className="text-[var(--text-tertiary)] fill-slate-400" />
                                     )}
                                 </div>
                             </div>

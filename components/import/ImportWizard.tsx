@@ -134,11 +134,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
       >
         <motion.div
           key="dialog"
-          className={`relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-floating shadow-none overflow-hidden ${
-            isDarkMode
-              ? 'bg-deep/95 border border-white/10 text-slate-100'
-              : 'bg-white/95 border border-slate-200 text-slate-900'
-          }`}
+          className={`relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-floating shadow-none overflow-hidden border border-[var(--border-c-default)] text-[var(--text-primary)] bg-[var(--bg-card)] dark:bg-deep/95`}
           initial={{ y: 24, opacity: 0, scale: 0.98 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -147,24 +143,18 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
         >
           {/* Header */}
           <div
-            className={`flex items-center justify-between px-6 py-4 border-b ${
-              isDarkMode ? 'border-white/10' : 'border-slate-200'
-            }`}
+            className={`flex items-center justify-between px-6 py-4 border-b border-[var(--border-c-default)]`}
           >
             <div className="flex items-center gap-3">
               <div
-                className={`p-2 rounded-control ${
-                  isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/10'
-                }`}
+                className={`p-2 rounded-control bg-[var(--os-vnext-brand-blue)]/10 dark:bg-[var(--os-vnext-brand-blue)]/20`}
               >
                 <Upload size={18} className="text-[var(--os-vnext-brand-blue)]" />
               </div>
               <div>
                 <h3 className="font-light">批量导入订单</h3>
                 <p
-                  className={`text-xs ${
-                    isDarkMode ? 'text-slate-400' : 'text-slate-500'
-                  }`}
+                  className={`text-xs text-[var(--text-tertiary)]`}
                 >
                   上传 PDF → 自动识别客户 → 预览并修正 → 完成
                 </p>
@@ -172,11 +162,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
             </div>
             <button
               onClick={onClose}
-              className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                isDarkMode
-                  ? 'text-slate-400 hover:bg-white/10 hover:text-white'
-                  : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-              }`}
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
               aria-label="关闭"
             >
               <X size={17} strokeWidth={1.5} />
@@ -185,9 +171,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
 
           {/* Step indicator */}
           <div
-            className={`flex items-center gap-3 px-6 py-3 border-b ${
-              isDarkMode ? 'border-white/10 bg-deep/50' : 'border-slate-200 bg-slate-50/50'
-            }`}
+            className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50 dark:bg-deep/50`}
           >
             <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={12} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 2} />
@@ -224,19 +208,13 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
 
           {/* Footer */}
           <div
-            className={`flex items-center justify-between px-6 py-4 border-t ${
-              isDarkMode ? 'border-white/10' : 'border-slate-200'
-            }`}
+            className={`flex items-center justify-between px-6 py-4 border-t border-[var(--border-c-default)]`}
           >
             <button
               type="button"
               onClick={goBack}
               disabled={step === 1 || isParsing}
-              className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                isDarkMode
-                  ? 'text-slate-300 hover:bg-white/10'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
             >
               <ChevronLeft size={14} strokeWidth={1.5} /> 上一步
             </button>
@@ -245,7 +223,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
                 type="button"
                 onClick={onClose}
                 className={`flex h-10 min-w-[80px] items-center justify-center rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${
-                  isDarkMode ? 'text-slate-400 hover:bg-white/10' : 'text-slate-500 hover:bg-slate-100'
+                  'text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]'
                 }`}
               >
                 关闭
@@ -254,11 +232,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
                 type="button"
                 onClick={goNext}
                 disabled={!canNext}
-                className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-5 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                  isDarkMode
-                    ? 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-soft)] text-white'
-                    : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white'
-                }`}
+                className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-5 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white`}
               >
                 {isParsing && <Loader2 size={14} className="animate-spin" />}
                 {nextLabel}
@@ -287,16 +261,14 @@ const StepDot: React.FC<{
           ? 'bg-[var(--os-vnext-brand-blue)] text-white shadow-none'
           : active
             ? 'bg-[var(--os-vnext-brand-blue)]/60 text-white shadow-none'
-            : isDarkMode
-              ? `${BAMBOOK_OS.controls.actionControl.dark} text-slate-400`
-              : `${BAMBOOK_OS.controls.actionControl.light} text-slate-400`
+            : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`
       }`}
     >
       {active && !current ? icon : n}
     </div>
     <span
       className={`text-xs font-light ${
-        current ? 'text-[var(--os-vnext-brand-blue)]' : active ? 'text-slate-300' : 'text-slate-500'
+        current ? 'text-[var(--os-vnext-brand-blue)]' : active ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'
       }`}
     >
       {label}
@@ -307,7 +279,7 @@ const StepDot: React.FC<{
 const Connector: React.FC<{ active: boolean }> = ({ active }) => (
   <div
     className={`flex-1 h-px transition-colors ${
-      active ? 'bg-[var(--os-vnext-brand-blue)]/60' : 'bg-white/10'
+      active ? 'bg-[var(--os-vnext-brand-blue)]/60' : 'bg-[var(--recessed-bg-strong)]'
     }`}
   />
 );

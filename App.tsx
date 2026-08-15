@@ -1298,8 +1298,8 @@ const App: React.FC = () => {
   // Auth gate: show Login or Register page if not authenticated
   if (authState.isLoading) {
     return (
-      <div className={`w-full h-screen flex items-center justify-center ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-zinc-100 to-zinc-300'}`}>
-        <div className={`text-xs font-medium tracking-[0.22em] uppercase ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+      <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-300 dark:bg-none dark:bg-app-dark">
+        <div className="text-xs font-medium tracking-[0.22em] uppercase text-slate-400 dark:text-slate-500">
           Checking session...
         </div>
       </div>
@@ -1547,7 +1547,7 @@ const App: React.FC = () => {
                     ? <CompiledRelationsPage relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} cloudEndpoint={config.cloudEndpoint} onNavigate={handleViewChange} />
                     : <RelationsManager relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} />
                 )
-                : <div className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>关系智库正在读取数据中心...</div>
+                : <div className="text-slate-500 dark:text-slate-400">关系智库正在读取数据中心...</div>
             )}
             {activeView === View.Products && (
               compilerSurfaces.products
@@ -1598,9 +1598,7 @@ const App: React.FC = () => {
                   activeSpotlightOpacity={1}
                   liquidSpotlight
                   liquidSpotlightTone="light"
-                  className={`flex h-full w-full items-center justify-center !rounded-full ${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel ${OS_MATERIAL.floatingOverlay} transition-colors ${
-                    isDarkMode ? 'text-white/72 hover:text-white/88' : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`flex h-full w-full items-center justify-center !rounded-full ${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel ${OS_MATERIAL.floatingOverlay} transition-colors text-slate-600 hover:text-slate-900 dark:text-white/72 dark:hover:text-white/88`}
                   onClick={() => setIsProductModuleSettingsWorkspaceOpen(true)}
                 >
                   <Settings2 size={20} strokeWidth={1.7} />
@@ -1721,7 +1719,7 @@ const App: React.FC = () => {
                       onNavigate={handleViewChange}
                     />
                   )
-                  : <div className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>订单正在读取数据中心...</div>,
+                  : <div className="text-slate-500 dark:text-slate-400">订单正在读取数据中心...</div>,
               )
             )}
             {activeView === View.Emails && renderMainCompilerSlot(

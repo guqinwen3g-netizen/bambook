@@ -4,7 +4,10 @@ import { OS_MATERIAL } from './osMaterial';
 export const RELATIONS_FORM_PANEL_CLASS = 'scroll-mt-28 p-5 bambook-relations-form-panel';
 export const RELATIONS_FORM_MAP_PANEL_CLASS = 'p-4 bambook-relations-form-map-panel';
 export const RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING = 'width';
-export const RELATIONS_FORM_NESTED_ROW_DARK_CLASS = OS_MATERIAL.insetSurface;
-export const RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS = OS_MATERIAL.insetSurface;
-export const RELATIONS_FORM_QUIET_ACTION_DARK_CLASS = BAMBOOK_OS.controls.formIconButton.quietActionDark;
-export const RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS = BAMBOOK_OS.controls.formIconButton.quietActionLight;
+export const RELATIONS_FORM_NESTED_ROW_CLASS = OS_MATERIAL.insetSurface;
+export const RELATIONS_FORM_QUIET_ACTION_CLASS = BAMBOOK_OS.controls.formIconButton.quietAction;
+// 兼容垫片：旧双名导出（同值自适应），仍被其他 compiled 模板引用
+export const RELATIONS_FORM_NESTED_ROW_DARK_CLASS = RELATIONS_FORM_NESTED_ROW_CLASS;
+export const RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS = RELATIONS_FORM_NESTED_ROW_CLASS;
+export const RELATIONS_FORM_QUIET_ACTION_DARK_CLASS = RELATIONS_FORM_QUIET_ACTION_CLASS;
+export const RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS = RELATIONS_FORM_QUIET_ACTION_CLASS;

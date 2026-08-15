@@ -31,14 +31,14 @@ const STATUS_COLOR: Record<WorkflowInstanceStatus, string> = {
   running: 'text-blue-400',
   approved: 'text-emerald-400',
   rejected: 'text-red-400',
-  cancelled: 'text-slate-400',
+  cancelled: 'text-[var(--text-tertiary)]',
 };
 
 const STATUS_BG: Record<WorkflowInstanceStatus, string> = {
   running: 'bg-blue-400/8',
   approved: 'bg-emerald-400/8',
   rejected: 'bg-red-400/8',
-  cancelled: 'bg-slate-400/8',
+  cancelled: 'bg-[var(--recessed-bg)]',
 };
 
 // ── 时间格式化 ──
@@ -62,14 +62,12 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
   const [actionNote, setActionNote] = useState<Record<string, string>>({});
 
   // ── 设计 token ──
-  const card = isDarkMode
-    ? `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceDark} border-white/[0.055] bg-white/[0.018]`
-    : `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurfaceLight} border-white/45 bg-white/24`;
-  const primaryText = isDarkMode ? 'text-white' : 'text-slate-900';
-  const weakText = isDarkMode ? 'text-white/42' : 'text-slate-500';
-  const brandIcon = isDarkMode ? BAMBOOK_OS.tone.text.brandDark : BAMBOOK_OS.tone.text.brandLight;
-  const inputCls = `w-full px-3 py-1.5 rounded-control outline-none text-xs ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`;
-  const dividerCls = isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50';
+  const card = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-[var(--border-c-default)] bg-[var(--recessed-bg)]`;
+  const primaryText = 'text-[var(--text-primary)]';
+  const weakText = 'text-[var(--text-tertiary)]';
+  const brandIcon = BAMBOOK_OS.tone.text.brandEmphasis;
+  const inputCls = `w-full px-3 py-1.5 rounded-control outline-none text-xs ${BAMBOOK_OS.controls.recessedField.base}`;
+  const dividerCls = 'border-[var(--border-c-default)]';
 
   // ── 拉取实例列表 ──
   const fetchInstances = useCallback(async () => {
@@ -132,7 +130,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
         <button
           type="button"
           onClick={fetchInstances}
-          className={`flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-light ${brandIcon} hover:bg-white/10 transition-colors`}
+          className={`flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-light ${brandIcon} hover:bg-[var(--active-darken)] transition-colors`}
         >
           <RefreshCw size={12} strokeWidth={1.5} className={loading ? 'animate-spin' : ''} />
           刷新
@@ -148,8 +146,8 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
             onClick={() => setStatusFilter(f.id)}
             className={`rounded-control px-3 py-1 text-xs font-light transition-all ${
               statusFilter === f.id
-                ? isDarkMode ? 'bg-white/12 text-white' : 'bg-slate-900/8 text-slate-900'
-                : isDarkMode ? 'text-white/50 hover:bg-white/6' : 'text-slate-500 hover:bg-slate-100/60'
+                ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
+                : 'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
             }`}
           >
             {f.label}
@@ -159,7 +157,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
 
       {/* ── 错误提示 ── */}
       {error && (
-        <div className={`rounded-control px-4 py-2 text-xs ${isDarkMode ? 'bg-red-400/8 text-red-300/80' : 'bg-red-50 text-red-700'}`}>
+        <div className={`rounded-control px-4 py-2 text-xs bg-[var(--danger-tint)] text-[var(--danger-text)]`}>
           {error}
         </div>
       )}
@@ -171,7 +169,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
         </div>
       ) : instances.length === 0 ? (
         <div className={`${card} rounded-card p-8 flex flex-col items-center justify-center gap-2`}>
-          <Workflow size={24} strokeWidth={1} className={isDarkMode ? 'text-white/20' : 'text-slate-300'} />
+          <Workflow size={24} strokeWidth={1} className="text-[var(--text-quaternary)]" />
           <span className={`text-xs font-light ${weakText}`}>暂无工作流实例</span>
         </div>
       ) : (
@@ -185,7 +183,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
               <div key={instance.id} className={`${card} rounded-card overflow-hidden`}>
                 {/* ── 实例卡片头部 ── */}
                 <div
-                  className="flex items-start gap-3 p-4 cursor-pointer transition-colors hover:bg-white/[0.02]"
+                  className="flex items-start gap-3 p-4 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
                   onClick={() => setExpandedId(isExpanded ? null : instance.id)}
                 >
                   {/* 展开图标 */}
@@ -248,7 +246,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                               ) : isCurrent ? (
                                 <Clock size={14} strokeWidth={1.5} className="text-blue-400" />
                               ) : (
-                                <div className={`h-3.5 w-3.5 rounded-full border ${isDarkMode ? 'border-white/15' : 'border-slate-300'}`} />
+                                <div className={`h-3.5 w-3.5 rounded-full border border-[var(--border-c-strong)]`} />
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
@@ -291,11 +289,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                             type="button"
                             disabled={actionLoading === instance.id}
                             onClick={() => handleAction(instance.id, 'approve')}
-                            className={`flex-1 rounded-control py-2 text-xs font-light transition-all ${
-                              isDarkMode
-                                ? 'bg-emerald-400/12 text-emerald-300 hover:bg-emerald-400/20'
-                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            } ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
+                            className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
                             <CheckCircle size={12} strokeWidth={1.5} className="inline mr-1" />
                             通过
@@ -304,11 +298,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                             type="button"
                             disabled={actionLoading === instance.id}
                             onClick={() => handleAction(instance.id, 'reject')}
-                            className={`flex-1 rounded-control py-2 text-xs font-light transition-all ${
-                              isDarkMode
-                                ? 'bg-red-400/12 text-red-300 hover:bg-red-400/20'
-                                : 'bg-red-50 text-red-700 hover:bg-red-100'
-                            } ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
+                            className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
                             <XCircle size={12} strokeWidth={1.5} className="inline mr-1" />
                             驳回

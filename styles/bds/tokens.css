@@ -25,20 +25,23 @@
      - 暗色选择器双写 .dark + [data-theme="dark"]：.dark 兼容现有 Tailwind
        darkMode:'class' 机制（App.tsx 根 class），data-theme 为 v2 标准，
        App.tsx 已同步双写 documentElement.dataset.theme。
-   版本：v2.1.0（2026-08-14，Luna 案例色彩重构）
+   版本：v2.1.2（2026-08-14，审计收口：warning 补齐 tint-hover/active 阶梯、新增
+         --focus-ring-danger、删除零引用 --inset-highlight、章节 1-18 真实连号）
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ═══════════ 1. 表面色彩 — 微暖白体系（RDL #FAFAF9 实测） ═══════════
+  /* ═══════════ 1. 表面色彩 — 中性微冷白体系（去暖：与 accent 冷青 #3F6E7E 及
+     深色 #0E1519 同温，消除 stone 暖灰与冷青 accent 的冲突）。
+     阶梯：page < panel < sunken 逐级下沉，色温一致微冷（R<G≤B）。
      rgb 三元组（--bg-*-rgb）供 Tailwind alpha 修饰符引用（bg-bds-card/95） */
-  --bg-page: #FAFAF9;
-  --bg-page-rgb: 250 250 249;
+  --bg-page: #F3F5F6;
+  --bg-page-rgb: 243 245 246;
   --bg-card: #FFFFFF;
   --bg-card-rgb: 255 255 255;
-  --bg-panel: #F5F5F4;
-  --bg-panel-rgb: 245 245 244;
-  --bg-sunken: #EFEFEE;
-  --bg-sunken-rgb: 239 239 238;
+  --bg-panel: #EAEDEE;
+  --bg-panel-rgb: 234 237 238;
+  --bg-sunken: #E1E5E6;
+  --bg-sunken-rgb: 225 229 230;
   --bg-raised: #FFFFFF;            /* 浮起表面：segment 激活面、dropdown、popover */
   --bg-raised-rgb: 255 255 255;
 
@@ -71,16 +74,21 @@
   --link: #3F6E7E;                 /* 链接与行动同色（纪律：功能色只有一个） */
   --link-rgb: 63 110 126;
   --link-hover: #35616F;
+  --on-accent: #FFFFFF;            /* 彩色实底上的恒白文字/图形（btn-primary/switch knob/check 勾/toast ico 共用，主题无关常量） */
   --on-accent-chip: rgba(255,255,255,0.25);  /* accent 实底上的徽章/chip 底 */
 
   /* ═══════════ 4. 语义色 — 雾化处理（Luna 纪律：低饱和、高明度、小面积 dot/tint） ═══════════ */
   --success: #5E8B6E;              /* 雾松绿 */
   --success-rgb: 94 139 110;
   --success-tint: rgba(94,139,110,0.11);
+  --success-tint-hover: rgba(94,139,110,0.17);
+  --success-tint-active: rgba(94,139,110,0.23);
   --success-text: #4A7059;
   --warning: #A98A4F;              /* 雾琥珀 */
   --warning-rgb: 169 138 79;
   --warning-tint: rgba(169,138,79,0.11);
+  --warning-tint-hover: rgba(169,138,79,0.17);
+  --warning-tint-active: rgba(169,138,79,0.23);
   --warning-text: #8A6F3D;
   --danger: #B05F57;               /* 雾砖红 */
   --danger-rgb: 176 95 87;
@@ -91,7 +99,7 @@
   --danger-text: #964C44;
   --info-text: var(--accent-text);   /* info 语义归并 accent 系（info 徽章 = accent tint） */
 
-  /* ═══════════ 4.5 签名材质 — Luna 转译：雾蓝渐变 Mist + 淡紫藤 Wisteria ═══════════
+  /* ═══════════ 5. 签名材质 — Luna 转译：雾蓝渐变 Mist + 淡紫藤 Wisteria ═══════════
      Luna 高级感核心（案例实测）："Data → Atmosphere"——色彩以雾的形态弥散，
      磨砂玻璃浮于氛围之上，白色文字直接落于雾面。
      分工纪律（每类签名每屏至多一处）：
@@ -152,9 +160,8 @@
   --bds-shadow-sm: 0 2px 10px rgba(2,2,30,0.07);   /* dropdown、popover、toast */
   --bds-shadow-md: 0 8px 24px rgba(2,2,30,0.10);   /* modal */
   --bds-shadow-lg: 0 12px 48px rgba(2,2,30,0.12);  /* 大浮层 */
-  --inset-highlight: inset 0 1px 0 rgba(255,255,255,0.5);  /* 磨砂材质厚度内高光 */
 
-  /* ═══════════ 10.5 光感 Glow — Luna 式弥散柔光（小型彩色状态元素专用） ═══════════
+  /* ═══════════ 11. 光感 Glow — Luna 式弥散柔光（小型彩色状态元素专用） ═══════════
      Luna 手法：光不是锐利辉光，是弥散的雾光（低透明、大模糊）。
      发光纪律：仅徽章（tint + dot）/ 进度条 fill / toast 图标等小型彩色状态元素发光；
      控件（button/switch/checkbox）与大表面（卡片）不发光——大表面的光感由 atmosphere 承载。 */
@@ -167,7 +174,7 @@
   --glow-warning-soft: 0 1px 9px rgba(169,138,79,0.14);
   --glow-danger-soft: 0 1px 9px rgba(176,95,87,0.14);
 
-  /* ═══════════ 11. 边框 — 隐形 hairline，仅用于同面色分隔 ═══════════
+  /* ═══════════ 12. 边框 — 隐形 hairline，仅用于同面色分隔 ═══════════
      颜色单值（--border-c-*）供 border-color 等单属性引用；
      shorthand（--border-*）供 border 全属性引用 */
   --border-c-subtle: rgba(0,0,0,0.04);
@@ -177,8 +184,11 @@
   --border-default: 1px solid var(--border-c-default);
   --border-strong: 1px solid var(--border-c-strong);
 
-  /* ═══════════ 12. 磨砂玻璃 — 三层模糊刻度（RDL 实测 blur 5/20/45） ═══════════ */
-  --frosted-bg: rgba(255,255,255,0.7);
+  /* ═══════════ 13. 磨砂玻璃 — 三层模糊刻度（RDL 实测 blur 5/20/45） ═══════════
+     主容器统一玻璃面（用户裁决 2026-08-14：页面级主容器全玻璃，浮于 --page-aurora
+     雾背景之上）。膜色 0.62 不透明度：足够透出让玻璃"有雾可透"，又保证内容密集区
+     （表格/表单）可读性。深色 0.64 雾蓝黑（过透显脏，深色膜需略实）。 */
+  --frosted-bg: rgba(255,255,255,0.62);
   --frosted-blur-sm: 6px;    /* 导航项、小控件 */
   --frosted-blur: 20px;      /* 标准浮层 */
   --frosted-blur-lg: 45px;   /* 全宽 header / 覆盖层 */
@@ -187,7 +197,7 @@
   --frosted-dark-bg: rgba(255,255,255,0.08);
   --frosted-dark-border: 1px solid rgba(255,255,255,0.12);
 
-  /* ═══════════ 13. 页面氛围 Atmosphere — Luna 签名转译（全页弥散雾 + 胶片颗粒） ═══════════
+  /* ═══════════ 14. 页面氛围 Atmosphere — Luna 签名转译（全页弥散雾 + 胶片颗粒） ═══════════
      Luna 手法："Data → Atmosphere"——页面底层是三色弥散雾（雾蓝/雾鼠尾草绿/淡紫藤），
      浓度必须可感知：背景一眼看去就是"有色的雾"，不是白色。卡片与玻璃浮于雾上。
      颗粒层：极细 fractalNoise（6% 透明）让色雾有胶片的呼吸感，而非数字平涂。 */
@@ -198,7 +208,7 @@
     radial-gradient(54% 50% at 70% 102%, rgba(200,184,224,0.30), rgba(200,184,224,0) 74%),
     var(--bg-page);
 
-  /* ═══════════ 14. 字体系统 — 镜像生产环境（index.css --font-primary） ═══════════
+  /* ═══════════ 15. 字体系统 — 镜像生产环境（index.css --font-primary） ═══════════
      Urbanist（拉丁 UI/display，@fontsource 本地加载 300-700 全档）→ HarmonyOS Sans SC（CJK，有真实 Light 300 面）
      → Inter → Acherus Grotesque → PingFang SC。生产 body 字重 300：极致轻盈基调。
      字重纪律（2026-08-14 用户裁决）：全局 Light 300 单一字重，≤300 无例外——
@@ -229,7 +239,7 @@
   --tracking-wider: 0.08em;
   --tracking-widest: 0.12em;
 
-  /* ═══════════ 15. 图标 — Lucide 规范（24px 网格、圆头端点，与 pill DNA 同源） ═══════════ */
+  /* ═══════════ 16. 图标 — Lucide 规范（24px 网格、圆头端点，与 pill DNA 同源） ═══════════ */
   --icon-xs: 14px;
   --icon-sm: 16px;
   --icon-md: 18px;
@@ -240,14 +250,14 @@
   --icon-w-light: 1.5;   /* 细 — xl/卡头/幽灵钮 */
   --icon-w-thin: 1.25;   /* 极细 — hero 大图标位 */
 
-  /* ═══════════ 16. 动效 — Halo 实测 0.18/0.25s + easeOutCubic ═══════════ */
+  /* ═══════════ 17. 动效 — Halo 实测 0.18/0.25s + easeOutCubic ═══════════ */
   --duration-fast: 0.18s;
   --duration-normal: 0.25s;
   --duration-slower: 0.6s;
   --ease-default: cubic-bezier(0.215, 0.61, 0.355, 1);   /* easeOutCubic 先快后柔 */
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
 
-  /* ═══════════ 17. 组件级 token 映射（.bds-* 组件的唯一引用入口） ═══════════ */
+  /* ═══════════ 18. 组件级 token 映射（.bds-* 组件的唯一引用入口） ═══════════ */
   /* 圆角映射 */
   --r-badge: var(--radius-pill);
   --r-btn: var(--radius-pill);
@@ -260,6 +270,9 @@
   --r-tooltip: var(--radius-xs);
   --r-chip: var(--radius-pill);
   --r-avatar: var(--radius-pill);
+  /* 组件内部微件光学圆角（七级刻度外的组件级特例，值锁定不随刻度调整） */
+  --r-check: 6px;      /* 18px checkbox 盒体 */
+  --r-tabline: 2px;    /* tab 激活下划线 */
   /* 内距映射 */
   --p-badge: 4px 12px;
   --p-btn-sm: 8px 16px;
@@ -280,9 +293,19 @@
   --h-input-sm: 34px;
   --h-input-lg: 52px;
   --h-topbar: 56px;
-  /* 状态层（hover/active 背景加深，rimless 下唯一状态语言） */
-  --hover-darken: rgba(0,0,0,0.04);
-  --active-darken: rgba(0,0,0,0.08);
+  /* 状态层（hover/active 背景加深，rimless 下唯一状态语言）
+     2026-08-14 色相匹配修复：由中性黑 rgba(0,0,0,x) 改为冷墨 slate 基 rgba(15,23,42,x)。
+     系统底色全面冷化后，中性灰洗在冷玻璃上因色相对比被感知为"暖灰异物"；
+     状态洗必须与 --recessed-* / accent 同属冷墨家族，确保任何交互态都"长在氛围里"。 */
+  --hover-darken: rgba(15,23,42,0.045);
+  --active-darken: rgba(15,23,42,0.085);
+  /* 凹槽填充 — 玻璃容器上的控件"刻入"面（输入框/段选轨/开关/徽章底等）：
+     半透明冷墨洗（slate 基），非实色灰板。主容器玻璃化后，实色 sunken/panel
+     填的控件在玻璃上呈浑浊异物斑（色相对比下显暖）；凹槽改以低透明墨洗蚀刻，
+     让底层雾感透过来，层级靠明度微差而非色块拼接。 */
+  --recessed-bg: rgba(15,23,42,0.05);
+  --recessed-bg-hover: rgba(15,23,42,0.075);
+  --recessed-bg-strong: rgba(15,23,42,0.105);
   /* 反色按钮（invert 变体） */
   --invert-bg: #0B0C0B;
   --invert-bg-hover: #2A2B29;
@@ -291,6 +314,7 @@
   /* 焦点环 — 全系统键盘焦点唯一语言 */
   --focus-ring: 0 0 0 3px var(--accent-tint);
   --focus-ring-strong: 0 0 0 3px rgba(63,110,126,0.28);
+  --focus-ring-danger: 0 0 0 3px rgba(176,95,87,0.16);   /* 危险态输入/确认焦点 */
   /* 层叠刻度 — 全系统唯一 z 秩序（modal 200 现状归位）；禁止组件自造 z 值 */
   --z-sticky: 40;    /* 粘性页头/顶栏 */
   --z-pop: 60;       /* dropdown / popover / tooltip / calendar */
@@ -348,10 +372,14 @@
   --success-rgb: 138 184 154;
   --success-text: #9CC4AB;
   --success-tint: rgba(138,184,154,0.14);
+  --success-tint-hover: rgba(138,184,154,0.22);
+  --success-tint-active: rgba(138,184,154,0.30);
   --warning: #C9AC6E;
   --warning-rgb: 201 172 110;
   --warning-text: #D4BC85;
   --warning-tint: rgba(201,172,110,0.14);
+  --warning-tint-hover: rgba(201,172,110,0.22);
+  --warning-tint-active: rgba(201,172,110,0.30);
   --danger: #C97F76;
   --danger-rgb: 201 127 118;
   --danger-text: #D4958D;
@@ -368,9 +396,13 @@
   --border-c-default: rgba(255,255,255,0.10);
   --border-c-strong: rgba(255,255,255,0.14);
 
-  /* 状态层翻转 */
-  --hover-darken: rgba(255,255,255,0.06);
-  --active-darken: rgba(255,255,255,0.10);
+  /* 状态层翻转（色相同样匹配深夜雾蓝黑底：带冷青倾向的白雾洗，非纯白中性） */
+  --hover-darken: rgba(214,230,238,0.06);
+  --active-darken: rgba(214,230,238,0.10);
+  /* 凹槽填充（暗色）— 白雾洗蚀刻，与深色玻璃同源 */
+  --recessed-bg: rgba(255,255,255,0.07);
+  --recessed-bg-hover: rgba(255,255,255,0.10);
+  --recessed-bg-strong: rgba(255,255,255,0.14);
 
   /* 反色按钮翻转 */
   --invert-bg: #F2F5F4;
@@ -378,8 +410,8 @@
   --invert-bg-active: #EAEEEB;
   --invert-text: #0E1519;
 
-  /* 磨砂玻璃暗色适配：雾蓝黑半透明底 + 弱白边 */
-  --frosted-bg: rgba(21,30,35,0.68);
+  /* 磨砂玻璃暗色适配：雾蓝黑半透明底（0.64 略实防脏） + 弱白边 */
+  --frosted-bg: rgba(21,30,35,0.64);
   --frosted-border: 1px solid rgba(255,255,255,0.10);
 
   /* 图表纹理翻转 */
@@ -416,4 +448,5 @@
   --glow-danger-soft: 0 1px 10px rgba(201,127,118,0.18);
 
   --focus-ring-strong: 0 0 0 3px rgba(127,168,184,0.32);
+  --focus-ring-danger: 0 0 0 3px rgba(201,127,118,0.22);
 }

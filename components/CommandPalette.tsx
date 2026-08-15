@@ -248,9 +248,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
   };
 
-  const idleTextClass = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const titleTextClass = isDarkMode ? 'text-slate-100' : 'text-slate-800';
-  const activeClass = isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-500/[0.10]';
+  const idleTextClass = 'text-[var(--text-tertiary)]';
+  const titleTextClass = 'text-[var(--text-primary)]';
+  const activeClass = 'bg-[var(--active-darken)]';
 
   let flatIndex = -1;
   const renderItem = (item: PaletteItem) => {
@@ -299,7 +299,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* 搜索输入 */}
-        <div className={`flex items-center gap-3 px-5 py-4 border-b ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-900/[0.05]'}`}>
+        <div className={`flex items-center gap-3 px-5 py-4 border-b border-[var(--border-c-subtle)]`}>
           <Search size={17} strokeWidth={1.5} className={idleTextClass} />
           <input
             ref={inputRef}
@@ -307,9 +307,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="搜索客户、订单、产品、发票、知识、邮件，或前往模块…"
-            className={`flex-1 bg-transparent outline-none text-[15px] font-light placeholder:font-light ${titleTextClass} ${isDarkMode ? 'placeholder:text-slate-500' : 'placeholder:text-slate-400'}`}
+            className={`flex-1 bg-transparent outline-none text-[15px] font-light placeholder:font-light ${titleTextClass} placeholder:text-[var(--text-tertiary)]`}
           />
-          <kbd className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-light ${isDarkMode ? 'bg-white/[0.07] text-slate-400' : 'bg-slate-500/[0.08] text-slate-500'}`}>ESC</kbd>
+          <kbd className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-light bg-[var(--active-darken)] text-[var(--text-tertiary)]`}>ESC</kbd>
         </div>
 
         {/* 结果列表 */}
@@ -340,7 +340,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* 底部快捷键提示 */}
-        <div className={`flex items-center gap-4 px-5 py-2.5 border-t text-[10px] font-light ${isDarkMode ? 'border-white/[0.06] text-slate-500' : 'border-slate-900/[0.05] text-slate-400'}`}>
+        <div className={`flex items-center gap-4 px-5 py-2.5 border-t text-[10px] font-light border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>
           <span className="flex items-center gap-1">↑↓ 导航</span>
           <span className="flex items-center gap-1"><CornerDownLeft size={10} strokeWidth={1.5} /> 打开</span>
           <span className="flex-1" />

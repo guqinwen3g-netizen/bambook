@@ -116,30 +116,24 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
     }
   };
 
-  const inputCls = `w-full px-4 py-2.5 rounded-control border outline-none text-sm transition-all ${
-    isDarkMode
-      ? 'bg-deep/40 border-white/10 text-white placeholder-slate-500 focus:border-[var(--os-vnext-brand-blue)]/60'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-slate-400'
-  }`;
+  const inputCls = `w-full px-4 py-2.5 rounded-control border outline-none text-sm transition-all bg-[var(--bg-raised)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--os-vnext-brand-blue)]`;
 
   if (submittedEmail) {
     return (
-      <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
-        <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border ${
-          isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-white/80 border-white/40 shadow-none'
-        }`}>
+      <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto bg-[var(--bg-page)]`}>
+        <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border bg-[var(--bg-card)] border-[var(--border-c-default)] shadow-none`}>
           <div className="flex flex-col items-center text-center">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10' : 'bg-slate-100'}`}>
-              <CheckCircle2 size={32} strokeWidth={1.5} className={isDarkMode ? "text-white/70" : "text-slate-600"} />
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center bg-[var(--recessed-bg)]`}>
+              <CheckCircle2 size={32} strokeWidth={1.5} className="text-[var(--text-secondary)]" />
             </div>
-            <h1 className={`mt-5 text-lg font-light tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            <h1 className={`mt-5 text-lg font-light tracking-tight text-[var(--text-primary)]`}>
               申请已提交，等待管理员审批
             </h1>
-            <p className={`mt-2 text-xs leading-5 px-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              管理员审核通过后会向 <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>{submittedEmail}</span> 发送通知邮件，届时即可使用同一邮箱登录。
+            <p className={`mt-2 text-xs leading-5 px-2 text-[var(--text-tertiary)]`}>
+              管理员审核通过后会向 <span className="text-[var(--text-primary)]">{submittedEmail}</span> 发送通知邮件，届时即可使用同一邮箱登录。
             </p>
 
-            <div className={`mt-5 w-full flex items-center gap-2 px-3 py-2.5 rounded-inset border text-[11px] ${isDarkMode ? 'border-white/10 bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-white/70 text-slate-500'}`}>
+            <div className={`mt-5 w-full flex items-center gap-2 px-3 py-2.5 rounded-inset border text-[11px] border-[var(--border-c-default)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
               <MailCheck size={14} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue)] shrink-0" />
               <span>请留意邮箱（含垃圾邮件夹），如长时间未收到通知可联系您的管理员。</span>
             </div>
@@ -151,7 +145,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
             >
               立即返回登录
             </button>
-            <p className={`mt-3 text-[11px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <p className={`mt-3 text-[11px] text-[var(--text-tertiary)]`}>
               {redirectCountdown > 0 ? `${redirectCountdown} 秒后自动返回登录` : '正在返回登录…'}
             </p>
           </div>
@@ -161,18 +155,16 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
   }
 
   return (
-    <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto ${isDarkMode ? 'bg-app-dark' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
-      <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border ${
-        isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-white/80 border-white/40 shadow-none'
-      }`}>
+    <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto bg-[var(--bg-page)]`}>
+      <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border bg-[var(--bg-card)] border-[var(--border-c-default)] shadow-none`}>
         <div className="flex flex-col items-center mb-6">
           <BambookIcon size={36} strokeWidth={1} className="text-[var(--os-vnext-brand-blue)] drop-shadow-none" />
-          <h1 className={`mt-3 text-lg font-light tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className={`mt-3 text-lg font-light tracking-tight text-[var(--text-primary)]`}>
             申请加入 Bambook Neural
           </h1>
           <p
             className={`mt-1 text-[11px] min-h-[16px] text-center px-2 leading-4 ${
-              error ? (isDarkMode ? 'text-white/55' : 'text-slate-500') : success ? (isDarkMode ? 'text-white/70' : 'text-slate-600') : info ? (isDarkMode ? 'text-slate-400' : 'text-slate-500') : (isDarkMode ? 'text-slate-500' : 'text-slate-500')
+              error ? 'text-[var(--text-tertiary)]' : success ? 'text-[var(--text-secondary)]' : info ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-tertiary)]'
             }`}
           >
             {error || success || info || '邮箱验证后提交审批，管理员通过即可登录'}
@@ -181,7 +173,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className={`block text-[11px] font-light mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>姓名</label>
+            <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>姓名</label>
             <input
               type="text"
               value={displayName}
@@ -193,7 +185,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
           </div>
 
           <div>
-            <label className={`block text-[11px] font-light mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>工作邮箱</label>
+            <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>工作邮箱</label>
             <input
               type="email"
               value={email}
@@ -205,7 +197,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
           </div>
 
           <div>
-            <label className={`block text-[11px] font-light mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>邮箱验证码</label>
+            <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>邮箱验证码</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -222,8 +214,8 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
                 disabled={isSendingCode || cooldown > 0 || !email}
                 className={`shrink-0 px-3 rounded-full text-xs font-light transition-all whitespace-nowrap ${
                   isSendingCode || cooldown > 0 || !email
-                    ? (isDarkMode ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed')
-                    : (isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/15 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/25 border border-[var(--os-vnext-brand-blue)]/30' : 'bg-slate-50 text-[var(--os-vnext-brand-blue)] hover:bg-slate-100 border border-slate-200')
+                    ? 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] cursor-not-allowed'
+                    : 'bg-[var(--accent-tint)] text-[var(--accent-text)] hover:bg-[var(--accent-tint-strong)] border border-[var(--accent-tint-strong)]'
                 }`}
               >
                 {isSendingCode ? '发送中...' : cooldown > 0 ? `${cooldown}s 后重发` : '发送验证码'}
@@ -233,7 +225,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`block text-[11px] font-light mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>密码</label>
+              <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>密码</label>
               <input
                 type="password"
                 value={password}
@@ -244,7 +236,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
               />
             </div>
             <div>
-              <label className={`block text-[11px] font-light mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>确认密码</label>
+              <label className={`block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]`}>确认密码</label>
               <input
                 type="password"
                 value={confirm}
@@ -261,7 +253,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
             disabled={isLoading || !email || !password || !displayName || !confirm || !code}
             className={`w-full py-2.5 rounded-full text-sm font-light transition-all ${
               isLoading || !email || !password || !displayName || !confirm || !code
-                ? 'bg-slate-500/30 text-slate-400 cursor-not-allowed'
+                ? 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] cursor-not-allowed'
                 : 'bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98]'
             }`}
           >
@@ -272,7 +264,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
         <button
           type="button"
           onClick={onBackToLogin}
-          className={`mt-5 w-full text-center text-xs ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition`}
+          className={`mt-5 w-full text-center text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition`}
         >
           已有账号？返回登录
         </button>

@@ -21,16 +21,6 @@ import { requestOsAdaptiveContrastRefresh } from './ui/osAdaptiveContrast';
 import UserAvatar from './ui/UserAvatar';
 import { resolvePublicAssetUrl } from '../utils/publicAssets';
 import { setWallpaperAccentSample } from '../utils/wallpaperAccent';
-import {
-  SIDEBAR_ACTIVE_DARK_CLASS,
-  SIDEBAR_ACTIVE_LIGHT_CLASS,
-  SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_HOVER_LIGHT_CLASS,
-  SIDEBAR_IDLE_ICON_DARK_CLASS,
-  SIDEBAR_IDLE_ICON_LIGHT_CLASS,
-  SIDEBAR_PRESS_DARK_CLASS,
-  SIDEBAR_PRESS_LIGHT_CLASS,
-} from './Sidebar';
 
 const ENABLE_WALLPAPER_SWITCHING = false;
 
@@ -465,44 +455,24 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   };
 
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
-  const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight}`;
-  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-all ${BAMBOOK_OS.typography.weight.ui} ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`;
-  const actionControlCls = `h-9 rounded-control border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-all ${isDarkMode ? BAMBOOK_OS.controls.actionControl.borderedDark : BAMBOOK_OS.controls.actionControl.borderedLight}`;
-  const titleBrandClass = isDarkMode ? BAMBOOK_OS.tone.text.brandDark : BAMBOOK_OS.tone.text.brandInline;
-  const brandIconCls = isDarkMode ? BAMBOOK_OS.tone.text.brandDark : BAMBOOK_OS.tone.text.brandLight;
-  const primaryTextCls = isDarkMode ? 'text-white' : 'text-slate-900';
-  const secondaryTextCls = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const weakTextCls = isDarkMode ? 'text-white/42' : 'text-slate-500';
-  const sectionDividerCls = isDarkMode ? BAMBOOK_OS.tone.divider.sectionDark : BAMBOOK_OS.tone.divider.sectionLight;
-  const iconWellCls = `flex h-9 w-9 shrink-0 items-center justify-center rounded-field border ${isDarkMode
-    ? `${BAMBOOK_OS.tone.surface.quietIconDark} border-white/[0.06] ${BAMBOOK_OS.tone.text.brandDark}`
-    : `${BAMBOOK_OS.tone.surface.quietIconLight} border-white/50 ${BAMBOOK_OS.tone.text.brandLight}`}`;
-  const optionActiveCls = isDarkMode
-    ? `${SIDEBAR_ACTIVE_DARK_CLASS} text-white`
-    : `${SIDEBAR_ACTIVE_LIGHT_CLASS} text-slate-700`;
-  const optionIdleCls = isDarkMode
-    ? `border border-transparent bg-transparent shadow-none text-slate-300 ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`
-    : `border border-transparent bg-transparent shadow-none text-slate-600 ${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`;
-  const uploadDropzoneCls = `relative h-20 rounded-control border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${isDarkMode
-    ? `border-white/[0.08] text-white/46 ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`
-    : `border-slate-300/50 text-slate-500 ${SIDEBAR_HOVER_LIGHT_CLASS} ${SIDEBAR_PRESS_LIGHT_CLASS}`}`;
-  const selectedWallpaperCls = isDarkMode
-    ? 'border-[var(--os-vnext-brand-blue-soft)]/34 shadow-none'
-    : 'border-[var(--os-vnext-brand-blue-strong)]/28 shadow-none';
-  const idleWallpaperCls = isDarkMode
-    ? 'border-white/[0.08] hover:border-white/[0.14]'
-    : 'border-white/55 hover:border-slate-300/70';
+  const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} text-[var(--text-tertiary)]`;
+  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-all ${BAMBOOK_OS.typography.weight.ui} bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--os-vnext-brand-blue)]`;
+  const actionControlCls = `h-9 rounded-control border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-all border-transparent text-[var(--text-tertiary)] bg-[var(--recessed-bg)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)] active:bg-[var(--active-darken)]`;
+  const titleBrandClass = 'text-[var(--os-vnext-brand-blue)]';
+  const brandIconCls = 'text-[var(--os-vnext-brand-blue)]';
+  const primaryTextCls = 'text-[var(--text-primary)]';
+  const secondaryTextCls = 'text-[var(--text-secondary)]';
+  const weakTextCls = 'text-[var(--text-tertiary)]';
+  const sectionDividerCls = 'border-[var(--border-c-subtle)]';
+  const iconWellCls = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-field border bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--os-vnext-brand-blue)]';
+  const optionActiveCls = 'bg-[var(--active-darken)] text-[var(--text-primary)]';
+  const optionIdleCls = 'border border-transparent bg-transparent shadow-none text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] active:scale-[0.98] active:bg-[var(--active-darken)]';
+  const uploadDropzoneCls = 'relative h-20 rounded-control border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] active:scale-[0.98] active:bg-[var(--active-darken)]';
+  const selectedWallpaperCls = 'border-[var(--os-vnext-brand-blue)] shadow-none';
+  const idleWallpaperCls = 'border-[var(--border-c-subtle)] hover:border-[var(--border-c-default)]';
   const rangeCls = 'bambook-settings-range w-full appearance-none cursor-pointer';
-  const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
-    ? (isDarkMode
-      ? 'bambook-state-switch-track--checked-dark'
-      : 'bambook-state-switch-track--checked-light')
-    : (isDarkMode
-      ? 'border-transparent bg-[rgba(13,27,42,0.28)] shadow-none'
-      : 'border-transparent bg-white/42 shadow-none')}`;
-  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} ${isDarkMode
-    ? 'bg-white/82 shadow-none'
-    : 'bg-white/90 shadow-none'}`;
+  const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'bg-[var(--os-vnext-brand-blue)] border-[var(--os-vnext-brand-blue)]' : 'border-transparent bg-[var(--recessed-bg)] shadow-none'}`;
+  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-[var(--invert-bg)] shadow-none`;
 
   const modelId = localConfig.chatModelId || MODELS.FAST;
   const canOpenAgentPetWindow = Boolean(window.bambookAgent?.openPetWindow);
@@ -694,7 +664,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               const Icon = tab.icon;
               const on = activeTab === tab.id;
               const hintCls = on
-                ? (isDarkMode ? 'text-white/54' : 'text-slate-500')
+                ? 'text-[var(--text-tertiary)]'
                 : weakTextCls;
               return (
                 <button
@@ -704,7 +674,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                   data-ui-lab-wallpaper-contrast={on ? undefined : 'primary'}
                   className={`text-left rounded-control px-3 py-2.5 transition-all flex items-start gap-2 border ${BAMBOOK_OS.typography.weight.ui} ${on ? optionActiveCls : optionIdleCls}`}
                 >
-                  <Icon size={16} strokeWidth={1.5} className={`mt-0.5 shrink-0 transition-colors ${on ? 'text-current' : (isDarkMode ? SIDEBAR_IDLE_ICON_DARK_CLASS : SIDEBAR_IDLE_ICON_LIGHT_CLASS)}`} />
+                  <Icon size={16} strokeWidth={1.5} className={`mt-0.5 shrink-0 transition-colors ${on ? 'text-current' : 'text-[var(--text-tertiary)]'}`} />
                   <span>
                     <span className="block text-sm font-light leading-tight">{tab.label}</span>
                     <span className={`block text-[10px] mt-0.5 ${hintCls}`}>{tab.hint}</span>
@@ -712,7 +682,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                 </button>
               );
             })}
-            <div data-ui-lab-wallpaper-contrast="muted" className="mt-auto pt-3 px-2 pb-1 text-[10px] text-slate-500">
+            <div data-ui-lab-wallpaper-contrast="muted" className="mt-auto pt-3 px-2 pb-1 text-[10px] text-[var(--text-tertiary)]">
               Bambook Hub v3.0
             </div>
           </SidePanelContainer>
@@ -739,7 +709,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               {activeTab === 'appearance' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className={`text-xs font-light uppercase tracking-[0.2em] mb-3 ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>系统外观主题</h3>
+                    <h3 className={`text-xs font-light uppercase tracking-[0.2em] mb-3 text-[var(--text-tertiary)]`}>系统外观主题</h3>
                     <p className={`text-xs mb-3 ${secondaryTextCls}`}>
                       与应用其他页面一致的全局浅色 / 深色主题。选择「跟随系统」时，将使用系统外观并随系统切换。
                     </p>
@@ -813,7 +783,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
                   {ENABLE_WALLPAPER_SWITCHING && (
                   <div className={`pt-6 border-t ${sectionDividerCls}`}>
-                    <h3 className={`text-xs font-light uppercase tracking-[0.2em] mb-2 ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>桌面背景壁纸</h3>
+                    <h3 className={`text-xs font-light uppercase tracking-[0.2em] mb-2 text-[var(--text-tertiary)]`}>桌面背景壁纸</h3>
                     <p className={`text-xs mb-4 ${secondaryTextCls}`}>
                       选择内置的物理折射壁纸或上传自定义照片，以提升工作区的毛玻璃感与三维立体深度。
                     </p>
@@ -821,7 +791,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     <div className="space-y-4">
                       {groupedWallpaperOptions.map(group => (
                         <div key={group.group} className="space-y-2">
-                          <div className={`text-[10px] uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/38' : 'text-slate-400'}`}>{group.group}</div>
+                          <div className={`text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]`}>{group.group}</div>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {group.presets.map(preset => {
                               const resolvedBackgroundImage = resolvePublicAssetUrl(localConfig.backgroundImage);
@@ -876,7 +846,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                           <span className="relative z-10 text-[10px] font-light text-white truncate max-w-full drop-shadow-none flex items-center gap-1">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-white/60" />
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--active-darken)]" />
                             自定义背景
                           </span>
                         </button>
@@ -960,7 +930,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           className={`text-left p-4 rounded-control border transition-all ${modelId === m.id ? optionActiveCls : optionIdleCls}`}
                         >
                           <div className={`text-sm font-light ${modelId === m.id ? 'text-current' : primaryTextCls}`}>{m.title}</div>
-                          <div className={`text-[11px] mt-1 ${modelId === m.id ? (isDarkMode ? 'text-white/54' : 'text-slate-500') : weakTextCls}`}>{m.sub}</div>
+                          <div className={`text-[11px] mt-1 ${modelId === m.id ? 'text-[var(--text-tertiary)]' : weakTextCls}`}>{m.sub}</div>
                         </button>
                       ))}
                     </div>
@@ -980,7 +950,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       onChange={e => handleUpdate('temperature', parseFloat(e.target.value))}
                       className={rangeCls}
                     />
-                    <div className={`flex justify-between text-[10px] mt-2 uppercase tracking-wide ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <div className={`flex justify-between text-[10px] mt-2 uppercase tracking-wide text-[var(--text-tertiary)]`}>
                       <span>更稳</span>
                       <span>更活</span>
                     </div>
@@ -991,7 +961,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               {activeTab === 'voice' && (
                 <div className="space-y-6">
                   <p className={`text-sm ${secondaryTextCls}`}>
-                    控制 AI 回复后的<strong className="font-light text-slate-700 dark:text-slate-200">自动朗读</strong>语速。语音经本地 Melo TTS 代理合成。
+                    控制 AI 回复后的<strong className="font-light text-[var(--text-primary)]">自动朗读</strong>语速。语音经本地 Melo TTS 代理合成。
                   </p>
                   <div className={card + ' p-5'}>
                     <div className="flex justify-between items-center mb-2">
@@ -1033,7 +1003,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     />
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <div className="flex items-center gap-2">
-                        <span className={`inline-block w-2 h-2 rounded-full ${config.isCloudConnected ? 'bg-white/60' : 'bg-white/40'}`} />
+                        <span className={`inline-block w-2 h-2 rounded-full ${config.isCloudConnected ? 'bg-[var(--success-tint)]' : 'bg-[var(--text-tertiary)]'}`} />
                         <span className={secondaryTextCls}>
                           当前探测：{config.isCloudConnected ? '已连接' : '未连接'}
                         </span>
@@ -1104,9 +1074,9 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     />
                   </div>
 
-                  <div className={`p-3 rounded-control border font-mono text-[10px] h-36 overflow-y-auto custom-scrollbar ${isDarkMode ? 'bg-black/40 border-white/10 text-slate-300' : 'bg-slate-900 text-slate-300 border-slate-800'}`}>
+                  <div className={`p-3 rounded-control border font-mono text-[10px] h-36 overflow-y-auto custom-scrollbar bg-[var(--recessed-bg-strong)] border-[var(--border-c-default)] text-[var(--text-secondary)]`}>
                     {testLogs.map((log, i) => (
-                      <div key={i} className={`mb-1 ${log.type === 'error' ? 'text-white/55' : log.type === 'success' ? 'text-white/70' : ''}`}>
+                      <div key={i} className={`mb-1 ${log.type === 'error' ? 'text-[var(--danger-text)]' : log.type === 'success' ? 'text-[var(--success-text)]' : ''}`}>
                         {log.msg}
                       </div>
                     ))}
@@ -1198,7 +1168,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         ['浏览器缓存', formatBytes(storageReport?.indexedDbUsageBytes)],
                         ['设备配额', formatBytes(storageReport?.quotaBytes)],
                       ].map(([title, value]) => (
-                        <div key={title} className={`rounded-control border px-4 py-3 ${isDarkMode ? BAMBOOK_OS.tone.surface.inlinePanelDark : BAMBOOK_OS.tone.surface.inlinePanelLight}`}>
+                        <div key={title} className={`rounded-control border px-4 py-3 bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                           <div className={labelCls}>{title}</div>
                           <div className={`mt-1 text-sm font-light ${primaryTextCls}`}>{value}</div>
                         </div>
@@ -1208,19 +1178,19 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
                   <div className="space-y-3">
                     {(storageReport?.categories || []).map(category => (
-                      <div key={category.id} className={`rounded-control border p-4 flex items-center justify-between gap-4 ${isDarkMode ? BAMBOOK_OS.tone.surface.linkedPanelDark : BAMBOOK_OS.tone.surface.linkedPanelLight}`}>
+                      <div key={category.id} className={`rounded-control border p-4 flex items-center justify-between gap-4 bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`}>
                         <div className="min-w-0">
                           <div className={`text-sm font-light ${primaryTextCls}`}>{category.label}</div>
                           <div className={`mt-1 text-[11px] leading-relaxed ${weakTextCls}`}>{category.description}</div>
                         </div>
                         <div className="text-right shrink-0">
                           <div className={`text-sm font-light ${primaryTextCls}`}>{formatBytes(category.bytes)}</div>
-                          <div className="mt-1 text-[10px] text-slate-500">{category.keys.length} keys</div>
+                          <div className="mt-1 text-[10px] text-[var(--text-tertiary)]">{category.keys.length} keys</div>
                         </div>
                       </div>
                     ))}
                     {!storageReport && (
-                      <div className={`rounded-control border p-4 text-xs ${isDarkMode ? `${BAMBOOK_OS.tone.surface.linkedPanelDark} text-slate-500` : `${BAMBOOK_OS.tone.surface.linkedPanelLight} text-slate-500`}`}>
+                      <div className={`rounded-control border p-4 text-xs bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>
                         {storageLoading ? '正在读取本机存储...' : '暂无存储报告'}
                       </div>
                     )}
@@ -1255,7 +1225,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       ))}
                     </div>
                     {storageMsg && (
-                      <div className={`text-xs rounded-control px-3 py-2 border ${storageMsg.ok ? 'text-white/70 bg-white/[0.06] border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border-white/[0.08]'}`}>
+                      <div className={`text-xs rounded-control px-3 py-2 border ${storageMsg.ok ? 'text-[var(--text-secondary)] bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]' : 'text-[var(--text-tertiary)] bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]'}`}>
                         {storageMsg.text}
                       </div>
                     )}
@@ -1280,7 +1250,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                             />
                             {user && (
                               <label
-                                className={`absolute -bottom-1 -right-1 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border opacity-0 shadow-none transition-all duration-200 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 ${avatarLoading ? 'pointer-events-none opacity-60' : 'hover:scale-105'} ${isDarkMode ? 'border-transparent bg-white/[0.055] text-white' : 'border-transparent bg-white/52 text-[var(--os-vnext-brand-blue-strong)]'}`}
+                                className={`absolute -bottom-1 -right-1 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border opacity-0 shadow-none transition-all duration-200 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 ${avatarLoading ? 'pointer-events-none opacity-60' : 'hover:scale-105'} border-transparent bg-[var(--recessed-bg)] text-[var(--os-vnext-brand-blue)]}`}
                                 aria-label="编辑头像"
                               >
                                 <Pencil size={13} strokeWidth={1.6} />
@@ -1297,20 +1267,20 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className={`text-xs font-light tracking-[0.2em] uppercase ${isDarkMode ? 'text-white/35' : 'text-slate-500'}`}>Signed In Account</div>
+                            <div className={`text-xs font-light tracking-[0.2em] uppercase text-[var(--text-tertiary)]`}>Signed In Account</div>
                             <div className={`mt-1 text-xl font-light truncate ${primaryTextCls}`}>
                               {user?.displayName || '未登录'}
                             </div>
-                            <div className={`mt-1 text-xs font-mono truncate ${isDarkMode ? 'text-white/45' : 'text-slate-500'}`}>
+                            <div className={`mt-1 text-xs font-mono truncate text-[var(--text-tertiary)]`}>
                               {user?.email || 'No active session'}
                             </div>
                           </div>
-                          <span className={`text-[10px] px-2 py-1 rounded-full shrink-0 ${user ? 'bg-white/[0.06] text-white/70' : 'bg-slate-500/15 text-slate-400'}`}>
+                          <span className={`text-[10px] px-2 py-1 rounded-full shrink-0 ${user ? 'bg-[var(--recessed-bg)] text-[var(--text-secondary)]' : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)]'}`}>
                             {user ? '已登录' : '未登录'}
                           </span>
                         </div>
                         {user && (
-                          <div className={`border-t px-6 py-4 ${isDarkMode ? 'border-white/10' : 'border-slate-100'}`}>
+                          <div className={`border-t px-6 py-4 border-[var(--border-c-subtle)]`}>
                             <div className="flex flex-wrap items-center gap-2">
                               {user.avatarUrl && (
                                 <button
@@ -1322,26 +1292,26 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                                   移除头像
                                 </button>
                               )}
-                              <span className={`text-[11px] ${isDarkMode ? 'text-white/36' : 'text-slate-500'}`}>
+                              <span className={`text-[11px] text-[var(--text-tertiary)]`}>
                                 触碰头像后点击右下角编辑按钮；自动居中裁切，所有场景统一圆形显示。
                               </span>
                             </div>
                             {avatarMsg && (
-                              <div className={`mt-3 text-xs rounded-control px-3 py-2 ${avatarMsg.ok ? 'text-white/70 bg-white/[0.06] border border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border border-white/[0.08]'}`}>
+                              <div className={`mt-3 text-xs rounded-control px-3 py-2 ${avatarMsg.ok ? 'text-[var(--text-secondary)] bg-[var(--recessed-bg)] border border-[var(--border-c-subtle)]' : 'text-[var(--text-tertiary)] bg-[var(--recessed-bg)] border border-[var(--border-c-subtle)]'}`}>
                                 {avatarMsg.text}
                               </div>
                             )}
                           </div>
                         )}
                         {user && (
-                          <div className={`grid grid-cols-2 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-100'}`}>
+                          <div className={`grid grid-cols-2 border-t border-[var(--border-c-subtle)]`}>
                             <div className="p-4">
                               <div className={labelCls}>角色</div>
-                              <div className={`mt-1 text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{user.roles.join(', ') || '-'}</div>
+                              <div className={`mt-1 text-sm text-[var(--text-primary)]`}>{user.roles.join(', ') || '-'}</div>
                             </div>
-                            <div className={`p-4 border-l ${isDarkMode ? 'border-white/10' : 'border-slate-100'}`}>
+                            <div className={`p-4 border-l border-[var(--border-c-subtle)]`}>
                               <div className={labelCls}>部门</div>
-                              <div className={`mt-1 text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{user.department || user.departmentIds.join(', ') || '-'}</div>
+                              <div className={`mt-1 text-sm text-[var(--text-primary)]`}>{user.department || user.departmentIds.join(', ') || '-'}</div>
                             </div>
                           </div>
                         )}
@@ -1364,12 +1334,12 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className={`p-4 rounded-control border text-left transition-all ${isDarkMode ? 'bg-white/[0.04] border-white/[0.08] text-white/55 hover:bg-white/[0.06]' : 'bg-white/[0.04] border-slate-200/50 text-slate-500 hover:bg-white/[0.04]'}`}
+                          className={`p-4 rounded-control border text-left transition-all bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <div className="text-sm font-light">退出登录</div>
-                              <div className={`mt-1 text-[11px] ${isDarkMode ? 'text-white/55' : 'text-slate-500/70'}`}>清除本机登录状态</div>
+                              <div className={`mt-1 text-[11px] text-[var(--text-tertiary)]`}>清除本机登录状态</div>
                             </div>
                             <LogOut size={16} strokeWidth={1.5} />
                           </div>
@@ -1399,7 +1369,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       <button
                         type="button"
                         onClick={() => setAccountView('overview')}
-                        className={`text-xs font-light ${isDarkMode ? 'text-white/50 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                        className={`text-xs font-light text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}
                       >
                         返回账号名片
                       </button>
@@ -1422,7 +1392,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} className={inputCls + ' mt-1'} autoComplete="new-password" />
                         </div>
                         {pwMsg && (
-                          <div className={`text-xs rounded-control px-3 py-2 ${pwMsg.ok ? 'text-white/70 bg-white/[0.06] border border-white/[0.08]' : 'text-white/55 bg-white/[0.04] border border-white/[0.08]'}`}>
+                          <div className={`text-xs rounded-control px-3 py-2 ${pwMsg.ok ? 'text-[var(--text-secondary)] bg-[var(--recessed-bg)] border border-[var(--border-c-subtle)]' : 'text-[var(--text-tertiary)] bg-[var(--recessed-bg)] border border-[var(--border-c-subtle)]'}`}>
                             {pwMsg.text}
                           </div>
                         )}
@@ -1602,7 +1572,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
               <div className="flex flex-col items-center gap-4">
                 <div
-                  className={`relative h-56 w-56 cursor-grab touch-none select-none overflow-hidden rounded-full border active:cursor-grabbing ${isDarkMode ? 'border-white/12 bg-black/20' : 'border-white/70 bg-white/50'}`}
+                  className={`relative h-56 w-56 cursor-grab touch-none select-none overflow-hidden rounded-full border active:cursor-grabbing border-[var(--border-c-default)] bg-[var(--recessed-bg)]`}
                   onPointerDown={handleAvatarCropPointerDown}
                   onPointerMove={handleAvatarCropPointerMove}
                   onPointerUp={handleAvatarCropPointerUp}
@@ -1628,15 +1598,15 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     }}
                   />
                   <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-white/70" />
-                  <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/20" />
-                  <div className="pointer-events-none absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-white/20" />
+                  <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[var(--active-darken)]" />
+                  <div className="pointer-events-none absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-[var(--active-darken)]" />
                 </div>
 
                 <div className="w-full space-y-3">
                   <div>
                     <div className="mb-2 flex items-center justify-between">
                       <span className={labelCls}>缩放</span>
-                      <span className={`text-[11px] font-mono ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>{avatarCrop.scale.toFixed(2)}x</span>
+                      <span className={`text-[11px] font-mono text-[var(--text-tertiary)]`}>{avatarCrop.scale.toFixed(2)}x</span>
                     </div>
                     <input
                       type="range"

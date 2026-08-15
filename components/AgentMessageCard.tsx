@@ -202,14 +202,12 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
     onEditUserMessage(messageKey, text);
   }, [editText, onEditUserMessage, messageKey]);
 
-  const bodyTextClass = isDarkMode ? 'text-white/82' : 'text-slate-700';
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const actionControlClass = isDarkMode
-    ? BAMBOOK_OS.controls.actionControl.borderedDark
-    : BAMBOOK_OS.controls.actionControl.borderedLight;
+  const bodyTextClass = 'text-[var(--text-primary)]';
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const actionControlClass = BAMBOOK_OS.controls.actionControl.bordered;
   const inlineSurfaceClass = `${OS_MATERIAL.insetSurface} rounded-inset border`;
-  const isDarkModeOverride = isDarkMode ? 'border-white/[0.06] text-white/45' : 'border-slate-200/45 text-slate-500';
+  const isDarkModeOverride = 'border-[var(--border-c-default)] text-[var(--text-tertiary)]';
 
   const isModel = message.role === 'model';
   const hasResponseBlocks = isModel && Boolean(message.blocks?.length);
@@ -222,17 +220,11 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
     ? 'group relative py-6 px-1'
     : 'group relative py-3 flex justify-end';
 
-  const userBubbleClass = isDarkMode
-    ? 'rounded-inset border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-light leading-6 text-white/90 max-w-[85%]'
-    : 'rounded-inset border border-slate-200/70 bg-white/60 px-4 py-2.5 text-sm font-light leading-6 text-slate-800 max-w-[85%]';
+  const userBubbleClass = 'rounded-inset border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-4 py-2.5 text-sm font-light leading-6 text-[var(--text-primary)] max-w-[85%]';
 
   // user 气泡 hover 操作按钮（icon-only，紧凑），与 model 操作栏共用设计语言
-  const userActionBtnClass = isDarkMode
-    ? 'flex items-center justify-center rounded-control p-1 text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white/70'
-    : 'flex items-center justify-center rounded-control p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600';
-  const userEditorClass = isDarkMode
-    ? 'w-full max-w-[85%] rounded-inset border border-white/15 bg-white/[0.06] px-3 py-2.5'
-    : 'w-full max-w-[85%] rounded-inset border border-slate-300/70 bg-white px-3 py-2.5';
+  const userActionBtnClass = 'flex items-center justify-center rounded-control p-1 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]';
+  const userEditorClass = 'w-full max-w-[85%] rounded-inset border border-[var(--border-c-strong)] bg-[var(--bg-card)] px-3 py-2.5';
 
   // 右键/长按复制完整工作流
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -250,16 +242,16 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
         <>
           {/* 身份头：头像 + 名字 + 时间/token badge */}
           <div className="mb-3 flex items-center gap-2.5">
-            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-control ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/8'}`}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className={isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]'}>
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-control bg-[var(--os-vnext-brand-blue)]/10`}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-[var(--os-vnext-brand-blue)]">
                 <path d="M8 1L1 5v6l7 4 7-4V5L8 1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
                 <path d="M1 5l7 4m0 0l7-4m-7 4v6" stroke="currentColor" strokeWidth="1.2" />
               </svg>
             </div>
-            <span className={`text-[13px] font-light ${isDarkMode ? 'text-white/85' : 'text-slate-800'}`}>Bambook</span>
+            <span className="text-[13px] font-light text-[var(--text-primary)]">Bambook</span>
             {isTyping && (
               <span className="flex items-center gap-1.5">
-                <span className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse ${isDarkMode ? 'bg-white/70' : 'bg-slate-600'}`} />
+                <span className={"inline-block h-1.5 w-1.5 rounded-full animate-pulse bg-[var(--invert-bg)]"} />
                 <span className={`text-[11px] ${quietTextClass}`}>思考中</span>
               </span>
             )}
@@ -340,7 +332,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                 <button
                   type="button"
                   onClick={() => onCopy?.(messageKey, message.text)}
-                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
                   title="复制回复"
                   aria-label="复制回复"
                 >
@@ -355,7 +347,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                     const fullText = serializeBlocksForCopy(message.blocks ?? [], message.text, userPrompt, runtimeEvents);
                     onCopyFull(`full_${messageKey}`, fullText);
                   }}
-                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                  className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
                   title="复制完整工作流（含所有工具调用、证据链、审批记录）"
                   aria-label="复制完整工作流"
                 >
@@ -365,7 +357,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
               )}
               <button
                 type="button"
-                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
                 title="有用"
                 aria-label="有用"
               >
@@ -373,7 +365,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
               </button>
               <button
                 type="button"
-                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
                 title="需改进"
                 aria-label="需改进"
               >
@@ -381,7 +373,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
               </button>
               <button
                 type="button"
-                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors ${isDarkMode ? 'hover:bg-white/[0.05] hover:text-white/60' : 'hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]`}
                 title="分享"
                 aria-label="分享"
               >
@@ -466,13 +458,13 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                 }}
                 rows={Math.min(12, Math.max(2, editText.split('\n').length + 1))}
                 autoFocus
-                className={`${userEditorClass} text-sm font-light leading-6 resize-none outline-none focus:ring-1 ${isDarkMode ? 'text-white/90 focus:ring-white/20' : 'text-slate-800 focus:ring-slate-300'}`}
+                className={`${userEditorClass} text-sm font-light leading-6 resize-none outline-none focus:ring-1 text-[var(--text-primary)] focus:ring-[var(--border-c-strong)]`}
               />
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-light transition-opacity hover:opacity-80 ${isDarkMode ? 'text-white/55' : 'text-slate-500'}`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-light transition-opacity hover:opacity-80 text-[var(--text-secondary)]`}
                 >
                   取消
                 </button>
@@ -480,7 +472,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
                   type="button"
                   onClick={submitEdit}
                   disabled={!editText.trim() || editText.trim() === message.text}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-light transition-opacity disabled:cursor-not-allowed disabled:opacity-40 ${isDarkMode ? 'border-white/15 text-white/80 hover:opacity-80' : 'border-slate-300 text-slate-700 hover:opacity-80'}`}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-light transition-opacity disabled:cursor-not-allowed disabled:opacity-40 border-[var(--border-c-strong)] text-[var(--text-primary)] hover:opacity-80`}
                 >
                   保存并重新发送
                 </button>

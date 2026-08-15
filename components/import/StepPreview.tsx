@@ -34,16 +34,14 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
   const active = results[activeIdx];
 
   if (!active) {
-    return <p className="text-sm text-slate-400">没有可预览的解析结果。</p>;
+    return <p className="text-sm text-[var(--text-tertiary)]">没有可预览的解析结果。</p>;
   }
 
   return (
     <div className="space-y-4">
       {/* Tabs */}
       <div
-        className={`flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 ${
-          isDarkMode ? 'scrollbar-custom-dark' : 'scrollbar-custom'
-        }`}
+        className={`flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-custom`}
       >
         {results.map((r, i) => (
           <button
@@ -51,12 +49,8 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
             onClick={() => setActiveIdx(i)}
             className={`flex h-10 items-center gap-2 px-4 rounded-full text-xs whitespace-nowrap transition-colors ${
               i === activeIdx
-                ? isDarkMode
-                  ? 'bg-[var(--os-vnext-brand-blue)]/20 text-[var(--os-vnext-brand-blue-strong)] border border-[var(--os-vnext-brand-blue)]/40'
-                  : 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)] border border-[var(--os-vnext-brand-blue)]/30'
-                : isDarkMode
-                  ? 'bg-[rgba(255,255,255,0.05)] text-slate-300 border border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.09)]'
-                  : 'bg-[rgba(255,255,255,0.70)] text-slate-600 border border-[rgba(148,163,184,0.45)] hover:bg-[rgba(255,255,255,0.95)]'
+                ? 'bg-[var(--os-vnext-brand-blue)]/10 dark:bg-[var(--os-vnext-brand-blue)]/20 text-[var(--os-vnext-brand-blue)] dark:text-[var(--os-vnext-brand-blue-strong)] border border-[var(--os-vnext-brand-blue)]/30 dark:border-[var(--os-vnext-brand-blue)]/40'
+                : 'bg-[rgba(255,255,255,0.70)] dark:bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[rgba(148,163,184,0.45)] dark:border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.95)] dark:hover:bg-[rgba(255,255,255,0.09)]'
             }`}
           >
             {r.error ? <AlertCircle size={14} /> : <FileText size={14} />}
@@ -107,16 +101,10 @@ const OrderPreview: React.FC<{
   const o = file.order!;
   // rgba() 任意值绕开 flat-experimental 护栏，保持卡片描边与单元格编辑器边框可见；
   // 控件形状与订单域 field 规范一致：胶囊形 rounded-full（抬头字段 h-10 / 表格单元格紧凑 px-3 py-1）。
-  const card = isDarkMode
-    ? 'bg-deep/40 border border-[rgba(255,255,255,0.10)]'
-    : 'bg-[rgba(255,255,255,0.70)] border border-[rgba(15,23,42,0.10)]';
-  const labelCls = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const valueCls = isDarkMode ? 'text-slate-100' : 'text-slate-800';
-  const inputBase = `w-full bg-transparent border rounded-full text-sm ${
-    isDarkMode
-      ? 'border-[rgba(255,255,255,0.15)] text-slate-100 focus:border-[var(--os-vnext-brand-blue)]'
-      : 'border-[rgba(100,116,139,0.40)] text-slate-800 focus:border-[var(--os-vnext-brand-blue)]'
-  } focus:outline-none focus:ring-1 focus:ring-[var(--os-vnext-brand-blue)]/40`;
+  const card = 'bg-[rgba(255,255,255,0.70)] dark:bg-deep/40 border border-[rgba(15,23,42,0.10)] dark:border-[rgba(255,255,255,0.10)]';
+  const labelCls = 'text-[var(--text-tertiary)]';
+  const valueCls = 'text-[var(--text-primary)]';
+  const inputBase = `w-full bg-transparent border rounded-full text-sm text-[var(--text-primary)] focus:border-[var(--os-vnext-brand-blue)] border-[rgba(100,116,139,0.40)] dark:border-[rgba(255,255,255,0.15)] focus:outline-none focus:ring-1 focus:ring-[var(--os-vnext-brand-blue)]/40`;
   const inputCls = `${inputBase} h-10 px-4`;
   const cellInputCls = `${inputBase} px-3 py-1`;
 
@@ -124,11 +112,7 @@ const OrderPreview: React.FC<{
     <div className="space-y-4">
       {/* Detection banner */}
       <div
-        className={`rounded-inset px-4 py-3 flex items-center gap-3 text-xs ${
-          isDarkMode
-            ? 'bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/30 text-slate-200'
-            : 'bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/30 text-slate-700'
-        }`}
+        className={`rounded-inset px-4 py-3 flex items-center gap-3 text-xs bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/30 text-[var(--text-secondary)]`}
       >
         <ShieldCheck size={16} className="text-[var(--os-vnext-brand-blue)]" />
         <span>
@@ -141,20 +125,16 @@ const OrderPreview: React.FC<{
 
       {/* Mapping hint — explains how parsed fields land on the unified Order schema */}
       <div
-        className={`rounded-inset px-4 py-3 text-[11px] leading-relaxed ${
-          isDarkMode
-            ? 'bg-white/[0.03] border border-white/10 text-slate-300'
-            : 'bg-slate-50 border border-slate-200 text-slate-600'
-        }`}
+        className={`rounded-inset px-4 py-3 text-[11px] leading-relaxed bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-secondary)]`}
       >
         <div className="font-light mb-1">入库后的字段映射：</div>
         <ul className="list-disc pl-5 space-y-0.5">
           <li>
-            <span className={isDarkMode ? 'text-white' : 'text-slate-800'}>Ship-to 公司 / 地址 / 联系人</span> → 写入
+            <span className="text-[var(--text-primary)]">Ship-to 公司 / 地址 / 联系人</span> → 写入
             <span className="font-mono">consigneeName / consigneeAddress / consigneeContact</span>
           </li>
           <li>
-            <span className={isDarkMode ? 'text-white' : 'text-slate-800'}>币种</span> → 写入
+            <span className="text-[var(--text-primary)]">币种</span> → 写入
             <span className="font-mono">salesCurrency</span>（默认 USD）；采购方
             <span className="font-mono">purchaseCurrency</span>
             默认 CNY，可在订单详情手填。
@@ -241,9 +221,7 @@ const OrderPreview: React.FC<{
               {o.lines.map((l, li) => (
                 <tr
                   key={l.itemNo + li}
-                  className={`${
-                    isDarkMode ? 'border-t border-white/5' : 'border-t border-slate-100'
-                  }`}
+                  className={`border-t border-[var(--border-c-subtle)]`}
                 >
                   <td className={`py-2 pr-3 ${valueCls}`}>{`${o.poNumber}-${l.itemNo}`}</td>
                   <td className="py-2 pr-3">

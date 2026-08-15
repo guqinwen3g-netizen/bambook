@@ -236,7 +236,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
       <div className="grid flex-1 min-h-0 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3">
         {/* 左：档案列表 */}
         <div className={`${t.cardClass} flex min-h-0 flex-col overflow-hidden`}>
-          <div className="grid grid-cols-[88px_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_88px] border-b border-white/[0.06]">
+          <div className="grid grid-cols-[88px_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_88px] border-b border-[var(--border-c-default)]">
             <div className={t.thCls}>工号</div>
             <div className={t.thCls}>姓名</div>
             <div className={t.thCls}>部门 / 职位</div>
@@ -377,7 +377,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
               </div>
 
               {showEventForm && (
-                <div className="space-y-3 rounded-compact border border-white/[0.06] p-3">
+                <div className="space-y-3 rounded-compact border border-[var(--border-c-default)] p-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className={t.labelCls + ' mb-1'}>异动类型</div>
@@ -428,7 +428,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
 
               <div className="space-y-1.5">
                 {events.map(ev => (
-                  <div key={ev.id} className="flex items-center gap-3 rounded-compact border border-white/[0.05] px-3 py-2">
+                  <div key={ev.id} className="flex items-center gap-3 rounded-compact border border-[var(--border-c-subtle)] px-3 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-light ${statusSemanticClass(eventSemantic(ev.type), isDarkMode)}`}>
                       {hrOptionLabel(EMPLOYMENT_EVENT_OPTIONS, ev.type)}
                     </span>

@@ -189,15 +189,15 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
   const subPillCls = (active: boolean) =>
     `h-8 px-4 rounded-full text-[11px] font-light tracking-wide transition-all duration-200 ${
       active
-        ? isDarkMode ? 'bg-white/[0.09] text-white' : 'bg-white/70 text-slate-900'
-        : isDarkMode ? 'text-white/50 hover:text-white/80' : 'text-slate-500 hover:text-slate-800'
+        ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
+        : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
     }`;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       {/* 子视图切换 + 工具栏 */}
       <div className="flex items-center gap-2 px-1">
-        <div className={`flex items-center gap-1 rounded-full p-0.5 ${isDarkMode ? 'bg-white/[0.04]' : 'bg-white/30'}`}>
+        <div className={`flex items-center gap-1 rounded-full p-0.5 bg-[var(--recessed-bg)]`}>
           <button className={subPillCls(subView === 'records')} onClick={() => setSubView('records')}>考勤记录</button>
           <button className={subPillCls(subView === 'leave')} onClick={() => setSubView('leave')}>请假审批</button>
         </div>
@@ -301,7 +301,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
           )}
 
           <div className={`${t.cardClass} mx-1 flex-1 min-h-0 flex flex-col overflow-hidden`}>
-            <div className="grid grid-cols-[minmax(0,1fr)_96px_80px_80px_110px_80px_minmax(0,1fr)] border-b border-white/[0.06]">
+            <div className="grid grid-cols-[minmax(0,1fr)_96px_80px_80px_110px_80px_minmax(0,1fr)] border-b border-[var(--border-c-default)]">
               <div className={t.thCls}>员工</div>
               <div className={t.thCls}>日期</div>
               <div className={t.thCls}>签到</div>
@@ -388,7 +388,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
           )}
 
           <div className={`${t.cardClass} mx-1 flex-1 min-h-0 flex flex-col overflow-hidden`}>
-            <div className="grid grid-cols-[minmax(0,0.9fr)_80px_180px_64px_minmax(0,1.2fr)_96px_minmax(0,1.1fr)] border-b border-white/[0.06]">
+            <div className="grid grid-cols-[minmax(0,0.9fr)_80px_180px_64px_minmax(0,1.2fr)_96px_minmax(0,1.1fr)] border-b border-[var(--border-c-default)]">
               <div className={t.thCls}>员工</div>
               <div className={t.thCls}>类型</div>
               <div className={t.thCls}>起止日期</div>

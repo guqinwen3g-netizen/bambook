@@ -48,25 +48,17 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
 
   // ── 设计 token（与 Settings.tsx 一致）──
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
-  const primaryTextCls = isDarkMode ? 'text-white' : 'text-slate-900';
-  const weakTextCls = isDarkMode ? 'text-white/42' : 'text-slate-500';
-  const brandIconCls = isDarkMode ? BAMBOOK_OS.tone.text.brandDark : BAMBOOK_OS.tone.text.brandLight;
-  const sectionDividerCls = isDarkMode ? BAMBOOK_OS.tone.divider.sectionDark : BAMBOOK_OS.tone.divider.sectionLight;
+  const primaryTextCls = 'text-[var(--text-primary)]';
+  const weakTextCls = 'text-[var(--text-tertiary)]';
+  const brandIconCls = BAMBOOK_OS.tone.text.brandEmphasis;
+  const sectionDividerCls = BAMBOOK_OS.tone.divider.section;
 
   const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
-    ? (isDarkMode
-      ? 'bambook-state-switch-track--checked-dark'
-      : 'bambook-state-switch-track--checked-light')
-    : (isDarkMode
-      ? 'border-transparent bg-[rgba(13,27,42,0.28)] shadow-none'
-      : 'border-transparent bg-white/42 shadow-none')}`;
-  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} ${isDarkMode
-    ? 'bg-white/82 shadow-none'
-    : 'bg-white/90 shadow-none'}`;
+    ? BAMBOOK_OS.controls.selectedSurface.base
+    : 'border-transparent bg-[var(--recessed-bg-strong)] dark:bg-[rgba(13,27,42,0.28)] shadow-none'}`;
+  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-[var(--bg-card)] shadow-none`;
 
-  const iconWellCls = `flex h-9 w-9 shrink-0 items-center justify-center rounded-field border ${isDarkMode
-    ? `${BAMBOOK_OS.tone.surface.quietIconDark} border-white/[0.06] ${BAMBOOK_OS.tone.text.brandDark}`
-    : `${BAMBOOK_OS.tone.surface.quietIconLight} border-white/50 ${BAMBOOK_OS.tone.text.brandLight}`}`;
+  const iconWellCls = `flex h-9 w-9 shrink-0 items-center justify-center rounded-field border ${BAMBOOK_OS.tone.surface.quietIcon} border-[var(--border-c-default)] ${BAMBOOK_OS.tone.text.brandEmphasis}`;
 
   // ── 拉取规则列表 ──
   const fetchRules = useCallback(async () => {
@@ -143,7 +135,7 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
             <button
               type="button"
               onClick={fetchRules}
-              className={`mt-1 rounded-control px-3 py-1.5 text-xs font-light ${brandIconCls} hover:bg-white/10 transition-colors`}
+              className={`mt-1 rounded-control px-3 py-1.5 text-xs font-light ${brandIconCls} hover:bg-[var(--active-darken)] transition-colors`}
             >
               重试
             </button>
@@ -152,14 +144,14 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
       ) : rules.length === 0 ? (
         <div className={card + ' p-8'}>
           <div className="flex flex-col items-center justify-center gap-3">
-            <Workflow size={24} strokeWidth={1} className={isDarkMode ? 'text-white/20' : 'text-slate-300'} />
+            <Workflow size={24} strokeWidth={1} className="text-[var(--text-quaternary)]" />
             <div className={`text-xs font-light ${weakTextCls}`}>暂无可用自动化规则</div>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
           {error && (
-            <div className={`rounded-control px-4 py-2 text-xs ${isDarkMode ? 'bg-amber-400/8 text-amber-300/80' : 'bg-amber-50 text-amber-700'}`}>
+            <div className={`rounded-control px-4 py-2 text-xs bg-[var(--warning-tint)] text-[var(--warning-text)]`}>
               {error}
             </div>
           )}
@@ -179,7 +171,7 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-sm font-light ${primaryTextCls}`}>{rule.name}</span>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-light ${isDarkMode ? 'bg-white/8 text-white/50' : 'bg-slate-100 text-slate-500'}`}>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                         {meta.label}
                       </span>
                       {isUpdating && (

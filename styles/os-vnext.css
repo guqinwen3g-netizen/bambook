@@ -563,8 +563,21 @@
   border: 1px solid transparent !important;
   backdrop-filter: var(--bambook-control-frost-filter);
   -webkit-backdrop-filter: var(--bambook-control-frost-filter);
+  /* P2 自适应真源：基类即浅色面，暗色由下方 .dark/[data-theme="dark"] 作用域翻转。
+     调用点一律只写基类，不再 isDarkMode 三元拼 --light/--dark 修饰类。 */
+  border-color: var(--bambook-selected-light-border-color) !important;
+  background: var(--bambook-selected-light-background) !important;
+  box-shadow: var(--bambook-selected-light-shadow) !important;
 }
 
+.dark .bambook-selected-surface,
+[data-theme="dark"] .bambook-selected-surface {
+  border-color: rgba(255, 255, 255, 0.055) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  box-shadow: var(--bambook-selected-dark-shadow) !important;
+}
+
+/* 迁移期保留的显式修饰类（与基类自适应值一致）；调用点清零后删除。 */
 .bambook-selected-surface--light {
   border-color: var(--bambook-selected-light-border-color) !important;
   background: var(--bambook-selected-light-background) !important;

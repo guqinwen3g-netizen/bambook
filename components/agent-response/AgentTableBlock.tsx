@@ -18,9 +18,9 @@ const alignClass = (align?: 'left' | 'center' | 'right') => {
 };
 
 export const AgentTableBlock: React.FC<AgentBlockComponentProps<AgentTableBlockModel>> = ({ block, isDarkMode, onReferenceClick }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
   const toolRunIds = block.source?.toolRunIds?.filter(Boolean) ?? [];
 
   return (
@@ -56,7 +56,7 @@ export const AgentTableBlock: React.FC<AgentBlockComponentProps<AgentTableBlockM
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse text-xs">
           <thead>
-            <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50/70'}>
+            <tr className="bg-[var(--recessed-bg)]">
               {block.columns.map(column => (
                 <th
                   key={column.key}
@@ -70,9 +70,9 @@ export const AgentTableBlock: React.FC<AgentBlockComponentProps<AgentTableBlockM
           </thead>
           <tbody>
             {block.rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className={rowIndex % 2 === 1 ? (isDarkMode ? 'bg-white/[0.02]' : 'bg-slate-50/35') : undefined}>
+              <tr key={rowIndex} className={rowIndex % 2 === 1 ? 'bg-[var(--recessed-bg)]' : undefined}>
                 {block.columns.map(column => (
-                  <td key={column.key} className={`border-b px-3 py-2 ${alignClass(column.align)} ${borderClass} ${isDarkMode ? 'text-white/72' : 'text-slate-700'}`}>
+                  <td key={column.key} className={`border-b px-3 py-2 ${alignClass(column.align)} ${borderClass} text-[var(--text-primary)] dark:text-[var(--text-secondary)]`}>
                     {formatCellValue(row[column.key])}
                   </td>
                 ))}

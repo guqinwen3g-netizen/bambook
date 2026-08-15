@@ -22,9 +22,9 @@ const numericValue = (v: unknown): number => {
 };
 
 export const AgentChartBlock: React.FC<AgentBlockComponentProps<AgentChartBlockModel>> = ({ block, isDarkMode }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
   const axisColor = isDarkMode ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.55)';
   const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
   const palette = isDarkMode ? PALETTE_DARK : PALETTE_LIGHT;

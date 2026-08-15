@@ -289,28 +289,26 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
   };
 
   // 主题样式
-  const panelClass = isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-white/80 border border-slate-200';
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm transition-colors focus:outline-none focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-500' : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
-  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
-  const sectionTitleClass = `text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
+  const panelClass = 'bg-[var(--recessed-bg)] border border-[var(--border-c-default)]';
+  const fieldClass = `w-full px-3 py-2 rounded-control text-sm transition-colors focus:outline-none focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-raised)] border border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`;
+  const labelClass = `block text-xs mb-1 text-[var(--text-tertiary)]`;
+  const sectionTitleClass = `text-xs font-light uppercase tracking-wider mb-3 text-[var(--text-tertiary)]`;
 
   return (
     <div className="flex flex-col min-h-0">
       {/* Header */}
       <div className="relative z-30 flex-shrink-0 flex items-end justify-between pb-1">
         <div>
-          <h2 className={`text-xl font-normal tracking-tight leading-snug ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h2 className={`text-xl font-normal tracking-tight leading-snug text-[var(--text-primary)]`}>
             装箱单生成器
           </h2>
-          <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className={`text-xs mt-0.5 text-[var(--text-tertiary)]`}>
             生成出口装箱明细单 · 支持 PDF 打印
           </p>
         </div>
         <button
           onClick={handleReset}
-          className={`p-2 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+          className={`p-2 rounded-control transition-colors hover:bg-[var(--active-darken)] text-[var(--text-tertiary)]`}
           title="重置"
         >
           <RefreshCw size={16} />
@@ -327,7 +325,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
               <div>
                 <label className={labelClass}>选择订单</label>
                 <div className="relative">
-                  <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                  <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]`} />
                   <input
                     type="text"
                     value={searchKeyword}
@@ -337,12 +335,12 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                   />
                 </div>
                 {searchKeyword && filteredOrders.length > 0 && (
-                  <div className={`mt-1 max-h-32 overflow-y-auto rounded-inset border ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'}`}>
+                  <div className={`mt-1 max-h-32 overflow-y-auto rounded-inset border border-[var(--border-c-default)] bg-[var(--bg-raised)]`}>
                     {filteredOrders.map(o => (
                       <button
                         key={o.id}
                         onClick={() => { handleSelectOrder(o.id); setSearchKeyword(''); }}
-                        className={`w-full px-3 py-2 text-left text-xs hover:bg-[var(--os-vnext-brand-blue)]/10 transition-colors ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}
+                        className={`w-full px-3 py-2 text-left text-xs hover:bg-[var(--os-vnext-brand-blue)]/10 transition-colors text-[var(--text-primary)]`}
                       >
                         <span className="font-mono">{o.poNumber}</span>
                         <span className="ml-2 opacity-60">{o.customer}</span>
@@ -351,7 +349,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                   </div>
                 )}
                 {selectedOrder && (
-                  <div className={`mt-1 px-3 py-1.5 rounded-inset text-xs ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/10 text-slate-300' : 'bg-[var(--os-vnext-brand-blue)]/5 text-slate-700'}`}>
+                  <div className={`mt-1 px-3 py-1.5 rounded-inset text-xs bg-[var(--os-vnext-brand-blue)]/10 text-[var(--text-primary)]`}>
                     已选: {selectedOrder.poNumber} — {selectedOrder.customer}
                   </div>
                 )}
@@ -424,9 +422,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
               <h3 className={sectionTitleClass.replace('mb-3', '')}>装箱明细</h3>
               <button
                 onClick={addLine}
-                className={`text-xs px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${
-                  isDarkMode ? 'text-[var(--os-vnext-brand-blue)] hover:bg-white/5' : 'text-[var(--os-vnext-brand-blue)] hover:bg-slate-100/60'
-                }`}
+                className={`text-xs px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
               >
                 <Plus size={12} /> 添加行
               </button>
@@ -438,14 +434,14 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                   key={line.id}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-3 rounded-inset ${isDarkMode ? 'bg-white/5' : 'bg-slate-50'}`}
+                  className={`p-3 rounded-inset bg-[var(--recessed-bg)]`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>#{index + 1}</span>
+                    <span className={`text-xs font-mono text-[var(--text-tertiary)]`}>#{index + 1}</span>
                     {lines.length > 1 && (
                       <button
                         onClick={() => removeLine(line.id)}
-                        className={`p-1 rounded text-xs ${isDarkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500'}`}
+                        className={`p-1 rounded text-xs text-[var(--text-tertiary)] hover:text-danger`}
                         title="删除行"
                       >
                         <Trash2 size={12} />
@@ -531,11 +527,11 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
             </div>
 
             {/* 合计 */}
-            <div className={`mt-3 pt-3 border-t flex items-center justify-around text-xs ${isDarkMode ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
-              <span>总箱数: <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{formatDocNumber(totals.totalCartons, 0)}</strong></span>
-              <span>总数量: <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{formatDocNumber(totals.totalQuantity, 2)}</strong></span>
-              <span>总净重: <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{formatDocNumber(totals.totalNetWeight, 2)} kg</strong></span>
-              <span>总毛重: <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{formatDocNumber(totals.totalGrossWeight, 2)} kg</strong></span>
+            <div className={`mt-3 pt-3 border-t flex items-center justify-around text-xs border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
+              <span>总箱数: <strong className="text-[var(--text-primary)]">{formatDocNumber(totals.totalCartons, 0)}</strong></span>
+              <span>总数量: <strong className="text-[var(--text-primary)]">{formatDocNumber(totals.totalQuantity, 2)}</strong></span>
+              <span>总净重: <strong className="text-[var(--text-primary)]">{formatDocNumber(totals.totalNetWeight, 2)} kg</strong></span>
+              <span>总毛重: <strong className="text-[var(--text-primary)]">{formatDocNumber(totals.totalGrossWeight, 2)} kg</strong></span>
             </div>
           </div>
 
@@ -566,7 +562,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
               disabled={isGenerating}
               className={`w-full py-3 rounded-full font-light text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
                 isGenerating
-                  ? 'bg-slate-500 cursor-not-allowed'
+                  ? 'bg-[var(--accent)] cursor-not-allowed'
                   : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)]'
               } text-white`}
             >

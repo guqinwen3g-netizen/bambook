@@ -104,18 +104,14 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
     return map;
   }, [filtered, columnOf]);
 
-  const cardClass = isDarkMode
-    ? `rounded-card border border-white/[0.055] bg-white/[0.03] ${BAMBOOK_OS.material.glassColor}`
-    : `rounded-card border border-white/45 bg-white/30 ${BAMBOOK_OS.material.glassColor}`;
-  const columnClass = isDarkMode
-    ? 'rounded-card-lg border border-white/[0.045] bg-white/[0.015]'
-    : 'rounded-card-lg border border-white/40 bg-white/20';
-  const textSecondary = isDarkMode ? 'text-slate-500' : 'text-slate-400';
+  const cardClass = `rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)] ${BAMBOOK_OS.material.glassColor}`;
+  const columnClass = 'rounded-card-lg border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)]';
+  const textSecondary = 'text-[var(--text-tertiary)]';
   const toggleCls = (active: boolean) =>
     `h-7 px-3 rounded-full text-[11px] font-light inline-flex items-center gap-1 transition-colors ${
       active
         ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-        : isDarkMode ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+        : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
     }`;
 
   const renderDueChip = (dueDate: string) => {
@@ -144,7 +140,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
         actions={(
           <button
             onClick={fetchBoard}
-            className={`h-7 w-7 inline-flex items-center justify-center rounded-full transition-colors ${isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+            className="h-7 w-7 inline-flex items-center justify-center rounded-full transition-colors text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]"
             title="刷新"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
@@ -154,13 +150,13 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
 
       {/* 工具行 */}
       <div className="shrink-0 px-7 pb-3 flex items-center gap-2.5">
-        <div className={`flex items-center gap-1.5 h-7 px-2.5 rounded-control border w-64 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
+        <div className="flex items-center gap-1.5 h-7 px-2.5 rounded-control border w-64 bg-[var(--recessed-bg)] border-[var(--border-c-default)]">
           <Search size={12} className={textSecondary} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="搜索客户 / PO / 工厂 / 跟单..."
-            className={`flex-1 bg-transparent outline-none text-xs font-light ${isDarkMode ? 'text-white placeholder:text-slate-500' : 'text-slate-900 placeholder:text-slate-400'}`}
+            className="flex-1 bg-transparent outline-none text-xs font-light text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
           />
         </div>
         <button className={toggleCls(overdueOnly)} onClick={() => setOverdueOnly(v => !v)}>
@@ -212,7 +208,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                           <button
                             key={o.id}
                             onClick={() => onOpenOrder?.(o.id)}
-                            className={`${cardClass} w-full text-left p-3 transition-colors ${isDarkMode ? 'hover:bg-white/[0.05]' : 'hover:bg-white/50'}`}
+                            className={`${cardClass} w-full text-left p-3 transition-colors hover:bg-[var(--hover-darken)]`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-xs font-normal truncate">{o.poNumber || o.id}</span>
@@ -222,7 +218,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                                 </span>
                               )}
                             </div>
-                            <div className={`text-[11px] font-light mt-1 truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <div className={`text-[11px] font-light mt-1 truncate text-[var(--text-tertiary)]`}>
                               {o.customer}
                             </div>
                             <div className={`text-[10px] font-light mt-0.5 flex items-center gap-1.5 flex-wrap ${textSecondary}`}>

@@ -94,8 +94,10 @@ describe('RDL visual baseline for sample pages', () => {
       expect(tokenSource).not.toContain(token);
     });
 
-    expect(tokenSource).toContain("savedDark: 'bg-white/[0.045] text-white/58");
-    expect(tokenSource).toContain("fallbackLight: 'bg-white/30 text-slate-400");
-    expect(tokenSource).toContain("inlineDangerDark: 'backdrop-blur-[15px] backdrop-saturate-[104%] text-white/46 hover:text-white/66 hover:bg-white/[0.055]'");
+    // P2 收口：双写 key 已坍缩为单写自适应配方（浅色为基 + dark: 变体），守护意图不变——中性值仍在，彩虹语义不回归
+    expect(tokenSource).toContain("saved: 'bg-white/42 text-slate-500 border border-transparent font-normal dark:bg-white/[0.045] dark:text-white/58'");
+    expect(tokenSource).toContain("fallback: 'bg-white/30 text-slate-400");
+    expect(tokenSource).toContain("inlineDanger:");
+    expect(tokenSource).toContain("'backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-400 dark:text-white/46 hover:text-slate-600 dark:hover:text-white/66 hover:bg-white/46 dark:hover:bg-white/[0.055]'");
   });
 });

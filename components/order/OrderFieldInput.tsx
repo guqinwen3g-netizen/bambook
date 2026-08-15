@@ -75,8 +75,8 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
 }) => {
   const value = order[field.key as keyof Order];
   const orderSpec = createOrderUiSpec(isDarkMode);
-  const fieldSurfaceCls = isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light;
-  const labelTextCls = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
+  const fieldSurfaceCls = BAMBOOK_OS.controls.recessedField.base;
+  const labelTextCls = BAMBOOK_OS.tone.text.formLabel;
   const disabledCls = disabled ? 'opacity-60 cursor-not-allowed' : '';
   // rounded-full 仅适用于单行控件（input/select/boolean），textarea 多行使用 rounded-inset 保持视觉一致
   const fieldShellCls = `border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${fieldSurfaceCls} ${disabledCls} ${orderSpec.subFieldFocus}`;

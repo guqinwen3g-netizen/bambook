@@ -3,12 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   PRODUCT_CATEGORY_CARD_GRID_CLASS,
   PRODUCT_CARD_CLASS,
-  PRODUCT_CARD_DARK_CLASS,
   PRODUCT_CARD_GRID_CLASS,
   PRODUCT_CARD_LAYOUT_TRANSITION,
-  PRODUCT_CARD_LIGHT_CLASS,
   PRODUCT_CARD_SPOTLIGHT_DARK_COLOR,
   PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR,
+  PRODUCT_CARD_SURFACE_CLASS,
   PRODUCT_DETAIL_BODY_SCROLL_CLASS,
   PRODUCT_DETAIL_HEADER_LAYOUT_CLASS,
   PRODUCT_DETAIL_ITEM_CLASS,
@@ -22,22 +21,15 @@ import {
   PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
   PRODUCT_EDGE_FADE_TOP_HEIGHT,
   PRODUCT_EDGE_FADE_TOP_START,
-  PRODUCT_FORM_FIELD_DARK_CLASS,
-  PRODUCT_FORM_FIELD_LIGHT_CLASS,
-  PRODUCT_FORM_LABEL_DARK_CLASS,
-  PRODUCT_FORM_LABEL_LIGHT_CLASS,
-  PRODUCT_FORM_MAP_INDEX_DARK_CLASS,
-  PRODUCT_FORM_MAP_INDEX_LIGHT_CLASS,
-  PRODUCT_FORM_SECTION_TITLE_DARK_CLASS,
-  PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS,
-  PRODUCT_TABLE_CELL_BORDER_DARK_CLASS,
-  PRODUCT_TABLE_CELL_BORDER_LIGHT_CLASS,
-  PRODUCT_TABLE_HEADER_DARK_CLASS,
-  PRODUCT_TABLE_HEADER_LIGHT_CLASS,
-  PRODUCT_TABLE_ROW_HOVER_DARK_CLASS,
-  PRODUCT_TABLE_ROW_HOVER_LIGHT_CLASS,
+  PRODUCT_FORM_FIELD_CLASS,
+  PRODUCT_FORM_LABEL_CLASS,
+  PRODUCT_FORM_MAP_INDEX_CLASS,
+  PRODUCT_FORM_SECTION_TITLE_CLASS,
   PRODUCT_SUB_INDEX_PANEL_CLASS,
   PRODUCT_SUB_INDEX_ROW_CLASS,
+  PRODUCT_TABLE_CELL_BORDER_CLASS,
+  PRODUCT_TABLE_HEADER_CLASS,
+  PRODUCT_TABLE_ROW_HOVER_CLASS,
   PRODUCT_TITLE_ACTION_BUTTON_CLASS,
   PRODUCT_TITLE_BAR_CLASS,
   PRODUCT_TITLE_ICON_BUTTON_CLASS,
@@ -46,23 +38,18 @@ import {
   PRODUCT_TOOLBAR_AMBIENT_CLASS,
   PRODUCT_TOOLBAR_CLASS,
   PRODUCT_TOOLBAR_CONTENT_CLASS,
-  PRODUCT_TOOLBAR_SEARCH_DARK_CLASS,
-  PRODUCT_TOOLBAR_SEARCH_LIGHT_CLASS,
-  PRODUCT_TOOLBAR_SURFACE_DARK_CLASS,
-  PRODUCT_TOOLBAR_SURFACE_LIGHT_CLASS,
+  PRODUCT_TOOLBAR_SEARCH_CLASS,
+  PRODUCT_TOOLBAR_SURFACE_CLASS,
 } from './ProductsManager';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import {
-  RELATIONS_FORM_NESTED_ROW_DARK_CLASS,
-  RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS,
+  RELATIONS_FORM_NESTED_ROW_CLASS,
   RELATIONS_FORM_MAP_PANEL_CLASS,
   RELATIONS_FORM_PANEL_CLASS,
   RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING,
-  RELATIONS_FORM_QUIET_ACTION_DARK_CLASS,
-  RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS,
-  RELATIONS_TITLE_SAFE_LEFT_STYLE,
-} from './RelationsManager';
+  RELATIONS_FORM_QUIET_ACTION_CLASS,
+} from './ui/relationsFormStyles';
 
 const productsSource = readFileSync(new URL('./ProductsManager.tsx', import.meta.url), 'utf8');
 const indexCss = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
@@ -80,15 +67,13 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_TOOLBAR_CLASS).toBe(BAMBOOK_OS.controls.toolbar.base);
     expect(PRODUCT_TOOLBAR_CONTENT_CLASS).toBe(BAMBOOK_OS.controls.toolbar.content);
     expect(PRODUCT_TOOLBAR_AMBIENT_CLASS).toBe(BAMBOOK_OS.controls.toolbar.ambient);
-    expect(PRODUCT_TOOLBAR_SURFACE_DARK_CLASS).toBe(BAMBOOK_OS.controls.toolbar.surfaceDark);
-    expect(PRODUCT_TOOLBAR_SURFACE_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.toolbar.surfaceLight);
-    expect(PRODUCT_TOOLBAR_SEARCH_DARK_CLASS).toBe(BAMBOOK_OS.controls.toolbar.searchDark);
-    expect(PRODUCT_TOOLBAR_SEARCH_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.toolbar.searchLight);
+    expect(PRODUCT_TOOLBAR_SURFACE_CLASS).toBe(BAMBOOK_OS.controls.toolbar.surface);
+    expect(PRODUCT_TOOLBAR_SEARCH_CLASS).toBe(BAMBOOK_OS.controls.toolbar.search);
   });
 
   it('adapts direct-on-wallpaper product title navigation and actions', () => {
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"');
-    expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} ${isDarkMode ? \'text-white/70\' : \'text-slate-700\'}`}');
+    expect(productsSource).toContain('className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors text-[var(--text-secondary)] hover:text-[var(--os-vnext-brand-blue)] dark:hover:text-[var(--text-primary)]`}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"\n                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
@@ -133,10 +118,8 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_CATEGORY_CARD_GRID_CLASS).toContain('repeat(auto-fill,316px)');
     expect(PRODUCT_CARD_GRID_CLASS).toContain('repeat(auto-fill,300px)');
     expect(PRODUCT_CARD_CLASS).toContain('rounded-card-lg');
-    expect(PRODUCT_CARD_DARK_CLASS).toBe(`${OS_MATERIAL.raisedCard} bambook-panel-glass`);
-    expect(PRODUCT_CARD_LIGHT_CLASS).toBe(`${OS_MATERIAL.raisedCard} bambook-panel-glass`);
-    expect(PRODUCT_CARD_DARK_CLASS).not.toContain('bambook-outer-panel');
-    expect(PRODUCT_CARD_LIGHT_CLASS).not.toContain('bambook-outer-panel');
+    expect(PRODUCT_CARD_SURFACE_CLASS).toBe(`${OS_MATERIAL.raisedCard} bambook-panel-glass`);
+    expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain('bambook-outer-panel');
     expect(PRODUCT_SUB_INDEX_PANEL_CLASS).toContain(OS_MATERIAL.framePanel);
     expect(PRODUCT_SUB_INDEX_ROW_CLASS).toContain('h-[72px]');
     expect(PRODUCT_SUB_INDEX_ROW_CLASS).not.toContain('min-h-[72px]');
@@ -155,16 +138,12 @@ describe('ProductsManager Bambook OS tokens', () => {
   });
 
   it('routes form fields, labels, inline panels, and tables through semantic tokens', () => {
-    expect(PRODUCT_FORM_FIELD_DARK_CLASS).toBe(BAMBOOK_OS.controls.recessedField.dark);
-    expect(PRODUCT_FORM_FIELD_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.recessedField.light);
-    expect(PRODUCT_FORM_LABEL_DARK_CLASS).toBe(BAMBOOK_OS.tone.text.formLabelDark);
-    expect(PRODUCT_FORM_LABEL_LIGHT_CLASS).toBe(BAMBOOK_OS.tone.text.formLabelLight);
-    expect(PRODUCT_FORM_SECTION_TITLE_DARK_CLASS).toBe('text-white/62');
-    expect(PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS).toBe('text-slate-950');
-    expect(PRODUCT_FORM_MAP_INDEX_DARK_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexDark}`);
-    expect(PRODUCT_FORM_MAP_INDEX_LIGHT_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndexLight}`);
-    expect(productsSource).toContain('const productFormSectionTitleClass = isDarkMode ? PRODUCT_FORM_SECTION_TITLE_DARK_CLASS : PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS;');
-    expect(productsSource).toContain('const productFormMapIndexClass = isDarkMode ? PRODUCT_FORM_MAP_INDEX_DARK_CLASS : PRODUCT_FORM_MAP_INDEX_LIGHT_CLASS;');
+    expect(PRODUCT_FORM_FIELD_CLASS).toBe(BAMBOOK_OS.controls.recessedField.base);
+    expect(PRODUCT_FORM_LABEL_CLASS).toBe(BAMBOOK_OS.tone.text.formLabel);
+    expect(PRODUCT_FORM_SECTION_TITLE_CLASS).toBe('text-[var(--text-primary)] dark:text-[var(--text-secondary)]');
+    expect(PRODUCT_FORM_MAP_INDEX_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`);
+    expect(productsSource).toContain('const productFormSectionTitleClass = PRODUCT_FORM_SECTION_TITLE_CLASS;');
+    expect(productsSource).toContain('const productFormMapIndexClass = PRODUCT_FORM_MAP_INDEX_CLASS;');
     expect(productsSource).toContain('<CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}>');
     expect(productsSource).toContain('${productFormSectionTitleClass}`}>Form Map</p>');
     expect(productsSource).toContain('w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>');
@@ -181,25 +160,24 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(indexCss).toContain('.bambook-relations-form-map-panel');
     expect(indexCss).toContain('.bambook-relations-form-panel .os-material-inset-surface');
     expect(indexCss).toContain('background-color: var(--ui-lab-form-panel-inset-film-color) !important;');
-    expect(RELATIONS_FORM_NESTED_ROW_DARK_CLASS).toBe(OS_MATERIAL.insetSurface);
-    expect(RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS).toBe(OS_MATERIAL.insetSurface);
-    expect(productsSource).toContain('const productFormNestedRowClass = isDarkMode ? RELATIONS_FORM_NESTED_ROW_DARK_CLASS : RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS;');
-    expect(productsSource).toContain('const productFormQuietActionClass = isDarkMode ? RELATIONS_FORM_QUIET_ACTION_DARK_CLASS : RELATIONS_FORM_QUIET_ACTION_LIGHT_CLASS;');
+    expect(RELATIONS_FORM_NESTED_ROW_CLASS).toBe(OS_MATERIAL.insetSurface);
+    expect(RELATIONS_FORM_QUIET_ACTION_CLASS).toBe(BAMBOOK_OS.controls.formIconButton.quietAction);
+    expect(productsSource).toContain('const productFormNestedRowClass = RELATIONS_FORM_NESTED_ROW_CLASS;');
+    expect(productsSource).toContain('const productFormQuietActionClass = RELATIONS_FORM_QUIET_ACTION_CLASS;');
+    expect(productsSource).not.toContain('isDarkMode ? RELATIONS_FORM_NESTED_ROW_DARK_CLASS');
+    expect(productsSource).not.toContain('isDarkMode ? RELATIONS_FORM_QUIET_ACTION_DARK_CLASS');
     expect(productsSource).toContain('rounded-inset border p-4 flex items-center ${productFormNestedRowClass}');
     expect(productsSource).toContain('rounded-inset border p-4 space-y-3 ${productFormNestedRowClass}');
     expect(productsSource).toContain('transition-all ${productFormQuietActionClass}');
     expect(productsSource).not.toContain("bg-slate-50/50 border-slate-100");
     expect(productsSource).not.toContain('className="scroll-mt-28 p-5 space-y-6"');
     expect(productsSource).not.toContain('contentClassName="relative z-10 space-y-6"');
-    expect(productsSource).toContain('<h4 className={`text-xs font-light tracking-wide mb-4 ${isDarkMode ? PRODUCT_FORM_SECTION_TITLE_DARK_CLASS : PRODUCT_FORM_SECTION_TITLE_LIGHT_CLASS}`}>{title}</h4>');
+    expect(productsSource).toContain('<h4 className={`text-xs font-light tracking-wide mb-4 ${PRODUCT_FORM_SECTION_TITLE_CLASS}`}>{title}</h4>');
     expect(productsSource).not.toContain('Archive Section');
 
-    expect(PRODUCT_TABLE_HEADER_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.headerDark);
-    expect(PRODUCT_TABLE_HEADER_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.headerLight);
-    expect(PRODUCT_TABLE_ROW_HOVER_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.rowHoverDark);
-    expect(PRODUCT_TABLE_ROW_HOVER_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.rowHoverLight);
-    expect(PRODUCT_TABLE_CELL_BORDER_DARK_CLASS).toBe(BAMBOOK_OS.controls.table.cellBorderDark);
-    expect(PRODUCT_TABLE_CELL_BORDER_LIGHT_CLASS).toBe(BAMBOOK_OS.controls.table.cellBorderLight);
+    expect(PRODUCT_TABLE_HEADER_CLASS).toBe(BAMBOOK_OS.controls.table.header);
+    expect(PRODUCT_TABLE_ROW_HOVER_CLASS).toBe(BAMBOOK_OS.controls.table.rowHover);
+    expect(PRODUCT_TABLE_CELL_BORDER_CLASS).toBe(BAMBOOK_OS.controls.table.cellBorder);
     expect(productsSource).toContain('className="w-full table-fixed border-separate border-spacing-0 text-left text-xs"');
     expect(productsSource).not.toContain('className="w-full table-fixed text-left text-xs"');
   });

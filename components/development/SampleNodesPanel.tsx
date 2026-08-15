@@ -39,12 +39,10 @@ export function SampleNodesPanel({ caseId, isDarkMode }: SampleNodesPanelProps) 
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const textPrimary = isDarkMode ? 'text-white/86' : 'text-slate-950';
-  const textSecondary = isDarkMode ? 'text-white/52' : 'text-slate-500';
-  const textFaint = isDarkMode ? 'text-white/35' : 'text-slate-400';
-  const cardCls = isDarkMode
-    ? 'border-white/[0.06] bg-white/[0.028]'
-    : 'border-slate-300/28 bg-white/38';
+  const textPrimary = 'text-[var(--text-primary)]';
+  const textSecondary = 'text-[var(--text-tertiary)]';
+  const textFaint = 'text-[var(--text-quaternary)]';
+  const cardCls = 'border-[var(--border-c-default)] bg-[var(--recessed-bg)]';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,9 +97,7 @@ export function SampleNodesPanel({ caseId, isDarkMode }: SampleNodesPanelProps) 
     );
   }
 
-  const actionBtnCls = isDarkMode
-    ? 'border-white/10 text-white/64 hover:bg-white/8 hover:text-white/88'
-    : 'border-slate-300/40 text-slate-500 hover:bg-white/60 hover:text-slate-800';
+  const actionBtnCls = 'border-[var(--border-c-strong)] dark:border-[var(--border-c-default)] text-[var(--text-tertiary)] dark:text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]';
 
   return (
     <div>
@@ -159,9 +155,7 @@ export function SampleNodesPanel({ caseId, isDarkMode }: SampleNodesPanelProps) 
                     <>
                       <button type="button" disabled={!!acting} onClick={() => act(node, 'approve')}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors',
-                          isDarkMode
-                            ? 'border-emerald-400/25 text-emerald-300/80 hover:bg-emerald-400/10'
-                            : 'border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10')}>
+                          'border-success/30 text-[var(--success-text)] hover:bg-[var(--success-tint)]')}>
                         <CheckCircle2 size={10} strokeWidth={1.4} /> 批准
                       </button>
                       <button type="button" disabled={!!acting} onClick={() => act(node, 'revise')}

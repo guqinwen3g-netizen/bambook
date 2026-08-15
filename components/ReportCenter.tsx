@@ -217,29 +217,21 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
   const [drill, setDrill] = useState<DrillRequest | null>(null);
 
   // ── 主题样式（与 CustomsManager 同一 token 口径） ──
-  const cardClass = isDarkMode
-    ? 'rounded-card border border-white/[0.055] bg-white/[0.018]'
-    : 'rounded-card border border-white/45 bg-white/24';
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
-  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
-  const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  const cardClass = 'rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]';
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const labelClass = 'block text-xs mb-1 text-[var(--text-tertiary)]';
+  const textSecondary = 'text-[var(--text-tertiary)]';
   const tabBtnCls = (active: boolean) =>
     `px-4 py-1.5 rounded-full text-xs font-light inline-flex items-center gap-1.5 transition-colors ${
       active
         ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-        : isDarkMode
-        ? 'bg-white/5 text-slate-400 hover:bg-white/10'
-        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
     }`;
   const chipCls = (active: boolean) =>
     `px-2.5 py-1 rounded-full text-[11px] font-light transition-colors cursor-pointer ${
       active
         ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-        : isDarkMode
-        ? 'bg-white/5 text-slate-400 hover:bg-white/10'
-        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
     }`;
 
   // ── 数据加载 ──
@@ -352,7 +344,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
         actions={
           <button
             onClick={fetchAll}
-            className="h-8 px-4 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-light flex items-center gap-1.5 transition-colors"
+            className="h-8 px-4 rounded-full border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)] text-xs font-light flex items-center gap-1.5 transition-colors"
           >
             <RefreshCw size={13} /><span>刷新</span>
           </button>
@@ -369,7 +361,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
                 <button key={t.id} onClick={() => setActiveTab(t.id)} className={tabBtnCls(activeTab === t.id)}>
                   <Icon size={12} /><span>{t.label}</span>
                   {t.id === 'saved' && definitions.length > 0 && (
-                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'saved' ? 'bg-white/20' : isDarkMode ? 'bg-white/10' : 'bg-slate-200'}`}>{definitions.length}</span>
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'saved' ? 'bg-[var(--hover-darken)]' : 'bg-[var(--recessed-bg-strong)]'}`}>{definitions.length}</span>
                   )}
                 </button>
               );
@@ -633,7 +625,7 @@ function DesignerPanel(props: DesignerPanelProps) {
         <div className={`${cardClass} p-4`}>
           <div className="flex items-center justify-between mb-2">
             <div className={`text-xs ${textSecondary}`}>聚合指标 *</div>
-            <button onClick={addMetric} className={`text-[11px] inline-flex items-center gap-1 ${isDarkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}>
+            <button onClick={addMetric} className="text-[11px] inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               <Plus size={12} />添加指标
             </button>
           </div>
@@ -671,7 +663,7 @@ function DesignerPanel(props: DesignerPanelProps) {
                 </select>
                 <button
                   onClick={() => setDesigner(prev => ({ ...prev, metrics: prev.metrics.filter((_, i) => i !== idx) }))}
-                  className={`p-1.5 rounded-control ${isDarkMode ? 'hover:bg-white/10 text-slate-500' : 'hover:bg-slate-100 text-slate-400'}`}
+                  className="p-1.5 rounded-control hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                 >
                   <X size={13} />
                 </button>
@@ -689,7 +681,7 @@ function DesignerPanel(props: DesignerPanelProps) {
         <div className={`${cardClass} p-4`}>
           <div className="flex items-center justify-between mb-2">
             <div className={`text-xs ${textSecondary}`}>过滤条件（可选，≤12 个）</div>
-            <button onClick={addFilter} className={`text-[11px] inline-flex items-center gap-1 ${isDarkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}>
+            <button onClick={addFilter} className="text-[11px] inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
               <Plus size={12} />添加条件
             </button>
           </div>
@@ -748,7 +740,7 @@ function DesignerPanel(props: DesignerPanelProps) {
                   )}
                   <button
                     onClick={() => setDesigner(prev => ({ ...prev, filters: prev.filters.filter((_, i) => i !== idx) }))}
-                    className={`p-1.5 rounded-control ${isDarkMode ? 'hover:bg-white/10 text-slate-500' : 'hover:bg-slate-100 text-slate-400'}`}
+                    className="p-1.5 rounded-control hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                   >
                     <X size={13} />
                   </button>
@@ -776,7 +768,7 @@ function DesignerPanel(props: DesignerPanelProps) {
           <button
             onClick={handleSave}
             disabled={saving || designer.metrics.length === 0 || !designer.name.trim()}
-            className="h-9 px-4 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50 text-xs font-light flex items-center gap-1.5 transition-colors"
+            className="h-9 px-4 rounded-full border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)] disabled:opacity-50 text-xs font-light flex items-center gap-1.5 transition-colors"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             {designer.editingId ? '保存修改' : '保存为报表'}
@@ -784,7 +776,7 @@ function DesignerPanel(props: DesignerPanelProps) {
           {designer.editingId && (
             <button
               onClick={() => { setDesigner({ ...EMPTY_DESIGNER, datasetKey: designer.datasetKey }); setPreview(null); }}
-              className={`h-9 px-4 rounded-full text-xs font-light transition-colors ${isDarkMode ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100'}`}
+              className="h-9 px-4 rounded-full text-xs font-light transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]"
             >
               取消编辑
             </button>
@@ -795,7 +787,7 @@ function DesignerPanel(props: DesignerPanelProps) {
       {/* 预览结果 */}
       {preview && (
         <div className={`${cardClass} overflow-hidden`}>
-          <div className={`px-4 py-2.5 border-b text-xs flex items-center justify-between ${isDarkMode ? 'border-white/5 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
+          <div className="px-4 py-2.5 border-b text-xs flex items-center justify-between border-[var(--border-c-subtle)] text-[var(--text-tertiary)]">
             <span>预览结果 · {preview.rows.length} 行{preview.truncated ? '（已截断至 500 行，完整结果请保存后运行）' : ''}</span>
             {designer.dimensions.length > 0 && preview.rows.length > 0 && (
               <span className={`text-[10px] ${textSecondary}`}>点击行内「下钻」查看组成员实体</span>
@@ -804,7 +796,7 @@ function DesignerPanel(props: DesignerPanelProps) {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}>
+                <tr className="bg-[var(--hover-darken)]">
                   {preview.columnLabels.map((c, i) => (
                     <th key={i} className={`px-3 py-2 text-left font-light whitespace-nowrap ${textSecondary}`}>{c}</th>
                   ))}
@@ -815,9 +807,9 @@ function DesignerPanel(props: DesignerPanelProps) {
               </thead>
               <tbody>
                 {preview.rows.map((row, ri) => (
-                  <tr key={ri} className={isDarkMode ? 'border-t border-white/[0.04]' : 'border-t border-slate-100'}>
+                  <tr key={ri} className="border-t border-[var(--border-c-subtle)]">
                     {preview.columns.map((c, ci) => (
-                      <td key={ci} className={`px-3 py-1.5 whitespace-nowrap tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <td key={ci} className="px-3 py-1.5 whitespace-nowrap tabular-nums text-[var(--text-primary)]">
                         {formatCell(row[c])}
                       </td>
                     ))}
@@ -826,9 +818,7 @@ function DesignerPanel(props: DesignerPanelProps) {
                         <button
                           onClick={() => onDrill(buildQueryInput(), row)}
                           title="下钻查看组成员实体"
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors ${
-                            isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                          }`}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]"
                         >
                           <CornerDownRight size={11} />明细
                         </button>
@@ -892,7 +882,7 @@ function SavedPanel(props: SavedPanelProps) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm truncate ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>{def.name}</span>
+                  <span className="text-sm truncate text-[var(--text-primary)]">{def.name}</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 ${statusSemanticClass(def.enabled ? 'success' : 'neutral', isDarkMode)}`}>
                     {def.enabled ? '已启用' : '已停用'}
                   </span>
@@ -911,14 +901,14 @@ function SavedPanel(props: SavedPanelProps) {
                   onClick={() => onRun(def)}
                   disabled={busy || !def.enabled}
                   title="立即运行"
-                  className={`p-1.5 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'} disabled:opacity-40`}
+                  className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)] disabled:opacity-40"
                 >
                   {actionLoading === `run_${def.id}` ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
                 </button>
                 <button
                   onClick={() => onEdit(def)}
                   title="编辑"
-                  className={`p-1.5 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                  className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                 >
                   <Pencil size={14} />
                 </button>
@@ -934,7 +924,7 @@ function SavedPanel(props: SavedPanelProps) {
                   onClick={() => onDelete(def)}
                   disabled={busy}
                   title="删除"
-                  className={`p-1.5 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-500 hover:text-red-300' : 'hover:bg-slate-100 text-slate-400 hover:text-red-500'}`}
+                  className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--danger-text)]"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -1001,7 +991,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
         </select>
         <button
           onClick={() => onRefresh(filterDefId)}
-          className="h-8 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5"
+          className="h-8 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]"
         >
           <RefreshCw size={12} />刷新
         </button>
@@ -1016,7 +1006,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
         <div className={`${cardClass} overflow-hidden`}>
           <table className="w-full text-xs">
             <thead>
-              <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}>
+              <tr className="bg-[var(--hover-darken)]">
                 <th className={`px-3 py-2 text-left font-light ${textSecondary}`}></th>
                 <th className={`px-3 py-2 text-left font-light ${textSecondary}`}>报表</th>
                 <th className={`px-3 py-2 text-left font-light ${textSecondary}`}>状态</th>
@@ -1033,20 +1023,20 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                 const duration = run.finishedAt && run.startedAt ? `${((run.finishedAt - run.startedAt) / 1000).toFixed(1)}s` : '—';
                 return (
                   <React.Fragment key={run.id}>
-                    <tr className={isDarkMode ? 'border-t border-white/[0.04]' : 'border-t border-slate-100'}>
+                    <tr className="border-t border-[var(--border-c-subtle)]">
                       <td className="px-3 py-2">
                         <button onClick={() => handleToggleExpand(run)} className={`${textSecondary} hover:opacity-80`}>
                           {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                         </button>
                       </td>
-                      <td className={`px-3 py-2 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{run.definitionName}</td>
+                      <td className="px-3 py-2 text-[var(--text-primary)]">{run.definitionName}</td>
                       <td className="px-3 py-2">
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(RUN_STATUS_SEMANTIC[run.status] ?? 'neutral', isDarkMode)}`}>
                           {RUN_STATUS_LABELS[run.status] ?? run.status}
                         </span>
                       </td>
                       <td className={`px-3 py-2 ${textSecondary}`}>{TRIGGER_LABELS[run.trigger] ?? run.trigger}</td>
-                      <td className={`px-3 py-2 text-right tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{run.rowCount ?? '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{run.rowCount ?? '—'}</td>
                       <td className={`px-3 py-2 whitespace-nowrap ${textSecondary}`}>{formatTs(run.startedAt)}</td>
                       <td className={`px-3 py-2 tabular-nums ${textSecondary}`}>{duration}</td>
                       <td className="px-3 py-2 text-right">
@@ -1055,7 +1045,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                             href={reportService.exportCsvUrl(run.id)}
                             download
                             title="导出 CSV"
-                            className={`inline-flex p-1.5 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                            className="inline-flex p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                           >
                             <Download size={13} />
                           </a>
@@ -1063,7 +1053,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                       </td>
                     </tr>
                     {expanded && (
-                      <tr className={isDarkMode ? 'border-t border-white/[0.04]' : 'border-t border-slate-100'}>
+                      <tr className="border-t border-[var(--border-c-subtle)]">
                         <td colSpan={8} className="px-4 py-3">
                           {detailLoading ? (
                             <div className={`flex items-center gap-2 py-3 text-xs ${textSecondary}`}>
@@ -1084,7 +1074,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                                   )}
                                   <table className="w-full text-[11px]">
                                     <thead>
-                                      <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}>
+                                      <tr className="bg-[var(--hover-darken)]">
                                         {(detail.columnLabels ?? detail.columns).map((c, i) => (
                                           <th key={i} className={`px-2 py-1.5 text-left font-light whitespace-nowrap ${textSecondary}`}>{c}</th>
                                         ))}
@@ -1095,9 +1085,9 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                                     </thead>
                                     <tbody>
                                       {detail.rows.map((row, ri) => (
-                                        <tr key={ri} className={isDarkMode ? 'border-t border-white/[0.04]' : 'border-t border-slate-100'}>
+                                        <tr key={ri} className="border-t border-[var(--border-c-subtle)]">
                                           {detail.columns!.map((c, ci) => (
-                                            <td key={ci} className={`px-2 py-1 whitespace-nowrap tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                                            <td key={ci} className="px-2 py-1 whitespace-nowrap tabular-nums text-[var(--text-primary)]">
                                               {formatCell(row[c])}
                                             </td>
                                           ))}
@@ -1109,9 +1099,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                                                   row,
                                                 )}
                                                 title="下钻查看组成员实体（实时）"
-                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors ${
-                                                  isDarkMode ? 'text-slate-400 hover:bg-white/10 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                                                }`}
+                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]"
                                               >
                                                 <CornerDownRight size={11} />明细
                                               </button>
@@ -1179,7 +1167,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  const textSecondary = 'text-[var(--text-tertiary)]';
   const navTarget = DATASET_NAV_TARGETS[dataset.key];
   const groupEntries = input.dimensions.map(d => ({
     label: dataset.dimensions.find(f => f.key === d)?.label ?? d,
@@ -1189,18 +1177,16 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/35 backdrop-blur-sm" onClick={onClose}>
       <div
-        className={`h-full w-[760px] max-w-[92vw] flex flex-col border-l ${
-          isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200'
-        }`}
+        className="h-full w-[760px] max-w-[92vw] flex flex-col border-l bg-[var(--bg-card)] border-[var(--border-c-subtle)]"
         onClick={e => e.stopPropagation()}
       >
         {/* 头部：标题 + 组约束 + 关闭 */}
-        <div className={`px-5 pt-4 pb-3 border-b ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+        <div className="px-5 pt-4 pb-3 border-b border-[var(--border-c-subtle)]">
           <div className="flex items-center justify-between gap-2">
-            <div className={`text-sm font-light truncate ${isDarkMode ? 'text-white/86' : 'text-slate-900'}`}>
+            <div className="text-sm font-light truncate text-[var(--text-primary)]">
               下钻明细 · {dataset.label}
             </div>
-            <button onClick={onClose} className={`p-1.5 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+            <button onClick={onClose} className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]">
               <X size={15} />
             </button>
           </div>
@@ -1211,7 +1197,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
             {groupEntries.map(g => (
               <span
                 key={g.label}
-                className={`px-2 py-0.5 rounded-full text-[10px] ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}
+                className="px-2 py-0.5 rounded-full text-[10px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]"
               >
                 {g.label}：{g.value ?? '（空）'}
               </span>
@@ -1239,11 +1225,11 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
           ) : result ? (
             <>
               {/* 成员明细表 */}
-              <div className={`rounded-card border overflow-hidden ${isDarkMode ? 'border-white/[0.055]' : 'border-slate-200'}`}>
+              <div className="rounded-card border overflow-hidden border-[var(--border-c-subtle)]">
                 <div className="overflow-x-auto">
                   <table className="w-full text-[11px]">
                     <thead>
-                      <tr className={isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50'}>
+                      <tr className="bg-[var(--hover-darken)]">
                         {result.columnLabels.map((c, i) => (
                           <th key={i} className={`px-2.5 py-2 text-left font-light whitespace-nowrap ${textSecondary}`}>{c}</th>
                         ))}
@@ -1259,12 +1245,12 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
                             onClick={() => setSelectedId(selected ? null : rowId)}
                             className={`cursor-pointer transition-colors ${
                               selected
-                                ? isDarkMode ? 'bg-white/[0.06]' : 'bg-slate-100'
-                                : isDarkMode ? 'border-t border-white/[0.04] hover:bg-white/[0.03]' : 'border-t border-slate-100 hover:bg-slate-50'
+                                ? 'bg-[var(--recessed-bg)]'
+                                : 'border-t border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]'
                             }`}
                           >
                             {result.columns.map((c, ci) => (
-                              <td key={ci} className={`px-2.5 py-1.5 whitespace-nowrap tabular-nums ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                              <td key={ci} className="px-2.5 py-1.5 whitespace-nowrap tabular-nums text-[var(--text-primary)]">
                                 {formatCell(row[c])}
                               </td>
                             ))}
@@ -1281,7 +1267,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className={`text-[11px] ${textSecondary}`}>已选中实体</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{selectedId}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[var(--recessed-bg)] text-[var(--text-secondary)]">{selectedId}</span>
                     {onNavigate && navTarget && (
                       <button
                         onClick={() => { onNavigate(navTarget.view, navTarget.tab); onClose(); }}

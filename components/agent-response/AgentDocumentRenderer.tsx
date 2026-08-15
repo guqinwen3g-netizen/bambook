@@ -102,34 +102,34 @@ const OrderConfirmFeedbackView: React.FC<{
   isDarkMode?: boolean;
 }> = ({ result, errorFeedback, hasError, isDarkMode }) => {
   const state = classifyOrderConfirmFeedback(result, hasError, errorFeedback);
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const labelCls = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const cardBorder = isDarkMode ? 'border-white/[0.05]' : 'border-slate-200/50';
-  const monoText = isDarkMode ? 'text-white/45' : 'text-slate-500';
+  const quietText = BAMBOOK_OS.tone.text.quiet;
+  const labelCls = BAMBOOK_OS.tone.text.formLabel;
+  const cardBorder = 'border-[var(--border-c-subtle)]';
+  const monoText = 'text-[var(--text-tertiary)]';
 
   // === 成功态：订单已确认 + 发票已开具 + 审计已记录 ===
   if (state === 'committed' && result) {
     return (
       <div className={`mt-2 flex flex-col gap-1.5 rounded-compact border ${cardBorder} px-2.5 py-2`}>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-light ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+          <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
             <CheckCircle2 size={10} />
             <span>订单已确认</span>
           </span>
           {result.previousStatus && result.newStatus && (
-            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
               <FileText size={10} />
               <span>{result.previousStatus} → {result.newStatus}</span>
             </span>
           )}
           {result.invoiceId && (
-            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
               <Receipt size={10} />
               <span>发票已开具</span>
             </span>
           )}
           {result.auditId && (
-            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/55' : 'bg-slate-100 text-slate-500'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
               <ShieldCheck size={10} />
               <span>审计已记录</span>
             </span>
@@ -145,7 +145,7 @@ const OrderConfirmFeedbackView: React.FC<{
           {result.customerName && <span>客户 <span className={labelCls}>{result.customerName}</span></span>}
         </div>
         {result.transactionId && (
-          <div className={`text-[10px] ${isDarkMode ? 'text-white/40' : 'text-slate-400'}`}>
+          <div className={`text-[10px] text-[var(--text-tertiary)]`}>
             事务 {result.transactionId.slice(-14)}
             {result.idempotencyKey && <span> · 幂等键 {result.idempotencyKey.slice(0, 12)}…</span>}
           </div>
@@ -159,7 +159,7 @@ const OrderConfirmFeedbackView: React.FC<{
           </div>
         )}
         {/* P1-D §2.1: 必须告知 email 未发送，避免"全部完成"误导 */}
-        <div className={`flex items-start gap-1 text-[10.5px] leading-[1.4] ${isDarkMode ? 'text-white/55' : 'text-slate-500'}`}>
+        <div className={`flex items-start gap-1 text-[10.5px] leading-[1.4] text-[var(--text-tertiary)]`}>
           <AlertTriangle size={10} className="mt-[1px] shrink-0" />
           <span>确认邮件尚未自动发送（当前 scope 限制），请手动在邮件模块发送确认通知。</span>
         </div>
@@ -170,8 +170,8 @@ const OrderConfirmFeedbackView: React.FC<{
   // === rejected：用户主动拒绝，中性 reassuring（P1-D §3.3）
   if (state === 'rejected') {
     return (
-      <div className={`mt-2 rounded-compact border ${isDarkMode ? 'border-slate-400/20 bg-slate-700/20' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
-        <div className={`flex items-center gap-1.5 text-[11.5px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+      <div className={`mt-2 rounded-compact border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-2.5 py-2`}>
+        <div className={`flex items-center gap-1.5 text-[11.5px] font-light text-[var(--text-secondary)]`}>
           <XCircle size={12} />
           <span>订单确认已取消</span>
         </div>
@@ -185,8 +185,8 @@ const OrderConfirmFeedbackView: React.FC<{
   // === approval_required：需要审批后才能执行 ===
   if (state === 'approval_required') {
     return (
-      <div className={`mt-2 rounded-compact border ${isDarkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
-        <div className={`flex items-center gap-1.5 text-[11.5px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+      <div className={`mt-2 rounded-compact border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-2.5 py-2`}>
+        <div className={`flex items-center gap-1.5 text-[11.5px] font-light text-[var(--text-secondary)]`}>
           <ShieldAlert size={12} />
           <span>该操作需要审批后才能执行</span>
         </div>
@@ -201,13 +201,13 @@ const OrderConfirmFeedbackView: React.FC<{
   const userAction = errorFeedback?.userAction ?? '请联系管理员查看日志。';
   const details = errorFeedback?.details;
   return (
-    <div className={`mt-2 flex flex-col gap-1.5 rounded-compact border ${isDarkMode ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} px-2.5 py-2`}>
+    <div className={`mt-2 flex flex-col gap-1.5 rounded-compact border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-2.5 py-2`}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className={`flex items-center gap-1 text-[11.5px] font-light ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>
+        <span className={`flex items-center gap-1 text-[11.5px] font-light text-[var(--text-secondary)]`}>
           <XCircle size={12} />
           <span>{codeLabel}</span>
         </span>
-        <span className={`rounded px-1 py-0.5 text-[9.5px] font-mono ${isDarkMode ? 'bg-white/[0.06] text-white/55' : 'bg-slate-200 text-slate-500'}`}>{code}</span>
+        <span className={`rounded px-1 py-0.5 text-[9.5px] font-mono bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)]`}>{code}</span>
         {errorFeedback?.retryable === false && (
           <span className={`text-[9.5px] ${quietText}`}>不可重试</span>
         )}
@@ -235,9 +235,9 @@ interface ToolAnnotationProps {
 
 const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onReferenceClick }) => {
   const [expanded, setExpanded] = useState(false);
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const mainText = isDarkMode ? 'text-white/85' : 'text-slate-700';
-  const detailBg = isDarkMode ? 'bg-white/[0.03]' : 'bg-slate-50/80';
+  const quietText = BAMBOOK_OS.tone.text.quiet;
+  const mainText = 'text-[var(--text-primary)]';
+  const detailBg = 'bg-[var(--hover-darken)]';
   const canOpen = Boolean(onReferenceClick && block.toolRunId);
 
   return (
@@ -250,16 +250,12 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
           <span className={`text-[13px] font-light ${mainText}`}>{block.title || block.toolId}</span>
           <span className={`shrink-0 text-[11px] ${quietText}`}>{STATUS_LABEL[block.lifecycleStatus]}</span>
           {block.risk && block.risk !== 'low' && (
-            <span className={`shrink-0 rounded-full px-1.5 py-[0.5px] text-[9px] font-light ${
-              block.risk === 'critical' ? (isDarkMode ? 'bg-white/[0.07] text-white/75' : 'bg-slate-100 text-slate-600') :
-              block.risk === 'high' ? (isDarkMode ? 'bg-white/[0.07] text-white/75' : 'bg-slate-100 text-slate-600') :
-              (isDarkMode ? 'bg-white/[0.07] text-white/75' : 'bg-slate-100 text-slate-600')
-            }`}>{block.risk}</span>
+            <span className={`shrink-0 rounded-full px-1.5 py-[0.5px] text-[9px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>{block.risk}</span>
           )}
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className={`ml-auto shrink-0 p-0.5 rounded transition-colors ${quietText} ${isDarkMode ? 'hover:bg-white/[0.05]' : 'hover:bg-slate-100'}`}
+            className={`ml-auto shrink-0 p-0.5 rounded transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
             aria-label={expanded ? '收起详情' : '展开详情'}
           >
             <ChevronRight size={13} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
@@ -268,7 +264,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
         {expanded && (
           <div className={`mt-1.5 rounded-compact ${detailBg} px-3 py-2`}>
             {block.reason && <div className={`text-[12px] leading-[1.5] ${quietText}`}>{block.reason}</div>}
-            {block.error && <div className={`mt-1 text-[12px] leading-[1.5] ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>{block.error}</div>}
+            {block.error && <div className={`mt-1 text-[12px] leading-[1.5] text-[var(--text-secondary)]`}>{block.error}</div>}
             {block.toolId === 'order.confirm' ? (
               <OrderConfirmFeedbackView
                 result={extractOrderConfirmResult(block.outputPreview)}
@@ -292,7 +288,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
                   e.stopPropagation();
                   onReferenceClick?.({ refId: `ref_${block.toolRunId}`, kind: 'tool_run', label: block.toolId, toolRunId: block.toolRunId, blockId: block.id });
                 }}
-                className={`mt-1.5 text-[11px] ${isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)] hover:text-[var(--os-vnext-brand-blue)]' : 'text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]'}`}
+                className="mt-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)] dark:text-[var(--os-vnext-brand-blue-soft)]"
               >
                 查看运行详情 →
               </button>
@@ -314,14 +310,14 @@ interface EvidenceAnnotationProps {
 
 const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMode, onReferenceClick }) => {
   const [expanded, setExpanded] = useState(false);
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const mainText = isDarkMode ? 'text-white/85' : 'text-slate-700';
+  const quietText = BAMBOOK_OS.tone.text.quiet;
+  const mainText = 'text-[var(--text-primary)]';
   const anchorsByRef = new Map<string, AgentReferenceAnchor>((block.anchors ?? []).map(a => [a.refId, a]));
 
   return (
     <div className="flex items-start gap-2.5 py-1">
       <span className="mt-[2px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-        <FileText size={14} className={isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)]' : 'text-[var(--os-vnext-brand-blue-strong)]'} />
+        <FileText size={14} className="text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -330,7 +326,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className={`ml-auto shrink-0 p-0.5 rounded transition-colors ${quietText} ${isDarkMode ? 'hover:bg-white/[0.05]' : 'hover:bg-slate-100'}`}
+            className={`ml-auto shrink-0 p-0.5 rounded transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
             aria-label={expanded ? '收起详情' : '展开详情'}
           >
             <ChevronRight size={13} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
@@ -348,7 +344,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onReferenceClick(anchor); }}
-                      className={`ml-1.5 text-[11px] ${isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)] hover:text-[var(--os-vnext-brand-blue)]' : 'text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]'}`}
+                      className="ml-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)] dark:text-[var(--os-vnext-brand-blue-soft)]"
                     >
                       查看
                     </button>
@@ -382,11 +378,11 @@ const HOOK_TYPE_LABEL: Record<AgentProcessDraftPostCommitHook['type'], string> =
 };
 
 const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolean }> = ({ draft, isDarkMode }) => {
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const labelCls = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const beforeCls = isDarkMode ? 'text-white/55 line-through' : 'text-slate-500 line-through';
-  const afterCls = isDarkMode ? 'text-white/70' : 'text-slate-600';
-  const rowBorder = isDarkMode ? 'border-white/[0.05]' : 'border-slate-200/50';
+  const quietText = BAMBOOK_OS.tone.text.quiet;
+  const labelCls = BAMBOOK_OS.tone.text.formLabel;
+  const beforeCls = 'text-[var(--text-tertiary)] line-through';
+  const afterCls = 'text-[var(--text-secondary)]';
+  const rowBorder = 'border-[var(--border-c-subtle)]';
 
   return (
     <div className={`mt-2 flex flex-col gap-2 rounded-compact border ${rowBorder} px-2.5 py-2`}>
@@ -399,7 +395,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           <div className="flex flex-col gap-1">
             {draft.beforeAfterDiff.map((diff: AgentProcessDraftFieldDiff, idx: number) => (
               <div key={`${diff.entity}_${diff.entityId}_${diff.field}_${idx}`} className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11.5px] leading-relaxed">
-                <span className={`font-light ${isDarkMode ? 'text-white/75' : 'text-slate-700'}`}>{diff.entity}.{diff.field}</span>
+                <span className={`font-light text-[var(--text-primary)]`}>{diff.entity}.{diff.field}</span>
                 {diff.before != null && diff.before !== '' && (
                   <span className={`break-all ${beforeCls}`}>{formatDraftValue(diff.before)}</span>
                 )}
@@ -420,7 +416,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
             {draft.subOperations.map((op, idx) => (
               <div key={`${op.toolId}_${op.entityId}_${idx}`} className={`flex items-center gap-1.5 text-[11px] ${quietText}`}>
                 <span className="tabular-nums">{idx + 1}.</span>
-                <span className={`font-light ${isDarkMode ? 'text-white/65' : 'text-slate-600'}`}>{op.action}</span>
+                <span className={`font-light text-[var(--text-secondary)]`}>{op.action}</span>
                 <span>→</span>
                 <span className="truncate">{op.toolId}</span>
               </div>
@@ -436,7 +432,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
           </div>
           <div className="flex flex-wrap gap-1">
             {draft.impactScope.map((scope, idx) => (
-              <span key={idx} className={`rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/60' : 'bg-slate-100 text-slate-600'}`}>
+              <span key={idx} className={`rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                 {scope}
               </span>
             ))}
@@ -446,13 +442,13 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {(draft.irreversible || draft.postCommitHooks.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {draft.irreversible && (
-            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
               <AlertTriangle size={10} />
               <span>不可逆操作</span>
             </span>
           )}
           {draft.postCommitHooks.map((hook: AgentProcessDraftPostCommitHook, idx) => (
-            <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] ${isDarkMode ? 'bg-white/[0.06] text-white/70' : 'bg-slate-100 text-slate-600'}`}>
+            <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
               <Mail size={10} />
               <span>提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
             </span>
@@ -470,9 +466,9 @@ interface ApprovalAnnotationProps {
 }
 
 const ApprovalAnnotation: React.FC<ApprovalAnnotationProps> = ({ block, isDarkMode, onExecuteAction }) => {
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const mainText = isDarkMode ? 'text-white/85' : 'text-slate-700';
-  const borderCls = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const quietText = 'text-[var(--text-tertiary)]';
+  const mainText = 'text-[var(--text-primary)]';
+  const borderCls = 'border-[var(--border-c-subtle)]';
   const isPending = block.approvalStatus === 'pending';
 
   const approvalStatusLabel: Record<AgentApprovalBlockModel['approvalStatus'], string> = {
@@ -483,9 +479,9 @@ const ApprovalAnnotation: React.FC<ApprovalAnnotationProps> = ({ block, isDarkMo
   };
 
   return (
-    <div className={`flex items-start gap-2.5 py-2 px-3 rounded-inset border ${isPending ? (isDarkMode ? 'bg-white/[0.04] border-white/10' : 'bg-slate-50 border-slate-200') : ''} ${!isPending ? borderCls : ''}`}>
+    <div className={`flex items-start gap-2.5 py-2 px-3 rounded-inset border ${isPending ? 'bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]' : ''} ${!isPending ? borderCls : ''}`}>
       <span className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-        <ShieldCheck size={14} className={isPending ? (isDarkMode ? 'text-white/70' : 'text-slate-600') : (isDarkMode ? 'text-white/70' : 'text-slate-600')} />
+        <ShieldCheck size={14} className="text-[var(--text-secondary)]" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -499,21 +495,21 @@ const ApprovalAnnotation: React.FC<ApprovalAnnotationProps> = ({ block, isDarkMo
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'approved', toolId: block.toolId, input: block.input }, risk: block.risk, label: '批准' })}
-              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
             >
               批准
             </button>
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'rejected', toolId: block.toolId }, risk: block.risk, label: '拒绝' })}
-              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
             >
               拒绝
             </button>
             <button
               type="button"
               onClick={() => onExecuteAction?.({ actionId: block.approvalId, actionType: 'approval', payload: { approvalId: block.approvalId, decision: 'modified', toolId: block.toolId, input: block.input, editableFields: block.editableFields }, risk: block.risk, label: '修改参数' })}
-              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors ${isDarkMode ? 'border-white/15 text-white/75 hover:bg-white/[0.06]' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+              className={`rounded-full border px-2.5 py-1 text-[12px] font-light transition-colors border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
             >
               修改参数
             </button>
@@ -548,8 +544,8 @@ interface ProcessGroupProps {
 
 const ProcessGroup: React.FC<ProcessGroupProps> = ({ blocks, isDarkMode, isStreaming, onReferenceClick, onExecuteAction }) => {
   const [expanded, setExpanded] = useState(false);
-  const quietText = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const mainText = isDarkMode ? 'text-white/85' : 'text-slate-700';
+  const quietText = 'text-[var(--text-tertiary)]';
+  const mainText = 'text-[var(--text-primary)]';
 
   // 统计摘要
   const summary = useMemo(() => {
@@ -612,7 +608,7 @@ const ProcessGroup: React.FC<ProcessGroupProps> = ({ blocks, isDarkMode, isStrea
             {expanded ? '收起操作详情' : `查看 ${summary.succeeded + summary.failed} 个操作步骤`}
           </button>
           {expanded && (
-            <div className={`mt-1.5 ml-2 border-l ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/60'} pl-3 space-y-0.5`}>
+            <div className={`mt-1.5 ml-2 border-l border-[var(--border-c-subtle)] pl-3 space-y-0.5`}>
               {processBlocks.map(block => {
                 if (block.type === 'tool') return <ToolAnnotation key={block.id} block={block as AgentToolLifecycleBlockModel} isDarkMode={isDarkMode} onReferenceClick={onReferenceClick} />;
                 if (block.type === 'evidence') return <EvidenceAnnotation key={block.id} block={block as AgentEvidenceBlockModel} isDarkMode={isDarkMode} onReferenceClick={onReferenceClick} />;

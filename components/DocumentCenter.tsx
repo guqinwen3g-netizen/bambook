@@ -301,12 +301,8 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
   }, [expandedId]);
 
   // ── 样式 ──
-  const cardClass = isDarkMode
-    ? `rounded-card border border-white/[0.055] bg-white/[0.018] ${BAMBOOK_OS.material.glassColor}`
-    : `rounded-card border border-white/45 bg-white/24 ${BAMBOOK_OS.material.glassColor}`;
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
+  const cardClass = `rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)] ${BAMBOOK_OS.material.glassColor}`;
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
   const actionBtnCls = `h-7 px-3 rounded-control text-[11px] font-light disabled:opacity-50 transition-colors`;
 
   return (
@@ -320,13 +316,13 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setGenerateShipmentId(''); setShowGenerate(true); }}
-              className="h-8 px-3.5 rounded-full border border-slate-200 dark:border-white/10 text-xs font-light flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+              className="h-8 px-3.5 rounded-full border border-[var(--border-c-subtle)] text-xs font-light flex items-center gap-1.5 hover:bg-[var(--hover-darken)] transition-colors"
             >
               <FileOutput size={13} /><span>从运单生成</span>
             </button>
             <button
               onClick={() => setShowPack(true)}
-              className="h-8 px-3.5 rounded-full border border-slate-200 dark:border-white/10 text-xs font-light flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+              className="h-8 px-3.5 rounded-full border border-[var(--border-c-subtle)] text-xs font-light flex items-center gap-1.5 hover:bg-[var(--hover-darken)] transition-colors"
             >
               <PackageOpen size={13} /><span>订单打包</span>
             </button>
@@ -346,7 +342,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
           {/* 工具栏 */}
           <div className="flex items-center gap-3 mb-4 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">
-              <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+              <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]`} />
               <input
                 type="text"
                 value={searchQuery}
@@ -366,18 +362,18 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
             </select>
             <button
               onClick={() => void fetchDocs()}
-              className="h-9 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5"
+              className="h-9 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]"
             >
               <RefreshCw size={12} />刷新
             </button>
-            <span className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>共 {total} 份</span>
+            <span className={`text-xs text-[var(--text-tertiary)]`}>共 {total} 份</span>
           </div>
 
           {error && (
             <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('danger', isDarkMode)}`}>
               <AlertCircle size={16} className={statusSemanticText('danger', isDarkMode)} />
               <span className="text-sm">{error}</span>
-              <button onClick={() => setError(null)} className={`ml-auto p-0.5 ${isDarkMode ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-slate-900'}`}>
+              <button onClick={() => setError(null)} className={`ml-auto p-0.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}>
                 <X size={14} />
               </button>
             </div>
@@ -385,10 +381,10 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
 
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 size={24} className={`animate-spin ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+              <Loader2 size={24} className={`animate-spin text-[var(--text-tertiary)]`} />
             </div>
           ) : docs.length === 0 ? (
-            <div className={`text-center py-20 text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <div className={`text-center py-20 text-sm text-[var(--text-tertiary)]`}>
               暂无贸易单据 — 可「新增单据」手工登记，或「从运单生成」批量建档
             </div>
           ) : (
@@ -407,15 +403,15 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           {isExpanded ? <ChevronDown size={13} className="shrink-0 opacity-60" /> : <ChevronRight size={13} className="shrink-0 opacity-60" />}
                           <span className="text-sm font-medium">{doc.documentNumber}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusSemanticClass(si.semantic, isDarkMode)} ${statusSemanticText(si.semantic, isDarkMode)}`}>{si.label}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDarkMode ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                             {docTypeLabel(doc.type)}
                           </span>
                         </div>
-                        <div className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <div className={`text-xs text-[var(--text-tertiary)]`}>
                           {doc.consignor || '—'} → {doc.consignee || '—'}
                           {doc.portOfLoading && ` · ${doc.portOfLoading} → ${doc.portOfDischarge || '—'}`}
                         </div>
-                        <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <div className={`text-xs mt-0.5 text-[var(--text-tertiary)]`}>
                           签发日: {doc.issueDate || '—'}
                           {doc.shipmentId && ` · 运单 ${doc.shipmentId}`}
                           {doc.orderId && ` · 订单 ${doc.orderId}`}
@@ -438,8 +434,8 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           disabled={!!actionLoading}
                           className={`${actionBtnCls} ${
                             to === 'Accepted' ? 'bg-green-500 text-white'
-                            : to === 'Rejected' || to === 'Cancelled' ? 'border border-slate-200 dark:border-white/10 text-slate-500'
-                            : to === 'Draft' ? 'border border-slate-200 dark:border-white/10 text-slate-500'
+                            : to === 'Rejected' || to === 'Cancelled' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
+                            : to === 'Draft' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
                             : 'bg-[var(--os-vnext-brand-blue)] text-white'
                           }`}
                         >
@@ -450,7 +446,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                         <button
                           onClick={() => { setEditingDoc(doc); setShowForm(true); }}
                           disabled={!!actionLoading}
-                          className={`${actionBtnCls} border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300`}
+                          className={`${actionBtnCls} border border-[var(--border-c-subtle)] text-[var(--text-secondary)]`}
                         >
                           编辑
                         </button>
@@ -468,24 +464,24 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
 
                     {/* 展开详情：字段 + 版本时间线 + 预览 */}
                     {isExpanded && (
-                      <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
-                        <div className={`grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                          <div><span className="opacity-70">签发人</span><div className={`mt-0.5 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{doc.issuedBy || '—'}</div></div>
-                          <div><span className="opacity-70">有效期至</span><div className={`mt-0.5 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{doc.expiryDate || '—'}</div></div>
-                          <div><span className="opacity-70">报关单</span><div className={`mt-0.5 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{doc.declarationId || '—'}</div></div>
-                          <div><span className="opacity-70">档案</span><div className={`mt-0.5 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{doc.relationId || '—'}</div></div>
-                          {doc.notes && <div className="col-span-2 xl:col-span-4"><span className="opacity-70">备注</span><div className={`mt-0.5 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{doc.notes}</div></div>}
+                      <div className={`mt-3 pt-3 border-t border-[var(--border-c-subtle)]`}>
+                        <div className={`grid grid-cols-2 xl:grid-cols-4 gap-3 text-xs text-[var(--text-tertiary)]`}>
+                          <div><span className="opacity-70">签发人</span><div className={`mt-0.5 text-[var(--text-primary)]`}>{doc.issuedBy || '—'}</div></div>
+                          <div><span className="opacity-70">有效期至</span><div className={`mt-0.5 text-[var(--text-primary)]`}>{doc.expiryDate || '—'}</div></div>
+                          <div><span className="opacity-70">报关单</span><div className={`mt-0.5 text-[var(--text-primary)]`}>{doc.declarationId || '—'}</div></div>
+                          <div><span className="opacity-70">档案</span><div className={`mt-0.5 text-[var(--text-primary)]`}>{doc.relationId || '—'}</div></div>
+                          {doc.notes && <div className="col-span-2 xl:col-span-4"><span className="opacity-70">备注</span><div className={`mt-0.5 text-[var(--text-primary)]`}>{doc.notes}</div></div>}
                         </div>
 
                         {/* 版本时间线 */}
                         <div className="mt-4">
-                          <div className={`flex items-center gap-1.5 text-xs mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <div className={`flex items-center gap-1.5 text-xs mb-2 text-[var(--text-tertiary)]`}>
                             <History size={12} /><span>版本留痕</span>
                           </div>
                           {versionsLoadingId === doc.id ? (
                             <div className="flex items-center gap-2 py-3 text-xs opacity-60"><Loader2 size={12} className="animate-spin" />加载版本...</div>
                           ) : !versions || versions.length === 0 ? (
-                            <div className={`text-xs py-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>暂无版本记录</div>
+                            <div className={`text-xs py-2 text-[var(--text-tertiary)]`}>暂无版本记录</div>
                           ) : (
                             <div className="space-y-1.5">
                               {versions.map(v => {
@@ -493,19 +489,19 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                                 const previewHtml = previewByKey[key];
                                 const renderable = !!TYPE_TO_EXPORT_KIND[doc.type] && !!extractDocumentSet(v.content);
                                 return (
-                                  <div key={v.id} className={`rounded-inset border ${isDarkMode ? 'border-white/[0.06] bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60'}`}>
+                                  <div key={v.id} className={`rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                                     <div className="flex items-center justify-between gap-2 px-3 py-2">
                                       <div className="flex items-center gap-2 min-w-0 text-xs">
-                                        <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>v{v.version}</span>
+                                        <span className={`font-medium text-[var(--text-primary)]`}>v{v.version}</span>
                                         <span className="opacity-70">{v.changeReason || '—'}</span>
                                         <span className="opacity-50">{v.changedBy || '—'} · {fmtTs(v.createdAt)}</span>
                                       </div>
                                       {renderable && (
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                          <button onClick={() => togglePreview(doc, v)} className={`${actionBtnCls} border border-slate-200 dark:border-white/10 text-slate-500 flex items-center gap-1`}>
+                                          <button onClick={() => togglePreview(doc, v)} className={`${actionBtnCls} border border-[var(--border-c-subtle)] text-[var(--text-tertiary)] flex items-center gap-1`}>
                                             <Eye size={11} />{previewHtml ? '收起预览' : '预览'}
                                           </button>
-                                          <button onClick={() => printVersion(doc, v)} className={`${actionBtnCls} border border-slate-200 dark:border-white/10 text-slate-500 flex items-center gap-1`}>
+                                          <button onClick={() => printVersion(doc, v)} className={`${actionBtnCls} border border-[var(--border-c-subtle)] text-[var(--text-tertiary)] flex items-center gap-1`}>
                                             <Printer size={11} />打印/PDF
                                           </button>
                                         </div>
@@ -516,7 +512,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                                         title={`${doc.documentNumber}-v${v.version}`}
                                         sandbox=""
                                         srcDoc={previewHtml}
-                                        className={`w-full h-[420px] border-t ${isDarkMode ? 'border-white/10 bg-white' : 'border-slate-200 bg-white'}`}
+                                        className={`w-full h-[420px] border-t border-[var(--border-c-subtle)] bg-[var(--bg-card)]`}
                                       />
                                     )}
                                   </div>
@@ -596,11 +592,9 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
   const inputCls = `${fieldClass} py-1.5`;
-  const labelClass = `block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`;
+  const labelClass = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 
   const set = (patch: Partial<TradeDocumentInput>) => setForm(prev => ({ ...prev, ...patch }));
   const setStr = (key: keyof TradeDocumentInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -627,12 +621,12 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className={`w-[720px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 ${isDarkMode ? 'bg-deep border-white/10' : 'bg-white border-slate-200'}`}
+        className={`w-[720px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-light">{isEdit ? `编辑单据 ${doc.documentNumber}` : '新增贸易单据'}</h3>
-          <button onClick={onClose} className={`p-1 ${isDarkMode ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-slate-900'}`}><X size={16} /></button>
+          <button onClick={onClose} className={`p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}><X size={16} /></button>
         </div>
 
         {formError && (
@@ -687,7 +681,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
         </div>
 
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="h-8 px-4 rounded-full border border-slate-200 dark:border-white/10 text-xs font-light">取消</button>
+          <button onClick={onClose} className="h-8 px-4 rounded-full border border-[var(--border-c-subtle)] text-xs font-light">取消</button>
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
@@ -718,9 +712,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateTradeDocumentsResult | null>(null);
 
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
 
   const toggle = (t: TradeDocumentType) => setSelected(prev => {
     const next = new Set(prev);
@@ -747,21 +739,21 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className={`w-[560px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 ${isDarkMode ? 'bg-deep border-white/10' : 'bg-white border-slate-200'}`}
+        className={`w-[560px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-base font-light flex items-center gap-2"><FileOutput size={15} />从运单生成单据</h3>
-          <button onClick={onClose} className={`p-1 ${isDarkMode ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-slate-900'}`}><X size={16} /></button>
+          <button onClick={onClose} className={`p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}><X size={16} /></button>
         </div>
-        <p className={`text-xs mb-4 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+        <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>
           装配运单数据批量登记 Draft 草稿（自动取号 + v1 快照）；同运单同类型已存在则跳过不重复建档。
         </p>
 
-        <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>运单 ID *</label>
+        <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>运单 ID *</label>
         <input className={`${fieldClass} py-1.5 mb-4`} value={shipmentId} onChange={(e) => setShipmentId(e.target.value)} placeholder="SHP_..." />
 
-        <label className={`block text-xs mb-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>单据类型 *</label>
+        <label className={`block text-xs mb-1.5 text-[var(--text-tertiary)]`}>单据类型 *</label>
         <div className="grid grid-cols-3 gap-1.5 mb-4">
           {DOC_TYPES.map(t => (
             <button
@@ -770,7 +762,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
               className={`px-2 py-1.5 rounded-control text-[11px] font-light border transition-colors ${
                 selected.has(t.id)
                   ? 'border-[var(--os-vnext-brand-blue)] bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)]'
-                  : isDarkMode ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  : 'border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]'
               }`}
             >
               {t.label}
@@ -786,7 +778,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
         )}
 
         {result && (
-          <div className={`rounded-inset border p-3 mb-3 space-y-2 text-xs ${isDarkMode ? 'border-white/10 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60'}`}>
+          <div className={`rounded-inset border p-3 mb-3 space-y-2 text-xs border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
             {result.created.length > 0 && (
               <div>
                 <div className={statusSemanticText('success', isDarkMode)}>已登记 {result.created.length} 份：</div>
@@ -808,7 +800,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
         )}
 
         <div className="flex justify-end gap-2 mt-2">
-          <button onClick={onClose} className="h-8 px-4 rounded-full border border-slate-200 dark:border-white/10 text-xs font-light">关闭</button>
+          <button onClick={onClose} className="h-8 px-4 rounded-full border border-[var(--border-c-subtle)] text-xs font-light">关闭</button>
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
@@ -835,9 +827,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<TradeDocumentPackItem[] | null>(null);
 
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
 
   const handleLoad = async () => {
     setError(null);
@@ -863,14 +853,14 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className={`w-[640px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 ${isDarkMode ? 'bg-deep border-white/10' : 'bg-white border-slate-200'}`}
+        className={`w-[640px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-base font-light flex items-center gap-2"><PackageOpen size={15} />订单单据打包</h3>
-          <button onClick={onClose} className={`p-1 ${isDarkMode ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-slate-900'}`}><X size={16} /></button>
+          <button onClick={onClose} className={`p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}><X size={16} /></button>
         </div>
-        <p className={`text-xs mb-4 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+        <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>
           订单全部未删单据 + 最新版本快照，逐份渲染打印（L/C 交单场景）。
         </p>
 
@@ -894,16 +884,16 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
 
         {items && (
           items.length === 0 ? (
-            <div className={`text-center py-10 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>该订单暂无已登记单据</div>
+            <div className={`text-center py-10 text-xs text-[var(--text-tertiary)]`}>该订单暂无已登记单据</div>
           ) : (
             <div className="space-y-1.5">
               {items.map(item => {
                 const si = docStatusInfo(item.status as TradeDocumentStatus);
                 const renderable = !!TYPE_TO_EXPORT_KIND[item.type as TradeDocumentType] && !!extractDocumentSet(item.content);
                 return (
-                  <div key={item.id} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-inset border ${isDarkMode ? 'border-white/[0.06] bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60'}`}>
+                  <div key={item.id} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                     <div className="flex items-center gap-2 min-w-0 text-xs flex-wrap">
-                      <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{item.documentNumber}</span>
+                      <span className={`font-medium text-[var(--text-primary)]`}>{item.documentNumber}</span>
                       <span className="opacity-70">{docTypeLabel(item.type)}</span>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusSemanticClass(si.semantic, isDarkMode)} ${statusSemanticText(si.semantic, isDarkMode)}`}>{si.label}</span>
                       <span className="opacity-50">{item.latestVersion != null ? `v${item.latestVersion}` : '无版本'}</span>
@@ -912,7 +902,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
                       onClick={() => printItem(item)}
                       disabled={!renderable}
                       title={renderable ? '渲染最新快照并打印' : '无可渲染快照（手工登记单据请先补录/生成）'}
-                      className={`h-7 px-3 rounded-control text-[11px] font-light flex items-center gap-1 border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-40 shrink-0`}
+                      className={`h-7 px-3 rounded-control text-[11px] font-light flex items-center gap-1 border border-[var(--border-c-subtle)] text-[var(--text-tertiary)] disabled:opacity-40 shrink-0`}
                     >
                       <Printer size={11} />打印/PDF
                     </button>

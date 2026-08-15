@@ -304,7 +304,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
         <div className={`${t.cardClass} flex min-h-0 flex-col overflow-hidden`}>
           {selectedCourse ? (
             <>
-              <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+              <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
                 <span className={`truncate ${t.sectionTitleClass}`}>{selectedCourse.title}</span>
                 <div className="ml-auto flex items-center gap-1.5">
                   {selectedCourse.status === 'Planned' && (
@@ -323,7 +323,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
               </div>
 
               {(selectedCourse.status === 'Planned' || selectedCourse.status === 'Ongoing') && (
-                <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+                <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
                   <select className={`${t.inputCls} max-w-56`} value={enrollUserId} onChange={e => setEnrollUserId(e.target.value)}>
                     <option value="">选择员工报名</option>
                     {unenrolled.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
@@ -337,7 +337,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
                 </div>
               )}
 
-              <div className="grid grid-cols-[minmax(0,1fr)_96px_80px_minmax(0,1fr)_80px] border-b border-white/[0.06]">
+              <div className="grid grid-cols-[minmax(0,1fr)_96px_80px_minmax(0,1fr)_80px] border-b border-[var(--border-c-default)]">
                 <div className={t.thCls}>员工</div>
                 <div className={t.thCls}>状态</div>
                 <div className={t.thCls}>成绩</div>
@@ -361,7 +361,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
                       </div>
                     </div>
                     {editingEnrollmentId === e.id && (
-                      <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] items-end gap-2 border-b border-white/[0.05] bg-white/[0.015] px-4 py-3">
+                      <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] items-end gap-2 border-b border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-4 py-3">
                         <div>
                           <div className={t.labelCls + ' mb-1'}>状态</div>
                           <select className={t.inputCls} value={enrollmentForm.status}

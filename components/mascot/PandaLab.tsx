@@ -47,16 +47,16 @@ const PandaLab: React.FC<{ isDarkMode: boolean; onToggleTheme: () => void }> = (
   return (
     <div className="flex h-screen w-full font-sans">
       {/* Sidebar Controls */}
-      <div className="w-96 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 overflow-y-auto shrink-0 flex flex-col gap-6">
+      <div className="w-96 border-r border-[var(--border-c-default)] bg-[var(--bg-card)] p-6 overflow-y-auto shrink-0 flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-light">Panda Sandbox</h1>
-          <button onClick={onToggleTheme} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded">
+          <button onClick={onToggleTheme} className="px-3 py-1 bg-[var(--recessed-bg)] rounded">
             {isDarkMode ? 'Light' : 'Dark'}
           </button>
         </div>
 
         <section className="flex flex-col gap-3">
-          <h2 className="font-light text-slate-700 dark:text-slate-300">Head</h2>
+          <h2 className="font-light text-[var(--text-primary)]">Head</h2>
           <label className="flex flex-col gap-1 text-sm">
             Head Y Offset: {headY}
             <input type="range" min="-10" max="10" value={headY} onChange={e => setHeadY(Number(e.target.value))} />
@@ -64,7 +64,7 @@ const PandaLab: React.FC<{ isDarkMode: boolean; onToggleTheme: () => void }> = (
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="font-light text-slate-700 dark:text-slate-300">White Belly</h2>
+          <h2 className="font-light text-[var(--text-primary)]">White Belly</h2>
           <label className="flex flex-col gap-1 text-sm">Width (Rx): {bellyRx} <input type="range" min="15" max="35" step="0.5" value={bellyRx} onChange={e => setBellyRx(Number(e.target.value))} /></label>
           <label className="flex flex-col gap-1 text-sm">Height (Ry): {bellyRy} <input type="range" min="10" max="25" step="0.5" value={bellyRy} onChange={e => setBellyRy(Number(e.target.value))} /></label>
           <label className="flex flex-col gap-1 text-sm">Top Y: {bellyTopY} <input type="range" min="80" max="100" value={bellyTopY} onChange={e => setBellyTopY(Number(e.target.value))} /></label>
@@ -72,21 +72,21 @@ const PandaLab: React.FC<{ isDarkMode: boolean; onToggleTheme: () => void }> = (
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="font-light text-slate-700 dark:text-slate-300">Left Arm</h2>
+          <h2 className="font-light text-[var(--text-primary)]">Left Arm</h2>
           <label className="flex flex-col gap-1 text-sm">X: {armLeftX} <input type="range" min="20" max="50" step="0.5" value={armLeftX} onChange={e => setArmLeftX(Number(e.target.value))} /></label>
           <label className="flex flex-col gap-1 text-sm">Y: {armLeftY} <input type="range" min="60" max="90" step="0.5" value={armLeftY} onChange={e => setArmLeftY(Number(e.target.value))} /></label>
           <label className="flex flex-col gap-1 text-sm">Rotate: {armLeftRotate}° <input type="range" min="-45" max="45" value={armLeftRotate} onChange={e => setArmLeftRotate(Number(e.target.value))} /></label>
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="font-light text-slate-700 dark:text-slate-300">Right Arm</h2>
+          <h2 className="font-light text-[var(--text-primary)]">Right Arm</h2>
           <label className="flex flex-col gap-1 text-sm">X: {armRightX} <input type="range" min="70" max="100" step="0.5" value={armRightX} onChange={e => setArmRightX(Number(e.target.value))} /></label>
           <label className="flex flex-col gap-1 text-sm">Y: {armRightY} <input type="range" min="60" max="90" step="0.5" value={armRightY} onChange={e => setArmRightY(Number(e.target.value))} /></label>
           <label className="flex flex-col gap-1 text-sm">Rotate: {armRightRotate}° <input type="range" min="-45" max="45" value={armRightRotate} onChange={e => setArmRightRotate(Number(e.target.value))} /></label>
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="font-light text-slate-700 dark:text-slate-300">Black Neck</h2>
+          <h2 className="font-light text-[var(--text-primary)]">Black Neck</h2>
           <label className="flex flex-col gap-1 text-sm">Top Width: {neckTopW} <input type="range" min="10" max="60" value={neckTopW} onChange={e => setNeckTopW(Number(e.target.value))} /></label>
           <label className="flex flex-col gap-1 text-sm">Bottom Width: {neckBottomW} <input type="range" min="20" max="80" value={neckBottomW} onChange={e => setNeckBottomW(Number(e.target.value))} /></label>
         </section>
@@ -97,14 +97,14 @@ const PandaLab: React.FC<{ isDarkMode: boolean; onToggleTheme: () => void }> = (
         >
           Copy SVG Code
         </button>
-        <pre className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded overflow-x-auto mt-2 select-all">
+        <pre className="text-xs bg-[var(--recessed-bg)] p-2 rounded overflow-x-auto mt-2 select-all">
           {generateJSX()}
         </pre>
       </div>
 
       {/* Main Preview */}
-      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-app-dark relative">
-        <div className="w-[300px] h-[300px] bg-white dark:bg-app-dark shadow-none rounded-card-lg flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-[var(--recessed-bg)] dark:bg-app-dark relative">
+        <div className="w-[300px] h-[300px] bg-[var(--bg-card)] dark:bg-app-dark shadow-none rounded-card-lg flex items-center justify-center">
           
           <svg viewBox="0 0 128 128" className="w-[200px] h-[200px] overflow-visible">
             <defs>

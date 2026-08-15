@@ -27,10 +27,23 @@ BASELINE_ROUNDED=3        # 壁纸缩略图 17px / checkbox 等豁免边缘值�
 BASELINE_HEX_TAILWIND=0   # 全部 hex 颜色已 token 化（bg-app-dark/bg-app-light/text-deep 等）
 BASELINE_HEX_INLINE=8     # 内联 style 中的灰色（已 token 化的排除）
 # ── BDS v2 主题耦合基线（2026-08-13 建立，只减不增）──
-# v2 纪律：新组件对主题机制透明（无 dark: 变体 / 无 isDarkMode 三元），
-# 暗色由 styles/bds/tokens.css 的 [data-theme]/.dark token 覆盖统一承载。
-BASELINE_DARK_VARIANT=34      # dark: Tailwind 变体（豁免口径实测，2026-08-13）
-BASELINE_IS_DARK_TERNARY=2439 # isDarkMode ? 三元（豁免口径实测，2026-08-13）
+# v2 纪律：新组件对主题机制透明（无 isDarkMode 三元），
+# 暗色优先由 tokens.css [data-theme] 覆盖承载；
+# P2 收口（2026-08-15）允许单写自适应类内使用 Tailwind `dark:` 变体
+# （.dark 根 class，替代旧 isDarkMode JS 三元 + _DARK/_LIGHT 双写常量），
+# dark: 变体因此成为合规载体并一次性上调基线，此后只减不增。
+BASELINE_DARK_VARIANT=198      # dark: Tailwind 变体（P2 自适应单配方坍缩产物，2026-08-15 上调 34→162；
+                               # 2026-08-15 sidebar/shell 家族收口 162→172：Sidebar press 差异 1 +
+                               # FolderTabCard SVG stop/stroke 3 + ToggleSwitch 轨道/滑块 3 + 同批未提交存量漂移 3；
+                               # 2026-08-15 order/ui 长尾家族收口 +6：DesignTuner 面板/控件 5 + UserAvatar halo 阴影 1；
+                               # 其余为并行家族收口同步漂移，落盘时实测 185；
+                               # 2026-08-15 多行 isDarkMode 类串三元收官 185→198（+14 行 / 27 处工具）：
+                               # BusinessTools 1 / EmailEditor 1 / Login 1 / SplashScreen 1 / NotificationCenter 1 /
+                               # StepUpload 2 / StepConfirm 1 / AutomationRulesSection 1 / StepPreview 4 / SampleNodesPanel 1；
+                               # WorkflowPanel 审批按钮与 SampleNodesPanel 批准徽章走 success/danger 语义 token（零 dark:），
+                               # AutomationRulesSection checked 轨坍缩为 BAMBOOK_OS.controls.selectedSurface.base 自适应类）
+BASELINE_IS_DARK_TERNARY=226   # isDarkMode ? 三元（P2 消灭战战果锁定，2026-08-15 收拢 2439→366→226；
+                               # 余量为 spotlight/图表数值型三元 + isDarkMode?: 类型声明 + 冻结/搁置文件，合规保留）
 
 errors=0
 

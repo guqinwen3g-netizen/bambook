@@ -258,16 +258,16 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
       {/* Header */}
       <div className="relative z-30 flex-shrink-0 flex items-end justify-between pb-1">
         <div>
-          <h2 className={`text-xl font-normal tracking-tight leading-snug ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h2 className={`text-xl font-normal tracking-tight leading-snug text-[var(--text-primary)]`}>
             发货通知生成器
           </h2>
-          <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className={`text-xs mt-0.5 text-[var(--text-tertiary)]`}>
             从 PO 数据库生成标准发货通知 Excel
           </p>
         </div>
         <button
           onClick={handleReset}
-          className={`p-2 rounded-control transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+          className={`p-2 rounded-control transition-colors hover:bg-[var(--active-darken)] text-[var(--text-tertiary)]`}
           title="重置"
         >
           <RefreshCw size={16} />
@@ -279,14 +279,14 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
           {/* Left Column - PO Selection */}
           <div className="space-y-3">
             {/* PO Search */}
-            <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
-              <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`p-4 rounded-card bg-[var(--recessed-bg)]`}>
+              <h3 className={`text-xs font-light uppercase tracking-wider mb-3 text-[var(--text-tertiary)]`}>
                 订单选择
               </h3>
 
               {/* Search Input */}
               <div className="relative mb-3">
-                <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]`} />
                 <input
                   type="text"
                   value={searchKeyword}
@@ -294,9 +294,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   placeholder="搜索 PO 号、客户或供应商..."
                   className={`
                     w-full pl-9 pr-3 py-2 rounded-control text-sm
-                    ${isDarkMode
-                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-500'
-                      : 'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400'}
+                    bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]
                     focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
                   `}
                 />
@@ -305,19 +303,19 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
               {/* Available POs */}
               <div className="space-y-2 max-h-[180px] overflow-y-auto">
                 {isLoading ? (
-                  <div className={`text-center py-4 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <div className={`text-center py-4 text-[var(--text-tertiary)]`}>
                     <Loader2 size={20} className="animate-spin mx-auto mb-2" />
                     <span className="text-xs">加载中...</span>
                   </div>
                 ) : availablePOs.length > 0 ? (
                   <>
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      <span className={`text-xs text-[var(--text-tertiary)]`}>
                         可选订单 ({availablePOs.length})
                       </span>
                       <button
                         onClick={handleSelectAll}
-                        className={`text-xs px-2 py-1 rounded ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] hover:bg-white/5' : 'text-[var(--os-vnext-brand-blue)] hover:bg-slate-100/60'}`}
+                        className={`text-xs px-2 py-1 rounded text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
                       >
                         全选
                       </button>
@@ -330,27 +328,25 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                         onClick={() => handleAddPO(po)}
                         className={`
                           w-full p-3 rounded-inset text-left transition-all
-                          ${isDarkMode
-                            ? 'bg-white/5 hover:bg-white/10 border border-white/5'
-                            : 'bg-slate-50 hover:bg-slate-100 border border-slate-200'}
+                          bg-[var(--recessed-bg)] hover:bg-[var(--recessed-bg-hover)] border border-[var(--border-c-default)]
                         `}
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <span className={`text-sm font-mono font-light ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                            <span className={`text-sm font-mono font-light text-[var(--text-primary)]`}>
                               {po.po_number}
                             </span>
-                            <span className={`text-xs ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <span className={`text-xs ml-2 text-[var(--text-tertiary)]`}>
                               {po.customer_name}
                             </span>
                           </div>
-                          <Plus size={14} className={isDarkMode ? 'text-slate-500' : 'text-slate-400'} />
+                          <Plus size={14} className="text-[var(--text-tertiary)]" />
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-xs ${isDarkMode ? 'text-slate-600' : 'text-slate-500'}`}>
+                          <span className={`text-xs text-[var(--text-secondary)]`}>
                             {po.supplier_name}
                           </span>
-                          <span className={`text-xs ${isDarkMode ? 'text-slate-700' : 'text-slate-400'}`}>
+                          <span className={`text-xs text-[var(--text-primary)]`}>
                             ${po.total_amount?.toLocaleString()}
                           </span>
                         </div>
@@ -358,7 +354,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     ))}
                   </>
                 ) : (
-                  <div className={`text-center py-4 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <div className={`text-center py-4 text-[var(--text-tertiary)]`}>
                     <Package size={24} className="mx-auto mb-2 opacity-30" />
                     <span className="text-xs">无匹配订单</span>
                   </div>
@@ -368,9 +364,9 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
 
             {/* Selected POs */}
             {selectedPOs.length > 0 && (
-              <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
+              <div className={`p-4 rounded-card bg-[var(--recessed-bg)]`}>
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className={`text-xs font-light uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <h3 className={`text-xs font-light uppercase tracking-wider text-[var(--text-tertiary)]`}>
                     已选订单 ({selectedPOs.length})
                   </h3>
                 </div>
@@ -380,20 +376,20 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                       key={po.po_number}
                       className={`
                         flex items-center justify-between p-2 rounded-inset
-                        ${isDarkMode ? 'bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/20' : 'bg-[var(--os-vnext-brand-blue)]/[0.05] border border-[var(--os-vnext-brand-blue)]/20'}
+                        bg-[var(--os-vnext-brand-blue)]/10 border border-[var(--os-vnext-brand-blue)]/20
                       `}
                     >
                       <div className="flex-1 min-w-0">
-                        <span className={`text-sm font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        <span className={`text-sm font-mono text-[var(--text-primary)]`}>
                           {po.po_number}
                         </span>
-                        <span className={`text-xs ml-2 truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <span className={`text-xs ml-2 truncate text-[var(--text-tertiary)]`}>
                           {po.customer_name}
                         </span>
                       </div>
                       <button
                         onClick={() => handleRemovePO(po.po_number)}
-                        className={`p-1 rounded ${statusSemanticText('destructive', isDarkMode)} ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100/60'}`}
+                        className={`p-1 rounded ${statusSemanticText('destructive', isDarkMode)} hover:bg-[var(--recessed-bg-hover)]`}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -407,14 +403,14 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
           {/* Right Column - Shipping Options */}
           <div className="space-y-3">
             {/* Basic Info */}
-            <div className={`p-4 rounded-card ${isDarkMode ? 'bg-white/5' : 'bg-white/80'}`}>
-              <h3 className={`text-xs font-light uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`p-4 rounded-card bg-[var(--recessed-bg)]`}>
+              <h3 className={`text-xs font-light uppercase tracking-wider mb-3 text-[var(--text-tertiary)]`}>
                 发货信息
               </h3>
               <div className="space-y-3">
                 {/* Destination Port */}
                 <div>
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     目的港 *
                   </label>
                   <select
@@ -422,9 +418,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     onChange={(e) => setOptions({ ...options, destinationPort: e.target.value })}
                     className={`
                       w-full px-3 py-2 rounded-control text-sm
-                      ${isDarkMode
-                        ? 'bg-white/5 border border-white/10 text-white'
-                        : 'bg-white border border-slate-200 text-slate-900'}
+                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
                       focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
                     `}
                   >
@@ -437,7 +431,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
 
                 {/* Shipment Date */}
                 <div>
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     装船期限
                   </label>
                   <input
@@ -446,9 +440,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     onChange={(e) => setOptions({ ...options, shipmentDate: e.target.value })}
                     className={`
                       w-full px-3 py-2 rounded-control text-sm
-                      ${isDarkMode
-                        ? 'bg-white/5 border border-white/10 text-white'
-                        : 'bg-white border border-slate-200 text-slate-900'}
+                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
                       focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
                     `}
                   />
@@ -456,7 +448,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
 
                 {/* Payment Terms */}
                 <div>
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     付款方式
                   </label>
                   <select
@@ -464,9 +456,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     onChange={(e) => setOptions({ ...options, paymentTerms: e.target.value })}
                     className={`
                       w-full px-3 py-2 rounded-control text-sm
-                      ${isDarkMode
-                        ? 'bg-white/5 border border-white/10 text-white'
-                        : 'bg-white border border-slate-200 text-slate-900'}
+                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
                       focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
                     `}
                   >
@@ -479,7 +469,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
 
                 {/* Shipping Method */}
                 <div>
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     运输方式
                   </label>
                   <div className="flex gap-2">
@@ -491,9 +481,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                           flex-1 py-2 rounded-full text-sm transition-colors
                           ${options.shippingMethod === method
                             ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-                            : isDarkMode
-                              ? 'bg-white/5 text-slate-400 hover:bg-white/10'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}
+                            : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}
                         `}
                       >
                         {method}
@@ -504,7 +492,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
 
                 {/* Forwarder */}
                 <div>
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     联系货代
                   </label>
                   <input
@@ -513,9 +501,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     onChange={(e) => setOptions({ ...options, forwarder: e.target.value })}
                     className={`
                       w-full px-3 py-2 rounded-control text-sm
-                      ${isDarkMode
-                        ? 'bg-white/5 border border-white/10 text-white'
-                        : 'bg-white border border-slate-200 text-slate-900'}
+                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
                       focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
                     `}
                   />
@@ -523,7 +509,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
 
                 {/* Remarks */}
                 <div>
-                  <label className={`block text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     备注
                   </label>
                   <textarea
@@ -532,9 +518,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     rows={2}
                     className={`
                       w-full px-3 py-2 rounded-control text-sm resize-none
-                      ${isDarkMode
-                        ? 'bg-white/5 border border-white/10 text-white'
-                        : 'bg-white border border-slate-200 text-slate-900'}
+                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
                       focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
                     `}
                   />
@@ -579,9 +563,9 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   w-full py-3 rounded-full font-light text-sm flex items-center justify-center gap-2
                   transition-all duration-300
                   ${isGenerating
-                    ? 'bg-slate-500 cursor-not-allowed'
+                    ? 'bg-[var(--accent)] cursor-not-allowed'
                     : selectedPOs.length === 0
-                      ? 'bg-slate-400 cursor-not-allowed'
+                      ? 'bg-[var(--recessed-bg-strong)] cursor-not-allowed'
                       : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)]'}
                   text-white
                 `}
@@ -596,7 +580,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     <Ship size={16} />
                     <span>生成发货通知</span>
                     {selectedPOs.length > 0 && (
-                      <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                      <span className="ml-1 px-2 py-0.5 bg-[var(--active-darken)] rounded-full text-xs">
                         {selectedPOs.length} 个订单
                       </span>
                     )}

@@ -295,7 +295,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
         <div className={`${t.cardClass} flex min-h-0 flex-col overflow-hidden`}>
           {selectedCycle ? (
             <>
-              <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+              <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
                 <span className={t.sectionTitleClass}>{selectedCycle.name}</span>
                 <span className={t.sectionMutedClass}>{selectedCycle.period}</span>
                 <div className="ml-auto flex items-center gap-1.5">
@@ -311,7 +311,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
               </div>
 
               {showReviewForm && selectedCycle.status === 'Open' && (
-                <div className="space-y-3 border-b border-white/[0.06] px-4 py-3">
+                <div className="space-y-3 border-b border-[var(--border-c-default)] px-4 py-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <div className={t.labelCls + ' mb-1'}>员工（未评定）*</div>
@@ -341,7 +341,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
                 </div>
               )}
 
-              <div className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px_72px_96px_minmax(0,1.2fr)] border-b border-white/[0.06]">
+              <div className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px_72px_96px_minmax(0,1.2fr)] border-b border-[var(--border-c-default)]">
                 <div className={t.thCls}>员工</div>
                 <div className={t.thCls}>自评</div>
                 <div className={t.thCls}>主管评</div>
@@ -379,7 +379,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
                       </div>
                     </div>
                     {confirmingId === r.id && (
-                      <div className="grid grid-cols-[repeat(4,minmax(0,1fr))_auto] items-end gap-2 border-b border-white/[0.05] bg-white/[0.015] px-4 py-3">
+                      <div className="grid grid-cols-[repeat(4,minmax(0,1fr))_auto] items-end gap-2 border-b border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-4 py-3">
                         <div>
                           <div className={t.labelCls + ' mb-1'}>主管评分 *</div>
                           <input type="number" min="0" max="100" step="0.5" className={t.inputCls} value={confirmForm.managerScore}

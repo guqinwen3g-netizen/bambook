@@ -129,15 +129,11 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
   const selectedCount = (Object.keys(selectedDocs) as ExportDocKind[]).filter(k => selectedDocs[k]).length;
 
   // ── 主题样式 ──
-  const cardClass = isDarkMode
-    ? `rounded-card border border-white/[0.055] bg-white/[0.018] ${BAMBOOK_OS.material.glassColor}`
-    : `rounded-card border border-white/45 bg-white/24 ${BAMBOOK_OS.material.glassColor}`;
-  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] ${
-    isDarkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
-  }`;
-  const textPrimary = isDarkMode ? 'text-white' : 'text-slate-900';
-  const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const hoverRow = isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-white/50';
+  const cardClass = `rounded-card border border-[var(--border-c-default)] bg-[var(--recessed-bg)] ${BAMBOOK_OS.material.glassColor}`;
+  const fieldClass = `w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`;
+  const textPrimary = 'text-[var(--text-primary)]';
+  const textSecondary = 'text-[var(--text-tertiary)]';
+  const hoverRow = 'hover:bg-[var(--recessed-bg-hover)]';
 
   return (
     <div className="w-full flex flex-col gap-4">
@@ -186,9 +182,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
                     {s.customerName || '—'} · {s.portOfLoading || '—'} → {s.portOfDischarge || '—'}
                   </div>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-light flex-shrink-0 ${
-                  isDarkMode ? 'bg-white/[0.06] text-slate-300' : 'bg-black/[0.05] text-slate-600'
-                }`}>{s.status}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-light flex-shrink-0 bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>{s.status}</span>
                 <ChevronRight size={13} className={textSecondary} />
               </button>
             ))
@@ -198,7 +192,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
 
       {/* 错误提示 */}
       {error && (
-        <div className={`flex items-start gap-2 p-3 rounded-card border ${isDarkMode ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-red-50 border-red-200 text-red-600'}`}>
+        <div className={`flex items-start gap-2 p-3 rounded-card border bg-[var(--danger-tint)] border-danger/30 text-[var(--danger-text)]`}>
           <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
           <span className="text-xs font-light">{error}</span>
         </div>
@@ -216,7 +210,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
           <motion.div key={docSet.shipment.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-4">
             {/* 数据完整度 */}
             {docSet.missing.length > 0 && (
-              <div className={`p-3 rounded-card border ${isDarkMode ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+              <div className={`p-3 rounded-card border bg-[var(--warning-tint)] border-warning/30 text-[var(--warning-text)]`}>
                 <div className="flex items-center gap-2 mb-1">
                   <AlertCircle size={13} />
                   <span className="text-xs">数据完整度提示（仍可生成，缺失字段显示为 —）</span>
@@ -256,9 +250,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
                     className={`flex flex-col items-start gap-2 p-3 rounded-card border text-left transition-all ${
                       selectedDocs[kind]
                         ? 'border-[var(--os-vnext-brand-blue)]/50 bg-[var(--os-vnext-brand-blue)]/10'
-                        : isDarkMode
-                          ? 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]'
-                          : 'border-black/[0.05] bg-white/30 hover:bg-white/50'
+                        : 'border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] hover:bg-[var(--recessed-bg-hover)]'
                     }`}
                   >
                     <Icon size={16} strokeWidth={1.5} className={selectedDocs[kind] ? 'text-[var(--os-vnext-brand-blue)]' : textSecondary} />
@@ -273,11 +265,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
               <button
                 onClick={handleGenerate}
                 disabled={selectedCount === 0 || generating}
-                className={`mt-4 h-9 px-5 rounded-control text-xs font-light inline-flex items-center gap-2 transition-colors disabled:opacity-40 ${
-                  isDarkMode
-                    ? 'bg-[var(--os-vnext-brand-blue)]/80 hover:bg-[var(--os-vnext-brand-blue)] text-white'
-                    : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/90 text-white'
-                }`}
+                className={`mt-4 h-9 px-5 rounded-control text-xs font-light inline-flex items-center gap-2 transition-colors disabled:opacity-40 bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/90 text-white`}
               >
                 {generating ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
                 <span>生成并打印（{selectedCount} 份）</span>

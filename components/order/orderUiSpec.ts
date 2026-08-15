@@ -343,7 +343,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
     }`,
 
     field: `h-10 w-full rounded-full border px-4 text-xs font-light outline-none transition-all ${
-      dark ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light
+      BAMBOOK_OS.controls.recessedField.base
     }`,
     fieldNoSpinner:
       '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
@@ -356,7 +356,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
 
     // ── 第二批补全配方（消除跨文件手写重复） ──
     toggleShell: `flex h-10 w-fit items-center gap-3 rounded-full border px-4 text-xs font-light outline-none transition-all ${
-      dark ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light
+      BAMBOOK_OS.controls.recessedField.base
     }`,
     btnActive: dark
       ? 'border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-white/88'
@@ -495,7 +495,7 @@ export const createOrderUiSpec = (isDarkMode: boolean): OrderUiSpec => {
 
     // ── 第十批：子编辑器统一配方 ──
     subFieldInput: `h-9 px-3 rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all ${
-      dark ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light
+      BAMBOOK_OS.controls.recessedField.base
     }`,
     subFieldFocus: dark
       ? 'focus:border-[rgba(125,196,235,0.45)] focus:ring-1 focus:ring-accent-blue/20'

@@ -24,9 +24,9 @@ const StatusIcon: React.FC<{ status: AgentToolLifecycleBlockModel['lifecycleStat
 };
 
 export const AgentToolLifecycleBlock: React.FC<AgentBlockComponentProps<AgentToolLifecycleBlockModel>> = ({ block, isDarkMode, onReferenceClick }) => {
-  const labelTextClass = isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight;
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const borderClass = isDarkMode ? 'border-white/[0.08]' : 'border-slate-200/70';
+  const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const borderClass = 'border-[var(--border-c-default)]';
   const canOpenToolRun = Boolean(onReferenceClick && block.toolRunId);
 
   return (
@@ -46,13 +46,13 @@ export const AgentToolLifecycleBlock: React.FC<AgentBlockComponentProps<AgentToo
         <StatusIcon status={block.lifecycleStatus} className={riskToneClass(block.risk, isDarkMode)} />
         <div className="min-w-0 flex-1">
           <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '工具调用'}</div>
-          <div className={`mt-1 text-xs ${isDarkMode ? 'text-white/78' : 'text-slate-800'}`}>{block.toolId} · {statusLabel[block.lifecycleStatus]}</div>
+          <div className={`mt-1 text-xs text-[var(--text-primary)]`}>{block.toolId} · {statusLabel[block.lifecycleStatus]}</div>
           {block.reason && <div className={`mt-1 text-xs leading-5 ${quietTextClass}`}>{block.reason}</div>}
           <div className={`mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-widest ${quietTextClass}`}>
             <span className={`rounded-full border px-2 py-1 ${riskPillClass(block.risk, isDarkMode) || borderClass}`}>risk: {block.risk}</span>
             {block.toolRunId && <span className={`rounded-full border px-2 py-1 ${borderClass}`}>run: {block.toolRunId}</span>}
           </div>
-          {block.error && <div className={`mt-2 rounded-compact border px-3 py-2 text-xs leading-5 ${borderClass} ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>{block.error}</div>}
+          {block.error && <div className={`mt-2 rounded-compact border px-3 py-2 text-xs leading-5 ${borderClass} text-[var(--text-secondary)]`}>{block.error}</div>}
         </div>
       </div>
     </button>

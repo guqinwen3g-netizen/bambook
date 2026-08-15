@@ -181,9 +181,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
     }
   };
 
-  const panelClass = isDarkMode
-    ? 'bambook-dashboard-glass-color bambook-blue-white-light text-slate-200'
-    : 'bambook-dashboard-glass-color bambook-blue-white-light text-slate-700';
+  const panelClass = 'bambook-dashboard-glass-color bambook-blue-white-light text-[var(--text-primary)] dark:text-[var(--text-secondary)]';
 
   return (
     <div
@@ -199,18 +197,18 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
         className="h-11 px-4 flex items-center justify-between gap-3 cursor-grab active:cursor-grabbing bg-transparent"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <Move size={15} strokeWidth={1.6} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+          <Move size={15} strokeWidth={1.6} className="text-[var(--text-tertiary)]" />
           <SlidersHorizontal size={15} strokeWidth={1.6} className="text-[var(--os-vnext-brand-blue)]" />
           <div className="min-w-0">
             <div className="text-[11px] font-light tracking-wide truncate">Design Tuner</div>
-            <div className={`text-[9px] truncate ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>Sidebar Button States · {DESIGN_TUNER_TOGGLE_HINT}</div>
+            <div className={`text-[9px] truncate text-[var(--text-tertiary)]`}>Sidebar Button States · {DESIGN_TUNER_TOGGLE_HINT}</div>
           </div>
         </div>
         <button
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => setIsCollapsed((current) => !current)}
-          className={`h-8 w-7 rounded-control flex items-center justify-center transition-colors ${isDarkMode ? 'hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.075)] text-slate-400' : 'hover:bg-white/70 text-slate-500'}`}
+          className={`h-8 w-7 rounded-control flex items-center justify-center transition-colors text-[var(--text-tertiary)] hover:bg-[var(--active-darken)] dark:hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.075)]`}
           aria-label={isCollapsed ? '展开调参面板' : '折叠调参面板'}
         >
           <ChevronDown size={15} strokeWidth={1.6} className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
@@ -221,12 +219,12 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
         <div className="p-4 space-y-4">
           {Object.entries(groupedControls).map(([group, controls]) => (
             <section key={group} className="space-y-2">
-              <div className={`text-[10px] font-light tracking-[0.18em] uppercase ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>{group}</div>
+              <div className={`text-[10px] font-light tracking-[0.18em] uppercase text-[var(--text-tertiary)]`}>{group}</div>
               <div className="grid grid-cols-2 gap-2">
                 {controls.map((control) => {
                   const value = values[control.key] ?? control.defaultValue;
                   return (
-                    <label key={control.key} className={`rounded-inset border p-2 ${isDarkMode ? 'border-white/[0.06] bg-white/[0.035]' : 'border-white/50 bg-white/45'}`}>
+                    <label key={control.key} className={`rounded-inset border p-2 border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)] dark:border-[var(--border-c-subtle)] dark:bg-[var(--recessed-bg)]`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[10px] font-light truncate">{control.label}</span>
                         <input
@@ -236,7 +234,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
                           max={control.max}
                           step={control.step}
                           onChange={(event) => updateValue(control.key, clamp(Number(event.target.value), control.min, control.max))}
-                          className={`w-16 h-8 rounded-control border px-1.5 text-[10px] outline-none ${isDarkMode ? 'border-white/10 bg-black/20 text-slate-200' : 'border-white/60 bg-white/70 text-slate-700'}`}
+                          className={`w-16 h-8 rounded-control border px-1.5 text-[10px] outline-none border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)] dark:border-[var(--border-c-default)] dark:bg-black/20 dark:text-[var(--text-secondary)]`}
                         />
                       </div>
                       <input
@@ -256,12 +254,12 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
           ))}
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            <div className={`text-[10px] ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>{status}</div>
+            <div className={`text-[10px] text-[var(--text-tertiary)]`}>{status}</div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={resetValues}
-                className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-[10px] transition-colors ${isDarkMode ? 'border-white/10 hover:bg-white/10' : 'border-white/55 hover:bg-white/70'}`}
+                className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-[10px] transition-colors border-[var(--border-c-strong)] hover:bg-[var(--active-darken)] dark:border-[var(--border-c-default)]`}
               >
                 <RotateCcw size={13} strokeWidth={1.6} />
                 Reset

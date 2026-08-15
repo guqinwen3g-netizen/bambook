@@ -55,9 +55,10 @@ const SidePanelContainer = React.forwardRef<HTMLElement, SidePanelContainerProps
   const resolvedShadowRole: OSShadowRole = shadowRole === 'none' ? shadowRole : 'none';
   const resolvedShadowMode: OSShadowMode = shadowMode === 'none' ? shadowMode : 'none';
   const resolvedSpotlightSizing = spotlightSizing ?? (resolvedSurfaceRole === 'framePanel' ? 'frame' : 'auto');
+  // SIDE_PANEL_DARK_CLASS 与 LIGHT 版已坍缩为同一自适应配方（BAMBOOK_OS.material.glassColor），单类承载双主题
   const materialToneClass = materialTone === 'nested'
     ? BAMBOOK_OS.material.nestedSurface
-    : (isDarkMode ? SIDE_PANEL_DARK_CLASS : SIDE_PANEL_LIGHT_CLASS);
+    : SIDE_PANEL_DARK_CLASS;
   const panelExtraClass = `${wrapperClassName} ${className}`.trim().replace(/\s+/g, ' ');
   const panelClassName = `${SIDE_PANEL_BASE_CLASS} ${materialToneClass} ${SIDE_PANEL_OUTER_CLASS} ${OS_MATERIAL[resolvedSurfaceRole]} ${panelExtraClass}`;
   const content = (

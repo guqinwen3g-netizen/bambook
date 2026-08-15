@@ -5,7 +5,6 @@ import { COMPOSITION_TERMS } from '../../../data/compositionTerms';
 import type { MainCategory, ProductAsset, ProductSubCategory } from '../../../types';
 import {
   RELATIONS_FORM_NESTED_ROW_DARK_CLASS,
-  RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS,
 } from '../relationsFormStyles';
 import { BAMBOOK_OS } from '../bambookOsTokens';
 import {
@@ -245,24 +244,18 @@ export const CompiledProductModuleSettingsWorkspace = ({
   const [editingTermId, setEditingTermId] = useState<string | null>(null);
   const [statusText, setStatusText] = useState('');
   const activeSection = UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS.find(section => section.id === activeSectionId) ?? UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS[0];
-  const primaryTextClass = isDarkMode ? 'text-white/80' : 'text-slate-900';
-  const secondaryTextClass = isDarkMode ? 'text-white/46' : 'text-slate-500';
-  const labelClass = `text-[10px] font-light tracking-wide ${isDarkMode ? BAMBOOK_OS.tone.text.formLabelDark : BAMBOOK_OS.tone.text.formLabelLight}`;
-  const inputClass = `h-9 w-full rounded-full border px-3 text-xs font-light outline-none transition ${isDarkMode ? BAMBOOK_OS.controls.recessedField.dark : BAMBOOK_OS.controls.recessedField.light}`;
-  const quietButtonClass = `h-9 rounded-full border px-3 text-[11px] font-light transition ${isDarkMode ? BAMBOOK_OS.controls.actionControl.dark : BAMBOOK_OS.controls.actionControl.light}`;
-  const selectedButtonClass = isDarkMode ? `${BAMBOOK_OS.controls.selectedSurface.dark} text-white` : `${BAMBOOK_OS.controls.selectedSurface.light} text-slate-800`;
-  const tertiaryRowClass = `rounded-inset border p-3 ${isDarkMode ? RELATIONS_FORM_NESTED_ROW_DARK_CLASS : RELATIONS_FORM_NESTED_ROW_LIGHT_CLASS}`;
-  const tinyActionClass = `h-8 rounded-full border px-3 text-[11px] font-light transition ${isDarkMode ? 'border-white/8 text-white/58 hover:bg-white/6 hover:text-white/78' : 'border-white/40 text-slate-500 hover:bg-white/50 hover:text-slate-800'}`;
+  const primaryTextClass = 'text-[var(--text-primary)]';
+  const secondaryTextClass = 'text-[var(--text-tertiary)]';
+  const labelClass = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
+  const inputClass = `h-9 w-full rounded-full border px-3 text-xs font-light outline-none transition ${BAMBOOK_OS.controls.recessedField.base}`;
+  const quietButtonClass = `h-9 rounded-full border px-3 text-[11px] font-light transition ${BAMBOOK_OS.controls.actionControl.base}`;
+  const selectedButtonClass = `${BAMBOOK_OS.controls.selectedSurface.base} text-[var(--text-primary)]`;
+  const tertiaryRowClass = `rounded-inset border p-3 ${RELATIONS_FORM_NESTED_ROW_DARK_CLASS}`;
+  const tinyActionClass = `h-8 rounded-full border px-3 text-[11px] font-light transition border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`;
   const switchControlClass = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
-    ? (isDarkMode
-      ? 'bambook-state-switch-track--checked-dark'
-      : 'bambook-state-switch-track--checked-light')
-    : (isDarkMode
-      ? 'border-white/[0.06] bg-white/[0.14] shadow-none'
-      : 'border-slate-300/20 bg-slate-400/18 shadow-none')}`;
-  const switchSliderClass = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} ${isDarkMode
-    ? 'bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(232,238,245,0.88)_100%)] shadow-none'
-    : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(245,248,252,0.92)_100%)] shadow-none'}`;
+    ? BAMBOOK_OS.controls.selectedSurface.base
+    : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] shadow-none'}`;
+  const switchSliderClass = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-white shadow-none`;
 
   const categoriesForMain = useMemo(() => {
     const query = categoryQuery.trim().toLowerCase();
@@ -373,7 +366,7 @@ export const CompiledProductModuleSettingsWorkspace = ({
       type="button"
       role="switch"
       aria-checked={checked}
-      className={`flex min-h-11 w-full items-center justify-between gap-4 rounded-inset border px-4 py-2 text-left transition ${checked ? selectedButtonClass : (isDarkMode ? `${BAMBOOK_OS.controls.actionControl.dark} text-white/62` : `${BAMBOOK_OS.controls.actionControl.light} text-slate-600`)}`}
+      className={`flex min-h-11 w-full items-center justify-between gap-4 rounded-inset border px-4 py-2 text-left transition ${checked ? selectedButtonClass : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-secondary)]`}`}
       onClick={onChange}
     >
       <span className="text-xs font-light">{label}</span>
@@ -445,7 +438,7 @@ export const CompiledProductModuleSettingsWorkspace = ({
           <button
             key={option.id}
             type="button"
-            className={`h-10 w-full rounded-inset border px-4 text-left text-xs font-light transition ${selectedMainCategory === option.id ? selectedButtonClass : (isDarkMode ? `${BAMBOOK_OS.controls.actionControl.dark} text-white/58` : `${BAMBOOK_OS.controls.actionControl.light} text-slate-500`)}`}
+            className={`h-10 w-full rounded-inset border px-4 text-left text-xs font-light transition ${selectedMainCategory === option.id ? selectedButtonClass : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`}`}
             onClick={() => {
               setSelectedMainCategory(option.id);
               resetCategoryDraft();
@@ -603,7 +596,7 @@ export const CompiledProductModuleSettingsWorkspace = ({
             <button
               key={mode}
               type="button"
-              className={`h-10 rounded-full border text-xs font-light transition ${moduleSettings.defaultListDisplayMode === mode ? selectedButtonClass : (isDarkMode ? `${BAMBOOK_OS.controls.actionControl.dark} text-white/58` : `${BAMBOOK_OS.controls.actionControl.light} text-slate-500`)}`}
+              className={`h-10 rounded-full border text-xs font-light transition ${moduleSettings.defaultListDisplayMode === mode ? selectedButtonClass : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`}`}
               onClick={() => patchModuleSettings({ defaultListDisplayMode: mode })}
             >
               {mode === 'grid' ? '卡片' : '表格'}
@@ -663,7 +656,7 @@ export const CompiledProductModuleSettingsWorkspace = ({
             spotlightSize={isDarkMode ? BAMBOOK_OS.controls.title.spotlightDarkSize : BAMBOOK_OS.controls.title.spotlightLightSize}
             idleSpotlightOpacity={0}
             activeSpotlightOpacity={1}
-            className={`${BAMBOOK_OS.controls.title.backButton} ${isDarkMode ? BAMBOOK_OS.controls.title.buttonDark : BAMBOOK_OS.controls.title.buttonLight}`}
+            className={`${BAMBOOK_OS.controls.title.backButton} ${BAMBOOK_OS.controls.title.button}`}
           >
             <button
               type="button"
@@ -676,20 +669,20 @@ export const CompiledProductModuleSettingsWorkspace = ({
               <ChevronLeft size={18} strokeWidth={1.4} />
             </button>
           </CompiledInteractiveCard>
-          <div className={`${BAMBOOK_OS.controls.title.breadcrumb} ${isDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
+          <div className={`${BAMBOOK_OS.controls.title.breadcrumb} text-[var(--text-tertiary)]`}>
             <button
               type="button"
               onClick={onBack}
-              className={`${BAMBOOK_OS.controls.title.textButton} ${isDarkMode ? 'text-white hover:text-white' : 'text-slate-900 hover:text-[var(--os-vnext-brand-blue)]'}`}
+              className={`${BAMBOOK_OS.controls.title.textButton} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}
             >
-              <span className={`text-xl font-light tracking-tight leading-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              <span className="text-xl font-light tracking-tight leading-none text-[var(--text-primary)]">
                 数字档案
               </span>
             </button>
             <span data-ui-lab-wallpaper-contrast="secondary" className={BAMBOOK_OS.controls.title.separator}>
               <ChevronRight size={18} strokeWidth={1.4} />
             </span>
-            <h2 data-ui-lab-wallpaper-contrast="primary" className={`${BAMBOOK_OS.controls.title.pageLabel} ${isDarkMode ? 'text-white/70' : 'text-slate-700'}`}>
+            <h2 data-ui-lab-wallpaper-contrast="primary" className={`${BAMBOOK_OS.controls.title.pageLabel} text-[var(--text-primary)]`}>
               配置
             </h2>
           </div>
@@ -710,7 +703,7 @@ export const CompiledProductModuleSettingsWorkspace = ({
           {UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS.map((section) => {
             const Icon = section.icon;
             const selected = section.id === activeSectionId;
-            const selectedSurfaceClass = isDarkMode ? BAMBOOK_OS.controls.selectedSurface.dark : BAMBOOK_OS.controls.selectedSurface.light;
+            const selectedSurfaceClass = BAMBOOK_OS.controls.selectedSurface.base;
             return (
               <button
                 key={section.id}
@@ -719,22 +712,18 @@ export const CompiledProductModuleSettingsWorkspace = ({
                 aria-pressed={selected}
                 className={`group ${BAMBOOK_OS.controls.navigationRow.base} ${
                   selected
-                    ? (isDarkMode
-                      ? `${selectedSurfaceClass} text-slate-50`
-                      : `${selectedSurfaceClass} text-slate-800`)
-                    : (isDarkMode
-                      ? `${BAMBOOK_OS.controls.actionControl.dark} text-white/58`
-                      : `${BAMBOOK_OS.controls.actionControl.light} text-slate-500`)
+                    ? `${selectedSurfaceClass} text-[var(--text-primary)]`
+                    : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`
                 }`}
                 onClick={() => setActiveSectionId(section.id)}
               >
                 <span className="flex items-start gap-3">
-                  <span className={`${BAMBOOK_OS.controls.navigationRow.icon} ${selected ? 'text-current' : (isDarkMode ? 'text-white/42' : 'text-slate-500')}`}>
+                  <span className={`${BAMBOOK_OS.controls.navigationRow.icon} ${selected ? 'text-current' : ('text-[var(--text-tertiary)]')}`}>
                     <Icon size={19} strokeWidth={1.35} />
                   </span>
                   <span className="min-w-0">
                     <span className={BAMBOOK_OS.controls.navigationRow.title}>{section.title}</span>
-                    <span className={`${BAMBOOK_OS.controls.navigationRow.desc} ${selected ? (isDarkMode ? 'text-white/48' : 'text-slate-600') : (isDarkMode ? 'text-white/36' : 'text-slate-500')}`}>
+                    <span className={`${BAMBOOK_OS.controls.navigationRow.desc} ${selected ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>
                       {section.desc}
                     </span>
                   </span>
@@ -753,13 +742,13 @@ export const CompiledProductModuleSettingsWorkspace = ({
               <section className={BAMBOOK_OS.layout.desktopDetailStackClass}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className={`text-sm font-light tracking-tight ${isDarkMode ? 'text-white/78' : 'text-slate-900'}`}>{activeSection.title}</h3>
-                    <p className={`mt-1 max-w-2xl text-xs font-light leading-relaxed ${isDarkMode ? 'text-white/46' : 'text-slate-600'}`}>
+                    <h3 className={`text-sm font-light tracking-tight ${'text-[var(--text-primary)]'}`}>{activeSection.title}</h3>
+                    <p className={`mt-1 max-w-2xl text-xs font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>
                     {activeSection.desc}
                     </p>
                   </div>
                   {statusText && (
-                    <span className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-light ${isDarkMode ? 'border-white/8 text-white/44' : 'border-white/40 text-slate-500'}`}>
+                    <span className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-light ${'border-[var(--border-c-default)] text-[var(--text-tertiary)]'}`}>
                       <CheckCircle2 size={13} strokeWidth={1.5} />
                       {statusText}
                     </span>

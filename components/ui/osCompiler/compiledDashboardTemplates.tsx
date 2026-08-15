@@ -785,9 +785,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
     const dashboardVelocityHubClass = useExpandedDashboardLayout
         ? 'min-w-0 w-full perspective-[1200px] h-full pointer-events-auto'
         : 'col-start-7 col-span-6 row-start-1 min-w-0 w-full perspective-[1200px] h-full pointer-events-auto';
-    const dashboardHeaderPillClass = isDarkMode
-        ? BAMBOOK_OS.controls.actionControl.dark
-        : BAMBOOK_OS.controls.actionControl.light;
+    const dashboardHeaderPillClass = BAMBOOK_OS.controls.actionControl.base;
 
     const dashboardContent = (
         <div
@@ -811,7 +809,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                     {/* Keep the title row flexible so it can make room for mobile chrome. */}
                     <div className={dashboardHeaderFrameClass}>
                         <div className="flex w-full flex-row flex-wrap justify-between items-center gap-4">
-                            <div className={`flex min-w-0 flex-1 items-center gap-4 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                            <div className={`flex min-w-0 flex-1 items-center gap-4 text-[var(--text-primary)]`}>
                                 <h1
                                     className="text-[26px] font-light tracking-tight whitespace-nowrap text-os-adaptive-title ![text-shadow:none] transition-all"
                                 >
@@ -930,7 +928,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                         <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                             {productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}
                                         </div>
-                                        <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-white/[0.06]">
+                                        <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg-strong)]">
                                             <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${outputPercent}%` }} />
                                         </div>
                                         </div>
@@ -942,7 +940,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                 <div data-ui-lab-wallpaper-contrast="primary" className="mt-2 text-[24px] font-light leading-none tracking-tight text-os-adaptive-primary tabular-nums">
                                                     ${(totalValue / 1000).toFixed(1)}k
                                                 </div>
-                                                <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-white/[0.06]">
+                                                <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg-strong)]">
                                                     <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
                                                 </div>
                                             </div>
@@ -1053,7 +1051,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                             onClick={onRefreshBriefing}
                                             disabled={isBriefingLoading}
                                             data-ui-lab-wallpaper-contrast="muted"
-                                            className={`p-1.5 rounded-full transition-all duration-300 ${isDarkMode ? DASHBOARD_REFRESH_ICON_DARK_CLASS : DASHBOARD_REFRESH_ICON_LIGHT_CLASS}`}
+                                            className={`p-1.5 rounded-full transition-all duration-300 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}`}
                                             title="Manual Sync"
                                         >
                                             <RefreshCw size={12} strokeWidth={1} className={isBriefingLoading ? "animate-spin" : ""} />
@@ -1119,7 +1117,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                 <>
                                                     <div className="flex items-baseline gap-1">
                                                         <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-normal text-os-adaptive-subtitle">$</span>
-                                                        <div data-ui-lab-wallpaper-contrast="muted" className={`text-[30px] font-light leading-none tabular-nums tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                                        <div data-ui-lab-wallpaper-contrast="muted" className={`text-[30px] font-light leading-none tabular-nums tracking-tight text-[var(--text-primary)]`}>
                                                             {(totalValue / 1000).toFixed(1)}<span className="text-sm ml-0.5 font-light">k</span>
                                                         </div>
                                                     </div>
@@ -1138,7 +1136,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                             .slice(0, useExpandedDashboardLayout ? 3 : 2)
                                                             .map((row) => (
                                                                 <div key={row.label} className="flex justify-between items-center text-[13px] gap-3">
-                                                                    <span data-ui-lab-wallpaper-contrast="muted" className={`text-slate-500 font-light truncate ${useExpandedDashboardLayout ? 'max-w-[112px]' : 'max-w-[72px]'}`} title={row.label}>
+                                                                    <span data-ui-lab-wallpaper-contrast="muted" className={`text-[var(--text-tertiary)] font-light truncate ${useExpandedDashboardLayout ? 'max-w-[112px]' : 'max-w-[72px]'}`} title={row.label}>
                                                                         {row.label}
                                                                     </span>
                                                                     <span data-ui-lab-wallpaper-contrast="brand" className="font-mono font-light text-[var(--os-vnext-brand-blue)]">{row.pct}%</span>
@@ -1179,7 +1177,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                             >
                                                 Fabric
                                             </button>
-                                            <div className="w-[1px] h-2 bg-slate-500/20" />
+                                            <div className="w-[1px] h-2 bg-accent/20" />
                                             <button
                                                 onClick={() => setActiveVelocity('garment')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'garment' ? 'brand' : 'muted'}
@@ -1237,7 +1235,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                                             ? (((d.weekly - d.prevWeekly) / d.prevWeekly) * 100).toFixed(1)
                                                                             : null;
                                                                     return (
-                                                                        <div className={`px-3 py-2 border rounded-control max-w-[240px] ${DASHBOARD_FLOATING_OVERLAY_CLASS} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                                                        <div className={`px-3 py-2 border rounded-control max-w-[240px] ${DASHBOARD_FLOATING_OVERLAY_CLASS} text-[var(--text-primary)]`}>
                                                                             <div className="text-[13px] font-normal tracking-wide mb-2">{kindLabel} · {d.weekRange ?? d.name}</div>
                                                                             <div className="flex flex-col gap-1">
                                                                                 <div className="flex justify-between gap-3">
@@ -1256,7 +1254,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                                                         </span>
                                                                                     </div>
                                                                                 )}
-                                                                                <div className="pt-1 mt-1 border-t border-white/10 flex justify-between gap-3">
+                                                                                <div className="pt-1 mt-1 border-t border-[var(--border-c-default)] flex justify-between gap-3">
                                                                                     <span className="text-[13px]">13w sum</span>
                                                                                     <span className="text-[13px] font-mono font-light text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.cumulative)}</span>
                                                                                 </div>

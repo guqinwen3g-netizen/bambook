@@ -44,11 +44,7 @@ const ToolStatusIcon: React.FC<{ status: AgentToolLifecycleBlockModel['lifecycle
 
 const RiskPill: React.FC<{ risk?: AgentToolLifecycleBlockModel['risk']; isDarkMode?: boolean }> = ({ risk, isDarkMode }) => {
   if (!risk || risk === 'low') return null;
-  const cls = risk === 'critical'
-    ? (isDarkMode ? 'bg-white/[0.07] text-white/75' : 'bg-slate-100 text-slate-600')
-    : risk === 'high'
-    ? (isDarkMode ? 'bg-white/[0.07] text-white/75' : 'bg-slate-100 text-slate-600')
-    : (isDarkMode ? 'bg-white/[0.07] text-white/75' : 'bg-slate-100 text-slate-600');
+  const cls = 'bg-[var(--recessed-bg)] text-[var(--text-secondary)]';
   return <span className={`shrink-0 rounded-full px-1.5 py-[1px] text-[9px] font-light ${cls}`}>{risk}</span>;
 };
 
@@ -62,8 +58,8 @@ interface TimelineRowProps {
 }
 
 const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLeave, isDarkMode, onReferenceClick }) => {
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const hoverBg = isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50';
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const hoverBg = 'hover:bg-[var(--hover-darken)]';
 
   if (entry.kind === 'tool') {
     const b = entry.block;
@@ -74,7 +70,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={`truncate text-[12px] ${isDarkMode ? 'text-white/85' : 'text-slate-800'}`}>{b.title || b.toolId}</span>
+            <span className={`truncate text-[12px] text-[var(--text-primary)]`}>{b.title || b.toolId}</span>
             <span className={`shrink-0 text-[10px] ${quietTextClass}`}>{STATUS_LABEL[b.lifecycleStatus]}</span>
             <RiskPill risk={b.risk} isDarkMode={isDarkMode} />
             {b.toolRunId && (
@@ -84,23 +80,21 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
                   e.stopPropagation();
                   onReferenceClick?.({ refId: `ref_${b.toolRunId}`, kind: 'tool_run', label: b.toolId, toolRunId: b.toolRunId, blockId: b.id });
                 }}
-                className={`ml-auto shrink-0 rounded px-1.5 py-[1px] text-[10px] opacity-0 transition-opacity group-hover:opacity-100 ${
-                  isDarkMode ? 'text-white/60 hover:text-white/85 hover:bg-white/[0.05]' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                }`}
+                className={`ml-auto shrink-0 rounded px-1.5 py-[1px] text-[10px] opacity-0 transition-opacity group-hover:opacity-100 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)]`}
               >
                 详情 →
               </button>
             )}
           </div>
           {b.reason && <div className={`mt-0.5 text-[11px] leading-[1.4] ${quietTextClass}`} style={{ display: '-webkit-box', WebkitLineClamp: isHover ? 4 : 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{b.reason}</div>}
-          {b.error && <div className={`mt-0.5 text-[11px] leading-[1.4] ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>{b.error}</div>}
+          {b.error && <div className={`mt-0.5 text-[11px] leading-[1.4] text-[var(--text-secondary)]`}>{b.error}</div>}
           {isHover && b.outputPreview != null && (() => {
             const text = typeof b.outputPreview === 'string' ? b.outputPreview : (() => {
               try { return JSON.stringify(b.outputPreview, null, 2); } catch { return String(b.outputPreview); }
             })();
             const truncated = text.length > 360 ? text.slice(0, 360) + '…' : text;
             return (
-              <pre className={`mt-1 max-h-[140px] max-w-full overflow-auto whitespace-pre-wrap break-all rounded-compact px-2 py-1 text-[10.5px] leading-[1.45] ${isDarkMode ? 'bg-white/[0.04] text-white/70' : 'bg-slate-50 text-slate-600'}`}>
+              <pre className={`mt-1 max-h-[140px] max-w-full overflow-auto whitespace-pre-wrap break-all rounded-compact px-2 py-1 text-[10.5px] leading-[1.45] bg-[var(--hover-darken)] text-[var(--text-secondary)]`}>
                 {truncated}
               </pre>
             );
@@ -120,7 +114,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`truncate text-[12px] ${isDarkMode ? 'text-white/85' : 'text-slate-800'}`}>{ev.title ?? '证据'}</span>
+          <span className={`truncate text-[12px] text-[var(--text-primary)]`}>{ev.title ?? '证据'}</span>
           <span className={`shrink-0 text-[10px] ${quietTextClass}`}>{ev.items.length} 条</span>
         </div>
         {isHover && ev.items.slice(0, 3).map(item => {
@@ -132,7 +126,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onReferenceClick(anchor); }}
-                  className={`ml-1 rounded px-1 text-[10px] ${isDarkMode ? 'text-[var(--os-vnext-brand-blue-soft)] hover:bg-white/[0.05]' : 'text-[var(--os-vnext-brand-blue-strong)] hover:bg-slate-100'}`}
+                  className="ml-1 rounded px-1 text-[10px] text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]"
                 >
                   查看
                 </button>
@@ -162,10 +156,10 @@ export const AgentTimelineGroup: React.FC<AgentTimelineGroupProps> = ({ entries,
     return { succeeded, failed, running, evidenceCount, total: entries.length };
   }, [entries]);
 
-  const quietTextClass = isDarkMode ? BAMBOOK_OS.tone.text.quietDark : BAMBOOK_OS.tone.text.quietLight;
-  const dividerClass = isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/55';
-  const railClass = isDarkMode ? 'bg-white/[0.08]' : 'bg-slate-200/70';
-  const hoverBg = isDarkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50';
+  const quietTextClass = BAMBOOK_OS.tone.text.quiet;
+  const dividerClass = 'border-[var(--border-c-subtle)]';
+  const railClass = 'bg-[var(--border-c-subtle)]';
+  const hoverBg = 'hover:bg-[var(--hover-darken)]';
 
   const headerLabel = (() => {
     if (isStreaming && summary.running > 0) {
@@ -187,10 +181,10 @@ export const AgentTimelineGroup: React.FC<AgentTimelineGroupProps> = ({ entries,
       >
         <ChevronRight size={14} className={`shrink-0 transition-transform duration-200 ${effectiveOpen ? 'rotate-90' : ''} ${quietTextClass}`} />
         <Wrench size={12} className={`shrink-0 ${quietTextClass}`} />
-        <span className={`text-[12px] font-light ${isDarkMode ? 'text-white/72' : 'text-slate-700'}`}>{headerLabel}</span>
+        <span className={`text-[12px] font-light text-[var(--text-primary)]`}>{headerLabel}</span>
         {isStreaming && (
           <span className="ml-auto flex items-center gap-1">
-            <span className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse ${isDarkMode ? 'bg-white/60' : 'bg-slate-500'}`} />
+            <span className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse bg-[var(--text-tertiary)]`} />
             <span className={`text-[10px] ${quietTextClass}`}>live</span>
           </span>
         )}

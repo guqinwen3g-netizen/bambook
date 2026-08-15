@@ -30,26 +30,21 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   const initial = getUserInitial(name, email);
   const fallbackClass = adaptive
     ? 'bg-[var(--os-adaptive-primary)]/[0.12] text-[var(--os-adaptive-primary)]'
-    : isDarkMode
-      ? 'bg-[var(--os-vnext-brand-blue)]/14 text-[var(--os-vnext-brand-blue-soft)]'
-      : 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)]';
+    : 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)] dark:bg-[var(--os-vnext-brand-blue)]/14 dark:text-[var(--os-vnext-brand-blue-soft)]';
 
   // 极度克制的融合处方：不加任何光环 / halo，只用阴影 + 边缘羽化把"贴纸感"去掉。
   //   1) 阴影：极淡的中性阴影，仅一点点"落座感"，绝不形成可见的光圈。
   //   2) 边缘羽化：4% 区间，肉眼只感到"不刀切"，看不出"晕"。
   //   3) inset 1px：浅色 0.18 / 深色 0.06，几乎不可见。
-  const haloShadow = isDarkMode
-    ? '0 1px 3px -1px rgba(0,0,0,0.22)'
-    : '0 1px 3px -1px rgba(15,23,42,0.08)';
+  const haloShadowClass =
+    'shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08)] dark:shadow-[0_1px_3px_-1px_rgba(0,0,0,0.22)]';
 
-  const ringOverlay = isDarkMode
-    ? 'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
-    : 'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]';
+  const ringOverlay =
+    'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]';
 
   return (
     <div
-      className={`relative shrink-0 rounded-full ${sizeClassName} ${className}`}
-      style={{ boxShadow: haloShadow }}
+      className={`relative shrink-0 rounded-full ${haloShadowClass} ${sizeClassName} ${className}`}
       aria-label={name || email || '用户头像'}
     >
       <div
@@ -73,7 +68,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
           </div>
         )}
         {/* 几乎不可见的环境光吸收：opacity 0.22 + soft-light，潜移默化与背景融合。 */}
-        <div className={`pointer-events-none absolute inset-0 rounded-full ${isDarkMode ? BAMBOOK_OS.material.panelSurfaceDark : BAMBOOK_OS.material.panelSurfaceLight} opacity-[0.22] mix-blend-soft-light`} />
+        <div className={`pointer-events-none absolute inset-0 rounded-full ${BAMBOOK_OS.material.panelSurface} opacity-[0.22] mix-blend-soft-light`} />
       </div>
     </div>
   );

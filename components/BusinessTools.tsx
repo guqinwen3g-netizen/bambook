@@ -33,14 +33,10 @@ import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import {
   CompiledInteractiveCard,
   COMPILED_SIDE_PANEL_BASE_CLASS,
-  COMPILED_SIDE_PANEL_DARK_CLASS,
-  COMPILED_SIDE_PANEL_LIGHT_CLASS
+  COMPILED_SIDE_PANEL_DARK_CLASS
 } from './ui/osCompiler/compiledPrimitives';
 import { PageHeader } from './ui/PageHeader';
-import {
-  SIDEBAR_HOVER_DARK_CLASS,
-  SIDEBAR_HOVER_LIGHT_CLASS
-} from './ui/osCompiler/compiledSidebarTemplates';
+import { SIDEBAR_HOVER_DARK_CLASS } from './ui/osCompiler/compiledSidebarTemplates';
 import { Relation, Order, View } from '../types';
 
 interface Tool {
@@ -156,8 +152,9 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
     setSelectedTool(null);
   };
 
-  const cardDarkClass = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_DARK_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_DARK_CLASS}`;
-  const cardLightClass = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_LIGHT_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_LIGHT_CLASS}`;
+  // COMPILED_SIDE_PANEL_DARK_CLASS 与 LIGHT 版已坍缩为同一自适应配方（BAMBOOK_OS.material.glassColor），
+  // SIDEBAR_HOVER_DARK_CLASS 与 LIGHT 版同为 hover:bg-[var(--recessed-bg)]，故单类承载双主题
+  const cardClass = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_DARK_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_DARK_CLASS}`;
 
   return (
     <div
@@ -185,9 +182,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
               <button
                 onClick={handleBack}
                 className={`mb-4 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all duration-300 w-fit
-                ${isDarkMode
-                  ? 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.05]'
-                  : 'bg-white/45 border-black/[0.04] text-slate-500 hover:text-slate-900 hover:bg-white/70'}`}
+                bg-[var(--recessed-bg-strong)] dark:bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--active-darken)] dark:hover:bg-[var(--recessed-bg-hover)]`}
               >
                 <ChevronRight size={14} className="rotate-180" />
                 <span>返回工具箱</span>
@@ -234,7 +229,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                           group relative isolate overflow-hidden flex flex-col items-start text-left
                           p-6 h-[220px] rounded-card-lg border transition-all duration-200 select-none
                           cursor-pointer hover:-translate-y-1
-                          ${isDarkMode ? cardDarkClass : cardLightClass}
+                          ${cardClass}
                         `}
                         data-glass-edge-mask
                       >
@@ -242,7 +237,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         <div className={`
                           relative z-10 -ml-1 -mt-1 mb-4 flex h-10 w-10 items-center justify-center
                           transition-colors duration-300
-                          ${isDarkMode ? 'text-[var(--os-vnext-brand-blue)] group-hover:text-slate-100' : 'text-[var(--os-vnext-brand-blue)]'}
+                          text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]
                         `}>
                           <tool.icon
                             size={20}
@@ -251,19 +246,19 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         </div>
 
                         {/* Content text */}
-                        <h3 className={`relative z-10 text-base font-light tracking-tight ${isDarkMode ? 'text-white/90' : 'text-slate-900'}`}>
+                        <h3 className="relative z-10 text-base font-light tracking-tight text-[var(--text-primary)]">
                           {tool.name}
                         </h3>
-                        <p className={`relative z-10 text-[12px] mt-2 leading-relaxed font-light ${isDarkMode ? 'text-white/50' : 'text-slate-500'}`}>
+                        <p className="relative z-10 text-[12px] mt-2 leading-relaxed font-light text-[var(--text-tertiary)]">
                           {tool.description}
                         </p>
 
                         {/* Bottom Action Section (Footer) */}
-                        <div className={`relative z-10 mt-auto pt-4 border-t w-full flex justify-end items-center ${isDarkMode ? 'border-white/[0.06]' : 'border-slate-200/50'}`}>
+                        <div className={`relative z-10 mt-auto pt-4 border-t w-full flex justify-end items-center border-[var(--border-c-default)]`}>
                           <ArrowRight
                             size={14}
                             strokeWidth={1.5}
-                            className={`transition-transform duration-300 group-hover:translate-x-1 ${isDarkMode ? 'text-white/30' : 'text-slate-300'}`}
+                            className={`transition-transform duration-300 group-hover:translate-x-1 text-[var(--text-tertiary)]`}
                           />
                         </div>
                       </CompiledInteractiveCard>

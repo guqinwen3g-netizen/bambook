@@ -50,31 +50,31 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
         <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:justify-center">
             {/* Backdrop */}
             <div
-                className={`fixed inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
+                className={`fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`}
                 onClick={onClose}
             />
 
             {/* Sheet Content */}
             <div
                 className={`
-          w-full sm:max-w-lg bg-white/90 rounded-t-[24px] sm:rounded-card overflow-hidden shadow-none transition-transform duration-300 cubic-out
+          w-full sm:max-w-lg bg-[var(--recessed-bg)] rounded-t-[24px] sm:rounded-card overflow-hidden shadow-none transition-transform duration-300 cubic-out
           ${heightClasses[height]}
           ${animateIn ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-full opacity-0 scale-95'}
-          ${isDarkMode ? 'bg-deep/90 border-t border-white/10 sm:border' : 'bg-white/95 border-t border-white/40 sm:border'}
+          border-t border-[var(--border-c-subtle)] sm:border
           flex flex-col
         `}
             >
                 {/* Handle Bar (Mobile Visual Cue) */}
                 <div className="w-full flex justify-center pt-3 pb-1 shrink-0 cursor-grab active:cursor-grabbing sm:hidden" onClick={onClose}>
-                    <div className="w-12 h-1.5 rounded-full bg-slate-300/50"></div>
+                    <div className="w-12 h-1.5 rounded-full bg-[var(--recessed-bg-strong)]"></div>
                 </div>
 
                 {/* Header */}
                 <div className="px-6 py-4 flex items-center justify-between shrink-0">
-                    <h3 className={`text-lg font-light tracking-tight ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>{title}</h3>
+                    <h3 className={`text-lg font-light tracking-tight text-[var(--text-primary)]`}>{title}</h3>
                     <button
                         onClick={onClose}
-                        className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                        className={`p-2 rounded-full transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]`}
                     >
                         <X size={20} />
                     </button>
