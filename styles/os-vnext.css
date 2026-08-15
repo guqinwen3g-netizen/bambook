@@ -42,6 +42,11 @@
   --bambook-rdl-secondary-text: rgb(52 58 65);
   --bambook-rdl-muted-text: rgb(82 90 100);
   --bambook-rdl-brand-text: var(--os-vnext-brand-blue);
+  /* DataCenter 数字孪生办公室平面图 SVG（浅色基值，深色由 .dark 段覆盖） */
+  --os-vnext-datatwin-grid-overlay: rgba(255, 255, 255, 0.18);
+  --os-vnext-datatwin-frame-stroke: rgba(14, 56, 96, 0.72);
+  --os-vnext-datatwin-room-label: rgba(71, 85, 105, 0.48);
+  --os-vnext-datatwin-door-stroke: rgba(255, 255, 255, 0.98);
   --bambook-rdl-panel-filter: saturate(124%) blur(15px);
   --bambook-rdl-floating-filter: saturate(128%) blur(20px);
   --bambook-rdl-radius-panel: 34px;
@@ -154,6 +159,11 @@
   --bambook-rdl-primary-text: rgb(248 250 252);
   --bambook-rdl-secondary-text: rgb(202 211 222);
   --bambook-rdl-muted-text: rgb(156 168 182);
+  /* DataCenter 数字孪生 SVG 深色覆盖 */
+  --os-vnext-datatwin-grid-overlay: rgba(10, 24, 42, 0.18);
+  --os-vnext-datatwin-frame-stroke: rgba(180, 206, 240, 0.72);
+  --os-vnext-datatwin-room-label: rgba(203, 213, 225, 0.44);
+  --os-vnext-datatwin-door-stroke: rgba(10, 24, 42, 0.96);
 }
 
 .bambook-os-root[data-wallpaper-mode="on"],

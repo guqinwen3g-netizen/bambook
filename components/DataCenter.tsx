@@ -1381,7 +1381,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
               </filter>
             </defs>
             <rect x={gridBounds.x} y={gridBounds.y} width={gridBounds.width} height={gridBounds.height} fill="url(#dataTwinGrid)" pointerEvents="none" />
-            <rect x={gridBounds.x} y={gridBounds.y} width={gridBounds.width} height={gridBounds.height} fill={isDarkMode ? 'rgba(10,24,42,.18)' : 'rgba(255,255,255,.18)'} pointerEvents="none" />
+            <rect x={gridBounds.x} y={gridBounds.y} width={gridBounds.width} height={gridBounds.height} fill="var(--os-vnext-datatwin-grid-overlay)" pointerEvents="none" />
 
             <rect
               x={officeFrame.x}
@@ -1389,7 +1389,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
               width={officeFrame.width}
               height={officeFrame.height}
               fill="none"
-              stroke={isOfficeFrameSelected ? 'var(--os-vnext-brand-blue-strong)' : isDarkMode ? 'rgba(180,206,240,.72)' : 'rgba(14,56,96,.72)'}
+              stroke={isOfficeFrameSelected ? 'var(--os-vnext-brand-blue-strong)' : 'var(--os-vnext-datatwin-frame-stroke)'}
               strokeWidth={officeFrame.thickness}
               vectorEffect="non-scaling-stroke"
               onPointerDown={handleFramePointerDown}
@@ -1427,14 +1427,14 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
                   width={room.width}
                   height={room.height}
                   fill="none"
-                  stroke={selectedId === room.id ? 'var(--os-vnext-brand-blue-strong)' : isDarkMode ? 'rgba(180,206,240,.72)' : 'rgba(14,56,96,.72)'}
+                  stroke={selectedId === room.id ? 'var(--os-vnext-brand-blue-strong)' : 'var(--os-vnext-datatwin-frame-stroke)'}
                   strokeWidth={room.thickness}
                   vectorEffect="non-scaling-stroke"
                   onPointerDown={(evt) => handleRoomPointerDown(evt, room)}
                   style={{ cursor: isEditingLayout ? 'move' : 'default' }}
                 />
                 {room.label && (
-                  <text x={room.x + 16} y={room.y + 24} fill={isDarkMode ? 'rgba(203,213,225,.44)' : 'rgba(71,85,105,.48)'} fontSize="12" letterSpacing="2" pointerEvents="none">
+                  <text x={room.x + 16} y={room.y + 24} fill="var(--os-vnext-datatwin-room-label)" fontSize="12" letterSpacing="2" pointerEvents="none">
                     {room.label}
                   </text>
                 )}
@@ -1471,7 +1471,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
                   y1={wall.y1}
                   x2={wall.x2}
                   y2={wall.y2}
-                  stroke={selectedId === wall.id ? 'var(--os-vnext-brand-blue-strong)' : isDarkMode ? 'rgba(180,206,240,.72)' : 'rgba(14,56,96,.72)'}
+                  stroke={selectedId === wall.id ? 'var(--os-vnext-brand-blue-strong)' : 'var(--os-vnext-datatwin-frame-stroke)'}
                   strokeWidth={wall.thickness}
                   strokeLinecap="square"
                   onPointerDown={(evt) => handleWallPointerDown(evt, wall)}
@@ -1492,7 +1492,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false, dataCenterE
                 y1={door.y1}
                 x2={door.x2}
                 y2={door.y2}
-                stroke={isDarkMode ? 'rgba(10,24,42,.96)' : 'rgba(255,255,255,.98)'}
+                stroke="var(--os-vnext-datatwin-door-stroke)"
                 strokeWidth={door.thickness}
                 strokeLinecap="square"
                 onPointerDown={(evt) => {

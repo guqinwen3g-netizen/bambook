@@ -42,7 +42,8 @@ BASELINE_DARK_VARIANT=198      # dark: Tailwind 变体（P2 自适应单配方�
                                # StepUpload 2 / StepConfirm 1 / AutomationRulesSection 1 / StepPreview 4 / SampleNodesPanel 1；
                                # WorkflowPanel 审批按钮与 SampleNodesPanel 批准徽章走 success/danger 语义 token（零 dark:），
                                # AutomationRulesSection checked 轨坍缩为 BAMBOOK_OS.controls.selectedSurface.base 自适应类）
-BASELINE_IS_DARK_TERNARY=226   # isDarkMode ? 三元（P2 消灭战战果锁定，2026-08-15 收拢 2439→366→226；
+BASELINE_IS_DARK_TERNARY=220   # isDarkMode ? 三元（P2 消灭战战果锁定，2026-08-15 收拢 2439→366→226→220；
+                               # 2026-08-15 DataCenter 数字孪生 SVG 6 处改走 --os-vnext-datatwin-* CSS 变量；
                                # 余量为 spotlight/图表数值型三元 + isDarkMode?: 类型声明 + 冻结/搁置文件，合规保留）
 
 errors=0
