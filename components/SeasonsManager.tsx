@@ -348,7 +348,7 @@ function SeasonsPanel() {
                 placeholder="搜索季度代码 / 名称..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="bds-input pl-9"
+                className="bds-input sm pl-9"
               />
             </div>
             <button
@@ -721,7 +721,7 @@ function TrendsPanel() {
           value={seasonFilter}
           onChange={(e) => setSeasonFilter(e.target.value)}
           className="bds-select"
-          style={{ width: 'auto' }}
+          style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
         >
           <option value="">全部季度</option>
           {seasons.map((s) => (
@@ -925,7 +925,7 @@ function FabricLinker({
             placeholder="搜索面料名称 / SKU 关联..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="bds-input pl-9"
+            className="bds-input sm pl-9"
           />
           {searching && <Loader2 className="w-3 h-3 animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />}
         </div>
@@ -934,7 +934,7 @@ function FabricLinker({
           placeholder="备注（可选）"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="bds-input w-28"
+          className="bds-input sm w-28"
         />
       </div>
       {results.length > 0 && (
@@ -1142,7 +1142,7 @@ function ShowsPanel() {
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
               className="bds-select flex-1 min-w-0"
-              style={{ width: 'auto' }}
+              style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
             >
               <option value="">全部季度</option>
               {seasons.map((s) => (
@@ -1369,6 +1369,7 @@ function ShowsPanel() {
                                 className="bds-select"
                                 style={{
                                   width: 'auto',
+                                  height: 'var(--h-input-sm)',
                                   fontSize: '11px',
                                   padding: '0 26px 0 10px',
                                   ...SEMANTIC_TINT_STYLE[SEMANTIC_BADGE_VARIANT[LEAD_STATUS_SEMANTIC[lead.status] ?? 'neutral']],

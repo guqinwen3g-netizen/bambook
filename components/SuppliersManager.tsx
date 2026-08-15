@@ -559,7 +559,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   placeholder="搜索供应商名称..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bds-input pl-9"
+                  className="bds-input sm pl-9"
                 />
               </div>
               <button
@@ -586,7 +586,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
                 className="bds-select ml-auto"
-                style={{ width: 'auto' }}
+                style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
               >
                 {SORT_OPTIONS.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>

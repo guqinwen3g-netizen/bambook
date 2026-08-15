@@ -352,7 +352,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="开发单 / 伙伴"
-                className="bds-input pl-9"
+                className="bds-input sm pl-9"
               />
             </div>
             <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />

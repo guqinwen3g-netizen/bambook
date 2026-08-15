@@ -1102,8 +1102,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   // ── BDS v2.1 语义文本/表单类（token 主题透明，无 isDarkMode 分支） ───
   const textPrimaryClass = 'text-[var(--text-primary)]';
   const textSecondaryClass = 'text-[var(--text-tertiary)]';
-  const formInputClass = 'bds-input';
+  const formInputClass = 'bds-input sm';
   const formSelectClass = 'bds-select';
+  const formSelectSmStyle = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' } as const;
   const formStaticClass = 'rounded-field bg-[var(--bg-panel)] px-4 py-2.5 text-xs font-light text-[var(--text-tertiary)]';
 
   // ── KPI row (always derived from ALL invoices + ALL vouchers) ───
@@ -1873,7 +1874,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   placeholder={activeSearchPlaceholder}
-                  className="bds-input pl-9"
+                  className="bds-input sm pl-9"
                 />
               </div>
               <div className="hidden h-4 w-px shrink-0 xl:block" style={{ background: 'var(--border-c-strong)' }} />

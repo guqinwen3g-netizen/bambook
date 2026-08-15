@@ -77,7 +77,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps — 仅首载，区间变更走「查询」
 
-  const inputCls = 'bds-input bds-tnum w-auto';
+  const inputCls = 'bds-input sm bds-tnum w-auto';
 
   const sectionTitle = (icon: React.ReactNode, zh: string, en: string) => (
     <div className={cx('flex items-center gap-2 border-b px-4 pb-2 pt-2.5', divider)}>

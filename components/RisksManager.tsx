@@ -169,6 +169,7 @@ interface RisksManagerProps {
 // ==================== 共享样式（BDS v2.1 组件族） ====================
 
 const actionBtnCls = 'bds-btn bds-btn-secondary';
+const selectSmStyle: React.CSSProperties = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)', width: 'auto' };
 
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -654,7 +655,7 @@ function FxPanel() {
             value={currencyFilter}
             onChange={(e) => setCurrencyFilter(e.target.value)}
             className="bds-select"
-            style={{ width: 'auto' }}
+            style={selectSmStyle}
           >
             <option value="">全部币种</option>
             {currencyOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -864,7 +865,7 @@ function CreditPanel() {
           value={evaluateRelationId}
           onChange={(e) => setEvaluateRelationId(e.target.value)}
           className="bds-select"
-          style={{ width: 'auto' }}
+          style={selectSmStyle}
         >
           <option value="">选择客户...</option>
           {relations.map((r) => (
@@ -895,7 +896,7 @@ function CreditPanel() {
           value={relationFilter}
           onChange={(e) => setRelationFilter(e.target.value)}
           className="bds-select ml-auto"
-          style={{ width: 'auto' }}
+          style={selectSmStyle}
         >
           <option value="">全部客户（最新评级）</option>
           {relations.map((r) => (
