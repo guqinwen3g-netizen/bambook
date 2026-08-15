@@ -566,7 +566,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
         )}
       />
 
-      <main className={cx('flex-1 min-h-0 flex flex-col px-5 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', showFormModal && 'hidden')}>
+      <main className={cx('flex-1 min-h-0 flex flex-col px-7 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', showFormModal && 'hidden')}>
         <div className="flex h-full min-h-0 flex-col gap-3">
           {errorMessage && !showFormModal && (
             <div className="bds-alert danger shrink-0">

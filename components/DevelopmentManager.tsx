@@ -10,7 +10,6 @@ import {
   CompiledTableShell,
 } from './ui/osCompiler/compiledPrimitives';
 import { developmentService } from '../services/developmentService';
-import CustomSelect from './ui/CustomSelect';
 import type {
   DevelopmentCase as DevCase,
   DevelopmentCaseCreateInput,
@@ -343,7 +342,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
         )}
       />
 
-      <main className={cx('flex-1 min-h-0 flex flex-col px-5 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', isFormModalOpen && 'hidden')}>
+      <main className={cx('flex-1 min-h-0 flex flex-col px-7 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', isFormModalOpen && 'hidden')}>
         <div className="flex h-full min-h-0 flex-col gap-3">
           <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">
             <div className="relative min-w-[188px] flex-[1_1_220px] max-w-xs">
@@ -352,34 +351,32 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="开发单 / 伙伴"
-                className="bds-input sm pl-9"
+                className="bds-input pl-9"
               />
             </div>
             <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
-            <CustomSelect
-              isDarkMode={isDarkMode}
-              size="compact"
-              surface="toolbar"
+            <select
+              className="bds-select w-[140px] shrink-0"
               value={selectedType}
-              onChange={(v) => setSelectedType(v as DevelopmentTypeId)}
-              className="w-[140px] shrink-0"
-              options={DEVELOPMENT_TYPES.map(item => ({
-                value: item.id,
-                label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.type === item.id).length}`,
-              }))}
-            />
-            <CustomSelect
-              isDarkMode={isDarkMode}
-              size="compact"
-              surface="toolbar"
+              onChange={(e) => setSelectedType(e.target.value as DevelopmentTypeId)}
+            >
+              {DEVELOPMENT_TYPES.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.type === item.id).length}`}
+                </option>
+              ))}
+            </select>
+            <select
+              className="bds-select w-[120px] shrink-0"
               value={selectedStage}
-              onChange={(v) => setSelectedStage(v as DevelopmentStageId)}
-              className="w-[120px] shrink-0"
-              options={DEVELOPMENT_STAGES.map(item => ({
-                value: item.id,
-                label: item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.stage === item.id).length}`,
-              }))}
-            />
+              onChange={(e) => setSelectedStage(e.target.value as DevelopmentStageId)}
+            >
+              {DEVELOPMENT_STAGES.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.id === 'all' ? item.label : `${item.label} · ${cases.filter(c => c.stage === item.id).length}`}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_320px]">

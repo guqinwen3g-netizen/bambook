@@ -20,7 +20,7 @@
  *     状态徽章用 bds-badge 语义变体（CALC_STATUS_BADGE_VARIANT），主题透明无 isDarkMode 分支
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calculator,
@@ -198,9 +198,30 @@ export default function PricingManager({ isDarkMode, initialTab }: PricingManage
     if (initialTab) setActiveTab(initialTab);
   }, [initialTab]);
 
+  // ── H2/V9：无状态依赖的新建类主操作统一收 PageHeader（QC ref 注册模式） ──
+  // calculator/profitSheets 面板内已有绑定面板状态的任务区 primary（V2 裁决），PageHeader 不再重复
+  const newActionRef = useRef<(() => void) | null>(null);
+  const NEW_ACTION_LABEL: Partial<Record<ModuleTab, string>> = {
+    taxRates: '新增退税率',
+    priceHistory: '录入价格',
+    commissionRules: '新增规则',
+  };
+  const newActionLabel = NEW_ACTION_LABEL[activeTab];
+
   return (
     <div className="h-full flex flex-col">
-      <PageHeader title="定价与利润" subtitle="Pricing & Profit" />
+      <PageHeader
+        title="定价与利润"
+        subtitle="Pricing & Profit"
+        actions={
+          newActionLabel ? (
+            <button onClick={() => newActionRef.current?.()} className="bds-btn bds-btn-primary">
+              <Plus size={14} />
+              <span>{newActionLabel}</span>
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
       <div className="px-7 shrink-0">
@@ -235,9 +256,9 @@ export default function PricingManager({ isDarkMode, initialTab }: PricingManage
           >
             {activeTab === 'calculator' && <CalculatorPanel />}
             {activeTab === 'profitSheets' && <ProfitSheetsPanel />}
-            {activeTab === 'taxRates' && <TaxRatesPanel />}
-            {activeTab === 'priceHistory' && <PriceHistoryPanel />}
-            {activeTab === 'commissionRules' && <CommissionRulesPanel />}
+            {activeTab === 'taxRates' && <TaxRatesPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
+            {activeTab === 'priceHistory' && <PriceHistoryPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
+            {activeTab === 'commissionRules' && <CommissionRulesPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -693,7 +714,7 @@ function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
 
 // ==================== 退税率 Panel ====================
 
-function TaxRatesPanel() {
+function TaxRatesPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [items, setItems] = useState<TaxRefundRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -703,6 +724,12 @@ function TaxRatesPanel() {
 
   const [testCode, setTestCode] = useState('');
   const [testResult, setTestResult] = useState<string | null>(null);
+
+  // ── H2/V9：新建主操作注册到 PageHeader（无状态依赖，卡片头不再重复） ──
+  useEffect(() => {
+    registerNewAction?.(() => { setEditing(null); setShowForm(true); });
+    return () => registerNewAction?.(null);
+  }, [registerNewAction]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -789,13 +816,6 @@ function TaxRatesPanel() {
             <button onClick={load} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
-            </button>
-            <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              新增退税率
             </button>
           </div>
         </div>
@@ -932,7 +952,7 @@ function TaxRateForm({
 
 // ==================== 价格历史 Panel ====================
 
-function PriceHistoryPanel() {
+function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [items, setItems] = useState<MaterialPriceHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<MaterialPriceType | ''>('');
@@ -944,6 +964,12 @@ function PriceHistoryPanel() {
 
   const [trend, setTrend] = useState<MaterialPriceTrendPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
+
+  // ── H2/V9：新建主操作注册到 PageHeader（无状态依赖，卡片头不再重复） ──
+  useEffect(() => {
+    registerNewAction?.(() => { setEditing(null); setShowForm(true); });
+    return () => registerNewAction?.(null);
+  }, [registerNewAction]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1034,13 +1060,6 @@ function PriceHistoryPanel() {
             <button onClick={() => { load(); loadTrend(); }} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
-            </button>
-            <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              录入价格
             </button>
           </div>
         </div>
@@ -1267,13 +1286,19 @@ function MaterialPriceForm({
 
 // ==================== 佣金规则 Panel ====================
 
-function CommissionRulesPanel() {
+function CommissionRulesPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [items, setItems] = useState<CommissionRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<CommissionRule | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // ── H2/V9：新建主操作注册到 PageHeader（无状态依赖，卡片头不再重复） ──
+  useEffect(() => {
+    registerNewAction?.(() => { setEditing(null); setShowForm(true); });
+    return () => registerNewAction?.(null);
+  }, [registerNewAction]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1333,13 +1358,6 @@ function CommissionRulesPanel() {
             <button onClick={load} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
-            </button>
-            <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              新增规则
             </button>
           </div>
         </div>

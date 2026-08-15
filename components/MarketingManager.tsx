@@ -13,7 +13,7 @@
  *   - BDS v2.1 组件族（bds-card/bds-btn/bds-input/bds-modal 等）
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
@@ -157,9 +157,24 @@ interface MarketingManagerProps {
 export default function MarketingManager({ isDarkMode }: MarketingManagerProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>('lookbooks');
 
+  // ── H2/V9：无状态依赖的新建类主操作统一收 PageHeader（QC ref 注册模式） ──
+  // fabricRecommend 面板内已有绑定面板状态的任务区 primary（运行推荐），PageHeader 不再重复
+  const newActionRef = useRef<(() => void) | null>(null);
+
   return (
     <div className="h-full flex flex-col">
-      <PageHeader title="营销推广" subtitle="Marketing" />
+      <PageHeader
+        title="营销推广"
+        subtitle="Marketing"
+        actions={
+          activeTab === 'lookbooks' ? (
+            <button onClick={() => newActionRef.current?.()} className="bds-btn bds-btn-primary">
+              <Plus size={14} />
+              <span>新建画册</span>
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
       <div className="px-7 shrink-0">
@@ -192,7 +207,7 @@ export default function MarketingManager({ isDarkMode }: MarketingManagerProps) 
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'lookbooks' && <LookbooksPanel />}
+            {activeTab === 'lookbooks' && <LookbooksPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
             {activeTab === 'fabricRecommend' && <FabricRecommendPanel />}
           </motion.div>
         </AnimatePresence>
@@ -203,7 +218,7 @@ export default function MarketingManager({ isDarkMode }: MarketingManagerProps) 
 
 // ==================== 电子画册 Panel ====================
 
-function LookbooksPanel() {
+function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [items, setItems] = useState<LookbookCatalog[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'' | LookbookStatus>('');
@@ -211,6 +226,12 @@ function LookbooksPanel() {
   const [editing, setEditing] = useState<LookbookCatalog | null>(null);
   const [itemsEditing, setItemsEditing] = useState<LookbookCatalog | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // ── H2/V9：新建主操作注册到 PageHeader（无状态依赖，卡片头不再重复） ──
+  useEffect(() => {
+    registerNewAction?.(() => { setEditing(null); setShowForm(true); });
+    return () => registerNewAction?.(null);
+  }, [registerNewAction]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -277,13 +298,6 @@ function LookbooksPanel() {
             <button onClick={load} className="bds-btn bds-btn-secondary">
               <RefreshCw className="w-3.5 h-3.5" />
               刷新
-            </button>
-            <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              新建画册
             </button>
           </div>
         </div>

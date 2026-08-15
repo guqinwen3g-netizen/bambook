@@ -425,9 +425,41 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
         contextLabel="MES Desk"
         isDarkMode={isDarkMode}
         actions={
-          <button onClick={refreshAll} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新全部">
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
+          <>
+            <button onClick={refreshAll} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新全部">
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+            {activeTab === 'plans' && (
+              <button onClick={() => setShowPlanForm(true)} className="bds-btn bds-btn-primary">
+                <Plus size={14} /><span>新增排产</span>
+              </button>
+            )}
+            {activeTab === 'workStations' && (
+              <button onClick={() => setShowWsForm(true)} className="bds-btn bds-btn-primary">
+                <Plus size={14} /><span>新增工位</span>
+              </button>
+            )}
+            {activeTab === 'outsourcing' && (
+              <button onClick={() => setShowOsoForm(true)} className="bds-btn bds-btn-primary">
+                <Plus size={14} /><span>新增外协</span>
+              </button>
+            )}
+            {activeTab === 'workHours' && (
+              <button onClick={() => setShowWhForm(true)} className="bds-btn bds-btn-primary">
+                <Plus size={14} /><span>记录工时</span>
+              </button>
+            )}
+            {activeTab === 'pieceRateRules' && (
+              <button onClick={() => setShowRuleForm(true)} className="bds-btn bds-btn-primary">
+                <Plus size={14} /><span>新增规则</span>
+              </button>
+            )}
+            {activeTab === 'pieceRateRecords' && (
+              <button onClick={() => setShowRecordForm(true)} className="bds-btn bds-btn-primary">
+                <Plus size={14} /><span>新增计件</span>
+              </button>
+            )}
+          </>
         }
       />
 

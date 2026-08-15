@@ -994,7 +994,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         <Calculator size={12} />
                                         <span>应用定价</span>
                                       </button>
-                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-primary">
+                                      <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-secondary">
                                         {actionLoading === `${qt.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                         <span>发送报价</span>
                                       </button>
@@ -1013,7 +1013,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   )}
                                   {qt.status === 'Sent' && (
                                     <>
-                                      <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className="bds-btn bds-btn-primary">
+                                      <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className="bds-btn bds-btn-secondary">
                                         {actionLoading === `${qt.id}_accept` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                         <span>接受</span>
                                       </button>
@@ -1029,7 +1029,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         <button
                                           onClick={() => handleAction(qt.id, 'convert')}
                                           disabled={actionLoading === `${qt.id}_convert`}
-                                          className="bds-btn bds-btn-primary"
+                                          className="bds-btn bds-btn-secondary"
                                         >
                                           {actionLoading === `${qt.id}_convert` ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
                                           <span>转为订单</span>

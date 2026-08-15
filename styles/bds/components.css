@@ -129,8 +129,13 @@
 .bds-iconbadge .bds-icon { width: var(--icon-sm); height: var(--icon-sm); }
 
 /* ============ 2. Input 输入框 — 玻璃上凹槽填充（--recessed-* 墨洗），无边框 ============ */
+/* 宽度默认值（:where 零特异性，2026-08-16 根因修复）：
+   表单场景默认撑满 100%；应用层 Tailwind 宽度类（w-[140px] 等）可自然覆盖。
+   事故背景：原 .bds-input/.bds-select 内联 width:100% 与 Tailwind 类同特异性且
+   components.css 后加载，导致 filterbar 内 select 通栏挤压换行（开发管理工具区堆叠）。 */
+:where(.bds-input, .bds-select) { width: 100%; }
+
 .bds-input {
-  width: 100%;
   height: var(--h-input);
   padding: var(--p-input);
   border-radius: var(--r-input);
@@ -167,7 +172,6 @@
 /* Select（原生 <select> 填充式 + 自绘箭头） */
 select.bds-select {
   appearance: none;
-  width: 100%;
   height: var(--h-input);
   padding: var(--p-input);
   padding-right: 34px;
@@ -193,6 +197,9 @@ select.bds-select:focus {
 .dark select.bds-select, [data-theme="dark"] select.bds-select {
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 6L0 0H10L5 6Z' fill='%23F4F5F2' fill-opacity='0.5'/%3E%3C/svg%3E");
 }
+/* sm 密集规格（2026-08-16 V7 裁决）：模态/内联表单、密集行统一 34px，
+   收编此前各 Manager 的 style={{ height: 'var(--h-input-sm)' }} inline 写法 */
+select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
 
 /* ============ 3. Card 卡片 — rimless：无边框零阴影 ============
    主容器统一玻璃面（2026-08-14 用户裁决：页面级主容器全玻璃）：

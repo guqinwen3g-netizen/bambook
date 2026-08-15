@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiService } from '../services/apiService';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RdlToolbar, RdlPill, RdlSurface, RdlSearch } from './ui/RDLPrimitives';
+import { RdlToolbar, RdlPill, RdlSurface } from './ui/RDLPrimitives';
 import {
   Users, Building2, FolderKanban, ClipboardList, Plus, Trash2, Pencil,
-  X, Check, Clock3, AlertCircle, UserCircle2,
+  X, Check, Clock3, AlertCircle, UserCircle2, Search,
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
@@ -854,13 +854,15 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   // ── Detail toolbar (context-aware actions) ──
   const renderDetailToolbar = () => (
     <div className={`shrink-0 px-5 py-2 flex items-center gap-2 border-b ${borderSoftClass}`}>
-      <RdlSearch
-        density="compact"
-        value={detailSearchTerm}
-        onChange={e => setDetailSearchTerm(e.target.value)}
-        placeholder={detailSearchPlaceholder}
-        className="flex-1 min-w-[160px]"
-      />
+      <div className="bds-search flex-1 min-w-[160px]">
+        <Search className="bds-search-icon" />
+        <input
+          className="bds-input sm"
+          value={detailSearchTerm}
+          onChange={e => setDetailSearchTerm(e.target.value)}
+          placeholder={detailSearchPlaceholder}
+        />
+      </div>
       <div className="ml-auto flex items-center gap-1.5">
         {effectiveNode.type === 'dept' && (
           <>
@@ -1115,13 +1117,15 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)] gap-3">
           {/* Left: org tree navigation */}
           <RdlSurface tone="panel" padding="compact" className="flex h-full min-h-0 flex-col">
-            <RdlSearch
-              density="compact"
-              value={treeSearchTerm}
-              onChange={e => setTreeSearchTerm(e.target.value)}
-              placeholder="搜索部门 / 团队 / 项目"
-              className="mb-2"
-            />
+            <div className="bds-search mb-2">
+              <Search className="bds-search-icon" />
+              <input
+                className="bds-input sm"
+                value={treeSearchTerm}
+                onChange={e => setTreeSearchTerm(e.target.value)}
+                placeholder="搜索部门 / 团队 / 项目"
+              />
+            </div>
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 space-y-0.5">
               <button
                 className={treeBtnClass(effectiveNode.type === 'all')}

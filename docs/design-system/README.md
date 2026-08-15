@@ -1,5 +1,11 @@
 # Bambook OS Design Grammar V1
 
+> **权威声明（2026-08-16 · BDS v2.2 起）**：现行唯一设计真源是 **BDS v2.2**
+> （`styles/bds/tokens.css` + `styles/bds/components.css` + `styles/bds/showcase.html`）。
+> 组件的**语境应用规则**（什么场景用什么组件/规格/材质）以
+> `component-application-spec.md`（语境 × 元素决策矩阵）为准。
+> 本目录其余文档描述 legacy 三层体系，仅供旧组件维护与收编迁移参考。
+
 This is the authoritative entrypoint for Bambook OS UI design. The system is code-first: exact visual values live in tokens and primitives, while this directory explains how new UI is derived.
 
 ## Source Of Truth
@@ -49,6 +55,7 @@ V1 consists of four code-backed artifacts:
 
 ## Documents
 
+- `component-application-spec.md`: **BDS v2.2 应用层真源** — 语境 × 元素决策矩阵（高度规格、搜索/工具条/按钮/下拉/容器/列表范式、页面骨架、落地判定流程）。
 - `design-constitution.md`: principles that cannot be violated.
 - `tokens.md`: primitive, semantic, and decision token layers.
 - `layout-grammar.md`: page shell, sidebar shell, split workspace, toolbar, grid, detail, form, table, spacing, canvas, density, and structural rules.

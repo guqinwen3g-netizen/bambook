@@ -1829,7 +1829,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       />
 
       {/* ── Main content: KPI → segment switcher → toolbar → table+panel ── */}
-      <main className="min-h-0 flex-1 px-5 pb-5">
+      <main className="min-h-0 flex-1 px-7 pb-5">
         <div className="flex h-full min-h-0 flex-col gap-2.5">
 
           {/* KPI row */}

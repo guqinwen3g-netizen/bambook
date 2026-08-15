@@ -471,7 +471,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   <button
                                     onClick={() => handleConfirm(bom.id)}
                                     disabled={actionLoading === `confirm_${bom.id}`}
-                                    className="bds-btn bds-btn-primary"
+                                    className="bds-btn bds-btn-secondary"
                                   >
                                     {actionLoading === `confirm_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                                     <span>确认 BOM</span>

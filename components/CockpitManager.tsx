@@ -495,7 +495,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
               <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <input type="date" value={to} onChange={e => setTo(e.target.value)} className={inputCls} aria-label="结束日期" />
-              <button type="button" onClick={load} className="bds-btn bds-btn-primary">查询</button>
+              <button type="button" onClick={load} className="bds-btn bds-btn-secondary">查询</button>
             </div>
             {data && (
               <div className={cx('ml-auto text-[10px] font-light tabular-nums', textFaint)}>

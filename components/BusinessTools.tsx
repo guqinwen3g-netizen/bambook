@@ -176,7 +176,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="flex-1 min-h-0 flex flex-col relative px-8 pb-12 pt-3"
+              className="flex-1 min-h-0 flex flex-col relative px-7 pb-12 pt-3"
             >
               {/* Back Button */}
               <button

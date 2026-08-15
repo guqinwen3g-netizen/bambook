@@ -15,7 +15,7 @@
  *     状态徽章走语义变体映射（主题透明，无 isDarkMode 样式分支），暗色由 tokens.css 统一覆盖
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ClipboardCheck,
@@ -197,10 +197,25 @@ interface QcWorkbenchManagerProps {
 
 export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>('assignments');
+  // 主操作上收 PageHeader（H2 裁决）：当前 Panel mount 时注册其「新建」触发器，卸载注销。
+  // Panel 切换即重挂载，ref 始终指向当前 tab 的新建动作；form state 保留在 Panel 内不搬动。
+  const newActionRef = useRef<(() => void) | null>(null);
+  const registerNewAction = useCallback((fn: (() => void) | null) => {
+    newActionRef.current = fn;
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
-      <PageHeader title="QC 工作台" subtitle="QC Workbench" />
+      <PageHeader
+        title="QC 工作台"
+        subtitle="QC Workbench"
+        actions={
+          <button onClick={() => newActionRef.current?.()} className="bds-btn bds-btn-primary">
+            <Plus size={14} />
+            <span>{activeTab === 'locations' ? '新建驻地' : activeTab === 'businessLines' ? '新建业务线' : '新建任务'}</span>
+          </button>
+        }
+      />
 
       {/* 模块 Tab 栏 */}
       <div className="bds-tabs px-7 shrink-0">
@@ -231,9 +246,9 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'assignments' && <AssignmentsPanel />}
-            {activeTab === 'locations' && <LocationsPanel />}
-            {activeTab === 'businessLines' && <BusinessLinesPanel />}
+            {activeTab === 'assignments' && <AssignmentsPanel registerNewAction={registerNewAction} />}
+            {activeTab === 'locations' && <LocationsPanel registerNewAction={registerNewAction} />}
+            {activeTab === 'businessLines' && <BusinessLinesPanel registerNewAction={registerNewAction} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -243,7 +258,7 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
 
 // ==================== 验货任务 Panel ====================
 
-function AssignmentsPanel() {
+function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() => void) | null) => void }) {
   const [workbench, setWorkbench] = useState<QcWorkbenchData>({ assigned: [], inProgress: [], completed: [] });
   const [loading, setLoading] = useState(true);
   const [qcUserFilter, setQcUserFilter] = useState('');
@@ -264,6 +279,12 @@ function AssignmentsPanel() {
   useEffect(() => {
     if (primedOrderId) setShowForm(true);
   }, [primedOrderId]);
+
+  // 主操作上收 PageHeader：注册「新建任务」触发器（Panel 卸载即注销）
+  useEffect(() => {
+    registerNewAction(() => setShowForm(true));
+    return () => registerNewAction(null);
+  }, [registerNewAction]);
 
   // ── 加载 QC 人员列表（选择器数据源；无权限时降级为手工录入） ──
   useEffect(() => {
@@ -400,13 +421,6 @@ function AssignmentsPanel() {
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
         <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>共 {totalCount} 项任务</span>
-        <button
-          onClick={() => setShowForm(true)}
-          className="ml-auto bds-btn bds-btn-primary"
-        >
-          <Plus size={14} />
-          <span>新建任务</span>
-        </button>
       </div>
 
       {/* 看板三列 */}
@@ -478,7 +492,7 @@ function AssignmentsPanel() {
                         )}
                         <div className="mt-2 flex items-center gap-1.5">
                           {a.status === 'Assigned' && (
-                            <button onClick={() => handleStart(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-primary">
+                            <button onClick={() => handleStart(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-secondary">
                               {updatingId === a.id ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
                               <span>开始</span>
                             </button>
@@ -781,11 +795,17 @@ function CompleteAssignmentForm({
 
 // ==================== 驻地管理 Panel ====================
 
-function LocationsPanel() {
+function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => void) | null) => void }) {
   const [locations, setLocations] = useState<QCLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingLocation, setEditingLocation] = useState<QCLocation | null>(null);
+
+  // 主操作上收 PageHeader：注册「新建驻地」触发器（Panel 卸载即注销）
+  useEffect(() => {
+    registerNewAction(() => { setEditingLocation(null); setShowForm(true); });
+    return () => registerNewAction(null);
+  }, [registerNewAction]);
 
   const loadLocations = useCallback(async () => {
     setLoading(true);
@@ -841,13 +861,6 @@ function LocationsPanel() {
           title="刷新"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-        </button>
-        <button
-          onClick={() => { setEditingLocation(null); setShowForm(true); }}
-          className="ml-auto bds-btn bds-btn-primary"
-        >
-          <Plus size={14} />
-          <span>新建驻地</span>
         </button>
       </div>
 
@@ -1011,11 +1024,17 @@ function LocationForm({
 
 // ==================== 业务线 Panel ====================
 
-function BusinessLinesPanel() {
+function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (() => void) | null) => void }) {
   const [lines, setLines] = useState<BusinessLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingLine, setEditingLine] = useState<BusinessLine | null>(null);
+
+  // 主操作上收 PageHeader：注册「新建业务线」触发器（Panel 卸载即注销）
+  useEffect(() => {
+    registerNewAction(() => { setEditingLine(null); setShowForm(true); });
+    return () => registerNewAction(null);
+  }, [registerNewAction]);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const loadLines = useCallback(async () => {
@@ -1083,13 +1102,6 @@ function BusinessLinesPanel() {
           title="刷新"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-        </button>
-        <button
-          onClick={() => { setEditingLine(null); setShowForm(true); }}
-          className="ml-auto bds-btn bds-btn-primary"
-        >
-          <Plus size={14} />
-          <span>新建业务线</span>
         </button>
       </div>
 

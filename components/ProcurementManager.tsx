@@ -806,7 +806,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                   <div className="flex items-center gap-2 pt-2 flex-wrap">
                                     {po.status === 'Draft' && (
                                       <>
-                                        <button onClick={() => handleAction(po.id, 'send')} disabled={actionLoading === `${po.id}_send`} className="bds-btn bds-btn-primary">
+                                        <button onClick={() => handleAction(po.id, 'send')} disabled={actionLoading === `${po.id}_send`} className="bds-btn bds-btn-secondary">
                                           {actionLoading === `${po.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                           <span>发送采购单</span>
                                         </button>
@@ -818,7 +818,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     )}
                                     {po.status === 'Sent' && (
                                       <>
-                                        <button onClick={() => handleAction(po.id, 'confirm')} disabled={actionLoading === `${po.id}_confirm`} className="bds-btn bds-btn-primary">
+                                        <button onClick={() => handleAction(po.id, 'confirm')} disabled={actionLoading === `${po.id}_confirm`} className="bds-btn bds-btn-secondary">
                                           {actionLoading === `${po.id}_confirm` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                                           <span>确认采购单</span>
                                         </button>
@@ -832,7 +832,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                       <>
                                         <button
                                           onClick={() => { setShowReceiptForm(showReceiptForm === po.id ? null : po.id); setReceiptError(null); }}
-                                          className="bds-btn bds-btn-primary"
+                                          className="bds-btn bds-btn-secondary"
                                         >
                                           <Package size={12} />
                                           <span>{showReceiptForm === po.id ? '收起' : '登记来料'}</span>

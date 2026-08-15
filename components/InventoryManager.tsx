@@ -257,7 +257,22 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <PageHeader title="库存管理" subtitle="Inventory" isDarkMode={isDarkMode} />
+      <PageHeader
+        title="库存管理"
+        subtitle="Inventory"
+        isDarkMode={isDarkMode}
+        actions={
+          activeTab === 'items' ? (
+            <button onClick={() => setShowItemForm(true)} className="bds-btn bds-btn-primary">
+              <Plus size={14} /><span>新增物料</span>
+            </button>
+          ) : activeTab === 'warehouses' ? (
+            <button onClick={() => setShowWarehouseForm(true)} className="bds-btn bds-btn-primary">
+              <Plus size={14} /><span>新增仓库</span>
+            </button>
+          ) : undefined
+        }
+      />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
         <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
@@ -293,9 +308,6 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               {/* 工具栏 */}
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowItemForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>新增物料</span>
-                </button>
                 <div className="bds-filterbar flex-wrap">
                   <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ fontSize: 'var(--text-xs)', maxWidth: 160 }}>
                     <option value="">全部仓库</option>
@@ -509,9 +521,6 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'warehouses' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4">
-                <button onClick={() => setShowWarehouseForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>新增仓库</span>
-                </button>
                 <button onClick={fetchWarehouses} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} />
                 </button>

@@ -563,16 +563,16 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                               {/* 状态转换按钮 */}
                               <div className="flex items-center gap-2 mt-3 flex-wrap">
                                 {decl.status === 'Draft' && (
-                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Submitted')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">提交申报</button>
+                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Submitted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">提交申报</button>
                                 )}
                                 {decl.status === 'Submitted' && (
-                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Declared')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">确认报关</button>
+                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Declared')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">确认报关</button>
                                 )}
                                 {decl.status === 'Declared' && (
-                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Inspecting')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">查验中</button>
+                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Inspecting')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">查验中</button>
                                 )}
                                 {decl.status === 'Inspecting' && (
-                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Released')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">放行</button>
+                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Released')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">放行</button>
                                 )}
                                 {(decl.status === 'Draft' || decl.status === 'Submitted' || decl.status === 'Exception') && (
                                   <button onClick={() => handleTransitionDeclaration(decl.id, 'Cancelled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>
@@ -696,9 +696,9 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-3 flex-wrap">
-                            {lc.status === 'Issued' && <button onClick={() => handleTransitionLc(lc.id, 'Presented')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">交单</button>}
-                            {lc.status === 'Presented' && <button onClick={() => handleTransitionLc(lc.id, 'Accepted')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">承兑</button>}
-                            {lc.status === 'Accepted' && <button onClick={() => handleTransitionLc(lc.id, 'Settled')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">结算</button>}
+                            {lc.status === 'Issued' && <button onClick={() => handleTransitionLc(lc.id, 'Presented')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">交单</button>}
+                            {lc.status === 'Presented' && <button onClick={() => handleTransitionLc(lc.id, 'Accepted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">承兑</button>}
+                            {lc.status === 'Accepted' && <button onClick={() => handleTransitionLc(lc.id, 'Settled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">结算</button>}
                             {(lc.status === 'Issued' || lc.status === 'Presented' || lc.status === 'Accepted') && <button onClick={() => handleTransitionLc(lc.id, 'Cancelled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>}
                             <button onClick={() => handleToggleLcTimeline(lc.id)} className="bds-btn bds-btn-secondary">
                               <History size={11} />{lcTimelineId === lc.id ? '收起时间轴' : '节点时间轴'}
@@ -801,15 +801,15 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             </div>
                           </div>
                           <div className="flex items-center gap-2 mt-3 flex-wrap">
-                            {tr.status === 'Draft' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Submitted')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">提交申报</button>}
-                            {tr.status === 'Submitted' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Reviewing')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">送审</button>}
+                            {tr.status === 'Draft' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Submitted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">提交申报</button>}
+                            {tr.status === 'Submitted' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Reviewing')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">送审</button>}
                             {tr.status === 'Reviewing' && (
                               <>
-                                <button onClick={() => handleReviewTaxRefund(tr.id, 'Approved')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">批准</button>
+                                <button onClick={() => handleReviewTaxRefund(tr.id, 'Approved')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">批准</button>
                                 <button onClick={() => handleReviewTaxRefund(tr.id, 'Rejected')} disabled={!!actionLoading} className="bds-btn bds-btn-danger">拒绝</button>
                               </>
                             )}
-                            {tr.status === 'Approved' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Refunded')} disabled={!!actionLoading} className="bds-btn bds-btn-primary">确认到账</button>}
+                            {tr.status === 'Approved' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Refunded')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">确认到账</button>}
                             {tr.status === 'Rejected' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Draft')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">退回草稿</button>}
                             {(tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => handleDelete('taxRefunds', tr.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={11} />删除</button>}
                             <button onClick={() => handleToggleTrVat(tr.id)} className="bds-btn bds-btn-secondary">
