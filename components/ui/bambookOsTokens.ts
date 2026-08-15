@@ -23,9 +23,12 @@ const selectedSurfaceRecipe = 'bambook-selected-surface';
 // 注意：flat-experimental.css 的护栏规则会对 class 同时含 "rounded" 与
 // "shadow-"/"backdrop-blur"/"bg-white/"/"bg-slate"/"border-white/"/"border-slate" 等
 // 子串的元素强制 border:0 !important。胶囊字段必须带可见描边，因此配方一律使用
-// rgba() 任意值类，禁止出现上述触发子串，也不带 shadow-none/backdrop-blur。
+// var()/rgba() 任意值类，禁止出现上述触发子串，也不带 shadow-none/backdrop-blur。
+// P3 收编：字段材质对齐 BDS .bds-input 真源（--recessed-bg 族 + --border-c-* + --text-*），
+// CSS 变量自适应主题，无需 dark: 变体。
+// Tailwind v3 注意：border-[var(...)] 必须带 color: 类型提示，否则 var 无法推断为颜色而不生成规则。
 const recessedFieldRecipe =
-  'text-xs !bg-[rgba(15,23,42,0.06)] dark:!bg-[rgba(255,255,255,0.055)] !bg-none border border-[rgba(15,23,42,0.10)] dark:border-[rgba(255,255,255,0.10)] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/34 focus:!bg-[rgba(15,23,42,0.08)] dark:focus:!bg-[rgba(255,255,255,0.085)] focus:!bg-none focus:!border-[rgba(15,23,42,0.24)] dark:focus:!border-[rgba(255,255,255,0.22)]';
+  'text-xs !bg-[var(--recessed-bg)] !bg-none border border-[color:var(--border-c-default)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:!bg-[var(--recessed-bg-hover)] focus:!bg-none focus:!border-[color:var(--border-c-strong)]';
 
 /**
  * Bambook OS 配方token — 主题自适应单配方（P2 收口）。
@@ -64,8 +67,9 @@ export const BAMBOOK_OS = {
     text: {
       brandEmphasis: 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]',
       brandInline: 'text-[var(--os-vnext-brand-blue)]',
-      quiet: 'text-slate-600 dark:text-white/58',
-      formLabel: 'text-slate-500 dark:text-white/46',
+      // P3 收编：quiet/formLabel 对齐 BDS 文本真源（--text-secondary，.bds-formrow 标签同级）
+      quiet: 'text-[var(--text-secondary)]',
+      formLabel: 'text-[var(--text-secondary)]',
     },
     chip: {
       subtle: 'bg-slate-100 text-slate-500 dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.045)] dark:text-white/50',
@@ -78,8 +82,9 @@ export const BAMBOOK_OS = {
         'bg-white/24 border border-[rgb(var(--os-vnext-brand-blue-rgb)/0.18)] text-[var(--os-vnext-brand-blue-strong)] shadow-none dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.045)] dark:border-transparent dark:text-[var(--os-vnext-brand-blue-soft)]',
     },
     surface: {
-      quietIcon: 'bg-slate-100 dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.045)]',
-      progressTrack: 'bg-slate-100 dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.045)]',
+      // P3 收编：quietIcon/progressTrack 对齐 BDS 蚀刻面真源（--recessed-bg，.bds-progress track / .bds-stat-inset 同级）
+      quietIcon: 'bg-[var(--recessed-bg)]',
+      progressTrack: 'bg-[var(--recessed-bg)]',
       formMapIndex:
         'bg-white/34 border-white/32 text-slate-500 group-hover:text-[var(--os-vnext-brand-blue-strong)] group-hover:border-[rgb(var(--os-vnext-brand-blue-rgb)/0.18)] dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.045)] dark:border-white/[0.06] dark:text-white/58 dark:group-hover:text-white/80 dark:group-hover:border-white/10',
       formNestedRow: '',
@@ -87,20 +92,23 @@ export const BAMBOOK_OS = {
       linkedPanel: 'bg-white/55 border-white/60 shadow-none dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.030)] dark:border-white/[0.06]',
     },
     divider: {
-      panel: 'border-slate-200/50 dark:border-white/[0.06]',
-      section: 'border-slate-200/45 dark:border-white/[0.055]',
+      // P3 收编：分隔线对齐 BDS 真源（--border-c-subtle，.bds-divider 同级）
+      panel: 'border-[var(--border-c-subtle)]',
+      section: 'border-[var(--border-c-subtle)]',
     },
     status: {
       coordinate: {
         panel: 'bg-white/40 border border-transparent dark:bg-white/[0.035]',
-        icon: 'text-slate-500 dark:text-white/52',
+        // P3 收编：icon 对齐 BDS --text-secondary
+        icon: 'text-[var(--text-secondary)]',
         saved: 'bg-white/42 text-slate-500 border border-transparent font-normal dark:bg-white/[0.045] dark:text-white/58',
         city: 'bg-white/38 text-slate-500 border border-transparent font-normal dark:bg-white/[0.04] dark:text-white/54',
         postcode: 'bg-white/38 text-slate-500 border border-transparent font-normal dark:bg-white/[0.04] dark:text-white/54',
         fallback: 'bg-white/30 text-slate-400 border border-transparent font-normal dark:bg-white/[0.032] dark:text-white/42',
       },
       organizationCompletion: {
-        done: 'text-slate-500 dark:text-white/45',
+        // P3 收编：done 安静态对齐 BDS --text-tertiary
+        done: 'text-[var(--text-tertiary)]',
         missing: 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]',
       },
     },
@@ -200,7 +208,8 @@ export const BAMBOOK_OS = {
       control: toolbarControlBaseRecipe,
       controlIdle: stateControlInteractionRecipe,
       search:
-        'appearance-none bg-transparent border-transparent shadow-none text-slate-700 placeholder-slate-400 dark:text-slate-200 dark:placeholder-slate-500 focus:bg-transparent focus:!border-transparent focus:shadow-none',
+        // P3 收编：文本/占位对齐 BDS --text-primary / --text-tertiary
+        'appearance-none bg-transparent border-transparent shadow-none text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:bg-transparent focus:!border-transparent focus:shadow-none',
       spotlightDarkSize: 300,
       spotlightLightSize: 240,
     },
@@ -241,7 +250,7 @@ export const BAMBOOK_OS = {
       rowHover: 'hover:bg-white/28 dark:hover:bg-white/[0.035]',
       cellBorder: 'border-white/24 dark:border-white/[0.030]',
       rowSeparator: 'bg-white/45 dark:bg-white/[0.045]',
-      cellMuted: 'border-white/24 dark:border-white/[0.030] text-slate-600 dark:text-white/54',
+      cellMuted: 'border-white/24 dark:border-white/[0.030] text-[var(--text-secondary)]',
       editAction:
         'bg-white/42 dark:bg-[rgba(13,27,42,0.28)] backdrop-blur-[15px] backdrop-saturate-[104%] text-slate-500 dark:text-white/42 hover:text-[var(--os-vnext-brand-blue-strong)] dark:hover:text-white hover:bg-white/56 dark:hover:bg-white/[0.065]',
       emptyAction:

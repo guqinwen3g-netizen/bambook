@@ -511,10 +511,11 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).toContain('className={BAMBOOK_OS.layout.relationsDetailListPanelClass}');
     expect(contactListSource).toContain("import { BAMBOOK_OS } from './bambookOsTokens'");
     expect(contactListSource).toContain('BAMBOOK_OS.controls.recessedField.base');
-    expect(BAMBOOK_OS.controls.recessedField.base).toContain('placeholder-white/34');
-    // recessedField 为 flat 雕刻配方：rgba 任意值绕开护栏，保留可见描边（禁 backdrop-blur 触发子串）
-    expect(BAMBOOK_OS.controls.recessedField.base).toContain('border-[rgba(255,255,255,0.10)]');
-    expect(BAMBOOK_OS.controls.recessedField.base).toContain('border-[rgba(15,23,42,0.10)]');
+    // P3 收编：recessedField 对齐 BDS .bds-input 真源（--recessed-bg 族 + --border-c-*）
+    expect(BAMBOOK_OS.controls.recessedField.base).toContain('placeholder-[var(--text-tertiary)]');
+    // recessedField 为 flat 雕刻配方：var() 任意值绕开护栏，保留可见描边（禁 backdrop-blur 触发子串）
+    expect(BAMBOOK_OS.controls.recessedField.base).toContain('border-[color:var(--border-c-default)]');
+    expect(BAMBOOK_OS.controls.recessedField.base).toContain('!bg-[var(--recessed-bg)]');
     expect(contactListSource).toContain('BAMBOOK_OS.controls.actionControl.bordered');
     expect(contactListSource).not.toContain('border-r backdrop-blur-xl');
     expect(contactListSource).not.toContain('focus:border-[#4A90E2]');
@@ -624,8 +625,9 @@ describe('RelationsManager title system', () => {
     const dataTwinSource = readFileSync(new URL('./DataCenter.tsx', import.meta.url), 'utf8');
     const appCss = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 
-    expect(BAMBOOK_OS.tone.text.quiet).toContain('text-slate-600');
-    expect(BAMBOOK_OS.tone.text.formLabel).toContain('text-slate-500');
+    // P3 收编：quiet/formLabel 对齐 BDS --text-secondary 真源（CSS 变量自适应主题）
+    expect(BAMBOOK_OS.tone.text.quiet).toContain('text-[var(--text-secondary)]');
+    expect(BAMBOOK_OS.tone.text.formLabel).toContain('text-[var(--text-secondary)]');
     expect(appCss).toContain('html:not(.dark) .glass-panel .text-slate-400');
     expect(appCss).toContain('html:not(.dark) .bambook-panel-glass .text-slate-400');
     expect(appCss).toContain('color: rgb(71, 85, 105)');
@@ -954,7 +956,8 @@ describe('RelationsManager title system', () => {
     expect(toolbarSource).toContain('RELATIONS_TOOLBAR_SEARCH_CLASS');
     expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bambook-dashboard-glass-color');
     expect(RELATIONS_TOOLBAR_SEARCH_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).toContain('text-slate-700');
+    // P3 收编：搜索框文本对齐 BDS --text-primary 真源
+    expect(RELATIONS_TOOLBAR_SEARCH_CLASS).toContain('text-[var(--text-primary)]');
     expect(toolbarSource).not.toContain('bg-white/35 border border-white/45');
     expect(RELATIONS_TOOLBAR_SEGMENT_CLASS).not.toContain('border-transparent');
     expect(RELATIONS_TOOLBAR_CONTROL_CLASS).not.toContain('bambook-dashboard-glass-color');
@@ -1466,22 +1469,18 @@ describe('RelationsManager title system', () => {
       source.indexOf('<div data-scroll-edge-bottom-sentinel')
     );
 
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('!bg-[rgba(255,255,255,0.055)]');
+    // P3 收编：表单字段对齐 BDS .bds-input 真源（--recessed-bg 族 + --border-c-*）
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('!bg-[var(--recessed-bg)]');
     expect(RELATIONS_FORM_FIELD_CLASS).toContain('!bg-none');
     expect(RELATIONS_FORM_FIELD_CLASS).toContain('text-xs');
     expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('bambook-blue-white-light');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('border-[rgba(255,255,255,0.10)]');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!bg-[rgba(255,255,255,0.085)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('border-[color:var(--border-c-default)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!bg-[var(--recessed-bg-hover)]');
     expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!bg-none');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!border-[rgba(255,255,255,0.22)]');
+    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!border-[color:var(--border-c-strong)]');
     expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('focus:translate-y-[1px]');
     expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('focus:border-[#4A90E2]');
     expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('rgba(74,144,226');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('!bg-[rgba(15,23,42,0.06)]');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('border-[rgba(15,23,42,0.10)]');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('placeholder-slate-400');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!bg-[rgba(15,23,42,0.08)]');
-    expect(RELATIONS_FORM_FIELD_CLASS).toContain('focus:!border-[rgba(15,23,42,0.24)]');
     expect(formSource).toContain('relationFormFieldClass');
     expect(formSource).toContain('rounded-full border outline-none font-light');
     expect(formSource).toContain('type="date"');

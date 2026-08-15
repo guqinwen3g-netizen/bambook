@@ -265,7 +265,7 @@ export const RELATIONS_TITLE_SPOTLIGHT_DARK_COLOR = RELATIONS_CATEGORY_CARD_SPOT
 export const RELATIONS_TITLE_SPOTLIGHT_LIGHT_COLOR = RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR;
 export const RELATIONS_TITLE_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.controls.title.spotlightDarkSize;
 export const RELATIONS_TITLE_SPOTLIGHT_LIGHT_SIZE = BAMBOOK_OS.controls.title.spotlightLightSize;
-export const RELATIONS_TITLE_BUTTON_CLASS = `bg-transparent !border-transparent shadow-none text-[var(--os-adaptive-primary)] opacity-75 dark:opacity-70 hover:opacity-100 ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS}`;
+export const RELATIONS_TITLE_BUTTON_CLASS = `bg-transparent !border-transparent shadow-none text-[var(--os-adaptive-primary)] opacity-70 hover:opacity-100 ${SIDEBAR_HOVER_DARK_CLASS} ${SIDEBAR_PRESS_DARK_CLASS} active:scale-[0.98]`;
 export const RELATIONS_TITLE_VIEW_SWITCH_CLASS = BAMBOOK_OS.controls.title.viewSwitch;
 export const RELATIONS_TITLE_VIEW_SWITCH_BUTTON_CLASS = BAMBOOK_OS.controls.title.viewSwitchButton;
 export const RELATIONS_FORM_TITLE_BAR_CLASS = `${RELATIONS_TITLE_BAR_CLASS} ${BAMBOOK_OS.layout.desktopTitleBarInsetClass} flex`;
@@ -311,14 +311,24 @@ export const getRelationsCardRowWidth = (availableWidth: number) => {
 export const getRelationsCoordinateStatusClass = (
   source: 'existing' | 'city' | 'postcode' | 'address_keyword' | 'fallback'
 ) => {
-  if (source === 'existing') return BAMBOOK_OS.tone.status.coordinate.saved;
-  if (source === 'city') return BAMBOOK_OS.tone.status.coordinate.city;
-  if (source === 'postcode') return BAMBOOK_OS.tone.status.coordinate.postcode;
+  if (source === 'existing') {
+    return BAMBOOK_OS.tone.status.coordinate.saved;
+  }
+  if (source === 'city') {
+    return BAMBOOK_OS.tone.status.coordinate.city;
+  }
+  if (source === 'postcode') {
+    return BAMBOOK_OS.tone.status.coordinate.postcode;
+  }
   return BAMBOOK_OS.tone.status.coordinate.fallback;
 };
 
-export const getRelationsOrganizationCompletionClass = (isComplete: boolean) =>
-  isComplete ? RELATIONS_ORGANIZATION_COMPLETION_DONE_CLASS : RELATIONS_ORGANIZATION_COMPLETION_MISSING_CLASS;
+export const getRelationsOrganizationCompletionClass = (isComplete: boolean) => {
+  if (isComplete) {
+    return RELATIONS_ORGANIZATION_COMPLETION_DONE_CLASS;
+  }
+  return RELATIONS_ORGANIZATION_COMPLETION_MISSING_CLASS;
+};
 
 type RelationsTitleSpotlightButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   isDarkMode: boolean;
@@ -1260,7 +1270,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <div className={`truncate font-light text-[var(--text-primary)]`}>{org.name}</div>
                             <div className={`text-[var(--text-tertiary)] mt-1 truncate`}>{org.chineseName || org.englishName || org.type}</div>
                           </div>
-                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide ${'bg-[var(--os-vnext-brand-blue)]/7 text-[var(--os-vnext-brand-blue-strong)] dark:bg-[var(--os-vnext-brand-blue)]/8 dark:text-[var(--os-vnext-brand-blue-soft)]'}`}>
+                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide bg-[var(--os-vnext-brand-blue)]/7 text-[var(--os-vnext-brand-blue-strong)] dark:bg-[var(--os-vnext-brand-blue)]/8 dark:text-[var(--os-vnext-brand-blue-soft)]`}>
                             {tierLabel(org.rating)}
                           </span>
                         </div>
@@ -2016,7 +2026,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
 
       {confirmDeleteId && (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`bg-[var(--bg-card)] border border-[var(--border-c-default)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
+          <div className={`bg-[var(--bg-card)] dark:bg-deep/90 dark:border dark:border-[var(--border-c-default)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-default)]`}>
                 <Trash2 size={32} strokeWidth={1.5} />
