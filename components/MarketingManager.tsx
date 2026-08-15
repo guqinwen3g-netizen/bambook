@@ -573,7 +573,7 @@ function LookbookItemsEditor({
                 <span className="col-span-4 truncate" style={{ color: 'var(--text-primary)' }} title={label}>{label}</span>
                 <span className="col-span-2">
                   <input
-                    className="bds-input sm"
+                    className="bds-input"
                     value={d.price ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { price: parseNum(e.target.value) })}
                     placeholder="留空不展示"
@@ -583,7 +583,6 @@ function LookbookItemsEditor({
                 <span className="col-span-1">
                   <select
                     className={selectClass}
-                    style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
                     value={d.currency ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { currency: e.target.value || null })}
                   >
@@ -595,7 +594,7 @@ function LookbookItemsEditor({
                 </span>
                 <span className="col-span-4">
                   <input
-                    className="bds-input sm"
+                    className="bds-input"
                     value={d.description ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { description: e.target.value || null })}
                     placeholder="面向客户的展示描述"

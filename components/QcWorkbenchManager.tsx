@@ -381,7 +381,7 @@ function AssignmentsPanel() {
           value={qcUserFilter}
           onChange={(e) => setQcUserFilter(e.target.value)}
           className="bds-select"
-          style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
+          style={{ width: 'auto' }}
         >
           <option value="">全部</option>
           {users.map((u) => (
@@ -651,7 +651,7 @@ function AssignmentForm({
                 placeholder="搜索 PO 号 / 客户 / 产品..."
                 value={orderQuery}
                 onChange={(e) => setOrderQuery(e.target.value)}
-                className="bds-input sm pl-9"
+                className="bds-input pl-9"
               />
               {ordersLoading && (
                 <Loader2 size={12} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />

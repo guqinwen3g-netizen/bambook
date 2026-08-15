@@ -1582,7 +1582,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input
                 type="text"
-                className="bds-input sm pl-9"
+                className="bds-input pl-9"
                 placeholder="Search (⌘ + Shift + F)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -2061,7 +2061,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                             value={templateVars[name] || ''}
                             onChange={e => handleTemplateVarChange(name, e.target.value)}
                             placeholder={`{{${name}}}`}
-                            className="bds-input sm !w-32"
+                            className="bds-input !w-32"
                           />
                         </label>
                       ))}

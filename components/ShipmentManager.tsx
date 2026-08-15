@@ -583,7 +583,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="运单号 / 收货方"
-                className="bds-input sm pl-9"
+                className="bds-input pl-9"
               />
             </div>
             <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
@@ -1166,7 +1166,7 @@ function PackingEditorModal({
   const [tab, setTab] = useState<'lines' | 'cartons'>('lines');
 
   const textSecondary = 'text-[var(--text-tertiary)]';
-  const fieldClass = 'bds-input sm';
+  const fieldClass = 'bds-input';
 
   const updateLine = (key: string, patch: Partial<PackingLineDraft>) =>
     setLines(prev => prev.map(l => (l.key === key ? { ...l, ...patch } : l)));
@@ -1363,7 +1363,6 @@ function PackingEditorModal({
                             value={item.lineKey}
                             onChange={e => updateCarton(carton.key, { items: carton.items.map(i => i.key === item.key ? { ...i, lineKey: e.target.value } : i) })}
                             className="bds-select flex-1"
-                            style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
                           >
                             {lines.map(l => (
                               <option key={l.key} value={l.key}>

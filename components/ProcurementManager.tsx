@@ -546,17 +546,17 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                             )}
                           </div>
                           <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
-                            <input type="text" value={line.materialCode} onChange={(e) => updateFormLine(line.key, 'materialCode', e.target.value)} placeholder="物料编码" className="bds-input sm" />
-                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
-                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                            <input type="text" value={line.materialCode} onChange={(e) => updateFormLine(line.key, 'materialCode', e.target.value)} placeholder="物料编码" className="bds-input" />
+                            <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input xl:col-span-2" />
+                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className="bds-select">
                               {LINE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
-                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
-                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                            <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input" />
+                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select">
                               {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
-                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
-                            <input type="text" value={line.specification} onChange={(e) => updateFormLine(line.key, 'specification', e.target.value)} placeholder="规格" className="bds-input sm xl:col-span-2" />
+                            <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input" />
+                            <input type="text" value={line.specification} onChange={(e) => updateFormLine(line.key, 'specification', e.target.value)} placeholder="规格" className="bds-input xl:col-span-2" />
                           </div>
                           <div className="mt-1 text-right text-xs" style={{ color: 'var(--text-tertiary)' }}>
                             金额: {formatAmount(calcLineAmount(line.quantity, line.unitPrice), form.currency)}
@@ -597,7 +597,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                   </button>
                   <div className="relative flex-1 max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
-                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className="bds-input sm pl-9" />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className="bds-input pl-9" />
                   </div>
                   <button onClick={fetchPurchaseOrders} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -776,14 +776,14 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         <div className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
                                           <h4 className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>登记来料检验</h4>
                                           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
-                                            <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className="bds-input sm" />
-                                            <input type="date" value={receiptForm.receivedDate} onChange={(e) => setReceiptForm({ ...receiptForm, receivedDate: e.target.value })} className="bds-input sm" />
-                                            <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className="bds-input sm" />
-                                            <input type="text" value={receiptForm.warehouseName} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseName: e.target.value })} placeholder="入库仓库" className="bds-input sm" />
-                                            <input type="number" value={receiptForm.totalReceived} onChange={(e) => setReceiptForm({ ...receiptForm, totalReceived: e.target.value })} placeholder="收货数量 *" className="bds-input sm" />
-                                            <input type="number" value={receiptForm.totalAccepted} onChange={(e) => setReceiptForm({ ...receiptForm, totalAccepted: e.target.value })} placeholder="合格数量 *" className="bds-input sm" />
-                                            <input type="number" value={receiptForm.totalRejected} onChange={(e) => setReceiptForm({ ...receiptForm, totalRejected: e.target.value })} placeholder="不合格数量 *" className="bds-input sm" />
-                                            <input type="text" value={receiptForm.rejectionReason} onChange={(e) => setReceiptForm({ ...receiptForm, rejectionReason: e.target.value })} placeholder="不合格原因" className="bds-input sm" />
+                                            <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className="bds-input" />
+                                            <input type="date" value={receiptForm.receivedDate} onChange={(e) => setReceiptForm({ ...receiptForm, receivedDate: e.target.value })} className="bds-input" />
+                                            <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className="bds-input" />
+                                            <input type="text" value={receiptForm.warehouseName} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseName: e.target.value })} placeholder="入库仓库" className="bds-input" />
+                                            <input type="number" value={receiptForm.totalReceived} onChange={(e) => setReceiptForm({ ...receiptForm, totalReceived: e.target.value })} placeholder="收货数量 *" className="bds-input" />
+                                            <input type="number" value={receiptForm.totalAccepted} onChange={(e) => setReceiptForm({ ...receiptForm, totalAccepted: e.target.value })} placeholder="合格数量 *" className="bds-input" />
+                                            <input type="number" value={receiptForm.totalRejected} onChange={(e) => setReceiptForm({ ...receiptForm, totalRejected: e.target.value })} placeholder="不合格数量 *" className="bds-input" />
+                                            <input type="text" value={receiptForm.rejectionReason} onChange={(e) => setReceiptForm({ ...receiptForm, rejectionReason: e.target.value })} placeholder="不合格原因" className="bds-input" />
                                           </div>
                                           {receiptError && (
                                             <div className="text-xs mb-2" style={{ color: 'var(--danger-text)' }}>{receiptError}</div>

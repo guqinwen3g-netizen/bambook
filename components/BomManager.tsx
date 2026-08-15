@@ -237,7 +237,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索 BOM 编号/描述..."
-              className="bds-input sm pl-9"
+              className="bds-input pl-9"
               onKeyDown={(e) => { if (e.key === 'Enter') loadBOMs(); }}
             />
           </div>
@@ -678,15 +678,15 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div>
             <label className={labelCls}>BOM 编号 *</label>
-            <input type="text" value={bomNumber} onChange={(e) => setBomNumber(e.target.value)} className="bds-input sm" />
+            <input type="text" value={bomNumber} onChange={(e) => setBomNumber(e.target.value)} className="bds-input" />
           </div>
           <div>
             <label className={labelCls}>描述 *</label>
-            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="如：男款西装外套 - 款号 M2026-001" className="bds-input sm" />
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="如：男款西装外套 - 款号 M2026-001" className="bds-input" />
           </div>
           <div>
             <label className={labelCls}>币种</label>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bds-select">
               <option value="CNY">CNY 人民币</option>
               <option value="USD">USD 美元</option>
               <option value="EUR">EUR 欧元</option>
@@ -694,7 +694,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
           </div>
           <div>
             <label className={labelCls}>销售单价（利润分析）</label>
-            <input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="可选" className="bds-input sm" />
+            <input type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} placeholder="可选" className="bds-input" />
           </div>
         </div>
 
@@ -712,35 +712,35 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-2">
                     <label className={labelCls}>类型</label>
-                    <select value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)} className="bds-select">
                       {MATERIAL_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                     </select>
                   </div>
                   <div className="col-span-3">
                     <label className={labelCls}>品名 *</label>
-                    <input type="text" value={line.description} onChange={(e) => handleLineChange(index, 'description', e.target.value)} className="bds-input sm" />
+                    <input type="text" value={line.description} onChange={(e) => handleLineChange(index, 'description', e.target.value)} className="bds-input" />
                   </div>
                   <div className="col-span-2">
                     <label className={labelCls}>物料编码</label>
-                    <input type="text" value={line.materialCode || ''} onChange={(e) => handleLineChange(index, 'materialCode', e.target.value)} className="bds-input sm" />
+                    <input type="text" value={line.materialCode || ''} onChange={(e) => handleLineChange(index, 'materialCode', e.target.value)} className="bds-input" />
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>用量</label>
-                    <input type="number" value={line.quantity || ''} onChange={(e) => handleLineChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="bds-input sm" />
+                    <input type="number" value={line.quantity || ''} onChange={(e) => handleLineChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="bds-input" />
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>单位</label>
-                    <select value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)} className="bds-select">
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>损耗%</label>
-                    <input type="number" value={line.wastagePercent || ''} onChange={(e) => handleLineChange(index, 'wastagePercent', parseFloat(e.target.value) || 0)} className="bds-input sm" />
+                    <input type="number" value={line.wastagePercent || ''} onChange={(e) => handleLineChange(index, 'wastagePercent', parseFloat(e.target.value) || 0)} className="bds-input" />
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>单价</label>
-                    <input type="number" value={line.unitCost || ''} onChange={(e) => handleLineChange(index, 'unitCost', parseFloat(e.target.value) || 0)} className="bds-input sm" />
+                    <input type="number" value={line.unitCost || ''} onChange={(e) => handleLineChange(index, 'unitCost', parseFloat(e.target.value) || 0)} className="bds-input" />
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <button onClick={() => handleRemoveLine(index)} className="bds-btn bds-btn-danger bds-btn-icon">
@@ -767,17 +767,17 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-3">
                     <label className={labelCls}>类型</label>
-                    <select value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)} className="bds-select">
                       {COST_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                   </div>
                   <div className="col-span-6">
                     <label className={labelCls}>描述</label>
-                    <input type="text" value={cost.description} onChange={(e) => handleCostChange(index, 'description', e.target.value)} placeholder="如：裁剪人工 / 缝纫人工 / 厂房折旧" className="bds-input sm" />
+                    <input type="text" value={cost.description} onChange={(e) => handleCostChange(index, 'description', e.target.value)} placeholder="如：裁剪人工 / 缝纫人工 / 厂房折旧" className="bds-input" />
                   </div>
                   <div className="col-span-2">
                     <label className={labelCls}>金额</label>
-                    <input type="number" value={cost.amount || ''} onChange={(e) => handleCostChange(index, 'amount', parseFloat(e.target.value) || 0)} className="bds-input sm" />
+                    <input type="number" value={cost.amount || ''} onChange={(e) => handleCostChange(index, 'amount', parseFloat(e.target.value) || 0)} className="bds-input" />
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <button onClick={() => handleRemoveCost(index)} className="bds-btn bds-btn-danger bds-btn-icon">

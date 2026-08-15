@@ -911,7 +911,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               value={orderSearchTerm}
               onChange={e => setOrderSearchTerm(e.target.value)}
               placeholder="搜索订单号/客户/品号..."
-              className="bds-input sm min-w-[100px] max-w-[180px] flex-1"
+              className="bds-input min-w-[100px] max-w-[180px] flex-1"
             />
             <div className="relative h-8 shrink-0">
               <select

@@ -386,7 +386,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
             placeholder="搜索客户名称..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bds-input sm flex-1"
+            className="bds-input flex-1"
           />
         </div>
         <select

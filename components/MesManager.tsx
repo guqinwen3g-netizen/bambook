@@ -554,35 +554,35 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showPlanForm && (
                 <CreateFormModal title="新增排产单" onClose={() => setShowPlanForm(false)} onSubmit={submitPlan} loading={actionLoading === 'submit:plan'}>
                   <FormField label="排产单号">
-                    <input className="bds-input sm" value={planForm.planNumber} onChange={e => setPlanForm({ ...planForm, planNumber: e.target.value })} placeholder="PP-2026-001" />
+                    <input className="bds-input" value={planForm.planNumber} onChange={e => setPlanForm({ ...planForm, planNumber: e.target.value })} placeholder="PP-2026-001" />
                   </FormField>
                   <FormField label="工位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.workStationId} onChange={e => setPlanForm({ ...planForm, workStationId: e.target.value })}>
+                    <select className="bds-select" value={planForm.workStationId} onChange={e => setPlanForm({ ...planForm, workStationId: e.target.value })}>
                       <option value="">选择工位</option>
                       {workStations.map(w => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
                     </select>
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.processType} onChange={e => setPlanForm({ ...planForm, processType: e.target.value as WorkStationType })}>
+                    <select className="bds-select" value={planForm.processType} onChange={e => setPlanForm({ ...planForm, processType: e.target.value as WorkStationType })}>
                       {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
                   <FormField label="计划数量">
-                    <input type="number" className="bds-input sm" value={planForm.plannedQuantity} onChange={e => setPlanForm({ ...planForm, plannedQuantity: Number(e.target.value) })} />
+                    <input type="number" className="bds-input" value={planForm.plannedQuantity} onChange={e => setPlanForm({ ...planForm, plannedQuantity: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.unit} onChange={e => setPlanForm({ ...planForm, unit: e.target.value })}>
+                    <select className="bds-select" value={planForm.unit} onChange={e => setPlanForm({ ...planForm, unit: e.target.value })}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </FormField>
                   <FormField label="计划开始">
-                    <input type="date" className="bds-input sm" value={planForm.plannedStartDate} onChange={e => setPlanForm({ ...planForm, plannedStartDate: e.target.value })} />
+                    <input type="date" className="bds-input" value={planForm.plannedStartDate} onChange={e => setPlanForm({ ...planForm, plannedStartDate: e.target.value })} />
                   </FormField>
                   <FormField label="计划结束">
-                    <input type="date" className="bds-input sm" value={planForm.plannedEndDate} onChange={e => setPlanForm({ ...planForm, plannedEndDate: e.target.value })} />
+                    <input type="date" className="bds-input" value={planForm.plannedEndDate} onChange={e => setPlanForm({ ...planForm, plannedEndDate: e.target.value })} />
                   </FormField>
                   <FormField label="优先级">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.priority} onChange={e => setPlanForm({ ...planForm, priority: e.target.value as Priority })}>
+                    <select className="bds-select" value={planForm.priority} onChange={e => setPlanForm({ ...planForm, priority: e.target.value as Priority })}>
                       {PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
                   </FormField>
@@ -639,24 +639,24 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showWsForm && (
                 <CreateFormModal title="新增工位" onClose={() => setShowWsForm(false)} onSubmit={submitWs} loading={actionLoading === 'submit:ws'}>
                   <FormField label="工位编码">
-                    <input className="bds-input sm" value={wsForm.code} onChange={e => setWsForm({ ...wsForm, code: e.target.value })} placeholder="WS-001" />
+                    <input className="bds-input" value={wsForm.code} onChange={e => setWsForm({ ...wsForm, code: e.target.value })} placeholder="WS-001" />
                   </FormField>
                   <FormField label="工位名称">
-                    <input className="bds-input sm" value={wsForm.name} onChange={e => setWsForm({ ...wsForm, name: e.target.value })} placeholder="缝纫一号线" />
+                    <input className="bds-input" value={wsForm.name} onChange={e => setWsForm({ ...wsForm, name: e.target.value })} placeholder="缝纫一号线" />
                   </FormField>
                   <FormField label="类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={wsForm.type} onChange={e => setWsForm({ ...wsForm, type: e.target.value as WorkStationType })}>
+                    <select className="bds-select" value={wsForm.type} onChange={e => setWsForm({ ...wsForm, type: e.target.value as WorkStationType })}>
                       {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
                   <FormField label="日产能">
-                    <input type="number" className="bds-input sm" value={wsForm.capacityPerDay ?? ''} onChange={e => setWsForm({ ...wsForm, capacityPerDay: e.target.value ? Number(e.target.value) : undefined })} />
+                    <input type="number" className="bds-input" value={wsForm.capacityPerDay ?? ''} onChange={e => setWsForm({ ...wsForm, capacityPerDay: e.target.value ? Number(e.target.value) : undefined })} />
                   </FormField>
                   <FormField label="位置">
-                    <input className="bds-input sm" value={wsForm.location} onChange={e => setWsForm({ ...wsForm, location: e.target.value })} />
+                    <input className="bds-input" value={wsForm.location} onChange={e => setWsForm({ ...wsForm, location: e.target.value })} />
                   </FormField>
                   <FormField label="负责人">
-                    <input className="bds-input sm" value={wsForm.manager} onChange={e => setWsForm({ ...wsForm, manager: e.target.value })} />
+                    <input className="bds-input" value={wsForm.manager} onChange={e => setWsForm({ ...wsForm, manager: e.target.value })} />
                   </FormField>
                 </CreateFormModal>
               )}
@@ -752,26 +752,26 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showOsoForm && (
                 <CreateFormModal title="新增外协订单" onClose={() => setShowOsoForm(false)} onSubmit={submitOso} loading={actionLoading === 'submit:oso'}>
                   <FormField label="外协单号">
-                    <input className="bds-input sm" value={osoForm.orderNumber} onChange={e => setOsoForm({ ...osoForm, orderNumber: e.target.value })} placeholder="OSO-2026-001" />
+                    <input className="bds-input" value={osoForm.orderNumber} onChange={e => setOsoForm({ ...osoForm, orderNumber: e.target.value })} placeholder="OSO-2026-001" />
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={osoForm.processType} onChange={e => setOsoForm({ ...osoForm, processType: e.target.value as OutsourcingProcessType })}>
+                    <select className="bds-select" value={osoForm.processType} onChange={e => setOsoForm({ ...osoForm, processType: e.target.value as OutsourcingProcessType })}>
                       {OUTSOURCING_PROCESS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
                   <FormField label="数量">
-                    <input type="number" className="bds-input sm" value={osoForm.quantity} onChange={e => setOsoForm({ ...osoForm, quantity: Number(e.target.value) })} />
+                    <input type="number" className="bds-input" value={osoForm.quantity} onChange={e => setOsoForm({ ...osoForm, quantity: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={osoForm.unit} onChange={e => setOsoForm({ ...osoForm, unit: e.target.value })}>
+                    <select className="bds-select" value={osoForm.unit} onChange={e => setOsoForm({ ...osoForm, unit: e.target.value })}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </FormField>
                   <FormField label="单价">
-                    <input type="number" className="bds-input sm" value={osoForm.unitPrice} onChange={e => setOsoForm({ ...osoForm, unitPrice: Number(e.target.value) })} />
+                    <input type="number" className="bds-input" value={osoForm.unitPrice} onChange={e => setOsoForm({ ...osoForm, unitPrice: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="币种">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={osoForm.currency} onChange={e => setOsoForm({ ...osoForm, currency: e.target.value })}>
+                    <select className="bds-select" value={osoForm.currency} onChange={e => setOsoForm({ ...osoForm, currency: e.target.value })}>
                       <option value="CNY">CNY 人民币</option>
                       <option value="USD">USD 美元</option>
                     </select>
@@ -819,22 +819,22 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showWhForm && (
                 <CreateFormModal title="记录工时" onClose={() => setShowWhForm(false)} onSubmit={submitWh} loading={actionLoading === 'submit:wh'}>
                   <FormField label="排产单">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={whForm.productionPlanId} onChange={e => setWhForm({ ...whForm, productionPlanId: e.target.value })}>
+                    <select className="bds-select" value={whForm.productionPlanId} onChange={e => setWhForm({ ...whForm, productionPlanId: e.target.value })}>
                       <option value="">选择排产单</option>
                       {plans.map(p => <option key={p.id} value={p.id}>{p.planNumber}</option>)}
                     </select>
                   </FormField>
                   <FormField label="员工姓名">
-                    <input className="bds-input sm" value={whForm.employeeName ?? ''} onChange={e => setWhForm({ ...whForm, employeeName: e.target.value })} />
+                    <input className="bds-input" value={whForm.employeeName ?? ''} onChange={e => setWhForm({ ...whForm, employeeName: e.target.value })} />
                   </FormField>
                   <FormField label="日期">
-                    <input type="date" className="bds-input sm" value={whForm.workDate} onChange={e => setWhForm({ ...whForm, workDate: e.target.value })} />
+                    <input type="date" className="bds-input" value={whForm.workDate} onChange={e => setWhForm({ ...whForm, workDate: e.target.value })} />
                   </FormField>
                   <FormField label="工时">
-                    <input type="number" className="bds-input sm" value={whForm.hours} onChange={e => setWhForm({ ...whForm, hours: Number(e.target.value) })} />
+                    <input type="number" className="bds-input" value={whForm.hours} onChange={e => setWhForm({ ...whForm, hours: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="加班工时">
-                    <input type="number" className="bds-input sm" value={whForm.overtimeHours ?? 0} onChange={e => setWhForm({ ...whForm, overtimeHours: Number(e.target.value) })} />
+                    <input type="number" className="bds-input" value={whForm.overtimeHours ?? 0} onChange={e => setWhForm({ ...whForm, overtimeHours: Number(e.target.value) })} />
                   </FormField>
                 </CreateFormModal>
               )}
@@ -885,26 +885,26 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showRuleForm && (
                 <CreateFormModal title="新增计件规则" onClose={() => setShowRuleForm(false)} onSubmit={submitRule} loading={actionLoading === 'submit:rule'}>
                   <FormField label="规则编码">
-                    <input className="bds-input sm" value={ruleForm.code} onChange={e => setRuleForm({ ...ruleForm, code: e.target.value })} placeholder="PR-SEW-001" />
+                    <input className="bds-input" value={ruleForm.code} onChange={e => setRuleForm({ ...ruleForm, code: e.target.value })} placeholder="PR-SEW-001" />
                   </FormField>
                   <FormField label="规则名称">
-                    <input className="bds-input sm" value={ruleForm.name} onChange={e => setRuleForm({ ...ruleForm, name: e.target.value })} placeholder="缝纫计件标准" />
+                    <input className="bds-input" value={ruleForm.name} onChange={e => setRuleForm({ ...ruleForm, name: e.target.value })} placeholder="缝纫计件标准" />
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={ruleForm.processType} onChange={e => setRuleForm({ ...ruleForm, processType: e.target.value as WorkStationType })}>
+                    <select className="bds-select" value={ruleForm.processType} onChange={e => setRuleForm({ ...ruleForm, processType: e.target.value as WorkStationType })}>
                       {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={ruleForm.unit} onChange={e => setRuleForm({ ...ruleForm, unit: e.target.value })}>
+                    <select className="bds-select" value={ruleForm.unit} onChange={e => setRuleForm({ ...ruleForm, unit: e.target.value })}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </FormField>
                   <FormField label="单价">
-                    <input type="number" className="bds-input sm" value={ruleForm.ratePerUnit} onChange={e => setRuleForm({ ...ruleForm, ratePerUnit: Number(e.target.value) })} />
+                    <input type="number" className="bds-input" value={ruleForm.ratePerUnit} onChange={e => setRuleForm({ ...ruleForm, ratePerUnit: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="生效日期">
-                    <input type="date" className="bds-input sm" value={ruleForm.effectiveFrom} onChange={e => setRuleForm({ ...ruleForm, effectiveFrom: e.target.value })} />
+                    <input type="date" className="bds-input" value={ruleForm.effectiveFrom} onChange={e => setRuleForm({ ...ruleForm, effectiveFrom: e.target.value })} />
                   </FormField>
                 </CreateFormModal>
               )}
@@ -967,19 +967,19 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showRecordForm && (
                 <CreateFormModal title="新增计件记录" onClose={() => setShowRecordForm(false)} onSubmit={submitRecord} loading={actionLoading === 'submit:record'}>
                   <FormField label="计件规则">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={recordForm.pieceRateRuleId} onChange={e => setRecordForm({ ...recordForm, pieceRateRuleId: e.target.value, unit: pieceRateRules.find(r => r.id === e.target.value)?.unit || 'PC' })}>
+                    <select className="bds-select" value={recordForm.pieceRateRuleId} onChange={e => setRecordForm({ ...recordForm, pieceRateRuleId: e.target.value, unit: pieceRateRules.find(r => r.id === e.target.value)?.unit || 'PC' })}>
                       <option value="">选择规则</option>
                       {pieceRateRules.filter(r => r.isActive).map(r => <option key={r.id} value={r.id}>{r.code} · {r.name} ({formatNum(Number(r.ratePerUnit))}/{r.unit})</option>)}
                     </select>
                   </FormField>
                   <FormField label="员工姓名">
-                    <input className="bds-input sm" value={recordForm.employeeName ?? ''} onChange={e => setRecordForm({ ...recordForm, employeeName: e.target.value })} />
+                    <input className="bds-input" value={recordForm.employeeName ?? ''} onChange={e => setRecordForm({ ...recordForm, employeeName: e.target.value })} />
                   </FormField>
                   <FormField label="日期">
-                    <input type="date" className="bds-input sm" value={recordForm.workDate} onChange={e => setRecordForm({ ...recordForm, workDate: e.target.value })} />
+                    <input type="date" className="bds-input" value={recordForm.workDate} onChange={e => setRecordForm({ ...recordForm, workDate: e.target.value })} />
                   </FormField>
                   <FormField label="数量">
-                    <input type="number" className="bds-input sm" value={recordForm.quantity} onChange={e => setRecordForm({ ...recordForm, quantity: Number(e.target.value) })} />
+                    <input type="number" className="bds-input" value={recordForm.quantity} onChange={e => setRecordForm({ ...recordForm, quantity: Number(e.target.value) })} />
                   </FormField>
                 </CreateFormModal>
               )}
