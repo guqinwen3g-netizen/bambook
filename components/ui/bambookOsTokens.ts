@@ -319,7 +319,7 @@ export const BAMBOOK_OS = {
     desktopPageXClass: 'px-5',
     desktopPanelRowClass: 'flex-1 min-h-0 flex px-5 pt-0 bambook-main-panel-bottom-inset gap-4 overflow-visible',
     desktopBackstagePanelRowClass: 'flex-1 min-h-0 flex px-5 pt-0 bambook-main-panel-bottom-inset gap-4 overflow-visible w-full h-full',
-    desktopSinglePanelBodyClass: 'flex-1 min-h-0 flex flex-col px-5 pt-0 bambook-main-panel-bottom-inset overflow-visible',
+    desktopSinglePanelBodyClass: 'flex-1 min-h-0 flex flex-col px-7 pt-0 bambook-main-panel-bottom-inset overflow-visible',
     desktopTitleTextClass: 'bambook-title-adaptive-ink text-[28px] font-light tracking-[-0.01em] leading-none',
     desktopTitleAccentClass: 'bambook-title-adaptive-ink-accent text-xl font-light tracking-tight leading-none',
     desktopTitleMetaClass: 'h-9 flex items-center gap-2 text-[10px] font-light tracking-wide',
