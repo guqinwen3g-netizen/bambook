@@ -1498,7 +1498,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       <div className={`flex flex-col border-r shrink-0 z-10 box-content transition-all duration-300 pointer-events-auto bg-transparent border-[var(--border-c-default)] ${isMobile ? 'w-full absolute inset-0' : 'w-[340px] 3xl:w-[390px] relative'}`}>
         {/* Mobile Header for Folder Selection */}
         {isMobile && (
-          <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-c-default)] bg-[var(--bg-card)]">
+          <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-c-default)] bds-surface">
             <h2 className="text-lg font-light text-[var(--text-primary)]">{currentBox}</h2>
             <div className="flex gap-2">
               <button onClick={() => setIsComposing(true)} className="bds-btn bds-btn-ghost bds-btn-icon">
@@ -1613,7 +1613,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       `}>
         {/* Mobile Detail Header */}
         {isMobile && (
-          <div className="h-14 px-4 flex items-center gap-3 border-b shrink-0 border-[var(--border-c-default)] bg-[var(--bg-card)]">
+          <div className="h-14 px-4 flex items-center gap-3 border-b shrink-0 border-[var(--border-c-default)] bds-surface">
             <button onClick={() => setMobileView('list')} className="p-2 -ml-2 text-[var(--text-secondary)]">
               <ChevronDown size={24} strokeWidth={1} className="rotate-90" />
             </button>
@@ -1889,7 +1889,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <span className="font-light flex items-center gap-2 text-[var(--text-secondary)]"><CornerUpLeft size={16} strokeWidth={1} /> Replying to {selectedEmail?.sender}</span>
                 <button type="button" onClick={() => setIsReplying(false)} className="bds-btn bds-btn-ghost bds-btn-icon"><X size={20} /></button>
               </div>
-              <div className="rounded-inset h-60" style={{ background: 'var(--bg-panel)' }}>
+              <div className="rounded-inset h-60 bds-inset">
                 <EmailEditor
                   value={replyContent}
                   onChange={setReplyContent}
@@ -1922,7 +1922,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         isComposing && (
           <div className="bds-modal-mask !absolute !z-[80] animate-in fade-in duration-300">
             <div className="bds-modal w-full overflow-hidden flex flex-col h-[80vh] animate-in zoom-in duration-300 !p-0" style={{ width: '56rem' }}>
-              <div className="px-8 py-5 flex items-center justify-between bg-[var(--bg-panel)]">
+              <div className="px-8 py-5 flex items-center justify-between bg-[var(--recessed-bg)]">
                 <h3 className="text-lg font-light flex items-center gap-3 text-[var(--text-primary)]">
                   <span className="bds-iconbadge text-[var(--accent-text)]">
                     <SendHorizontal size={18} strokeWidth={1} />
@@ -1933,14 +1933,14 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   <button
                     type="button"
                     onClick={() => setTemplatePickerOpen(v => !v)}
-                    className={`bds-btn bds-btn-secondary ${templatePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
+                    className={`bds-btn bds-btn-secondary ${templatePickerOpen ? 'bg-[var(--recessed-bg)]' : ''}`}
                   >
                     <FileText size={14} strokeWidth={1} className="text-[var(--accent)]" /> 模板
                   </button>
                   <button
                     type="button"
                     onClick={() => setSignaturePickerOpen(v => !v)}
-                    className={`bds-btn bds-btn-secondary ${signaturePickerOpen ? 'bg-[var(--bg-sunken)]' : ''}`}
+                    className={`bds-btn bds-btn-secondary ${signaturePickerOpen ? 'bg-[var(--recessed-bg)]' : ''}`}
                   >
                     <PenLine size={14} strokeWidth={1} className="text-[var(--accent)]" /> 签名
                   </button>
@@ -1973,7 +1973,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
                   {/* F5 模板选择面板（PRD 12.1：报价/催款/交期通知/验货报告/节日问候） */}
                   {templatePickerOpen && (
-                    <div className="rounded-control border p-3 space-y-2 border-[var(--border-c-default)] bg-[var(--bg-panel)]">
+                    <div className="rounded-control border p-3 space-y-2 border-[var(--border-c-default)] bg-[var(--recessed-bg)]">
                       {!templatesLoaded ? (
                         <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-1 py-2">
                           <Loader2 size={12} className="animate-spin" /> 加载模板库...
@@ -2000,7 +2000,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
                   {/* 阶段 P3b 签名选择面板（PRD 12.1：统一公司签名格式，插入时渲染 {{variable}}） */}
                   {signaturePickerOpen && (
-                    <div className="rounded-control border p-3 space-y-2 border-[var(--border-c-default)] bg-[var(--bg-panel)]">
+                    <div className="rounded-control border p-3 space-y-2 border-[var(--border-c-default)] bg-[var(--recessed-bg)]">
                       {!signaturesLoaded ? (
                         <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-1 py-2">
                           <Loader2 size={12} className="animate-spin" /> 加载签名库...
@@ -2043,7 +2043,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
                   {/* F5 模板变量填写行（选中模板且含变量时显示，输入实时渲染） */}
                   {activeTemplate && activeTemplate.variables.length > 0 && (
-                    <div className="rounded-control border px-3 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-c-default)] bg-[var(--bg-panel)]">
+                    <div className="rounded-control border px-3 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 border-[var(--border-c-default)] bg-[var(--recessed-bg)]">
                       <span className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest flex items-center gap-2">
                         {activeTemplate.name}
                         <button
@@ -2071,11 +2071,11 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <textarea
                   value={composeBody}
                   onChange={e => setComposeBody(e.target.value)}
-                  className="flex-1 w-full p-8 outline-none resize-none text-sm leading-relaxed selection:bg-blue-100 bg-[var(--bg-panel)] text-[var(--text-primary)]"
+                  className="flex-1 w-full p-8 outline-none resize-none text-sm leading-relaxed selection:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.30)] bg-[var(--recessed-bg)] text-[var(--text-primary)]"
                   placeholder="Write your message..."
                 />
               </div>
-              <div className="px-8 py-5 flex justify-end gap-4 bg-[var(--bg-panel)]">
+              <div className="px-8 py-5 flex justify-end gap-4 bg-[var(--recessed-bg)]">
                 <button
                   type="button"
                   onClick={() => setIsComposing(false)}

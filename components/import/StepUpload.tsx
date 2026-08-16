@@ -50,7 +50,7 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
 
   // rgba() 任意值绕开 flat-experimental 护栏（border-white//border-slate/bg-white/ + rounded
   // → border:0 !important）；拖拽区的虚线描边是核心视觉可供性，必须保持可见。
-  const dropzoneBase = 'border-[rgba(100,116,139,0.50)] dark:border-[rgba(255,255,255,0.22)] bg-[rgba(255,255,255,0.60)] dark:bg-[rgba(255,255,255,0.04)] text-[var(--text-tertiary)]';
+  const dropzoneBase = 'border-[var(--border-c-strong)] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]';
   const dropzoneActive = 'border-[var(--os-vnext-brand-blue)] bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)]';
 
   return (

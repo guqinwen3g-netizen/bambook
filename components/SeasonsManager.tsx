@@ -128,7 +128,7 @@ const SEMANTIC_BADGE_VARIANT: Record<StatusSemantic, BadgeVariant> = {
 
 /** 非 badge 结构（ROI 指标卡 / 线索状态下拉）共用的 tint/text token 样式 */
 const SEMANTIC_TINT_STYLE: Record<BadgeVariant, React.CSSProperties> = {
-  neutral: { background: 'var(--bg-sunken)', color: 'var(--text-secondary)' },
+  neutral: { background: 'var(--recessed-bg)', color: 'var(--text-secondary)' },
   info: { background: 'var(--accent-tint)', color: 'var(--accent-text)' },
   success: { background: 'var(--success-tint)', color: 'var(--success-text)' },
   warning: { background: 'var(--warning-tint)', color: 'var(--warning-text)' },
@@ -401,7 +401,7 @@ function SeasonsPanel() {
                     key={s.id}
                     onClick={() => setSelectedId(s.id)}
                     className="bds-listrow w-full text-left"
-                    style={isSelected ? { background: 'var(--bg-panel)' } : undefined}
+                    style={isSelected ? { background: 'var(--recessed-bg-strong)' } : undefined}
                   >
                     <div className="lr-main">
                       <div className="flex items-center gap-2">
@@ -474,7 +474,7 @@ function SeasonsPanel() {
                 </button>
               </div>
               {(detail?.notes || selectedSeason.notes) && (
-                <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap" style={{ background: 'var(--bg-panel)', color: 'var(--text-secondary)' }}>
+                <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap bds-inset" style={{ color: 'var(--text-secondary)' }}>
                   {detail?.notes || selectedSeason.notes}
                 </div>
               )}
@@ -491,7 +491,7 @@ function SeasonsPanel() {
                       {(detail?.calendar ?? []).map((node) => (
                         <div key={node.key} className="relative flex items-start gap-3">
                           <span className="absolute -left-5 top-1 w-2.5 h-2.5 rounded-full" style={{ background: 'var(--accent)' }} />
-                          <div className="min-w-0 flex-1 rounded-inset px-3 py-2" style={{ background: 'var(--bg-panel)' }}>
+                          <div className="min-w-0 flex-1 rounded-inset px-3 py-2 bds-inset">
                             <div className="flex items-center gap-2">
                               <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{node.label}</span>
                               <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{node.key}</span>
@@ -505,7 +505,7 @@ function SeasonsPanel() {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-sm rounded-inset" style={{ color: 'var(--text-tertiary)', background: 'var(--bg-panel)' }}>
+                  <div className="text-center py-6 text-sm rounded-inset bds-inset" style={{ color: 'var(--text-tertiary)' }}>
                     暂无开发日历节点，点击「编辑季度」维护开发里程碑
                   </div>
                 )}
@@ -537,14 +537,14 @@ function SeasonsPanel() {
                         { label: '成本', value: formatNumber(review.cost) },
                         { label: '毛利', value: formatNumber(review.grossProfit) },
                       ].map((m) => (
-                        <div key={m.label} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                        <div key={m.label} className="rounded-inset p-3 bds-inset">
                           <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{m.label}</div>
                           <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{m.value}</div>
                         </div>
                       ))}
                     </div>
                     {review.topCustomers.length > 0 && (
-                      <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                      <div className="rounded-inset overflow-hidden bds-inset">
                         <div className="px-4 py-2 text-xs" style={{ borderBottom: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
                           Top {review.topCustomers.length} 客户
                         </div>
@@ -562,7 +562,7 @@ function SeasonsPanel() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-sm rounded-inset" style={{ color: 'var(--text-tertiary)', background: 'var(--bg-panel)' }}>
+                  <div className="text-center py-6 text-sm rounded-inset bds-inset" style={{ color: 'var(--text-tertiary)' }}>
                     尚未生成季度回顾，点击「生成季度回顾」按当前订单数据聚合快照
                   </div>
                 )}
@@ -571,7 +571,7 @@ function SeasonsPanel() {
               {/* 关联趋势 / 展会 */}
               {detail && (detail.trendTags?.length || detail.tradeShows?.length) ? (
                 <section className="grid grid-cols-2 gap-3">
-                  <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                  <div className="rounded-inset p-3 bds-inset">
                     <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>趋势标签</div>
                     {(detail.trendTags ?? []).length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
@@ -585,7 +585,7 @@ function SeasonsPanel() {
                       <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>暂无</div>
                     )}
                   </div>
-                  <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                  <div className="rounded-inset p-3 bds-inset">
                     <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>展会</div>
                     {(detail.tradeShows ?? []).length > 0 ? (
                       <div className="space-y-1.5">
@@ -1199,7 +1199,7 @@ function ShowsPanel() {
                     key={show.id}
                     onClick={() => setSelectedId(show.id)}
                     className="bds-listrow w-full text-left"
-                    style={isSelected ? { background: 'var(--bg-panel)' } : undefined}
+                    style={isSelected ? { background: 'var(--recessed-bg-strong)' } : undefined}
                   >
                     <div className="lr-main">
                       <div className="flex items-center gap-2">
@@ -1281,7 +1281,7 @@ function ShowsPanel() {
                 </button>
               </div>
               {(detail?.notes || selectedShow.notes) && (
-                <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap" style={{ background: 'var(--bg-panel)', color: 'var(--text-secondary)' }}>
+                <div className="mt-3 px-3 py-2 rounded-inset text-xs whitespace-pre-wrap bds-inset" style={{ color: 'var(--text-secondary)' }}>
                   {detail?.notes || selectedShow.notes}
                 </div>
               )}
@@ -1293,11 +1293,11 @@ function ShowsPanel() {
                 <section>
                   <div className="bds-overline mb-3" style={{ color: 'var(--text-tertiary)' }}>投资回报 ROI</div>
                   <div className="grid grid-cols-4 gap-3">
-                    <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                    <div className="rounded-inset p-3 bds-inset">
                       <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>参展费用</div>
                       <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{formatMoney(roi.cost, roi.currency)}</div>
                     </div>
-                    <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                    <div className="rounded-inset p-3 bds-inset">
                       <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>转化订单金额</div>
                       <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{formatMoney(roi.orderAmount, roi.currency)}</div>
                     </div>
@@ -1308,13 +1308,13 @@ function ShowsPanel() {
                       <div className="text-xs opacity-70">ROI 倍数</div>
                       <div className="bds-tnum text-sm mt-1">{formatNumber(roi.roi)}x</div>
                     </div>
-                    <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                    <div className="rounded-inset p-3 bds-inset">
                       <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>转化订单</div>
                       <div className="bds-tnum text-sm mt-1" style={{ color: 'var(--text-primary)' }}>{roi.orderCount} 单</div>
                     </div>
                   </div>
                   {/* 线索转化占比条 */}
-                  <div className="mt-3 rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                  <div className="mt-3 rounded-inset p-3 bds-inset">
                     <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                       <span>线索 {roi.leadsTotal} 条</span>
                       <span>已转化 {roi.leadsConverted} 条</span>
@@ -1338,11 +1338,11 @@ function ShowsPanel() {
                   <div className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>展会线索（{detail?.leads?.length ?? 0}）</div>
                 </div>
                 {(detail?.leads ?? []).length === 0 ? (
-                  <div className="text-center py-8 text-sm rounded-inset" style={{ color: 'var(--text-tertiary)', background: 'var(--bg-panel)' }}>
+                  <div className="text-center py-8 text-sm rounded-inset bds-inset" style={{ color: 'var(--text-tertiary)' }}>
                     暂无线索，点击「新增线索」录入展会名片
                   </div>
                 ) : (
-                  <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                  <div className="rounded-inset overflow-hidden bds-inset">
                     <table className="bds-table">
                       <thead>
                         <tr>

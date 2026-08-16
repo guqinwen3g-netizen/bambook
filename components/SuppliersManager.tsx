@@ -192,7 +192,7 @@ function certSemantic(daysLeft: number | null): StatusSemantic {
 
 /** StatusSemantic → tint/text token 样式（分数卡等非 badge 结构共用；badge 直接用语义同名变体类） */
 const SEMANTIC_TINT_STYLE: Record<string, React.CSSProperties> = {
-  neutral: { background: 'var(--bg-sunken)', color: 'var(--text-secondary)' },
+  neutral: { background: 'var(--recessed-bg)', color: 'var(--text-secondary)' },
   info: { background: 'var(--accent-tint)', color: 'var(--accent-text)' },
   success: { background: 'var(--success-tint)', color: 'var(--success-text)' },
   warning: { background: 'var(--warning-tint)', color: 'var(--warning-text)' },
@@ -616,7 +616,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                       key={p.id}
                       onClick={() => setSelectedId(p.id)}
                       className="bds-listrow w-full text-left"
-                      style={isSelected ? { background: 'var(--bg-panel)' } : undefined}
+                      style={isSelected ? { background: 'var(--recessed-bg-strong)' } : undefined}
                     >
                       <div className="lr-main">
                         <div className="flex items-center gap-2">

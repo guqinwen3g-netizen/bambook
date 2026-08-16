@@ -624,8 +624,7 @@ function OpportunitiesTab({
                 {stageOpps.map((opp) => (
                   <div
                     key={opp.id}
-                    className="rounded-compact p-2 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
-                    style={{ background: 'var(--bg-panel)' }}
+                    className="bds-inset rounded-compact p-2 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
                     onClick={() => onEdit(opp)}
                   >
                     <div className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>{opp.title}</div>
@@ -978,7 +977,7 @@ function CreditLimitTab({
           <h3 className="bds-overline mb-2" style={{ color: 'var(--text-tertiary)' }}>历史记录</h3>
           <div className="space-y-1">
             {creditHistory.map((cl) => (
-              <div key={cl.id} className="flex items-center gap-3 text-xs rounded-compact px-3 py-2" style={{ background: 'var(--bg-card)' }}>
+              <div key={cl.id} className="flex items-center gap-3 text-xs rounded-compact px-3 py-2 bds-inset">
                 <span className={`bds-badge sm ${cl.status === 'Active' ? 'success' : 'neutral'}`}>
                   {CREDIT_STATUS_LABELS[cl.status] || cl.status}
                 </span>
@@ -1093,7 +1092,7 @@ function CustomerTierTab({
             {tierHistory.map((t) => {
               const tierMeta = TIER_LEVELS.find((tl) => tl.id === t.level);
               return (
-                <div key={t.id} className="flex items-center gap-3 text-xs rounded-compact px-3 py-2" style={{ background: 'var(--bg-card)' }}>
+                <div key={t.id} className="flex items-center gap-3 text-xs rounded-compact px-3 py-2 bds-inset">
                   <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[tierMeta?.semantic || 'neutral']}`}>
                     {tierMeta?.label || t.level}
                   </span>

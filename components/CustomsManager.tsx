@@ -442,7 +442,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
               <button key={t.id} onClick={() => { setActiveTab(t.id); setSearchQuery(''); setStatusFilter(''); }} className={`bds-tab flex items-center gap-1.5 ${activeTab === t.id ? 'active' : ''}`}>
                 {t.icon}<span>{t.label}</span>
                 {t.count != null && t.count > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--bg-sunken)', color: 'var(--text-tertiary)' }}>{t.count}</span>
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--recessed-bg)', color: 'var(--text-tertiary)' }}>{t.count}</span>
                 )}
               </button>
             ))}
@@ -549,7 +549,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                   <div className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>明细行</div>
                                   <div className="space-y-1">
                                     {decl.lines.map(line => (
-                                      <div key={line.id} className="flex items-center gap-2 px-2 py-1 rounded-inset text-xs" style={{ background: 'var(--bg-panel)' }}>
+                                      <div key={line.id} className="flex items-center gap-2 px-2 py-1 rounded-inset text-xs bds-inset">
                                         <span style={{ color: 'var(--text-quaternary)' }}>#{line.lineNumber}</span>
                                         <span className="flex-1 truncate">{line.productName}</span>
                                         {line.hsCode && <span className="bds-badge sm neutral bds-mono">{line.hsCode}</span>}
@@ -732,7 +732,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                             {ev.actorId && <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>操作人: {ev.actorId}</span>}
                                           </div>
                                           {ev.note && (
-                                            <div className="mt-1 px-2 py-1 rounded-inset text-[11px]" style={{ background: 'var(--bg-panel)', color: 'var(--text-tertiary)' }}>{ev.note}</div>
+                                            <div className="mt-1 px-2 py-1 rounded-inset text-[11px] bds-inset" style={{ color: 'var(--text-tertiary)' }}>{ev.note}</div>
                                           )}
                                         </div>
                                       </div>
@@ -831,7 +831,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 <>
                                   <div className="space-y-1">
                                     {trVatInvoices.map(v => (
-                                      <div key={v.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-inset text-xs" style={{ background: 'var(--bg-panel)' }}>
+                                      <div key={v.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-inset text-xs bds-inset">
                                         <div className="min-w-0 flex-1 truncate">
                                           <span className="bds-mono">{v.vatNumber}</span>
                                           <span className="ml-2" style={{ color: 'var(--text-tertiary)' }}>{v.sellerName}</span>

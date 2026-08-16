@@ -214,7 +214,7 @@ const OVERLAY_MAP_PANEL_CLASS = 'p-4 bambook-relations-form-map-panel';
 const OVERLAY_FORM_PANEL_CLASS = 'scroll-mt-28 p-5 bambook-relations-form-panel';
 /** Detail Map / Form Map 导航按钮与序号胶囊（token 墨色 + hover 反馈） */
 const OVERLAY_MAP_BUTTON_CLASS = `w-full text-left rounded-full border border-transparent px-3 py-3 transition-all ${TXT_SECONDARY} hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-subtle)] hover:text-[var(--text-primary)]`;
-const OVERLAY_MAP_INDEX_CLASS = `border-[var(--border-c-subtle)] bg-[var(--bg-sunken)] ${TXT_MUTED}`;
+const OVERLAY_MAP_INDEX_CLASS = `border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] ${TXT_MUTED}`;
 /** 覆盖层头部 meta（编辑/查阅模式、录入标记等降级元信息） */
 const HEADER_META_CLASS = `shrink-0 text-[12px] font-light ${TXT_MUTED}`;
 /** 状态步骤条连接线（done=accent 45% / pending=border token） */
@@ -229,7 +229,7 @@ const TIMELINE_CONNECTOR_CLASS = 'bg-[var(--border-c-subtle)]';
 /** 时间线"最新"标签（accent tint 小徽章） */
 const TIMELINE_LATEST_BADGE_CLASS = 'rounded-full bg-[var(--accent-tint)] px-1.5 py-px text-[10px] font-light tracking-wide text-[var(--accent-text)]';
 /** 查阅态字段槽位/文字（有值= sunken 底 + secondary 墨；空值=更淡底 + faint 斜体） */
-const FIELD_SLOT_FILLED_CLASS = 'bg-[var(--bg-sunken)]';
+const FIELD_SLOT_FILLED_CLASS = 'bg-[var(--recessed-bg)]';
 const FIELD_SLOT_EMPTY_CLASS = 'bg-[var(--hover-darken)]';
 const FIELD_READONLY_VALUE_CLASS = `text-[14px] font-normal leading-relaxed ${TXT_SECONDARY}`;
 const FIELD_READONLY_EMPTY_CLASS = `text-[13px] font-light italic leading-relaxed ${TXT_FAINT}`;
@@ -1757,12 +1757,12 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   setShowOptionsSheet(null);
                 }
               }}
-              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light bg-[var(--bg-sunken)] ${TXT_SECONDARY}`}
+              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light bg-[var(--recessed-bg)] ${TXT_SECONDARY}`}
             >
               <div className={`p-2 rounded-control bg-[var(--hover-darken)] ${TXT_MUTED}`}><Edit2 size={18} /></div>
               编辑详情
             </button>
-            <div className="p-4 rounded-inset space-y-4 bg-[var(--bg-sunken)]">
+            <div className="p-4 rounded-inset space-y-4 bg-[var(--recessed-bg)]">
               <div className={`text-[10px] font-light uppercase tracking-widest ${TXT_FAINT}`}>快速状态变更</div>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                 {['Confirmed', 'Production', 'Shipping', 'Delivered'].map(st => (
@@ -1934,7 +1934,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         <div className="bds-modal-mask !absolute !z-[100] animate-in fade-in duration-300 pointer-events-auto">
           <div className="bds-modal overflow-hidden animate-in zoom-in duration-300">
             <div className="text-center space-y-6">
-              <div className={`w-20 h-20 rounded-field flex items-center justify-center mx-auto mb-2 border ${BORDER_SUBTLE_CLASS} bg-[var(--bg-sunken)]`}>
+              <div className={`w-20 h-20 rounded-field flex items-center justify-center mx-auto mb-2 border ${BORDER_SUBTLE_CLASS} bg-[var(--recessed-bg)]`}>
                 <AlertTriangle size={32} strokeWidth={1} className="text-[var(--warning)]" />
               </div>
               <div className="space-y-2">

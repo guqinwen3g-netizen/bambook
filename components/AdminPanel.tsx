@@ -108,7 +108,7 @@ export const ADMIN_PANEL_BODY_CLASS = `${BAMBOOK_OS.layout.desktopPanelRowClass}
 export const ADMIN_PANEL_SURFACE_CLASS = 'h-full min-h-0 overflow-hidden';
 export const ADMIN_PANEL_SCROLL_CLASS = 'h-full min-h-0 overflow-y-auto custom-scrollbar';
 export const ADMIN_USER_LIST_SCROLL_CLASS = 'min-h-0 flex-1 overflow-y-auto custom-scrollbar';
-export const ADMIN_PANEL_GLASS_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-transparent bg-[var(--recessed-bg)] dark:bg-[rgba(13,27,42,0.30)] shadow-none`;
+export const ADMIN_PANEL_GLASS_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-transparent bg-[var(--recessed-bg)] shadow-none`;
 export const ADMIN_USER_CARD_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-[var(--border-c-strong)] dark:border-[var(--border-c-default)] bg-[var(--recessed-bg)]`;
 export const ADMIN_USER_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
 // 旧导出别名（配方已坍缩为自适应单条，外部引用与测试保持不变）
@@ -850,7 +850,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       <thead className={`text-[var(--text-tertiary)]`}>
                         <tr>
                           {['用户', '状态', '角色', ''].map(header => (
-                            <th key={header} className={`border-b px-4 py-3 text-[10px] font-light tracking-[0.16em] bg-[var(--recessed-bg-strong)] dark:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.018)] border-[var(--border-c-default)]`}>{header}</th>
+                            <th key={header} className={`border-b px-4 py-3 text-[10px] font-light tracking-[0.16em] bg-[var(--recessed-bg-strong)] border-[var(--border-c-default)]`}>{header}</th>
                           ))}
                         </tr>
                       </thead>

@@ -302,7 +302,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
 
   // ── 样式 ──
   const cardClass = `rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)] ${BAMBOOK_OS.material.glassColor}`;
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
   const actionBtnCls = `h-7 px-3 rounded-control text-[11px] font-light disabled:opacity-50 transition-colors`;
 
   return (
@@ -592,7 +592,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
   const inputCls = `${fieldClass} py-1.5`;
   const labelClass = 'block text-xs mb-1 text-[var(--text-tertiary)]';
 
@@ -712,7 +712,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateTradeDocumentsResult | null>(null);
 
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
 
   const toggle = (t: TradeDocumentType) => setSelected(prev => {
     const next = new Set(prev);
@@ -827,7 +827,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<TradeDocumentPackItem[] | null>(null);
 
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
 
   const handleLoad = async () => {
     setError(null);

@@ -38,7 +38,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
     }
   };
 
-  const inputCls = `w-full px-4 py-3 rounded-control border outline-none text-sm transition-all border-[var(--border-c-default)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] bg-[var(--bg-card)] dark:bg-deep/40 focus:border-[var(--border-c-strong)] dark:focus:border-[var(--os-vnext-brand-blue)]/60`;
+  const inputCls = `w-full px-4 py-3 rounded-control border outline-none text-sm transition-all border-[var(--border-c-default)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] bg-[var(--recessed-bg)] focus:border-[var(--border-c-strong)]`;
 
   return (
     <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center bg-[var(--bg-page)]`}>

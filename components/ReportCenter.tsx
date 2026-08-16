@@ -218,7 +218,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
 
   // ── 主题样式（与 CustomsManager 同一 token 口径） ──
   const cardClass = 'rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]';
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
   const labelClass = 'block text-xs mb-1 text-[var(--text-tertiary)]';
   const textSecondary = 'text-[var(--text-tertiary)]';
   const tabBtnCls = (active: boolean) =>

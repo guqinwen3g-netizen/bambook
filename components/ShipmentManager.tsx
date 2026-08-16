@@ -600,7 +600,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
 
           {/* Phase B3 — 准交率统计条（只读，口径：订单最后一票 ata ≤ dueDate / 运单 ata ≤ eta） */}
           {onTimeStats && (onTimeStats.order.total > 0 || onTimeStats.shipment.total > 0) && (
-            <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1.5 rounded-inset px-4 py-2 bg-[var(--bg-panel)]">
+            <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1.5 rounded-inset px-4 py-2 bg-[var(--recessed-bg)]">
               <div className="flex items-baseline gap-2">
                 <span className={cx('text-[10px] tracking-[0.14em]', textSecondaryClass)}>订单准交率</span>
                 <span className={cx('text-sm bds-tnum', textPrimaryClass)}>
@@ -820,7 +820,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                       {ev.actorId && <span className="text-[10px] text-[var(--text-quaternary)]">操作人: {ev.actorId}</span>}
                                     </div>
                                     {ev.note && (
-                                      <div className="mt-1 px-2 py-1 rounded-inset text-[11px]" style={{ background: 'var(--bg-panel)', color: 'var(--text-tertiary)' }}>{ev.note}</div>
+                                      <div className="mt-1 px-2 py-1 rounded-inset text-[11px] bds-inset" style={{ color: 'var(--text-tertiary)' }}>{ev.note}</div>
                                     )}
                                   </div>
                                 </div>
@@ -832,7 +832,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                     </div>
                     <div className="mt-4">
                       {/* C4：装箱明细区块（行级 + 逐箱；只读展示 + 编辑入口） */}
-                      <div className="rounded-inset px-4 py-3" style={{ background: 'var(--bg-panel)', border: 'var(--border-subtle)' }}>
+                      <div className="rounded-inset px-4 py-3 bds-inset" style={{ border: 'var(--border-subtle)' }}>
                         <div className="flex items-center justify-between gap-2">
                           <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>装箱明细</div>
                           <div className="flex items-center gap-1.5">
@@ -1003,10 +1003,10 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         key={section.id}
                         type="button"
                         onClick={() => document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className="w-full rounded-full border border-[var(--border-c-subtle)] bg-[var(--bg-panel)] px-3 py-3 text-left transition-all hover:bg-[var(--bg-sunken)] hover:border-[var(--border-c-strong)]"
+                        className="w-full rounded-full border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-3 py-3 text-left transition-all hover:bg-[var(--recessed-bg)] hover:border-[var(--border-c-strong)]"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 shrink-0 rounded-full border border-[var(--border-c-subtle)] bg-[var(--bg-sunken)] flex items-center justify-center text-[10px] font-light text-[var(--text-tertiary)] transition-colors">
+                          <span className="w-6 h-6 shrink-0 rounded-full border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] flex items-center justify-center text-[10px] font-light text-[var(--text-tertiary)] transition-colors">
                             {idx + 1}
                           </span>
                           <div className="min-w-0">
@@ -1302,7 +1302,7 @@ function PackingEditorModal({
             {tab === 'lines' ? (
               <div className="space-y-2 pb-8">
                 {lines.map((line, idx) => (
-                  <div key={line.key} className="rounded-inset p-3 bg-[var(--bg-panel)]">
+                  <div key={line.key} className="rounded-inset p-3 bg-[var(--recessed-bg)]">
                     <div className="flex items-center justify-between gap-2">
                       <span className={cx('text-[10px] font-light tracking-wide', textSecondary)}>行 {idx + 1}</span>
                       <button type="button" onClick={() => setLines(prev => prev.filter(l => l.key !== line.key))} className="inline-flex h-6 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]">
@@ -1338,7 +1338,7 @@ function PackingEditorModal({
                   </div>
                 )}
                 {cartons.map((carton, idx) => (
-                  <div key={carton.key} className="rounded-inset p-3 bg-[var(--bg-panel)]">
+                  <div key={carton.key} className="rounded-inset p-3 bg-[var(--recessed-bg)]">
                     <div className="flex items-center justify-between gap-2">
                       <span className={cx('text-[10px] font-light tracking-wide', textSecondary)}>箱 {idx + 1}</span>
                       <button type="button" onClick={() => setCartons(prev => prev.filter(c => c.key !== carton.key))} className="inline-flex h-6 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]">

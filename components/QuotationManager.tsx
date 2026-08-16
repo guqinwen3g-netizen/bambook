@@ -695,7 +695,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                     </div>
                     <div className="space-y-2">
                       {formLines.map((line) => (
-                        <div key={line.key} className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                        <div key={line.key} className="p-3 rounded-inset bds-inset">
                           <div className="flex items-center justify-between mb-2">
                             <span className="bds-mono text-xs" style={{ color: 'var(--text-quaternary)' }}>行 {formLines.indexOf(line) + 1}</span>
                             {formLines.length > 1 && (
@@ -939,7 +939,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                                 {/* 双轨定价快照（PRD 8.6 历史快照，仅内部参考） */}
                                 {qt.priceDeviationLevel && qt.trackAMedianUsd != null && qt.trackBFinalUsd != null && (
-                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-inset text-xs" style={{ background: 'var(--bg-panel)', color: 'var(--text-tertiary)' }}>
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-inset text-xs bds-inset" style={{ color: 'var(--text-tertiary)' }}>
                                     <span className="opacity-60">双轨快照（内部）:</span>
                                     <span>轨道 A 中位 ${Number(qt.trackAMedianUsd).toFixed(4)}/{qt.trackAUnit === 'PC' ? '件' : '米'}</span>
                                     <span>轨道 B 终价 ${Number(qt.trackBFinalUsd).toFixed(4)}</span>
@@ -953,7 +953,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                                 {/* 行明细表 */}
                                 {qt.lines && qt.lines.length > 0 && (
-                                  <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                                  <div className="rounded-inset overflow-hidden bds-inset">
                                     <table className="bds-table">
                                       <thead>
                                         <tr>
@@ -1148,7 +1148,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
             {/* 定价结果 */}
             {pricingResult && (
-              <div className="mt-4 p-3 rounded-inset text-xs" style={{ background: 'var(--bg-panel)', color: 'var(--text-secondary)' }}>
+              <div className="mt-4 p-3 rounded-inset text-xs bds-inset" style={{ color: 'var(--text-secondary)' }}>
                 <div className="flex items-center gap-4 flex-wrap">
                   <span>Track A 中位: <strong>${pricingResult.trackAMedianUsd?.toFixed(4)}</strong></span>
                   <span>Track B 终价: <strong>${pricingResult.trackBFinalUsd?.toFixed(4)}</strong></span>

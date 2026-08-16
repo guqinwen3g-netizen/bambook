@@ -50,7 +50,7 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
             className={`flex h-10 items-center gap-2 px-4 rounded-full text-xs whitespace-nowrap transition-colors ${
               i === activeIdx
                 ? 'bg-[var(--os-vnext-brand-blue)]/10 dark:bg-[var(--os-vnext-brand-blue)]/20 text-[var(--os-vnext-brand-blue)] dark:text-[var(--os-vnext-brand-blue-strong)] border border-[var(--os-vnext-brand-blue)]/30 dark:border-[var(--os-vnext-brand-blue)]/40'
-                : 'bg-[rgba(255,255,255,0.70)] dark:bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[rgba(148,163,184,0.45)] dark:border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.95)] dark:hover:bg-[rgba(255,255,255,0.09)]'
+                : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] border border-[var(--border-c-strong)] hover:bg-[var(--recessed-bg-hover)]'
             }`}
           >
             {r.error ? <AlertCircle size={14} /> : <FileText size={14} />}
@@ -101,7 +101,7 @@ const OrderPreview: React.FC<{
   const o = file.order!;
   // rgba() 任意值绕开 flat-experimental 护栏，保持卡片描边与单元格编辑器边框可见；
   // 控件形状与订单域 field 规范一致：胶囊形 rounded-full（抬头字段 h-10 / 表格单元格紧凑 px-3 py-1）。
-  const card = 'bg-[rgba(255,255,255,0.70)] dark:bg-deep/40 border border-[rgba(15,23,42,0.10)] dark:border-[rgba(255,255,255,0.10)]';
+  const card = 'bds-surface border border-[var(--border-c-default)]';
   const labelCls = 'text-[var(--text-tertiary)]';
   const valueCls = 'text-[var(--text-primary)]';
   const inputBase = `w-full bg-transparent border rounded-full text-sm text-[var(--text-primary)] focus:border-[var(--os-vnext-brand-blue)] border-[rgba(100,116,139,0.40)] dark:border-[rgba(255,255,255,0.15)] focus:outline-none focus:ring-1 focus:ring-[var(--os-vnext-brand-blue)]/40`;

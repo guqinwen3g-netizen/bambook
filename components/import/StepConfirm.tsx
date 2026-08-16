@@ -20,7 +20,7 @@ const StepConfirm: React.FC<Props> = ({ results, isDarkMode }) => {
   }, [results]);
 
   // rgba() 任意值绕开 flat-experimental 护栏，保持卡片描边可见
-  const card = 'bg-[rgba(255,255,255,0.70)] dark:bg-deep/40 border border-[rgba(15,23,42,0.10)] dark:border-[rgba(255,255,255,0.10)]';
+  const card = 'bds-surface border border-[var(--border-c-default)]';
   const labelCls = 'text-[var(--text-tertiary)]';
   const valueCls = 'text-[var(--text-primary)]';
 

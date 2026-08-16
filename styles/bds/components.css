@@ -738,11 +738,15 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
       禁止再套 filterbar 外壳形成双层容器；
    2. 内嵌搜索（唯一例外）：仅当搜索与其他控件（下拉/分段器/按钮组）共组
       一条 bar 时才使用 filterbar——bar 是容器，搜索是内嵌元素。
-   内嵌分层：bar 内 input 用 --bg-panel 实色底，与 frosted 膜容器拉开层次。 */
+   内嵌分层：bar 内 input 用 recessed 冷墨洗拉开层次（2026-08-16 色差根因修复）。
+   色差事故复盘：曾用 --bg-panel 中性实色底（#EAEDEE，R-B≈-4），而页面底色为冷蓝
+   （R-B≈-13~-19）+ bar 玻璃 saturate(180%) 放大环境蓝——中性灰在冷蓝环绕中因
+   同时对比被读成"暖米"。纪律：filterbar 内任何填充必须用冷墨家族 wash
+   （--recessed-*），禁止中性实色底，确保与页面环境同温。 */
 .bds-filterbar .bds-input {
-  background: var(--bg-panel);
+  background: var(--recessed-bg);
 }
-.bds-filterbar .bds-input:hover { background: var(--bg-panel); }
+.bds-filterbar .bds-input:hover { background: var(--recessed-bg-hover); }
 .bds-filterbar .bds-input:focus { background: var(--bg-card); }
 /* Filterbar 内控件等高 + 同形纪律：
    1. input / select 强制拉齐 btn md 高度（40px），避免 input sm(34px) vs btn(40px) 不齐
@@ -753,6 +757,14 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   height: var(--h-btn-md);
   border-radius: var(--radius-pill);
 }
+
+/* Inset 下沉明细块 — 卡片内的次级信息区（明细行/子表格/备注块/空态）。
+   材质纪律（2026-08-16 全局色差根因裁决）：禁用中性实色 --bg-panel/--bg-sunken
+   做 inset 填充——中性灰（R-B≈-4）在冷蓝页面（R-B≈-13~-19）包围下因同时对比
+   被读成"暖米"。统一用 recessed 冷墨洗，与全局环境同温；层级靠"墨洗加深 +
+   圆角嵌套"表达，不靠色温跳变。 */
+.bds-inset { background: var(--recessed-bg); }
+.bds-inset.strong { background: var(--recessed-bg-strong); }
 
 /* ============ 22. Form / Settings 行 — 表单与设置页高频 ============ */
 .bds-formrows { display: flex; flex-direction: column; }

@@ -309,7 +309,7 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
         ) : items.length === 0 ? (
           <EmptyHint text="暂无画册，点击「新建画册」开始" />
         ) : (
-          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset bds-inset">
             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-3">标题</span>
               <span className="col-span-1">条目</span>
@@ -566,7 +566,7 @@ function LookbookItemsEditor({
       {drafts.length === 0 ? (
         <EmptyHint text="暂无条目，从上方选择产品加入" />
       ) : (
-        <div className="rounded-inset mb-4" style={{ background: 'var(--bg-panel)' }}>
+        <div className="rounded-inset mb-4 bds-inset">
           <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
             <span className="col-span-4">产品</span>
             <span className="col-span-2">展示价格</span>
@@ -780,7 +780,7 @@ function FabricRecommendPanel() {
           {latest.results.length === 0 ? (
             <EmptyHint text="无候选命中，请放宽条件" />
           ) : (
-            <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+            <div className="rounded-inset bds-inset">
               {latest.results.map((r, idx) => (
                 <div
                   key={r.productAssetId}
@@ -833,7 +833,7 @@ function FabricRecommendPanel() {
         ) : history.length === 0 ? (
           <EmptyHint text="暂无推荐记录" />
         ) : (
-          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset bds-inset">
             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-6">推荐条件</span>
               <span className="col-span-1">命中</span>

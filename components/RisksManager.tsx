@@ -608,7 +608,7 @@ function FxPanel() {
         ) : (
           <div className="grid grid-cols-4 gap-3">
             {latest.map((item) => (
-              <div key={item.currency} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+              <div key={item.currency} className="rounded-inset p-3 bds-inset">
                 <div className="flex items-center gap-2">
                   <span className="text-base" style={{ color: 'var(--text-primary)' }}>{item.currency}</span>
                   <span className="text-[10px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{item.source}</span>
@@ -672,7 +672,7 @@ function FxPanel() {
             <div className="title">暂无汇率记录</div>
           </div>
         ) : (
-          <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset overflow-hidden bds-inset">
             <table className="bds-table">
               <thead>
                 <tr>
@@ -735,7 +735,7 @@ function FxPanel() {
             <div className="desc">大额订单建议在报价阶段锁定汇率</div>
           </div>
         ) : (
-          <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset overflow-hidden bds-inset">
             <table className="bds-table">
               <thead>
                 <tr>

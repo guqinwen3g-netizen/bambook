@@ -354,7 +354,7 @@ const CertificationCheckboxes: React.FC<{
     `w-4 h-4 rounded border transition-colors ${
       on
         ? 'bg-[var(--os-vnext-brand-blue-strong)] border-[var(--os-vnext-brand-blue-strong)]'
-        : 'bg-[var(--bg-card)] border-[var(--border-c-strong)] dark:bg-[var(--recessed-bg)]'
+        : 'bg-[var(--recessed-bg)] border-[var(--border-c-strong)]'
     }`;
 
   return (

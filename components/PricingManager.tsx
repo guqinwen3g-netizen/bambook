@@ -404,7 +404,7 @@ function CalculatorPanel() {
         ) : (
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {records.map((rec) => (
-              <div key={rec.id} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+              <div key={rec.id} className="rounded-inset p-3 bds-inset">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
@@ -547,7 +547,7 @@ function ProfitSheetsPanel() {
             />
           </Field>
           {filteredOrders.length > 0 && !selectedOrder && (
-            <div className="mb-3 rounded-inset max-h-48 overflow-y-auto" style={{ background: 'var(--bg-panel)' }}>
+            <div className="mb-3 rounded-inset max-h-48 overflow-y-auto bds-inset">
               {filteredOrders.map((o) => (
                 <button
                   key={o.id}
@@ -587,7 +587,7 @@ function ProfitSheetsPanel() {
           ) : (
             <div className="space-y-2 max-h-[40vh] overflow-y-auto">
               {sheets.map((s) => (
-                <div key={s.id} className="rounded-inset p-3 flex items-center justify-between gap-2" style={{ background: 'var(--bg-panel)' }}>
+                <div key={s.id} className="rounded-inset p-3 flex items-center justify-between gap-2 bds-inset">
                   <button onClick={() => handleView(s.orderId)} className="min-w-0 text-left">
                     <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>订单 {s.orderId}</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
@@ -629,27 +629,27 @@ function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
 
       {/* 汇总卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+        <div className="rounded-inset p-3 bds-inset">
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>销售收入</p>
           <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.salesRevenue, sheet.baseCurrency)}</p>
         </div>
-        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+        <div className="rounded-inset p-3 bds-inset">
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>采购成本</p>
           <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.purchaseCost, sheet.baseCurrency)}</p>
         </div>
-        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+        <div className="rounded-inset p-3 bds-inset">
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>运费</p>
           <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.freightCost, sheet.baseCurrency)}</p>
         </div>
-        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+        <div className="rounded-inset p-3 bds-inset">
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>杂费</p>
           <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.miscCost, sheet.baseCurrency)}</p>
         </div>
-        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)', border: '1px solid var(--accent-tint-strong)' }}>
+        <div className="rounded-inset p-3 bds-inset" style={{ border: '1px solid var(--accent-tint-strong)' }}>
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>毛利</p>
           <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>{formatMoney(sheet.grossProfit, sheet.baseCurrency)}</p>
         </div>
-        <div className="rounded-inset p-3" style={{ background: 'var(--bg-panel)', border: '1px solid var(--accent-tint-strong)' }}>
+        <div className="rounded-inset p-3 bds-inset" style={{ border: '1px solid var(--accent-tint-strong)' }}>
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>毛利率</p>
           <p className="bds-tnum text-base" style={{ color: 'var(--text-primary)' }}>
             {sheet.grossMargin !== null && sheet.grossMargin !== undefined ? `${sheet.grossMargin.toFixed(2)}%` : '—'}
@@ -669,7 +669,7 @@ function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
           {lines.length === 0 ? (
             <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>无明细</p>
           ) : (
-            <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+            <div className="rounded-inset bds-inset">
               {lines.map((line, idx) => (
                 <div
                   key={line.id}
@@ -692,7 +692,7 @@ function ProfitSheetDetail({ sheet }: { sheet: OrderProfitSheet }) {
       {d.unconverted.length > 0 && (
         <div>
           <p className="bds-overline mb-1.5" style={{ color: 'var(--text-secondary)' }}>未折算明细（缺汇率，未计入汇总）</p>
-          <div className="rounded-inset" style={{ background: 'var(--bg-panel)', border: '1px solid var(--accent-tint-strong)' }}>
+          <div className="rounded-inset bds-inset" style={{ border: '1px solid var(--accent-tint-strong)' }}>
             {d.unconverted.map((line, idx) => (
               <div
                 key={line.id}
@@ -827,7 +827,7 @@ function TaxRatesPanel({ registerNewAction }: { registerNewAction?: (fn: (() => 
         ) : items.length === 0 ? (
           <EmptyHint text="暂无退税率记录" />
         ) : (
-          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset bds-inset">
             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-2">HS Code</span>
               <span className="col-span-2">退税率</span>
@@ -1078,7 +1078,7 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
             ) : trend.length === 0 ? (
               <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>该类型下暂无价格数据</p>
             ) : (
-              <div className="flex items-end gap-1 h-24 rounded-inset p-2 overflow-x-auto" style={{ background: 'var(--bg-panel)' }}>
+              <div className="flex items-end gap-1 h-24 rounded-inset p-2 overflow-x-auto bds-inset">
                 {trend.map((p, idx) => {
                   const ratio = trendBounds && trendBounds.span > 0 ? (p.price - trendBounds.min) / trendBounds.span : 1;
                   const heightPct = 20 + ratio * 80;
@@ -1107,7 +1107,7 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
         ) : items.length === 0 ? (
           <EmptyHint text="暂无价格记录" />
         ) : (
-          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset bds-inset">
             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-1">类型</span>
               <span className="col-span-2">日期</span>
@@ -1372,7 +1372,7 @@ function CommissionRulesPanel({ registerNewAction }: { registerNewAction?: (fn: 
         ) : items.length === 0 ? (
           <EmptyHint text="暂无佣金规则" />
         ) : (
-          <div className="rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset bds-inset">
             <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs" style={{ color: 'var(--text-tertiary)', borderBottom: 'var(--border-subtle)' }}>
               <span className="col-span-3">规则名称</span>
               <span className="col-span-2">佣金率</span>

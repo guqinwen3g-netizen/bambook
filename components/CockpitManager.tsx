@@ -61,7 +61,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
   const textSecondary = 'text-[var(--text-tertiary)]';
   const textFaint = 'text-[var(--text-quaternary)]';
   const divider = 'border-[var(--border-c-subtle)]';
-  const rowBg = 'bg-[var(--bg-panel)]';
+  const rowBg = 'bg-[var(--recessed-bg)]';
 
   const load = useCallback(async () => {
     setLoading(true);

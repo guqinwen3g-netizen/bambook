@@ -61,12 +61,12 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     ? isInlineToolbarTrigger ? toolbarInlineOpenClass : toolbarSelectedClass
     : isFormSurface
       ? formOpenClass
-    : 'border-[var(--os-vnext-brand-blue)] bg-[var(--bg-card)] dark:border-[var(--os-vnext-brand-blue)]/50 dark:bg-[var(--recessed-bg)]';
+    : 'border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)]';
   const triggerIdleClass = isToolbarSurface
     ? isInlineToolbarTrigger ? toolbarInlineClass : toolbarHoverClass
     : isFormSurface
       ? formIdleClass
-    : 'border-[var(--border-c-default)] bg-[var(--bg-card)] hover:border-[var(--border-c-strong)] dark:bg-[var(--recessed-bg)]';
+    : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] hover:border-[var(--border-c-strong)]';
   const overlayMenu = BAMBOOK_OS.controls.overlayMenu;
   const menuClass = `${overlayMenu.surfaceBase} ${overlayMenu.surface}`;
   const menuSurfaceClass = overlayMenu.surfaceLayer;

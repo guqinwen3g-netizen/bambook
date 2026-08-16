@@ -536,7 +536,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                     </div>
                     <div className="space-y-2">
                       {formLines.map((line) => (
-                        <div key={line.key} className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                        <div key={line.key} className="p-3 rounded-inset bds-inset">
                           <div className="flex items-center justify-between mb-2">
                             <span className="bds-mono text-xs" style={{ color: 'var(--text-quaternary)' }}>行 {formLines.indexOf(line) + 1}</span>
                             {formLines.length > 1 && (
@@ -703,7 +703,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
 
                                   {/* 行明细表 */}
                                   {po.lines && po.lines.length > 0 && (
-                                    <div className="rounded-inset overflow-hidden" style={{ background: 'var(--bg-panel)' }}>
+                                    <div className="rounded-inset overflow-hidden bds-inset">
                                       <table className="bds-table">
                                         <thead>
                                           <tr>
@@ -745,7 +745,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                       <h4 className="bds-overline mb-2" style={{ color: 'var(--text-tertiary)' }}>来料检验记录</h4>
                                       <div className="space-y-1.5">
                                         {receipts.map(rc => (
-                                          <div key={rc.id} className="p-2.5 rounded-inset flex items-center gap-3 text-xs" style={{ background: 'var(--bg-panel)' }}>
+                                          <div key={rc.id} className="p-2.5 rounded-inset flex items-center gap-3 text-xs bds-inset">
                                             <Package size={14} style={{ color: 'var(--text-quaternary)' }} />
                                             <span className="bds-mono" style={{ color: 'var(--text-primary)' }}>{rc.receiptNumber}</span>
                                             <span className={`bds-badge sm ${RECEIPT_STATUS_BADGE_VARIANT[rc.status] || 'neutral'}`}>
@@ -773,7 +773,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         exit={{ height: 0, opacity: 0 }}
                                         className="overflow-hidden"
                                       >
-                                        <div className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                        <div className="p-3 rounded-inset bds-inset">
                                           <h4 className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>登记来料检验</h4>
                                           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
                                             <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className="bds-input sm" />

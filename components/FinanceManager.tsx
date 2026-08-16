@@ -1105,7 +1105,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const formInputClass = 'bds-input sm';
   const formSelectClass = 'bds-select';
   const formSelectSmStyle = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' } as const;
-  const formStaticClass = 'rounded-field bg-[var(--bg-panel)] px-4 py-2.5 text-xs font-light text-[var(--text-tertiary)]';
+  const formStaticClass = 'rounded-field bg-[var(--recessed-bg)] px-4 py-2.5 text-xs font-light text-[var(--text-tertiary)]';
 
   // ── KPI row (always derived from ALL invoices + ALL vouchers) ───
   const kpiCards: KpiCard[] = useMemo(() => {
@@ -1469,14 +1469,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
             ))}
           </div>
-          <div className="mt-3 rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+          <div className="mt-3 rounded-inset p-3 bds-inset">
             <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>状态说明</div>
             <div className={cx('mt-1 text-[11px] font-light leading-relaxed', textPrimaryClass)}>
               {VAT_STATUS_LABELS[vat.status] || vat.status}：{VAT_STATUS_GUIDE[vat.status] || '请检查发票状态。'}
             </div>
           </div>
           <div className="bds-divider" style={{ margin: 'var(--space-4) 0' }} />
-          <div className="rounded-inset p-4" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset p-4 bds-inset">
             <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>价税合计</div>
             <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimaryClass)}>{formatAmount(Number(vat.totalAmount), vat.currency)}</div>
             <div className={cx('mt-1 text-[11px] font-light tabular-nums', textSecondaryClass)}>
@@ -1740,7 +1740,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
           {/* P0 payment manual path: voucher 核销状态说明 + 下一步（消费后端稳定枚举） */}
           {!isInvoice && voucher && (
-            <div className="mt-3 rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+            <div className="mt-3 rounded-inset p-3 bds-inset">
               <div className={cx('text-[10px] font-light tracking-wide', textSecondaryClass)}>状态说明</div>
               <div className={cx('mt-1 text-[11px] font-light leading-relaxed', textPrimaryClass)}>
                 {VOUCHER_STATUS_GUIDE[voucher.status as VoucherStatus]?.label ?? '未知状态'}：{VOUCHER_STATUS_GUIDE[voucher.status as VoucherStatus]?.nextStep ?? '请检查凭证核销状态。'}
@@ -1748,13 +1748,13 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             </div>
           )}
           <div className="bds-divider" style={{ margin: 'var(--space-4) 0' }} />
-          <div className="rounded-inset p-4" style={{ background: 'var(--bg-panel)' }}>
+          <div className="rounded-inset p-4 bds-inset">
             <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>{summary.label}</div>
             <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimaryClass)}>{summary.value}</div>
           </div>
           {/* P1 payment reconcile manual UI: 核销明细 + 手动核销入口 */}
           <div className="mt-4">
-            <div className="rounded-inset p-4" style={{ background: 'var(--bg-panel)' }}>
+            <div className="rounded-inset p-4 bds-inset">
               <div className="flex items-center justify-between">
                 <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>核销明细（{allocations.length}）</div>
                 <button
@@ -1939,7 +1939,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
           {/* Table + side panel */}
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_340px]" data-finance-layout="rdl-flush-table-canvas">
-            <div className="flex h-full min-h-0 flex-col rounded-panel p-3" style={{ background: 'var(--bg-card)' }}>
+            <div className="bds-surface flex h-full min-h-0 flex-col rounded-panel p-3">
                 <div className={cx(TABLE_GRID_CLASS, 'px-4 pb-2 pt-1 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>
                   {columnHeaders.map(column => (
                     <div key={column.key} className="min-w-0">{column.label}</div>
@@ -1956,7 +1956,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
             </div>
 
-            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-panel" style={{ background: 'var(--bg-card)' }}>
+            <div className="bds-surface flex h-full min-h-0 flex-col overflow-hidden rounded-panel">
               {renderSidePanel()}
             </div>
           </div>
@@ -2202,7 +2202,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 { label: '已结汇', value: settlementSummary ? formatAmount(Number(settlementSummary.settledAmount), settlementSummary.currency) : '—' },
                 { label: '未结汇余额', value: settlementSummary ? formatAmount(Number(settlementSummary.remainingAmount), settlementSummary.currency) : '—', accent: true },
               ]).map(card => (
-                <div key={card.label} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                <div key={card.label} className="rounded-inset p-3 bds-inset">
                   <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>{card.label}</div>
                   {/* 中性材质对比表达强调（Finance 页面禁用语义色族）：未结清用主色，结清降为次级 */}
                   <div className={cx('mt-1 text-sm font-light tabular-nums', card.accent && settlementSummary?.fullySettled ? textSecondaryClass : textPrimaryClass)}>
@@ -2223,7 +2223,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 )}
                 <div className="space-y-1">
                   {settlementSummary?.settlements.map(s => (
-                    <div key={s.id} className="flex items-center gap-2 rounded-control px-3 py-2" style={{ background: 'var(--bg-panel)' }}>
+                    <div key={s.id} className="flex items-center gap-2 rounded-control px-3 py-2 bds-inset">
                       <div className="min-w-0 flex-1">
                         <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
                           {s.settleDate}
@@ -2534,7 +2534,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 { label: '已付汇', value: remittanceSummary ? formatAmount(Number(remittanceSummary.remittedAmount), remittanceSummary.currency) : '—' },
                 { label: '未付汇余额', value: remittanceSummary ? formatAmount(Number(remittanceSummary.remainingAmount), remittanceSummary.currency) : '—', accent: true },
               ]).map(card => (
-                <div key={card.label} className="rounded-inset p-3" style={{ background: 'var(--bg-panel)' }}>
+                <div key={card.label} className="rounded-inset p-3 bds-inset">
                   <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>{card.label}</div>
                   {/* 中性材质对比表达强调（Finance 页面禁用语义色族）：未付清用主色，付清降为次级 */}
                   <div className={cx('mt-1 text-sm font-light tabular-nums', card.accent && remittanceSummary?.fullyRemitted ? textSecondaryClass : textPrimaryClass)}>
@@ -2555,7 +2555,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 )}
                 <div className="space-y-1">
                   {remittanceSummary?.remittances.map(r => (
-                    <div key={r.id} className="flex items-center gap-2 rounded-control px-3 py-2" style={{ background: 'var(--bg-panel)' }}>
+                    <div key={r.id} className="flex items-center gap-2 rounded-control px-3 py-2 bds-inset">
                       <div className="min-w-0 flex-1">
                         <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
                           {r.remitDate}

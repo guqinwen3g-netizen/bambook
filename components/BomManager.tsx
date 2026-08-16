@@ -351,25 +351,25 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                           <div className="px-4 pb-4 pt-1" style={{ borderTop: 'var(--border-subtle)' }}>
                             {/* 成本汇总卡片 */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 mt-2">
-                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                              <div className="p-2 rounded-inset bds-inset">
                                 <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>物料成本</div>
                                 <div className="bds-tnum text-sm" style={{ color: 'var(--text-secondary)' }}>
                                   {formatCurrency(detail.totalMaterialCost, detail.currency)}
                                 </div>
                               </div>
-                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                              <div className="p-2 rounded-inset bds-inset">
                                 <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>人工成本</div>
                                 <div className="bds-tnum text-sm" style={{ color: 'var(--text-secondary)' }}>
                                   {formatCurrency(detail.totalLaborCost, detail.currency)}
                                 </div>
                               </div>
-                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                              <div className="p-2 rounded-inset bds-inset">
                                 <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>制造费用</div>
                                 <div className="bds-tnum text-sm" style={{ color: 'var(--text-secondary)' }}>
                                   {formatCurrency(detail.totalOverheadCost, detail.currency)}
                                 </div>
                               </div>
-                              <div className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                              <div className="p-2 rounded-inset bds-inset">
                                 <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>总成本</div>
                                 <div className="bds-tnum text-sm" style={{ color: 'var(--text-primary)' }}>
                                   {formatCurrency(detail.totalCost, detail.currency)}
@@ -405,7 +405,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                             {lines.length > 0 && (
                               <div className="mb-3">
                                 <div className="bds-overline mb-1.5" style={{ color: 'var(--text-tertiary)' }}>物料明细</div>
-                                <div className="rounded-inset overflow-hidden overflow-x-auto" style={{ background: 'var(--bg-panel)' }}>
+                                <div className="rounded-inset overflow-hidden overflow-x-auto bds-inset">
                                   <table className="bds-table">
                                     <thead>
                                       <tr>
@@ -450,7 +450,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                 <div className="bds-overline mb-1.5" style={{ color: 'var(--text-tertiary)' }}>成本估算项</div>
                                 <div className="space-y-1">
                                   {costEstimates.map((ce) => (
-                                    <div key={ce.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                    <div key={ce.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-inset bds-inset">
                                       <div className="flex items-center gap-2">
                                         <span className={`bds-badge sm ${COST_TYPES.find(c => c.id === ce.costType)?.semantic ?? 'neutral'}`}>
                                           {COST_TYPES.find(c => c.id === ce.costType)?.label || ce.costType}
@@ -708,7 +708,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
           </div>
           <div className="space-y-2">
             {lines.map((line, index) => (
-              <div key={index} className="p-2 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+              <div key={index} className="p-2 rounded-inset bds-inset">
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-2">
                     <label className={labelCls}>类型</label>
@@ -791,7 +791,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
         </div>
 
         {/* 实时成本汇总 */}
-        <div className="p-3 rounded-card mb-4" style={{ background: 'var(--bg-panel)' }}>
+        <div className="p-3 rounded-card mb-4 bds-inset">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
             <div>
               <div className={labelCls}>物料合计</div>

@@ -412,7 +412,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                                       {movements.slice(0, 8).map(mv => {
                                         const mt = MOVEMENT_TYPES.find(m => m.id === mv.type);
                                         return (
-                                          <div key={mv.id} className="p-2 rounded-inset flex items-center gap-3 text-xs" style={{ background: 'var(--bg-panel)' }}>
+                                          <div key={mv.id} className="p-2 rounded-inset flex items-center gap-3 text-xs bds-inset">
                                             <span className={`bds-badge sm ${mt?.semantic || 'neutral'}`}>
                                               {mt?.icon} {mt?.label || mv.type}
                                             </span>
@@ -433,7 +433,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                                 <AnimatePresence>
                                   {movementTargetId === item.id && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                      <div className="p-3 rounded-inset" style={{ background: 'var(--bg-panel)' }}>
+                                      <div className="p-3 rounded-inset bds-inset">
                                         <h4 className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>库存变动</h4>
                                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
                                           <select value={movementForm.type} onChange={(e) => setMovementForm({ ...movementForm, type: e.target.value as StockMovementType })} className="bds-select" style={selectSmStyle}>
