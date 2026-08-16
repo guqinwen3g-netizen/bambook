@@ -1479,7 +1479,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             </div>
 
             {/* Form */}
-            <form id="relation-fullscreen-form" onSubmit={handleSave} data-relation-save-error={relationSaveError} data-relation-busy={relationBusy} className="w-full flex-1 min-h-0 px-5 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">
+            <form id="relation-fullscreen-form" onSubmit={handleSave} data-relation-save-error={relationSaveError} data-relation-busy={relationBusy} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">
               {relationSaveError && (
                 <div className="col-span-2 text-xs text-[var(--text-tertiary)] bg-[var(--recessed-bg)] rounded-control px-3 py-2">{relationSaveError}</div>
               )}

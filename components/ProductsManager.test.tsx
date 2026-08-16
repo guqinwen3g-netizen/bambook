@@ -89,7 +89,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain("className={isMobile ? 'h-full overflow-visible px-3 pb-24 pt-5' : BAMBOOK_OS.layout.desktopTablePanelShellCompactClass}");
     expect(productsSource).toContain('className={BAMBOOK_OS.layout.desktopTablePanelShellClass}');
     expect(productsSource).toContain('form="product-fullscreen-form"');
-    expect(productsSource).toContain('<form id="product-fullscreen-form" onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="w-full flex-1 min-h-0 px-5 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">');
+    expect(productsSource).toContain('<form id="product-fullscreen-form" onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">');
     expect(productsSource).not.toContain('className="max-w-[1130px] mx-auto w-full h-full min-h-0 px-8 pt-8 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-8 items-stretch"'); // legacy guard
     expect(productsSource).not.toContain('const productFormFadeBoundaryRef = useRef<HTMLDivElement | null>(null);');
     expect(productsSource).toContain('const productFormScrollRef = useRef<HTMLDivElement | null>(null);');

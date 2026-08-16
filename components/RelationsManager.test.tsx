@@ -808,9 +808,9 @@ describe('RelationsManager title system', () => {
   it('keeps the option toolbar aligned to the title strip in expanded and collapsed sidebar modes', () => {
     const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
 
-    expect(RELATIONS_PAGE_X_NORMAL_CLASS).toContain('px-5');
+    expect(RELATIONS_PAGE_X_NORMAL_CLASS).toContain('px-7');
     expect(RELATIONS_TOOLBAR_X_NORMAL_CLASS).toBe('mx-auto');
-    expect(RELATIONS_PAGE_X_COLLAPSED_CLASS).toBe('px-5');
+    expect(RELATIONS_PAGE_X_COLLAPSED_CLASS).toBe('px-7');
     expect(RELATIONS_TITLE_SAFE_LEFT_STYLE).toEqual({ paddingLeft: 'max(2rem, calc(152px - (100vw - 100%)))' });
     expect(BAMBOOK_OS.layout.desktopTitleSafeLeftStyle).toEqual({});
     expect(RELATIONS_TOOLBAR_X_COLLAPSED_CLASS).toBe('mx-auto');
@@ -1448,7 +1448,7 @@ describe('RelationsManager title system', () => {
     expect(formOverlaySource).toContain('${relationsFormBottomEdgeClass} z-[70]');
     expect(formOverlaySource).not.toContain('desktopMainPanelBottomEdgeClass');
     expect(formOverlaySource).not.toContain('bottom-4');
-    expect(source).toContain('id="relation-fullscreen-form" onSubmit={handleSave} data-relation-save-error={relationSaveError} data-relation-busy={relationBusy} className="w-full flex-1 min-h-0 px-5 pt-3');
+    expect(source).toContain('id="relation-fullscreen-form" onSubmit={handleSave} data-relation-save-error={relationSaveError} data-relation-busy={relationBusy} className="w-full flex-1 min-h-0 px-7 pt-3');
     expect(formOverlaySource).toContain('style={{ ...RELATIONS_CLEAR_REGION_STYLE, ...RELATIONS_TITLE_SAFE_LEFT_STYLE }}');
     expect(RELATIONS_FORM_TITLE_CRUMB_CLASS).toContain('h-9');
     expect(RELATIONS_FORM_TITLE_HEADING_CLASS).toBe(RELATIONS_TITLE_PAGE_LABEL_CLASS);

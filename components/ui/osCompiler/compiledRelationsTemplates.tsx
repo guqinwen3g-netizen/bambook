@@ -1560,7 +1560,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
             )}
 
             {/* Form */}
-            <form id="relation-fullscreen-form" onSubmit={handleSave} className="w-full flex-1 min-h-0 px-5 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">
+            <form id="relation-fullscreen-form" onSubmit={handleSave} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">
               <input type="hidden" name="isOrganization" value={relationFormIsOrganization ? 'on' : 'off'} />
               <input type="hidden" name="category" value={selectedCategory || 'Other'} />
 

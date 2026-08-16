@@ -1332,7 +1332,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             {/* Scrollable Content Container */}
             <div className="absolute inset-0 z-10 overflow-hidden">
               <div ref={orderDetailScrollRef} className="h-full overflow-y-auto">
-                <div className="grid w-full grid-cols-[240px_minmax(0,1fr)] gap-5 px-5 pt-24 pb-5">
+                <div className="grid w-full grid-cols-[240px_minmax(0,1fr)] gap-5 px-7 pt-24 pb-5">
                   {/* Detail Map：sticky 锚定（滚动时固定于标题层之下），超高时内部滚动 */}
                   <aside className="sticky top-24 z-10 max-h-[calc(100vh-8rem)] self-start overflow-y-auto">
                     <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={OVERLAY_MAP_PANEL_CLASS}>
@@ -1882,7 +1882,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
 
               {/* Scrollable Content */}
               <div className="absolute inset-0 z-10 overflow-hidden">
-                <div className="h-full px-5 pt-24">
+                <div className="h-full px-7 pt-24">
                   <div className="grid h-full w-full grid-cols-[240px_minmax(0,1fr)] gap-5">
                     <aside className="self-start">
                       <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={OVERLAY_MAP_PANEL_CLASS}>
