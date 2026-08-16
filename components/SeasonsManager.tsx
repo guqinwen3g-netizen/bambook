@@ -826,7 +826,7 @@ function TrendsPanel() {
                           ) : (
                             <div className="space-y-1.5">
                               {links.map((link) => (
-                                <div key={link.id} className="flex items-center gap-2 rounded-bds-md px-2.5 py-1.5" style={{ background: 'var(--bg-card)' }}>
+                                <div key={link.id} className="flex items-center gap-2 rounded-bds-md px-2.5 py-1.5 bds-inset">
                                   <div className="min-w-0 flex-1">
                                     <div className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>
                                       {link.fabric?.productAsset?.name || link.fabric?.articleNo || link.fabricId}
@@ -938,7 +938,7 @@ function FabricLinker({
         />
       </div>
       {results.length > 0 && (
-        <div className="mt-1.5 rounded-bds-md max-h-40 overflow-y-auto" style={{ border: 'var(--border-subtle)', background: 'var(--bg-card)' }}>
+        <div className="mt-1.5 rounded-bds-md max-h-40 overflow-y-auto bds-inset">
           {results.map((asset, idx) => {
             const fabricId = asset.fabricProfile?.id;
             const alreadyLinked = fabricId != null && linkedFabricIds.includes(fabricId);
