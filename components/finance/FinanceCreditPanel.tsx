@@ -8,7 +8,8 @@
  *   thaw    — 主管手动解冻（scope credit:thaw:write，理由必填，记录 thawedReason）
  *
  * 权限显隐：冻结/解冻按钮按 scope 门控（服务端 fail-closed 兜底）。
- * 联动预留：customerId / onCustomerChange props 供 RelationsManager 等外部容器受控接入。
+ * 联动预留：customerId / onCustomerChange props 供 RelationsManager 等外部容器受控接入；
+ * embedded 模式供客户详情（DetailPanel）等已提供客户上下文的容器直接嵌入。
  *
  * 设计：flat 无阴影、bds 语义类、字重 ≤300、无 emoji。
  */
@@ -53,9 +54,11 @@ interface FinanceCreditPanelProps {
   customerId?: string;
   /** 客户切换事件（受控模式下由外部接管状态） */
   onCustomerChange?: (customerId: string) => void;
+  /** 嵌入模式：外部容器（如客户详情）已提供客户上下文，隐藏选择工具栏与整面表面包裹 */
+  embedded?: boolean;
 }
 
-export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relations, customerId: controlledId, onCustomerChange }: FinanceCreditPanelProps) {
+export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relations, customerId: controlledId, onCustomerChange, embedded = false }: FinanceCreditPanelProps) {
   const canFreeze = hasPermission('credit:freeze:write');
   const canThaw = hasPermission('credit:thaw:write');
 
@@ -189,7 +192,7 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
       : 0;
 
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+      <div className={embedded ? undefined : 'min-h-0 flex-1 overflow-y-auto px-5 pb-5'}>
         {/* 额度概览 */}
         <div className="grid grid-cols-3 gap-2.5">
           <div className="rounded-inset p-3 bds-inset">
@@ -312,6 +315,52 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
     );
   };
 
+  // 冻结 / 解冻理由 modal（两种模式共用）
+  const actionModal = action && (
+    <div className="bds-modal-mask" onClick={() => !actionSaving && setAction(null)}>
+      <div className="bds-modal" style={{ width: '24rem' }} onClick={e => e.stopPropagation()}>
+        <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimary)}>
+          {action === 'freeze' ? '冻结客户信用额度' : '手动解冻客户信用额度'}
+        </h2>
+        <div className="space-y-3">
+          <div className={cx('text-[11px] font-light leading-relaxed', textSecondary)}>
+            {action === 'freeze'
+              ? '冻结后该客户新订单与订单变更将被信用门禁阻断。冻结理由必填并写入审计。'
+              : '解冻后信用门禁解除。解冻理由必填并记录到 thawedReason（审计强制）。'}
+          </div>
+          <div>
+            <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>
+              {action === 'freeze' ? '冻结理由 *' : '解冻理由 *'}
+            </label>
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              rows={3}
+              className="bds-input sm w-full"
+            />
+          </div>
+          {actionError && <div className="bds-alert danger">{actionError}</div>}
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" disabled={actionSaving} onClick={() => setAction(null)} className="bds-btn bds-btn-secondary">取消</button>
+          <button type="button" disabled={actionSaving} onClick={handleAction} className="bds-btn bds-btn-primary">
+            {actionSaving ? '提交中...' : action === 'freeze' ? '确认冻结' : '确认解冻'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // 嵌入模式：外部容器（客户详情等）已提供客户上下文与表面，仅渲染状态主体 + modal
+  if (embedded) {
+    return (
+      <div className="flex flex-col gap-2.5">
+        {renderStatusBody()}
+        {actionModal}
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
       {/* 工具栏：客户选择 */}
@@ -337,41 +386,7 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
         {renderStatusBody()}
       </div>
 
-      {/* 冻结 / 解冻理由 modal */}
-      {action && (
-        <div className="bds-modal-mask" onClick={() => !actionSaving && setAction(null)}>
-          <div className="bds-modal" style={{ width: '24rem' }} onClick={e => e.stopPropagation()}>
-            <h2 className={cx('mb-4 text-[13px] font-light tracking-[0.02em]', textPrimary)}>
-              {action === 'freeze' ? '冻结客户信用额度' : '手动解冻客户信用额度'}
-            </h2>
-            <div className="space-y-3">
-              <div className={cx('text-[11px] font-light leading-relaxed', textSecondary)}>
-                {action === 'freeze'
-                  ? '冻结后该客户新订单与订单变更将被信用门禁阻断。冻结理由必填并写入审计。'
-                  : '解冻后信用门禁解除。解冻理由必填并记录到 thawedReason（审计强制）。'}
-              </div>
-              <div>
-                <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>
-                  {action === 'freeze' ? '冻结理由 *' : '解冻理由 *'}
-                </label>
-                <textarea
-                  value={reason}
-                  onChange={e => setReason(e.target.value)}
-                  rows={3}
-                  className="bds-input sm w-full"
-                />
-              </div>
-              {actionError && <div className="bds-alert danger">{actionError}</div>}
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" disabled={actionSaving} onClick={() => setAction(null)} className="bds-btn bds-btn-secondary">取消</button>
-              <button type="button" disabled={actionSaving} onClick={handleAction} className="bds-btn bds-btn-primary">
-                {actionSaving ? '提交中...' : action === 'freeze' ? '确认冻结' : '确认解冻'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {actionModal}
     </div>
   );
 }

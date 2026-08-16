@@ -139,6 +139,9 @@ export interface GateCheckResult {
 export const EXCEPTION_ENTRY_HINT =
   '可按 DR-013 发起受控例外申请：POST /api/v1/exceptions（scope exception:dr013:create）';
 
+/** 服务端门禁阻断错误码（GateBlockedError.code，fail-closed 409；UI 据此展示例外申请入口） */
+export const GATE_BLOCKED_CODE = 'GATE_BLOCKED';
+
 // ── 门禁阻断 → 例外申请入口事件（通用机制，非特例） ──
 export const EXCEPTION_ENTRY_EVENT = 'bambook:dr013-exception-entry';
 

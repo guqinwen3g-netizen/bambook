@@ -14,12 +14,14 @@ import {
     CreditCard, DollarSign, Calendar, Clock, MessageCircle,
     Edit2, Trash2, Star, Tag, Briefcase, Factory,
     Warehouse, Navigation, Languages, Cake, FileText,
-    Hash, Banknote, Plus, Loader2, MessagesSquare, Layers
+    Hash, Banknote, Plus, Loader2, MessagesSquare, Layers,
+    ShieldCheck
 } from 'lucide-react';
 import { BAMBOOK_OS } from './bambookOsTokens';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
 import AuditHistorySection from '../AuditHistorySection';
+import { FinanceCreditPanel } from '../finance/FinanceCreditPanel';
 import {
     CrmContactsSection, CrmFollowUpsSection, CrmOpportunitiesSection,
     CrmCreditLimitSection, CrmCustomerTierSection,
@@ -619,6 +621,18 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         <CrmOpportunitiesSection relationId={data.id} isDarkMode={isDarkMode} />
                         <CrmCreditLimitSection relationId={data.id} isDarkMode={isDarkMode} />
                         <CrmCustomerTierSection relationId={data.id} isDarkMode={isDarkMode} />
+
+                        {/* 信用控制联动（Track F）：客户档案详情内嵌信用面板 —— 额度/占用/冻结门禁/CreditLimitHistory 时间线 */}
+                        {(data.category === 'Customer' || data.type === 'Customer') && (
+                            <InfoSection title="信用控制 Credit Control" icon={<ShieldCheck size={14} />} isDarkMode={isDarkMode}>
+                                <FinanceCreditPanel
+                                    embedded
+                                    isDarkMode={isDarkMode}
+                                    relations={[data]}
+                                    customerId={data.id}
+                                />
+                            </InfoSection>
+                        )}
 
                         {/* 阶段 P3b：品牌线（PRD 6.2，组织专属） */}
                         {brandLinesSection}

@@ -1,8 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Plus, ShieldCheck, Undo2,
+  AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Plus, ShieldCheck, ShieldPlus, Undo2,
 } from 'lucide-react';
 import type { Order } from '../../types';
+import {
+  GATE_BLOCKED_CODE,
+  openExceptionEntry,
+  type ExceptionEntryDetail,
+} from '../../services/exceptionService';
 import {
   ORDER_CHANGE_REASON_MIN,
   ORDER_CHANGE_IMPACT_MIN,
@@ -38,7 +43,9 @@ import { createOrderUiSpec } from './orderUiSpec';
  *   3. 展开查看审批进度（GET /:id 惰性加载 approvalRequest）；
  *   4. Pending 可撤回、Approved 可生效（服务端 fail-closed 守卫，错误内联展示）；
  *   5. 数量变更支持 MOQ dry-run 预检（/api/v1/moq/validate，不写库不建审批单）；
- *   6. 编辑门禁引导：已批准订单直改受控字段被拦截后，经 gatePrefill 自动打开并预填表单。
+ *   6. 编辑门禁引导：已批准订单直改受控字段被拦截后，经 gatePrefill 自动打开并预填表单；
+ *   7. 门禁阻断入口：受控字段拦截 / MOQ 预检不合规 / 服务端 GATE_BLOCKED 错误处提供
+ *      「申请受控例外」入口（openExceptionEntry → 审批中心例外 Tab 预填，DR-013 通用机制）。
  *
  * 同文件导出：
  *   OrderMoqSnapshotBlock  — moqSnapshot 只读条（创建时快照，不随配置变更追溯）
@@ -204,8 +211,10 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
   const [form, setForm] = useState<ChangeFormValues>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitErrorCode, setSubmitErrorCode] = useState<string | null>(null);
   const [successNote, setSuccessNote] = useState<string | null>(null);
   const [gateNote, setGateNote] = useState<string[]>([]);
+  const [gateEdits, setGateEdits] = useState<ControlledFieldEdit[]>([]);
 
   const [moqChecking, setMoqChecking] = useState(false);
   const [moqResult, setMoqResult] = useState<MoqValidateResult | null>(null);
@@ -218,6 +227,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
 
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionErrorCode, setActionErrorCode] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -255,8 +265,10 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
     if (first.changeType === 'product') next.afterProduct = String(first.after ?? '');
     const typeSet = Array.from(new Set(gatePrefill.edits.map((e) => e.changeType)));
     setGateNote(typeSet.map((t) => ORDER_CHANGE_TYPE_LABELS[t]));
+    setGateEdits(gatePrefill.edits);
     setForm(next);
     setSubmitError(null);
+    setSubmitErrorCode(null);
     setMoqResult(null);
     setMoqError(null);
     setComposerOpen(true);
@@ -266,10 +278,17 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
   const canRequest = isApprovedOrderStatus(order.status);
   const guarded = isGuardedOrderStatus(order.status);
 
+  // DR-013 门禁阻断 → 例外申请入口（targetType/targetId 精确锁定当前订单，审批中心例外 Tab 预填）
+  const openOrderException = (detail: Omit<ExceptionEntryDetail, 'targetType' | 'targetId'>) => {
+    openExceptionEntry({ targetType: 'Order', targetId: order.id, ...detail });
+  };
+
   const openComposer = () => {
     setForm(EMPTY_FORM);
     setGateNote([]);
+    setGateEdits([]);
     setSubmitError(null);
+    setSubmitErrorCode(null);
     setMoqResult(null);
     setMoqError(null);
     setComposerOpen(true);
@@ -277,6 +296,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
 
   const handleSubmit = async () => {
     setSubmitError(null);
+    setSubmitErrorCode(null);
     const built = buildChangeRequestDraft(order, form);
     if (!built.ok) {
       setSubmitError(built.error);
@@ -290,6 +310,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
       await reload();
     } catch (e: any) {
       setSubmitError(e?.message ?? String(e));
+      setSubmitErrorCode(typeof e?.code === 'string' ? e.code : null);
     } finally {
       setSubmitting(false);
     }
@@ -342,12 +363,14 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
 
   const handleWithdraw = async (cr: OrderChangeRequest) => {
     setActionError(null);
+    setActionErrorCode(null);
     setActionBusyId(cr.id);
     try {
       await orderChangeService.withdrawChangeRequest(cr.id);
       await reload();
     } catch (e: any) {
       setActionError(e?.message ?? String(e));
+      setActionErrorCode(typeof e?.code === 'string' ? e.code : null);
     } finally {
       setActionBusyId(null);
     }
@@ -355,12 +378,14 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
 
   const handleApply = async (cr: OrderChangeRequest) => {
     setActionError(null);
+    setActionErrorCode(null);
     setActionBusyId(cr.id);
     try {
       await orderChangeService.applyChangeRequest(cr.id);
       await reload();
     } catch (e: any) {
       setActionError(e?.message ?? String(e));
+      setActionErrorCode(typeof e?.code === 'string' ? e.code : null);
     } finally {
       setActionBusyId(null);
     }
@@ -417,7 +442,18 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
       {actionError && (
         <div className={`mb-3 ${spec.bannerDanger}`}>
           <AlertCircle size={14} />
-          <span>{actionError}</span>
+          <span className="min-w-0 flex-1">{actionError}</span>
+          {actionErrorCode === GATE_BLOCKED_CODE && (
+            <button
+              type="button"
+              onClick={() => openOrderException({ action: 'order:change', exceptionCategory: 'order_change', gate: 'order_change', blockingReasons: [GATE_BLOCKED_CODE] })}
+              className="bds-btn bds-btn-outline sm ml-auto shrink-0"
+              title="门禁阻断（GATE_BLOCKED）：按 DR-013 发起受控例外申请，审批中心自动预填本订单上下文"
+            >
+              <ShieldPlus size={13} strokeWidth={1.5} />
+              申请受控例外
+            </button>
+          )}
         </div>
       )}
 
@@ -429,10 +465,24 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
           {gateNote.length > 0 && (
             <div className={`mt-2 flex items-start gap-2 rounded-field border px-3 py-2 text-xs font-light ${statusSemanticClass('warning', dark)}`}>
               <AlertCircle size={14} className="mt-px shrink-0" />
-              <span>
+              <span className="min-w-0 flex-1">
                 检测到受控字段直改（{gateNote.join('、')}）——已批准订单的受控字段变更需经审批，已为你预填「{ORDER_CHANGE_TYPE_LABELS[form.changeType]}」申请；
                 {gateNote.length > 1 ? '其余类型请提交本单后分别再发起。' : '请补充变更理由与影响说明后提交。'}
               </span>
+              <button
+                type="button"
+                onClick={() => openOrderException({
+                  action: 'order:change',
+                  exceptionCategory: 'order_change',
+                  gate: 'order_change',
+                  blockingReasons: gateEdits.map((e) => `CONTROLLED_FIELD_DIRECT_EDIT:${e.field}`),
+                })}
+                className="bds-btn bds-btn-outline sm shrink-0 self-center"
+                title="正常路径为变更申请审批链；确需绕过变更控制时，按 DR-013 发起受控例外申请（审批中心自动预填本订单上下文）"
+              >
+                <ShieldPlus size={13} strokeWidth={1.5} />
+                申请受控例外
+              </button>
             </div>
           )}
 
@@ -595,12 +645,28 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
               {moqVerdict && (
                 <div className={`mt-2 flex items-start gap-2 rounded-field border px-3 py-2 text-xs font-light ${statusSemanticClass(moqVerdict.compliant ? 'success' : 'warning', dark)}`}>
                   {moqVerdict.compliant ? <CheckCircle2 size={14} className="mt-px shrink-0" /> : <AlertCircle size={14} className="mt-px shrink-0" />}
-                  <span>
+                  <span className="min-w-0 flex-1">
                     {moqVerdict.compliant
                       ? `MOQ 预检通过：有效起订量 ${moqVerdict.effectiveMoq.toLocaleString('zh-CN')}，变更后数量 ${moqVerdict.quantity.toLocaleString('zh-CN')} 合规。`
                       : `MOQ 预检不合规：有效起订量 ${moqVerdict.effectiveMoq.toLocaleString('zh-CN')}，缺口 ${moqVerdict.gapPct}%（${moqVerdict.severity}）；变更生效时将触发 MOQ 豁免审批链。`}
                     {moqResult?.capsuleActive ? ' Capsule 档豁免生效中。' : ''}
                   </span>
+                  {!moqVerdict.compliant && (
+                    <button
+                      type="button"
+                      onClick={() => openOrderException({
+                        action: 'order:moq-exemption',
+                        exceptionCategory: 'moq_exemption',
+                        gate: 'moq_exemption',
+                        blockingReasons: ['MOQ_BELOW_EFFECTIVE_MIN'],
+                      })}
+                      className="bds-btn bds-btn-outline sm shrink-0 self-center"
+                      title="MOQ fail-closed 阻断：正常路径为 MOQ 豁免审批链；确需例外放行时，按 DR-013 发起受控例外申请（审批中心自动预填本订单上下文）"
+                    >
+                      <ShieldPlus size={13} strokeWidth={1.5} />
+                      申请 MOQ 豁免例外
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -609,7 +675,18 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
           {submitError && (
             <div className={`mt-3 ${spec.bannerDanger}`}>
               <AlertCircle size={14} />
-              <span>{submitError}</span>
+              <span className="min-w-0 flex-1">{submitError}</span>
+              {submitErrorCode === GATE_BLOCKED_CODE && (
+                <button
+                  type="button"
+                  onClick={() => openOrderException({ action: 'order:change', exceptionCategory: 'order_change', gate: 'order_change', blockingReasons: [GATE_BLOCKED_CODE] })}
+                  className="bds-btn bds-btn-outline sm ml-auto shrink-0"
+                  title="门禁阻断（GATE_BLOCKED）：按 DR-013 发起受控例外申请，审批中心自动预填本订单上下文"
+                >
+                  <ShieldPlus size={13} strokeWidth={1.5} />
+                  申请受控例外
+                </button>
+              )}
             </div>
           )}
 
