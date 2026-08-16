@@ -36,6 +36,10 @@ import { createQuotationRouter } from './quotations/quotationRoute';
 import { createMoqRouter } from './moq/moqRoute';
 import { createOrderChangeRouter } from './orderChanges/orderChangeRoute';
 import { createSampleRouter } from './samples/sampleRoute';
+import { createExceptionRouter } from './exceptions/exceptionRoute';
+import { createCreditRouter } from './credit/creditRoute';
+import { createInternalTradeRouter } from './internalTrade/internalTradeRoute';
+import { createPaymentRequestRouter } from './paymentRequests/paymentRequestRoute';
 import { createProcurementRouter } from './procurement/procurementRoute';
 import { createInventoryRouter } from './inventory/inventoryRoute';
 import { createBOMRouter } from './bom/bomRoute';
@@ -671,6 +675,12 @@ app.use(
 // Phase 2 Wave 2.1：订单变更域（DR-010 变更/取消/暂停审批链）+ 样品域（DR-008/011/012/026/028/039）
 app.use('/api/v1/order-changes', createOrderChangeRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
 app.use('/api/v1/samples', createSampleRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+
+// Phase 2 Wave 2.2：受控例外（DR-013）+ 信用控制（冻结/解冻/额度占用）+ 内部交易（DR-005/033）+ 付款申请
+app.use('/api/v1/exceptions', createExceptionRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+app.use('/api/v1/credit', createCreditRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+app.use('/api/v1/internal-trade', createInternalTradeRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+app.use('/api/v1/payment-requests', createPaymentRequestRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
 
 // 阶段 D / D6：实体级审计查询（普通用户按 targetType+targetId，模块读权限门禁）
 app.use(

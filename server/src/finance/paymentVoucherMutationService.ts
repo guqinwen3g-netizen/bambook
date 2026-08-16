@@ -13,9 +13,23 @@ import crypto from 'crypto';
 export const VALID_PAYMENT_VOUCHER_STATUS = ['unreconciled', 'partially_reconciled', 'reconciled'] as const;
 export type PaymentVoucherStatus = typeof VALID_PAYMENT_VOUCHER_STATUS[number];
 
+// P0-9 / DR-022 凭证分类：三类费用（sample_express / customer_reimburse / business_cost）
+// + normal / advance / deposit。枚举外一律拒绝（fail-closed）。
+// 设计真源：财务域模型组.md §2.2 / Prisma缺口清单与迁移方案.md P0-9
+export const VALID_VOUCHER_CATEGORIES = [
+  'normal',
+  'advance',
+  'deposit',
+  'sample_express',
+  'customer_reimburse',
+  'business_cost',
+] as const;
+export type VoucherCategory = typeof VALID_VOUCHER_CATEGORIES[number];
+
 export type PaymentVoucherMutationErrorCode =
   | 'INVALID_STATUS'
   | 'INVALID_AMOUNT'
+  | 'INVALID_VOUCHER_CATEGORY'
   | 'NOT_FOUND'
   | 'CREATE_FAILED'
   | 'UPDATE_FAILED'
@@ -33,13 +47,13 @@ export type PaymentVoucherMutationResult =
 export type PaymentVoucherMutationInput = Record<string, any>;
 
 export const PAYMENT_VOUCHER_CREATE_FIELDS = [
-  'id', 'voucherNumber', 'type', 'amount', 'currency', 'paymentDate', 'paymentMethod', 'status', 'bankFee',
+  'id', 'voucherNumber', 'type', 'voucherCategory', 'amount', 'currency', 'paymentDate', 'paymentMethod', 'status', 'bankFee',
   'exchangeRate', 'baseCurrency', 'invoiceId', 'appliedAmount', 'orderId', 'customerRelationId',
   'customerName', 'notes', 'attachments',
 ] as const;
 
 export const PAYMENT_VOUCHER_PATCH_FIELDS = [
-  'type', 'amount', 'currency', 'paymentDate', 'paymentMethod', 'bankFee',
+  'type', 'voucherCategory', 'amount', 'currency', 'paymentDate', 'paymentMethod', 'bankFee',
   'exchangeRate', 'baseCurrency', 'invoiceId', 'appliedAmount', 'orderId', 'customerRelationId',
   'customerName', 'notes', 'attachments',
 ] as const;
@@ -60,6 +74,19 @@ function localToday(): string {
 
 function isValidPaymentVoucherStatus(status: string): status is PaymentVoucherStatus {
   return (VALID_PAYMENT_VOUCHER_STATUS as readonly string[]).includes(status);
+}
+
+function isValidVoucherCategory(category: string): category is VoucherCategory {
+  return (VALID_VOUCHER_CATEGORIES as readonly string[]).includes(category);
+}
+
+/** voucherCategory 校验：传入了就必须是枚举内值（fail-closed），未传入由 schema default('normal') 兜底 */
+function validateVoucherCategoryInput(input: PaymentVoucherMutationInput): PaymentVoucherMutationError | null {
+  if (input?.voucherCategory === undefined || input?.voucherCategory === null) return null;
+  if (typeof input.voucherCategory !== 'string' || !isValidVoucherCategory(input.voucherCategory)) {
+    return { code: 'INVALID_VOUCHER_CATEGORY', message: `voucherCategory must be one of: ${VALID_VOUCHER_CATEGORIES.join(', ')}` };
+  }
+  return null;
 }
 
 function isValidDecimalInput(v: unknown): boolean {
@@ -106,6 +133,8 @@ function normalizeCreateInput(input: PaymentVoucherMutationInput): { ok: true; d
     voucherStatus = input.status;
   }
   data.status = voucherStatus;
+  const categoryError = validateVoucherCategoryInput(input);
+  if (categoryError) return { ok: false, error: categoryError };
   // schema 必填兜底：paymentDate 缺省/空串时默认收/付款当天（前端日期可空，业务语义=创建日）
   if (data.paymentDate === undefined || data.paymentDate === null || data.paymentDate === '') {
     data.paymentDate = localToday();
@@ -127,6 +156,8 @@ function normalizeUpdateInput(input: PaymentVoucherMutationInput): { ok: true; d
   if (input?.status !== undefined) {
     return { ok: false, error: { code: 'STATUS_NOT_MANUAL_SETTABLE', message: 'status can only be set by allocation operations, not manual PATCH' } };
   }
+  const categoryError = validateVoucherCategoryInput(input);
+  if (categoryError) return { ok: false, error: categoryError };
   const data = pickVoucherFields(input || {}, PAYMENT_VOUCHER_PATCH_FIELDS as any);
   const normalized = normalizeDecimalFields(data);
   if (!normalized.ok) {

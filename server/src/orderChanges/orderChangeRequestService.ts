@@ -32,6 +32,7 @@ import {
   ORDER_LIFECYCLE_EXTENSION_ERRORS,
 } from '../orders/orderLifecycleService';
 import type { ApprovalCreateService } from '../approvals/approvalCreateService';
+import { createCreditService } from '../credit/creditService';
 
 // ───────────────────────────────────────────────────────────────────
 // 错误码（全部 fail-closed）
@@ -165,10 +166,11 @@ export function createOrderChangeRequestService(opts: OrderChangeRequestServiceO
   }
 
   // ── 内部：客户变更信用额度联动 ──
-  // 接口点：crmService 当前仅有 setCreditLimit / getActiveCreditLimit / updateCreditLimitStatus，
-  // 无「占用/释放」原子 API；此处直接写 CreditLimit.usedAmount + CreditLimitHistory
-  // （triggerType='order_change_customer'，triggerId=变更申请 ID，triggerBy='system_change_apply'）。
-  // TODO(cross-domain)：若财务域后续落地统一的额度占用/释放服务，本函数应替换为该服务调用。
+  // 已接线 Track F 统一信用服务（creditService.reserveCredit / releaseCredit）：
+  // usedAmount 写操作 + CreditLimitHistory append-only 由信用域收口，
+  // 保持既有语义：客户变更 → 旧客户释放（-amount）+ 新客户占用（+amount），
+  // triggerType='order_change_customer'，triggerId=变更申请 ID，triggerBy='system_change_apply'。
+  const creditService = createCreditService({ prisma });
   async function applyCustomerCreditLinkage(
     tx: any,
     changeRequestId: string,
@@ -182,40 +184,30 @@ export function createOrderChangeRequestService(opts: OrderChangeRequestServiceO
       return { released: false, occupied: false, amount: 0 };
     }
     const oldRelationId: string | null = order.customerRelationId ?? null;
-
-    const shift = async (relationId: string, delta: number) => {
-      const cl = await tx.creditLimit.findFirst({
-        where: { relationId, status: 'Active', deletedAt: null },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (!cl) return false;
-      const beforeUsed = Number(cl.usedAmount);
-      const afterUsed = Math.max(0, beforeUsed + delta);
-      await tx.creditLimit.update({
-        where: { id: cl.id },
-        data: { usedAmount: afterUsed, updatedAt: epochNow() },
-      });
-      await tx.creditLimitHistory.create({
-        data: {
-          id: genId('CLHIST'),
-          creditLimitId: cl.id,
-          relationId,
-          beforeUsedAmount: beforeUsed,
-          afterUsedAmount: afterUsed,
-          delta,
-          triggerType: 'order_change_customer',
-          triggerId: changeRequestId,
-          triggerBy: 'system_change_apply',
-          remark: `DR-010 客户变更额度联动（订单 ${order.id}）`,
-        },
-      });
-      return true;
+    const remark = `DR-010 客户变更额度联动（订单 ${order.id}）`;
+    const shiftBase = {
+      amount,
+      triggerType: 'order_change_customer',
+      triggerId: changeRequestId,
+      triggerBy: 'system_change_apply',
+      remark,
+      tx,
     };
 
-    const released = oldRelationId && oldRelationId !== newCustomerRelationId
-      ? await shift(oldRelationId, -amount)
-      : false;
-    const occupied = await shift(newCustomerRelationId, +amount);
+    // 语义与原 shift() 一致：无 Active 额度 → false（跳过不报错）
+    let released = false;
+    if (oldRelationId && oldRelationId !== newCustomerRelationId) {
+      const res = await creditService.releaseCredit({ ...shiftBase, relationId: oldRelationId });
+      released = res.ok && res.data.adjusted;
+      if (!res.ok) {
+        logger.warn('[OrderChange] 旧客户额度释放失败', { changeRequestId, oldRelationId, error: res.error });
+      }
+    }
+    const occ = await creditService.reserveCredit({ ...shiftBase, relationId: newCustomerRelationId });
+    const occupied = occ.ok && occ.data.adjusted;
+    if (!occ.ok) {
+      logger.warn('[OrderChange] 新客户额度占用失败', { changeRequestId, newCustomerRelationId, error: occ.error });
+    }
     logger.info('[OrderChange] 客户变更额度联动完成', {
       changeRequestId, orderId: order.id, oldRelationId, newCustomerRelationId, released, occupied, amount,
     });

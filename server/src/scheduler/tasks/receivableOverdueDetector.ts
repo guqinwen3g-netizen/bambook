@@ -19,11 +19,19 @@
  *   同级别当天只发一次；级别升级（warning→critical）会重新通知。
  *
  * 日期字段均为 String YYYY-MM-DD（本地日历日比较，避免时区漂移）。
+ *
+ * Track F 接入（信用控制规则.md §2.4 规则① + 双路径解冻②）：
+ *   run 内除通知扫描外，追加信用自动冻结/解冻扫描（detectCreditFreezeAndThaw）：
+ *   - 应收逾期 >60 天（Net61+ 桶）客户 → creditService.runAutoFreezeScan 自动冻结
+ *     （Active→Frozen + CreditLimitHistory + AuditLog，幂等，lastAutoScanDate 巡检标记）
+ *   - 系统自动冻结的客户逾期款全额核销后 → creditService.runAutoThawScan 兜底自动解冻
+ *     （事件接口点 creditService.autoThawIfSettled 供核销域在 Allocation 写入时调用）
  */
 
 import { PrismaClient } from '@prisma/client';
 import { ScheduledTask } from '../schedulerService';
 import { createNotificationService } from '../../notifications/notificationService';
+import { createCreditService } from '../../credit/creditService';
 import { logger } from '../../lib/logger';
 
 const BATCH_LIMIT = 100;
@@ -138,6 +146,26 @@ export async function detectAndNotify(
   return sent;
 }
 
+/**
+ * 信用自动冻结/解冻扫描（Track F 规则① + 解冻路径②，导出供测试直接驱动）。
+ * 与通知扫描共用同一 today 基准；幂等由 creditService 内部状态机保证。
+ */
+export async function detectCreditFreezeAndThaw(
+  prisma: PrismaClient,
+  today: Date = new Date(),
+): Promise<{ frozenCount: number; thawedCount: number }> {
+  const creditService = createCreditService({ prisma });
+  const freeze = await creditService.runAutoFreezeScan({ today });
+  const thaw = await creditService.runAutoThawScan({ today });
+  if (freeze.frozenCount > 0 || thaw.thawedCount > 0) {
+    logger.info('[ReceivableOverdue] credit freeze/thaw scan', {
+      frozenCount: freeze.frozenCount,
+      thawedCount: thaw.thawedCount,
+    });
+  }
+  return { frozenCount: freeze.frozenCount, thawedCount: thaw.thawedCount };
+}
+
 export function createReceivableOverdueDetectorTask(): ScheduledTask {
   return {
     id: 'receivable_overdue_detector',
@@ -154,6 +182,11 @@ export function createReceivableOverdueDetectorTask(): ScheduledTask {
         await detectAndNotify(prisma);
       } catch (e: any) {
         logger.error('[ReceivableOverdue] failed', { error: e?.message });
+      }
+      try {
+        await detectCreditFreezeAndThaw(prisma);
+      } catch (e: any) {
+        logger.error('[ReceivableOverdue] credit freeze/thaw scan failed', { error: e?.message });
       }
     },
   };

@@ -10,6 +10,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { isInternalTransferEffective } from '../internalTrade/internalTransferService';
 
 // ────────────────────────────────────────────────────────────────
 // 1. 账龄分析（AR/AP Aging）
@@ -413,4 +414,163 @@ export async function getFxGainLoss(
 
   rows.sort((a, b) => a.appliedDate.localeCompare(b.appliedDate));
   return { from: from ?? null, to: to ?? null, baseCurrency, rows, totalGainLoss: total };
+}
+
+// ────────────────────────────────────────────────────────────────
+// 4. 公司合并利润视图（DR-005 抵销内部面料采购/销售）
+// ────────────────────────────────────────────────────────────────
+//
+// 设计真源：
+//   - 2026-08-16-设计评审决策记录.md DR-005 / DR-043（利润口径：内部交易不重复计入收入或成本）
+//   - 订单利润表生成.md §2.3.2（合并抵销口径）
+//   - 实体关系总览.md §6.4（L-18/L-19）
+//
+// 口径（基于 OrderProfitSheet 聚合投影 + OrderInternalTransfer 生效记录，只读不写库）：
+//   合并收入 = Σ 外部订单 salesRevenue（内部面料订单 isInternalFabricTrade=true 整体剔除，不进对外营收）
+//   合并成本 = Σ 外部订单 (purchaseCost − 内部采购价)        ← 剔除内部采购加价
+//            + Σ 内部面料订单 purchaseCost                    ← 真实面料成本
+//            + Σ 全部订单 freightCost + miscCost
+//   合并利润 = 合并收入 − 合并成本
+//   抵销额   = Σ 生效 incoming transferAmount（内部采购价 = 内部销售收入，仅取单边，禁止双边重复）
+//
+// 部门利润（DR-043 双视角）：
+//   服装部（外部服装订单）：收入含外部客户收入，成本含内部面料采购价 → 服装部利润已扣内部采购
+//   面料部（内部面料订单 + 外部面料订单）：收入含内部面料销售，成本为真实面料成本 → 保留内部面料利润
+//   恒等式：Σ 部门利润 = 合并利润（内部采购=内部销售抵销后利润不变；discrepancy 透明披露不等情形）
+
+export interface ConsolidatedProfitDepartment {
+  revenue: number;
+  cost: number;
+  profit: number;
+}
+
+export interface ConsolidatedProfitReport {
+  baseCurrency: string;
+  consolidatedRevenue: number;
+  consolidatedCost: number;
+  consolidatedProfit: number;
+  costBreakdown: {
+    /** 外部订单采购成本（已剔除内部采购加价） */
+    externalPurchaseNetOfInternal: number;
+    /** 真实面料成本（内部面料订单自身采购成本） */
+    realFabricCost: number;
+    freightCost: number;
+    miscCost: number;
+  };
+  elimination: {
+    /** 服装部内部面料采购成本合计（生效 incoming） */
+    internalPurchase: number;
+    /** 面料部内部面料销售收入合计（生效 outgoing） */
+    internalSales: number;
+    /** 抵销额 = internalPurchase（单边口径） */
+    amount: number;
+    /** internalSales − internalPurchase（应≈0；非 0 透明披露，提示双边口径不一致） */
+    discrepancy: number;
+  };
+  departments: {
+    garment: ConsolidatedProfitDepartment;
+    fabric: ConsolidatedProfitDepartment;
+  };
+  orders: { externalCount: number; internalCount: number };
+  /** 非 CNY 生效内部交易：不折算不假设汇率，透明披露并排除在抵额外 */
+  unconverted: Array<{ transferId: string; orderId: string; direction: string; amount: number; currency: string; reason: string }>;
+}
+
+export async function getConsolidatedProfitReport(prisma: PrismaClient): Promise<ConsolidatedProfitReport> {
+  const db = prisma as any;
+
+  const sheets: any[] = await db.orderProfitSheet.findMany({});
+  const orderIds: string[] = [...new Set(sheets.map((s) => s.orderId as string))];
+  const orders: any[] = orderIds.length > 0
+    ? await db.order.findMany({ where: { id: { in: orderIds }, deletedAt: null } })
+    : [];
+  const orderMap = new Map(orders.map((o) => [o.id, o]));
+
+  // 生效内部交易（Effective/Delivering/Closed，或历史已认账）；单边聚合（incoming=采购 / outgoing=销售）
+  const transfers: any[] = db.orderInternalTransfer
+    ? await db.orderInternalTransfer.findMany({ where: { deletedAt: null } })
+    : [];
+  const internalPurchaseByOrder = new Map<string, number>();
+  const internalSalesByOrder = new Map<string, number>();
+  const unconverted: ConsolidatedProfitReport['unconverted'] = [];
+  for (const t of transfers) {
+    if (!isInternalTransferEffective(t)) continue;
+    const amount = Number(t.transferAmount);
+    if (!Number.isFinite(amount) || amount === 0) continue;
+    if ((t.transferCurrency ?? 'CNY') !== 'CNY') {
+      unconverted.push({
+        transferId: t.id, orderId: t.orderId, direction: t.transferDirection,
+        amount, currency: t.transferCurrency, reason: '非本位币内部交易，报表不做汇率假设，透明披露',
+      });
+      continue;
+    }
+    if (t.transferDirection === 'incoming') {
+      internalPurchaseByOrder.set(t.orderId, round4((internalPurchaseByOrder.get(t.orderId) ?? 0) + amount));
+    } else if (t.transferDirection === 'outgoing') {
+      internalSalesByOrder.set(t.orderId, round4((internalSalesByOrder.get(t.orderId) ?? 0) + amount));
+    }
+  }
+
+  const garment: ConsolidatedProfitDepartment = { revenue: 0, cost: 0, profit: 0 };
+  const fabric: ConsolidatedProfitDepartment = { revenue: 0, cost: 0, profit: 0 };
+  let consolidatedRevenue = 0;
+  let externalPurchaseNetOfInternal = 0;
+  let realFabricCost = 0;
+  let freightCostTotal = 0;
+  let miscCostTotal = 0;
+  let externalCount = 0;
+  let internalCount = 0;
+
+  for (const sheet of sheets) {
+    const order = orderMap.get(sheet.orderId);
+    const isInternal = order?.isInternalFabricTrade === true;
+    const sR = Number(sheet.salesRevenue) || 0;
+    const pC = Number(sheet.purchaseCost) || 0;
+    const fC = Number(sheet.freightCost) || 0;
+    const mC = Number(sheet.miscCost) || 0;
+    freightCostTotal = round4(freightCostTotal + fC);
+    miscCostTotal = round4(miscCostTotal + mC);
+
+    // 部门归属：内部面料订单 / businessLine=fabric → 面料部；其余（garment/capsule/other 外部订单）→ 服装部
+    const dept = isInternal || order?.businessLine === 'fabric' ? fabric : garment;
+    dept.revenue = round4(dept.revenue + sR);
+    dept.cost = round4(dept.cost + pC + fC + mC);
+    dept.profit = round4(dept.revenue - dept.cost);
+
+    if (isInternal) {
+      internalCount += 1;
+      realFabricCost = round4(realFabricCost + pC); // 真实面料成本
+    } else {
+      externalCount += 1;
+      consolidatedRevenue = round4(consolidatedRevenue + sR); // 仅外部客户收入
+      const internalPurchase = internalPurchaseByOrder.get(sheet.orderId) ?? 0;
+      externalPurchaseNetOfInternal = round4(externalPurchaseNetOfInternal + Math.max(0, round4(pC - internalPurchase)));
+    }
+  }
+
+  const internalPurchaseTotal = round4([...internalPurchaseByOrder.values()].reduce((a, b) => a + b, 0));
+  const internalSalesTotal = round4([...internalSalesByOrder.values()].reduce((a, b) => a + b, 0));
+  const consolidatedCost = round4(externalPurchaseNetOfInternal + realFabricCost + freightCostTotal + miscCostTotal);
+
+  return {
+    baseCurrency: 'CNY',
+    consolidatedRevenue,
+    consolidatedCost,
+    consolidatedProfit: round4(consolidatedRevenue - consolidatedCost),
+    costBreakdown: {
+      externalPurchaseNetOfInternal,
+      realFabricCost,
+      freightCost: freightCostTotal,
+      miscCost: miscCostTotal,
+    },
+    elimination: {
+      internalPurchase: internalPurchaseTotal,
+      internalSales: internalSalesTotal,
+      amount: internalPurchaseTotal,
+      discrepancy: round4(internalSalesTotal - internalPurchaseTotal),
+    },
+    departments: { garment, fabric },
+    orders: { externalCount, internalCount },
+    unconverted,
+  };
 }

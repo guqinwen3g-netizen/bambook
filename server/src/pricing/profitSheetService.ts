@@ -16,6 +16,7 @@
 
 import { PrismaClient, OrderProfitSheet } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { isInternalTransferEffective } from '../internalTrade/internalTransferService';
 import crypto from 'crypto';
 
 // ────────────────────────────────────────────────────────────────
@@ -30,6 +31,8 @@ export interface ProfitLineItem {
   rate: number; // 实际采用汇率
   rateSource: 'snapshot' | 'base' | 'latest-rate';
   cnyAmount: number; // 折算后金额
+  /** DR-005：true = 内部交易行（内部面料采购/销售），合并报表须抵销，不计对外营收 */
+  internal?: boolean;
 }
 
 export interface UnconvertedLine {
@@ -41,12 +44,27 @@ export interface UnconvertedLine {
   reason: string;
 }
 
+/** DR-005 内部面料交易利润口径摘要（仅内部交易相关订单附加；schema 冻结期载体为 details JSON） */
+export interface InternalTradeSummary {
+  /** order.isInternalFabricTrade：内部面料订单独立归集，不进对外营收 */
+  isInternalTrade: boolean;
+  /** 服装部口径：内部面料采购成本（Σ 生效 incoming transferAmount，CNY） */
+  internalPurchaseAmount: number;
+  /** 面料部口径：内部面料销售收入（Σ 生效 outgoing transferAmount，CNY） */
+  internalSalesAmount: number;
+  /** 公司合并视图抵销额 = internalPurchaseAmount（内部采购价 = 内部销售收入） */
+  consolidatedAdjustment: number;
+  /** 部门利润 = grossProfit（部门视角，不含抵销；合并抵销仅在 reportService 公司视图执行） */
+  departmentProfit: number;
+}
+
 export interface ProfitSheetDetails {
   sales: ProfitLineItem[];
   purchases: ProfitLineItem[];
   freight: ProfitLineItem[];
   misc: ProfitLineItem[];
   unconverted: UnconvertedLine[];
+  internalTrade?: InternalTradeSummary;
 }
 
 function generateId(prefix: string): string {
@@ -170,6 +188,32 @@ export function createProfitSheetService(prisma: PrismaClient) {
       if (r.unconverted) details.unconverted.push(r.unconverted);
     }
 
+    // ─── DR-005 内部面料交易：部门利润口径（订单利润表生成.md §2.3.4） ───
+    //   服装部（服装订单侧 incoming）：purchases 维度含内部面料采购价（生效内部供料单 transferAmount）
+    //   面料部（内部面料订单侧 outgoing）：sales 维度含内部面料销售收入
+    //   仅生效状态（Effective/Delivering/Closed，或历史已认账记录）计入核算；
+    //   Draft/PendingConfirm/Cancelled 不计（未批准结算价不得生效，fail-closed）。
+    //   兼容说明：mock/旧库无 orderInternalTransfer 表时按无内部交易处理（不影响既有四维聚合）。
+    const transferRows: any[] = db.orderInternalTransfer
+      ? await db.orderInternalTransfer.findMany({ where: { orderId, deletedAt: null } })
+      : [];
+    const effectiveTransfers = transferRows.filter((t) => isInternalTransferEffective(t));
+    let internalPurchaseCny = 0;
+    let internalSalesCny = 0;
+    for (const t of effectiveTransfers) {
+      const amount = Number(t.transferAmount);
+      if (!Number.isFinite(amount) || amount === 0) continue;
+      if (t.transferDirection === 'incoming') {
+        const r = normalizeLine('purchase', t.id, `内部面料采购（内部供料单 ${t.id}）`, amount, t.transferCurrency ?? 'CNY', null, latestRates);
+        if (r.line) { details.purchases.push({ ...r.line, internal: true }); internalPurchaseCny = round4(internalPurchaseCny + r.line.cnyAmount); }
+        if (r.unconverted) details.unconverted.push(r.unconverted);
+      } else if (t.transferDirection === 'outgoing') {
+        const r = normalizeLine('sales', t.id, `内部面料销售（内部供料单 ${t.id}）`, amount, t.transferCurrency ?? 'CNY', null, latestRates);
+        if (r.line) { details.sales.push({ ...r.line, internal: true }); internalSalesCny = round4(internalSalesCny + r.line.cnyAmount); }
+        if (r.unconverted) details.unconverted.push(r.unconverted);
+      }
+    }
+
     const sum = (rows: ProfitLineItem[]) => round4(rows.reduce((acc, r) => acc + r.cnyAmount, 0));
     const salesRevenue = sum(details.sales);
     const purchaseCost = sum(details.purchases);
@@ -177,6 +221,18 @@ export function createProfitSheetService(prisma: PrismaClient) {
     const miscCost = sum(details.misc);
     const grossProfit = round4(salesRevenue - purchaseCost - freightCost - miscCost);
     const grossMargin = salesRevenue > 0 ? round4((grossProfit / salesRevenue) * 100) : null;
+
+    // DR-005 摘要：仅内部交易相关订单附加（departmentProfit = 部门视角 grossProfit；
+    // consolidatedAdjustment 供公司合并报表抵销使用，此处不做抵销扣减）
+    if (order.isInternalFabricTrade === true || effectiveTransfers.length > 0) {
+      details.internalTrade = {
+        isInternalTrade: order.isInternalFabricTrade === true,
+        internalPurchaseAmount: internalPurchaseCny,
+        internalSalesAmount: internalSalesCny,
+        consolidatedAdjustment: internalPurchaseCny,
+        departmentProfit: grossProfit,
+      };
+    }
 
     const ts = now();
     const existing = await db.orderProfitSheet.findUnique({ where: { orderId } });
