@@ -1826,6 +1826,43 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         subtitle="Invoices / Vouchers / Reconciliation"
         contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : 'Voucher Desk'}
         isDarkMode={isDarkMode}
+        actions={(
+          <>
+            {/* P0 payment manual path: 无 Agent 手动创建凭证入口 */}
+            {activeTab === 'vouchers' && (
+              <button
+                type="button"
+                className="bds-btn bds-btn-primary"
+                onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
+              >
+                <Plus size={14} strokeWidth={1.4} />
+                新建凭证
+              </button>
+            )}
+            {/* P0 invoice manual UI: 无 Agent 手动创建发票入口 */}
+            {activeTab === 'invoices' && (
+              <button
+                type="button"
+                onClick={openCreateInvoice}
+                className="bds-btn bds-btn-primary"
+              >
+                <Plus size={14} strokeWidth={1.4} />
+                新建发票
+              </button>
+            )}
+            {/* C6 增值税发票：手动登记入口 */}
+            {activeTab === 'vatInvoices' && (
+              <button
+                type="button"
+                onClick={openCreateVat}
+                className="bds-btn bds-btn-primary"
+              >
+                <Plus size={14} strokeWidth={1.4} />
+                新建增值税票
+              </button>
+            )}
+          </>
+        )}
       />
 
       {/* ── Main content: KPI → segment switcher → toolbar → table+panel ── */}
@@ -1902,39 +1939,6 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   </button>
                 ))}
               </div>
-              {/* P0 payment manual path: 无 Agent 手动创建凭证入口 */}
-              {activeTab === 'vouchers' && (
-                <button
-                  type="button"
-                  className="bds-btn bds-btn-primary shrink-0"
-                  onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
-                >
-                  <Plus size={12} strokeWidth={1.4} />
-                  新建凭证
-                </button>
-              )}
-              {/* P0 invoice manual UI: 无 Agent 手动创建发票入口 */}
-              {activeTab === 'invoices' && (
-                <button
-                  type="button"
-                  onClick={openCreateInvoice}
-                  className="bds-btn bds-btn-primary shrink-0"
-                >
-                  <Plus size={12} strokeWidth={1.4} />
-                  新建发票
-                </button>
-              )}
-              {/* C6 增值税发票：手动登记入口 */}
-              {activeTab === 'vatInvoices' && (
-                <button
-                  type="button"
-                  onClick={openCreateVat}
-                  className="bds-btn bds-btn-primary shrink-0"
-                >
-                  <Plus size={12} strokeWidth={1.4} />
-                  新建增值税票
-                </button>
-              )}
           </div>
 
           {/* Table + side panel */}

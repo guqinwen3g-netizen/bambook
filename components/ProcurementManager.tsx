@@ -440,7 +440,16 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <PageHeader title="采购管理" subtitle="Procurement" isDarkMode={isDarkMode} />
+      <PageHeader
+        title="采购管理"
+        subtitle="Procurement"
+        isDarkMode={isDarkMode}
+        actions={!showCreateForm ? (
+          <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
+            <Plus size={14} /><span>新建采购单</span>
+          </button>
+        ) : undefined}
+      />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
         <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
@@ -590,11 +599,8 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
               </motion.div>
             ) : (
               <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
-                {/* 工具栏 */}
-                <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
-                    <Plus size={14} /><span>新建采购单</span>
-                  </button>
+                {/* 工具栏：过滤控件组合 → filterbar 玻璃条（主操作已收编 PageHeader） */}
+                <div className="bds-filterbar mb-4">
                   <div className="relative flex-1 max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索采购号/供应商..." className="bds-input sm pl-9" />

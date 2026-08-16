@@ -14,7 +14,7 @@
  *     状态用 bds-badge 语义变体（SEMANTIC_BADGE_VARIANT 常量）替代 statusSemanticClass 拼装，主题透明无 isDarkMode 三元
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -170,9 +170,26 @@ interface SeasonsManagerProps {
 export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>('seasons');
 
+  // ── H2/V9：无状态依赖的新建类主操作统一收 PageHeader（ref 注册模式，同 PricingManager） ──
+  const newActionRef = useRef<(() => void) | null>(null);
+  const NEW_ACTION_LABEL: Record<ModuleTab, string> = {
+    seasons: '新建季度',
+    trends: '新建标签',
+    shows: '新建展会',
+  };
+
   return (
     <div className="h-full flex flex-col">
-      <PageHeader title="季节性与趋势" subtitle="Season & Trend Management" />
+      <PageHeader
+        title="季节性与趋势"
+        subtitle="Season & Trend Management"
+        actions={
+          <button onClick={() => newActionRef.current?.()} className="bds-btn bds-btn-primary">
+            <Plus size={14} />
+            <span>{NEW_ACTION_LABEL[activeTab]}</span>
+          </button>
+        }
+      />
 
       {/* 模块 Tab 栏（BDS Tabs 下划线式） */}
       <div className="px-7 shrink-0">
@@ -205,9 +222,9 @@ export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
             transition={{ duration: 0.15 }}
             className="h-full min-h-0"
           >
-            {activeTab === 'seasons' && <SeasonsPanel />}
-            {activeTab === 'trends' && <TrendsPanel />}
-            {activeTab === 'shows' && <ShowsPanel />}
+            {activeTab === 'seasons' && <SeasonsPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
+            {activeTab === 'trends' && <TrendsPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
+            {activeTab === 'shows' && <ShowsPanel registerNewAction={(fn) => { newActionRef.current = fn; }} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -219,7 +236,7 @@ export default function SeasonsManager({ isDarkMode }: SeasonsManagerProps) {
 
 // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
 
-function SeasonsPanel() {
+function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -235,6 +252,11 @@ function SeasonsPanel() {
   const [showForm, setShowForm] = useState(false);
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
 
+  // PageHeader 主操作注册：新建季度
+  useEffect(() => {
+    registerNewAction?.(() => { setEditingSeason(null); setShowForm(true); });
+    return () => registerNewAction?.(null);
+  }, [registerNewAction]);
   // ── 加载季度列表 ──
   const loadSeasons = useCallback(async () => {
     setLoading(true);
@@ -371,13 +393,6 @@ function SeasonsPanel() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => { setEditingSeason(null); setShowForm(true); }}
-              className="bds-btn bds-btn-secondary ml-auto"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              新建季度
-            </button>
           </div>
         </div>
 
@@ -626,7 +641,7 @@ function SeasonsPanel() {
 
 // ==================== 趋势 Panel ====================
 
-function TrendsPanel() {
+function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [tags, setTags] = useState<TrendTag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -636,6 +651,12 @@ function TrendsPanel() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingTag, setEditingTag] = useState<TrendTag | null>(null);
+
+  // PageHeader 主操作注册：新建标签
+  useEffect(() => {
+    registerNewAction?.(() => { setEditingTag(null); setShowForm(true); });
+    return () => registerNewAction?.(null);
+  }, [registerNewAction]);
 
   const loadSeasons = useCallback(async () => {
     try {
@@ -745,13 +766,6 @@ function TrendsPanel() {
           title="刷新"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={() => { setEditingTag(null); setShowForm(true); }}
-          className="bds-btn bds-btn-secondary ml-auto"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          新建标签
         </button>
       </div>
 
@@ -972,7 +986,7 @@ function FabricLinker({
 
 // ==================== 展会 Panel ====================
 
-function ShowsPanel() {
+function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => void) | null) => void }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [shows, setShows] = useState<TradeShow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -989,6 +1003,12 @@ function ShowsPanel() {
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [editingLead, setEditingLead] = useState<TradeShowLead | null>(null);
   const [convertingLead, setConvertingLead] = useState<TradeShowLead | null>(null);
+
+  // PageHeader 主操作注册：新建展会
+  useEffect(() => {
+    registerNewAction?.(() => { setEditingShow(null); setShowForm(true); });
+    return () => registerNewAction?.(null);
+  }, [registerNewAction]);
 
   const loadSeasons = useCallback(async () => {
     try {
@@ -1169,13 +1189,6 @@ function ShowsPanel() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => { setEditingShow(null); setShowForm(true); }}
-              className="bds-btn bds-btn-secondary ml-auto"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              新建展会
-            </button>
           </div>
         </div>
 

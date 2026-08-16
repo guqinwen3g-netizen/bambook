@@ -214,11 +214,20 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <PageHeader title="BOM 成本核算" subtitle="Bill of Materials" isDarkMode={isDarkMode} />
+      <PageHeader
+        title="BOM 成本核算"
+        subtitle="Bill of Materials"
+        isDarkMode={isDarkMode}
+        actions={
+          <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
+            <Plus size={14} /><span>新建 BOM</span>
+          </button>
+        }
+      />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
-        {/* ── 工具栏 ── */}
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {/* ── 工具栏：过滤控件组合 → filterbar 玻璃条（主操作已收编 PageHeader） ── */}
+        <div className="bds-filterbar mb-3">
           <div className="bds-segment">
             {STATUS_TABS.map((tab) => (
               <button
@@ -244,13 +253,6 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
           <button onClick={loadBOMs} className="bds-btn bds-btn-ghost">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>刷新</span>
-          </button>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="bds-btn bds-btn-primary"
-          >
-            <Plus size={13} />
-            <span>新建 BOM</span>
           </button>
         </div>
 
