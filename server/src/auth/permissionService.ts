@@ -150,6 +150,22 @@ export function createPermissionService(opts: PermissionServiceOptions) {
       }
     }
 
+    // 个人权限覆盖通道（Phase 1 DR-007 扩展）：UserPermissionOverrides 中
+    // active + 未软删 + 未过期（expiresAt 为空或将来）的 scope 并入聚合结果。
+    // 适用场景：临时授权（如 hr:salary:read 授予指定 HR）、跨角色特批，不改动角色矩阵。
+    const overrides = await prisma.userPermissionOverrides.findMany({
+      where: {
+        userId,
+        isActive: true,
+        deletedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: { scope: true },
+    });
+    for (const o of overrides) {
+      if (o.scope) scopes.add(o.scope);
+    }
+
     // SuperAdmin 安全网：即使 DB 中 scope 缺失，也补齐全部 scope（避免 seed 未完整跑导致全权限用户被意外拦截）
     if (roleIds.includes(SYSTEM_ROLE_IDS.SUPER_ADMIN)) {
       // fallbackHasPermission 对 SuperAdmin 直接放行，所以这里不用手动枚举 scopes，保持 DB 结果即可

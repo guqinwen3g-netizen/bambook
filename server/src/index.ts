@@ -76,6 +76,7 @@ import { ensureDefaultAgentTools } from './agent/tools';
 import { createAuthRouter } from './auth/route';
 import { createAdminRouter } from './admin/route';
 import { createApprovalRouter } from './approvals/approvalRoute';
+import { createApprovalKernelRouter } from './approvals/approvalKernelRoute';
 import { createAuditRouter } from './audit/route';
 import { createHRRouter } from './hr/route';
 import { initializeNotificationBindings } from './notifications/eventBindings';
@@ -446,6 +447,9 @@ app.use('/api/admin', createAdminRouter({ prisma, email: emailService, requireAu
 // 业务审批中心（PRD 19.21）：双轨偏差等第九章业务审批的待办/已办/决策；
 // Agent 工具审批（tool:*）走 Assistant resolve，不在此暴露
 app.use('/api/v1/approvals', createApprovalRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+
+// Phase 1 共享内核（DR-007）：审批委派 / BOSS 最终兜底 / 解析路径只读审计
+app.use('/api/v1/approvals-kernel', createApprovalKernelRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
 
 app.use('/api/hr', createHRRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth, apiKeys: SDK_CONFIG.apiKeys }));
 

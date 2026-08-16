@@ -201,6 +201,23 @@ export const PERMISSION_SCOPES = {
   'sensitive:commission': '敏感-佣金率/佣金金额 查看（S:commission）',
   'sensitive:salary': '敏感-员工薪酬明细 查看（S:salary）',
   'sensitive:tax_base': '敏感-进项税/退税计税底值 查看（S:tax_base）',
+
+  // --- Phase 1 预分配（DR-007 审批组织归属 + Phase 2 全域模块 scope，避免并行代理抢改本文件）---
+  'settings:moq:write': 'MOQ 阈值配置写入（设置后台）',
+  'moq:line_override': 'MOQ 行级覆盖申请（订单行降级/调整）',
+  'moq:capsule_exemption:write': 'MOQ Capsule 档豁免审批/写入',
+  'order:change_request:create': '订单变更申请创建（交期/数量/价格）',
+  'order:change_request:apply': '订单变更申请审批通过后的生效执行',
+  'sample:early_production:write': '早期生产样登记/写入（DR-015）',
+  'sample:shipment:write': '船样登记/写入（S/S）',
+  'exception:dr013:create': 'DR-013 受控例外申请创建',
+  'finance:payment_request:create': '付款申请创建',
+  'finance:payment_request:approve': '付款申请审批',
+  'credit:freeze:write': '客户信用冻结（高危）',
+  'credit:thaw:write': '客户信用解冻（高危）',
+  'order:internal_trade:write': '内部交易（内部面料结算价 DR-006）写入',
+  'qc:fabric_chain:write': 'QC 面料链（DR-029）业务登记写入',
+  'qc:garment_chain:write': 'QC 成衣链业务登记写入',
 } as const satisfies Record<string, string>;
 
 export type PermissionScope = keyof typeof PERMISSION_SCOPES;
@@ -372,6 +389,13 @@ const SALES_BASE: RolePermissionMatrix = {
   'tools:execute': true,
   'settings:account': true,
   'data:import': true,
+  // Phase 1 预分配：业务员申请侧 scope（DR-007 审批路由发起人）
+  'moq:line_override': true,
+  'order:change_request:create': true,
+  'sample:early_production:write': true,
+  'sample:shipment:write': true,
+  'exception:dr013:create': true,
+  'finance:payment_request:create': true,
 };
 
 const SALES_MANAGER_BASE: RolePermissionMatrix = {
@@ -392,6 +416,11 @@ const SALES_MANAGER_BASE: RolePermissionMatrix = {
   'aftersales:approve': true,
   // 采购PO审批（≤5万档，SM+FinMan双签）
   'procurement:approve': true,
+  // Phase 1 预分配：销售主管审批侧 scope（继承 SALES 申请侧；此处为 SM 独有增量）
+  'moq:capsule_exemption:write': true,
+  'order:change_request:apply': true,
+  'qc:fabric_chain:write': true,
+  'qc:garment_chain:write': true,
 };
 
 const FINANCE_BASE: RolePermissionMatrix = {
@@ -451,6 +480,9 @@ const FINANCE_BASE: RolePermissionMatrix = {
   'settings:account': true,
   'audit:read': true,  // 财务可以看审计日志
   'hr:read': true,     // HR基本信息可见（发薪对象等）
+  // Phase 1 预分配：财务申请侧 scope
+  'finance:payment_request:create': true,
+  'exception:dr013:create': true,
 };
 
 const FINANCE_MANAGER_BASE: RolePermissionMatrix = {
@@ -480,6 +512,11 @@ const FINANCE_MANAGER_BASE: RolePermissionMatrix = {
   'audit:export': true,
   // BOM版本管理
   'bom:admin': true,
+  // Phase 1 预分配：财务主管审批侧 scope（继承 FINANCE 申请侧；此处为 FinMan 独有增量）
+  'finance:payment_request:approve': true,
+  'credit:freeze:write': true,
+  'credit:thaw:write': true,
+  'order:internal_trade:write': true,
 };
 
 const ADMIN_BASE: RolePermissionMatrix = {
@@ -536,6 +573,22 @@ const ADMIN_BASE: RolePermissionMatrix = {
   'hr:read': true,
   // 但是！Admin 不给敏感scope（成本/利润/佣金/薪酬/税基全不给）
   // 避免Admin权限过高看不该看的财务机密，敏感scope保留给Finance及以上
+  // Phase 1 预分配：Admin 获得全部 15 个新 scope（配置/排障兜底；SUPER_ADMIN 代码级全放行）
+  'settings:moq:write': true,
+  'moq:line_override': true,
+  'moq:capsule_exemption:write': true,
+  'order:change_request:create': true,
+  'order:change_request:apply': true,
+  'sample:early_production:write': true,
+  'sample:shipment:write': true,
+  'exception:dr013:create': true,
+  'finance:payment_request:create': true,
+  'finance:payment_request:approve': true,
+  'credit:freeze:write': true,
+  'credit:thaw:write': true,
+  'order:internal_trade:write': true,
+  'qc:fabric_chain:write': true,
+  'qc:garment_chain:write': true,
 };
 
 const SUPER_ADMIN_BASE: RolePermissionMatrix = {};

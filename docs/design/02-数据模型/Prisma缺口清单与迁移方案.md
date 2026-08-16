@@ -144,7 +144,7 @@ model MoqThresholdConfigHistory {
 ### Seed 脚本
 
 ```typescript
-// server/prisma/seed-moq-thresholds.ts（或追加到现有 seed.ts）
+// server/scripts/seed-moq-thresholds.ts（与 seed-rbac 同约定：npx tsx scripts/seed-moq-thresholds.ts）
 await prisma.moqThresholdConfig.upsert({
   where: { id: 'MOQCFG__seed_initial' },
   create: {
