@@ -68,6 +68,24 @@ describe('P0-B Tool Registry Schema', () => {
     it('order.confirm = always (flow API 含 high-risk)', () => {
       expect(getToolDefinition('order.confirm')?.approvalPolicy).toBe('always');
     });
+    it('Phase 4 Track G 八域只读查询工具 = never（risk=low，无写库）', () => {
+      const trackGIds = [
+        'moq.query_config',
+        'order_changes.query',
+        'samples.query',
+        'qc.query_reports',
+        'exceptions.query',
+        'credit.query_status',
+        'internal_trade.query',
+        'payment_requests.query',
+      ];
+      for (const id of trackGIds) {
+        const def = getToolDefinition(id);
+        expect(def, id).toBeDefined();
+        expect(def!.approvalPolicy, id).toBe('never');
+        expect(def!.risk, id).toBe('low');
+      }
+    });
   });
 
   describe('§3 approvalPolicy 评估逻辑', () => {

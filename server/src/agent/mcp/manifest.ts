@@ -914,6 +914,103 @@ const MANIFEST_SEEDS: ManifestSeed[] = [
     },
     safety: { approval: 'always', sideEffects: true },
   },
+  // ── Phase 4 Track G：Phase 2 八域只读查询工具 ──
+  {
+    id: 'moq.query_config',
+    name: 'Query MOQ Config',
+    domain: 'settings',
+    description: '查询当前生效的 MOQ 最小起订量阈值配置（面料/成衣/Capsule 三档），配置缺失时回落兜底常量并标记来源；可选阈值变更历史。',
+    inputHint: '{ includeHistory?: boolean, historyLimit?: number }',
+    example: {
+      user: '现在面料和成衣的最小起订量分别是多少？',
+      input: {},
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'order_changes.query',
+    name: 'Query Order Change Requests',
+    domain: 'orders',
+    description: '查询订单变更/取消/暂停申请（DR-010）：按订单/状态/申请人过滤列表，或按申请 ID 读详情（含关联订单与审批单快照）。',
+    inputHint: '{ id?: string, orderId?: string, status?: string, requesterId?: string, limit?: number }',
+    example: {
+      user: '订单 PO-2601001 提交过哪些变更申请？审批到哪一步了？',
+      input: { orderId: '<ORDER_ID>' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'samples.query',
+    name: 'Query Samples',
+    domain: 'samples',
+    description: '查询样品记录：fabric_shipment 模式按订单列面料寄船样/头缸样（可选发货资格判定）；early_production 模式按订单列早期生产样轮次；garment_rounds 模式按开发案列服装多轮样品及封样状态（DR-008 双门禁）。',
+    inputHint: '{ mode?: "fabric_shipment"|"early_production"|"garment_rounds", orderId?: string, caseId?: string, includeEligibility?: boolean }',
+    example: {
+      user: '这个订单的寄船样都齐了吗？现在能不能发货？',
+      input: { mode: 'fabric_shipment', orderId: '<ORDER_ID>', includeEligibility: true },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'qc.query_reports',
+    name: 'Query QC Reports',
+    domain: 'qc',
+    description: '按订单查询 QC 验货报告列表（报告状态/结论/缺陷统计），可选附带 QC 侧出运资格判定。',
+    inputHint: '{ orderId: string, includeEligibility?: boolean }',
+    example: {
+      user: '订单 PO-2601002 的验货结果怎么样？能出货吗？',
+      input: { orderId: '<ORDER_ID>', includeEligibility: true },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'exceptions.query',
+    name: 'Query Controlled Exceptions',
+    domain: 'exceptions',
+    description: '查询受控例外申请（DR-013）：按状态/类别/申请人过滤列表，或按申请 ID 读详情（惰性对账审批结论）。',
+    inputHint: '{ id?: string, status?: string, exceptionCategory?: string, requesterId?: string, limit?: number }',
+    example: {
+      user: '现在有哪些还在生效的例外放行？',
+      input: { status: 'ReviewerApproved' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'credit.query_status',
+    name: 'Query Customer Credit Status',
+    domain: 'credit',
+    description: '查询客户信用状态：额度总额/已占用/剩余、冻结门禁标记（creditFrozen）、最大逾期天数；可选信用事件历史时间线。',
+    inputHint: '{ relationId: string /* 必填；只有客户名时先 relations.query 解析 */, includeHistory?: boolean, historyLimit?: number }',
+    example: {
+      user: 'Peerless 的信用额度还剩多少？有没有被冻结？',
+      input: { relationId: '<RELATION_ID>' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'internal_trade.query',
+    name: 'Query Internal Transfers',
+    domain: 'internal_trade',
+    description: '查询内部供料单（服装部向面料部的内部交易，DR-005/033）：按部门/状态/服装订单/面料订单过滤列表，或按供料单 ID 读详情。',
+    inputHint: '{ id?: string, departmentId?: string, status?: string, garmentOrderId?: string, fabricOrderId?: string, limit?: number, offset?: number }',
+    example: {
+      user: '服装部这个月申请了哪些内部供料？',
+      input: { limit: 50 },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'payment_requests.query',
+    name: 'Query Payment Requests',
+    domain: 'finance',
+    description: '查询付款申请（DR-017 先申请后付款）：按状态/付款性质/申请人过滤列表，或按申请 ID 读详情（含关联审批单与付款凭证快照）。',
+    inputHint: '{ id?: string, status?: string, paymentCategory?: string, applicantId?: string, limit?: number }',
+    example: {
+      user: '现在有哪些待审批的付款申请？',
+      input: { status: 'Pending' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
 ];
 
 export function getMcpManifest(): ToolManifest[] {

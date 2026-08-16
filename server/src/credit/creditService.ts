@@ -553,7 +553,7 @@ export function createCreditService(opts: CreditServiceOptions) {
   // ══════════════════════════════════════════════════════════════════
   // getCreditHistory — 历史时间线（冻结/解冻/额度占用释放全事件，append-only）
   // ══════════════════════════════════════════════════════════════════
-  async function getCreditHistory(params: { relationId: string; limit?: number; offset?: number }) {
+  async function getCreditHistory(params: { relationId: string; limit?: number; offset?: number }): Promise<CreditResult<{ items: unknown[]; total: number }>> {
     const relationId = (params.relationId ?? '').trim();
     if (!relationId) return fail(CREDIT_ERRORS.RELATION_REQUIRED, 'relationId 必填', 400);
     const take = Math.min(Math.max(params.limit ?? 100, 1), 500);

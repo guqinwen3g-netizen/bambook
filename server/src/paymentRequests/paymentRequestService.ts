@@ -447,11 +447,56 @@ export function createPaymentRequestService(opts: PaymentRequestServiceOptions) 
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // listPaymentRequests / getPaymentRequest — 只读查询（与 paymentRequestRoute GET 同一合约真源）
+  //   Agent 只读工具与路由共用本入口；纯查询，不触发审批链、不写库
+  // ══════════════════════════════════════════════════════════════════
+  async function listPaymentRequests(filter: {
+    status?: string;
+    paymentCategory?: string;
+    applicantId?: string;
+    limit?: number;
+  }): Promise<{ items: any[] }> {
+    const where: any = { deletedAt: null };
+    if (filter.status) where.status = filter.status;
+    if (filter.paymentCategory) where.paymentCategory = filter.paymentCategory;
+    if (filter.applicantId) where.applicantId = filter.applicantId;
+    const items = await prisma.paymentRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filter.limit ?? 100, 500),
+    });
+    return { items };
+  }
+
+  async function getPaymentRequest(id: string): Promise<{ item: any | null }> {
+    const item = await prisma.paymentRequest.findUnique({ where: { id } });
+    if (!item || item.deletedAt) return { item: null };
+    // 关联数据单独查询（PaymentRequest 模型无 @relation，禁用 include）
+    const [approvalRequest, paymentVoucher] = await Promise.all([
+      item.approvalRequestId
+        ? prisma.approvalRequest.findUnique({
+            where: { id: item.approvalRequestId },
+            select: { id: true, status: true, reviewerId: true, decidedAt: true, decisionNote: true },
+          }).catch(() => null)
+        : Promise.resolve(null),
+      item.paymentVoucherId
+        ? prisma.paymentVoucher.findUnique({
+            where: { id: item.paymentVoucherId },
+            select: { id: true, voucherNumber: true, type: true, voucherCategory: true, amount: true, currency: true, status: true },
+          }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+    return { item: { ...item, approvalRequest, paymentVoucher } };
+  }
+
   return {
     createPaymentRequest,
     issueVoucherForApprovedRequest,
     syncApprovalDecision,
     cancelPaymentRequest,
+    listPaymentRequests,
+    getPaymentRequest,
   };
 }
 

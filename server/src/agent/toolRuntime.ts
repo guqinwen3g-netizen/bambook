@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { registerTool, dispatchFromRegistry, getRegisteredToolCount } from './toolDispatchRegistry';
+import { registerNewDomainQueryTools } from './newDomainQueryTools';
 import { DEFAULT_AGENT_TOOLS } from './defaults';
 import { createPolicyService } from './policy';
 import { AiEmit } from '../ai/runtime';
@@ -2553,6 +2554,9 @@ registerTool('production.scan_alerts', async (prisma) => {
   }
   return { ok: true, alerts, total: alerts.length };
 });
+
+// ── Phase 4 Track G：Phase 2 八域只读查询工具（risk=low + approvalPolicy=never，无写库）──
+registerNewDomainQueryTools();
 
 // 注册统计日志（开发环境可查看）
 // ═══ 复合 commit 工具注册（通过 registerCommitTool 统一 approval boilerplate）═══

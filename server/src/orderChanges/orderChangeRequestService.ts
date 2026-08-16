@@ -744,12 +744,55 @@ export function createOrderChangeRequestService(opts: OrderChangeRequestServiceO
     return { flagged: flaggedOrderIds.length, orderIds: flaggedOrderIds };
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // listChangeRequests / getChangeRequest — 只读查询（与 orderChangeRoute GET 同一合约真源）
+  //   Agent 只读工具与路由共用本入口；纯查询，不触发审批链、不写库
+  // ══════════════════════════════════════════════════════════════════
+  async function listChangeRequests(filter: {
+    orderId?: string;
+    status?: string;
+    requesterId?: string;
+    limit?: number;
+  }): Promise<{ items: any[] }> {
+    const where: any = { deletedAt: null };
+    if (filter.orderId) where.orderId = filter.orderId;
+    if (filter.status) where.status = filter.status;
+    if (filter.requesterId) where.requesterId = filter.requesterId;
+    const items = await prisma.orderChangeRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filter.limit ?? 100, 500),
+    });
+    return { items };
+  }
+
+  async function getChangeRequest(id: string): Promise<{ item: any | null }> {
+    const item = await prisma.orderChangeRequest.findUnique({ where: { id } });
+    if (!item || item.deletedAt) return { item: null };
+    // 关联数据单独查询（OrderChangeRequest 模型无 @relation，禁用 include）
+    const [order, approvalRequest] = await Promise.all([
+      prisma.order.findUnique({
+        where: { id: item.orderId },
+        select: { id: true, status: true, poNumber: true, customer: true },
+      }).catch(() => null),
+      item.approvalRequestId
+        ? prisma.approvalRequest.findUnique({
+            where: { id: item.approvalRequestId },
+            select: { id: true, status: true, reviewerId: true, decidedAt: true, decisionNote: true },
+          }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+    return { item: { ...item, order, approvalRequest } };
+  }
+
   return {
     createChangeRequest,
     applyChangeRequest,
     withdrawChangeRequest,
     completeClosing,
     checkPauseResumeDue,
+    listChangeRequests,
+    getChangeRequest,
   };
 }
 

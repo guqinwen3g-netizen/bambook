@@ -10,6 +10,8 @@
  * - processSpec: 流程动作专用（draftPhase 输出 ProcessDraft）
  */
 
+import { NEW_DOMAIN_QUERY_TOOL_DEFINITIONS } from './newDomainQueryTools';
+
 /** 工具审批策略三值（P0-B 锁定） */
 export type ApprovalPolicy = 'never' | 'auto' | 'always';
 
@@ -642,6 +644,8 @@ export const P0B_TOOL_DEFINITIONS: ToolDefinition[] = [
     approvalPolicy: 'always',
     processSpec: { composedOf: ['statement.send'], draftPhase: { produces: 'ProcessDraft' }, approvalPhase: { consumes: 'ProcessDraft', approvalCard: { changeList: true, irreversibleMarkers: true, impactScope: true } }, commitTransaction: { consumes: 'ProcessDraft', wrapper: 'prisma_transaction' }, postCommitHooks: [], partialFailurePolicy: { draftFail: 'abort_no_approval', transactionFail: 'rollback', postCommitFail: 'queue_retry' } },
   },
+  // ── Phase 4 Track G：Phase 2 八域只读查询工具（risk=low + approvalPolicy=never）──
+  ...NEW_DOMAIN_QUERY_TOOL_DEFINITIONS,
 ];
 
 /** ToolDefinition 查找索引 */
