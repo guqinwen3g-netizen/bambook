@@ -21,6 +21,11 @@ import { deactivateEntityLinks, syncOrderEntityReferences, syncQuotationReferenc
 import { calculatePriceDeviation, DeviationLevel } from '../pricing/trackAEstimator';
 import { resolveActorUserAccountId } from '../agent/actorIdentity';
 import { nextBusinessNumber } from '../shared/businessNumberService';
+import { createMoqConfigService, type MoqSnapshot } from '../moq/moqConfigService';
+import { createMoqResolutionService, isValidSnapshot } from '../moq/moqResolutionService';
+import { createMoqValidationService } from '../moq/moqValidationService';
+import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
+import { createApprovalCreateService } from '../approvals/approvalCreateService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -115,6 +120,56 @@ function validateStatusTransition(from: string, to: QuotationStatus): void {
 // ────────────────────────────────────────────────────────────────
 
 export function createQuotationService(prisma: PrismaClient) {
+  // MOQ 域服务（报价侧：create/update advisory 校验 + writeOnce 快照；send/convertToOrder fail-closed 门禁）
+  // 豁免审批单统一经 approvalCreateService（DR-007 服务端解析 reviewerId，禁止前端/调用方传入）
+  const moqConfigSvc = createMoqConfigService({ prisma });
+  const moqResolutionSvc = createMoqResolutionService({ prisma, configService: moqConfigSvc });
+  const moqValidationSvc = createMoqValidationService({
+    prisma,
+    configService: moqConfigSvc,
+    resolutionService: moqResolutionSvc,
+    approvalCreateService: createApprovalCreateService({
+      prisma,
+      routingService: createApprovalRoutingService({ prisma }),
+    }),
+  });
+
+  // ── MOQ 行级业务线推导：Quotation 无单据级 type/businessLine 字段，按行 unit 归族 ──
+  // PC/PCS/SET（件/套）→ garment 成衣族；其余（M/YD/KG 等）→ fabric 面料族
+  function deriveLineBusinessLine(unit?: string | null): 'garment' | 'fabric' {
+    const u = (unit ?? '').trim().toUpperCase();
+    return u === 'PC' || u === 'PCS' || u === 'SET' ? 'garment' : 'fabric';
+  }
+
+  // ── MOQ 校验输入组装（逐行推导 businessLine；口径 = 报价单 writeOnce 快照） ──
+  function buildMoqLines(lines: Array<{ quantity: unknown; unit?: string | null; moqOverride?: number | null }>) {
+    return lines.map((l) => ({
+      quantity: Number(l.quantity),
+      unit: l.unit ?? undefined,
+      businessLine: deriveLineBusinessLine(l.unit),
+      moqOverride: l.moqOverride ?? null,
+    }));
+  }
+
+  // ── MOQ 豁免审批单查询（approved 才算有效；查询异常按无豁免处理 → fail-closed 阻断） ──
+  async function findApprovedMoqExemption(quotationId: string): Promise<string | null> {
+    try {
+      const approved = await (prisma as any).approvalRequest.findFirst({
+        where: {
+          targetType: 'Quotation',
+          targetId: quotationId,
+          actionType: 'quotation:moq-exemption',
+          status: 'approved',
+        },
+        select: { id: true },
+      });
+      return approved?.id ?? null;
+    } catch (e: any) {
+      logger.error('[QuotationService] MOQ 豁免审批单查询失败（fail-closed 按无豁免处理）', { quotationId, error: e?.message });
+      return null;
+    }
+  }
+
   // ── 创建报价单（含行明细，事务） ──
   async function createQuotation(input: CreateQuotationInput, actorId: string): Promise<QuotationDetail> {
     const totalAmount = calcTotalAmount(input.lines);
@@ -151,6 +206,9 @@ export function createQuotationService(prisma: PrismaClient) {
       }
     }
 
+    // ── MOQ 快照 writeOnce（§2.3 不追溯；创建时写入，此后不随系统配置变更） ──
+    const moqSnapshot = await moqConfigSvc.buildSnapshot();
+
     const created = await prisma.$transaction(async (tx) => {
       // PRD 5.6：服务端自动生成报价号（QT-YYYY-NNNN），传入时优先使用传入值
       const quotationNumber = input.quotationNumber || await nextBusinessNumber(tx, 'QT');
@@ -180,6 +238,8 @@ export function createQuotationService(prisma: PrismaClient) {
           priceDeviationPercent: deviation?.deviationPercent ?? null,
           priceDeviationLevel: deviation?.level ?? null,
           priceApprovalId: approvalId,
+          // MOQ 快照（writeOnce）
+          moqSnapshot: moqSnapshot as any,
           createdAt: now,
           updatedAt: now,
           lines: {
@@ -250,8 +310,26 @@ export function createQuotationService(prisma: PrismaClient) {
       return quotation;
     });
 
-    logger.info('[QuotationService] quotation created', { id: quotationId, quotationNumber: input.quotationNumber, totalAmount });
-    return created as QuotationDetail;
+    // ── MOQ 创建校验（advisory：草稿保存不阻断；sendQuotation 门禁 fail-closed 兜底） ──
+    let moqCheck: unknown = null;
+    try {
+      moqCheck = await moqValidationSvc.validateCreate({
+        customerRelationId: input.customerRelationId ?? null,
+        snapshot: moqSnapshot,
+        lines: buildMoqLines(input.lines),
+      }, { actor: actorId && actorId !== 'system' ? { userId: actorId } : null });
+      if ((moqCheck as any).ok === false) {
+        logger.warn('[QuotationService] MOQ 低于阈值（advisory，发送报价时需豁免审批）', {
+          id: quotationId, blockedLineIndexes: (moqCheck as any).blockedLineIndexes,
+        });
+      }
+    } catch (e: any) {
+      logger.error('[QuotationService] MOQ 创建校验异常（不阻断创建）', { id: quotationId, error: e?.message });
+      moqCheck = null;
+    }
+
+    logger.info('[QuotationService] quotation created', { id: quotationId, quotationNumber: input.quotationNumber, totalAmount, snapshotSource: moqSnapshot.source });
+    return { ...(created as QuotationDetail), moqCheck } as QuotationDetail;
   }
 
   // ── 更新报价单（仅 Draft 状态可编辑） ──
@@ -333,8 +411,28 @@ export function createQuotationService(prisma: PrismaClient) {
       return quotation;
     });
 
+    // ── MOQ 编辑校验（advisory：行变更时按 writeOnce 快照口径重算，不阻断保存；moqSnapshot 绝不改写） ──
+    let moqCheck: unknown = null;
+    if (lines && lines.length > 0) {
+      try {
+        moqCheck = await moqValidationSvc.validateCreate({
+          customerRelationId: input.customerRelationId ?? existing.customerRelationId ?? null,
+          snapshot: (existing as any).moqSnapshot ?? null,
+          lines: buildMoqLines(lines),
+        }, { actor: actorId && actorId !== 'system' ? { userId: actorId } : null });
+        if ((moqCheck as any).ok === false) {
+          logger.warn('[QuotationService] MOQ 低于阈值（advisory，发送报价时需豁免审批）', {
+            id, blockedLineIndexes: (moqCheck as any).blockedLineIndexes,
+          });
+        }
+      } catch (e: any) {
+        logger.error('[QuotationService] MOQ 编辑校验异常（不阻断保存）', { id, error: e?.message });
+        moqCheck = null;
+      }
+    }
+
     logger.info('[QuotationService] quotation updated', { id });
-    return updated as QuotationDetail;
+    return { ...(updated as QuotationDetail), moqCheck } as QuotationDetail;
   }
 
   // ── 软删除报价单（仅 Draft 状态可删除） ──
@@ -442,6 +540,36 @@ export function createQuotationService(prisma: PrismaClient) {
           + `需审批通过后方可发送（门禁：price-deviation${existing.priceApprovalId ? '' : '，审批请求缺失'}）`,
         );
       }
+    }
+
+    // ── MOQ 门禁（§4.3 + §6 #2 fail-closed）：存在低于 MOQ 的行且无 approved 豁免审批单 → 阻断发送 ──
+    // 口径：Quotation.moqSnapshot（writeOnce）；不合规时自动生成豁免审批单（§6 #2 动作③，DR-007 解析 reviewerId）
+    try {
+      const moqCheck = await moqValidationSvc.validateCreate({
+        customerRelationId: existing.customerRelationId ?? null,
+        snapshot: (existing as any).moqSnapshot ?? null,
+        lines: buildMoqLines(existing.lines),
+      }, {
+        actor: actorId && actorId !== 'system' ? { userId: actorId } : null,
+        autoCreateApproval: Boolean(actorId && actorId !== 'system'),
+        targetType: 'Quotation',
+        targetId: id,
+      });
+      if (!moqCheck.ok) {
+        const approvedId = await findApprovedMoqExemption(id);
+        if (!approvedId) {
+          const worst = moqCheck.lines.find((l) => !l.compliant);
+          throw new Error(
+            `报价单 ${existing.quotationNumber} 存在低于 MOQ 的行（行 ${(worst?.lineIndex ?? 0) + 1} 数量 ${worst?.quantity} < MOQ ${worst?.effectiveMoq}，缺口 ${worst?.gapPct}%），`
+            + `需 MOQ 豁免审批通过后方可发送（门禁：moq-exemption${moqCheck.approvalRequestId ? `，审批单 ${moqCheck.approvalRequestId} 待审批` : ''}${moqCheck.approvalError ? '，审批单创建失败请联系管理员' : ''}）`,
+          );
+        }
+      }
+    } catch (e: any) {
+      if (typeof e?.message === 'string' && e.message.includes('门禁：moq-exemption')) throw e;
+      // fail-closed：门禁校验基础设施异常 → 阻断发送
+      logger.error('[QuotationService] MOQ 发送门禁校验异常（fail-closed 阻断）', { id, error: e?.message });
+      throw new Error(`报价单 ${existing.quotationNumber} MOQ 校验失败，请重试或联系管理员（门禁：moq-exemption）：${e?.message}`);
     }
 
     const now = Date.now();
@@ -650,6 +778,37 @@ export function createQuotationService(prisma: PrismaClient) {
     const dueDate = overrides?.dueDate || existing.validUntil || '';
     const totalAmount = Number(existing.totalAmount);
 
+    // ── MOQ 转换门禁（§6 #3 fail-closed）：报价行低于 MOQ 时须持 approved 豁免审批单 ──
+    // 有 approved → 复制审批引用至 Order 快照（fieldSources.moqExemptionApprovalId），不重复触发审批；
+    // 无 approved / 已撤销 / 已拒绝 → 抛异常中止转换。
+    let moqExemptionApprovalId: string | null = null;
+    try {
+      const moqCheck = await moqValidationSvc.validateCreate({
+        customerRelationId: existing.customerRelationId ?? null,
+        snapshot: (existing as any).moqSnapshot ?? null,
+        lines: buildMoqLines(existing.lines),
+      }, { actor: actorId && actorId !== 'system' ? { userId: actorId } : null });
+      if (!moqCheck.ok) {
+        moqExemptionApprovalId = await findApprovedMoqExemption(id);
+        if (!moqExemptionApprovalId) {
+          const worst = moqCheck.lines.find((l) => !l.compliant);
+          throw new Error(
+            `报价单 ${existing.quotationNumber} 存在低于 MOQ 的行（行 ${(worst?.lineIndex ?? 0) + 1} 数量 ${worst?.quantity} < MOQ ${worst?.effectiveMoq}，缺口 ${worst?.gapPct}%）`
+            + `且无有效 MOQ 豁免审批（门禁：moq-exemption），转换中止`,
+          );
+        }
+      }
+    } catch (e: any) {
+      if (typeof e?.message === 'string' && e.message.includes('门禁：moq-exemption')) throw e;
+      logger.error('[QuotationService] MOQ 转换门禁校验异常（fail-closed 阻断）', { id, error: e?.message });
+      throw new Error(`报价单 ${existing.quotationNumber} MOQ 校验失败，转换中止（门禁：moq-exemption）：${e?.message}`);
+    }
+
+    // ── MOQ 快照口径继承：报价 writeOnce 快照合法 → 订单继承同一口径（报价→订单 MOQ 不跳变）；否则新建 ──
+    const orderMoqSnapshot: MoqSnapshot = isValidSnapshot((existing as any).moqSnapshot)
+      ? ((existing as any).moqSnapshot as MoqSnapshot)
+      : await moqConfigSvc.buildSnapshot();
+
     const result = await prisma.$transaction(async (tx) => {
       // 1. 创建订单
       const order = await tx.order.create({
@@ -672,7 +831,12 @@ export function createQuotationService(prisma: PrismaClient) {
           source: 'quotation-convert',
           salesCurrency: existing.currency,
           purchaseCurrency: existing.baseCurrency || 'CNY',
-          fieldSources: { source: 'quotation-convert' } as any,
+          fieldSources: {
+            source: 'quotation-convert',
+            // §6 #3：源报价行已 approved 的 MOQ 豁免审批引用（不重复触发审批）
+            ...(moqExemptionApprovalId ? { moqExemptionApprovalId } : {}),
+          } as any,
+          moqSnapshot: orderMoqSnapshot as any,
           updatedAt: BigInt(now),
           importedAt: BigInt(now),
           lines: {

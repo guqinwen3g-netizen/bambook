@@ -130,6 +130,16 @@ const validInput = {
   ],
 };
 
+// MOQ 门禁适配：合法 writeOnce 快照（阈值 50，现有成功用例数量 100 ≥ 50 → 合规放行）
+const VALID_MOQ_SNAPSHOT = {
+  fabricDefaultMoq: 50,
+  garmentDefaultMoq: 50,
+  capsuleMoq: 10,
+  snapshotAt: '2026-08-01T00:00:00.000Z',
+  configId: 'MOQCFG__test',
+  source: 'moq_config',
+};
+
 describe('quotationRoute: POST / (create)', () => {
   beforeEach(() => publishSpy.mockClear());
 
@@ -324,6 +334,7 @@ describe('quotationRoute: POST /:id/send (Draft → Sent)', () => {
         customerName: 'ACME',
         totalAmount: 550,
         currency: 'USD',
+        moqSnapshot: VALID_MOQ_SNAPSHOT, // MOQ 门禁：100 ≥ 50 → 合规放行
         lines: [{ id: 'L1', description: 'x', quantity: 100, unit: 'YD', unitPrice: 5.5 }],
       },
     });
@@ -467,6 +478,7 @@ describe('quotationRoute: POST /:id/convert-to-order', () => {
         baseCurrency: 'CNY',
         totalAmount: 550,
         validUntil: '2026-09-30',
+        moqSnapshot: VALID_MOQ_SNAPSHOT, // MOQ 转换门禁：100 ≥ 50 → 合规放行
         lines: [{ id: 'L1', fabricCode: 'FAB-A', description: 'Fabric A', quantity: 100, unit: 'YD', unitPrice: 5.5, amount: 550 }],
       },
     });
@@ -493,6 +505,7 @@ describe('quotationRoute: POST /:id/convert-to-order', () => {
         currency: 'USD',
         baseCurrency: 'CNY',
         totalAmount: 100,
+        moqSnapshot: { ...VALID_MOQ_SNAPSHOT, fabricDefaultMoq: 10 }, // MOQ 门禁：10 ≥ 10 → 合规放行
         lines: [{ id: 'L1', description: 'x', quantity: 10, unit: 'YD', unitPrice: 10, amount: 100 }],
       },
     });

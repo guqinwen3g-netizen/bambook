@@ -114,6 +114,17 @@ const baseInput: CreateQuotationInput = {
   ],
 };
 
+// MOQ 门禁适配：合法 writeOnce 快照（阈值 50，现有用例数量 100/50/10 中 ≥50 的行合规；
+// 数量 <50 的行仍不合规 → 用于门禁阻断/豁免审批路径验证）
+const VALID_MOQ_SNAPSHOT = {
+  fabricDefaultMoq: 50,
+  garmentDefaultMoq: 50,
+  capsuleMoq: 10,
+  snapshotAt: '2026-08-01T00:00:00.000Z',
+  configId: 'MOQCFG__test',
+  source: 'moq_config',
+};
+
 describe('quotationService: createQuotation', () => {
   beforeEach(() => {
     publishSpy.mockClear();
@@ -289,6 +300,7 @@ describe('quotationService: sendQuotation (Draft → Sent)', () => {
       customerRelationId: 'REL_1',
       totalAmount: 1150,
       currency: 'USD',
+      moqSnapshot: VALID_MOQ_SNAPSHOT, // MOQ 门禁：100/50 ≥ 50 → 合规放行
       lines: [{ id: 'L1', fabricCode: null, description: 'Fabric A', quantity: 100, unit: 'YD', unitPrice: 5.5 }],
     };
     const { prisma, tx } = makePrisma({ existing });
@@ -591,6 +603,7 @@ describe('quotationService: convertToOrder (Accepted → Order)', () => {
       validUntil: '2026-09-30',
       deliveryTerms: 'FOB Shanghai',
       paymentTerms: 'T/T 30%',
+      moqSnapshot: VALID_MOQ_SNAPSHOT, // MOQ 转换门禁：100/50 ≥ 50 → 合规放行
       lines: [
         { id: 'L1', fabricCode: 'FAB-A', description: 'Fabric A', quantity: 100, unit: 'YD', unitPrice: 5.5, amount: 550 },
         { id: 'L2', fabricCode: 'FAB-B', description: 'Fabric B', quantity: 50, unit: 'M', unitPrice: 12, amount: 600 },
@@ -651,6 +664,7 @@ describe('quotationService: convertToOrder (Accepted → Order)', () => {
       baseCurrency: 'CNY',
       totalAmount: 500,
       validUntil: '2026-09-30',
+      moqSnapshot: { ...VALID_MOQ_SNAPSHOT, fabricDefaultMoq: 10 }, // MOQ 门禁：10 ≥ 10 → 合规放行
       lines: [{ id: 'L1', fabricCode: null, description: 'x', quantity: 10, unit: 'YD', unitPrice: 50, amount: 500 }],
     };
     const { prisma, tx } = makePrismaWithConvertSupport({ existing });
@@ -701,6 +715,7 @@ describe('quotationService: convertToOrder (Accepted → Order)', () => {
       customerName: 'ACME',
       currency: 'USD',
       totalAmount: 100,
+      moqSnapshot: { ...VALID_MOQ_SNAPSHOT, fabricDefaultMoq: 10 }, // MOQ 门禁：10 ≥ 10 → 合规放行，让 audit reject 发生在事务内
       lines: [{ id: 'L1', description: 'x', quantity: 10, unit: 'YD', unitPrice: 10, amount: 100 }],
     };
     const { prisma, tx } = makePrismaWithConvertSupport({ existing, auditFail: true });

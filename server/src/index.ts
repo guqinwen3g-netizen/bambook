@@ -33,6 +33,9 @@ import { createReportingRouter } from './reporting/route';
 import { createShippingRouter } from './shipping/route';
 import { createDashboardRouter } from './dashboard/route';
 import { createQuotationRouter } from './quotations/quotationRoute';
+import { createMoqRouter } from './moq/moqRoute';
+import { createOrderChangeRouter } from './orderChanges/orderChangeRoute';
+import { createSampleRouter } from './samples/sampleRoute';
 import { createProcurementRouter } from './procurement/procurementRoute';
 import { createInventoryRouter } from './inventory/inventoryRoute';
 import { createBOMRouter } from './bom/bomRoute';
@@ -655,6 +658,19 @@ app.use(
         onDataChange: publishDataChange,
     })(req, res, next),
 );
+
+// MOQ 域：阈值配置（settings:moq:write）+ 变更历史 + dry-run 预检（fail-closed，仅 JWT）
+app.use(
+    '/api/v1/moq',
+    (req, res, next) => createMoqRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+    })(req, res, next),
+);
+
+// Phase 2 Wave 2.1：订单变更域（DR-010 变更/取消/暂停审批链）+ 样品域（DR-008/011/012/026/028/039）
+app.use('/api/v1/order-changes', createOrderChangeRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+app.use('/api/v1/samples', createSampleRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
 
 // 阶段 D / D6：实体级审计查询（普通用户按 targetType+targetId，模块读权限门禁）
 app.use(

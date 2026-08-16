@@ -169,3 +169,71 @@ export async function advanceSampleNode(params: {
 
   return { ok: true, data: { node: serializeNode(updated) } };
 }
+
+// ────────────────────────────────────────────────────────────────────
+// DR-008 扩展：封样驱动的节点批准投影（服装样品双门禁收口）
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * 封样联动批准（DR-008 双门禁收口投影）。
+ *
+ * 调用方：samples/garmentSampleGateService.sealRound —— 仅在「内部 QC 通过 + 客户确认
+ * 已登记」双门禁均满足、业务员封存产前样后调用，将对应级别节点（默认 pp 产前样）
+ * 推进到 approved 终态，作为生产放行/开裁前置条件的既有消费点（production 域
+ * pp_sample_approved / 开裁前置校验）继续以 SampleNode.approved 为真源。
+ *
+ * 边界：
+ *   - 本函数是既有状态机的「封样投影」扩展：不修改 advanceSampleNode 的任何既有语义，
+ *     approved 仍为终态；重复调用幂等返回当前节点；
+ *   - QC→确认→封存的顺序守卫由 garmentSampleGateService 保证，本函数不重复校验。
+ */
+export async function markSampleNodeSealedApproved(params: {
+  prisma: PrismaClient;
+  caseId: string;
+  level?: SampleNodeLevel;
+  approvedBy: string;
+  feedback?: string;
+  notes?: string;
+}): Promise<Result<{ node: any }>> {
+  const { prisma, caseId, level = 'pp', approvedBy, feedback, notes } = params;
+
+  const devCase = await findLiveCase(prisma, caseId);
+  if (!devCase) return { ok: false, error: { code: 'NOT_FOUND', message: `开发单 ${caseId} 不存在` } };
+
+  await ensureSampleNodes(prisma, caseId);
+  const node = await prisma.sampleNode.findUnique({
+    where: { developmentCaseId_level: { developmentCaseId: caseId, level } },
+  });
+  if (!node || node.deletedAt) {
+    return { ok: false, error: { code: 'NOT_FOUND', message: '样衣节点不存在' } };
+  }
+  if (node.status === 'approved') {
+    return { ok: true, data: { node: serializeNode(node) } }; // 幂等
+  }
+
+  const now = BigInt(Date.now());
+  const updated = await prisma.sampleNode.update({
+    where: { id: node.id },
+    data: {
+      status: 'approved',
+      approvedAt: now,
+      approvedBy,
+      ...(feedback !== undefined ? { feedback: feedback || null } : {}),
+      ...(notes !== undefined ? { notes: notes || null } : {}),
+      updatedAt: now,
+    },
+  });
+
+  await writeRouteAuditLog({
+    prisma,
+    actorId: approvedBy || 'api',
+    source: 'route:samples:garment-gate',
+    operation: 'seal_approve_sample_node',
+    targetType: 'SampleNode',
+    targetId: node.id,
+    before: { status: node.status, round: node.round },
+    after: { status: 'approved', round: updated.round, sealDriven: true },
+  });
+
+  return { ok: true, data: { node: serializeNode(updated) } };
+}

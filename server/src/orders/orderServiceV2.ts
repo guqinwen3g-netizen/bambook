@@ -24,6 +24,11 @@ import {
   ORDER_TRANSITIONS,
 } from './orderLifecycleService';
 import { logger } from '../lib/logger';
+import { createMoqConfigService } from '../moq/moqConfigService';
+import { createMoqResolutionService } from '../moq/moqResolutionService';
+import { createMoqValidationService, isCapsuleEligible } from '../moq/moqValidationService';
+import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
+import { createApprovalCreateService } from '../approvals/approvalCreateService';
 
 // ────────────────────────────────────────────────────────────────────
 // 类型
@@ -87,12 +92,13 @@ export type OrderV2Error =
   | 'NOT_FOUND'
   | 'INVALID_TRANSITION'
   | 'SEQUENCE_FAILED'
+  | 'MOQ_VIOLATION'
   | 'INTERNAL_ERROR';
 
 export interface OrderV2Result<T = any> {
   ok: boolean;
   data?: T;
-  error?: { code: OrderV2Error; message: string };
+  error?: { code: OrderV2Error; message: string; approvalRequestId?: string };
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -103,6 +109,18 @@ export function createOrderServiceV2(prisma: PrismaClient) {
   const seqSvc = createSequenceService(prisma);
   const dictSvc = getDataDictionaryService(prisma);
   const configSvc = getSystemConfigService(prisma);
+  // MOQ 域服务（配置 → 取数 → 校验；豁免审批单统一经 approvalCreateService，DR-007 服务端解析 reviewerId）
+  const moqConfigSvc = createMoqConfigService({ prisma });
+  const moqResolutionSvc = createMoqResolutionService({ prisma, configService: moqConfigSvc });
+  const moqValidationSvc = createMoqValidationService({
+    prisma,
+    configService: moqConfigSvc,
+    resolutionService: moqResolutionSvc,
+    approvalCreateService: createApprovalCreateService({
+      prisma,
+      routingService: createApprovalRoutingService({ prisma }),
+    }),
+  });
 
   // ── 行级权限 where 构造 ──
   async function buildScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
@@ -308,6 +326,19 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       const departmentId = input.departmentId || actor.departmentIds?.[0] || null;
 
       const id = `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      // ── MOQ 快照 writeOnce（不追溯；创建时写入，后续绝不改写） ──
+      const moqSnapshot = await moqConfigSvc.buildSnapshot();
+
+      // ── Capsule 豁免（DR-003）：仅成衣订单可勾选，记录操作者/时间（§6 #0） ──
+      const capsuleRequested = withDefaults.capsuleExemption === true;
+      if (capsuleRequested && !isCapsuleEligible({ type: withDefaults.type, businessLine: withDefaults.businessLine })) {
+        return { ok: false, error: { code: 'FORBIDDEN', message: 'CAPSULE_NOT_ALLOWED：Capsule 豁免仅适用于服装订单' } };
+      }
+      const capsuleFields: Record<string, unknown> = capsuleRequested
+        ? { capsuleExemption: true, capsuleExemptionBy: actor.userId, capsuleExemptionAt: new Date() }
+        : { capsuleExemption: false, capsuleExemptionBy: null, capsuleExemptionAt: null };
+
       const payload: Record<string, unknown> = {
         id,
         code,
@@ -327,15 +358,39 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         businessLine: withDefaults.businessLine || null,
         updatedAt: BigInt(Date.now()),
         fieldSources: { _origin: 'manual-v2' },
+        moqSnapshot,
+        ...capsuleFields,
       };
-      // 透传额外的可选字段
+      // 透传额外的可选字段（moqSnapshot/capsuleExemption* 已在上方显式赋值，客户端注入不会覆盖）
       for (const [k, v] of Object.entries(withDefaults)) {
         if (!payload[k] && v != null) payload[k] = v;
       }
 
       const order = await (prisma as any).order.create({ data: payload, include: { lines: true } });
-      logger.info('[OrderV2] created', { id, code, status, ownerId });
-      return { ok: true, data: serializeOrder(order) };
+
+      // ── MOQ 创建校验（advisory：草稿保存不阻断；Confirmed 门禁/变更门禁 fail-closed 兜底） ──
+      let moqCheck: unknown = null;
+      try {
+        moqCheck = await moqValidationSvc.validateCreate({
+          type: payload.type as string,
+          businessLine: payload.businessLine as string | null,
+          capsuleExemption: payload.capsuleExemption === true,
+          customerRelationId: payload.customerRelationId as string | null,
+          snapshot: moqSnapshot,
+          lines: [{ quantity: Number(withDefaults.quantity) }],
+        }, { actor: { userId: actor.userId, roles: actor.roles, roleIds: actor.roleIds, permissions: actor.permissions } });
+        if ((moqCheck as any).ok === false) {
+          logger.warn('[OrderV2] MOQ 低于阈值（advisory，推进 Confirmed 时需豁免审批）', {
+            id, blockedLineIndexes: (moqCheck as any).blockedLineIndexes,
+          });
+        }
+      } catch (e: any) {
+        logger.error('[OrderV2] MOQ 创建校验异常（不阻断创建）', { id, error: e?.message });
+        moqCheck = null;
+      }
+
+      logger.info('[OrderV2] created', { id, code, status, ownerId, snapshotSource: moqSnapshot.source });
+      return { ok: true, data: { ...serializeOrder(order), moqCheck } };
     } catch (e: any) {
       logger.error('[OrderV2] create failed', { error: e?.message });
       return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
@@ -364,7 +419,51 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         if (err) return { ok: false, error: { code: 'VALIDATION_FAILED', message: `type ${err}` } };
       }
 
-      // 构建 update payload（只更新传入的字段）
+      // ── MOQ 变更门禁（§X fail-closed）：Confirmed+ 订单数量变更须重算 MOQ（取 Order.moqSnapshot 口径） ──
+      if (input.quantity !== undefined && Number(input.quantity) !== Number(existing.quantity)) {
+        try {
+          const moqPatch = await moqValidationSvc.validatePatch({
+            orderId: id,
+            beforeQty: Number(existing.quantity),
+            afterQty: Number(input.quantity),
+            actorId: actor.userId,
+          });
+          if (moqPatch.blocked) {
+            return {
+              ok: false,
+              error: {
+                code: 'MOQ_VIOLATION',
+                message: `变更后数量 ${input.quantity} 低于 MOQ ${moqPatch.effectiveMoq}（快照口径），需 MOQ 豁免审批`,
+                approvalRequestId: moqPatch.approvalRequestId,
+              },
+            };
+          }
+          if ((moqPatch.cancelledCount ?? 0) > 0) {
+            logger.info('[OrderV2] 数量回升合规，已自动取消挂起 MOQ 豁免单', { id, cancelledCount: moqPatch.cancelledCount });
+          }
+        } catch (e: any) {
+          if (e?.code !== 'MOQ_ORDER_NOT_FOUND') {
+            // fail-closed：校验基础设施异常时阻断数量写入（§6 #1 异常分支）
+            logger.error('[OrderV2] MOQ 变更校验异常（fail-closed 阻断数量写入）', { id, error: e?.message });
+            return { ok: false, error: { code: 'MOQ_VIOLATION', message: `MOQ 校验失败，请重试或联系管理员：${e?.message}` } };
+          }
+        }
+      }
+
+      // ── Capsule 豁免切换（DR-003）：仅成衣订单；勾选/取消均重记操作者与时间 ──
+      if (input.capsuleExemption !== undefined) {
+        const wantCapsule = input.capsuleExemption === true;
+        if (wantCapsule && !isCapsuleEligible({
+          type: (input.type as string) ?? existing.type,
+          businessLine: (input.businessLine as string) ?? existing.businessLine,
+        })) {
+          return { ok: false, error: { code: 'FORBIDDEN', message: 'CAPSULE_NOT_ALLOWED：Capsule 豁免仅适用于服装订单' } };
+        }
+        input.capsuleExemptionBy = actor.userId;
+        input.capsuleExemptionAt = new Date();
+      }
+
+      // 构建 update payload（只更新传入的字段；moqSnapshot 为 writeOnce，绝不在更新路径出现）
       const payload: Record<string, unknown> = {};
       const updatableFields = [
         'customer', 'product', 'type', 'quantity', 'dueDate', 'quoteAmount',
@@ -374,6 +473,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         'specialInstructions', 'poNumber', 'season', 'contactPerson', 'contactPhone',
         'shipToName', 'shipToAddress1', 'shipToAddress2', 'shipToCountry', 'shipToPhone',
         'deliverTo', 'salesContractNumber', 'finalContractNumber',
+        'capsuleExemption', 'capsuleExemptionBy', 'capsuleExemptionAt',
       ];
       for (const f of updatableFields) {
         if (input[f] !== undefined) payload[f] = input[f];
@@ -411,7 +511,10 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       const scopeWhere = await buildScopeWhere(actor);
       const existing = await (prisma as any).order.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
-        select: { id: true, status: true, code: true },
+        select: {
+          id: true, status: true, code: true, type: true, businessLine: true,
+          quantity: true, capsuleExemption: true, moqSnapshot: true, customerRelationId: true,
+        },
       });
       if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: '订单不存在或无权限操作' } };
 
@@ -423,6 +526,43 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       const allowedTargets = ORDER_TRANSITIONS[currentStatus];
       if (!allowedTargets || !allowedTargets.has(newStatus)) {
         return { ok: false, error: { code: 'INVALID_TRANSITION', message: `不允许从 ${currentStatus} → ${newStatus}（合法目标: ${allowedTargets ? [...allowedTargets].join(', ') : '无'}）` } };
+      }
+
+      // ── MOQ Confirmed 门禁（§4.3 fail-closed）：低于 MOQ 且无 approved 豁免审批单 → 阻断 ──
+      if (newStatus === 'Confirmed') {
+        try {
+          const moqCheck = await moqValidationSvc.validateCreate({
+            type: existing.type,
+            businessLine: existing.businessLine,
+            capsuleExemption: existing.capsuleExemption === true,
+            customerRelationId: existing.customerRelationId ?? null,
+            snapshot: existing.moqSnapshot ?? null,
+            lines: [{ quantity: Number(existing.quantity) }],
+          }, { actor: { userId: actor.userId, roles: actor.roles, roleIds: actor.roleIds, permissions: actor.permissions } });
+          if (!moqCheck.ok) {
+            const approved = await (prisma as any).approvalRequest?.findFirst?.({
+              where: {
+                targetType: 'Order', targetId: id,
+                actionType: 'order:moq-exemption', status: 'approved',
+              },
+              select: { id: true },
+            });
+            if (!approved) {
+              const worst = moqCheck.lines[0];
+              return {
+                ok: false,
+                error: {
+                  code: 'MOQ_VIOLATION',
+                  message: `订单数量 ${Number(existing.quantity)} 低于 MOQ ${worst?.effectiveMoq}（缺口 ${worst?.gapPct}%，快照口径），须先完成 MOQ 豁免审批（DR-007 单人单次）`,
+                },
+              };
+            }
+          }
+        } catch (e: any) {
+          // fail-closed：门禁校验异常 → 阻断 Confirmed 推进
+          logger.error('[OrderV2] Confirmed 门禁 MOQ 校验异常（fail-closed 阻断）', { id, error: e?.message });
+          return { ok: false, error: { code: 'MOQ_VIOLATION', message: `MOQ 校验失败，请重试或联系管理员：${e?.message}` } };
+        }
       }
 
       const updated = await (prisma as any).$transaction(async (tx: any) => {

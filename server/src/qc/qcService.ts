@@ -19,6 +19,8 @@
 import { PrismaClient, QCLocation, QCAssignment } from '@prisma/client';
 import { logger } from '../lib/logger';
 import crypto from 'crypto';
+import { writeRouteAuditLog } from '../audit/routeAudit';
+import { isFabricChainOrder, isDevelopmentSampleType } from './qcChainService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型定义
@@ -62,6 +64,35 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** 工作台已完成任务回看窗口：近 30 天 */
 const WORKBENCH_COMPLETED_WINDOW_DAYS = 30;
 const WORKBENCH_COMPLETED_LIMIT = 20;
+
+// ────────────────────────────────────────────────────────────────
+// DR-014 出运资格视图类型（面料链三条件并行）
+// ────────────────────────────────────────────────────────────────
+
+export type ShipmentGateCode = 'BULK_QC_NOT_PASSED' | 'SS_NOT_CONFIRMED' | 'RC_NOT_CONFIRMED';
+
+export interface ShipmentGateState {
+  satisfied: boolean;
+  [key: string]: unknown;
+}
+
+export interface ShipmentEligibility {
+  orderId: string;
+  /** DR-014 三条件仅适用于面料订单；服装订单出运门禁=大货 Final QC（REL-14-A4，由状态机承担） */
+  applicable: boolean;
+  eligible: boolean;
+  /** 三条件并行状态（完成顺序无关；缺任一条即 eligible=false） */
+  conditions: {
+    bulkQc: ShipmentGateState;
+    ss: ShipmentGateState;
+    rc: ShipmentGateState & { enabled: boolean };
+  };
+  missingGates: ShipmentGateCode[];
+  /** applicable=false 时的原因说明（链边界） */
+  reason?: string;
+}
+
+export type ReportSignRole = 'qc' | 'business';
 
 function generateId(prefix: string): string {
   return `${prefix}__${crypto.randomBytes(6).toString('base64url').toUpperCase()}`;
@@ -372,6 +403,200 @@ export function createQcService(prisma: PrismaClient) {
     return { assigned, inProgress, completed };
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // 3. DR-014 面料出运资格判定（大货 QC ∥ S/S 客户确认 ∥ RC 客户确认 三条件并行）
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * DR-014：面料大货 QC 通过、S/S 客户确认完成、已启用 RC 的客户确认完成，
+   * 三者是具备申请出运资格的独立并行条件（完成顺序无关，互不前置）。
+   * 本函数只做原始门禁状态报告（fail-closed 视图），DR-013 受控例外由出运域另行绑定，
+   * 例外不改变此处返回的门禁状态（DR-013「例外不改变原规则」）。
+   *
+   * 数据来源（链路边界：各自独立记录，禁止合并为单一「已确认」字段）：
+   *   - bulkQc：InspectionReport(orderId, inspectionType='final') result='pass'
+   *   - ss：FabricShipmentSample(orderId, deletedAt=null) customerStatus='approved'（取最新一条）
+   *   - rc：Order.fabricSampleSentDate 非空=已启用；启用则要求 fabricSampleConfirmedDate 非空
+   * 服装订单不适用（出运门禁=大货 Final QC 独立检查，REL-14-A4）→ applicable=false。
+   */
+  async function checkShipmentEligibility(orderId: string): Promise<ShipmentEligibility> {
+    if (!orderId?.trim()) throw new Error('orderId 必填');
+    const order = await db.order.findUnique({ where: { id: orderId } });
+    if (!order || order.deletedAt !== null) throw new Error('订单不存在');
+
+    if (!isFabricChainOrder(order)) {
+      return {
+        orderId,
+        applicable: false,
+        eligible: false,
+        conditions: {
+          bulkQc: { satisfied: false },
+          ss: { satisfied: false },
+          rc: { enabled: false, satisfied: false },
+        },
+        missingGates: [],
+        reason: 'DR-014 出运三条件仅适用于面料订单；服装订单出运门禁为大货终期 Final QC（与样品 QC 独立，REL-14-A4）',
+      };
+    }
+
+    const finalReport = await db.inspectionReport.findUnique({
+      where: { id: `INR__${orderId}` },
+    });
+    const bulkQcPassed = !!finalReport && finalReport.inspectionType === 'final' && finalReport.result === 'pass';
+
+    const ssSamples = await db.fabricShipmentSample.findMany({
+      where: { orderId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    const latestSs = ssSamples[0] ?? null;
+    const ssApproved = !!latestSs && latestSs.customerStatus === 'approved';
+
+    const rcEnabled = !!order.fabricSampleSentDate;
+    const rcConfirmed = rcEnabled && !!order.fabricSampleConfirmedDate;
+
+    const missingGates: ShipmentGateCode[] = [];
+    if (!bulkQcPassed) missingGates.push('BULK_QC_NOT_PASSED');
+    if (!ssApproved) missingGates.push('SS_NOT_CONFIRMED');
+    if (rcEnabled && !rcConfirmed) missingGates.push('RC_NOT_CONFIRMED');
+
+    return {
+      orderId,
+      applicable: true,
+      eligible: missingGates.length === 0,
+      conditions: {
+        bulkQc: {
+          satisfied: bulkQcPassed,
+          reportId: finalReport?.id ?? null,
+          result: finalReport?.result ?? null,
+          inspectedBy: finalReport?.inspectedBy ?? null,
+          inspectionDate: finalReport?.inspectionDate ?? null,
+        },
+        ss: {
+          satisfied: ssApproved,
+          sampleId: latestSs?.id ?? null,
+          sampleCode: latestSs?.sampleCode ?? null,
+          customerStatus: latestSs?.customerStatus ?? null,
+          customerFeedbackDate: latestSs?.customerFeedbackDate ?? null,
+        },
+        rc: {
+          enabled: rcEnabled,
+          satisfied: rcEnabled ? rcConfirmed : true,
+          sentDate: order.fabricSampleSentDate ?? null,
+          confirmedDate: order.fabricSampleConfirmedDate ?? null,
+        },
+      },
+      missingGates,
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 4. DR-027 开发样排除（订单前开发样不进入 QC 门禁，业务员自行登记）
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * DR-027：手织样/先锋样/Lab-dip/Strike-off/FIT/confirmation 等开发样类型
+   * 不进入 QC 门禁（QC-29-B1：QC 工作台默认不出现开发样任务；评审端点 fail-closed 拒绝）。
+   * 判定真源为 qcChainService.isDevelopmentSampleType（归一化大小写/连字符变体），
+   * 此处为 QC 域内统一出口，供工作台与样品域消费，避免跨轨重复实现。
+   */
+  function shouldExcludeFromQc(sampleType?: string | null): boolean {
+    return isDevelopmentSampleType(sampleType);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 5. InspectionReport 读取 + signatures 双签（质量门禁 §9.3-②）
+  // ══════════════════════════════════════════════════════════════
+
+  async function getReportOrThrow(reportId: string): Promise<any> {
+    const report = await db.inspectionReport.findUnique({ where: { id: reportId } });
+    if (!report) throw new Error('验货报告不存在');
+    return report;
+  }
+
+  async function getReport(reportId: string): Promise<any> {
+    if (!reportId?.trim()) throw new Error('reportId 必填');
+    return getReportOrThrow(reportId);
+  }
+
+  async function listReportsByOrder(orderId: string): Promise<{ items: any[]; total: number }> {
+    if (!orderId?.trim()) throw new Error('orderId 必填');
+    const order = await db.order.findUnique({ where: { id: orderId } });
+    if (!order || order.deletedAt !== null) throw new Error('订单不存在');
+    const items = await db.inspectionReport.findMany({
+      where: { orderId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return { items, total: items.length };
+  }
+
+  /**
+   * 双签写入（§9.3-② 产前样双签：QC 签字 + 业务签字均非空才放行开裁）。
+   *   - role=qc → signatures.qcSignedAt / qcSignerId
+   *   - role=business → signatures.businessSignedAt / businessSignerId
+   * 浅合并写入：保留 signatures 上既有键（含 DR-029 chain 命名空间），互不覆盖；
+   * 同一角色重复签署 fail-closed 拒绝（签署留痕不可改写， REL-14-A2 审计链保护）。
+   *
+   * 业务签字身份约束（质量门禁规则 §2.2.1 / QCG-EXC-2 场景①）：
+   *   business 侧仅限订单负责人（Order.ownerId）或订单归属部门主管（Department.headId）；
+   *   QC 容器代签业务侧 → 403 PP_SIGN_BUSINESS_ROLE_REQUIRED（双签职责分离，fail-closed）。
+   */
+  async function signReport(reportId: string, role: ReportSignRole, actorId: string, ip?: string | null): Promise<any> {
+    if (!reportId?.trim()) throw new Error('reportId 必填');
+    if (role !== 'qc' && role !== 'business') {
+      throw new Error('非法签署角色（允许 qc | business）');
+    }
+    const ts = now();
+    const atField = role === 'qc' ? 'qcSignedAt' : 'businessSignedAt';
+    const byField = role === 'qc' ? 'qcSignerId' : 'businessSignerId';
+
+    return db.$transaction(async (tx: any) => {
+      const report = await tx.inspectionReport.findUnique({ where: { id: reportId } });
+      if (!report) throw new Error('验货报告不存在');
+      const existing = (report.signatures && typeof report.signatures === 'object' ? report.signatures : {}) as Record<string, unknown>;
+      if (existing[atField] != null) {
+        throw new Error(`该报告 ${role === 'qc' ? 'QC' : '业务'}侧已签署，不可重复签署（签署留痕不可改写）`);
+      }
+
+      // QCG-EXC-2：business 侧签字身份 fail-closed（仅订单负责人 / 订单归属部门主管）
+      if (role === 'business') {
+        const order = report.orderId
+          ? await tx.order.findUnique({ where: { id: report.orderId } })
+          : null;
+        const isOwner = !!order && order.ownerId === actorId;
+        let isDeptHead = false;
+        if (!isOwner && order?.departmentId) {
+          const dept = await tx.department.findUnique({ where: { id: order.departmentId } });
+          isDeptHead = !!dept && dept.headId === actorId;
+        }
+        if (!isOwner && !isDeptHead) {
+          throw new Error('业务签字仅限订单负责人或部门主管（PP_SIGN_BUSINESS_ROLE_REQUIRED）');
+        }
+      }
+
+      const next = { ...existing, [atField]: ts, [byField]: actorId };
+      const updated = await tx.inspectionReport.update({
+        where: { id: reportId },
+        data: { signatures: next, updatedAt: BigInt(ts) },
+      });
+      await writeRouteAuditLog({
+        prisma: tx,
+        actorId: actorId || 'api',
+        source: 'route:qc:reports:sign',
+        operation: `inspection_report_sign_${role}`,
+        targetType: 'InspectionReport',
+        targetId: reportId,
+        after: { id: reportId, orderId: report.orderId, role, [atField]: ts, [byField]: actorId },
+        ip: ip ?? null,
+        operationType: 'update',
+        fieldPath: `signatures.${atField}`,
+        beforeValue: null,
+        afterValue: ts,
+      });
+      logger.info('[QcService] report signed', { reportId, role, actorId });
+      return updated;
+    });
+  }
+
   return {
     // 驻地
     createLocation,
@@ -387,6 +612,13 @@ export function createQcService(prisma: PrismaClient) {
     deleteAssignment,
     listAssignments,
     getWorkbench,
+    // DR-014 出运资格 / DR-027 开发样排除
+    checkShipmentEligibility,
+    shouldExcludeFromQc,
+    // 报告读取 + 双签
+    getReport,
+    listReportsByOrder,
+    signReport,
   };
 }
 

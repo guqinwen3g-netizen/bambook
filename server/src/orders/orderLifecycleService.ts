@@ -33,6 +33,45 @@ export type OrderLifecycleErrorCode =
   | 'DELETE_FAILED'
   | 'TRANSITION_FAILED';
 
+// 注：DR-010 守卫运行时使用 'ORDER_LIFECYCLE_GUARDED' / 'ORDER_ALREADY_CLOSED' 错误码
+// （见 ORDER_LIFECYCLE_EXTENSION_ERRORS 常量与 transitionOrderStatus 守卫 throw）。
+// 二者不进本联合类型——OrderLifecycleErrorCode 被 agent/orderLifecycleFlow.ts 的
+// Record<OrderLifecycleFlowErrorCode, string> 穷举消费，扩展需跨域协调（属 Track A 所有权）。
+
+// ────────────────────────────────────────────────────────────────
+// DR-010 扩展状态（不进 6 态枚举/矩阵；由 orderChanges 域服务直写）
+//   CancelRequested 取消申请中 / PauseRequested 暂停申请中 / Closing 结案处理中：
+//     守卫态——订单存在进行中的取消/暂停/结案处置，禁止常规 6 态推进
+//   Paused 暂停中：暂停审批通过后的生效态，禁止常规推进（恢复走 Alert 通道或撤回）
+//   Cancelled 已关闭：取消结案终态（等效软删）
+// 设计真源：订单变更规则.md §2A / 订单状态机.md §14.3
+// ────────────────────────────────────────────────────────────────
+export const DR010_EXTENSION_STATUSES = ['CancelRequested', 'PauseRequested', 'Closing', 'Paused', 'Cancelled'] as const;
+export type DR010ExtensionStatus = (typeof DR010_EXTENSION_STATUSES)[number];
+
+/** 守卫态集合：处于这些状态的订单禁止 transitionOrderStatus 常规推进（fail-closed） */
+export const DR010_GUARDED_STATUSES: ReadonlySet<string> = new Set([
+  'CancelRequested',
+  'PauseRequested',
+  'Closing',
+  'Paused',
+]);
+
+export const ORDER_LIFECYCLE_EXTENSION_ERRORS = {
+  ORDER_LIFECYCLE_GUARDED: 'ORDER_LIFECYCLE_GUARDED',
+  ORDER_ALREADY_CLOSED: 'ORDER_ALREADY_CLOSED',
+} as const;
+
+/** 订单是否处于 DR-010 守卫态（取消/暂停申请中、结案处理中、暂停中） */
+export function isOrderLifecycleGuarded(status: string | null | undefined): boolean {
+  return !!status && DR010_GUARDED_STATUSES.has(status);
+}
+
+/** 订单是否已关闭（取消结案终态） */
+export function isOrderClosed(status: string | null | undefined): boolean {
+  return status === 'Cancelled';
+}
+
 export interface OrderLifecycleError {
   code: OrderLifecycleErrorCode;
   message: string;
@@ -146,6 +185,13 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
       }
 
       const fromStatus = existing.status;
+      // DR-010 守卫：取消/暂停申请中、结案处理中、暂停中、已关闭订单禁止常规 6 态推进
+      if (DR010_GUARDED_STATUSES.has(fromStatus)) {
+        throw Object.assign(new Error(`订单处于「${fromStatus}」（DR-010 守卫态），需先完成或撤回对应的变更/取消/暂停申请，禁止状态推进`), { code: 'ORDER_LIFECYCLE_GUARDED', statusCode: 409 });
+      }
+      if (fromStatus === 'Cancelled') {
+        throw Object.assign(new Error(`订单 ${orderId} 已关闭（Cancelled 终态），禁止状态推进`), { code: 'ORDER_ALREADY_CLOSED', statusCode: 409 });
+      }
       // 状态转换合法性校验
       const allowedTargets = ORDER_TRANSITIONS[fromStatus];
       if (!allowedTargets || !allowedTargets.has(toStatus)) {
