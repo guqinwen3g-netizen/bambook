@@ -29,6 +29,12 @@ import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import AuditHistorySection from './AuditHistorySection';
 import OrderContextSection from './order/OrderContextSection';
 import OrderSectionHeader from './order/OrderSectionHeader';
+import OrderChangeRequestsSection, {
+  CapsuleExemptionBadge,
+  OrderMoqSnapshotBlock,
+  type ChangeRequestGatePrefill,
+} from './order/OrderChangeRequestsSection';
+import { collectControlledFieldEdits, isApprovedOrderStatus } from '../services/orderChangeService';
 import { fieldsForDetail, fieldsForManualForm, requiredKeysForManual, computeAutoFillPatch, fieldMetaByKey, ORDER_CLUSTERS, dbValueToTypeKey, type OrderViewType } from '../lib/orderSchema';
 import type { RoleFkTarget } from '../lib/orderSchema';
 import { flattenOrderLines, getNextItemNo } from '../lib/orderLineItems';
@@ -270,6 +276,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const [selectedLineItem, setSelectedLineItem] = useState<OrderLineItem | null>(null);
   const [editLineForm, setEditLineForm] = useState<Partial<OrderLineItem> | null>(null);
   const [statusTimeline, setStatusTimeline] = useState<OrderStatusTransition[]>([]);
+  // DR-010 编辑门禁：已批准订单受控字段直改被拦截后，预填并引导到变更申请表单
+  const [changeGatePrefill, setChangeGatePrefill] = useState<ChangeRequestGatePrefill | null>(null);
   const orderDetailScrollRef = useRef<HTMLDivElement | null>(null);
   const orderEntryScrollRef = useRef<HTMLDivElement | null>(null);
   const orderListScrollRef = useRef<HTMLDivElement | null>(null);
@@ -651,10 +659,23 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       setIsEditing(false);
       return;
     }
+    // DR-010 门禁引导：已批准订单的受控字段（数量/金额/交期/客户/产品）直改不直接落库——
+    // 还原为原值，其余字段正常保存，并引导用户走变更申请审批链（而非静默失败/静默绕过）。
+    const controlledEdits = selectedOrder && isApprovedOrderStatus(selectedOrder.status)
+      ? collectControlledFieldEdits(
+          selectedOrder as unknown as Record<string, unknown>,
+          editForm as unknown as Record<string, unknown>,
+        )
+      : [];
     const updatedOrder = {
       ...editForm,
       updatedAt: Date.now(),
     };
+    if (controlledEdits.length > 0) {
+      for (const edit of controlledEdits) {
+        (updatedOrder as unknown as Record<string, unknown>)[edit.field] = (selectedOrder as unknown as Record<string, unknown>)[edit.field];
+      }
+    }
     const updatedOrders = orders.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
     // Optimistic local update first so the UI feels instant.
     setOrders(updatedOrders, updatedOrder);
@@ -715,6 +736,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       }
 
       const { id, lines: _ignoreLines, fieldSources: _ignoreSources, ...patch } = updatedOrder as any;
+      // 被门禁拦截的受控字段不进入持久化 patch（避免字段被误标 manual 且绕过 DR-010 审批链）
+      for (const edit of controlledEdits) {
+        delete (patch as Record<string, unknown>)[edit.field];
+      }
       const { order: persisted } = await updateOrderFields(id, patch);
       const synced = updatedOrders.map((o) => (o.id === id ? (persisted as Order) : o));
       setOrders(synced, persisted as Order);
@@ -723,6 +748,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       // eslint-disable-next-line no-console
       console.error('[detail-save] persist failed:', e);
       window.alert(`订单详情保存到服务器失败：${e?.message ?? e}\n\n本地更改保留，但下一次同步可能丢失。`);
+    }
+
+    // 受控字段被拦截 → 预填变更申请并滚动到「变更申请」区块（引导而非静默失败）
+    if (controlledEdits.length > 0) {
+      setChangeGatePrefill({ edits: controlledEdits });
+      requestAnimationFrame(() => {
+        document.getElementById('order-detail-changes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     }
   };
 
@@ -1076,6 +1109,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             {order.businessLine === 'capsule' && (
                               <span className="bds-badge sm neutral">Capsule</span>
                             )}
+                            <CapsuleExemptionBadge order={order} />
                           </div>
                           <span className={`text-lg font-light font-mono tracking-tight ${TXT_TITLE}`}>{order.id}</span>
                         </div>
@@ -1215,6 +1249,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               {item.order.businessLine === 'capsule' && (
                                 <span className="bds-badge sm neutral">Capsule</span>
                               )}
+                              <CapsuleExemptionBadge order={item.order} />
                             </div>
                             <p className={listRowSecondaryCls}>{item.customer || '-'}</p>
                           </div>
@@ -1306,6 +1341,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     {selectedOrder.season && <span className="shrink-0">季节 {selectedOrder.season}</span>}
                     {selectedOrder.customer && <span className="truncate">{selectedOrder.customer}</span>}
                     {selectedOrder.businessLine === 'capsule' && <span className="bds-badge sm neutral shrink-0">Capsule</span>}
+                    <CapsuleExemptionBadge order={selectedOrder} />
                   </div>
                 )}
               </div>
@@ -1344,6 +1380,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           { id: 'order-detail-related', label: '关联视图', desc: '跨模块实体链接' },
                           { id: 'order-detail-context', label: '全链路', desc: '报价→财务生命周期' },
                           { id: 'order-detail-audit', label: '变更历史', desc: '实体审计记录' },
+                          { id: 'order-detail-changes', label: '变更申请', desc: 'DR-010 变更审批链' },
                           { id: 'order-detail-pipeline', label: '生产管线', desc: '10 阶段门禁' },
                           ...(selectedLineItem ? [{ id: 'order-detail-line', label: `${DB_TYPE_ZH[selectedOrder.type] || '订单'}项目`, desc: selectedLineItem.displayId || selectedLineItem.itemNo || 'Order item' }] : []),
                           ...(!selectedLineItem && selectedOrder.lines && selectedOrder.lines.length > 0 ? [{ id: 'order-detail-lines', label: '行明细', desc: `${selectedOrder.lines.length} 行订单项目` }] : []),
@@ -1427,6 +1464,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           </div>
                         </div>
                       )}
+                      {/* MOQ 快照（writeOnce 只读）：三档阈值 + 快照时间 + 来源，不随配置变更追溯 */}
+                      <OrderMoqSnapshotBlock order={selectedOrder} isDarkMode={isDarkMode} />
                     </CompiledSurfacePanel>
 
                     {/* 阶段 IA-3：履约动作区 —— 订单下游一键触发（采购/验货/出运），prime 目标模块创建表单 */}
@@ -1602,6 +1641,16 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         targetId={selectedOrder.id}
                         isDarkMode={isDarkMode}
                         title="订单变更历史"
+                      />
+                    </div>
+
+                    {/* DR-010：订单变更申请审批链（数量/金额/交期/客户/产品/取消/暂停；含 MOQ 预检与编辑门禁引导） */}
+                    <div id="order-detail-changes">
+                      <OrderChangeRequestsSection
+                        order={selectedOrder}
+                        isDarkMode={isDarkMode}
+                        gatePrefill={changeGatePrefill}
+                        onGatePrefillConsumed={() => setChangeGatePrefill(null)}
                       />
                     </div>
 

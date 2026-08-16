@@ -1,0 +1,773 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Plus, ShieldCheck, Undo2,
+} from 'lucide-react';
+import type { Order } from '../../types';
+import {
+  ORDER_CHANGE_REASON_MIN,
+  ORDER_CHANGE_IMPACT_MIN,
+  ORDER_CHANGE_STATUS_LABELS,
+  ORDER_CHANGE_TYPES,
+  ORDER_CHANGE_TYPE_LABELS,
+  buildChangeRequestDraft,
+  isApprovedOrderStatus,
+  isGuardedOrderStatus,
+  orderChangeService,
+  readOrderCapsuleExemption,
+  readOrderMoqSnapshot,
+  resolveOrderChangeType,
+  type ChangeFormValues,
+  type ControlledFieldEdit,
+  type MoqValidateResult,
+  type OrderChangeRequest,
+  type OrderChangeRequestDetail,
+  type OrderChangeType,
+} from '../../services/orderChangeService';
+import { statusSemanticClass } from '../rdlBusinessStatusTokens';
+import { formatYmd } from '../../lib/dateFormat';
+import SidePanelContainer from '../ui/SidePanelContainer';
+import OrderSectionHeader from './OrderSectionHeader';
+import { createOrderUiSpec } from './orderUiSpec';
+
+/**
+ * 订单详情「变更申请 / Change Requests」区块（DR-010 审批链 UI 落点）。
+ *
+ * 职责：
+ *   1. 列出该订单的变更申请（7 类；状态机 待审批/已批准/已拒绝/已应用/已撤回）；
+ *   2. 发起新变更申请（表单按变更类型动态出字段；客户端校验镜像服务端下限，服务端仍为权威）；
+ *   3. 展开查看审批进度（GET /:id 惰性加载 approvalRequest）；
+ *   4. Pending 可撤回、Approved 可生效（服务端 fail-closed 守卫，错误内联展示）；
+ *   5. 数量变更支持 MOQ dry-run 预检（/api/v1/moq/validate，不写库不建审批单）；
+ *   6. 编辑门禁引导：已批准订单直改受控字段被拦截后，经 gatePrefill 自动打开并预填表单。
+ *
+ * 同文件导出：
+ *   OrderMoqSnapshotBlock  — moqSnapshot 只读条（创建时快照，不随配置变更追溯）
+ *   CapsuleExemptionBadge  — Capsule MOQ 豁免小徽章（DR-003）
+ */
+
+/** 编辑门禁拦截产物：OrderManager 直改受控字段被拦截后传入，用于预填变更申请 */
+export interface ChangeRequestGatePrefill {
+  edits: ControlledFieldEdit[];
+}
+
+interface OrderChangeRequestsSectionProps {
+  order: Order;
+  isDarkMode: boolean | undefined;
+  /** 外部变更（如订单保存后）触发重取 */
+  refreshKey?: number;
+  gatePrefill?: ChangeRequestGatePrefill | null;
+  onGatePrefillConsumed?: () => void;
+}
+
+// ── 展示映射 ──
+
+const CHANGE_STATUS_BADGE_VARIANT: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = {
+  Pending: 'warning',
+  Approved: 'info',
+  Rejected: 'danger',
+  Applied: 'success',
+  Cancelled: 'neutral',
+};
+
+const APPROVAL_STATUS_LABELS: Record<string, string> = {
+  pending: '待审批',
+  approved: '已批准',
+  rejected: '已拒绝',
+  cancelled: '已撤回',
+};
+
+const BEFORE_AFTER_FIELD_LABELS: Record<string, string> = {
+  quantity: '数量',
+  unitPrice: '金额',
+  deliveryDate: '交期',
+  dueDate: '交期',
+  customer: '客户',
+  customerRelationId: '客户关联',
+  product: '产品',
+  status: '订单状态',
+};
+
+const ORDER_STATUS_ZH: Record<string, string> = {
+  Pending: '待确认',
+  Confirmed: '已确认',
+  Production: '生产中',
+  Shipping: '出运中',
+  Delivered: '已交付',
+  Alert: '异常',
+  CancelRequested: '取消申请中',
+  PauseRequested: '暂停申请中',
+  Closing: '结案处理中',
+  Paused: '暂停中',
+  Cancelled: '已关闭',
+};
+
+const MOQ_SOURCE_LABELS: Record<string, string> = {
+  moq_config: 'MOQ 配置记录',
+  fallback_constant: '兜底常量',
+};
+
+const fmtSnapshotValue = (v: unknown): string => {
+  if (v === undefined || v === null || v === '') return '—';
+  if (typeof v === 'number') return v.toLocaleString('zh-CN');
+  const s = String(v);
+  return ORDER_STATUS_ZH[s] ?? s;
+};
+
+const EMPTY_FORM: ChangeFormValues = {
+  changeType: 'quantity',
+  afterQuantity: '',
+  afterAmount: '',
+  afterDeliveryDate: '',
+  afterCustomer: '',
+  afterCustomerRelationId: '',
+  afterProduct: '',
+  pauseReason: '',
+  pauseOwnerId: '',
+  expectedResumeDate: '',
+  changeReason: '',
+  impactSummary: '',
+};
+
+// ───────────────────────────────────────────────────────────────────
+// Capsule MOQ 豁免徽章（小元素范式；DR-003）
+// ───────────────────────────────────────────────────────────────────
+
+export const CapsuleExemptionBadge: React.FC<{ order: unknown }> = ({ order }) => {
+  if (!readOrderCapsuleExemption(order)) return null;
+  return (
+    <span
+      className="bds-badge sm info shrink-0"
+      title="Capsule MOQ 豁免（DR-003）：按 Capsule 档校验最小起订量"
+    >
+      MOQ 豁免
+    </span>
+  );
+};
+
+// ───────────────────────────────────────────────────────────────────
+// MOQ 快照只读条（创建时快照 writeOnce，不随配置变更追溯）
+// ───────────────────────────────────────────────────────────────────
+
+export const OrderMoqSnapshotBlock: React.FC<{ order: unknown; isDarkMode: boolean | undefined }> = ({
+  order,
+  isDarkMode,
+}) => {
+  const snapshot = readOrderMoqSnapshot(order);
+  const spec = createOrderUiSpec(isDarkMode === true);
+  if (!snapshot) return null;
+  const tiers = [
+    { label: '面料档', value: snapshot.fabricDefaultMoq },
+    { label: '成衣档', value: snapshot.garmentDefaultMoq },
+    { label: 'Capsule 档', value: snapshot.capsuleMoq },
+  ];
+  return (
+    <div className={`mt-2 border-t px-4 pt-3 ${spec.borderSubtle}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-[10px] font-light uppercase tracking-[0.22em] ${spec.textFaint}`}>MOQ Snapshot</p>
+          <p className={`mt-0.5 text-xs font-light ${spec.textMuted}`}>MOQ 快照 · 创建时快照，不随配置变更追溯</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tiers.map((t) => (
+            <span key={t.label} className={spec.chip} title={`${t.label}最小起订量`}>
+              {t.label} ≥ {t.value.toLocaleString('zh-CN')}
+            </span>
+          ))}
+          <span className={`text-[10px] font-light ${spec.textFaint}`}>
+            快照于 {formatYmd(snapshot.snapshotAt) || snapshot.snapshotAt} · 来源 {MOQ_SOURCE_LABELS[snapshot.source] ?? snapshot.source}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ───────────────────────────────────────────────────────────────────
+// 变更申请区块
+// ───────────────────────────────────────────────────────────────────
+
+export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProps> = ({
+  order,
+  isDarkMode,
+  refreshKey = 0,
+  gatePrefill = null,
+  onGatePrefillConsumed,
+}) => {
+  const spec = useMemo(() => createOrderUiSpec(isDarkMode === true), [isDarkMode]);
+  const dark = isDarkMode === true;
+
+  const [items, setItems] = useState<OrderChangeRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [form, setForm] = useState<ChangeFormValues>(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [successNote, setSuccessNote] = useState<string | null>(null);
+  const [gateNote, setGateNote] = useState<string[]>([]);
+
+  const [moqChecking, setMoqChecking] = useState(false);
+  const [moqResult, setMoqResult] = useState<MoqValidateResult | null>(null);
+  const [moqError, setMoqError] = useState<string | null>(null);
+
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [details, setDetails] = useState<Record<string, OrderChangeRequestDetail>>({});
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await orderChangeService.listChangeRequests({ orderId: order.id });
+      setItems(list);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [order.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    orderChangeService.listChangeRequests({ orderId: order.id })
+      .then((list) => { if (!cancelled) setItems(list); })
+      .catch((e) => { if (!cancelled) setError(e?.message ?? String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [order.id, refreshKey]);
+
+  // 编辑门禁引导：受控字段直改被拦截 → 自动打开表单并预填 before/after
+  useEffect(() => {
+    if (!gatePrefill || gatePrefill.edits.length === 0) return;
+    const first = gatePrefill.edits[0];
+    const next: ChangeFormValues = { ...EMPTY_FORM, changeType: first.changeType };
+    if (first.changeType === 'quantity') next.afterQuantity = String(first.after ?? '');
+    if (first.changeType === 'price') next.afterAmount = String(first.after ?? '');
+    if (first.changeType === 'delivery') next.afterDeliveryDate = formatYmd(first.after as string) || String(first.after ?? '');
+    if (first.changeType === 'customer') next.afterCustomer = String(first.after ?? '');
+    if (first.changeType === 'product') next.afterProduct = String(first.after ?? '');
+    const typeSet = Array.from(new Set(gatePrefill.edits.map((e) => e.changeType)));
+    setGateNote(typeSet.map((t) => ORDER_CHANGE_TYPE_LABELS[t]));
+    setForm(next);
+    setSubmitError(null);
+    setMoqResult(null);
+    setMoqError(null);
+    setComposerOpen(true);
+    onGatePrefillConsumed?.();
+  }, [gatePrefill, onGatePrefillConsumed]);
+
+  const canRequest = isApprovedOrderStatus(order.status);
+  const guarded = isGuardedOrderStatus(order.status);
+
+  const openComposer = () => {
+    setForm(EMPTY_FORM);
+    setGateNote([]);
+    setSubmitError(null);
+    setMoqResult(null);
+    setMoqError(null);
+    setComposerOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    setSubmitError(null);
+    const built = buildChangeRequestDraft(order, form);
+    if (!built.ok) {
+      setSubmitError(built.error);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await orderChangeService.createChangeRequest(built.payload);
+      setComposerOpen(false);
+      setSuccessNote(`变更申请 ${res.changeRequest.requestNumber} 已提交，进入审批链`);
+      await reload();
+    } catch (e: any) {
+      setSubmitError(e?.message ?? String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleMoqCheck = async () => {
+    setMoqError(null);
+    setMoqResult(null);
+    const qty = Number(form.afterQuantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setMoqError('请先填写有效的变更后数量');
+      return;
+    }
+    setMoqChecking(true);
+    try {
+      const firstLine = order.lines?.[0];
+      const result = await orderChangeService.validateMoq({
+        type: order.type ?? null,
+        businessLine: order.businessLine ?? null,
+        capsuleExemption: readOrderCapsuleExemption(order),
+        snapshot: readOrderMoqSnapshot(order),
+        lines: [{ quantity: qty, unit: firstLine?.unit ?? undefined, styleNo: firstLine?.styleNo ?? null, materialCode: firstLine?.materialCode ?? null }],
+      });
+      setMoqResult(result);
+    } catch (e: any) {
+      setMoqError(e?.message ?? String(e));
+    } finally {
+      setMoqChecking(false);
+    }
+  };
+
+  const toggleExpand = async (cr: OrderChangeRequest) => {
+    setDetailError(null);
+    if (expandedId === cr.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(cr.id);
+    if (details[cr.id]) return;
+    setDetailLoading(true);
+    try {
+      const detail = await orderChangeService.getChangeRequest(cr.id);
+      setDetails((prev) => ({ ...prev, [cr.id]: detail }));
+    } catch (e: any) {
+      setDetailError(e?.message ?? String(e));
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleWithdraw = async (cr: OrderChangeRequest) => {
+    setActionError(null);
+    setActionBusyId(cr.id);
+    try {
+      await orderChangeService.withdrawChangeRequest(cr.id);
+      await reload();
+    } catch (e: any) {
+      setActionError(e?.message ?? String(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const handleApply = async (cr: OrderChangeRequest) => {
+    setActionError(null);
+    setActionBusyId(cr.id);
+    try {
+      await orderChangeService.applyChangeRequest(cr.id);
+      await reload();
+    } catch (e: any) {
+      setActionError(e?.message ?? String(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const changeType = form.changeType;
+  const moqVerdict = moqResult?.lines?.[0] ?? null;
+
+  return (
+    <SidePanelContainer
+      materialRole="raisedCard"
+      edgeFadeItem
+      spotlight
+      isDarkMode={isDarkMode === true}
+      className={spec.panelClass}
+      contentClassName={spec.panelContentClass}
+    >
+      <OrderSectionHeader
+        iconKey="changes"
+        kicker="Change Requests"
+        title="变更申请"
+        isDarkMode={dark}
+        meta={(
+          <div className="flex flex-wrap items-center gap-2">
+            {items.length > 0 && <span>{items.length} 条申请</span>}
+            {canRequest && !guarded && (
+              <button type="button" onClick={openComposer} className="bds-btn bds-btn-secondary">
+                <Plus size={14} strokeWidth={1.5} />发起变更申请
+              </button>
+            )}
+          </div>
+        )}
+      />
+
+      {/* 状态门禁提示（服务端 fail-closed，前端仅作可行动性说明） */}
+      {guarded && (
+        <div className={`mb-3 ${spec.bannerDanger}`}>
+          <AlertCircle size={14} />
+          <span>订单处于「{ORDER_STATUS_ZH[order.status ?? ''] ?? order.status}」，存在进行中的变更/取消/暂停申请，待其完结后方可发起新申请。</span>
+        </div>
+      )}
+      {!canRequest && !guarded && (
+        <p className={`mb-3 text-xs font-light ${spec.textMuted}`}>
+          当前状态可直接编辑；仅已批准订单（已确认/生产中/出运中/已交付）的受控字段变更需走本审批链。
+        </p>
+      )}
+
+      {successNote && (
+        <div className={`mb-3 flex items-center gap-2 rounded-field border px-3 py-2 text-xs font-light ${statusSemanticClass('success', dark)}`}>
+          <CheckCircle2 size={14} />
+          <span>{successNote}</span>
+        </div>
+      )}
+      {actionError && (
+        <div className={`mb-3 ${spec.bannerDanger}`}>
+          <AlertCircle size={14} />
+          <span>{actionError}</span>
+        </div>
+      )}
+
+      {/* ── 发起表单（按变更类型动态出字段） ── */}
+      {composerOpen && (
+        <div className={`mb-4 rounded-inset border p-4 ${spec.insetSurface}`}>
+          <p className={spec.subGroupTitle}>新建变更申请</p>
+
+          {gateNote.length > 0 && (
+            <div className={`mt-2 flex items-start gap-2 rounded-field border px-3 py-2 text-xs font-light ${statusSemanticClass('warning', dark)}`}>
+              <AlertCircle size={14} className="mt-px shrink-0" />
+              <span>
+                检测到受控字段直改（{gateNote.join('、')}）——已批准订单的受控字段变更需经审批，已为你预填「{ORDER_CHANGE_TYPE_LABELS[form.changeType]}」申请；
+                {gateNote.length > 1 ? '其余类型请提交本单后分别再发起。' : '请补充变更理由与影响说明后提交。'}
+              </span>
+            </div>
+          )}
+
+          <div className={`mt-3 ${spec.gridEdit}`}>
+            <div className="space-y-1.5">
+              <span className={`ml-1 ${spec.subGroupMeta}`}>变更类型</span>
+              <select
+                className={spec.field}
+                value={changeType}
+                onChange={(e) => { setForm((p) => ({ ...p, changeType: e.target.value as OrderChangeType })); setMoqResult(null); setMoqError(null); }}
+              >
+                {ORDER_CHANGE_TYPES.map((t) => (
+                  <option key={t} value={t}>{ORDER_CHANGE_TYPE_LABELS[t]}</option>
+                ))}
+              </select>
+            </div>
+
+            {changeType === 'quantity' && (
+              <div className="space-y-1.5">
+                <span className={`ml-1 ${spec.subGroupMeta}`}>变更后数量（当前 {order.quantity ?? 0}）</span>
+                <input
+                  type="number"
+                  className={`${spec.field} ${spec.fieldNoSpinner}`}
+                  value={form.afterQuantity ?? ''}
+                  onChange={(e) => { setForm((p) => ({ ...p, afterQuantity: e.target.value })); setMoqResult(null); }}
+                  placeholder="正数"
+                />
+              </div>
+            )}
+            {changeType === 'price' && (
+              <div className="space-y-1.5">
+                <span className={`ml-1 ${spec.subGroupMeta}`}>变更后金额（当前 {(order.quoteAmount ?? order.contractAmount ?? 0).toLocaleString('zh-CN')}）</span>
+                <input
+                  type="number"
+                  className={`${spec.field} ${spec.fieldNoSpinner}`}
+                  value={form.afterAmount ?? ''}
+                  onChange={(e) => setForm((p) => ({ ...p, afterAmount: e.target.value }))}
+                  placeholder="非负数字"
+                />
+              </div>
+            )}
+            {changeType === 'delivery' && (
+              <div className="space-y-1.5">
+                <span className={`ml-1 ${spec.subGroupMeta}`}>变更后交期（当前 {formatYmd(order.dueDate || order.clientDate) || '—'}）</span>
+                <input
+                  type="date"
+                  className={spec.field}
+                  value={form.afterDeliveryDate ?? ''}
+                  onChange={(e) => setForm((p) => ({ ...p, afterDeliveryDate: e.target.value }))}
+                />
+              </div>
+            )}
+            {changeType === 'customer' && (
+              <>
+                <div className="space-y-1.5">
+                  <span className={`ml-1 ${spec.subGroupMeta}`}>变更后客户（当前 {order.customer || '—'}）</span>
+                  <input
+                    className={spec.field}
+                    value={form.afterCustomer ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, afterCustomer: e.target.value }))}
+                    placeholder="新客户名称"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <span className={`ml-1 ${spec.subGroupMeta}`}>新客户关联 ID（可选）</span>
+                  <input
+                    className={spec.field}
+                    value={form.afterCustomerRelationId ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, afterCustomerRelationId: e.target.value }))}
+                    placeholder="Relation ID，缺省按名称"
+                  />
+                </div>
+              </>
+            )}
+            {changeType === 'product' && (
+              <div className="space-y-1.5">
+                <span className={`ml-1 ${spec.subGroupMeta}`}>变更后产品（当前 {order.product || '—'}）</span>
+                <input
+                  className={spec.field}
+                  value={form.afterProduct ?? ''}
+                  onChange={(e) => setForm((p) => ({ ...p, afterProduct: e.target.value }))}
+                  placeholder="新产品/规格描述"
+                />
+              </div>
+            )}
+            {changeType === 'pause' && (
+              <>
+                <div className="space-y-1.5">
+                  <span className={`ml-1 ${spec.subGroupMeta}`}>暂停原因</span>
+                  <input
+                    className={spec.field}
+                    value={form.pauseReason ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, pauseReason: e.target.value }))}
+                    placeholder="缺省回落为变更理由"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <span className={`ml-1 ${spec.subGroupMeta}`}>责任人 ID</span>
+                  <input
+                    className={spec.field}
+                    value={form.pauseOwnerId ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, pauseOwnerId: e.target.value }))}
+                    placeholder="暂停期间责任人"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <span className={`ml-1 ${spec.subGroupMeta}`}>预计恢复日期</span>
+                  <input
+                    type="date"
+                    className={spec.field}
+                    value={form.expectedResumeDate ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, expectedResumeDate: e.target.value }))}
+                  />
+                </div>
+              </>
+            )}
+            {changeType === 'cancel' && (
+              <p className={`self-end text-xs font-light ${spec.textMuted}`}>
+                取消批准后：无不可逆承诺直接结案关闭；有承诺进入「结案处理中」，处置完成后关闭。
+              </p>
+            )}
+          </div>
+
+          <div className="mt-3 space-y-3">
+            <div className="space-y-1.5">
+              <span className={`ml-1 ${spec.subGroupMeta}`}>变更理由（≥{ORDER_CHANGE_REASON_MIN} 字，当前 {form.changeReason.trim().length} 字）</span>
+              <textarea
+                className={`w-full resize-none rounded-inset border px-4 py-3 text-xs font-light leading-relaxed outline-none transition-all ${spec.insetSurface} ${spec.textPrimary} ${spec.subFieldFocus}`}
+                rows={2}
+                value={form.changeReason}
+                onChange={(e) => setForm((p) => ({ ...p, changeReason: e.target.value }))}
+                placeholder="说明为什么需要本次变更（审计强制留痕）"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <span className={`ml-1 ${spec.subGroupMeta}`}>影响说明（≥{ORDER_CHANGE_IMPACT_MIN} 字，当前 {form.impactSummary.trim().length} 字）</span>
+              <textarea
+                className={`w-full resize-none rounded-inset border px-4 py-3 text-xs font-light leading-relaxed outline-none transition-all ${spec.insetSurface} ${spec.textPrimary} ${spec.subFieldFocus}`}
+                rows={2}
+                value={form.impactSummary}
+                onChange={(e) => setForm((p) => ({ ...p, impactSummary: e.target.value }))}
+                placeholder="说明对成本/交期/回款/生产等的影响"
+              />
+            </div>
+          </div>
+
+          {/* MOQ dry-run 预检（数量变更；不写库、不建审批单） */}
+          {changeType === 'quantity' && (
+            <div className="mt-3">
+              <button type="button" onClick={handleMoqCheck} disabled={moqChecking} className="bds-btn bds-btn-outline">
+                {moqChecking ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} strokeWidth={1.5} />}
+                MOQ 预检
+              </button>
+              {moqError && (
+                <div className={`mt-2 ${spec.bannerDanger}`}>
+                  <AlertCircle size={14} />
+                  <span>{moqError}</span>
+                </div>
+              )}
+              {moqVerdict && (
+                <div className={`mt-2 flex items-start gap-2 rounded-field border px-3 py-2 text-xs font-light ${statusSemanticClass(moqVerdict.compliant ? 'success' : 'warning', dark)}`}>
+                  {moqVerdict.compliant ? <CheckCircle2 size={14} className="mt-px shrink-0" /> : <AlertCircle size={14} className="mt-px shrink-0" />}
+                  <span>
+                    {moqVerdict.compliant
+                      ? `MOQ 预检通过：有效起订量 ${moqVerdict.effectiveMoq.toLocaleString('zh-CN')}，变更后数量 ${moqVerdict.quantity.toLocaleString('zh-CN')} 合规。`
+                      : `MOQ 预检不合规：有效起订量 ${moqVerdict.effectiveMoq.toLocaleString('zh-CN')}，缺口 ${moqVerdict.gapPct}%（${moqVerdict.severity}）；变更生效时将触发 MOQ 豁免审批链。`}
+                    {moqResult?.capsuleActive ? ' Capsule 档豁免生效中。' : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {submitError && (
+            <div className={`mt-3 ${spec.bannerDanger}`}>
+              <AlertCircle size={14} />
+              <span>{submitError}</span>
+            </div>
+          )}
+
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button type="button" onClick={() => setComposerOpen(false)} disabled={submitting} className="bds-btn bds-btn-ghost">
+              取消
+            </button>
+            <button type="button" onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} strokeWidth={1.5} />}
+              提交申请
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 列表三态 ── */}
+      {loading && (
+        <div className={`flex items-center gap-2 ${spec.emptyText}`}>
+          <Loader2 size={14} className="animate-spin" /> 加载变更申请…
+        </div>
+      )}
+      {!loading && error && (
+        <div className={spec.bannerDanger}>
+          <AlertCircle size={14} />
+          <span>变更申请加载失败:{error}</span>
+        </div>
+      )}
+      {!loading && !error && items.length === 0 && (
+        <p className={spec.emptyText}>暂无变更申请</p>
+      )}
+
+      {!loading && !error && items.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          {items.map((cr) => {
+            const type = resolveOrderChangeType(cr);
+            const expanded = expandedId === cr.id;
+            const detail = details[cr.id];
+            const before = (cr.beforeSnapshot ?? {}) as Record<string, unknown>;
+            const after = (cr.afterDelta ?? {}) as Record<string, unknown>;
+            const diffKeys = Object.keys(after);
+            const pauseMeta = (cr.attachments as { pause?: Record<string, unknown> } | null | undefined)?.pause ?? null;
+            const busy = actionBusyId === cr.id;
+            return (
+              <div key={cr.id} className={`rounded-inset border p-3.5 ${spec.insetSurface}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className={`font-mono text-xs font-normal ${spec.textPrimary}`}>{cr.requestNumber}</span>
+                    <span className={spec.chip}>{ORDER_CHANGE_TYPE_LABELS[type]}</span>
+                    <span className={`bds-badge sm ${CHANGE_STATUS_BADGE_VARIANT[cr.status] ?? 'neutral'}`}>
+                      {ORDER_CHANGE_STATUS_LABELS[cr.status] ?? cr.status}
+                    </span>
+                  </div>
+                  <span className={`shrink-0 text-[10px] font-light ${spec.textMuted}`}>{formatYmd(cr.createdAt) || '—'}</span>
+                </div>
+
+                {/* before → after 留痕 */}
+                {diffKeys.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {diffKeys.map((k) => (
+                      <span key={k} className={spec.chip}>
+                        {BEFORE_AFTER_FIELD_LABELS[k] ?? k}:{fmtSnapshotValue(before[k])} → {fmtSnapshotValue(after[k])}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <p className={`mt-2 text-xs font-light ${spec.textSecondary}`}>{cr.changeReason}</p>
+                {cr.notes && <p className={`mt-1 text-[11px] font-light ${spec.textMuted}`}>影响:{cr.notes}</p>}
+
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(cr)}
+                    className={`inline-flex items-center gap-1 text-[11px] font-light ${spec.textMuted} hover:text-link`}
+                  >
+                    {expanded ? <ChevronDown size={12} strokeWidth={1.5} /> : <ChevronRight size={12} strokeWidth={1.5} />}
+                    审批进度
+                  </button>
+                  {cr.status === 'Pending' && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleWithdraw(cr)}
+                      className="bds-btn bds-btn-ghost sm"
+                      title="申请人撤回（仅待审批状态可撤回）"
+                    >
+                      {busy ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} strokeWidth={1.5} />}
+                      撤回
+                    </button>
+                  )}
+                  {cr.status === 'Approved' && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleApply(cr)}
+                      className="bds-btn bds-btn-outline sm"
+                      title="审批通过后生效（幂等）"
+                    >
+                      {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} strokeWidth={1.5} />}
+                      生效
+                    </button>
+                  )}
+                </div>
+
+                {/* 审批进度（惰性加载详情） */}
+                {expanded && (
+                  <div className={`mt-3 border-t pt-3 ${spec.borderSubtle}`}>
+                    {detailLoading && !detail && (
+                      <div className={`flex items-center gap-2 ${spec.emptyText}`}>
+                        <Loader2 size={13} className="animate-spin" /> 加载审批进度…
+                      </div>
+                    )}
+                    {detailError && !detail && (
+                      <div className={spec.bannerDanger}>
+                        <AlertCircle size={13} />
+                        <span>{detailError}</span>
+                      </div>
+                    )}
+                    {detail && (
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={spec.subGroupMeta}>审批单</span>
+                          <span className={spec.chip}>
+                            {APPROVAL_STATUS_LABELS[detail.approvalRequest?.status ?? ''] ?? detail.approvalRequest?.status ?? '未关联'}
+                          </span>
+                          {detail.approvalRequest?.reviewerId && (
+                            <span className={`text-[10px] font-light ${spec.textMuted}`}>审批人 {detail.approvalRequest.reviewerId}</span>
+                          )}
+                          {detail.approvalRequest?.decidedAt && (
+                            <span className={`text-[10px] font-light ${spec.textMuted}`}>决定时间 {formatYmd(detail.approvalRequest.decidedAt) || detail.approvalRequest.decidedAt}</span>
+                          )}
+                        </div>
+                        {detail.approvalRequest?.decisionNote && (
+                          <p className={`text-[11px] font-light ${spec.textMuted}`}>审批意见:{detail.approvalRequest.decisionNote}</p>
+                        )}
+                        {detail.appliedAt && (
+                          <p className={`text-[11px] font-light ${spec.textMuted}`}>
+                            已于 {formatYmd(detail.appliedAt) || detail.appliedAt} 生效{detail.appliedBy ? `（操作人 ${detail.appliedBy}）` : ''}
+                          </p>
+                        )}
+                        {pauseMeta && (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className={spec.chip}>预计恢复 {String(pauseMeta.expectedResumeDate ?? '—')}</span>
+                            {pauseMeta.pauseOwnerId != null && <span className={spec.chip}>责任人 {String(pauseMeta.pauseOwnerId)}</span>}
+                            {pauseMeta.resumeReminderFlagged === true && <span className={`bds-badge sm warning`}>恢复到期提醒已标记</span>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </SidePanelContainer>
+  );
+};
+
+export default OrderChangeRequestsSection;

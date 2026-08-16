@@ -17,7 +17,7 @@
  */
 
 import {
-  Activity, Calendar, ClipboardList, CircleDollarSign, Factory, Hash, History,
+  Activity, Calendar, ClipboardList, CircleDollarSign, Factory, FileEdit, Hash, History,
   Layers, List, Network, Package, Scissors, Ship, ShoppingCart, Tag, Users, Zap,
   Shirt,
   type LucideIcon,
@@ -36,6 +36,7 @@ export const ORDER_SECTION_ICONS = {
   fulfillment: Zap,
   related: Network,
   context: Ship,
+  changes: FileEdit,
   audit: History,
   pipeline: Factory,
   lines: List,

@@ -10,7 +10,7 @@ import {
   Monitor, Moon, Sun, DatabaseZap,
   Bot, Cable, Server, Cpu, Globe, User, ArrowRight, LogOut,
   HardDrive, RefreshCw, Trash2, Pencil, RotateCw, Image, Upload,
-  Sparkles
+  Sparkles, Ruler
 } from 'lucide-react';
 import { BAMBOOK_OS } from '../bambookOsTokens';
 import { requestOsAdaptiveContrastRefresh } from '../osAdaptiveContrast';
@@ -29,6 +29,7 @@ import {
   CompiledSplitNavPanel,
   CompiledSplitWorkspace,
 } from './compiledPrimitives';
+import { CompiledMoqThresholdsPanel } from './compiledMoqThresholdsPanel';
 
 export interface CompiledSettingsPageProps {
   mode?: 'account' | 'system';
@@ -38,7 +39,7 @@ export interface CompiledSettingsPageProps {
   isDarkMode?: boolean;
 }
 
-type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'account';
+type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'moq' | 'account';
 type AvatarCropDraft = {
   src: string;
   fileName: string;
@@ -65,6 +66,7 @@ export const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: type
   { id: 'voice', label: '朗读', hint: '自动播报语速', icon: Volume2 },
   { id: 'sync', label: '同步', hint: '云端与知识库', icon: Globe },
   { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive },
+  { id: 'moq', label: 'MOQ 阈值', hint: 'MOQ Thresholds', icon: Ruler },
   { id: 'api', label: 'API', hint: '对外接口密钥', icon: Cable }
 ];
 
@@ -912,6 +914,10 @@ export const CompiledSettingsPage: React.FC<CompiledSettingsPageProps> = ({ mode
                     )}
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'moq' && (
+                <CompiledMoqThresholdsPanel />
               )}
 
               {activeTab === 'account' && (
