@@ -23,7 +23,7 @@ import { createAllocation, updateAllocation, deleteAllocation } from './allocati
 import { validateStatusTransition } from '../statusTransition';
 import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMutationService';
 import { createInvoice, updateInvoice } from './invoiceMutationService';
-import { getAgingReport, getCustomerStatement, getSupplierStatement, getFxGainLoss } from './reportService';
+import { getAgingReport, getCustomerStatement, getSupplierStatement, getFxGainLoss, getConsolidatedProfitReport } from './reportService';
 import { createFxSettlement, deleteFxSettlement, getFxLedger, getVoucherSettlementSummary } from './fxSettlementService';
 import { createOutwardRemittance, deleteOutwardRemittance, getVoucherRemittanceSummary, listOutwardRemittances } from './outwardRemittanceService';
 import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteVatInvoice, listVatInvoices, getVatInvoice } from './vatInvoiceService';
@@ -740,6 +740,17 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       res.json(report);
     } catch (err: any) {
       logger.error('[finance] GET /reports/fx-gain-loss failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/reports/consolidated-profit — DR-005/DR-033 公司合并视图（抵销内部交易）
+  router.get('/reports/consolidated-profit', async (_req: Request, res: Response) => {
+    try {
+      const report = await getConsolidatedProfitReport(prisma);
+      res.json(report);
+    } catch (err: any) {
+      logger.error('[finance] GET /reports/consolidated-profit failed', { error: err?.message || String(err) });
       res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
     }
   });

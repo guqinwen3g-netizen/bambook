@@ -1,14 +1,18 @@
 /**
- * FinanceReportsPanel — 财务报表面板（Phase B2 + 阶段 F / F2）
+ * FinanceReportsPanel — 财务报表面板（Phase B2 + 阶段 F / F2 + DR-005/DR-033）
  *
- * 五个子视图：
+ * 七个子视图：
  *   1. 账龄分析 Aging — 应收/应付五桶（未到期/1-30/31-60/61-90/90+），按客户×币种分组
  *   2. 客户对账单 Statement — 期初余额 + 开票/收款流水 + running balance，多币种分节
  *   3. 供应商对账单 Supplier Statement — 应付侧镜像：收票（借）/付款（贷）流水 + running balance
  *   4. 汇率损益 FX Gain/Loss — 核销维度（收款汇率 vs 开票汇率），收益/损失汇总
  *   5. 外汇台账 FX Ledger — 收汇/已结汇/未结汇按币种聚合 + 未结汇凭证清单（F2 外汇核销闭环）
+ *   6. 合并利润 Consolidated Profit — DR-005 公司合并视图：抵销内部采购/内部销售，
+ *      仅计客户外部收入 + 真实面料成本；合并视图 / 部门视角（DR-043 双口径）切换
+ *   7. 内部供料 Internal Supply — DR-033 内部供料单列表：关联服装/面料订单、金额、状态、交付进度
  *
- * 数据源：GET /v1/finance/reports/* + GET /v1/finance/fx-settlements/ledger（只读报表，多币种不折算汇总）
+ * 数据源：GET /v1/finance/reports/* + GET /v1/finance/fx-settlements/ledger
+ *   + GET /v1/finance/reports/consolidated-profit + GET /v1/internal-trade（只读报表，多币种不折算汇总）
  * 设计：flat 无阴影、RDL 原语、tabular-nums 数字对齐
  */
 
@@ -16,12 +20,23 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import { fxSettlementService } from '../../services/fxSettlementService';
+import {
+  INTERNAL_TRANSFER_STATUSES,
+  INTERNAL_TRANSFER_STATUS_LABEL,
+  internalTradeService,
+  toAmount,
+} from '../../services/internalTradeService';
+import type {
+  ConsolidatedProfitReport,
+  InternalTransferListItem,
+  InternalTransferStatus,
+} from '../../services/internalTradeService';
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
 import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Relation, StatementSection, SupplierStatement } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-ledger';
+type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-ledger' | 'consolidated' | 'internal-trade';
 
 const REPORT_TABS: Array<{ id: ReportTabId; label: string; en: string }> = [
   { id: 'aging', label: '账龄分析', en: 'Aging' },
@@ -29,6 +44,8 @@ const REPORT_TABS: Array<{ id: ReportTabId; label: string; en: string }> = [
   { id: 'supplier-statement', label: '供应商对账单', en: 'Supplier' },
   { id: 'fx', label: '汇率损益', en: 'FX Gain/Loss' },
   { id: 'fx-ledger', label: '外汇台账', en: 'FX Ledger' },
+  { id: 'consolidated', label: '合并利润', en: 'Consolidated' },
+  { id: 'internal-trade', label: '内部供料', en: 'Internal Supply' },
 ];
 
 function formatAmount(amount: number, currency?: string): string {
@@ -82,6 +99,15 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   const [ledgerFrom, setLedgerFrom] = useState(firstDayOfMonth());
   const [ledgerTo, setLedgerTo] = useState(today());
   const [ledger, setLedger] = useState<FxLedger | null>(null);
+
+  // ── 合并利润（DR-005）──
+  const [consolidated, setConsolidated] = useState<ConsolidatedProfitReport | null>(null);
+  const [consolidatedMode, setConsolidatedMode] = useState<'company' | 'department'>('company');
+
+  // ── 内部供料单（DR-033）──
+  const [transfers, setTransfers] = useState<InternalTransferListItem[] | null>(null);
+  const [transferStatus, setTransferStatus] = useState<InternalTransferStatus | ''>('');
+  const [expandedTransferId, setExpandedTransferId] = useState<string | null>(null);
 
   const textPrimary = 'text-[var(--text-primary)]';
   const textSecondary = 'text-[var(--text-tertiary)]';
@@ -151,11 +177,40 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     }
   }, [ledgerFrom, ledgerTo, endpoint]);
 
+  const loadConsolidated = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setConsolidated(await internalTradeService.getConsolidatedProfitReport(endpoint));
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint]);
+
+  const loadTransfers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await internalTradeService.listInternalTransfers(
+        { status: transferStatus || undefined, limit: 200 },
+        endpoint,
+      );
+      setTransfers(result.items);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }, [transferStatus, endpoint]);
+
   // 初次进入各 tab 时加载
   useEffect(() => {
     if (tab === 'aging' && !aging) loadAging();
     if (tab === 'fx' && !fx) loadFx();
     if (tab === 'fx-ledger' && !ledger) loadLedger();
+    if (tab === 'consolidated' && !consolidated) loadConsolidated();
     if (tab === 'statement' && relations.length === 0) {
       apiService.listRelations(endpoint).then(list => {
         // 方向分组以 category 为准（type 是自由文本子类，如 Fabric Mill）；保留 type 回退兼容旧档案
@@ -171,7 +226,12 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         if (suppliers.length > 0 && !supplierId) setSupplierId(suppliers[0].id);
       }).catch(() => {});
     }
-  }, [tab, aging, fx, ledger, relations.length, supplierRelations.length, customerId, supplierId, endpoint, loadAging, loadFx, loadLedger]);
+  }, [tab, aging, fx, ledger, consolidated, relations.length, supplierRelations.length, customerId, supplierId, endpoint, loadAging, loadFx, loadLedger, loadConsolidated]);
+
+  // 内部供料单：进入 tab 或状态筛选变化时加载
+  useEffect(() => {
+    if (tab === 'internal-trade') loadTransfers();
+  }, [tab, loadTransfers]);
 
   // 客户选定后自动加载对账单
   useEffect(() => {
@@ -462,6 +522,328 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     );
   };
 
+  // ── 合并利润视图（DR-005：合并视图 / 部门视角双模式，数据同源服务端聚合投影）──
+  const renderConsolidated = () => {
+    if (!consolidated) return null;
+    const r = consolidated;
+    const cur = r.baseCurrency;
+    if (r.orders.externalCount === 0 && r.orders.internalCount === 0) {
+      return (
+        <div className={cx('py-10 text-center text-xs font-light', textFaint)}>
+          暂无订单利润表数据 — 合并报表在利润表生成后自动聚合（仅读，不改写任何单据）
+        </div>
+      );
+    }
+    const profitCls = (n: number) => (n >= 0 ? 'text-emerald-400' : 'text-red-400');
+
+    // 抵销过程可视化（内部采购合计 / 内部销售合计 / 抵销净额 + 双边口径差异透明披露）
+    const renderElimination = () => (
+      <RdlSurface tone="panel" padding="compact" className="flex flex-col">
+        <div className={cx('border-b px-4 pb-2 pt-2 text-[10px] font-light tracking-[0.14em]', divider, textSecondary)}>
+          抵销过程 · Elimination（DR-005 单边口径）
+        </div>
+        <div className="space-y-1 px-2 py-2 text-xs">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+            <div className={cx('font-light', textPrimary)}>
+              内部采购合计
+              <span className={cx('ml-2 text-[10px]', textFaint)}>服装部 · 生效内部供料（incoming）</span>
+            </div>
+            <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.elimination.internalPurchase, cur)}</div>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+            <div className={cx('font-light', textPrimary)}>
+              内部销售合计
+              <span className={cx('ml-2 text-[10px]', textFaint)}>面料部 · 生效内部供料（outgoing）</span>
+            </div>
+            <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.elimination.internalSales, cur)}</div>
+          </div>
+          <div className={cx('grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5', 'bg-[var(--recessed-bg)]')}>
+            <div className={cx('font-light', textPrimary)}>
+              抵销净额
+              <span className={cx('ml-2 text-[10px]', textFaint)}>不计入公司收入与成本</span>
+            </div>
+            <div className={cx('text-right font-light tabular-nums', 'text-amber-400')}>-{formatAmount(r.elimination.amount, cur)}</div>
+          </div>
+          {r.elimination.discrepancy !== 0 && (
+            <div className={cx('rounded-control px-2 py-1.5 text-[10px] font-light', 'text-amber-400')}>
+              双边口径不一致披露：内部销售 − 内部采购 = {formatAmount(r.elimination.discrepancy, cur)}（应≈0，请核对内部供料单双边登记）
+            </div>
+          )}
+          <div className={cx('px-2 pt-1 text-[10px] font-light', textFaint)}>
+            内部采购价 = 面料部内部销售收入，合并时全额抵销；仅生效（已生效/交付中/已关闭）内部供料单计入
+          </div>
+        </div>
+        {r.unconverted.length > 0 && (
+          <div className={cx('border-t px-4 pb-2 pt-2', divider)}>
+            <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', 'text-amber-400')}>
+              未折算内部交易披露（{r.unconverted.length} 笔，排除在抵销外）
+            </div>
+            <div className="space-y-0.5 text-[11px]">
+              {r.unconverted.map(u => (
+                <div key={u.transferId} className="flex items-baseline justify-between gap-2">
+                  <span className={cx('min-w-0 truncate font-light', textSecondary)}>{u.transferId} · {u.direction === 'incoming' ? '内部采购' : '内部销售'}</span>
+                  <span className={cx('shrink-0 font-light tabular-nums', textPrimary)}>{formatAmount(u.amount, u.currency)}</span>
+                </div>
+              ))}
+              <div className={cx('pt-0.5 text-[10px] font-light', textFaint)}>非本位币内部交易，报表不做汇率假设，透明披露</div>
+            </div>
+          </div>
+        )}
+      </RdlSurface>
+    );
+
+    if (consolidatedMode === 'department') {
+      const deptSum = r.departments.garment.profit + r.departments.fabric.profit;
+      const identityGap = deptSum - r.consolidatedProfit;
+      const departments: Array<{ key: 'garment' | 'fabric'; label: string; en: string; caliber: string }> = [
+        { key: 'garment', label: '服装部', en: 'Garment', caliber: '收入含外部客户收入；成本含内部面料采购价（部门利润已扣内部采购）' },
+        { key: 'fabric', label: '面料部', en: 'Fabric', caliber: '收入含内部面料销售；成本为真实面料成本（保留内部面料利润）' },
+      ];
+      return (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {departments.map(d => {
+              const dept = r.departments[d.key];
+              return (
+                <RdlSurface key={d.key} tone="panel" padding="compact" className="flex flex-col">
+                  <div className={cx('border-b px-4 pb-2 pt-2', divider)}>
+                    <div className={cx('text-xs font-light', textPrimary)}>{d.label} · {d.en}</div>
+                    <div className={cx('mt-0.5 text-[10px] font-light', textFaint)}>{d.caliber}</div>
+                  </div>
+                  <div className="space-y-1 px-2 py-2 text-xs">
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+                      <div className={cx('font-light', textSecondary)}>部门收入</div>
+                      <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(dept.revenue, cur)}</div>
+                    </div>
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+                      <div className={cx('font-light', textSecondary)}>部门成本</div>
+                      <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(dept.cost, cur)}</div>
+                    </div>
+                    <div className={cx('grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5', 'bg-[var(--recessed-bg)]')}>
+                      <div className={cx('font-light', textPrimary)}>部门利润</div>
+                      <div className={cx('text-right font-light tabular-nums', profitCls(dept.profit))}>{formatAmount(dept.profit, cur)}</div>
+                    </div>
+                  </div>
+                </RdlSurface>
+              );
+            })}
+          </div>
+          <RdlSurface tone="panel" padding="compact" className="flex flex-col">
+            <div className={cx('border-b px-4 pb-2 pt-2 text-[10px] font-light tracking-[0.14em]', divider, textSecondary)}>
+              恒等式校验 · Σ 部门利润 = 合并利润
+            </div>
+            <div className="space-y-1 px-2 py-2 text-xs">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+                <div className={cx('font-light', textSecondary)}>Σ 部门利润（服装部 + 面料部）</div>
+                <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(deptSum, cur)}</div>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+                <div className={cx('font-light', textSecondary)}>合并利润（抵销后）</div>
+                <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.consolidatedProfit, cur)}</div>
+              </div>
+              <div className={cx('px-2 pt-1 text-[10px] font-light', identityGap === 0 ? 'text-emerald-400' : 'text-amber-400')}>
+                {identityGap === 0
+                  ? '恒等成立 — 抵销不改变公司利润，仅在部门间重新归属'
+                  : `差额披露：${formatAmount(identityGap, cur)}（对应抵销过程的双边口径差异，请核对内部供料单登记）`}
+              </div>
+            </div>
+          </RdlSurface>
+          {renderElimination()}
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+        {/* 汇总卡片 */}
+        <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
+          <RdlMetricCard className="px-4 py-3">
+            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>客户外部收入 · {cur}</div>
+            <div className={cx('mt-1.5 text-lg font-light tabular-nums', textPrimary)}>{formatAmount(r.consolidatedRevenue, cur)}</div>
+            <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>外部订单 {r.orders.externalCount} 张（内部面料销售不计入）</div>
+          </RdlMetricCard>
+          <RdlMetricCard className="px-4 py-3">
+            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>合并成本 · {cur}</div>
+            <div className={cx('mt-1.5 text-lg font-light tabular-nums', textPrimary)}>{formatAmount(r.consolidatedCost, cur)}</div>
+            <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>含真实面料成本 {formatAmount(r.costBreakdown.realFabricCost, cur)}</div>
+          </RdlMetricCard>
+          <RdlMetricCard className="px-4 py-3">
+            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>公司利润（抵销后）· {cur}</div>
+            <div className={cx('mt-1.5 text-lg font-light tabular-nums', profitCls(r.consolidatedProfit))}>{formatAmount(r.consolidatedProfit, cur)}</div>
+            <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>外部收入 − 合并成本</div>
+          </RdlMetricCard>
+          <RdlMetricCard className="px-4 py-3">
+            <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>合并抵销额 · {cur}</div>
+            <div className={cx('mt-1.5 text-lg font-light tabular-nums', 'text-amber-400')}>-{formatAmount(r.elimination.amount, cur)}</div>
+            <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>内部面料订单 {r.orders.internalCount} 张参与抵销</div>
+          </RdlMetricCard>
+        </div>
+
+        {/* 成本构成 + 抵销过程 */}
+        <RdlSurface tone="panel" padding="compact" className="flex flex-col">
+          <div className={cx('border-b px-4 pb-2 pt-2 text-[10px] font-light tracking-[0.14em]', divider, textSecondary)}>
+            合并成本构成 · Cost Breakdown
+          </div>
+          <div className="space-y-1 px-2 py-2 text-xs">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+              <div className={cx('font-light', textPrimary)}>
+                外部采购成本
+                <span className={cx('ml-2 text-[10px]', textFaint)}>已剔除内部采购加价</span>
+              </div>
+              <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.costBreakdown.externalPurchaseNetOfInternal, cur)}</div>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+              <div className={cx('font-light', textPrimary)}>
+                真实面料成本
+                <span className={cx('ml-2 text-[10px]', textFaint)}>内部面料订单自身采购成本</span>
+              </div>
+              <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.costBreakdown.realFabricCost, cur)}</div>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+              <div className={cx('font-light', textSecondary)}>运费</div>
+              <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.costBreakdown.freightCost, cur)}</div>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5">
+              <div className={cx('font-light', textSecondary)}>杂费</div>
+              <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.costBreakdown.miscCost, cur)}</div>
+            </div>
+            <div className={cx('grid grid-cols-[minmax(0,1fr)_minmax(0,0.6fr)] items-center rounded-control px-2 py-1.5', 'bg-[var(--recessed-bg)]')}>
+              <div className={cx('font-light', textPrimary)}>合并成本合计</div>
+              <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.consolidatedCost, cur)}</div>
+            </div>
+          </div>
+        </RdlSurface>
+        {renderElimination()}
+      </div>
+    );
+  };
+
+  // ── 内部供料单视图（DR-033：双向关联独立核算，列表仅 incoming 主单）──
+  const renderTransfers = () => {
+    if (!transfers) return null;
+    const gridCls = 'grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.6fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.8fr)]';
+    const statusCls = (s: InternalTransferStatus | undefined): string => {
+      switch (s) {
+        case 'PendingConfirm': return 'text-amber-400';
+        case 'Effective': return 'text-emerald-400';
+        case 'Delivering': return 'text-amber-400';
+        case 'Closed': return textPrimary;
+        case 'Cancelled': return 'text-red-400';
+        default: return textFaint;
+      }
+    };
+    return (
+      <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-1 flex-col">
+        <div className={cx(gridCls, 'px-4 pb-2 pt-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
+          <div>供料单号</div>
+          <div>物料</div>
+          <div className="text-right">数量</div>
+          <div className="text-right">结算价</div>
+          <div className="text-right">金额</div>
+          <div>服装订单</div>
+          <div>面料订单</div>
+          <div>交期</div>
+          <div>状态</div>
+          <div className="text-right">交付进度</div>
+        </div>
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
+          {transfers.length === 0 && (
+            <div className={cx('py-6 text-center font-light', textFaint)}>
+              {transferStatus ? `暂无「${INTERNAL_TRANSFER_STATUS_LABEL[transferStatus]}」状态的内部供料单` : '暂无内部供料单 — 由服装部基于服装订单发起，经结算价审批与面料部确认后生效'}
+            </div>
+          )}
+          {transfers.map(({ record, payload }) => {
+            const amount = toAmount(record.transferAmount);
+            const delivered = payload ? payload.deliveries.reduce((acc, d) => acc + d.quantity, 0) : 0;
+            const confirmedQty = payload ? (payload.confirmedQuantity ?? payload.quantity) : 0;
+            const expanded = expandedTransferId === record.id;
+            return (
+              <div key={record.id} className={cx('rounded-control', 'bg-[var(--recessed-bg)]')}>
+                <button
+                  type="button"
+                  onClick={() => setExpandedTransferId(expanded ? null : record.id)}
+                  className={cx(gridCls, 'w-full items-center px-4 py-2.5 text-left')}
+                  aria-expanded={expanded}
+                >
+                  <div className={cx('truncate font-light', textPrimary)}>{record.id}</div>
+                  <div className={cx('truncate font-light', textPrimary)}>{payload?.materialCode ?? '—'}</div>
+                  <div className={cx('text-right font-light tabular-nums', textPrimary)}>
+                    {payload ? `${payload.quantity.toLocaleString('zh-CN')} ${payload.unit}` : '—'}
+                  </div>
+                  <div className={cx('text-right font-light tabular-nums', textPrimary)}>
+                    {payload ? formatAmount(payload.settlementPrice, record.transferCurrency) : '—'}
+                  </div>
+                  <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(amount, record.transferCurrency)}</div>
+                  <div className={cx('truncate font-light', textSecondary)}>{payload?.garmentOrderId ?? record.orderId}</div>
+                  <div className={cx('truncate font-light', textSecondary)}>{payload?.fabricOrderId ?? '—'}</div>
+                  <div className={cx('font-light tabular-nums', textSecondary)}>{payload?.dueDate ?? record.transferDate}</div>
+                  <div className={cx('font-light', statusCls(payload?.status))}>
+                    {payload ? INTERNAL_TRANSFER_STATUS_LABEL[payload.status] : (record.recognizedAt ? '已认账（历史）' : '未生效（历史）')}
+                  </div>
+                  <div className={cx('text-right font-light tabular-nums', textSecondary)}>
+                    {payload ? `${delivered.toLocaleString('zh-CN')} / ${confirmedQty.toLocaleString('zh-CN')} ${payload.unit}` : '—'}
+                  </div>
+                </button>
+                {expanded && payload && (
+                  <div className={cx('mx-2 mb-2 space-y-2 rounded-control px-3 py-2', 'bg-[var(--hover-darken)]')}>
+                    <div className={cx('grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] font-light xl:grid-cols-4', textSecondary)}>
+                      <div>申请部门：<span className={textPrimary}>{payload.requestDepartmentId}</span></div>
+                      <div>供料部门：<span className={textPrimary}>{payload.supplyDepartmentId}</span></div>
+                      <div>结算价审批单：<span className={textPrimary}>{payload.settlementApprovalId}</span></div>
+                      <div>
+                        确认数量/交期：
+                        <span className={textPrimary}>
+                          {payload.confirmedQuantity !== null ? `${payload.confirmedQuantity.toLocaleString('zh-CN')} ${payload.unit}` : '—'}
+                          {' / '}{payload.confirmedDueDate ?? '—'}
+                        </span>
+                      </div>
+                    </div>
+                    {payload.deliveries.length > 0 && (
+                      <div>
+                        <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>交付记录（分批出运/到货/差异）</div>
+                        <div className="space-y-0.5">
+                          {payload.deliveries.map(d => (
+                            <div key={d.id} className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] items-center px-1 py-1 text-[11px]">
+                              <div className={cx('font-light tabular-nums', textSecondary)}>{d.deliveryDate}</div>
+                              <div className={cx('truncate font-light', textPrimary)}>{d.shipmentNumber ?? d.shipmentId}</div>
+                              <div className={cx('text-right font-light tabular-nums', textPrimary)}>出运 {d.quantity.toLocaleString('zh-CN')}</div>
+                              <div className={cx('text-right font-light tabular-nums', textPrimary)}>
+                                {d.receivedQuantity !== null ? `到货 ${d.receivedQuantity.toLocaleString('zh-CN')}` : '到货 —'}
+                              </div>
+                              <div className={cx('text-right font-light tabular-nums', d.variance !== null && d.variance !== 0 ? 'text-amber-400' : textFaint)}>
+                                {d.variance !== null ? `差异 ${d.variance >= 0 ? '+' : ''}${d.variance.toLocaleString('zh-CN')}` : '差异 —'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {payload.history.length > 0 && (
+                      <div>
+                        <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>状态流转</div>
+                        <div className="space-y-0.5">
+                          {payload.history.map((h, i) => (
+                            <div key={`${h.at}-${i}`} className="flex items-baseline gap-2 px-1 py-0.5 text-[11px]">
+                              <span className={cx('shrink-0 font-light tabular-nums', textFaint)}>{h.at.slice(0, 16).replace('T', ' ')}</span>
+                              <span className={cx('shrink-0 font-light', statusCls(h.to))}>
+                                {h.from ? `${INTERNAL_TRANSFER_STATUS_LABEL[h.from]} → ` : ''}{INTERNAL_TRANSFER_STATUS_LABEL[h.to]}
+                              </span>
+                              <span className={cx('min-w-0 truncate font-light', textSecondary)}>{h.note ?? ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </RdlSurface>
+    );
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-2.5">
       {/* 子 tab + 过滤器 */}
@@ -521,6 +903,29 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <RdlPill type="button" active tone="accent" onClick={loadLedger} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
             </>
           )}
+          {tab === 'consolidated' && (
+            <>
+              <RdlPill type="button" active={consolidatedMode === 'company'} onClick={() => setConsolidatedMode('company')} className="min-h-8 px-3 text-[11px]">合并视图</RdlPill>
+              <RdlPill type="button" active={consolidatedMode === 'department'} onClick={() => setConsolidatedMode('department')} className="min-h-8 px-3 text-[11px]">部门视角</RdlPill>
+              <RdlPill type="button" active tone="accent" onClick={loadConsolidated} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
+            </>
+          )}
+          {tab === 'internal-trade' && (
+            <>
+              <select
+                value={transferStatus}
+                onChange={e => setTransferStatus(e.target.value as InternalTransferStatus | '')}
+                className={cx(inputCls, 'min-w-[140px]')}
+                aria-label="状态筛选"
+              >
+                <option value="">全部状态</option>
+                {INTERNAL_TRANSFER_STATUSES.map(s => (
+                  <option key={s} value={s}>{INTERNAL_TRANSFER_STATUS_LABEL[s]}</option>
+                ))}
+              </select>
+              <RdlPill type="button" active tone="accent" onClick={loadTransfers} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
+            </>
+          )}
         </div>
       </div>
 
@@ -541,6 +946,8 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           {tab === 'supplier-statement' && renderSupplierStatement()}
           {tab === 'fx' && renderFx()}
           {tab === 'fx-ledger' && renderFxLedger()}
+          {tab === 'consolidated' && renderConsolidated()}
+          {tab === 'internal-trade' && renderTransfers()}
         </>
       )}
     </div>

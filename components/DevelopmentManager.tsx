@@ -529,7 +529,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                       <div className={cx('mt-2 text-sm leading-snug', textPrimaryClass)}>{selectedCase.nextAction}</div>
                     </div>
                     <div className="mt-4">
-                      <SampleNodesPanel key={selectedCase.id} caseId={selectedCase.id} isDarkMode={isDarkMode} />
+                      <SampleNodesPanel key={selectedCase.id} caseId={selectedCase.id} caseType={selectedCase.type} isDarkMode={isDarkMode} />
                     </div>
                     {selectedCase.stage === 'approved' && !selectedCase.linkedOrderId && (
                       <button

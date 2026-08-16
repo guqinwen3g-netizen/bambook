@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { paymentVoucherService } from '../services/paymentVoucherService';
+import { paymentVoucherService, VOUCHER_CATEGORIES, VOUCHER_CATEGORY_LABELS, voucherCategoryLabel, type PaymentVoucherWithCategory, type VoucherCategory } from '../services/paymentVoucherService';
 import { invoiceService } from '../services/invoiceService';
 import { allocationService } from '../services/allocationService';
 import { fxSettlementService } from '../services/fxSettlementService';
@@ -7,8 +7,10 @@ import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { apiService } from '../services/apiService';
 import { financeV2Service } from '../services/financeV2Service';
-import { BadgeCheck, Ban, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
+import { BadgeCheck, Ban, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
+import { FinancePaymentRequestsPanel } from './finance/FinancePaymentRequestsPanel';
+import { FinanceCreditPanel } from './finance/FinanceCreditPanel';
 import type {
   Invoice as InvoiceEntity,
   InvoiceStatus,
@@ -71,7 +73,7 @@ const clearFinanceInvoicePrime = () => {
   }
 };
 
-type FinanceTabId = 'invoices' | 'vouchers' | 'vatInvoices' | 'reports';
+type FinanceTabId = 'invoices' | 'vouchers' | 'paymentRequests' | 'credit' | 'vatInvoices' | 'reports';
 
 /** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
 export type { FinanceTabId };
@@ -181,6 +183,8 @@ const remittancePurposeLabel = (p?: string | null) =>
 const FINANCE_TABS: Array<{ id: FinanceTabId; label: string; icon: typeof FileText }> = [
   { id: 'invoices', label: '发票', icon: FileText },
   { id: 'vouchers', label: '收付款', icon: CreditCard },
+  { id: 'paymentRequests', label: '付款申请', icon: ClipboardList },
+  { id: 'credit', label: '客户信用', icon: ShieldCheck },
   { id: 'vatInvoices', label: '增值税', icon: Receipt },
   { id: 'reports', label: '报表', icon: BarChart3 },
 ];
@@ -317,7 +321,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   // ── P0 payment manual path: 创建凭证 modal state ───
   const [showCreateVoucher, setShowCreateVoucher] = useState(false);
-  const [voucherForm, setVoucherForm] = useState({ voucherNumber: '', type: 'Receipt' as 'Receipt' | 'Disbursement', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
+  const [voucherForm, setVoucherForm] = useState({ voucherNumber: '', type: 'Receipt' as 'Receipt' | 'Disbursement', voucherCategory: 'normal' as VoucherCategory, amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
   const [voucherCreating, setVoucherCreating] = useState(false);
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<VoucherEntity | null>(null);
@@ -327,6 +331,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     setVoucherForm({
       voucherNumber: voucher.voucherNumber || '',
       type: voucher.type || 'Receipt',
+      voucherCategory: (voucher as PaymentVoucherWithCategory).voucherCategory || 'normal',
       amount: String(voucher.amount ?? ''),
       currency: voucher.currency || 'USD',
       paymentDate: voucher.paymentDate || '',
@@ -355,6 +360,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       const updated = await paymentVoucherService.updatePaymentVoucher(editingVoucher.id, {
         voucherNumber: voucherForm.voucherNumber,
         type: voucherForm.type,
+        voucherCategory: voucherForm.voucherCategory,
         amount: voucherAmount,
         currency: voucherForm.currency,
         paymentDate: voucherForm.paymentDate || new Date().toISOString().slice(0, 10),
@@ -365,7 +371,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setVouchers(prev => prev.map(v => v.id === editingVoucher.id ? { ...v, ...updated } : v));
       setShowCreateVoucher(false);
       setEditingVoucher(null);
-      setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
+      setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
     } catch (e: any) {
       setVoucherError(e?.message || '凭证保存失败');
     } finally {
@@ -389,6 +395,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       const created = await paymentVoucherService.createPaymentVoucher({
         voucherNumber: voucherForm.voucherNumber,
         type: voucherForm.type,
+        voucherCategory: voucherForm.voucherCategory,
         amount: voucherAmount,
         currency: voucherForm.currency,
         paymentDate: voucherForm.paymentDate || new Date().toISOString().slice(0, 10),
@@ -400,7 +407,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       setVouchers(prev => [created, ...prev]);
       setShowCreateVoucher(false);
       setEditingVoucher(null);
-      setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
+      setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' });
     } catch (e: any) {
       // 失败：保留原数据，显示可执行反馈
       setVoucherError(`创建失败：${e?.message ?? e}`);
@@ -1172,8 +1179,10 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     return result;
   }, [vatInvoices, selectedType, selectedStatus, searchTerm]);
 
+  // 自包含 tab（报表 / 付款申请 / 客户信用）由专属面板全权渲染，不消费共享列表与核销副作用
+  const isSelfContainedTab = activeTab === 'reports' || activeTab === 'paymentRequests' || activeTab === 'credit';
   const activeList: Array<InvoiceEntity | VoucherEntity | VatInvoiceEntity> =
-    activeTab === 'invoices' ? filteredInvoices : activeTab === 'vatInvoices' ? filteredVatInvoices : filteredVouchers;
+    isSelfContainedTab ? [] : activeTab === 'invoices' ? filteredInvoices : activeTab === 'vatInvoices' ? filteredVatInvoices : filteredVouchers;
   const selectedItem = activeList.find(item => item.id === selectedId) || activeList[0];
 
   const isInvoiceContext = activeTab === 'invoices';
@@ -1281,9 +1290,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{voucherTypeLabel(item.type)} · {item.currency || '—'}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
-          <span className={voucherStatusBadge((item.status || 'unreconciled') as VoucherStatus)}>
-            {item.status || 'unreconciled'}
-          </span>
+          <div className="flex min-w-0 items-center gap-1">
+            <span className={voucherStatusBadge((item.status || 'unreconciled') as VoucherStatus)}>
+              {item.status || 'unreconciled'}
+            </span>
+            {(item as PaymentVoucherWithCategory).voucherCategory && (item as PaymentVoucherWithCategory).voucherCategory !== 'normal' && (
+              <span className={FINANCE_STATUS_BADGE}>{voucherCategoryLabel((item as PaymentVoucherWithCategory).voucherCategory)}</span>
+            )}
+          </div>
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{voucherTypeLabel(item.type)}</div>
         </div>
         <div className="min-w-0 px-1 py-1">
@@ -1544,6 +1558,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           { label: '关联订单', value: voucher!.orderId ? `订单 ${voucher!.orderId.slice(-8)}` : '—' },
           { label: '付款日期', value: voucher!.paymentDate || '—' },
           { label: '付款方式', value: voucher!.paymentMethod || '—' },
+          { label: '凭证分类', value: voucherCategoryLabel((voucher as PaymentVoucherWithCategory).voucherCategory) },
           { label: '币种', value: voucher!.currency || '—' },
           { label: '银行手续费', value: voucher!.bankFee != null ? formatAmount(voucher!.bankFee, voucher!.currency) : '—' },
           { label: '已核销金额', value: voucher!.appliedAmount != null ? formatAmount(voucher!.appliedAmount, voucher!.currency) : '—' },
@@ -1824,7 +1839,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       <PageHeader
         title="财务管理"
         subtitle="Invoices / Vouchers / Reconciliation"
-        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : 'Voucher Desk'}
+        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : activeTab === 'paymentRequests' ? 'Payment Requests' : activeTab === 'credit' ? 'Credit Control' : 'Voucher Desk'}
         isDarkMode={isDarkMode}
         actions={(
           <>
@@ -1833,7 +1848,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <button
                 type="button"
                 className="bds-btn bds-btn-primary"
-                onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
+                onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
               >
                 <Plus size={14} strokeWidth={1.4} />
                 新建凭证
@@ -1891,7 +1906,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
               {activeTab === 'reports'
                 ? '账龄 / 对账单 / 汇率损益 / 外汇台账'
-                : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
+                : activeTab === 'paymentRequests'
+                  ? '先申请后付款 · 审批链闭环'
+                  : activeTab === 'credit'
+                    ? '额度 / 冻结门禁 / 历史时间线'
+                    : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
             </div>
           </div>
 
@@ -1900,7 +1919,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <FinanceReportsPanel isDarkMode={isDarkMode} />
           )}
 
-          {activeTab !== 'reports' && (
+          {/* 付款申请 tab：自包含面板（DR-017 先申请后付款 + 审批链） */}
+          {activeTab === 'paymentRequests' && (
+            <FinancePaymentRequestsPanel isDarkMode={isDarkMode} relations={relationOptions} />
+          )}
+
+          {/* 客户信用 tab：自包含面板（额度 / 冻结门禁 / CreditLimitHistory 时间线） */}
+          {activeTab === 'credit' && (
+            <FinanceCreditPanel isDarkMode={isDarkMode} relations={relationOptions} />
+          )}
+
+          {!isSelfContainedTab && (
           <>
           {/* Shared toolbar (chips adapt per tab) */}
           <div className="bds-filterbar h-auto min-h-11 flex-wrap gap-x-2 gap-y-2">
@@ -1995,6 +2024,15 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   <input type="number" value={voucherForm.amount} onChange={e => setVoucherForm(f => ({ ...f, amount: e.target.value }))}
                     className={formInputClass} />
                 </div>
+              </div>
+              <div>
+                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证分类</label>
+                <select value={voucherForm.voucherCategory} onChange={e => setVoucherForm(f => ({ ...f, voucherCategory: e.target.value as VoucherCategory }))}
+                  className={formSelectClass}>
+                  {VOUCHER_CATEGORIES.map(c => (
+                    <option key={c} value={c}>{VOUCHER_CATEGORY_LABELS[c]}</option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

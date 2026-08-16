@@ -5,6 +5,42 @@
 import { apiService } from './apiService';
 import type { PaymentVoucher, VoucherStatus, VoucherType } from '../types';
 
+/**
+ * P0-9 / DR-022 凭证分类枚举真源（镜像后端 VALID_VOUCHER_CATEGORIES，
+ * server/src/finance/paymentVoucherMutationService.ts fail-closed 校验）。
+ * root types.ts 为冻结区（禁止编辑），VoucherCategory 内聚在本文件。
+ */
+export const VOUCHER_CATEGORIES = [
+  'normal',
+  'advance',
+  'deposit',
+  'sample_express',
+  'customer_reimburse',
+  'business_cost',
+] as const;
+export type VoucherCategory = (typeof VOUCHER_CATEGORIES)[number];
+
+/** 凭证分类中文文案（设计真源：Prisma缺口清单与迁移方案.md P0-9 / 财务域模型组.md §2.2） */
+export const VOUCHER_CATEGORY_LABELS: Record<VoucherCategory, string> = {
+  normal: '常规',
+  advance: '预收/预付',
+  deposit: '保证金',
+  sample_express: '样品快递费',
+  customer_reimburse: '客户报销',
+  business_cost: '业务成本',
+};
+
+export const voucherCategoryLabel = (category?: string | null): string =>
+  category && (VOUCHER_CATEGORIES as readonly string[]).includes(category)
+    ? VOUCHER_CATEGORY_LABELS[category as VoucherCategory]
+    : (category || '—');
+
+/** 列表/详情运行时行可能携带 voucherCategory（types.ts PaymentVoucher 冻结未含此列） */
+export type PaymentVoucherWithCategory = PaymentVoucher & { voucherCategory?: VoucherCategory };
+
+/** 创建/编辑输入允许携带 voucherCategory（后端 schema default('normal') 兜底） */
+export type PaymentVoucherMutationInput = Partial<PaymentVoucher> & { voucherCategory?: VoucherCategory };
+
 type PaymentVoucherListParams = {
   type?: VoucherType;
   status?: VoucherStatus;
@@ -50,7 +86,7 @@ export const paymentVoucherService = {
     return data;
   },
 
-  async createPaymentVoucher(input: Partial<PaymentVoucher>, endpoint?: string): Promise<PaymentVoucher> {
+  async createPaymentVoucher(input: PaymentVoucherMutationInput, endpoint?: string): Promise<PaymentVoucher> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance/vouchers', base);
 
@@ -70,7 +106,7 @@ export const paymentVoucherService = {
     return data;
   },
 
-  async updatePaymentVoucher(id: string, input: Partial<PaymentVoucher>, endpoint?: string): Promise<PaymentVoucher> {
+  async updatePaymentVoucher(id: string, input: PaymentVoucherMutationInput, endpoint?: string): Promise<PaymentVoucher> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/vouchers/${encodeURIComponent(id)}`, base);
 

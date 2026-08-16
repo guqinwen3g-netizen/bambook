@@ -5,8 +5,11 @@
  * 功能：
  *   1. 验货任务 Assignments — QC 人员筛选 / 看板三列（Assigned / InProgress / Completed）/
  *      开始·完成（可关联验货报告）·取消·删除 / 新建任务（订单搜索选择器）
- *   2. 驻地管理 Locations — 驻地卡片 CRUD（删除被任务引用时展示后端拒绝原因）
- *   3. 业务线 Business Lines — 业务线规则表（MOQ / 生产周期 / 付款条件 / 启停开关）CRUD
+ *   2. 双链评审 Sample Chains（DR-029）— 服装链（工厂→QC→业务员→客户，DR-008 内部门禁
+ *      查询 + 评审/直接打回）与面料链（业务员→QC→工厂→业务员，样品级评审 + 工厂技术调整
+ *      要求）严格隔离；链报告列表展示双签状态并支持 QC/业务签署
+ *   3. 驻地管理 Locations — 驻地卡片 CRUD（删除被任务引用时展示后端拒绝原因）
+ *   4. 业务线 Business Lines — 业务线规则表（MOQ / 生产周期 / 付款条件 / 启停开关）CRUD
  *
  * 设计原则：
  *   - 任务看板数据来自服务端聚合 /qc/workbench，订单信息为服务端快照，前端只读展示
@@ -31,9 +34,27 @@ import {
   Play,
   CheckCheck,
   Ban,
+  ShieldCheck,
+  PenLine,
+  Truck,
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import {
+  qcService,
+  CHAIN_CONCLUSION_LABELS,
+  CHAIN_DISPOSITION_LABELS,
+  type GarmentSampleGate,
+  type QcInspectionReport,
+  type GarmentQcSampleLevel,
+  type FabricQcSampleKind,
+  type ReportSignRole,
+} from '../services/qcService';
+import {
+  sampleService,
+  FABRIC_SAMPLE_STATUS_LABELS,
+  EARLY_PRODUCTION_STATUS_LABELS,
+} from '../services/sampleService';
 import {
   Order,
   BusinessLine,
@@ -52,10 +73,11 @@ import { PageHeader } from './ui/PageHeader';
 
 // ==================== 常量 ====================
 
-type ModuleTab = 'assignments' | 'locations' | 'businessLines';
+type ModuleTab = 'assignments' | 'sampleChains' | 'locations' | 'businessLines';
 
 const MODULE_TABS: Array<{ id: ModuleTab; label: string; icon: LucideIcon }> = [
   { id: 'assignments', label: '验货任务 Assignments', icon: ClipboardCheck },
+  { id: 'sampleChains', label: '双链评审 Sample Chains', icon: ShieldCheck },
   { id: 'locations', label: '驻地管理 Locations', icon: MapPin },
   { id: 'businessLines', label: '业务线 Business Lines', icon: Layers },
 ];
@@ -210,10 +232,12 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
         title="QC 工作台"
         subtitle="QC Workbench"
         actions={
-          <button onClick={() => newActionRef.current?.()} className="bds-btn bds-btn-primary">
-            <Plus size={14} />
-            <span>{activeTab === 'locations' ? '新建驻地' : activeTab === 'businessLines' ? '新建业务线' : '新建任务'}</span>
-          </button>
+          activeTab !== 'sampleChains' ? (
+            <button onClick={() => newActionRef.current?.()} className="bds-btn bds-btn-primary">
+              <Plus size={14} />
+              <span>{activeTab === 'locations' ? '新建驻地' : activeTab === 'businessLines' ? '新建业务线' : '新建任务'}</span>
+            </button>
+          ) : undefined
         }
       />
 
@@ -247,6 +271,7 @@ export default function QcWorkbenchManager({ isDarkMode }: QcWorkbenchManagerPro
             className="h-full min-h-0"
           >
             {activeTab === 'assignments' && <AssignmentsPanel registerNewAction={registerNewAction} />}
+            {activeTab === 'sampleChains' && <SampleChainsPanel registerNewAction={registerNewAction} />}
             {activeTab === 'locations' && <LocationsPanel registerNewAction={registerNewAction} />}
             {activeTab === 'businessLines' && <BusinessLinesPanel registerNewAction={registerNewAction} />}
           </motion.div>
@@ -1308,5 +1333,873 @@ function BusinessLineForm({
         </button>
       </div>
     </ModalShell>
+  );
+}
+
+// ==================== 双链评审 Sample Chains（DR-029 服装链 / 面料链严格隔离） ====================
+
+type ChainId = 'garment' | 'fabric';
+
+const CHAIN_LABELS: Record<ChainId, string> = {
+  garment: '服装链 Garment',
+  fabric: '面料链 Fabric',
+};
+
+const CHAIN_FLOW_HINTS: Record<ChainId, string> = {
+  garment: '工厂 → QC → 业务员 → 客户',
+  fabric: '业务员 → QC → 工厂 → 业务员',
+};
+
+const GARMENT_SAMPLE_LEVEL_LABELS: Record<GarmentQcSampleLevel, string> = {
+  pp: 'PP 产前样',
+  top: 'TOP 头样',
+};
+
+const FABRIC_SAMPLE_KIND_LABELS: Record<FabricQcSampleKind, string> = {
+  SS: 'S/S 船样',
+  RC: 'RC 匹头样',
+  EARLY_PRODUCTION: '早期生产样',
+};
+
+/** 链报告 inspectionType 解析出的 sampleKind（小写）→ 展示名 */
+const SAMPLE_KIND_LABELS: Record<string, string> = {
+  pp: 'PP 产前样',
+  top: 'TOP 头样',
+  ss: 'S/S 船样',
+  rc: 'RC 匹头样',
+  early_production: '早期生产样',
+};
+
+const REPORT_RESULT_BADGE_VARIANT: Record<string, 'neutral' | 'success' | 'danger' | 'warning'> = {
+  pass: 'success',
+  conditional: 'warning',
+  fail: 'danger',
+};
+
+/** 镜像后端 isGarmentChainOrder / isFabricChainOrder（server/src/qc/qcChainService.ts 口径） */
+function resolveOrderChain(order: Order): ChainId | null {
+  const line = String(order.businessLine ?? '').toLowerCase();
+  const type = String(order.type ?? '').toLowerCase();
+  if (line === 'garment' || line === 'capsule' || type === 'garment') return 'garment';
+  if (line === 'fabric' || type === 'fabric') return 'fabric';
+  return null;
+}
+
+function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() => void) | null) => void }) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersLoadFailed, setOrdersLoadFailed] = useState(false);
+  const [orderQuery, setOrderQuery] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // 双链评审无主操作（PageHeader 不渲染新建按钮），显式注销避免悬空引用
+  useEffect(() => {
+    registerNewAction(null);
+    return () => registerNewAction(null);
+  }, [registerNewAction]);
+
+  const loadOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    setOrdersLoadFailed(false);
+    try {
+      const list = await apiService.listOrders();
+      setOrders(list.filter((o) => !o.deletedAt));
+    } catch (e) {
+      console.error('[QcWorkbenchManager] sampleChains load orders failed', e);
+      setOrders([]);
+      setOrdersLoadFailed(true);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  const filteredOrders = useMemo(() => {
+    const q = orderQuery.trim().toLowerCase();
+    if (!q) return [];
+    return orders
+      .filter((o) =>
+        (o.poNumber || '').toLowerCase().includes(q)
+        || (o.customer || '').toLowerCase().includes(q)
+        || (o.product || '').toLowerCase().includes(q)
+        || o.id.toLowerCase().includes(q))
+      .slice(0, 10);
+  }, [orders, orderQuery]);
+
+  const chain = selectedOrder ? resolveOrderChain(selectedOrder) : null;
+
+  return (
+    <div className="h-full flex flex-col min-h-0 gap-4">
+      {/* 订单选择条（链路由：按订单 type / businessLine 判定服装链或面料链） */}
+      <div className="shrink-0 bds-card flat" style={{ padding: 'var(--space-3)' }}>
+        {selectedOrder ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bds-mono text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+              {selectedOrder.poNumber || selectedOrder.id}
+            </span>
+            <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+              {selectedOrder.customer} · {selectedOrder.product}
+            </span>
+            {chain ? (
+              <span className={`bds-badge sm shrink-0 ${chain === 'garment' ? 'info' : 'warning'}`}>
+                {CHAIN_LABELS[chain]}
+              </span>
+            ) : (
+              <span className="bds-badge sm neutral shrink-0">非双链订单</span>
+            )}
+            <button
+              onClick={() => setSelectedOrder(null)}
+              className="bds-btn bds-btn-ghost bds-btn-icon ml-auto shrink-0"
+              title="重新选择订单"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+              <input
+                type="text"
+                placeholder="搜索 PO 号 / 客户 / 产品..."
+                value={orderQuery}
+                onChange={(e) => setOrderQuery(e.target.value)}
+                className="bds-input sm pl-9"
+              />
+              {ordersLoading && (
+                <Loader2 size={12} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
+              )}
+            </div>
+            {filteredOrders.length > 0 && (
+              <div className="bds-card flat mt-1.5 max-h-40 overflow-y-auto" style={{ padding: 'var(--space-1)' }}>
+                <div className="bds-listrows">
+                  {filteredOrders.map((o) => (
+                    <button
+                      key={o.id}
+                      onClick={() => { setSelectedOrder(o); setOrderQuery(''); }}
+                      className="bds-listrow w-full text-left"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      <span className="lr-main bds-mono text-xs" style={{ color: 'var(--text-primary)' }}>{o.poNumber || o.id}</span>
+                      <span className="lr-sub truncate shrink-0">{o.customer} · {o.product}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!ordersLoading && ordersLoadFailed && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>订单列表加载失败</span>
+                <button onClick={loadOrders} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="重试">
+                  <RefreshCw size={13} />
+                </button>
+              </div>
+            )}
+            {!ordersLoading && !ordersLoadFailed && orders.length === 0 && (
+              <div className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>暂无可选订单，请先在「订单管理」创建订单</div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 链视图（服装链 / 面料链严格隔离，按订单路由渲染，绝不混排） */}
+      {!selectedOrder ? (
+        <div className="bds-empty flex-1 justify-center">
+          <div className="glyph"><ShieldCheck size={24} /></div>
+          <div className="title">搜索并选择订单后，系统按订单类型路由到服装链或面料链评审台</div>
+        </div>
+      ) : !chain ? (
+        <div className="bds-empty flex-1 justify-center">
+          <div className="glyph"><Ban size={24} /></div>
+          <div className="title">
+            该订单不属于服装链或面料链（type={selectedOrder.type || '—'}），双链样品评审不适用
+          </div>
+        </div>
+      ) : chain === 'garment' ? (
+        <GarmentChainView key={selectedOrder.id} order={selectedOrder} />
+      ) : (
+        <FabricChainView key={selectedOrder.id} order={selectedOrder} />
+      )}
+    </div>
+  );
+}
+
+// ─── 服装链视图（DR-008 内部门禁 + DR-029 评审 / QC-29-A4 直接打回） ───
+
+function GarmentChainView({ order }: { order: Order }) {
+  const [sampleLevel, setSampleLevel] = useState<GarmentQcSampleLevel>('pp');
+  const [round, setRound] = useState('1');
+  const [gate, setGate] = useState<GarmentSampleGate | null>(null);
+  const [gateLoading, setGateLoading] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
+
+  const [conclusion, setConclusion] = useState<'pass' | 'conditional' | 'fail'>('pass');
+  const [opinion, setOpinion] = useState('');
+  const [criticalDefects, setCriticalDefects] = useState('0');
+  const [majorDefects, setMajorDefects] = useState('0');
+  const [minorDefects, setMinorDefects] = useState('0');
+  const [defectSummary, setDefectSummary] = useState('');
+  const [inspectionDate, setInspectionDate] = useState('');
+  const [directReject, setDirectReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [reportsReloadKey, setReportsReloadKey] = useState(0);
+
+  const roundNum = Number(round);
+
+  const loadGate = useCallback(async () => {
+    if (!Number.isInteger(roundNum) || roundNum < 1) {
+      setGate(null);
+      setGateError(null);
+      return;
+    }
+    setGateLoading(true);
+    setGateError(null);
+    try {
+      setGate(await qcService.getGarmentSampleGate(order.id, { sampleLevel, round: roundNum }));
+    } catch (e: any) {
+      setGate(null);
+      setGateError(e?.message || String(e));
+    } finally {
+      setGateLoading(false);
+    }
+  }, [order.id, sampleLevel, roundNum]);
+
+  useEffect(() => {
+    loadGate();
+  }, [loadGate]);
+
+  const handleSubmit = async () => {
+    if (!Number.isInteger(roundNum) || roundNum < 1) {
+      alert('轮次必须是 >=1 的整数');
+      return;
+    }
+    if (!opinion.trim()) {
+      alert('请填写 QC 文本评审意见（DR-029：评审结论不得压缩为机械二值）');
+      return;
+    }
+    if (directReject && !rejectReason.trim()) {
+      alert('直接打回工厂重做必须填写打回原因（QC-29-A4，须对业务员与工厂可追溯）');
+      return;
+    }
+    setSubmitting(true);
+    const input = {
+      sampleLevel,
+      round: roundNum,
+      conclusion,
+      opinion: opinion.trim(),
+      criticalDefects: Number(criticalDefects) || 0,
+      majorDefects: Number(majorDefects) || 0,
+      minorDefects: Number(minorDefects) || 0,
+      defectSummary: defectSummary.trim() || undefined,
+      inspectionDate: inspectionDate || undefined,
+      ...(directReject ? { directReject: true, rejectReason: rejectReason.trim() } : {}),
+    };
+    try {
+      if (directReject) {
+        await qcService.directRejectGarmentSample(order.id, input);
+      } else {
+        await qcService.reviewGarmentSample(order.id, input);
+      }
+      setOpinion('');
+      setDefectSummary('');
+      setRejectReason('');
+      setDirectReject(false);
+      setReportsReloadKey((k) => k + 1);
+      await loadGate();
+    } catch (e: any) {
+      alert(`提交服装链评审失败：${e?.message || e}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
+      {/* 左列：内部门禁 + 评审表单 */}
+      <div className="flex flex-col min-h-0 gap-4 overflow-y-auto">
+        {/* DR-008 内部门禁状态 */}
+        <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-primary)' }}>内部门禁 Gate</span>
+            <span className="text-[11px] ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
+              {CHAIN_FLOW_HINTS.garment}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="样品级别">
+              <select
+                className="bds-select"
+                value={sampleLevel}
+                onChange={(e) => setSampleLevel(e.target.value as GarmentQcSampleLevel)}
+              >
+                {(Object.keys(GARMENT_SAMPLE_LEVEL_LABELS) as GarmentQcSampleLevel[]).map((lv) => (
+                  <option key={lv} value={lv}>{GARMENT_SAMPLE_LEVEL_LABELS[lv]}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="样品轮次">
+              <input
+                type="number"
+                min={1}
+                step={1}
+                className="bds-input"
+                value={round}
+                onChange={(e) => setRound(e.target.value)}
+              />
+            </Field>
+          </div>
+          {gateLoading ? (
+            <div className="flex items-center gap-2 py-2">
+              <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>门禁查询中...</span>
+            </div>
+          ) : gateError ? (
+            <div className="bds-card flat flex items-center gap-2" style={{ padding: 'var(--space-2) var(--space-3)' }}>
+              <span className="bds-badge sm danger shrink-0">查询失败</span>
+              <span className="text-[11px] truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>{gateError}</span>
+              <button onClick={loadGate} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="重试">
+                <RefreshCw size={13} />
+              </button>
+            </div>
+          ) : gate ? (
+            <div className="bds-card flat" style={{ padding: 'var(--space-3)' }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`bds-badge sm ${gate.passed ? 'success' : gate.reviewed ? 'danger' : 'warning'}`}>
+                  {gate.passed ? '门禁通过，可寄客户' : gate.reviewed ? '门禁拦截' : '待 QC 评审'}
+                </span>
+                {gate.conclusion && (
+                  <span className={`bds-badge sm ${REPORT_RESULT_BADGE_VARIANT[gate.conclusion] ?? 'neutral'}`}>
+                    {CHAIN_CONCLUSION_LABELS[gate.conclusion] ?? gate.conclusion}
+                  </span>
+                )}
+                {gate.disposition && gate.disposition !== 'STANDARD' && (
+                  <span className="bds-badge sm warning">{CHAIN_DISPOSITION_LABELS[gate.disposition] ?? gate.disposition}</span>
+                )}
+              </div>
+              {gate.blockedMessage && (
+                <div className="mt-1.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{gate.blockedMessage}</div>
+              )}
+              {gate.reportId && (
+                <div className="mt-1 text-[11px] bds-mono truncate" style={{ color: 'var(--text-quaternary)' }}>
+                  报告 {gate.reportId}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-[11px] py-1" style={{ color: 'var(--text-tertiary)' }}>
+              输入有效轮次后自动查询门禁（fail-closed：未评审 / 未通过 / 已打回均禁止寄客户）
+            </div>
+          )}
+        </div>
+
+        {/* 评审表单 */}
+        <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardCheck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+              提交评审 — 第 {Number.isInteger(roundNum) && roundNum >= 1 ? roundNum : '—'} 轮 {GARMENT_SAMPLE_LEVEL_LABELS[sampleLevel]}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="评审结论 *">
+              <select
+                className="bds-select"
+                value={conclusion}
+                onChange={(e) => setConclusion(e.target.value as 'pass' | 'conditional' | 'fail')}
+              >
+                <option value="pass">通过</option>
+                <option value="conditional">有条件通过</option>
+                <option value="fail">不通过</option>
+              </select>
+            </Field>
+            <Field label="检验日期">
+              <input
+                type="date"
+                className="bds-input"
+                value={inspectionDate}
+                onChange={(e) => setInspectionDate(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Field label="QC 评审意见 *">
+            <textarea
+              className="bds-input bds-textarea"
+              rows={2}
+              value={opinion}
+              onChange={(e) => setOpinion(e.target.value)}
+              placeholder="文本评审意见（DR-029：不得压缩为机械二值）"
+            />
+          </Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="致命缺陷">
+              <input type="number" min={0} step={1} className="bds-input" value={criticalDefects} onChange={(e) => setCriticalDefects(e.target.value)} />
+            </Field>
+            <Field label="严重缺陷">
+              <input type="number" min={0} step={1} className="bds-input" value={majorDefects} onChange={(e) => setMajorDefects(e.target.value)} />
+            </Field>
+            <Field label="轻微缺陷">
+              <input type="number" min={0} step={1} className="bds-input" value={minorDefects} onChange={(e) => setMinorDefects(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="缺陷摘要">
+            <input
+              className="bds-input"
+              value={defectSummary}
+              onChange={(e) => setDefectSummary(e.target.value)}
+              placeholder="缺陷位置 / 类型 / 程度"
+            />
+          </Field>
+          <div className="mb-3">
+            <label className="bds-check">
+              <input
+                type="checkbox"
+                checked={directReject}
+                onChange={(e) => setDirectReject(e.target.checked)}
+              />
+              <span className="box" />
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                直接打回工厂重做（QC-29-A4：该批不得寄客户，系统通知业务员）
+              </span>
+            </label>
+          </div>
+          {directReject && (
+            <Field label="打回原因 *">
+              <textarea
+                className="bds-input bds-textarea"
+                rows={2}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="打回原因须对业务员与工厂可追溯"
+              />
+            </Field>
+          )}
+          <div className="flex justify-end">
+            <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : directReject ? <Ban size={14} /> : <CheckCheck size={14} />}
+              <span>{directReject ? '确认直接打回' : '提交评审'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 右列：服装链报告（与大货 final/midline 天然隔离） */}
+      <div className="min-h-0">
+        <ChainReportsList orderId={order.id} chain="garment" reloadKey={reportsReloadKey} />
+      </div>
+    </div>
+  );
+}
+
+// ─── 面料链视图（DR-029：业务员 → QC → 工厂 → 业务员，QC 向工厂提技术调整） ───
+
+function FabricChainView({ order }: { order: Order }) {
+  const [sampleKind, setSampleKind] = useState<FabricQcSampleKind>('SS');
+  const [sampleOptions, setSampleOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [samplesLoading, setSamplesLoading] = useState(true);
+  const [samplesError, setSamplesError] = useState<string | null>(null);
+  const [sampleId, setSampleId] = useState('');
+
+  const [conclusion, setConclusion] = useState<'pass' | 'conditional' | 'fail'>('pass');
+  const [opinion, setOpinion] = useState('');
+  const [criticalDefects, setCriticalDefects] = useState('0');
+  const [majorDefects, setMajorDefects] = useState('0');
+  const [minorDefects, setMinorDefects] = useState('0');
+  const [defectSummary, setDefectSummary] = useState('');
+  const [inspectionDate, setInspectionDate] = useState('');
+  const [adjRequirement, setAdjRequirement] = useState('');
+  const [adjFactoryName, setAdjFactoryName] = useState('');
+  const [adjFollowUpBy, setAdjFollowUpBy] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [reportsReloadKey, setReportsReloadKey] = useState(0);
+
+  // ── 加载可评审样品候选（SS/RC → FabricShipmentSample；EARLY_PRODUCTION → EarlyProductionSample） ──
+  const loadSampleOptions = useCallback(async () => {
+    setSamplesLoading(true);
+    setSamplesError(null);
+    try {
+      if (sampleKind === 'EARLY_PRODUCTION') {
+        const rows = await sampleService.listEarlyProductionRounds(order.id);
+        setSampleOptions(rows.map((r) => ({
+          id: r.id,
+          label: `${r.sampleCode} · ${EARLY_PRODUCTION_STATUS_LABELS[r.customerStatus] ?? r.customerStatus}`,
+        })));
+      } else {
+        const rows = await sampleService.listOrderSamples(order.id);
+        setSampleOptions(
+          rows
+            .filter((r) => r.sampleKind === sampleKind)
+            .map((r) => ({
+              id: r.id,
+              label: `${r.sampleCode} · ${FABRIC_SAMPLE_STATUS_LABELS[r.customerStatus] ?? r.customerStatus}`,
+            })),
+        );
+      }
+    } catch (e: any) {
+      setSampleOptions([]);
+      setSamplesError(e?.message || String(e));
+    } finally {
+      setSamplesLoading(false);
+    }
+  }, [order.id, sampleKind]);
+
+  useEffect(() => {
+    setSampleId('');
+    loadSampleOptions();
+  }, [loadSampleOptions]);
+
+  const handleSubmit = async () => {
+    if (!sampleId) {
+      alert('请选择要评审的样品记录（面料链 QC 评审必须关联具体样品）');
+      return;
+    }
+    if (!opinion.trim()) {
+      alert('请填写 QC 专业意见（对工厂的技术调整说明）');
+      return;
+    }
+    if (conclusion !== 'pass' && !adjRequirement.trim()) {
+      alert('评审结论非通过时必须填写对工厂的技术调整要求（DR-029 面料链）');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await qcService.reviewFabricSample(order.id, {
+        sampleKind,
+        sampleId,
+        conclusion,
+        opinion: opinion.trim(),
+        criticalDefects: Number(criticalDefects) || 0,
+        majorDefects: Number(majorDefects) || 0,
+        minorDefects: Number(minorDefects) || 0,
+        defectSummary: defectSummary.trim() || undefined,
+        inspectionDate: inspectionDate || undefined,
+        ...(conclusion !== 'pass'
+          ? {
+              factoryAdjustment: {
+                requirement: adjRequirement.trim(),
+                factoryName: adjFactoryName.trim() || undefined,
+                followUpBy: adjFollowUpBy.trim() || undefined,
+              },
+            }
+          : {}),
+      });
+      setOpinion('');
+      setDefectSummary('');
+      setAdjRequirement('');
+      setAdjFactoryName('');
+      setAdjFollowUpBy('');
+      setReportsReloadKey((k) => k + 1);
+    } catch (e: any) {
+      alert(`提交面料链评审失败：${e?.message || e}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
+      {/* 左列：评审对象 + 评审表单 */}
+      <div className="flex flex-col min-h-0 gap-4 overflow-y-auto">
+        <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <Truck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-primary)' }}>评审对象 Sample</span>
+            <span className="text-[11px] ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
+              {CHAIN_FLOW_HINTS.fabric}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="样品类型">
+              <select
+                className="bds-select"
+                value={sampleKind}
+                onChange={(e) => setSampleKind(e.target.value as FabricQcSampleKind)}
+              >
+                {(Object.keys(FABRIC_SAMPLE_KIND_LABELS) as FabricQcSampleKind[]).map((k) => (
+                  <option key={k} value={k}>{FABRIC_SAMPLE_KIND_LABELS[k]}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="样品记录 *">
+              {samplesLoading ? (
+                <div className="flex items-center gap-2 py-2">
+                  <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+                  <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>样品加载中...</span>
+                </div>
+              ) : samplesError ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>样品列表加载失败</span>
+                  <button onClick={loadSampleOptions} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="重试">
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+              ) : (
+                <select className="bds-select" value={sampleId} onChange={(e) => setSampleId(e.target.value)}>
+                  <option value="">选择样品...</option>
+                  {sampleOptions.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          </div>
+          {!samplesLoading && !samplesError && sampleOptions.length === 0 && (
+            <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              该订单暂无{FABRIC_SAMPLE_KIND_LABELS[sampleKind]}记录，请先由业务员在样品域登记
+            </div>
+          )}
+        </div>
+
+        <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardCheck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-primary)' }}>提交评审 Review</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="评审结论 *">
+              <select
+                className="bds-select"
+                value={conclusion}
+                onChange={(e) => setConclusion(e.target.value as 'pass' | 'conditional' | 'fail')}
+              >
+                <option value="pass">通过</option>
+                <option value="conditional">有条件通过</option>
+                <option value="fail">不通过</option>
+              </select>
+            </Field>
+            <Field label="检验日期">
+              <input
+                type="date"
+                className="bds-input"
+                value={inspectionDate}
+                onChange={(e) => setInspectionDate(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Field label="QC 专业意见 *">
+            <textarea
+              className="bds-input bds-textarea"
+              rows={2}
+              value={opinion}
+              onChange={(e) => setOpinion(e.target.value)}
+              placeholder="对工厂的技术调整说明（DR-029）"
+            />
+          </Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="致命缺陷">
+              <input type="number" min={0} step={1} className="bds-input" value={criticalDefects} onChange={(e) => setCriticalDefects(e.target.value)} />
+            </Field>
+            <Field label="严重缺陷">
+              <input type="number" min={0} step={1} className="bds-input" value={majorDefects} onChange={(e) => setMajorDefects(e.target.value)} />
+            </Field>
+            <Field label="轻微缺陷">
+              <input type="number" min={0} step={1} className="bds-input" value={minorDefects} onChange={(e) => setMinorDefects(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="缺陷摘要">
+            <input
+              className="bds-input"
+              value={defectSummary}
+              onChange={(e) => setDefectSummary(e.target.value)}
+              placeholder="缺陷位置 / 类型 / 程度"
+            />
+          </Field>
+          {conclusion !== 'pass' && (
+            <>
+              <Field label="工厂技术调整要求 *">
+                <textarea
+                  className="bds-input bds-textarea"
+                  rows={2}
+                  value={adjRequirement}
+                  onChange={(e) => setAdjRequirement(e.target.value)}
+                  placeholder="染整 / 后整理 / 修布等调整要求（可追溯）"
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="责任工厂">
+                  <input
+                    className="bds-input"
+                    value={adjFactoryName}
+                    onChange={(e) => setAdjFactoryName(e.target.value)}
+                  />
+                </Field>
+                <Field label="跟进人">
+                  <input
+                    className="bds-input"
+                    value={adjFollowUpBy}
+                    onChange={(e) => setAdjFollowUpBy(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </>
+          )}
+          <div className="flex justify-end">
+            <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14} />}
+              <span>提交评审</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 右列：面料链报告 */}
+      <div className="min-h-0">
+        <ChainReportsList orderId={order.id} chain="fabric" reloadKey={reportsReloadKey} />
+      </div>
+    </div>
+  );
+}
+
+// ─── 链报告列表（双签状态展示 + QC / 业务签署，REL-14-A4 与大货报告天然隔离） ───
+
+function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chain: ChainId; reloadKey: number }) {
+  const [reports, setReports] = useState<QcInspectionReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [signingKey, setSigningKey] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setReports(await qcService.listChainReports(orderId, chain));
+    } catch (e: any) {
+      setReports([]);
+      setError(e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId, chain]);
+
+  useEffect(() => {
+    load();
+  }, [load, reloadKey]);
+
+  const handleSign = async (reportId: string, role: ReportSignRole) => {
+    setSigningKey(`${reportId}:${role}`);
+    try {
+      await qcService.signReport(reportId, role);
+      await load();
+    } catch (e: any) {
+      alert(`签署失败：${e?.message || e}`);
+    } finally {
+      setSigningKey(null);
+    }
+  };
+
+  return (
+    <div className="bds-card flex flex-col min-h-0 h-full" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="px-4 py-2.5 flex items-center gap-2 shrink-0" style={{ borderBottom: 'var(--border-subtle)' }}>
+        <span className={`bds-badge sm ${chain === 'garment' ? 'info' : 'warning'}`}>{CHAIN_LABELS[chain]}</span>
+        <span className="text-xs" style={{ color: 'var(--text-primary)' }}>链评审报告 Reports</span>
+        <span className="text-[11px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{reports.length} 条</span>
+        <button onClick={load} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="刷新">
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 size={20} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+          </div>
+        ) : error ? (
+          <div className="bds-card flat text-center" style={{ padding: 'var(--space-6) var(--space-4)' }}>
+            <span className="bds-badge sm danger">加载失败</span>
+            <div className="mt-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{error}</div>
+            <button onClick={load} className="bds-btn bds-btn-ghost mt-2">
+              <RefreshCw size={13} />
+              <span>重试</span>
+            </button>
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="bds-card flat text-center text-xs" style={{ padding: 'var(--space-8) var(--space-4)', color: 'var(--text-tertiary)' }}>
+            暂无{CHAIN_LABELS[chain]}评审报告
+          </div>
+        ) : (
+          reports.map((r) => {
+            const sig = r.signatures ?? null;
+            const qcSigned = !!sig?.qcSignedAt;
+            const bizSigned = !!sig?.businessSignedAt;
+            const disposition = sig?.chain?.disposition;
+            const rejectReason = sig?.chain?.rejectReason;
+            const factoryAdjustment = sig?.chain?.factoryAdjustment;
+            return (
+              <div key={r.id} className="bds-card flat" style={{ padding: 'var(--space-3)' }}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="bds-badge sm info shrink-0">
+                    {SAMPLE_KIND_LABELS[r.sampleKind ?? ''] ?? r.sampleKind ?? '样品'}
+                  </span>
+                  {typeof r.round === 'number' && (
+                    <span className="bds-badge sm neutral shrink-0">R{r.round}</span>
+                  )}
+                  <span className={`bds-badge sm shrink-0 ${REPORT_RESULT_BADGE_VARIANT[r.result ?? ''] ?? 'neutral'}`}>
+                    {CHAIN_CONCLUSION_LABELS[r.result ?? ''] ?? r.result ?? '—'}
+                  </span>
+                  {disposition && disposition !== 'STANDARD' && (
+                    <span className="bds-badge sm warning shrink-0">
+                      {CHAIN_DISPOSITION_LABELS[disposition] ?? disposition}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                  检验日期 {formatDate(r.inspectionDate)} · 缺陷 致命 {r.criticalDefects} / 严重 {r.majorDefects} / 轻微 {r.minorDefects}
+                </div>
+                {r.defectSummary && (
+                  <div className="mt-1 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                    {r.defectSummary}
+                  </div>
+                )}
+                {rejectReason && (
+                  <div className="mt-1 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                    打回原因：{rejectReason}
+                  </div>
+                )}
+                {factoryAdjustment?.requirement && (
+                  <div className="mt-1 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-tertiary)' }}>
+                    工厂调整要求：{factoryAdjustment.requirement}
+                    {factoryAdjustment.factoryName ? `（${factoryAdjustment.factoryName}）` : ''}
+                  </div>
+                )}
+                {/* 双签状态（InspectionReport.signatures 后端已落；已签署侧不可重复签署） */}
+                <div className="mt-2 pt-2 flex items-center gap-2 flex-wrap" style={{ borderTop: 'var(--border-subtle)' }}>
+                  <span className={`bds-badge sm ${qcSigned ? 'success' : 'neutral'}`}>
+                    QC {qcSigned ? `已签 ${formatTs(sig?.qcSignedAt)}` : '未签'}
+                  </span>
+                  <span className={`bds-badge sm ${bizSigned ? 'success' : 'neutral'}`}>
+                    业务 {bizSigned ? `已签 ${formatTs(sig?.businessSignedAt)}` : '未签'}
+                  </span>
+                  {!qcSigned && (
+                    <button
+                      onClick={() => handleSign(r.id, 'qc')}
+                      disabled={signingKey !== null}
+                      className="bds-btn bds-btn-ghost ml-auto"
+                      style={{ padding: '0 var(--space-2)' }}
+                    >
+                      {signingKey === `${r.id}:qc` ? <Loader2 size={13} className="animate-spin" /> : <PenLine size={13} />}
+                      <span>QC 签署</span>
+                    </button>
+                  )}
+                  {!bizSigned && (
+                    <button
+                      onClick={() => handleSign(r.id, 'business')}
+                      disabled={signingKey !== null}
+                      className={`bds-btn bds-btn-ghost ${qcSigned ? 'ml-auto' : ''}`}
+                      style={{ padding: '0 var(--space-2)' }}
+                    >
+                      {signingKey === `${r.id}:business` ? <Loader2 size={13} className="animate-spin" /> : <PenLine size={13} />}
+                      <span>业务签署</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }
