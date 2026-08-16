@@ -79,7 +79,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
       />
 
       <div className={`${BAMBOOK_OS.layout.desktopSinglePanelBodyClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`}>
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-6">
+        <div className="flex-1 min-h-0 overflow-y-auto py-6">
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
             {/* 看板简介 */}
             <div className="flex items-start gap-3 px-1">

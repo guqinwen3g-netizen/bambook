@@ -1113,7 +1113,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
       {/* Main: org tree nav + detail panel（org 视图）/ C3 tab 视图 */}
       {activeView === 'org' ? (
-      <main className="flex-1 min-h-0 px-5 pb-5 pt-1">
+      <main className="flex-1 min-h-0 px-7 pb-5 pt-1">
         <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)] gap-3">
           {/* Left: org tree navigation */}
           <RdlSurface tone="panel" padding="compact" className="flex h-full min-h-0 flex-col">
@@ -1369,7 +1369,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         </div>
       </main>
       ) : (
-      <main className="flex-1 min-h-0 px-5 pb-5 pt-1">
+      <main className="flex-1 min-h-0 px-7 pb-5 pt-1">
         <RdlSurface tone="panel" className="flex h-full min-h-0 flex-col overflow-hidden p-4">
           {activeView === 'employees' && (
             <EmployeeProfilesTab

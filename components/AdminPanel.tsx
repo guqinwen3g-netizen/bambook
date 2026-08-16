@@ -539,7 +539,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
         isDarkMode={isDarkMode}
       />
 
-      <div className="flex-1 min-h-0 flex gap-3 px-5 pb-5 pt-1 overflow-hidden">
+      <div className="flex-1 min-h-0 flex gap-3 px-7 pb-5 pt-1 overflow-hidden">
         <SidePanelContainer
           as="nav"
           isDarkMode={isDarkMode}

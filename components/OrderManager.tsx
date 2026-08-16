@@ -1123,7 +1123,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   if (item) handleLineClick(item);
                 }} />
                 <div className="w-full h-full flex flex-col min-h-0 overflow-visible bg-transparent">
-                <div className="flex-1 min-h-0 flex px-5 pt-0 bambook-main-panel-bottom-inset gap-4 overflow-visible">
+                <div className="flex-1 min-h-0 flex px-7 pt-0 bambook-main-panel-bottom-inset gap-4 overflow-visible">
                 <CompiledTableShell
                   isDarkMode={isDarkMode}
                   scrollRef={orderListScrollRef}
@@ -1309,7 +1309,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   </div>
                 )}
               </div>
-              <div className="pointer-events-auto relative bds-filterbar">
+              <div className="pointer-events-auto relative flex items-center gap-2">
                 {isEditing ? (
                   <button onClick={handleSaveEdit} className="bds-btn bds-btn-primary">
                     <Save size={14} strokeWidth={1.5} />保存修改
@@ -1727,7 +1727,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
                 style={OVERLAY_BOTTOM_MASK_STYLE}
               />
-              <div className="pointer-events-auto relative bds-filterbar">
+              <div className="pointer-events-auto relative flex items-center gap-2">
                 <button onClick={() => setShowDeleteConfirm(true)} className="bds-btn bds-btn-ghost bds-btn-icon" title="归档此单">
                   <Trash2 size={17} strokeWidth={1.5} />
                 </button>
@@ -1860,7 +1860,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     <span className={HEADER_META_CLASS}>生产录入</span>
                   </div>
                 </div>
-                <div className="pointer-events-auto relative bds-filterbar">
+                <div className="pointer-events-auto relative flex items-center gap-2">
                   <button
                     onClick={() => { setShowAddModal(false); setShowImportWizard(true); }}
                     className="bds-btn bds-btn-secondary"

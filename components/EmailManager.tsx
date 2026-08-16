@@ -1625,7 +1625,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           <>
             {/* Header Actions */}
             <div className="h-14 border-b flex items-center justify-between px-6 shrink-0 bg-transparent border-[var(--border-c-default)]">
-              <div className="bds-filterbar max-w-full overflow-x-auto">
+              <div className="flex items-center gap-2 max-w-full overflow-x-auto">
                 {/* Outbox send（task_mqyqftn8）：只对 outbound Outbox 邮件显示发送入口 */}
                 {selectedEmail && emailOutboxService.isSendableOutbox(selectedEmail) && (
                   <button
@@ -1831,15 +1831,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             {/* Reply Bar */}
             {!isReplying && (
               <div className="p-4 border-t mt-auto overflow-hidden shrink-0 border-[var(--border-c-default)]">
-                <div className="bds-filterbar p-4">
-                  <div className="flex gap-3">
-                    <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary">
-                      <Reply size={16} strokeWidth={1} /> Reply
-                    </button>
-                    <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary">
-                      <Forward size={16} strokeWidth={1} /> Forward
-                    </button>
-                  </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={handleStartReply} className="bds-btn bds-btn-secondary">
+                    <Reply size={16} strokeWidth={1} /> Reply
+                  </button>
+                  <button type="button" onClick={handleForward} className="bds-btn bds-btn-secondary">
+                    <Forward size={16} strokeWidth={1} /> Forward
+                  </button>
                 </div>
               </div>
             )}

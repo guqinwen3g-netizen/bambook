@@ -486,7 +486,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
         contextLabel="Sales / Margin / AR-AP / FX"
         isDarkMode={isDarkMode}
       />
-      <main className="min-h-0 flex-1 px-5 pb-5">
+      <main className="min-h-0 flex-1 px-7 pb-5">
         <div className="flex h-full min-h-0 flex-col gap-2.5">
           {/* 工具条：区间 + 查询 */}
           <div className="flex min-h-0 shrink-0 items-center gap-2">

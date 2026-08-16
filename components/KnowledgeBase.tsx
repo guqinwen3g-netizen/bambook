@@ -406,7 +406,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto py-4">
         {activeTab === 'official' && (
           <motion.div layout className="grid grid-cols-[repeat(auto-fill,340px)] gap-6 md:gap-8 justify-center content-start">
             {filteredOfficial.map(item => (
