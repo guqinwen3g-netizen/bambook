@@ -194,7 +194,7 @@ export default function ImageUploader({
               <div className={`
                 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150
                 flex items-end justify-center pb-1.5 gap-1
-                bg-gradient-to-t from-black/30 dark:from-black/60 via-transparent to-transparent
+                bg-gradient-to-t from-black/30 via-transparent to-transparent
               `}>
                 {/* Set primary */}
                 {!img.isPrimary && (

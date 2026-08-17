@@ -32,7 +32,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ isVisible, isDarkMode, onAn
 
     if (!shouldRender) return null;
 
-    const wordmarkClass = 'drop-shadow-[0_16px_34px_rgb(var(--os-vnext-brand-blue-rgb)/0.16)] dark:drop-shadow-[0_0_28px_rgb(var(--os-vnext-brand-blue-rgb)/0.34)]';
+    const wordmarkClass = 'drop-shadow-[0_16px_34px_rgb(var(--os-vnext-brand-blue-rgb)/0.16)]';
 
     return (
         <div

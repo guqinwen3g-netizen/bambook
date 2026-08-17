@@ -25,22 +25,22 @@ import {
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-// ── 节点类型 → 显示标签 + 色调 ──
+// ── 节点类型 → 显示标签 + 色调（BDS §4.5 雾化分类色板 mask-* 文字元，14 类同源 30% 饱和）──
 const NODE_TYPE_META: Record<string, { label: string; tone: string }> = {
-  Relation:            { label: '业务伙伴', tone: 'text-sky-600' },
-  Order:               { label: '订单',     tone: 'text-violet-600' },
-  OrderLine:           { label: '订单行',   tone: 'text-violet-500' },
-  Quotation:           { label: '报价单',   tone: 'text-pink-600' },
-  Invoice:             { label: '发票',     tone: 'text-emerald-600' },
-  PaymentVoucher:      { label: '收付款',   tone: 'text-amber-600' },
-  Shipment:            { label: '出货',     tone: 'text-cyan-600' },
-  CustomsDeclaration:  { label: '报关',     tone: 'text-rose-600' },
-  ProductionStage:     { label: '生产阶段', tone: 'text-yellow-600' },
-  SampleNode:          { label: '样品',     tone: 'text-orange-600' },
-  InspectionReport:    { label: '检验报告', tone: 'text-teal-600' },
-  TradeDocument:       { label: '贸易单据', tone: 'text-indigo-600' },
-  TaxRefund:           { label: '退税',     tone: 'text-green-600' },
-  Product:             { label: '产品',     tone: 'text-blue-600' },
+  Relation:            { label: '业务伙伴', tone: 'text-[var(--mask-sky-text)]' },
+  Order:               { label: '订单',     tone: 'text-[var(--mask-violet-text)]' },
+  OrderLine:           { label: '订单行',   tone: 'text-[var(--mask-violet-soft-text)]' },
+  Quotation:           { label: '报价单',   tone: 'text-[var(--mask-pink-text)]' },
+  Invoice:             { label: '发票',     tone: 'text-[var(--mask-emerald-text)]' },
+  PaymentVoucher:      { label: '收付款',   tone: 'text-[var(--mask-amber-text)]' },
+  Shipment:            { label: '出货',     tone: 'text-[var(--mask-cyan-text)]' },
+  CustomsDeclaration:  { label: '报关',     tone: 'text-[var(--mask-rose-text)]' },
+  ProductionStage:     { label: '生产阶段', tone: 'text-[var(--mask-olive-text)]' },
+  SampleNode:          { label: '样品',     tone: 'text-[var(--mask-orange-text)]' },
+  InspectionReport:    { label: '检验报告', tone: 'text-[var(--mask-teal-text)]' },
+  TradeDocument:       { label: '贸易单据', tone: 'text-[var(--mask-indigo-text)]' },
+  TaxRefund:           { label: '退税',     tone: 'text-[var(--mask-green-text)]' },
+  Product:             { label: '产品',     tone: 'text-[var(--mask-blue-text)]' },
 };
 
 function nodeTypeLabel(type: string): string {

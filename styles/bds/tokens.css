@@ -104,6 +104,84 @@
   --danger-text: #964C44;
   --info-text: var(--accent-text);   /* info 语义归并 accent 系（info 徽章 = accent tint） */
 
+  /* ═══════════ 4.5 雾化分类色板 — 14 色（2026-08-17 批H · 评审报告 S3/FR-001 决策落地） ═══════════
+     与雾琥珀 #A98A4F / 雾砖红 #B05F57 同源色彩空间：饱和度统一 30%（25-35% 区间），
+     明度 47% 基色 / 36% 文字 / 暗色 66-70% 提亮，零高饱和彩虹。
+     每色四元 + -rgb 三元组（半透明变体经 rgb(var(--mask-X-rgb)/α) 派生）：
+       基色 --mask-X · 文字 --mask-X-text · 雾底 --mask-X-bg · 描边 --mask-X-border
+     用途白名单：业务实体分类编码（chip/徽章/节点标签/图例），
+     禁止用作语义状态色（成功/警告/危险/进行 走 §4 语义色），禁止大面积铺底。 */
+  --mask-sky: #547E9C;
+  --mask-sky-rgb: 84 126 156;
+  --mask-sky-text: #3E6179;
+  --mask-sky-bg: rgba(84,126,156,0.10);
+  --mask-sky-border: rgba(84,126,156,0.28);
+  --mask-violet: #7E549C;
+  --mask-violet-rgb: 126 84 156;
+  --mask-violet-text: #613E79;
+  --mask-violet-bg: rgba(126,84,156,0.10);
+  --mask-violet-border: rgba(126,84,156,0.28);
+  --mask-violet-soft: #9978B0;
+  --mask-violet-soft-rgb: 153 120 176;
+  --mask-violet-soft-text: #7A5794;
+  --mask-violet-soft-bg: rgba(153,120,176,0.12);
+  --mask-violet-soft-border: rgba(153,120,176,0.30);
+  --mask-pink: #9C5478;
+  --mask-pink-rgb: 156 84 120;
+  --mask-pink-text: #793E5C;
+  --mask-pink-bg: rgba(156,84,120,0.10);
+  --mask-pink-border: rgba(156,84,120,0.28);
+  --mask-emerald: #549C7E;
+  --mask-emerald-rgb: 84 156 126;
+  --mask-emerald-text: #3E7961;
+  --mask-emerald-bg: rgba(84,156,126,0.10);
+  --mask-emerald-border: rgba(84,156,126,0.28);
+  --mask-amber: #9C8454;
+  --mask-amber-rgb: 156 132 84;
+  --mask-amber-text: #79663E;
+  --mask-amber-bg: rgba(156,132,84,0.10);
+  --mask-amber-border: rgba(156,132,84,0.28);
+  --mask-cyan: #54969C;
+  --mask-cyan-rgb: 84 150 156;
+  --mask-cyan-text: #3E7479;
+  --mask-cyan-bg: rgba(84,150,156,0.10);
+  --mask-cyan-border: rgba(84,150,156,0.28);
+  --mask-rose: #9C5460;
+  --mask-rose-rgb: 156 84 96;
+  --mask-rose-text: #793E48;
+  --mask-rose-bg: rgba(156,84,96,0.10);
+  --mask-rose-border: rgba(156,84,96,0.28);
+  --mask-olive: #9C9654;
+  --mask-olive-rgb: 156 150 84;
+  --mask-olive-text: #79743E;
+  --mask-olive-bg: rgba(156,150,84,0.10);
+  --mask-olive-border: rgba(156,150,84,0.28);
+  --mask-orange: #9C7254;
+  --mask-orange-rgb: 156 114 84;
+  --mask-orange-text: #79573E;
+  --mask-orange-bg: rgba(156,114,84,0.10);
+  --mask-orange-border: rgba(156,114,84,0.28);
+  --mask-teal: #549C90;
+  --mask-teal-rgb: 84 156 144;
+  --mask-teal-text: #3E796F;
+  --mask-teal-bg: rgba(84,156,144,0.10);
+  --mask-teal-border: rgba(84,156,144,0.28);
+  --mask-indigo: #545A9C;
+  --mask-indigo-rgb: 84 90 156;
+  --mask-indigo-text: #3E4379;
+  --mask-indigo-bg: rgba(84,90,156,0.10);
+  --mask-indigo-border: rgba(84,90,156,0.28);
+  --mask-green: #549C60;
+  --mask-green-rgb: 84 156 96;
+  --mask-green-text: #3E7948;
+  --mask-green-bg: rgba(84,156,96,0.10);
+  --mask-green-border: rgba(84,156,96,0.28);
+  --mask-blue: #54729C;
+  --mask-blue-rgb: 84 114 156;
+  --mask-blue-text: #3E5779;
+  --mask-blue-bg: rgba(84,114,156,0.10);
+  --mask-blue-border: rgba(84,114,156,0.28);
+
   /* ═══════════ 5. 签名材质 — Luna 转译：雾蓝渐变 Mist + 淡紫藤 Wisteria ═══════════
      Luna 高级感核心（案例实测）："Data → Atmosphere"——色彩以雾的形态弥散，
      磨砂玻璃浮于氛围之上，白色文字直接落于雾面。
@@ -413,6 +491,78 @@
   --danger-tint: rgba(201,127,118,0.14);
   --danger-tint-hover: rgba(201,127,118,0.22);
   --danger-tint-active: rgba(201,127,118,0.30);
+
+  /* 雾化分类色板暗色适配（明度 66% 基色 / 70% 文字提亮，雾底/描边同步加深透明度） */
+  --mask-sky: #8EADC2;
+  --mask-sky-rgb: 142 173 194;
+  --mask-sky-text: #9DB6C8;
+  --mask-sky-bg: rgba(142,173,194,0.14);
+  --mask-sky-border: rgba(142,173,194,0.32);
+  --mask-violet: #AD8EC2;
+  --mask-violet-rgb: 173 142 194;
+  --mask-violet-text: #B69DC8;
+  --mask-violet-bg: rgba(173,142,194,0.14);
+  --mask-violet-border: rgba(173,142,194,0.32);
+  --mask-violet-soft: #B69FC6;
+  --mask-violet-soft-rgb: 182 159 198;
+  --mask-violet-soft-text: #BFADCD;
+  --mask-violet-soft-bg: rgba(182,159,198,0.16);
+  --mask-violet-soft-border: rgba(182,159,198,0.34);
+  --mask-pink: #C28EA8;
+  --mask-pink-rgb: 194 142 168;
+  --mask-pink-text: #C89DB3;
+  --mask-pink-bg: rgba(194,142,168,0.14);
+  --mask-pink-border: rgba(194,142,168,0.32);
+  --mask-emerald: #8EC2AD;
+  --mask-emerald-rgb: 142 194 173;
+  --mask-emerald-text: #9DC8B6;
+  --mask-emerald-bg: rgba(142,194,173,0.14);
+  --mask-emerald-border: rgba(142,194,173,0.32);
+  --mask-amber: #C2B18E;
+  --mask-amber-rgb: 194 177 142;
+  --mask-amber-text: #C8BA9D;
+  --mask-amber-bg: rgba(194,177,142,0.14);
+  --mask-amber-border: rgba(194,177,142,0.32);
+  --mask-cyan: #8EBEC2;
+  --mask-cyan-rgb: 142 190 194;
+  --mask-cyan-text: #9DC4C8;
+  --mask-cyan-bg: rgba(142,190,194,0.14);
+  --mask-cyan-border: rgba(142,190,194,0.32);
+  --mask-rose: #C28E97;
+  --mask-rose-rgb: 194 142 151;
+  --mask-rose-text: #C89DA4;
+  --mask-rose-bg: rgba(194,142,151,0.14);
+  --mask-rose-border: rgba(194,142,151,0.32);
+  --mask-olive: #C2BE8E;
+  --mask-olive-rgb: 194 190 142;
+  --mask-olive-text: #C8C49D;
+  --mask-olive-bg: rgba(194,190,142,0.14);
+  --mask-olive-border: rgba(194,190,142,0.32);
+  --mask-orange: #C2A48E;
+  --mask-orange-rgb: 194 164 142;
+  --mask-orange-text: #C8AF9D;
+  --mask-orange-bg: rgba(194,164,142,0.14);
+  --mask-orange-border: rgba(194,164,142,0.32);
+  --mask-teal: #8EC2BA;
+  --mask-teal-rgb: 142 194 186;
+  --mask-teal-text: #9DC8C1;
+  --mask-teal-bg: rgba(142,194,186,0.14);
+  --mask-teal-border: rgba(142,194,186,0.32);
+  --mask-indigo: #8E93C2;
+  --mask-indigo-rgb: 142 147 194;
+  --mask-indigo-text: #9DA1C8;
+  --mask-indigo-bg: rgba(142,147,194,0.14);
+  --mask-indigo-border: rgba(142,147,194,0.32);
+  --mask-green: #8EC297;
+  --mask-green-rgb: 142 194 151;
+  --mask-green-text: #9DC8A4;
+  --mask-green-bg: rgba(142,194,151,0.14);
+  --mask-green-border: rgba(142,194,151,0.32);
+  --mask-blue: #8EA4C2;
+  --mask-blue-rgb: 142 164 194;
+  --mask-blue-text: #9DAFC8;
+  --mask-blue-bg: rgba(142,164,194,0.14);
+  --mask-blue-border: rgba(142,164,194,0.32);
 
   /* 紫藤暗色适配 */
   --wisteria-tint: rgba(200,184,224,0.20);

@@ -281,7 +281,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
       >
         <motion.div
           key="dialog"
-          className={`relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-inset shadow-none overflow-hidden border border-[var(--border-c-default)] text-[var(--text-primary)] bg-[var(--bg-card)] dark:bg-deep/95`}
+          className={`relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-inset shadow-none overflow-hidden border border-[var(--border-c-default)] text-[var(--text-primary)] bg-[var(--bg-card)]`}
           initial={{ y: 24, opacity: 0, scale: 0.98 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -291,7 +291,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
           {/* Header */}
           <div className={`flex items-center justify-between px-6 py-4 border-b border-[var(--border-c-default)]`}>
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-control bg-[var(--os-vnext-brand-blue)]/10 dark:bg-[var(--os-vnext-brand-blue)]/20`}>
+              <div className={`p-2 rounded-control bg-[var(--os-vnext-brand-blue)]/10`}>
                 <FileSpreadsheet size={18} className="text-[var(--os-vnext-brand-blue)]" />
               </div>
               <div>
@@ -310,7 +310,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
           </div>
 
           {/* Step indicator */}
-          <div className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50 dark:bg-deep/50`}>
+          <div className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50`}>
             <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={12} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 2} isDarkMode={isDarkMode} />
             <StepDot n={2} label="校验预览" active={step >= 2} current={step === 2} icon={<ScanLine size={12} />} isDarkMode={isDarkMode} />

@@ -365,7 +365,7 @@ export const CompiledFormNotePanel = ({
     materialRole={materialRole}
     edgeFadeItem
     isDarkMode={isDarkMode}
-    className={cx(COMPILED_FORM_NOTE_PANEL_CLASS, 'text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]', className)}
+    className={cx(COMPILED_FORM_NOTE_PANEL_CLASS, 'text-[var(--text-tertiary)]', className)}
     data-os-compiler-role="form-note-panel"
     data-os-compiler-source={source}
   >

@@ -30,17 +30,17 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   const initial = getUserInitial(name, email);
   const fallbackClass = adaptive
     ? 'bg-[var(--os-adaptive-primary)]/[0.12] text-[var(--os-adaptive-primary)]'
-    : 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)] dark:bg-[var(--os-vnext-brand-blue)]/14 dark:text-[var(--os-vnext-brand-blue-soft)]';
+    : 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)]';
 
   // 极度克制的融合处方：不加任何光环 / halo，只用阴影 + 边缘羽化把"贴纸感"去掉。
   //   1) 阴影：极淡的中性阴影，仅一点点"落座感"，绝不形成可见的光圈。
   //   2) 边缘羽化：4% 区间，肉眼只感到"不刀切"，看不出"晕"。
-  //   3) inset 1px：浅色 0.18 / 深色 0.06，几乎不可见。
+  //   3) inset 1px：0.18 alpha 白描边，几乎不可见（批G-7 暗色分支收编后单值自适应）。
   const haloShadowClass =
-    'shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08)] dark:shadow-[0_1px_3px_-1px_rgba(0,0,0,0.22)]';
+    'shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08)]';
 
   const ringOverlay =
-    'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]';
+    'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]';
 
   return (
     <div

@@ -26,8 +26,8 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
                 <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
                     <defs>
                         <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" className="[stop-color:rgba(255,255,255,0.8)] dark:[stop-color:rgba(30,41,59,0.7)]" />
-                            <stop offset="100%" className="[stop-color:rgba(248,250,252,0.9)] dark:[stop-color:rgba(15,23,42,0.8)]" />
+                            <stop offset="0%" className="[stop-color:rgba(255,255,255,0.8)]" />
+                            <stop offset="100%" className="[stop-color:rgba(248,250,252,0.9)]" />
                         </linearGradient>
                     </defs>
 
@@ -55,7 +55,7 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
                            C 0,100 0,100 0,90
                            Z"
                         fill="url(#glassGrad)"
-                        className="[stroke:rgba(255,255,255,0.95)] dark:[stroke:rgba(255,255,255,0.08)]"
+                        className="[stroke:rgba(255,255,255,0.95)]"
                         strokeWidth="0.5"
                     />
                 </svg>

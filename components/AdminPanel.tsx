@@ -109,7 +109,7 @@ export const ADMIN_PANEL_SURFACE_CLASS = 'h-full min-h-0 overflow-hidden';
 export const ADMIN_PANEL_SCROLL_CLASS = 'h-full min-h-0 overflow-y-auto custom-scrollbar';
 export const ADMIN_USER_LIST_SCROLL_CLASS = 'min-h-0 flex-1 overflow-y-auto custom-scrollbar';
 export const ADMIN_PANEL_GLASS_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-transparent bg-[var(--recessed-bg)] shadow-none`;
-export const ADMIN_USER_CARD_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-[var(--border-c-strong)] dark:border-[var(--border-c-default)] bg-[var(--recessed-bg)]`;
+export const ADMIN_USER_CARD_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-[var(--border-c-strong)] bg-[var(--recessed-bg)]`;
 export const ADMIN_USER_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
 // 旧导出别名（配方已坍缩为自适应单条，外部引用与测试保持不变）
 export const ADMIN_PANEL_GLASS_DARK_CLASS = ADMIN_PANEL_GLASS_CLASS;
@@ -231,9 +231,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`;
   const brandTextCls = BAMBOOK_OS.tone.text.brandEmphasis;
   const neutralChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`;
-  const brandChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--os-vnext-brand-blue)]/8 dark:bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]`;
+  const brandChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)]`;
   const dangerChipCls = `rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`;
-  const brandActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--os-vnext-brand-blue)]/8 dark:bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)] hover:bg-[var(--os-vnext-brand-blue)]/12 dark:hover:bg-[var(--os-vnext-brand-blue)]/14`;
+  const brandActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)] hover:bg-[var(--os-vnext-brand-blue)]/12`;
   const dangerActionCls = `h-9 px-3 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors disabled:opacity-50 bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`;
   const quietDangerActionCls = `h-9 px-3 rounded-control border text-[11px] font-light transition-colors disabled:opacity-50 inline-flex items-center gap-1 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`;
   const adminTitleClass = `${BAMBOOK_OS.layout.desktopTitleTextClass} text-os-adaptive-title`;
@@ -965,7 +965,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   <button key={p.id} type="button" onClick={() => setPermDraft(prev => on ? prev.filter(s => s !== p.scope) : [...prev, p.scope])}
                                     className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
                                       on
-                                        ? 'bg-[var(--os-vnext-brand-blue)]/8 dark:bg-[var(--os-vnext-brand-blue)]/16 border-[var(--os-vnext-brand-blue)]/20 dark:border-[var(--os-vnext-brand-blue)]/28 text-[var(--text-primary)]'
+                                        ? 'bg-[var(--os-vnext-brand-blue)]/8 border-[var(--os-vnext-brand-blue)]/20 text-[var(--text-primary)]'
                                         : 'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                                     }`}>
                                     {on && <Check size={10} className="inline mr-1" />}

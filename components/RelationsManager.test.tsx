@@ -372,7 +372,7 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_COORDINATE_ICON_CLASS).toBe(BAMBOOK_OS.tone.status.coordinate.icon);
     expect(RELATIONS_BRAND_INLINE_CLASS).toBe(BAMBOOK_OS.tone.text.brandInline);
     expect(RELATIONS_FORM_LABEL_CLASS).toBe(BAMBOOK_OS.tone.text.formLabel);
-    expect(RELATIONS_FORM_SECTION_TITLE_CLASS).toBe('text-[var(--text-primary)] dark:text-[var(--text-secondary)]');
+    expect(RELATIONS_FORM_SECTION_TITLE_CLASS).toBe('text-[var(--text-primary)]');
     expect(source).toContain('const relationFormSectionTitleClass = RELATIONS_FORM_SECTION_TITLE_CLASS;');
     expect(source).toContain('Form Map</p>');
     expect(source).toContain('${relationFormSectionTitleClass}`}>Form Map</p>');
@@ -480,7 +480,7 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).not.toContain('CONTACT_LIST_ACTIVE_DARK_CLASS');
     expect(contactListSource).not.toContain('CONTACT_LIST_HOVER_DARK_CLASS');
     expect(contactListSource).toContain('const activeItemClass =');
-    expect(contactListSource).toContain('${SIDEBAR_ACTIVE_CLASS} text-deep-alt dark:text-[var(--text-primary)]');
+    expect(contactListSource).toContain('${SIDEBAR_ACTIVE_CLASS} text-deep-alt');
     expect(contactListSource).toContain('? activeItemClass');
     expect(contactListSource).toContain('const idleItemClass =');
     expect(contactListSource).toContain('border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_CLASS} ${BAMBOOK_OS.controls.listRow.press}');
@@ -925,7 +925,7 @@ describe('RelationsManager title system', () => {
     expect(toolbarSource).toContain('<List size={13} strokeWidth={1.5} />');
     expect(toolbarSource).toContain('<LayoutGrid size={13} strokeWidth={1.5} />');
     expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS).toContain('text-[var(--os-vnext-brand-blue)]');
-    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS).toContain('dark:text-[var(--text-primary)]');
+    expect(RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS).not.toContain('dark:');
     expect(toolbarSource).not.toContain("relationListDisplayMode === 'grid' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED");
     expect(toolbarSource).not.toContain("relationListDisplayMode === 'table' ? (isDarkMode ? RELATIONS_TOOLBAR_CONTROL_SELECTED");
   });

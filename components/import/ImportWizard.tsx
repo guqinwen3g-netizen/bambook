@@ -134,7 +134,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
       >
         <motion.div
           key="dialog"
-          className={`relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-floating shadow-none overflow-hidden border border-[var(--border-c-default)] text-[var(--text-primary)] bg-[var(--bg-card)] dark:bg-deep/95`}
+          className={`relative w-full max-w-5xl max-h-[88vh] flex flex-col rounded-floating shadow-none overflow-hidden border border-[var(--border-c-default)] text-[var(--text-primary)] bg-[var(--bg-card)]`}
           initial={{ y: 24, opacity: 0, scale: 0.98 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -147,7 +147,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
           >
             <div className="flex items-center gap-3">
               <div
-                className={`p-2 rounded-control bg-[var(--os-vnext-brand-blue)]/10 dark:bg-[var(--os-vnext-brand-blue)]/20`}
+                className={`p-2 rounded-control bg-[var(--os-vnext-brand-blue)]/10`}
               >
                 <Upload size={18} className="text-[var(--os-vnext-brand-blue)]" />
               </div>
@@ -171,7 +171,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
 
           {/* Step indicator */}
           <div
-            className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50 dark:bg-deep/50`}
+            className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50`}
           >
             <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={12} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 2} />

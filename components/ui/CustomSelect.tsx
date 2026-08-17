@@ -51,12 +51,12 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     ? `${isInlineToolbarTrigger ? 'h-9 px-2' : 'h-9 px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-[11px] leading-none`
     : 'h-9 px-3 py-0 rounded-full text-xs leading-none';
   const toolbarBaseClass = BAMBOOK_OS.controls.select.toolbarBase;
-  const toolbarHoverClass = `${toolbarBaseClass} text-[var(--text-tertiary)] hover:!bg-[var(--active-darken)] hover:text-deep-alt hover:shadow-none active:scale-[0.98] active:bg-[var(--active-darken)] dark:hover:!bg-[var(--recessed-bg-hover)] dark:hover:text-[var(--text-primary)] dark:active:bg-[var(--recessed-bg)]`;
+  const toolbarHoverClass = `${toolbarBaseClass} text-[var(--text-tertiary)] hover:!bg-[var(--active-darken)] hover:text-deep-alt hover:shadow-none active:scale-[0.98] active:bg-[var(--active-darken)]`;
   const toolbarSelectedClass = BAMBOOK_OS.controls.select.toolbarSelected;
   const toolbarInlineClass = BAMBOOK_OS.controls.select.toolbarInline;
   const toolbarInlineOpenClass = BAMBOOK_OS.controls.select.toolbarInlineOpen;
-  const formIdleClass = `${BAMBOOK_OS.controls.recessedField.base} hover:!border-[var(--border-c-strong)] dark:hover:!border-[var(--border-c-default)]`;
-  const formOpenClass = `${BAMBOOK_OS.controls.recessedField.base} !bg-[rgba(15,23,42,0.08)] !border-[var(--border-c-strong)] shadow-none dark:!bg-[rgba(7,18,32,0.30)] dark:!border-[var(--border-c-subtle)]`;
+  const formIdleClass = `${BAMBOOK_OS.controls.recessedField.base} hover:!border-[var(--border-c-strong)]`;
+  const formOpenClass = `${BAMBOOK_OS.controls.recessedField.base} !bg-[rgba(15,23,42,0.08)] !border-[var(--border-c-strong)] shadow-none`;
   const triggerOpenClass = isToolbarSurface
     ? isInlineToolbarTrigger ? toolbarInlineOpenClass : toolbarSelectedClass
     : isFormSurface
@@ -181,7 +181,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           transition-all duration-300
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${isOpen ? triggerOpenClass : triggerIdleClass}
-          ${isToolbarSurface ? 'text-[var(--text-primary)] dark:text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}
+          ${isToolbarSurface ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}
         `}
       >
         <span className={`min-w-0 truncate ${selectedOption ? '' : 'text-[var(--text-tertiary)]'}`}>

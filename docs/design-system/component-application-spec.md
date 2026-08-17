@@ -104,6 +104,30 @@ panel(34) › card(24) › inset(22) › control(18)/field(16) › compact(14) �
 
 ---
 
+## §6.5 雾化分类色板（2026-08-17 批H · 评审报告 S3/FR-001 决策）
+
+**定位**：业务实体的**分类编码色**（不是状态色）。14 色与雾琥珀 `#A98A4F`/雾砖红 `#B05F57` 同源色彩空间——饱和度统一 30%（25-35% 区间），浅色基色明度 47% / 文字 36%，暗色提亮 66-70%，零高饱和彩虹。
+
+**token 结构**（`styles/bds/tokens.css` §4.5，每色四元 + rgb 三元组）：
+
+| 元 | token | 用途 |
+|---|---|---|
+| 基色 | `--mask-{name}` | 圆点/图例/小色块 |
+| 文字 | `--mask-{name}-text` | chip/徽章/节点标签文字（白底/雾底上保对比度） |
+| 雾底 | `--mask-{name}-bg` | 分类 chip 底色（10-16% 透明度） |
+| 描边 | `--mask-{name}-border` | chip 描边（28-34% 透明度） |
+| 三元组 | `--mask-{name}-rgb` | 半透明变体派生（`rgb(var(--mask-{name}-rgb)/α)`） |
+
+**14 色名册**：sky / violet / violet-soft / pink / emerald / amber / cyan / rose / olive / orange / teal / indigo / green / blue。
+
+**应用纪律**：
+1. **唯一合法用途**：业务实体分类编码（TraceabilityPanel 节点标签、实体分类 chip/徽章、图例）。当前唯一消费方：`TraceabilityPanel.tsx NODE_TYPE_META`（14 类溯源节点）。
+2. **禁止用作语义状态色**：成功/警告/危险/进行 一律走 §4 语义色（`--success-*`/`--warning-*`/`--danger-*`/`--accent-*`）；分类色与状态色不得混用于同一语义。
+3. **禁止大面积铺底**：雾底仅 chip/徽章级小面积；列表行/卡片容器仍走 `--recessed-bg` 中性墨洗。
+4. **新分类需求**：优先复用 14 色名册；确需新增色必须满足同源色彩空间（饱和 25-35%）并在 tokens.css §4.5 + showcase ⑤ 同步登记。
+
+---
+
 ## §7 列表范式
 
 | 范式 | 组件 | 适用语境 |

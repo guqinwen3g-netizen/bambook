@@ -230,7 +230,7 @@ export const RELATIONS_TOOLBAR_VIEW_GROUP_CLASS = 'ml-auto flex h-9 shrink-0 ite
 export const RELATIONS_TOOLBAR_SORT_CLASS = 'w-[104px] shrink-0';
 export const RELATIONS_TOOLBAR_SEGMENT_CLASS = 'relative h-9 shrink-0 overflow-visible rounded-none p-0 flex items-center';
 export const RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS = `relative z-20 h-9 w-7 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
-export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS = 'text-[var(--os-vnext-brand-blue)] dark:text-[var(--text-primary)] opacity-100 drop-shadow-none';
+export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS = 'text-[var(--os-vnext-brand-blue)] opacity-100 drop-shadow-none';
 export const RELATIONS_TOOLBAR_CONTROL_CLASS = BAMBOOK_OS.controls.stateControl.base;
 export const RELATIONS_TOOLBAR_SURFACE_CLASS = BAMBOOK_OS.controls.toolbar.surface;
 export const RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS = SIDEBAR_ACTIVE_CLASS;
@@ -287,7 +287,7 @@ export const RELATIONS_COORDINATE_PANEL_CLASS = BAMBOOK_OS.tone.status.coordinat
 export const RELATIONS_COORDINATE_ICON_CLASS = BAMBOOK_OS.tone.status.coordinate.icon;
 export const RELATIONS_BRAND_INLINE_CLASS = BAMBOOK_OS.tone.text.brandInline;
 export const RELATIONS_FORM_LABEL_CLASS = BAMBOOK_OS.tone.text.formLabel;
-export const RELATIONS_FORM_SECTION_TITLE_CLASS = 'text-[var(--text-primary)] dark:text-[var(--text-secondary)]';
+export const RELATIONS_FORM_SECTION_TITLE_CLASS = 'text-[var(--text-primary)]';
 export const RELATIONS_ORGANIZATION_TIER_BADGE_CLASS = BAMBOOK_OS.tone.chip.organizationTier;
 export const RELATIONS_ORGANIZATION_COMPLETION_DONE_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.done;
 export const RELATIONS_ORGANIZATION_COMPLETION_MISSING_CLASS = BAMBOOK_OS.tone.status.organizationCompletion.missing;
@@ -1267,7 +1267,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <div className={`truncate font-light text-[var(--text-primary)]`}>{org.name}</div>
                             <div className={`text-[var(--text-tertiary)] mt-1 truncate`}>{org.chineseName || org.englishName || org.type}</div>
                           </div>
-                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide bg-[var(--os-vnext-brand-blue)]/7 text-[var(--os-vnext-brand-blue-strong)] dark:bg-[var(--os-vnext-brand-blue)]/8 dark:text-[var(--os-vnext-brand-blue-soft)]`}>
+                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-light tracking-wide bg-[var(--os-vnext-brand-blue)]/7 text-[var(--os-vnext-brand-blue-strong)]`}>
                             {tierLabel(org.rating)}
                           </span>
                         </div>
@@ -2023,7 +2023,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
 
       {confirmDeleteId && (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`bg-[var(--bg-card)] dark:bg-deep/90 dark:border dark:border-[var(--border-c-default)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
+          <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-default)]`}>
                 <Trash2 size={32} strokeWidth={1.5} />

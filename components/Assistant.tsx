@@ -2070,7 +2070,7 @@ const Assistant: React.FC<AssistantProps> = ({
   const workspaceTabClass = (selected: boolean) => selected
     ? BAMBOOK_OS.controls.selectedSurface.base
     : `border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-darken)]`;
-  const agentFullscreenBackgroundClass = 'bg-app-light dark:bg-app-dark';
+  const agentFullscreenBackgroundClass = 'bg-app-light';
   const agentRootClass = isAgentFullscreen
     ? `fixed inset-0 z-[420] flex h-dvh min-h-0 flex-col overflow-hidden ${agentFullscreenBackgroundClass}`
     : 'flex h-full min-h-0 w-full flex-col overflow-hidden';
@@ -2399,7 +2399,7 @@ const Assistant: React.FC<AssistantProps> = ({
               onMouseDown={handleResizeStart}
             >
               {/* Inner visual separator line */}
-              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] group-hover:w-[2px] group-active:w-[2px] transition-all bg-[var(--recessed-bg-strong)] group-hover:bg-[var(--os-vnext-brand-blue-strong)] dark:group-hover:bg-[var(--os-vnext-brand-blue-soft)]`} />
+              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] group-hover:w-[2px] group-active:w-[2px] transition-all bg-[var(--recessed-bg-strong)] group-hover:bg-[var(--os-vnext-brand-blue-strong)]`} />
             </div>
           )}
 
@@ -2899,7 +2899,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={() => setIsWorkspaceOpen(!isWorkspaceOpen)}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isWorkspaceOpen ? 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]' : ''}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isWorkspaceOpen ? 'text-[var(--os-vnext-brand-blue-strong)]' : ''}`}
                 title={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
                 aria-label={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
               >
@@ -2908,7 +2908,7 @@ const Assistant: React.FC<AssistantProps> = ({
               <button
                 type="button"
                 onClick={toggleTTS}
-                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isTTSEnabled ? 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]' : ''}`}
+                className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass} ${isTTSEnabled ? 'text-[var(--os-vnext-brand-blue-strong)]' : ''}`}
                 title={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
                 aria-label={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
               >

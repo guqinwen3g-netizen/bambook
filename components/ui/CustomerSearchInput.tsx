@@ -134,7 +134,7 @@ export default function CustomerSearchInput({
       {/* 输入框 */}
       <div className={`relative group ${isOpen ? 'z-50' : ''}`}>
         <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 transition-colors text-[var(--text-tertiary)] group-focus-within:text-[var(--text-tertiary)] dark:group-focus-within:text-[var(--text-secondary)]"
+          className="absolute left-3 top-1/2 -translate-y-1/2 transition-colors text-[var(--text-tertiary)] group-focus-within:text-[var(--text-tertiary)]"
           size={14}
         />
         <input
@@ -199,12 +199,12 @@ export default function CustomerSearchInput({
                     {(customer.billingAddress || customer.shippingAddress) && (
                       <div className="flex gap-3 mt-1">
                         {customer.billingAddress && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                             Bill To
                           </span>
                         )}
                         {customer.shippingAddress && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                             Ship To
                           </span>
                         )}
@@ -228,7 +228,7 @@ export default function CustomerSearchInput({
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-card border bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-tertiary)] dark:bg-deep/95"
+            className="absolute top-full left-0 right-0 mt-2 px-4 py-6 text-center rounded-card border bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-tertiary)]"
           >
             <User size={20} className="mx-auto mb-2 opacity-50" />
             <p className="text-sm">未找到匹配的客户</p>

@@ -544,7 +544,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
           <div
             ref={drawerRef}
             className={`fixed right-0 top-0 z-[90] flex h-full w-[420px] flex-col overflow-hidden rounded-l-panel border-l backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
-              bg-[var(--bg-card)] dark:bg-[rgb(var(--bambook-bg-deep-rgb)/0.82)] border-[var(--border-c-default)] text-[var(--text-primary)]
+              bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)]
             `}
             style={{
               backdropFilter: 'blur(32px) saturate(1.4)',

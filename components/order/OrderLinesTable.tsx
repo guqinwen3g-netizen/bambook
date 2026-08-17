@@ -22,8 +22,8 @@ const OrderLinesTable: React.FC<OrderLinesTableProps> = ({ lines, isDarkMode = f
   const orderSpec = createOrderUiSpec(isDarkMode);
   const tableHeaderClass = BAMBOOK_OS.controls.table.header;
   const tableRowHoverClass = BAMBOOK_OS.controls.table.rowHover;
-  // 亮色模式用 slate-200/45（原 divide-white/45 是笔误：白色 45% 透明度叠在浅色背景上不可见）
-  const tableRowDividerClass = 'divide-slate-200/45 dark:divide-white/[0.045]';
+  // 行分隔统一走 hairline token（批G-8c 收编，主题自适应，替代原 slate-200/45 + white/0.045 双写）
+  const tableRowDividerClass = 'divide-[var(--border-c-subtle)]';
   const tableCellBorderClass = BAMBOOK_OS.controls.table.cellBorder;
   const quietTextClass = BAMBOOK_OS.tone.text.quiet;
   const mutedCellClass = BAMBOOK_OS.controls.table.cellMuted;

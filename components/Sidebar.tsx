@@ -175,7 +175,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                         data-sidebar-nav-active={isActive ? 'true' : 'false'}
                         className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
                           ${isActive
-                            ? 'text-deep-alt dark:text-white'
+                            ? 'text-[var(--text-primary)]'
                             : `${SIDEBAR_IDLE_TEXT_CLASS} ${BAMBOOK_OS.controls.listRow.hover}`}
                           ${BAMBOOK_OS.controls.listRow.press}`}
                       >
