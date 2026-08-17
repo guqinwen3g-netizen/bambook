@@ -432,6 +432,111 @@ describe('computeShipmentEligibility（DR-012 样品链发货门禁判定）', (
   });
 });
 
+describe('assertFabricShipmentGate（DR-013 例外门禁消费）', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const EXC = {
+    id: 'EXC_1',
+    exceptionNumber: 'EXC-20260817-001',
+    exceptionCategory: 'shipment_release',
+    subCategory: null,
+    status: 'ReviewerApproved',
+    bossFinalBypass: false,
+    validUntil: null,
+  };
+
+  it('正常资格（S/S approved）→ passedVia=gate，checker 不被调用（例外不被无意核销）', async () => {
+    const { prisma } = makePrisma({
+      samples: [makeSample({ sentToCustomer: true, customerStatus: 'approved' })],
+    });
+    const checker = vi.fn();
+    const svc = createFabricShipmentSampleService({ prisma, exceptionChecker: checker });
+    const r = await svc.assertFabricShipmentGate({ orderId: 'ORD-F1' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.pass).toEqual({ passedVia: 'gate' });
+      expect(r.data.eligibility.eligibleForNormalShipment).toBe(true);
+    }
+    expect(checker).not.toHaveBeenCalled();
+  });
+
+  it('不具备资格 + 生效例外精确命中 → passedVia=exception + 例外摘要（徽标数据）', async () => {
+    const { prisma } = makePrisma({ samples: [] }); // SS_NOT_REGISTERED
+    const checker = vi.fn(async () => ({ active: true, exception: EXC }));
+    const svc = createFabricShipmentSampleService({ prisma, exceptionChecker: checker });
+    const r = await svc.assertFabricShipmentGate({ orderId: 'ORD-F1' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.pass).toEqual({ passedVia: 'exception', exception: EXC });
+    }
+  });
+
+  it('不具备资格 + 无生效例外 → GATE_BLOCKED 409 + blockingReasons + 申请入口提示 + exceptionReason', async () => {
+    const { prisma } = makePrisma({ samples: [] });
+    const checker = vi.fn(async () => ({ active: false, reason: 'NO_ACTIVE_EXCEPTION' }));
+    const svc = createFabricShipmentSampleService({ prisma, exceptionChecker: checker });
+    const r = await svc.assertFabricShipmentGate({ orderId: 'ORD-F1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.code).toBe('GATE_BLOCKED');
+      expect(r.error.status).toBe(409);
+      expect(r.error.blockingReasons).toContain('SS_NOT_REGISTERED');
+      expect(r.error.exceptionReason).toBe('NO_ACTIVE_EXCEPTION');
+      expect(r.error.message).toContain('DR-013');
+      expect(r.error.exceptionEntryHint).toContain('POST /api/v1/exceptions');
+    }
+  });
+
+  it('不具备资格 + 例外已过期 → GATE_BLOCKED + EXCEPTION_EXPIRED（消息引导重新申请）', async () => {
+    const { prisma } = makePrisma({ samples: [makeSample({ sentToCustomer: true, sentDate: '2099-01-05' })] });
+    const checker = vi.fn(async () => ({ active: false, reason: 'EXCEPTION_EXPIRED' }));
+    const svc = createFabricShipmentSampleService({ prisma, exceptionChecker: checker });
+    const r = await svc.assertFabricShipmentGate({ orderId: 'ORD-F1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.code).toBe('GATE_BLOCKED');
+      expect(r.error.exceptionReason).toBe('EXCEPTION_EXPIRED');
+      expect(r.error.message).toContain('重新申请');
+      expect(r.error.blockingReasons).toContain('SS_NOT_CONFIRMED');
+    }
+  });
+
+  it('未注入 checker + 不具备资格 → GATE_BLOCKED（fail-closed，无隐藏旁路）', async () => {
+    const { prisma } = makePrisma({ samples: [] });
+    const svc = createFabricShipmentSampleService({ prisma });
+    const r = await svc.assertFabricShipmentGate({ orderId: 'ORD-F1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.code).toBe('GATE_BLOCKED');
+      expect(r.error.exceptionReason).toBe('NO_ACTIVE_EXCEPTION');
+    }
+  });
+
+  it('scope 精确绑定：checker 收到 {targetType:Order, targetId:orderId, action:shipment:release}，at 透传', async () => {
+    const { prisma } = makePrisma({ samples: [] });
+    const checker = vi.fn(async () => ({ active: true, exception: EXC }));
+    const svc = createFabricShipmentSampleService({ prisma, exceptionChecker: checker });
+    const at = new Date('2026-08-17T10:00:00Z');
+    await svc.assertFabricShipmentGate({ orderId: 'ORD-F1', at });
+    expect(checker).toHaveBeenCalledWith({
+      targetType: 'Order',
+      targetId: 'ORD-F1',
+      action: 'shipment:release',
+      at,
+    });
+  });
+
+  it('订单不存在 → 透传 NOT_FOUND（不进入例外查询）', async () => {
+    const { prisma } = makePrisma({ order: null });
+    const checker = vi.fn();
+    const svc = createFabricShipmentSampleService({ prisma, exceptionChecker: checker });
+    const r = await svc.assertFabricShipmentGate({ orderId: 'ORD-NONE' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.code).toBe('NOT_FOUND');
+    expect(checker).not.toHaveBeenCalled();
+  });
+});
+
 describe('computeSampleCountdown（DR-011 Exmill 倒计时）', () => {
   const order = makeFabricOrder({ clientDate: '2099-12-31' });
 
