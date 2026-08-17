@@ -95,9 +95,11 @@ BASELINE_FILTERBAR_H=3        # M3: bds-filterbar 行手写非 h-10 高度覆盖
                               # 现存 FinanceManager:1935 / finance/FinanceCreditPanel:367 /
                               # finance/FinancePaymentRequestsPanel:422，均 h-auto min-h-11 撑高违例；
                               # 总控校准：filterbar 内禁任何手写 h- 覆盖，仅 h-10 白名单）
-BASELINE_NATIVE_CONTROLS=266  # M4: 原生 <select（无 bds-select 类）168 + type="date" 98 = 266
-                              # （含 CapsuleDateInput.tsx:66 内部合法拾取器 1 处，BDS 组件封装内部，
-                              #  计入基数保持恒定、不算违例增量）
+BASELINE_NATIVE_CONTROLS=264  # M4: 原生 <select（无 bds-select 类）168 + type="date" 96 = 264
+                              # 2026-08-17 W4 原生浮层收编 266→264：CapsuleDateInput 内部隐藏原生 date
+                              # 拾取器移除（改 BDS 自绘月历浮层）+ 同文件旧注释字面量随重写消除；
+                              # OrderManager 状态筛选原生 select（bds-select 类，本就不计 M4）→
+                              # CustomSelect surface="field"，OS 原生选项浮层同步消除（体验口径）
                               # 粗口径对账：全仓 `<select` 213 + `type="date"` 108 = 321（产品负责人点名⑥）；
                               # 粗口径把已 bds-select 化 33 处也计入总数，BDS 化后总数不变、无法感知进展，
                               # 故入库采用精确口径 281，随逐页主刀只减不增。

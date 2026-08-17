@@ -20,7 +20,9 @@ interface CustomSelectProps {
   className?: string;
   menuPortal?: boolean;
   size?: 'default' | 'compact';
-  surface?: 'default' | 'toolbar' | 'form';
+  /** field = bds-select 触发器几何（h-34px / rounded-[--r-control-sm] / text-xs / recessed），
+   *  供 filterbar/表单以同几何替换原生 select 元素，浮层走 BDS 自绘容器（W4 原生浮层收编） */
+  surface?: 'default' | 'toolbar' | 'form' | 'field';
   triggerVariant?: 'boxed' | 'inline';
 }
 
@@ -46,15 +48,18 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const isCompact = size === 'compact';
   const isToolbarSurface = surface === 'toolbar';
   const isFormSurface = surface === 'form';
+  const isFieldSurface = surface === 'field';
   const isInlineToolbarTrigger = isToolbarSurface && triggerVariant === 'inline';
   // W4 刻度专项：compact 触发器 h-9(36px 旧刻度) → var(--h-input-sm)=34px BDS 规格刻度。
   // 34px 是两消费上下文的安全交集：Relations 工具条(h-10=40px) 内 = filterbar 官方范式
   // (input sm 34px + 按钮 40px，6px 高差)；Products 工具条(共享 recipe h-9=36px) 内仅 2px 差、
   // inline 透明无边框视觉连续。h-10 方案会高出 Products 工具条 4px 故弃用。
   // default size（form 场景 h-9）不在本专项范围，随逐页主刀表单区处理。
-  const triggerSizeClass = isCompact
-    ? `${isInlineToolbarTrigger ? 'h-[var(--h-input-sm)] px-2' : 'h-[var(--h-input-sm)] px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-[11px] leading-none`
-    : 'h-9 px-3 py-0 rounded-full text-xs leading-none';
+  const triggerSizeClass = isFieldSurface
+    ? 'h-[var(--h-input-sm)] px-3 py-0 rounded-[var(--r-control-sm)] text-xs leading-none'
+    : isCompact
+      ? `${isInlineToolbarTrigger ? 'h-[var(--h-input-sm)] px-2' : 'h-[var(--h-input-sm)] px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-[11px] leading-none`
+      : 'h-9 px-3 py-0 rounded-full text-xs leading-none';
   const toolbarBaseClass = BAMBOOK_OS.controls.select.toolbarBase;
   const toolbarHoverClass = `${toolbarBaseClass} text-[var(--text-tertiary)] hover:!bg-[var(--active-darken)] hover:text-deep-alt hover:shadow-none active:scale-[0.98] active:bg-[var(--active-darken)]`;
   const toolbarSelectedClass = BAMBOOK_OS.controls.select.toolbarSelected;
@@ -62,16 +67,22 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const toolbarInlineOpenClass = BAMBOOK_OS.controls.select.toolbarInlineOpen;
   const formIdleClass = `${BAMBOOK_OS.controls.recessedField.base} hover:!border-[var(--border-c-strong)]`;
   const formOpenClass = `${BAMBOOK_OS.controls.recessedField.base} !bg-[rgba(15,23,42,0.08)] !border-[var(--border-c-strong)] shadow-none`;
-  const triggerOpenClass = isToolbarSurface
-    ? isInlineToolbarTrigger ? toolbarInlineOpenClass : toolbarSelectedClass
-    : isFormSurface
-      ? formOpenClass
-    : 'border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)]';
-  const triggerIdleClass = isToolbarSurface
-    ? isInlineToolbarTrigger ? toolbarInlineClass : toolbarHoverClass
-    : isFormSurface
-      ? formIdleClass
-    : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] hover:border-[var(--border-c-strong)]';
+  const fieldIdleClass = `${BAMBOOK_OS.controls.recessedField.base} hover:!border-[var(--border-c-strong)]`;
+  const fieldOpenClass = `${BAMBOOK_OS.controls.recessedField.base} !bg-[var(--recessed-bg-strong)] !border-[var(--border-c-strong)] shadow-none`;
+  const triggerOpenClass = isFieldSurface
+    ? fieldOpenClass
+    : isToolbarSurface
+      ? isInlineToolbarTrigger ? toolbarInlineOpenClass : toolbarSelectedClass
+      : isFormSurface
+        ? formOpenClass
+        : 'border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)]';
+  const triggerIdleClass = isFieldSurface
+    ? fieldIdleClass
+    : isToolbarSurface
+      ? isInlineToolbarTrigger ? toolbarInlineClass : toolbarHoverClass
+      : isFormSurface
+        ? formIdleClass
+        : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] hover:border-[var(--border-c-strong)]';
   const overlayMenu = BAMBOOK_OS.controls.overlayMenu;
   const menuClass = `${overlayMenu.surfaceBase} ${overlayMenu.surface}`;
   const menuSurfaceClass = overlayMenu.surfaceLayer;
@@ -193,7 +204,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
-          size={isCompact ? 14 : 16}
+          size={isCompact || isFieldSurface ? 14 : 16}
           strokeWidth={1.5}
           className={`
             shrink-0
