@@ -3,13 +3,18 @@
  *
  * 职责：
  *   1. 按年递增编号生成：{PREFIX}-{YYYY}-{NNNN}（4 位补零）
- *   2. 事务内强一致：SELECT ... FOR UPDATE 行级锁，防并发重号
+ *   2. 并发安全：upsert 首建行 + increment 原子递增；首建并发 P2002 自动重试（QA-SEC-4A）
  *   3. 作废不回收：序号单调递增，已分配序号永久保留（含软删记录）
  *   4. 全局唯一：同一 prefix+year 组合下序号唯一
  *
  * 使用方式：
  *   - 在创建单据的事务内调用 nextBusinessNumber(tx, 'QT')
  *   - 前端不再传编号字段，服务端强制覆盖
+ *
+ * 降级策略（QA-SEC-4B）：
+ *   - db 无 businessSequence 模型仅允许显式测试注入（NODE_ENV=test 的 mock 场景），
+ *     此时降级为时间戳+随机后缀（格式外编号，仅测试可见）。
+ *   - 生产/开发环境缺模型属于配置错误，直接 throw fail-closed，绝不产出格式外编号。
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -70,11 +75,11 @@ export function isBusinessPrefix(prefix: string): prefix is BusinessPrefix {
  * 生成下一业务编号：{PREFIX}-{YYYY}-{NNNN}（4 位补零）。
  *
  * 实现要点：
- *   1. 查询 BusinessSequence 行（SELECT ... FOR UPDATE）锁定当前 prefix+year
- *   2. 不存在则创建（seq=1），存在则 seq+1
+ *   1. upsert 确保 BusinessSequence 行存在（首建并发 P2002 自动重试，QA-SEC-4A）
+ *   2. increment 原子递增并返回新值
  *   3. 返回格式化编号
  *
- * 注意：必须在事务内调用，确保锁与单据创建原子提交。
+ * 注意：必须在事务内调用，确保取号与单据创建原子提交。
  */
 export async function nextBusinessNumber(
   db: DbLike,
@@ -87,27 +92,41 @@ export async function nextBusinessNumber(
   const targetYear = year ?? new Date().getFullYear();
   const id = `SEQ_${prefix}_${targetYear}`;
 
-  // 若 db 无 businessSequence 模型（如单元测试 mock），降级为时间戳随机后缀
+  // QA-SEC-4B：降级仅限显式测试注入（NODE_ENV=test）；生产缺模型直接 throw，禁止格式外编号
   if (!db.businessSequence) {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new Error(`BUSINESS_NUMBER_SEQUENCE_UNAVAILABLE: businessSequence 模型缺失（prefix=${prefix}）— 生产环境禁止降级产出格式外编号`);
+    }
     const fallback = `${prefix}-${targetYear}-${String(Date.now()).slice(-6)}${Math.random().toString(36).slice(2, 6)}`;
-    logger.warn('[BusinessNumber] fallback to timestamp (no businessSequence model)', { prefix, year: targetYear, fallback });
+    logger.warn('[BusinessNumber] fallback to timestamp (test-only injection)', { prefix, year: targetYear, fallback });
     return fallback;
   }
 
-  // SELECT ... FOR UPDATE 行级锁（PostgreSQL）
-  // 若行不存在，需先创建再锁，避免并发插入冲突
-  const row = await db.businessSequence.upsert({
-    where: { id },
-    create: {
-      id,
-      prefix,
-      year: targetYear,
-      seq: 0,
-      updatedAt: BigInt(Date.now()),
-    },
-    update: {},
-    select: { seq: true },
-  });
+  // QA-SEC-4A：首建并发 — upsert 的 create 侧可能撞唯一约束（P2002），限定次数重试
+  const MAX_UPSERT_RETRIES = 3;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await db.businessSequence.upsert({
+        where: { id },
+        create: {
+          id,
+          prefix,
+          year: targetYear,
+          seq: 0,
+          updatedAt: BigInt(Date.now()),
+        },
+        update: {},
+        select: { seq: true },
+      });
+      break;
+    } catch (e: any) {
+      if (e?.code === 'P2002' && attempt < MAX_UPSERT_RETRIES) {
+        logger.warn('[BusinessNumber] upsert P2002, retrying', { prefix, year: targetYear, attempt });
+        continue;
+      }
+      throw e;
+    }
+  }
 
   // 原子递增并返回新值
   const updated = await db.businessSequence.update({

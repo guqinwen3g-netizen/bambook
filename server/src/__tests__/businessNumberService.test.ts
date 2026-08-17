@@ -9,7 +9,7 @@
  *   5. peekNextBusinessNumber 不消费序号
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import {
   nextBusinessNumber,
@@ -213,6 +213,79 @@ describe('BusinessNumberService', () => {
         return nextBusinessNumber(tx, 'LC');
       });
       expect(num).toBe(`LC-${year}-0002`);
+    });
+  });
+
+  // ── QA-SEC-4：并发首建 P2002 重试 + fallback 生产 throw ──
+  describe('QA-SEC-4 并发与降级收口', () => {
+    it('QA-SEC-4A：首建并发 P2002 → 自动重试成功（不 500）', async () => {
+      const year = new Date().getFullYear();
+      let upsertCalls = 0;
+      const db: any = {
+        businessSequence: {
+          upsert: vi.fn().mockImplementation(async () => {
+            upsertCalls++;
+            if (upsertCalls === 1) {
+              // 模拟并发首建竞争：另一事务已抢先插入同 id 行
+              const err: any = new Error('Unique constraint failed on the fields: (`id`)');
+              err.code = 'P2002';
+              throw err;
+            }
+            return { seq: 0 };
+          }),
+          update: vi.fn().mockResolvedValue({ seq: 1 }),
+          findUnique: vi.fn().mockResolvedValue(null),
+          deleteMany: vi.fn().mockResolvedValue({}),
+        },
+      };
+
+      const num = await nextBusinessNumber(db, 'QT');
+      expect(num).toBe(`QT-${year}-0001`);
+      expect(upsertCalls).toBe(2); // 首次 P2002 + 重试成功
+    });
+
+    it('QA-SEC-4A：P2002 连续超过重试上限 → 抛错（不无限重试）', async () => {
+      const db: any = {
+        businessSequence: {
+          upsert: vi.fn().mockRejectedValue(Object.assign(new Error('P2002 persistent'), { code: 'P2002' })),
+          update: vi.fn(),
+          findUnique: vi.fn(),
+          deleteMany: vi.fn(),
+        },
+      };
+      await expect(nextBusinessNumber(db, 'QT')).rejects.toThrow('P2002 persistent');
+      expect(db.businessSequence.upsert).toHaveBeenCalledTimes(3); // MAX_UPSERT_RETRIES=3
+    });
+
+    it('QA-SEC-4A：非 P2002 错误不重试，直接抛错', async () => {
+      const db: any = {
+        businessSequence: {
+          upsert: vi.fn().mockRejectedValue(Object.assign(new Error('connection lost'), { code: 'P1001' })),
+          update: vi.fn(),
+          findUnique: vi.fn(),
+          deleteMany: vi.fn(),
+        },
+      };
+      await expect(nextBusinessNumber(db, 'QT')).rejects.toThrow('connection lost');
+      expect(db.businessSequence.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('QA-SEC-4B：生产环境缺 businessSequence 模型 → throw fail-closed（禁止格式外编号）', async () => {
+      const original = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        await expect(nextBusinessNumber({} as any, 'QT')).rejects.toThrow('BUSINESS_NUMBER_SEQUENCE_UNAVAILABLE');
+      } finally {
+        process.env.NODE_ENV = original;
+      }
+    });
+
+    it('QA-SEC-4B：测试环境显式注入无模型 db → 降级放行（不 throw）', async () => {
+      // vitest 默认 NODE_ENV=test
+      expect(process.env.NODE_ENV).toBe('test');
+      const num = await nextBusinessNumber({} as any, 'QT');
+      const year = new Date().getFullYear();
+      expect(num).toMatch(new RegExp(`^QT-${year}-\\w+$`));
     });
   });
 });
