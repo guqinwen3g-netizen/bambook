@@ -3,9 +3,9 @@
  *
  * ═══════════════════════════════════════════════════════════════════
  * 单一权威真源：lib/rolePermissionMatrix.ts（根目录，与 seed-rbac 同仓库版本）
- *   - 6 系统内置角色定义：SYSTEM_ROLE_IDS / SYSTEM_ROLE_META
+ *   - 8 系统内置角色定义：SYSTEM_ROLE_IDS / SYSTEM_ROLE_META（DR-041 起含 QC/后勤）
  *   - 85+ 权限 scope：PERMISSION_SCOPES（经营总览/客户市场/订单履约/财务成本/平台域/敏感字段）
- *   - 6×85 角色权限矩阵：DEFAULT_ROLE_PERMISSION_MATRIX
+ *   - 8×85 角色权限矩阵：DEFAULT_ROLE_PERMISSION_MATRIX
  *   - 行级数据范围规则：DEFAULT_DATA_SCOPE_BY_ROLE（运行时用，DB 仅 seed 部门树）
  * ═══════════════════════════════════════════════════════════════════
  *
@@ -45,7 +45,7 @@ dotenv.config({ path: path.join(SERVER_ROOT, '.env') });
 const prisma = new PrismaClient();
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 0. 旧版本 8 个遗留角色清理（避免与新 6 角色并存）
+// 0. 旧版本 8 个遗留角色清理（避免与新 8 角色并存）
 //    旧 ID 格式：role_owner / role_admin / role_manager / role_merchandiser /
 //                role_sales / role_finance / role_agent_operator / role_viewer
 // ══════════════════════════════════════════════════════════════════════════════
@@ -108,7 +108,7 @@ async function seedDepartments() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2. 6 系统内置角色（不可删除，isSystem=true）
+// 2. 8 系统内置角色（不可删除，isSystem=true）
 // ══════════════════════════════════════════════════════════════════════════════
 async function seedRoles() {
   const roleIds: string[] = [];
@@ -121,7 +121,7 @@ async function seedRoles() {
     });
     roleIds.push(id);
   }
-  console.log(`[2/6] 角色：已 upsert 6 个 → ${roleIds.map((id) => `${SYSTEM_ROLE_META[id].name}(${id})`).join('、')}`);
+  console.log(`[2/6] 角色：已 upsert ${roleIds.length} 个 → ${roleIds.map((id) => `${SYSTEM_ROLE_META[id].name}(${id})`).join('、')}`);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -274,9 +274,9 @@ async function verifySeed() {
     prisma.department.count(),
   ]);
   console.log(
-    `[6/6] 校验摘要：Role=${roleCount}(≥6)  Permission=${permCount}(≥${Object.keys(PERMISSION_SCOPES).length})  RolePermission=${rpCount}(≥200)  Department=${deptCount}(≥5)`,
+    `[6/6] 校验摘要：Role=${roleCount}(≥${Object.keys(SYSTEM_ROLE_IDS).length})  Permission=${permCount}(≥${Object.keys(PERMISSION_SCOPES).length})  RolePermission=${rpCount}(≥200)  Department=${deptCount}(≥5)`,
   );
-  if (roleCount < 6 || permCount < Object.keys(PERMISSION_SCOPES).length) {
+  if (roleCount < Object.keys(SYSTEM_ROLE_IDS).length || permCount < Object.keys(PERMISSION_SCOPES).length) {
     throw new Error('seed-rbac 校验失败：实际数量少于预期，请检查 rollback。');
   }
 }

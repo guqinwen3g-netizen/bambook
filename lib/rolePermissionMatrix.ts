@@ -3,7 +3,7 @@
  *
  * 设计原则：
  *   - 所有权限字符串都在此文件定义为 TS 常量/枚举，绝不允许业务代码手写 'orders:write' 等字符串
- *   - 6 个系统内置角色（Sales/SalesManager/Finance/FinanceManager/Admin/SuperAdmin）
+ *   - 8 个系统内置角色（含 QC/后勤）（Sales/SalesManager/Finance/FinanceManager/Admin/QC/Logistics/SuperAdmin）
  *     的 默认模块权限位（R/W/D/A + 敏感字段 + 行级数据范围） 全部在此硬编码，
  *     DB 中的 Role/Permission/RolePermission 表运行时可以 UI 调整，
  *     但初始化 seed 和 代码级判断的 fallback 默认值 必须 从这里取。
@@ -28,6 +28,8 @@ export const SYSTEM_ROLE_IDS = {
   FINANCE: 'role-finance',
   FINANCE_MANAGER: 'role-finance-manager',
   ADMIN: 'role-admin',
+  QC: 'role-qc',
+  LOGISTICS: 'role-logistics',
   SUPER_ADMIN: 'role-super-admin',
 } as const;
 
@@ -41,7 +43,7 @@ export const SYSTEM_ROLE_META: Record<SystemRoleId, { name: string; description:
   },
   [SYSTEM_ROLE_IDS.SALES_MANAGER]: {
     name: '销售主管',
-    description: '销售部小团队负责人；本团队变更≤5万审批权',
+    description: '销售部小团队负责人；本团队变更审批权',
     rank: 2,
   },
   [SYSTEM_ROLE_IDS.FINANCE]: {
@@ -51,13 +53,23 @@ export const SYSTEM_ROLE_META: Record<SystemRoleId, { name: string; description:
   },
   [SYSTEM_ROLE_IDS.FINANCE_MANAGER]: {
     name: '财务主管',
-    description: '财务部负责人；付款审批双签人、价格变更审批；>5万单笔审批',
+    description: '财务部负责人；付款审批双签人、价格变更审批',
     rank: 3,
   },
   [SYSTEM_ROLE_IDS.ADMIN]: {
     name: '系统管理员',
     description: '普通管理员；用户/角色/权限/字典配置可改；无权审批财务流和查看佣金/利润',
     rank: 3,
+  },
+  [SYSTEM_ROLE_IDS.QC]: {
+    name: 'QC',
+    description: '质检专员；QC 疵点录入/验货任务执行，业务域只读',
+    rank: 2,
+  },
+  [SYSTEM_ROLE_IDS.LOGISTICS]: {
+    name: '后勤',
+    description: '物流/单证专员；运单/装箱/报关单证管理，业务域只读',
+    rank: 2,
   },
   [SYSTEM_ROLE_IDS.SUPER_ADMIN]: {
     name: '超级管理员',
@@ -323,6 +335,14 @@ export const DEFAULT_DATA_SCOPE_BY_ROLE: Record<
   },
   // --- 系统管理员：配置看全公司，业务/财务数据按需要给scope但默认行级all（方便配置）---
   [SYSTEM_ROLE_IDS.ADMIN]: {
+    '*': { kind: 'all' },
+  },
+  // --- QC：QC 域可写，其余业务域只读（全公司）---
+  [SYSTEM_ROLE_IDS.QC]: {
+    '*': { kind: 'all' },
+  },
+  // --- 后勤：物流/单证域可写，其余业务域只读（全公司）---
+  [SYSTEM_ROLE_IDS.LOGISTICS]: {
     '*': { kind: 'all' },
   },
   // --- 超级管理员：无条件all，所有scope全开 ---
@@ -591,6 +611,46 @@ const ADMIN_BASE: RolePermissionMatrix = {
   'qc:garment_chain:write': true,
 };
 
+const QC_BASE: RolePermissionMatrix = {
+  // 经营总览
+  'dashboard:read': true,
+  'reports:read': true,
+  'ai:chat': true,
+  // 订单履约（只读）
+  'orders:read': true,
+  'products:read': true,
+  'production:read': true,
+  'shipments:read': true,
+  'customs:read': true,
+  // QC 域（可写）
+  'qc:read': true,
+  'qc:write': true,
+  // 平台域
+  'knowledge:read': true,
+  'tools:execute': true,
+  'settings:account': true,
+};
+
+const LOGISTICS_BASE: RolePermissionMatrix = {
+  // 经营总览
+  'dashboard:read': true,
+  'reports:read': true,
+  'ai:chat': true,
+  // 订单履约（只读）
+  'orders:read': true,
+  'products:read': true,
+  'production:read': true,
+  // 物流/单证域（可写）
+  'shipments:read': true,
+  'shipments:write': true,
+  'customs:read': true,
+  'customs:write': true,
+  // 平台域
+  'knowledge:read': true,
+  'tools:execute': true,
+  'settings:account': true,
+};
+
 const SUPER_ADMIN_BASE: RolePermissionMatrix = {};
 // 超级管理员：ALL SCOPES = TRUE （运行时用 `role === SUPER_ADMIN` 直接放行，不查表）
 // 这里不展开所有scope，代码级判断时：
@@ -602,6 +662,8 @@ export const DEFAULT_ROLE_PERMISSION_MATRIX: Record<SystemRoleId, RolePermission
   [SYSTEM_ROLE_IDS.FINANCE]: FINANCE_BASE,
   [SYSTEM_ROLE_IDS.FINANCE_MANAGER]: FINANCE_MANAGER_BASE,
   [SYSTEM_ROLE_IDS.ADMIN]: ADMIN_BASE,
+  [SYSTEM_ROLE_IDS.QC]: QC_BASE,
+  [SYSTEM_ROLE_IDS.LOGISTICS]: LOGISTICS_BASE,
   [SYSTEM_ROLE_IDS.SUPER_ADMIN]: SUPER_ADMIN_BASE,
 };
 

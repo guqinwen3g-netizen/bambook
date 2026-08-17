@@ -13,8 +13,8 @@
  *
  * 向后兼容说明：
  *   - 旧系统用 AgentRole = 'owner'|'admin'|'manager'|'finance'|'sales'|... 字符串
- *   - 新系统用 SYSTEM_ROLE_IDS = 'role-super-admin'|...（6 角色）
- *   - ROLE_ID_TO_LEGACY_AGENT_ROLE 表把新 6 ID 映射到旧字符串，
+ *   - 新系统用 SYSTEM_ROLE_IDS = 'role-super-admin'|...（8 角色，DR-041 起含 QC/后勤）
+ *   - ROLE_ID_TO_LEGACY_AGENT_ROLE 表把新 8 ID 映射到旧字符串，
  *     JWT roles[] 中依旧写旧字符串，不破坏 68 处 requireRole()/roles.some() 调用。
  *   - 以后可逐步把旧 HIGH_RISK_ROLES: AgentRole[] = ['owner','admin','manager']
  *     迁移到 requirePermission('xxx:write') 基于 scope 的更精确校验。
@@ -36,9 +36,11 @@ import {
 } from '../_shared/rolePermissionMatrix';
 
 // ───────────────────────────────────────────────────────────────────
-// 新 6 角色 ID → 旧 AgentRole 字符串（向后兼容映射，保持旧 HIGH_RISK_ROLES 判断有效）
+// 新 8 角色 ID → 旧 AgentRole 字符串（向后兼容映射，保持旧 HIGH_RISK_ROLES 判断有效）
 //   旧语义：owner=最高权限  admin=系统管理员  manager=业务审批/经理级  finance=财务
 //   新→旧映射原则：保持 68 处调用的语义不变（HIGH_RISK 路由不能被 sales 直接写）
+//   DR-041：QC → viewer（质检写权限走新 scope qc:write，legacy 层不给任何写路由通过）
+//           LOGISTICS → logistics（legacy logistics 不在任何 HIGH_RISK 组，写权限走新 scope）
 // ───────────────────────────────────────────────────────────────────
 export const ROLE_ID_TO_LEGACY_AGENT_ROLE: Record<string, AgentRole> = {
   [SYSTEM_ROLE_IDS.SUPER_ADMIN]: 'owner',       // 最高 → owner（所有 HIGH_RISK 组都包含 owner ✓）
@@ -47,6 +49,8 @@ export const ROLE_ID_TO_LEGACY_AGENT_ROLE: Record<string, AgentRole> = {
   [SYSTEM_ROLE_IDS.FINANCE_MANAGER]: 'finance', // 财务主管 → finance（finance 模块 HIGH_RISK 含 finance ✓）
   [SYSTEM_ROLE_IDS.FINANCE]: 'finance',         // 普通财务 → finance（同模块 HIGH_RISK 通过 ✓）
   [SYSTEM_ROLE_IDS.SALES]: 'sales',             // 业务员 → sales（写路由 HIGH_RISK 不含 sales → 保持被拒 ✓）
+  [SYSTEM_ROLE_IDS.QC]: 'viewer',               // QC → viewer（legacy 层只读；qc:write 走新 scope 链 ✓）
+  [SYSTEM_ROLE_IDS.LOGISTICS]: 'logistics',     // 后勤 → logistics（legacy 层非 HIGH_RISK；shipments:write 走新 scope 链 ✓）
 };
 
 // ───────────────────────────────────────────────────────────────────
@@ -54,7 +58,7 @@ export const ROLE_ID_TO_LEGACY_AGENT_ROLE: Record<string, AgentRole> = {
 // ───────────────────────────────────────────────────────────────────
 export interface UserPermissionContext {
   userId: string;
-  /** 新系统角色 ID（SYSTEM_ROLE_IDS 值，6 枚举之一或更多） */
+  /** 新系统角色 ID（SYSTEM_ROLE_IDS 值，8 枚举之一或更多） */
   roleIds: string[];
   /** 旧 AgentRole 字符串（用于写入 JWT roles[] 向后兼容 requireRole('owner', ...)） */
   legacyRoleCodes: AgentRole[];
