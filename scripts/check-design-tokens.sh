@@ -39,26 +39,21 @@ BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + Mo
 # P2 收口（2026-08-15）允许单写自适应类内使用 Tailwind `dark:` 变体
 # （.dark 根 class，替代旧 isDarkMode JS 三元 + _DARK/_LIGHT 双写常量），
 # dark: 变体因此成为合规载体并一次性上调基线，此后只减不增。
-BASELINE_DARK_VARIANT=196      # dark: Tailwind 变体（P2 自适应单配方坍缩产物，2026-08-15 上调 34→162；
-                               # 2026-08-15 P3-2 sidebar/sidepanel 双写坍缩 199→196（净 -3）：
-                               # Sidebar 导航 / ContactList idle+active / OrgChart press 的 dark:active:bg 覆盖
-                               # 随 listRow 单配方（--active-darken 主题自适应）消除 4 处，
-                               # CONTACT_LIST_ACTIVE_CLASS 并入 dark:text-[var(--text-primary)] 1 处；
-                               # 2026-08-15 P3-1 compiledRelationsTemplates 双写常量坍缩 198→199：
-                               # RELATIONS_TOOLBAR_SEGMENT_ACTIVE LIGHT/DARK 双写 → 单写自适应（dark: 变体承载暗色），
-                               # 同步删除 relationsFormStyles 4 条兼容垫片导出；
-                               # 2026-08-15 sidebar/shell 家族收口 162→172：Sidebar press 差异 1 +
-                               # FolderTabCard SVG stop/stroke 3 + ToggleSwitch 轨道/滑块 3 + 同批未提交存量漂移 3；
-                               # 2026-08-15 order/ui 长尾家族收口 +6：DesignTuner 面板/控件 5 + UserAvatar halo 阴影 1；
-                               # 其余为并行家族收口同步漂移，落盘时实测 185；
-                               # 2026-08-15 多行 isDarkMode 类串三元收官 185→198（+14 行 / 27 处工具）：
-                               # BusinessTools 1 / EmailEditor 1 / Login 1 / SplashScreen 1 / NotificationCenter 1 /
-                               # StepUpload 2 / StepConfirm 1 / AutomationRulesSection 1 / StepPreview 4 / SampleNodesPanel 1；
-                               # WorkflowPanel 审批按钮与 SampleNodesPanel 批准徽章走 success/danger 语义 token（零 dark:），
-                               # AutomationRulesSection checked 轨坍缩为 BAMBOOK_OS.controls.selectedSurface.base 自适应类）
-BASELINE_IS_DARK_TERNARY=220   # isDarkMode ? 三元（P2 消灭战战果锁定，2026-08-15 收拢 2439→366→226→220；
-                               # 2026-08-15 DataCenter 数字孪生 SVG 6 处改走 --os-vnext-datatwin-* CSS 变量；
+BASELINE_DARK_VARIANT=182      # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
+                               # 2026-08-17 W0 锁进度 196→182（实测回归）；批 G 收编目标 ≤10，
+                               # 出现次数口径（评审口径）实测 251，随批 G 单调下降）
+BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366→226→220；
+                               # 2026-08-17 W0 锁进度 220→219；
                                # 余量为 spotlight/图表数值型三元 + isDarkMode?: 类型声明 + 冻结/搁置文件，合规保留）
+# ── BDS 高分收编基线（2026-08-17 W0 建立，只减不增）──
+# 依据 docs/design/10-评审与决策/2026-08-17-前端设计地毯式评审报告.md 批 A-J 移交清单建立。
+# 口径：出现次数（rg -o），豁免集与上文 EXCLUDE_GLOBS 一致。
+BASELINE_RAW_SEMANTIC=131      # 批A：raw 语义色 text/bg/border/ring/from/to/via-(red|emerald|blue|rose|amber|…)-N → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
+BASELINE_RAW_MASK=17           # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
+BASELINE_BARE_ROUNDED=43       # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control 等
+BASELINE_HANDWRITTEN_BTN=35    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
+BASELINE_TEXT_WHITE=48         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
+# 批F font-black 基线 0：唯一残留 ProductionGlobe.tsx:654 在 *Globe* 豁免集内（DOM 覆盖层非 WebGL，批F 修复时同步带出豁免）
 
 errors=0
 
@@ -175,15 +170,90 @@ else
 fi
 echo ""
 
+# ── 8. 批A：raw 语义色 → BDS 语义 token（出现次数口径）──
+echo "▸ 检查 raw 语义色（red/emerald/blue/amber…未走 BDS 语义 token）..."
+RAW_SEMANTIC_RE='(text|bg|border|ring|from|to|via)-(red|emerald|blue|rose|amber|orange|yellow|sky|cyan|teal|violet|pink|indigo|green)-[0-9]'
+raw_semantic_count=$(rg -o "$RAW_SEMANTIC_RE" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$raw_semantic_count" -gt "$BASELINE_RAW_SEMANTIC" ]; then
+  echo "  ❌ raw 语义色增加（基线 ${BASELINE_RAW_SEMANTIC} → 当前 ${raw_semantic_count}）"
+  echo "  请使用 BDS 语义 token：--success-text / --warning-text / --danger-text / --accent-text"
+  rg -n "$RAW_SEMANTIC_RE" --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  errors=$((errors + 1))
+elif [ "$raw_semantic_count" -lt "$BASELINE_RAW_SEMANTIC" ]; then
+  echo "  ✅ raw 语义色减少（基线 ${BASELINE_RAW_SEMANTIC} → 当前 ${raw_semantic_count}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ raw 语义色维持基线（$raw_semantic_count 处，批A 收编对象）"
+fi
+echo ""
+
+# ── 9. 批B：自造遮罩 → var(--mask-bg) ──
+echo "▸ 检查自造遮罩（bg-black/N，应统一 --mask-bg）..."
+raw_mask_count=$(rg -o 'bg-black/[0-9]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$raw_mask_count" -gt "$BASELINE_RAW_MASK" ]; then
+  echo "  ❌ 自造遮罩增加（基线 ${BASELINE_RAW_MASK} → 当前 ${raw_mask_count}）"
+  echo "  tokens.css 定义 --mask-bg 为全系统唯一遮罩入口"
+  rg -n 'bg-black/[0-9]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  errors=$((errors + 1))
+elif [ "$raw_mask_count" -lt "$BASELINE_RAW_MASK" ]; then
+  echo "  ✅ 自造遮罩减少（基线 ${BASELINE_RAW_MASK} → 当前 ${raw_mask_count}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ 自造遮罩维持基线（$raw_mask_count 处，批B 收编对象）"
+fi
+echo ""
+
+# ── 10. 批D：裸 rounded（非 BDS 刻度）──
+echo "▸ 检查裸 rounded（Tailwind 默认 4px，不在 BDS 刻度内）..."
+bare_rounded_count=$(rg -o -P 'rounded(?![\w-])' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$bare_rounded_count" -gt "$BASELINE_BARE_ROUNDED" ]; then
+  echo "  ❌ 裸 rounded 增加（基线 ${BASELINE_BARE_ROUNDED} → 当前 ${bare_rounded_count}）"
+  echo "  微件用 rounded-bds-sm / rounded-compact，控件用 rounded-control"
+  rg -n -P 'rounded(?![\w-])' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  errors=$((errors + 1))
+elif [ "$bare_rounded_count" -lt "$BASELINE_BARE_ROUNDED" ]; then
+  echo "  ✅ 裸 rounded 减少（基线 ${BASELINE_BARE_ROUNDED} → 当前 ${bare_rounded_count}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ 裸 rounded 维持基线（$bare_rounded_count 处，批D 收编对象）"
+fi
+echo ""
+
+# ── 11. 批E：手写主按钮 → bds-btn bds-btn-primary（双序组合）──
+echo "▸ 检查手写主按钮（rounded-full + brand-blue 组合，绕过 bds-btn 组件类）..."
+hw_a=$(rg -o 'rounded-full[^"'"'"']*bg-\[var\(--os-vnext-brand-blue\)\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+hw_b=$(rg -o 'bg-\[var\(--os-vnext-brand-blue\)\][^"'"'"']*rounded-full' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+handwritten_btn_count=$((hw_a + hw_b))
+if [ "$handwritten_btn_count" -gt "$BASELINE_HANDWRITTEN_BTN" ]; then
+  echo "  ❌ 手写主按钮增加（基线 ${BASELINE_HANDWRITTEN_BTN} → 当前 ${handwritten_btn_count}）"
+  echo "  主按钮 100% 走 bds-btn bds-btn-primary（统一高度/字重/hover/disabled 规格）"
+  errors=$((errors + 1))
+elif [ "$handwritten_btn_count" -lt "$BASELINE_HANDWRITTEN_BTN" ]; then
+  echo "  ✅ 手写主按钮减少（基线 ${BASELINE_HANDWRITTEN_BTN} → 当前 ${handwritten_btn_count}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ 手写主按钮维持基线（$handwritten_btn_count 处，批E 收编对象）"
+fi
+echo ""
+
+# ── 12. 批E 伴随项：text-white 直用 → var(--on-accent)（警告级）──
+echo "▸ 检查 text-white 直用（accent 填充上应走 --on-accent）..."
+text_white_count=$(rg -o 'text-white' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$text_white_count" -gt "$BASELINE_TEXT_WHITE" ]; then
+  echo "  ⚠️  text-white 增加（基线 ${BASELINE_TEXT_WHITE} → 当前 ${text_white_count}）"
+  echo "  accent 填充上的文字请用 text-[var(--on-accent)]（深色模式语义可能不同）"
+  # 警告级，不计 errors
+else
+  echo "  ✅ text-white 维持或低于基线（$text_white_count 处）"
+fi
+echo ""
+
 # ── 总结 ──
 echo "═══ 总结 ═══"
 if [ "$errors" -gt 0 ]; then
-  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex/裸刻度/过重字重）"
-  echo "   基线：rounded=$BASELINE_ROUNDED, hex_tailwind=$BASELINE_HEX_TAILWIND, bare_radius=$BASELINE_BARE_RADIUS, font_weight=$BASELINE_FONT_WEIGHT"
+  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex/裸刻度/过重字重/raw语义色/自造遮罩/裸rounded/手写主按钮）"
+  echo "   基线：rounded=$BASELINE_ROUNDED, hex_tailwind=$BASELINE_HEX_TAILWIND, bare_radius=$BASELINE_BARE_RADIUS, font_weight=$BASELINE_FONT_WEIGHT, raw_semantic=$BASELINE_RAW_SEMANTIC, raw_mask=$BASELINE_RAW_MASK, bare_rounded=$BASELINE_BARE_ROUNDED, handwritten_btn=$BASELINE_HANDWRITTEN_BTN"
   echo "   如需更新基线，请编辑 scripts/check-design-tokens.sh 并在 commit 中说明"
   exit 1
 else
-  echo "✅ 设计 token 防回退检查通过（基线模式 · BDS v2.2）"
+  echo "✅ 设计 token 防回退检查通过（基线模式 · BDS v2.2 + 高分收编 W0）"
   echo "   当前：rounded=$rounded_count, hex_tailwind=$hex_tailwind_count, hex_inline=$hex_inline_count, bare_radius=$bare_radius_count, font_weight=$font_weight_count"
+  echo "   收编：raw_semantic=$raw_semantic_count, raw_mask=$raw_mask_count, bare_rounded=$bare_rounded_count, handwritten_btn=$handwritten_btn_count, text_white=$text_white_count"
   exit 0
 fi

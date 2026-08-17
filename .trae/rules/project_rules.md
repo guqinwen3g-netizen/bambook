@@ -29,11 +29,11 @@
 - **可豁免**：吉祥物 SVG/Canvas 颜色、3D 地图 WebGL 颜色、邮件/发票模板（CSS 变量在邮件客户端不可靠）
 
 ## Git 工作流
-- main 分支：基线 `dafd300` + 4 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`98cdf9a`）+ 4 个 docs commit（`f2ef300`/`1d3af4c`/`6c8a15b`/`b6dbd9f`）+ 阶段 0 Track A/B（`2cfff97` fix(security) / `3c4f342` feat(observability)）+ 阶段 0-3 收口（`7b11cb6` chore(repo) / `a5aefdc`+`8f928ac` fix(security) / `e82ae6a` feat(observability) / `306dd7d`+`40a1076` fix(agent,finance) / `1d04647` fix(market) / `000159f` feat(knowledge)）+ 企业上线就绪（`cf002fc` fix(frontend) / `46503b8` feat(ops) / `c6d7cec` chore(repo) / `c0068a8` test(frontend)），HEAD=`c0068a8`
+- main 分支：基线 `dafd300` + 4 个修复 commit（`02ccad5`/`ee0e173`/`bd94d7b`/`98cdf9a`）+ 4 个 docs commit（`f2ef300`/`1d3af4c`/`6c8a15b`/`b6dbd9f`）+ 阶段 0 Track A/B（`2cfff97` fix(security) / `3c4f342` feat(observability)）+ 阶段 0-3 收口（`7b11cb6` chore(repo) / `a5aefdc`+`8f928ac` fix(security) / `e82ae6a` feat(observability) / `306dd7d`+`40a1076` fix(agent,finance) / `1d04647` fix(market) / `000159f` feat(knowledge)）+ 企业上线就绪（`cf002fc` fix(frontend) / `46503b8` feat(ops) / `c6d7cec` chore(repo) / `c0068a8` test(frontend)）+ BDS v2→v2.1→v2.2 设计系统收编（`dfd9e6a`/`2ae7383`/`69d47d3`/`5fddee5`/`be97694`）+ 业务深化批次（C1-C8/D2/F1-F5/H1-H3/P0-P3/a5）+ ERP Phase 0-5 全栈实现（`eb1e9a7` P0+P1 迁移 / `e388cda` Phase 1 共享内核 / `bda41a4`+`4714252` Phase 2 八域后端 / `71cd291`+`9ef80c7` Phase 3 前端 UI / `0b0d292` Phase 4 Agent 工具层 / `f553629` Phase 5 集成 / `0d2775c` 遗留修复），HEAD=`0d2775c`
 - 备份分支：`backup/pre-cleanup-20260728`（保留 339 个旧 commit 历史）
 - 远程：`git@github.com:guqinwen3g-netizen/bambook.git`
 - 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过 + 前端 `npm test` 全绿
-- 测试套件：后端 `cd server && npx vitest run`（1442/1442 全通过，含安全/幂等/并发/KB CRUD 回归测试）；前端 `npm test`（1985 通过 + 6 项视觉基线 quarantine 隔离，87 文件）
+- 测试套件：后端 `cd server && npx vitest run`（3728/3728 全通过，263 文件，含安全/幂等/并发/KB CRUD 回归测试）；前端 `npm test`（2343 通过 + 6 项视觉基线 quarantine 隔离，102 文件）
 
 ## Mac Mini 部署
 - **不要用 SSH**，用 OPS Panel（ops.jiangsupanda.com）更稳定
@@ -44,9 +44,15 @@
 
 ## 审计报告
 - 位置：`.trae/documents/bambook-comprehensive-project-scan.md`
-- 版本：v22.0，~13,400 行，158 章 + 第一百五十九章增补 + 第一百六十章增补（阶段 0-3 全量收口凭证）+ 第一百六十一章（企业级上线就绪全量地毯式审查收口），~235 项技术债务（D512-D517 全部已解决；GAP-1/GAP-2 幂等与并发已修复）
-- 包含：前端/后端/Agent/数据库/设计系统/安全/可观测性/架构全维度扫描 + Mac Mini 生产环境修复记录 + 中期验收测试回归修复记录 + 阶段 0-3 收口记录
+- 版本：v31.1，~14,700 行，158 章 + 第一百五十九~一百九十三章增补（共 193 章），~235 项技术债务（D512-D517 全部已解决；GAP-1/GAP-2 幂等与并发已修复）
+- 包含：前端/后端/Agent/数据库/设计系统/安全/可观测性/架构全维度扫描 + Mac Mini 生产环境修复记录 + 中期验收测试回归修复记录 + 阶段 0-3 收口记录 + 目录全量校准 + 甲方投产验收专项
 - 中期验收交付文档：`.trae/documents/mid-project-acceptance-delivery.md`（独立交付凭证，含环境搭建 / 验证命令 / 部署流程 / 交接清单）
+- 2026-08-17 综合审计（四轨并行，综合 ≈84/100）+ 前端设计地毯式评审（6.4/10，高分线 ≥9.0）：结论与批 A-J 修复清单见 `docs/design/10-评审与决策/2026-08-17-前端设计地毯式评审报告.md`
+
+## 多会话协同推进（2026-08-17 起生效）
+- 唯一协调真源：`docs/design/10-评审与决策/2026-08-17-多会话协同推进纪律.md`（分工矩阵 / worktree 隔离 / 三绿门禁 / 断言先行 / W0-W5 波次）
+- 铁律：任何会话不得跨分工边界改文件；`App.tsx` 冻结至 W5（FR-004 专项独占）；`schema.prisma`、check 脚本、package.json 各有单写者
+- 防回退：`scripts/check-design-tokens.sh` 已扩展高分收编基线（raw 语义色 131 / 自造遮罩 17 / 裸 rounded 43 / 手写主按钮 35 / text-white 48，只减不增）
 
 ## 项目架构
 - **两端分离**：桌面客户端（Electron + React）+ Mac Mini 数据中心
