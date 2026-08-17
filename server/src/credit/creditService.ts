@@ -62,6 +62,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const NET30_DAYS = 30;
 const RECEIVABLE_OPEN_STATUSES = ['Issued', 'PartiallyPaid'];
 
+/** shiftUsedAmount CAS 重试上限（超限抛错 → 调用方 CREDIT_WRITE_FAILED，fail-closed） */
+const MAX_SHIFT_CAS_ATTEMPTS = 5;
+
 const genId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 const epochNow = () => BigInt(Date.now());
 
@@ -181,6 +184,12 @@ export function createCreditService(opts: CreditServiceOptions) {
   }
 
   // ── 内部：usedAmount 偏移（delta>0 占用 / delta<0 释放；释放 floor 0） ──
+  // 并发安全（GAP 收口）：读-改-写会丢更新，改为 CAS 原子自增：
+  //   updateMany({ where: { id, status: 'Active', deletedAt: null, usedAmount: 快照 } },
+  //               { data: { usedAmount: { increment: 实际delta } } })
+  //   count=0 说明快照已被并发事务推进 → 重读重试（上限 MAX_SHIFT_CAS_ATTEMPTS 次，fail-closed）。
+  // 历史留痕说明：before/after 取自 CAS 成功时的快照，并发下单行 before/after 可能与其他
+  //   事务交错，但每行 delta 均为真实落库增量，Σdelta 与 usedAmount 终值严格一致（append-only 账本语义不变）。
   async function shiftUsedAmount(
     db: any,
     params: {
@@ -192,28 +201,33 @@ export function createCreditService(opts: CreditServiceOptions) {
       remark?: string;
     },
   ): Promise<{ adjusted: boolean; before: number; after: number; creditLimitId: string | null }> {
-    const cl = await db.creditLimit.findFirst({
-      where: { relationId: params.relationId, status: 'Active', deletedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!cl) return { adjusted: false, before: 0, after: 0, creditLimitId: null };
-    const before = Number(cl.usedAmount);
-    const after = Math.max(0, before + params.delta);
-    await db.creditLimit.update({
-      where: { id: cl.id },
-      data: { usedAmount: after, updatedAt: epochNow() },
-    });
-    await appendHistory(db, {
-      creditLimitId: cl.id,
-      relationId: params.relationId,
-      beforeUsedAmount: before,
-      afterUsedAmount: after,
-      triggerType: params.triggerType,
-      triggerId: params.triggerId,
-      triggerBy: params.triggerBy,
-      remark: params.remark,
-    });
-    return { adjusted: true, before, after, creditLimitId: cl.id };
+    for (let attempt = 0; attempt < MAX_SHIFT_CAS_ATTEMPTS; attempt++) {
+      const cl = await db.creditLimit.findFirst({
+        where: { relationId: params.relationId, status: 'Active', deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!cl) return { adjusted: false, before: 0, after: 0, creditLimitId: null };
+      const before = Number(cl.usedAmount);
+      const after = Math.max(0, before + params.delta);
+      const appliedDelta = after - before; // 释放超余额时按 floor 0 收敛后的真实增量
+      const cas = await db.creditLimit.updateMany({
+        where: { id: cl.id, status: 'Active', deletedAt: null, usedAmount: before },
+        data: { usedAmount: { increment: appliedDelta }, updatedAt: epochNow() },
+      });
+      if (cas.count === 0) continue; // 并发推进了 usedAmount/状态 → 重读快照重试
+      await appendHistory(db, {
+        creditLimitId: cl.id,
+        relationId: params.relationId,
+        beforeUsedAmount: before,
+        afterUsedAmount: after,
+        triggerType: params.triggerType,
+        triggerId: params.triggerId,
+        triggerBy: params.triggerBy,
+        remark: params.remark,
+      });
+      return { adjusted: true, before, after, creditLimitId: cl.id };
+    }
+    throw new Error(`信用额度 usedAmount 并发冲突，CAS 重试 ${MAX_SHIFT_CAS_ATTEMPTS} 次仍失败（relationId=${params.relationId}）`);
   }
 
   // ── 内部：对一组额度执行状态迁移 + 历史留痕 + 审计（freeze/thaw 共用） ──

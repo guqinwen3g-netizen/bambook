@@ -222,7 +222,10 @@ describe('reserveCredit / releaseCredit 占用释放', () => {
     expect(res.data.adjusted).toBe(true);
     expect(res.data.before).toBe(120000);
     expect(res.data.after).toBe(150000);
-    expect(calls.clUpdate.mock.calls[0][0].data.usedAmount).toBe(150000);
+    // 原子化收口：CAS 条件自增（where 携带 usedAmount 快照，data 用 increment 而非绝对值）
+    const cas = calls.clUpdateMany.mock.calls[0][0];
+    expect(cas.where).toMatchObject({ id: 'CL_1', status: 'Active', deletedAt: null, usedAmount: 120000 });
+    expect(cas.data.usedAmount).toEqual({ increment: 30000 });
     const hist = calls.historyCreate.mock.calls[0][0].data;
     expect(hist.delta).toBe(30000);
     expect(hist.triggerType).toBe('order_confirm');
@@ -272,6 +275,7 @@ describe('reserveCredit / releaseCredit 占用释放', () => {
       creditLimit: {
         findFirst: vi.fn(async () => makeCreditLimit()),
         update: vi.fn(async () => ({})),
+        updateMany: vi.fn(async () => ({ count: 1 })),
       },
       creditLimitHistory: { create: txHistoryCreate },
     };
@@ -279,6 +283,78 @@ describe('reserveCredit / releaseCredit 占用释放', () => {
     expect(res.ok).toBe(true);
     expect(txHistoryCreate).toHaveBeenCalledTimes(1);
     expect(prisma.creditLimitHistory.create).not.toHaveBeenCalled();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// shiftUsedAmount 并发回归（GAP 收口：CAS 原子自增）
+// ══════════════════════════════════════════════════════════════════
+describe('shiftUsedAmount CAS 并发回归', () => {
+  it('首次 CAS count=0（快照被并发事务推进）→ 重读新快照二次 CAS 成功，before/after 取新快照', async () => {
+    const { prisma, calls } = makePrisma({ creditLimits: [makeCreditLimit()] });
+    // 第一次读 120000（陈旧快照），并发事务已推进到 135000 → 第二次读新快照
+    prisma.creditLimit.findFirst
+      .mockResolvedValueOnce(makeCreditLimit({ usedAmount: 120000 }))
+      .mockResolvedValueOnce(makeCreditLimit({ usedAmount: 135000 }));
+    calls.clUpdateMany
+      .mockResolvedValueOnce({ count: 0 }) // 陈旧快照 CAS 失败
+      .mockResolvedValueOnce({ count: 1 }); // 新快照 CAS 成功
+    const svc = createCreditService({ prisma });
+    const res = await svc.reserveCredit({ relationId: 'REL_A', amount: 30000, triggerType: 'order_confirm' });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    // 结果取 CAS 成功时的新快照，丢更新被重试兜住
+    expect(res.data.before).toBe(135000);
+    expect(res.data.after).toBe(165000);
+    expect(prisma.creditLimit.findFirst).toHaveBeenCalledTimes(2);
+    expect(calls.clUpdateMany).toHaveBeenCalledTimes(2);
+    // 第二次 CAS 的 where 快照必须是重读后的 135000，而非陈旧的 120000
+    expect(calls.clUpdateMany.mock.calls[1][0].where.usedAmount).toBe(135000);
+    expect(calls.clUpdateMany.mock.calls[1][0].data.usedAmount).toEqual({ increment: 30000 });
+    // 历史留痕与新快照一致（delta 为真实落库增量）
+    const hist = calls.historyCreate.mock.calls[0][0].data;
+    expect(hist.beforeUsedAmount).toBe(135000);
+    expect(hist.afterUsedAmount).toBe(165000);
+    expect(hist.delta).toBe(30000);
+  });
+
+  it('CAS 持续冲突达上限（5 次）→ fail-closed CREDIT_WRITE_FAILED，不写历史', async () => {
+    const { prisma, calls } = makePrisma({ creditLimits: [makeCreditLimit()] });
+    calls.clUpdateMany.mockResolvedValue({ count: 0 }); // 永远冲突
+    const svc = createCreditService({ prisma });
+    const res = await svc.reserveCredit({ relationId: 'REL_A', amount: 30000, triggerType: 'order_confirm' });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.error.code).toBe(CREDIT_ERRORS.CREDIT_WRITE_FAILED);
+    expect(res.error.statusCode).toBe(500);
+    expect(res.error.message).toContain('并发冲突');
+    // 重试上限 5 次（每次循环一次 findFirst + 一次 updateMany）
+    expect(prisma.creditLimit.findFirst).toHaveBeenCalledTimes(5);
+    expect(calls.clUpdateMany).toHaveBeenCalledTimes(5);
+    // 未成功落库 → 不得写历史（append-only 账本不出现 phantom 行）
+    expect(calls.historyCreate).not.toHaveBeenCalled();
+  });
+
+  it('并发释放超余额：重读后快照被其他释放事务压低 → appliedDelta 按新快照 floor 0 收敛', async () => {
+    const { prisma, calls } = makePrisma({ creditLimits: [makeCreditLimit({ usedAmount: 20000 })] });
+    // 第一次读 20000；并发释放事务已把 usedAmount 压到 5000 → 第二次读 5000
+    prisma.creditLimit.findFirst
+      .mockResolvedValueOnce(makeCreditLimit({ usedAmount: 20000 }))
+      .mockResolvedValueOnce(makeCreditLimit({ usedAmount: 5000 }));
+    calls.clUpdateMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+    const svc = createCreditService({ prisma });
+    const res = await svc.releaseCredit({ relationId: 'REL_A', amount: 50000, triggerType: 'order_cancel' });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.data.before).toBe(5000);
+    expect(res.data.after).toBe(0); // floor 0
+    // appliedDelta = -5000（按新快照收敛），而非首次陈旧快照的 -20000
+    expect(calls.clUpdateMany.mock.calls[1][0].data.usedAmount).toEqual({ increment: -5000 });
+    const hist = calls.historyCreate.mock.calls[0][0].data;
+    expect(hist.delta).toBe(-5000);
+    expect(hist.afterUsedAmount).toBe(0);
   });
 });
 
