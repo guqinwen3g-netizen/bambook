@@ -39,6 +39,7 @@ import { TraceabilityPanel } from './TraceabilityPanel';
 import { getExporterProfile } from './tools/exportDocs/exporterProfile';
 import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult, TrackAInput } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import QuotationImportWizard from './import/QuotationImportWizard';
 import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, type TrackBValidInputs } from './pricing/TrackBPanel';
@@ -628,24 +629,24 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                       </div>
                       <div>
                         <label className={labelCls}>币种</label>
-                        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="bds-select">
+                        <select className="bds-select" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
                           {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className={labelCls}>报价日期 *</label>
-                        <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value, validUntil: defaultValidUntil(e.target.value) })} className="bds-input" />
+                        <CapsuleDateInput className="bds-input" value={form.issueDate} onChange={(v) => setForm({ ...form, issueDate: v, validUntil: defaultValidUntil(v) })} isDarkMode={isDarkMode} />
                       </div>
                       <div>
                         <label className={labelCls}>有效期至</label>
-                        <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className="bds-input" />
+                        <CapsuleDateInput className="bds-input" value={form.validUntil} onChange={(v) => setForm({ ...form, validUntil: v })} isDarkMode={isDarkMode} />
                       </div>
                       <div>
                         <label className={labelCls}>客户</label>
-                        <select value={form.customerRelationId} onChange={(e) => {
+                        <select className="bds-select" value={form.customerRelationId} onChange={(e) => {
                           const rel = relations.find(r => r.id === e.target.value);
                           setForm({ ...form, customerRelationId: e.target.value, customerName: rel?.englishName || rel?.chineseName || '' });
-                        }} className="bds-select">
+                        }}>
                           <option value="">选择客户...</option>
                           {customerOptions.map(c => <option key={c.id} value={c.id}>{c.label} ({c.chineseName})</option>)}
                         </select>
@@ -741,7 +742,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                             </div>
                             <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
                             <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
-                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                            <select className="bds-select" value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                               {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
                             <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
@@ -805,24 +806,27 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               </motion.div>
             ) : (
               <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
-                {/* 工具栏：过滤控件组合 → filterbar 玻璃条（主操作已收编 PageHeader） */}
-                <div className="bds-filterbar mb-4">
-                  <div className="relative flex-1 max-w-xs">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
-                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className="bds-input sm pl-9" />
+                {/* 单行筛选 bar（点名③）：原「纯单搜索误套组合 bar + 独立 segment 行」双行
+                    → 搜索 + 状态 segment 并入同一组合 bar（spec §2.1：搜索+≥1 筛选共行 = 组合嵌套 bar；
+                    评估结论：并入优于「单层搜索+独立 segment 行」两行之案——单行收敛上边距，
+                    与 OrderManager/ShipmentManager 范式一致） */}
+                <div className="bds-filterbar mb-4 flex-wrap gap-y-2">
+                  <div className="relative min-w-[160px] flex-[1_1_200px] max-w-xs">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className="bds-input pl-9" />
                   </div>
-                  <button onClick={fetchQuotations} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
+                  <div className="min-w-0 flex-[1_1_auto] overflow-x-auto no-scrollbar">
+                    <div className="bds-segment w-fit">
+                      {STATUS_TABS.map(tab => (
+                        <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`seg whitespace-nowrap ${statusFilter === tab.id ? 'active' : ''}`}>
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={fetchQuotations} className="bds-btn bds-btn-ghost ml-auto" title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
-                </div>
-
-                {/* 状态过滤 */}
-                <div className="bds-segment mb-4">
-                  {STATUS_TABS.map(tab => (
-                    <button key={tab.id} onClick={() => setStatusFilter(tab.id)} className={`seg ${statusFilter === tab.id ? 'active' : ''}`}>
-                      {tab.label}
-                    </button>
-                  ))}
                 </div>
 
                 {/* 错误提示 */}

@@ -41,7 +41,8 @@ describe('digital archive RDL flat [删除中性]', () => {
   });
   it('确认移除按钮非红色（bg-[var(--accent)] 非 bg-red-500）', () => {
     expect(ARCHIVE_SRC).not.toContain('bg-red-500 hover:bg-red-600');
-    expect(ARCHIVE_SRC).toContain('text-white bg-[var(--accent)] hover:opacity-90');
+    // W-PG-P2 Relations 主刀：text-white → text-[var(--on-accent)]（spec §7.6 accent 填充文字走 --on-accent）
+    expect(ARCHIVE_SRC).toContain('text-[var(--on-accent)] bg-[var(--accent)] hover:opacity-90');
   });
   it('删除弹窗图标容器中性', () => {
     expect(ARCHIVE_SRC).not.toContain('bg-red-500/20 text-red-400');
