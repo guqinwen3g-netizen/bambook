@@ -263,6 +263,9 @@ describe('task Agent-P1: executeAgentTool payment.receive_and_reconcile draft→
       agentToolRun: { create: vi.fn().mockResolvedValue({}) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
 
     const actor = { userId: 'user1', role: 'admin', id: 'user1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations'], knowledgeScopes: ['company'], departmentIds: [] } as any;
@@ -317,6 +320,9 @@ describe('task reconcile-service-reuse: Decimal string draft preservation + mani
       agentToolRun: { create: vi.fn().mockResolvedValue({}) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'user1', role: 'admin', id: 'user1', roles: ['admin'], toolScopes: ['finance'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({

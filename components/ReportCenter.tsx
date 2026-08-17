@@ -50,6 +50,7 @@ import {
   ReportRun,
   ReportSchedule,
 } from '../services/reportService';
+import { requestFinanceReportTab } from './finance/FinanceReportsPanel';
 
 // ==================== 常量 ====================
 
@@ -353,6 +354,30 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
 
       <div className="flex-1 min-h-0 flex flex-col px-7 pb-6 pt-2">
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+          {/* 专题报表入口（引擎外服务端聚合投影，非数据集引擎自动发现；引擎后续注册同名数据集时自动隐藏） */}
+          {!datasets.some(d => d.key === 'consolidatedProfit') && (
+            <div className={`${cardClass} p-4 mb-4 flex items-center gap-4`}>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-[var(--text-primary)]">合并利润 · Consolidated Profit</div>
+                <div className={`mt-1 text-[11px] ${textSecondary}`}>
+                  公司合并视图（DR-005）：抵销内部面料采购/销售，仅计客户外部收入 + 真实面料成本；支持合并视图 / 部门视角双口径与日期范围过滤
+                </div>
+                <div className={`mt-0.5 text-[10px] ${textSecondary}`}>
+                  服务端只读聚合投影（/v1/finance/reports/consolidated-profit），不经报表引擎数据集
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  requestFinanceReportTab('consolidated');
+                  onNavigate?.(View.PaymentVouchers, 'reports');
+                }}
+                className="shrink-0 h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light inline-flex items-center gap-1.5 transition-colors"
+              >
+                <ExternalLink size={13} />打开报表
+              </button>
+            </div>
+          )}
+
           {/* Tab 导航 */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {MODULE_TABS.map(t => {

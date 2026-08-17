@@ -145,3 +145,92 @@ describe('Agent status route', () => {
     });
   });
 });
+
+describe('POST /approvals/:id/resolve（Agent 工具审批决策）', () => {
+  const sign = (userId: string, roles: string[]) =>
+    createAuthService().signToken({ userId, displayName: userId, roles, permissions: ['*'], departmentIds: ['company'] });
+
+  function makeResolvePrisma(approval: any) {
+    const updates: any[] = [];
+    const prisma = {
+      approvalRequest: {
+        findUnique: async ({ where }: any) => (approval && approval.id === where.id ? approval : null),
+        update: async ({ where, data }: any) => {
+          updates.push({ where, data });
+          return { ...approval, ...data, decidedAt: new Date('2026-08-17T00:00:00.000Z') };
+        },
+      },
+      userAccount: {
+        count: async () => 1,
+        findFirst: async ({ where }: any) => ({ id: where.id }),
+      },
+      agentToolRun: { count: async () => 0, findFirst: async () => null },
+      auditLog: { findFirst: async () => null, create: async () => ({}) },
+    };
+    return { prisma, updates };
+  }
+
+  const baseApproval = {
+    id: 'ar_test_1',
+    requesterId: 'u_requester',
+    reviewerId: 'u_owner',
+    actionType: 'tool:orders.update',
+    targetType: 'orders',
+    targetId: 'orders.update',
+    status: 'pending',
+    risk: 'high',
+    payload: { toolId: 'orders.update', input: {} },
+    decisionNote: null,
+    createdAt: new Date('2026-08-16T00:00:00.000Z'),
+    decidedAt: null,
+  };
+
+  it('自审禁止：requesterId === 当前用户（owner 角色）→ 403 SELF_APPROVAL_FORBIDDEN 且不写库', async () => {
+    const { prisma, updates } = makeResolvePrisma({ ...baseApproval, requesterId: 'u_owner' });
+    const res = await request(makeApp(false, prisma))
+      .post('/api/agent/approvals/ar_test_1/resolve')
+      .set('Authorization', `Bearer ${sign('u_owner', ['owner'])}`)
+      .send({ decision: 'approved' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ ok: false, error: 'SELF_APPROVAL_FORBIDDEN' });
+    expect(updates).toHaveLength(0);
+  });
+
+  it('自审禁止：manager 角色同样不豁免 → 403', async () => {
+    const { prisma, updates } = makeResolvePrisma({ ...baseApproval, requesterId: 'u_mgr' });
+    const res = await request(makeApp(false, prisma))
+      .post('/api/agent/approvals/ar_test_1/resolve')
+      .set('Authorization', `Bearer ${sign('u_mgr', ['manager'])}`)
+      .send({ decision: 'rejected', comment: '拒绝理由' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('SELF_APPROVAL_FORBIDDEN');
+    expect(updates).toHaveLength(0);
+  });
+
+  it('非本人 pending 单 → 200 正常决策（reviewerId 落库为决策人）', async () => {
+    const { prisma, updates } = makeResolvePrisma({ ...baseApproval });
+    const res = await request(makeApp(false, prisma))
+      .post('/api/agent/approvals/ar_test_1/resolve')
+      .set('Authorization', `Bearer ${sign('u_owner', ['owner'])}`)
+      .send({ decision: 'approved', comment: '同意' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].data).toMatchObject({ status: 'approved', reviewerId: 'u_owner' });
+  });
+
+  it('非本人但已决策单 → 409（自审守卫不影响既有重复决策语义）', async () => {
+    const { prisma, updates } = makeResolvePrisma({ ...baseApproval, status: 'approved' });
+    const res = await request(makeApp(false, prisma))
+      .post('/api/agent/approvals/ar_test_1/resolve')
+      .set('Authorization', `Bearer ${sign('u_owner', ['owner'])}`)
+      .send({ decision: 'approved' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('APPROVAL_ALREADY_RESOLVED');
+    expect(updates).toHaveLength(0);
+  });
+});

@@ -53,6 +53,9 @@ describe('task email-reply-send: executeAgentTool draft→approval', () => {
       agentToolRun: { create: vi.fn().mockResolvedValue({}) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({

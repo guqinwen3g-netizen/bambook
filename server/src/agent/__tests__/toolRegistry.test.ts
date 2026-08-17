@@ -422,6 +422,9 @@ describe('P0-B review 第三轮：executeAgentTool (agentLoop 真实路径) 四�
         findFirst: vi.fn(async () => ({ id: 'ua_test', userId: 'u1', displayName: 'Tester' })),
         create: vi.fn(async () => ({ id: 'ua_test', userId: 'u1', displayName: 'Tester' })),
       },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn(async () => null) },
+      userRole: { findMany: vi.fn(async () => [{ userId: 'ua_admin' }]) },
       // P1-A: loadOrderSnapshot 读取订单快照
       order: {
         findFirst: vi.fn(async () => ({
@@ -562,6 +565,9 @@ describe('P1-A review: order.confirm modified approval fail-closed', () => {
         findFirst: vi.fn(async () => ({ id: 'ua_test', userId: 'u1', displayName: 'Tester' })),
         create: vi.fn(async () => ({ id: 'ua_test', userId: 'u1', displayName: 'Tester' })),
       },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn(async () => null) },
+      userRole: { findMany: vi.fn(async () => [{ userId: 'ua_admin' }]) },
       order: {
         findFirst: vi.fn(async () => ({
           id: 'order_real_id', poNumber: 'PO-001', status: 'Pending', deletedAt: null,
@@ -669,6 +675,9 @@ describe('P1-B: ApprovalRequest.payload 携带 ProcessDraft（验收第1点）',
         findFirst: vi.fn(async () => ({ id: 'usr_owner_default', userId: 'u1', displayName: 'Tester' })),
         create: vi.fn(async () => ({ id: 'usr_owner_default', userId: 'u1', displayName: 'Tester' })),
       },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn(async () => null) },
+      userRole: { findMany: vi.fn(async () => [{ userId: 'ua_admin' }]) },
       order: {
         findFirst: vi.fn(async () => ({
           id: 'order_real_id', poNumber: 'PO-001', status: 'Pending', deletedAt: null,

@@ -186,6 +186,8 @@ export function createMoqRouter(options: MoqRouterOptions): Router {
             productAssetId: l.productAssetId ?? null,
             styleNo: l.styleNo ?? null,
             materialCode: l.materialCode ?? null,
+            // 行级业务线透传（报价单等无单据级 businessLine 的载体逐行推导），service 层行级优先、缺省回退单据级
+            businessLine: l.businessLine ?? null,
           })),
         },
         { actor: auth, autoCreateApproval: false }, // dry-run：永不建审批单

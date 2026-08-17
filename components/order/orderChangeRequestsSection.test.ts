@@ -185,6 +185,58 @@ describe('runtime QA [编辑门禁引导]', () => {
   });
 });
 
+// ═══ Part 8b: 多类型受控改动队列（G4：一次保存多类型 → 逐类发起，队列进度可见） ═══
+describe('runtime QA [受控改动队列]: 多类型逐类发起', () => {
+  it('门禁引导按类型建队（gateQueue + gateQueueIndex）', () => {
+    expect(SECTION_SRC).toContain('const [gateQueue, setGateQueue] = useState<OrderChangeType[]>([])');
+    expect(SECTION_SRC).toContain('const [gateQueueIndex, setGateQueueIndex] = useState(0)');
+    expect(SECTION_SRC).toMatch(/Array\.from\(new Set\(gatePrefill\.edits\.map\(\(e\) => e\.changeType\)\)\)/);
+  });
+  it('预填逻辑收敛为 prefillFormFromGateEdit（建队与队列推进共用）', () => {
+    expect(SECTION_SRC).toContain('const prefillFormFromGateEdit');
+    expect(SECTION_SRC).toMatch(/setForm\(prefillFormFromGateEdit\(firstEdit\)\)/);
+    expect(SECTION_SRC).toMatch(/setForm\(nextEdit \? prefillFormFromGateEdit\(nextEdit\)/);
+  });
+  it('提交成功后队列推进：保留表单 + 预填下一类型 + 剩余数量提示', () => {
+    expect(SECTION_SRC).toMatch(/const nextIndex = gateQueueIndex \+ 1/);
+    expect(SECTION_SRC).toContain('类改动待分别发起（');
+    expect(SECTION_SRC).toContain('已为你预填「');
+  });
+  it('队列进度可见：进度文案 + 逐类状态徽章（已提交/进行中/待发起）', () => {
+    expect(SECTION_SRC).toContain('改动队列进度');
+    expect(SECTION_SRC).toContain('已提交 · ');
+    expect(SECTION_SRC).toContain('进行中 · ');
+    expect(SECTION_SRC).toContain('还有 {gateQueue.length - gateQueueIndex - 1} 类改动待分别发起');
+  });
+  it('手动发起 / 取消 / 队列清空均重置队列（防串单）', () => {
+    expect(SECTION_SRC).toContain('const resetGateQueue = () => {');
+    expect(SECTION_SRC).toMatch(/onClick=\{\(\) => \{ setComposerOpen\(false\); resetGateQueue\(\); \}\}/);
+  });
+});
+
+// ═══ Part 8c: 客户变更 RelationCombobox（G5：新客户选型体验，限客户类别） ═══
+describe('runtime QA [客户变更选型]: RelationCombobox 替换手填关联 ID', () => {
+  it('客户变更分支消费 RelationCombobox（订单域共享路径），限制客户类别', () => {
+    expect(SECTION_SRC).toContain("import RelationCombobox from './RelationCombobox'");
+    expect(SECTION_SRC).toContain('<RelationCombobox');
+    expect(SECTION_SRC).toContain("filterCategories={['Customer']}");
+  });
+  it('选中档案同时写入新客户名称 + 关联 ID（契约字段不变）', () => {
+    expect(SECTION_SRC).toContain('afterCustomer: next.name');
+    expect(SECTION_SRC).toContain("afterCustomerRelationId: next.relationId ?? ''");
+    expect(SECTION_SRC).toContain('relationId={form.afterCustomerRelationId || undefined}');
+  });
+  it('手填「新客户关联 ID」输入框已移除', () => {
+    expect(SECTION_SRC).not.toContain('新客户关联 ID');
+    expect(SECTION_SRC).not.toContain('Relation ID，缺省按名称');
+  });
+  it('区块接收 relations prop + OrderManager 透传 relations', () => {
+    expect(SECTION_SRC).toContain('relations = [],');
+    expect(SECTION_SRC).toContain('relations?: Relation[]');
+    expect(ORDER_MGR_SRC).toMatch(/<OrderChangeRequestsSection[\s\S]*?relations=\{relations\}/);
+  });
+});
+
 // ═══ Part 9: OrderManager 集成落点 ═══
 describe('runtime QA [OrderManager 集成]', () => {
   it('导入并渲染变更申请区块（详情页锚点 order-detail-changes）', () => {

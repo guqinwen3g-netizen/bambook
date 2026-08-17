@@ -551,7 +551,7 @@ describe('主链 E2E [step 11]: 合并报表抵销', () => {
 
   it('mock fetch：getConsolidatedProfitReport GET /api/v1/finance/reports/consolidated-profit', async () => {
     const fetchMock = mockFetchOnce(CONSOLIDATED_FIXTURE);
-    const report = await internalTradeService.getConsolidatedProfitReport(ENDPOINT);
+    const report = await internalTradeService.getConsolidatedProfitReport({}, ENDPOINT);
     const [url] = fetchMock.mock.calls[0] as unknown as [string];
     expect(url).toContain('/api/v1/finance/reports/consolidated-profit');
     expect(report.consolidatedProfit).toBe(80000);

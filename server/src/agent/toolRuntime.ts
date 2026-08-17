@@ -9,6 +9,7 @@ import { emitAgentWorkEvent } from './events';
 import { getToolManifestSafety } from './mcp/manifest';
 import { ActorContext, KnowledgeHit, ToolRisk } from './types';
 import { resolveActorUserAccountId } from './actorIdentity';
+import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { describeOrderSchema, getOrder, queryOrders } from '../orders/query';
 import { describeRelationSchema, expandRelation, getRelation, queryRelations } from '../relations/query';
 import { hydrateEntities, searchEntities } from '../entities/search';
@@ -60,6 +61,16 @@ import { buildPaymentVoucherCreateDraft, commitPaymentVoucherCreate, validatePay
 import { PRODUCT_ASSET_WRITABLE_FIELDS } from '../products/productAssetWritable';
 import { buildOrderStatusTransitionDraft, commitOrderStatusTransition, validateOrderStatusTransitionDraftSemantics, buildOrderDeleteDraft, commitOrderDelete, validateOrderDeleteDraftSemantics, buildOrderLifecycleError } from './orderLifecycleFlow';
 import { buildOrderLineUpdateDraft, commitOrderLineUpdate, validateOrderLineUpdateDraftSemantics, verifyOrderLineUpdateDraftHash, buildOrderLineUpdateError } from './orderLineUpdateFlow';
+import { registerOrderChangesFlowTools, buildOrderChangeCreateDraft, validateOrderChangeCreateDraftSemantics, verifyOrderChangeCreateDraftHash, buildOrderChangeWithdrawDraft, validateOrderChangeWithdrawDraftSemantics, verifyOrderChangeWithdrawDraftHash, buildOrderChangesFlowError } from './orderChangesFlow';
+import { registerPaymentRequestsFlowTools, buildPaymentRequestCreateDraft, validatePaymentRequestCreateDraftSemantics, verifyPaymentRequestCreateDraftHash, buildPaymentRequestCancelDraft, validatePaymentRequestCancelDraftSemantics, verifyPaymentRequestCancelDraftHash, buildPaymentRequestsFlowError } from './paymentRequestsFlow';
+import { registerCreditFlowTools, buildCreditFreezeDraft, validateCreditFreezeDraftSemantics, verifyCreditFreezeDraftHash, buildCreditThawDraft, validateCreditThawDraftSemantics, verifyCreditThawDraftHash, buildCreditFlowError } from './creditFlow';
+import { registerSamplesFlowTools, buildSampleRoundCreateDraft, validateSampleRoundCreateDraftSemantics, verifySampleRoundCreateDraftHash, buildSampleSubmitToCustomerDraft, validateSampleSubmitToCustomerDraftSemantics, verifySampleSubmitToCustomerDraftHash, buildSampleCustomerConfirmationDraft, validateSampleCustomerConfirmationDraftSemantics, verifySampleCustomerConfirmationDraftHash, buildSamplesFlowError } from './samplesFlow';
+import { registerQcFlowTools, buildQcGarmentReviewDraft, validateQcGarmentReviewDraftSemantics, verifyQcGarmentReviewDraftHash, buildQcFabricReviewDraft, validateQcFabricReviewDraftSemantics, verifyQcFabricReviewDraftHash, buildQcSignReportDraft, validateQcSignReportDraftSemantics, verifyQcSignReportDraftHash, buildQcFlowError } from './qcFlow';
+import { registerInternalTradeFlowTools, buildInternalTradeCreateDraft, validateInternalTradeCreateDraftSemantics, verifyInternalTradeCreateDraftHash, buildInternalTradeConfirmDraft, validateInternalTradeConfirmDraftSemantics, verifyInternalTradeConfirmDraftHash, buildInternalTradeFlowError } from './internalTradeFlow';
+import { registerProcurementFlowTools, buildProcurementCreateDraft, validateProcurementCreateDraftSemantics, verifyProcurementCreateDraftHash, buildProcurementUpdateStatusDraft, validateProcurementUpdateStatusDraftSemantics, verifyProcurementUpdateStatusDraftHash, buildProcurementFlowError } from './procurementFlow';
+import { registerInventoryFlowTools, buildInventoryAdjustStockDraft, validateInventoryAdjustStockDraftSemantics, verifyInventoryAdjustStockDraftHash, buildInventoryFlowError } from './inventoryFlow';
+import { registerQuotationFlowTools, buildQuotationCreateDraft, validateQuotationCreateDraftSemantics, verifyQuotationCreateDraftHash, buildQuotationUpdateDraft, validateQuotationUpdateDraftSemantics, verifyQuotationUpdateDraftHash, buildQuotationFlowError } from './quotationFlow';
+import { registerCustomsFlowTools, buildCustomsRegisterLcDraft, validateCustomsRegisterLcDraftSemantics, verifyCustomsRegisterLcDraftHash, buildCustomsUpdateDeclarationDraft, validateCustomsUpdateDeclarationDraftSemantics, verifyCustomsUpdateDeclarationDraftHash, buildCustomsFlowError } from './customsFlow';
 import { stripLineWritable, ORDER_LINE_WRITABLE_FIELDS } from '../orders/orderLineWritable';
 import { PAYMENT_VOUCHER_CREATE_FIELDS, PAYMENT_VOUCHER_PATCH_FIELDS, VALID_PAYMENT_VOUCHER_STATUS } from '../finance/paymentVoucherMutationService';
 import { AgentTaskFrame } from './taskFrame';
@@ -1274,6 +1285,431 @@ export async function executeAgentTool(input: {
     (processDraftForApproval as any) = draft;
   }
 
+  // ── Phase 2 S3a：六新域写工具 draft-first ──
+
+  // order_changes.create draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'order_changes.create') {
+    const ti = input.toolInput || {};
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    if (!body) {
+      const errMsg = 'ORDER_CHANGES_CREATE_PRECONDITIONS_FAILED: input object required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['input required'] };
+    }
+    const draft = buildOrderChangeCreateDraft({ input: body });
+    const semCheck = validateOrderChangeCreateDraftSemantics(draft);
+    if (!semCheck.ok || !verifyOrderChangeCreateDraftHash(draft).ok) {
+      const errMsg = `ORDER_CHANGES_CREATE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // order_changes.withdraw draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'order_changes.withdraw') {
+    const ti = input.toolInput || {};
+    const changeRequestId = String(ti.changeRequestId || '');
+    const actorId = String(ti.actorId || '');
+    if (!changeRequestId || !actorId) {
+      const errMsg = 'ORDER_CHANGES_WITHDRAW_PRECONDITIONS_FAILED: changeRequestId and actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['changeRequestId+actorId required'] };
+    }
+    const draft = buildOrderChangeWithdrawDraft({ changeRequestId, actorId });
+    const semCheck = validateOrderChangeWithdrawDraftSemantics(draft);
+    if (!semCheck.ok || !verifyOrderChangeWithdrawDraftHash(draft).ok) {
+      const errMsg = `ORDER_CHANGES_WITHDRAW_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // payment_requests.create draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'payment_requests.create') {
+    const ti = input.toolInput || {};
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    if (!body) {
+      const errMsg = 'PAYMENT_REQUESTS_CREATE_PRECONDITIONS_FAILED: input object required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['input required'] };
+    }
+    const draft = buildPaymentRequestCreateDraft({ input: body });
+    const semCheck = validatePaymentRequestCreateDraftSemantics(draft);
+    if (!semCheck.ok || !verifyPaymentRequestCreateDraftHash(draft).ok) {
+      const errMsg = `PAYMENT_REQUESTS_CREATE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // payment_requests.cancel draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'payment_requests.cancel') {
+    const ti = input.toolInput || {};
+    const paymentRequestId = String(ti.paymentRequestId || '');
+    const actorId = String(ti.actorId || '');
+    if (!paymentRequestId || !actorId) {
+      const errMsg = 'PAYMENT_REQUESTS_CANCEL_PRECONDITIONS_FAILED: paymentRequestId and actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['paymentRequestId+actorId required'] };
+    }
+    const draft = buildPaymentRequestCancelDraft({ paymentRequestId, actorId });
+    const semCheck = validatePaymentRequestCancelDraftSemantics(draft);
+    if (!semCheck.ok || !verifyPaymentRequestCancelDraftHash(draft).ok) {
+      const errMsg = `PAYMENT_REQUESTS_CANCEL_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // credit.freeze draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'credit.freeze') {
+    const ti = input.toolInput || {};
+    const relationId = String(ti.relationId || '');
+    const reason = String(ti.reason || '');
+    const actorId = String(ti.actorId || '');
+    if (!relationId || !reason || !actorId) {
+      const errMsg = 'CREDIT_FREEZE_PRECONDITIONS_FAILED: relationId, reason, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['relationId+reason+actorId required'] };
+    }
+    const draft = buildCreditFreezeDraft({ relationId, reason, actorId });
+    const semCheck = validateCreditFreezeDraftSemantics(draft);
+    if (!semCheck.ok || !verifyCreditFreezeDraftHash(draft).ok) {
+      const errMsg = `CREDIT_FREEZE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // credit.thaw draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'credit.thaw') {
+    const ti = input.toolInput || {};
+    const relationId = String(ti.relationId || '');
+    const reason = String(ti.reason || '');
+    const actorId = String(ti.actorId || '');
+    if (!relationId || !reason || !actorId) {
+      const errMsg = 'CREDIT_THAW_PRECONDITIONS_FAILED: relationId, reason, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['relationId+reason+actorId required'] };
+    }
+    const draft = buildCreditThawDraft({ relationId, reason, actorId });
+    const semCheck = validateCreditThawDraftSemantics(draft);
+    if (!semCheck.ok || !verifyCreditThawDraftHash(draft).ok) {
+      const errMsg = `CREDIT_THAW_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // samples.create_round draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'samples.create_round') {
+    const ti = input.toolInput || {};
+    const caseId = String(ti.caseId || '');
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    const actorId = String(ti.actorId || '');
+    if (!caseId || !body || !actorId) {
+      const errMsg = 'SAMPLES_CREATE_ROUND_PRECONDITIONS_FAILED: caseId, input, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['caseId+input+actorId required'] };
+    }
+    const draft = buildSampleRoundCreateDraft({ caseId, input: body, actorId });
+    const semCheck = validateSampleRoundCreateDraftSemantics(draft);
+    if (!semCheck.ok || !verifySampleRoundCreateDraftHash(draft).ok) {
+      const errMsg = `SAMPLES_CREATE_ROUND_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // samples.submit_to_customer draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'samples.submit_to_customer') {
+    const ti = input.toolInput || {};
+    const roundId = String(ti.roundId || '');
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    const actorId = String(ti.actorId || '');
+    if (!roundId || !body || !actorId) {
+      const errMsg = 'SAMPLES_SUBMIT_PRECONDITIONS_FAILED: roundId, input, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['roundId+input+actorId required'] };
+    }
+    const draft = buildSampleSubmitToCustomerDraft({ roundId, input: body, actorId });
+    const semCheck = validateSampleSubmitToCustomerDraftSemantics(draft);
+    if (!semCheck.ok || !verifySampleSubmitToCustomerDraftHash(draft).ok) {
+      const errMsg = `SAMPLES_SUBMIT_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // samples.register_customer_confirmation draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'samples.register_customer_confirmation') {
+    const ti = input.toolInput || {};
+    const roundId = String(ti.roundId || '');
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    const actorId = String(ti.actorId || '');
+    if (!roundId || !body || !actorId) {
+      const errMsg = 'SAMPLES_CONFIRM_PRECONDITIONS_FAILED: roundId, input, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['roundId+input+actorId required'] };
+    }
+    const draft = buildSampleCustomerConfirmationDraft({ roundId, input: body, actorId });
+    const semCheck = validateSampleCustomerConfirmationDraftSemantics(draft);
+    if (!semCheck.ok || !verifySampleCustomerConfirmationDraftHash(draft).ok) {
+      const errMsg = `SAMPLES_CONFIRM_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // qc.review_garment_sample draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'qc.review_garment_sample') {
+    const ti = input.toolInput || {};
+    const orderId = String(ti.orderId || '');
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    const actorId = String(ti.actorId || '');
+    if (!orderId || !body || !actorId) {
+      const errMsg = 'QC_REVIEW_GARMENT_PRECONDITIONS_FAILED: orderId, input, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['orderId+input+actorId required'] };
+    }
+    const draft = buildQcGarmentReviewDraft({ orderId, input: body, actorId });
+    const semCheck = validateQcGarmentReviewDraftSemantics(draft);
+    if (!semCheck.ok || !verifyQcGarmentReviewDraftHash(draft).ok) {
+      const errMsg = `QC_REVIEW_GARMENT_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // qc.review_fabric_sample draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'qc.review_fabric_sample') {
+    const ti = input.toolInput || {};
+    const orderId = String(ti.orderId || '');
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    const actorId = String(ti.actorId || '');
+    if (!orderId || !body || !actorId) {
+      const errMsg = 'QC_REVIEW_FABRIC_PRECONDITIONS_FAILED: orderId, input, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['orderId+input+actorId required'] };
+    }
+    const draft = buildQcFabricReviewDraft({ orderId, input: body, actorId });
+    const semCheck = validateQcFabricReviewDraftSemantics(draft);
+    if (!semCheck.ok || !verifyQcFabricReviewDraftHash(draft).ok) {
+      const errMsg = `QC_REVIEW_FABRIC_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // qc.sign_report draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'qc.sign_report') {
+    const ti = input.toolInput || {};
+    const reportId = String(ti.reportId || '');
+    const role = String(ti.role || '');
+    const actorId = String(ti.actorId || '');
+    if (!reportId || !role || !actorId) {
+      const errMsg = 'QC_SIGN_REPORT_PRECONDITIONS_FAILED: reportId, role, actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['reportId+role+actorId required'] };
+    }
+    const draft = buildQcSignReportDraft({ reportId, role, actorId });
+    const semCheck = validateQcSignReportDraftSemantics(draft);
+    if (!semCheck.ok || !verifyQcSignReportDraftHash(draft).ok) {
+      const errMsg = `QC_SIGN_REPORT_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // internal_trade.create draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'internal_trade.create') {
+    const ti = input.toolInput || {};
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    if (!body) {
+      const errMsg = 'INTERNAL_TRADE_CREATE_PRECONDITIONS_FAILED: input object required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['input required'] };
+    }
+    const draft = buildInternalTradeCreateDraft({ input: body });
+    const semCheck = validateInternalTradeCreateDraftSemantics(draft);
+    if (!semCheck.ok || !verifyInternalTradeCreateDraftHash(draft).ok) {
+      const errMsg = `INTERNAL_TRADE_CREATE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // internal_trade.confirm draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'internal_trade.confirm') {
+    const ti = input.toolInput || {};
+    const transferId = String(ti.transferId || '');
+    const actorId = String(ti.actorId || '');
+    if (!transferId || !actorId) {
+      const errMsg = 'INTERNAL_TRADE_CONFIRM_PRECONDITIONS_FAILED: transferId and actorId required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['transferId+actorId required'] };
+    }
+    const draft = buildInternalTradeConfirmDraft({ transferId, actorId, confirmedQuantity: ti.confirmedQuantity !== undefined ? Number(ti.confirmedQuantity) : undefined, confirmedDueDate: ti.confirmedDueDate ? String(ti.confirmedDueDate) : undefined });
+    const semCheck = validateInternalTradeConfirmDraftSemantics(draft);
+    if (!semCheck.ok || !verifyInternalTradeConfirmDraftHash(draft).ok) {
+      const errMsg = `INTERNAL_TRADE_CONFIRM_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // ── Phase 2 S3b：四存量域写工具 draft-first ──
+
+  // procurement.create draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'procurement.create') {
+    const ti = input.toolInput || {};
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    if (!body) {
+      const errMsg = 'PROCUREMENT_CREATE_PRECONDITIONS_FAILED: input object required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['input required'] };
+    }
+    const draft = buildProcurementCreateDraft({ input: body });
+    const semCheck = validateProcurementCreateDraftSemantics(draft);
+    if (!semCheck.ok || !verifyProcurementCreateDraftHash(draft).ok) {
+      const errMsg = `PROCUREMENT_CREATE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // procurement.update_status draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'procurement.update_status') {
+    const ti = input.toolInput || {};
+    const purchaseOrderId = String(ti.purchaseOrderId || '');
+    const toStatus = String(ti.toStatus || '');
+    if (!purchaseOrderId || !toStatus) {
+      const errMsg = 'PROCUREMENT_UPDATE_STATUS_PRECONDITIONS_FAILED: purchaseOrderId and toStatus required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['purchaseOrderId+toStatus required'] };
+    }
+    const draft = buildProcurementUpdateStatusDraft({ purchaseOrderId, toStatus, reason: ti.reason ? String(ti.reason) : undefined });
+    const semCheck = validateProcurementUpdateStatusDraftSemantics(draft);
+    if (!semCheck.ok || !verifyProcurementUpdateStatusDraftHash(draft).ok) {
+      const errMsg = `PROCUREMENT_UPDATE_STATUS_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // inventory.adjust_stock draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'inventory.adjust_stock') {
+    const ti = input.toolInput || {};
+    const movement = ti.movement && typeof ti.movement === 'object' ? ti.movement as Record<string, unknown> : null;
+    if (!movement) {
+      const errMsg = 'INVENTORY_ADJUST_STOCK_PRECONDITIONS_FAILED: movement object required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['movement required'] };
+    }
+    const draft = buildInventoryAdjustStockDraft({ movement });
+    const semCheck = validateInventoryAdjustStockDraftSemantics(draft);
+    if (!semCheck.ok || !verifyInventoryAdjustStockDraftHash(draft).ok) {
+      const errMsg = `INVENTORY_ADJUST_STOCK_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // quotation.create draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'quotation.create') {
+    const ti = input.toolInput || {};
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    if (!body) {
+      const errMsg = 'QUOTATION_CREATE_PRECONDITIONS_FAILED: input object required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['input required'] };
+    }
+    const draft = buildQuotationCreateDraft({ input: body });
+    const semCheck = validateQuotationCreateDraftSemantics(draft);
+    if (!semCheck.ok || !verifyQuotationCreateDraftHash(draft).ok) {
+      const errMsg = `QUOTATION_CREATE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // quotation.update draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'quotation.update') {
+    const ti = input.toolInput || {};
+    const quotationId = String(ti.quotationId || '');
+    const rawPatch = (ti.patch && typeof ti.patch === 'object') ? ti.patch as Record<string, unknown> : null;
+    if (!quotationId || !rawPatch || Object.keys(rawPatch).length === 0) {
+      const errMsg = 'QUOTATION_UPDATE_PRECONDITIONS_FAILED: quotationId and non-empty patch required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['quotationId+patch required'] };
+    }
+    const draft = buildQuotationUpdateDraft({ quotationId, patch: rawPatch });
+    const semCheck = validateQuotationUpdateDraftSemantics(draft);
+    if (!semCheck.ok || !verifyQuotationUpdateDraftHash(draft).ok) {
+      const errMsg = `QUOTATION_UPDATE_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // customs.register_lc draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'customs.register_lc') {
+    const ti = input.toolInput || {};
+    const body = ti.input && typeof ti.input === 'object' ? ti.input as Record<string, unknown> : null;
+    if (!body) {
+      const errMsg = 'CUSTOMS_REGISTER_LC_PRECONDITIONS_FAILED: input object required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['input required'] };
+    }
+    const draft = buildCustomsRegisterLcDraft({ input: body });
+    const semCheck = validateCustomsRegisterLcDraftSemantics(draft);
+    if (!semCheck.ok || !verifyCustomsRegisterLcDraftHash(draft).ok) {
+      const errMsg = `CUSTOMS_REGISTER_LC_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
+  // customs.update_declaration draft-first
+  if (p0bToolDef?.processSpec && definition.id === 'customs.update_declaration') {
+    const ti = input.toolInput || {};
+    const declarationId = String(ti.declarationId || '');
+    const rawPatch = (ti.patch && typeof ti.patch === 'object') ? ti.patch as Record<string, unknown> : null;
+    if (!declarationId || !rawPatch || Object.keys(rawPatch).length === 0) {
+      const errMsg = 'CUSTOMS_UPDATE_DECLARATION_PRECONDITIONS_FAILED: declarationId and non-empty patch required';
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: ['declarationId+patch required'] };
+    }
+    const draft = buildCustomsUpdateDeclarationDraft({ declarationId, patch: rawPatch });
+    const semCheck = validateCustomsUpdateDeclarationDraftSemantics(draft);
+    if (!semCheck.ok || !verifyCustomsUpdateDeclarationDraftHash(draft).ok) {
+      const errMsg = `CUSTOMS_UPDATE_DECLARATION_DRAFT_INVALID: ${semCheck.error?.message || 'hash mismatch'}`;
+      await recordAgentToolRun(input.prisma, { actor: input.actor, definition, status: 'failed', toolInput: input.toolInput, error: errMsg, startedAt: new Date(), sessionId: input.sessionId, actorUserId: input.actorUserId, requestSource: input.requestSource });
+      return { status: 'preconditions_failed', message: errMsg, toolId: definition.id, errors: [semCheck.error?.code || 'DRAFT_INVALID'] };
+    }
+    (processDraftForApproval as any) = draft;
+  }
+
   // 新架构支持在挂起后自动重跑：如果在挂起等待后重跑，skipApprovalCheck 为 true
   if (!input.skipApprovalCheck && (decision.requiresApproval || toolRequiresApprovalForAgentLoop)) {
     // agentLoop 路径：不 throw，而是创建审批请求并返回结构化结果，
@@ -1787,11 +2223,19 @@ async function createPendingApprovalRequest(prisma: PrismaClient, opts: {
       requesterId = owner.id;
       fallbackToOwner = true;
     }
+    // DR-007：reviewerId 只能由服务端 resolveReviewerByDepartment 解析（与业务审批同一 kernel），
+    // 落库 reviewerId / reviewerResolverRoute / departmentSnapshotId 三个 createOnce 字段。
+    // 解析失败（NO_REVIEWER_RESOLVED 等）落入下方 catch → return null，按"审批无法落库"拒绝执行，
+    // 绝不允许 reviewerId=null 的审批单落库（BASE-39-B4 fail-closed）。
+    const resolution = await createApprovalRoutingService({ prisma }).resolveReviewerByDepartment(requesterId);
     const id = `ar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     await prisma.approvalRequest.create({
       data: {
         id,
         requesterId,
+        reviewerId: resolution.reviewerId,
+        reviewerResolverRoute: resolution.route,
+        departmentSnapshotId: resolution.departmentSnapshotId,
         actionType: `tool:${opts.definition.id}`,
         targetType: opts.definition.scope || 'agent-tool',
         targetId: opts.definition.id,
@@ -2557,6 +3001,18 @@ registerTool('production.scan_alerts', async (prisma) => {
 
 // ── Phase 4 Track G：Phase 2 八域只读查询工具（risk=low + approvalPolicy=never，无写库）──
 registerNewDomainQueryTools();
+
+// ── Phase 2 S3a/S3b：21 个写工具 Flow 注册（commit 统一走 registerCommitTool）──
+registerOrderChangesFlowTools();
+registerPaymentRequestsFlowTools();
+registerCreditFlowTools();
+registerSamplesFlowTools();
+registerQcFlowTools();
+registerInternalTradeFlowTools();
+registerProcurementFlowTools();
+registerInventoryFlowTools();
+registerQuotationFlowTools();
+registerCustomsFlowTools();
 
 // 注册统计日志（开发环境可查看）
 // ═══ 复合 commit 工具注册（通过 registerCommitTool 统一 approval boilerplate）═══

@@ -65,6 +65,19 @@ export interface UpdatePurchaseOrderInput extends Partial<CreatePurchaseOrderInp
 
 export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Confirmed' | 'PartiallyReceived' | 'Received' | 'Closed' | 'Cancelled';
 
+/**
+ * 可手动流转的目标状态（Agent Flow / route 共用此真源）。
+ * PartiallyReceived/Received 由来料检验（createMaterialReceipt）驱动，Draft 为初始态，均不可手动设置。
+ */
+export const MANUAL_PURCHASE_ORDER_TRANSITION_TARGETS: readonly PurchaseOrderStatus[] = ['Sent', 'Confirmed', 'Cancelled', 'Closed'];
+
+/** 采购单创建可写字段白名单（route / Agent Flow 共用真源；lines 元素字段见 PurchaseLineInput） */
+export const PURCHASE_ORDER_CREATE_FIELDS: readonly string[] = [
+  'poNumber', 'currency', 'supplierRelationId', 'supplierName', 'supplierCode', 'orderDate',
+  'expectedDeliveryDate', 'deliveryTerms', 'paymentTerms', 'shipToAddress', 'orderId', 'quotationId',
+  'bomId', 'buyer', 'exchangeRate', 'baseCurrency', 'notes', 'lines',
+];
+
 export interface PurchaseOrderDetail extends PurchaseOrder {
   lines: PurchaseLine[];
   receipts?: MaterialReceipt[];
@@ -620,6 +633,20 @@ export function createProcurementService(prisma: PrismaClient) {
     return updated as PurchaseOrderDetail;
   }
 
+  // ── 状态转换统一入口：按既有状态机流转到目标状态（Agent Flow 与 route 共用） ──
+  // 仅委托既有 send/confirm/cancel/close 原子方法，状态机真源仍是 TRANSITIONS + validateStatusTransition；
+  // PartiallyReceived/Received 由来料检验驱动，Draft 为初始态，手动设置一律拒绝。
+  async function transitionPurchaseOrderStatus(id: string, toStatus: PurchaseOrderStatus, actorId: string, reason?: string): Promise<PurchaseOrderDetail> {
+    switch (toStatus) {
+      case 'Sent': return sendPurchaseOrder(id, actorId);
+      case 'Confirmed': return confirmPurchaseOrder(id, actorId);
+      case 'Cancelled': return cancelPurchaseOrder(id, actorId, reason);
+      case 'Closed': return closePurchaseOrder(id, actorId);
+      default:
+        throw new Error(`采购单状态 ${toStatus} 不可手动流转（PartiallyReceived/Received 由来料检验驱动，Draft 为初始态）`);
+    }
+  }
+
   // ── 来料检验记录 ──
   async function createMaterialReceipt(
     purchaseOrderId: string,
@@ -771,6 +798,7 @@ export function createProcurementService(prisma: PrismaClient) {
     confirmPurchaseOrder,
     cancelPurchaseOrder,
     closePurchaseOrder,
+    transitionPurchaseOrderStatus,
     createMaterialReceipt,
   };
 }

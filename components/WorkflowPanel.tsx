@@ -44,6 +44,7 @@ import {
   type GateCheckResult,
 } from '../services/exceptionService';
 import { getAuthState, hasRole } from '../services/authService';
+import UserCombobox from './ui/UserCombobox';
 
 // ── 状态 → 显示 ──
 const STATUS_LABEL: Record<WorkflowInstanceStatus, string> = {
@@ -407,12 +408,13 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                                   <CornerUpRight size={12} strokeWidth={1.5} className={brandIcon} />
                                   委派给他人 Delegate
                                 </div>
-                                <input
-                                  type="text"
-                                  placeholder="被委派人用户 ID（禁止委派给申请人）"
+                                <UserCombobox
                                   value={delegateForm.toUserId}
-                                  onChange={e => setDelegateForm(prev => ({ ...prev, toUserId: e.target.value }))}
-                                  className={inputCls}
+                                  onChange={(userId) => setDelegateForm(prev => ({ ...prev, toUserId: userId }))}
+                                  excludeIds={[item.requesterId, currentUserId].filter(Boolean)}
+                                  placeholder="搜索被委派人（姓名 / 角色 / 部门，禁止委派给申请人）"
+                                  inputClassName={inputCls}
+                                  disabled={actionLoading === item.id}
                                 />
                                 <input
                                   type="text"

@@ -745,9 +745,12 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/reports/consolidated-profit — DR-005/DR-033 公司合并视图（抵销内部交易）
-  router.get('/reports/consolidated-profit', async (_req: Request, res: Response) => {
+  // 支持 ?from=&to= 按订单日期（Order.poDate）过滤报表范围，响应回显 from/to 元数据
+  router.get('/reports/consolidated-profit', async (req: Request, res: Response) => {
     try {
-      const report = await getConsolidatedProfitReport(prisma);
+      const from = typeof req.query.from === 'string' && req.query.from.trim() ? req.query.from.trim() : undefined;
+      const to = typeof req.query.to === 'string' && req.query.to.trim() ? req.query.to.trim() : undefined;
+      const report = await getConsolidatedProfitReport(prisma, { from, to });
       res.json(report);
     } catch (err: any) {
       logger.error('[finance] GET /reports/consolidated-profit failed', { error: err?.message || String(err) });

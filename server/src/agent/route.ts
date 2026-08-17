@@ -9,6 +9,7 @@ import { AgentRole, ActorContext } from './types';
 import { getMcpManifest } from './mcp/manifest';
 import { runMcpPlan } from './mcp/executor';
 import { buildAgentTaskFrame } from './taskFrame';
+import { approvalEventBus, formEventBus } from './events';
 import { logger } from '../lib/logger';
 
 type AuthOptions = {
@@ -360,6 +361,11 @@ export function createAgentRouter(options: AgentStatusOptions) {
     if (approval.status !== 'pending') {
       return res.status(409).json({ ok: false, error: 'APPROVAL_ALREADY_RESOLVED', message: 'Approval request has already been resolved.', approval: serializeApprovalRequest(approval) });
     }
+    // 自审禁止（与业务审批 POST /api/v1/approvals/:id/decide 同一语义，DR-007 职责分离）：
+    // 申请人不可审批自己的单子，owner/admin/manager 角色也不例外
+    if (approval.requesterId === actor.userId) {
+      return res.status(403).json({ ok: false, error: 'SELF_APPROVAL_FORBIDDEN', message: '申请人不可审批自己的单子（自审禁止）。' });
+    }
 
     const reviewer = await options.prisma.userAccount.findFirst({
       where: { id: actor.userId, deletedAt: null },
@@ -417,7 +423,6 @@ export function createAgentRouter(options: AgentStatusOptions) {
       },
     });
 
-    const { approvalEventBus } = require('./events');
     approvalEventBus.emit('resolved', approval.id, {
       decision,
       decisionNote,
@@ -432,7 +437,6 @@ export function createAgentRouter(options: AgentStatusOptions) {
     const values = req.body?.values && typeof req.body.values === 'object'
       ? req.body.values as Record<string, unknown>
       : {};
-    const { formEventBus } = require('./events');
     formEventBus.emit('submitted', formId, values);
     res.json({ ok: true, formId, values });
   }));

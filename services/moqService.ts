@@ -107,15 +107,17 @@ export interface MoqValidateDryRunInput {
   lines: MoqValidateLineInput[];
 }
 
-/** MOQ 路由错误契约：{ error: 'SCOPE_DENIED' 等码, message: 人类可读 } */
+/** MOQ 路由错误契约：{ error: 'SCOPE_DENIED' 等码, message: 人类可读 } — 错误码透传（err.code + CODE：message 前缀） */
 async function readMoqError(res: Response, op: string): Promise<never> {
   const err = await res.json().catch(() => ({}));
+  const code = typeof err?.error === 'string' ? err.error : undefined;
   const message = typeof err?.message === 'string' && err.message
     ? err.message
-    : typeof err?.error === 'string' && err.error
-      ? err.error
-      : `${op} failed: HTTP ${res.status}`;
-  throw new Error(message);
+    : code || `${op} failed: HTTP ${res.status}`;
+  const error: any = new Error(code && err?.message && !message.includes(code) ? `${code}：${message}` : message);
+  error.status = res.status;
+  error.code = code;
+  throw error;
 }
 
 export const moqService = {

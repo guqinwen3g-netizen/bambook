@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 const fs = require('fs');
 const path = require('path');
 const PANEL_SRC = fs.readFileSync(path.resolve(__dirname, 'WorkflowPanel.tsx'), 'utf-8');
+const USER_COMBOBOX_SRC = fs.readFileSync(path.resolve(__dirname, 'ui/UserCombobox.tsx'), 'utf-8');
+const API_SVC_SRC = fs.readFileSync(path.resolve(__dirname, '../services/apiService.ts'), 'utf-8');
 const KERNEL_SVC_SRC = fs.readFileSync(path.resolve(__dirname, '../services/approvalKernelService.ts'), 'utf-8');
 const EXC_SVC_SRC = fs.readFileSync(path.resolve(__dirname, '../services/exceptionService.ts'), 'utf-8');
 const SERVER_KERNEL_ROUTE = fs.readFileSync(path.resolve(__dirname, '../server/src/approvals/approvalKernelRoute.ts'), 'utf-8');
@@ -101,6 +103,13 @@ describe('runtime QA [WorkflowPanel]: 审批中心增强', () => {
     expect(PANEL_SRC).toContain('委派记录');
     expect(PANEL_SRC).toContain('canDelegate');
   });
+  it('委派受让人为 BDS 用户选择器（可搜索下拉，非手填 ID）', () => {
+    expect(PANEL_SRC).toContain("import UserCombobox from './ui/UserCombobox'");
+    expect(PANEL_SRC).toContain('<UserCombobox');
+    expect(PANEL_SRC).toContain('value={delegateForm.toUserId}');
+    expect(PANEL_SRC).toContain('excludeIds={[item.requesterId, currentUserId].filter(Boolean)}');
+    expect(PANEL_SRC).not.toContain('被委派人用户 ID（禁止委派给申请人）');
+  });
   it('BOSS 兜底标识与特批（owner 角色 + reason ≥30 字守卫）', () => {
     expect(PANEL_SRC).toContain('BOSS 最终兜底特批');
     expect(PANEL_SRC).toContain('BOSS_REASON_MIN = 30');
@@ -140,5 +149,42 @@ describe('runtime QA [WorkflowPanel]: 审批中心增强', () => {
     expect(PANEL_SRC).not.toMatch(/(bg|text|border)-\[#[0-9a-fA-F]{3,8}\]/);
     expect(PANEL_SRC).not.toContain('box-shadow:');
     expect(PANEL_SRC).not.toMatch(/font-(medium|semibold|bold)\b/);
+  });
+});
+
+// Part 5: UserCombobox 用户选择器（G3 委派选人）
+describe('runtime QA [UserCombobox]: 审批委派用户选择器', () => {
+  it('数据源复用 /api/hr/personnel（apiService.listUserAccounts），透出角色快照', () => {
+    expect(USER_COMBOBOX_SRC).toContain('apiService.listUserAccounts()');
+    expect(API_SVC_SRC).toContain('UserAccountDirectoryOption');
+    expect(API_SVC_SRC).toContain('roles: Array.isArray(u.roles) ? u.roles : null');
+  });
+  it('展示 姓名 + 角色 + 部门，受控值为 userId', () => {
+    expect(USER_COMBOBOX_SRC).toContain('onChange: (userId: string) => void');
+    expect(USER_COMBOBOX_SRC).toContain('u.displayName');
+    expect(USER_COMBOBOX_SRC).toContain("u.roles ?? []");
+    expect(USER_COMBOBOX_SRC).toContain('u.department');
+    expect(USER_COMBOBOX_SRC).toContain('onChange(u.id)');
+  });
+  it('可搜索：按姓名 / ID / 部门 / 角色过滤，点击外部关闭', () => {
+    expect(USER_COMBOBOX_SRC).toContain("u.displayName.toLowerCase().includes(lower)");
+    expect(USER_COMBOBOX_SRC).toContain("u.id.toLowerCase().includes(lower)");
+    expect(USER_COMBOBOX_SRC).toContain('document.addEventListener');
+  });
+  it('excludeIds 排除申请人/当前审批人（服务端仍 fail-closed）', () => {
+    expect(USER_COMBOBOX_SRC).toContain('excludeIds');
+    expect(USER_COMBOBOX_SRC).toContain('!excluded.has(u.id)');
+  });
+  it('目录加载失败降级为手工录入用户 ID（QC 人员选择器既定降级范式）', () => {
+    expect(USER_COMBOBOX_SRC).toContain('loadFailed');
+    expect(USER_COMBOBOX_SRC).toContain('用户目录不可用，请手工输入用户 ID');
+  });
+  it('设计系统纪律：无硬编码 hex / rounded-[Npx] / box-shadow / 过重字重 / emoji', () => {
+    expect(USER_COMBOBOX_SRC).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(USER_COMBOBOX_SRC).not.toMatch(/rounded-\[\d+px\]/);
+    expect(USER_COMBOBOX_SRC).not.toContain('box-shadow');
+    expect(USER_COMBOBOX_SRC).not.toMatch(/font-(medium|semibold|bold)\b/);
+    // eslint-disable-next-line no-control-regex
+    expect(USER_COMBOBOX_SRC).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
   });
 });

@@ -8,7 +8,7 @@ const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolSco
 describe('task flow: knowledge.ingest real draft→approval→commit flow', () => {
   it('executeAgentTool creates approval (draft phase), no pseudo-success', async () => {
     const approvalCreate = vi.fn().mockImplementation(async ({ data }: any) => data);
-    const prisma = { agentToolRun: { create: vi.fn().mockResolvedValue({}) }, approvalRequest: { create: approvalCreate }, userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) }, actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) } } as any;
+    const prisma = { agentToolRun: { create: vi.fn().mockResolvedValue({}) }, approvalRequest: { create: approvalCreate }, userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) }, actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) }, department: { findUnique: vi.fn().mockResolvedValue(null) }, userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) } } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'knowledge.ingest', toolInput: { title: 't', text: 'content here' }, sessionId: 's1' });
     expect(result?.status).toBe('approval_required');
     expect(approvalCreate).toHaveBeenCalledTimes(1);
@@ -52,7 +52,7 @@ describe('task gap-closure: email.sync fail-closed (EMAIL_SYNC_NOT_CONFIGURED)',
 
   it('executeAgentTool creates approval (draft phase), credentialRef replaces password', async () => {
     const approvalCreate = vi.fn().mockImplementation(async ({ data }: any) => data);
-    const prisma = { agentToolRun: { create: vi.fn().mockResolvedValue({}) }, approvalRequest: { create: approvalCreate }, userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) }, actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) } } as any;
+    const prisma = { agentToolRun: { create: vi.fn().mockResolvedValue({}) }, approvalRequest: { create: approvalCreate }, userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) }, actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) }, department: { findUnique: vi.fn().mockResolvedValue(null) }, userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) } } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'email.sync', toolInput: { credentials: { user: 'a@b.com', pass: 'supersecret' } }, sessionId: 's1' });
     expect(result?.status).toBe('approval_required');
     expect(approvalCreate).toHaveBeenCalledTimes(1);

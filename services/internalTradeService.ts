@@ -2,9 +2,14 @@
  * DR-005/DR-033 内部面料交易 API service — /v1/internal-trade + /v1/finance/reports/consolidated-profit
  *
  * 后端契约（server/src/internalTrade/internalTradeRoute.ts + server/src/finance/reportService.ts，冻结）：
- *   GET /v1/internal-trade                 — 内部供料单列表（departmentId / status / garmentOrderId / fabricOrderId 过滤）
- *   GET /v1/internal-trade/:id             — 详情（master + mirror + 解码载荷）
- *   GET /v1/finance/reports/consolidated-profit — 公司合并利润视图（DR-005 抵销，无查询参数，只读聚合）
+ *   GET  /v1/internal-trade                 — 内部供料单列表（departmentId / status / garmentOrderId / fabricOrderId 过滤）
+ *   GET  /v1/internal-trade/:id             — 详情（master + mirror + 解码载荷）
+ *   POST /v1/internal-trade                 — 服装部发起内部供料申请（创建即 PendingConfirm + 结算价审批单）
+ *   POST /v1/internal-trade/:id/confirm     — 面料部确认数量/交期 + 已批准结算价 → 生效
+ *   POST /v1/internal-trade/:id/delivery    — 交付登记（关联面料订单既有出运，分批出运/到货/差异）
+ *   POST /v1/internal-trade/:id/cancel      — 取消（仅 Draft/PendingConfirm）
+ *   GET  /v1/finance/reports/consolidated-profit?from&to — 公司合并利润视图（DR-005 抵销，只读聚合；
+ *     from/to 可选 YYYY-MM-DD 日期范围，省略=全量；响应附 range: { from, to } 回显口径）
  *
  * 契约要点：
  *   - 双向记录拓扑：master=incoming（服装订单侧，权威载荷）/ mirror=outgoing（面料订单侧，镜像）；
@@ -13,8 +18,8 @@
  *     decodeInternalTransferPayload 为前端唯一解码入口（fail-safe，非法载荷返回 null）
  *   - 生效状态（Effective/Delivering/Closed）才计入核算；Draft/PendingConfirm/Cancelled 不计
  *   - transferAmount 为 Prisma Decimal，JSON 序列化可能是 string，统一 toAmount 归一
- *   - 合并报表为全量聚合投影（服务端 getConsolidatedProfitReport 无日期/部门参数），
- *     部门双视角（DR-043）由响应内 departments 字段承载，前端不做任何口径再计算
+ *   - 合并报表为服务端聚合投影（from/to 仅做范围过滤，部门双视角 DR-043 由响应内
+ *     departments 字段承载），前端不做任何口径再计算
  */
 import { apiService } from './apiService';
 
@@ -156,6 +161,58 @@ export interface InternalTransferDetail {
 }
 
 // ────────────────────────────────────────────────────────────────
+// 写操作输入/结果（与 server internalTradeRoute POST 体契约一致；reviewerId/requesterId 服务端解析，前端禁传）
+// ────────────────────────────────────────────────────────────────
+export interface CreateInternalTransferInput {
+  requestDepartmentId: string;
+  supplyDepartmentId: string;
+  garmentOrderId: string;
+  /** 关联面料订单（服务端 fail-closed 校验 isInternalFabricTrade=true，DR-005 标记纪律） */
+  fabricOrderId: string;
+  materialCode: string;
+  quantity: number;
+  unit?: string;
+  settlementPrice: number;
+  /** 交期 YYYY-MM-DD */
+  dueDate: string;
+  memo?: string;
+}
+
+export interface CreateInternalTransferResult {
+  transfer: InternalTransferRecord;
+  mirror: InternalTransferRecord;
+  /** DR-006 结算价审批单 ID（生效前置：审批通过后方可 confirm） */
+  approvalRequestId: string;
+  payload: InternalTransferPayload;
+}
+
+export interface ConfirmInternalTransferInput {
+  /** 缺省取申请数量 */
+  confirmedQuantity?: number;
+  /** 缺省取申请交期（YYYY-MM-DD） */
+  confirmedDueDate?: string;
+}
+
+export interface RegisterDeliveryInput {
+  /** 关联面料订单名下非 Cancelled 运单（不另造平行出库流程） */
+  shipmentId: string;
+  quantity: number;
+  /** 缺省今天（YYYY-MM-DD） */
+  deliveryDate?: string;
+  receivedQuantity?: number;
+  receivedDate?: string;
+  packingLines?: InternalTransferPackingLine[];
+}
+
+export interface RegisterDeliveryResult {
+  transfer: InternalTransferRecord;
+  delivery: InternalTransferDelivery;
+  cumulativeDelivered: number;
+  status: InternalTransferStatus;
+  payload: InternalTransferPayload;
+}
+
+// ────────────────────────────────────────────────────────────────
 // 公司合并利润视图（DR-005；与 server reportService.ConsolidatedProfitReport 一致）
 // ────────────────────────────────────────────────────────────────
 export interface ConsolidatedProfitDepartment {
@@ -194,6 +251,8 @@ export interface ConsolidatedProfitReport {
   orders: { externalCount: number; internalCount: number };
   /** 非 CNY 生效内部交易：不折算不假设汇率，透明披露并排除在抵额外 */
   unconverted: Array<{ transferId: string; orderId: string; direction: string; amount: number; currency: string; reason: string }>;
+  /** 本次聚合口径范围回显（from/to 请求参数的回声；null = 该端未设界，双 null = 全量） */
+  range?: { from: string | null; to: string | null };
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -263,15 +322,82 @@ export const internalTradeService = {
   },
 
   /**
-   * 公司合并利润视图（DR-005 抵销，只读全量聚合，无查询参数）。
+   * 公司合并利润视图（DR-005 抵销，只读聚合）。
    * 合并收入仅计外部客户收入；合并成本 = 外部采购（剔除内部采购加价）+ 真实面料成本 + 运费 + 杂费；
    * 抵销取单边生效内部交易额，恒等式 Σ 部门利润 = 合并利润。
+   * filter.from/to（YYYY-MM-DD）可选，省略=全量；响应 range 字段回显实际口径。
    */
-  async getConsolidatedProfitReport(endpoint?: string): Promise<ConsolidatedProfitReport> {
-    const res = await fetch(apiUrl('/v1/finance/reports/consolidated-profit', endpoint), {
+  async getConsolidatedProfitReport(
+    filter: { from?: string; to?: string } = {},
+    endpoint?: string,
+  ): Promise<ConsolidatedProfitReport> {
+    const query = new URLSearchParams();
+    if (filter.from) query.set('from', filter.from);
+    if (filter.to) query.set('to', filter.to);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(apiUrl(`/v1/finance/reports/consolidated-profit${suffix}`, endpoint), {
       headers: apiService.getAuthHeaders(),
     });
     if (!res.ok) await readError(res, 'getConsolidatedProfitReport failed');
+    return res.json();
+  },
+
+  /** 服装部发起内部供料申请（201；创建即 PendingConfirm 并生成结算价审批单） */
+  async createInternalTransfer(
+    input: CreateInternalTransferInput,
+    endpoint?: string,
+  ): Promise<CreateInternalTransferResult> {
+    const res = await fetch(apiUrl('/v1/internal-trade/', endpoint), {
+      method: 'POST',
+      headers: apiService.getAuthHeaders(),
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) await readError(res, 'createInternalTransfer failed');
+    return res.json();
+  },
+
+  /** 面料部确认数量/交期 + 已批准结算价 → 生效（仅 PendingConfirm） */
+  async confirmInternalTransfer(
+    id: string,
+    input: ConfirmInternalTransferInput = {},
+    endpoint?: string,
+  ): Promise<{ transfer: InternalTransferRecord; payload: InternalTransferPayload }> {
+    const res = await fetch(apiUrl(`/v1/internal-trade/${encodeURIComponent(id)}/confirm`, endpoint), {
+      method: 'POST',
+      headers: apiService.getAuthHeaders(),
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) await readError(res, 'confirmInternalTransfer failed');
+    return res.json();
+  },
+
+  /** 交付登记（仅 Effective/Delivering；累计交付不得超确认数量，满量自动 Closed） */
+  async registerDelivery(
+    id: string,
+    input: RegisterDeliveryInput,
+    endpoint?: string,
+  ): Promise<RegisterDeliveryResult> {
+    const res = await fetch(apiUrl(`/v1/internal-trade/${encodeURIComponent(id)}/delivery`, endpoint), {
+      method: 'POST',
+      headers: apiService.getAuthHeaders(),
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) await readError(res, 'registerDelivery failed');
+    return res.json();
+  },
+
+  /** 取消（仅 Draft/PendingConfirm；生效后须走订单变更/DR-013 例外链） */
+  async cancelInternalTransfer(
+    id: string,
+    reason?: string,
+    endpoint?: string,
+  ): Promise<{ transfer: InternalTransferRecord; payload: InternalTransferPayload }> {
+    const res = await fetch(apiUrl(`/v1/internal-trade/${encodeURIComponent(id)}/cancel`, endpoint), {
+      method: 'POST',
+      headers: apiService.getAuthHeaders(),
+      body: JSON.stringify(reason?.trim() ? { reason: reason.trim() } : {}),
+    });
+    if (!res.ok) await readError(res, 'cancelInternalTransfer failed');
     return res.json();
   },
 };

@@ -222,4 +222,49 @@ describe('POST /validate（dry-run：不写库不建审批单）', () => {
     // dry-run：永不写审批单（prisma 无 approvalRequest.create 调用面）
     expect(prisma.approvalRequest).toBeUndefined();
   });
+
+  it('行级 businessLine 透传：无单据级业务线时逐行推导（报价单载体场景）', async () => {
+    const { app } = makeApp();
+    const res = await request(app)
+      .post('/api/v1/moq/validate').set('Authorization', `Bearer ${salesToken}`)
+      .send({
+        // 无单据级 type/businessLine —— 报价单等载体逐行携带业务线
+        lines: [
+          { quantity: 300, businessLine: 'garment' }, // 行级 garment → MOQ 200 → 合规
+          { quantity: 300, businessLine: 'fabric' },  // 行级 fabric → MOQ 800 → 不合规
+        ],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.lines[0].effectiveMoq).toBe(200);
+    expect(res.body.lines[0].compliant).toBe(true);
+    expect(res.body.lines[1].effectiveMoq).toBe(800);
+    expect(res.body.lines[1].compliant).toBe(false);
+    expect(res.body.blockedLineIndexes).toEqual([1]);
+  });
+
+  it('行级 businessLine 优先于单据级：行级 garment 不被单据级 fabric 覆盖', async () => {
+    const { app } = makeApp();
+    const res = await request(app)
+      .post('/api/v1/moq/validate').set('Authorization', `Bearer ${salesToken}`)
+      .send({
+        businessLine: 'fabric', // 单据级 fabric（MOQ 800）
+        lines: [{ quantity: 300, businessLine: 'garment' }], // 行级 garment（MOQ 200）优先 → 合规
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.lines[0].effectiveMoq).toBe(200);
+    expect(res.body.lines[0].compliant).toBe(true);
+  });
+
+  it('行级 businessLine 缺省回退单据级（既有语义不回归）', async () => {
+    const { app } = makeApp();
+    const res = await request(app)
+      .post('/api/v1/moq/validate').set('Authorization', `Bearer ${salesToken}`)
+      .send({ businessLine: 'fabric', lines: [{ quantity: 300 }] }); // 行级缺省 → 单据级 fabric MOQ 800
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.lines[0].effectiveMoq).toBe(800);
+    expect(res.body.lines[0].compliant).toBe(false);
+  });
 });

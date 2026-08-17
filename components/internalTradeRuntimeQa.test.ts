@@ -210,7 +210,7 @@ describe('runtime QA [internal-trade]: internalTradeService HTTP contract', () =
     }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const report = await internalTradeService.getConsolidatedProfitReport(ENDPOINT);
+    const report = await internalTradeService.getConsolidatedProfitReport({}, ENDPOINT);
     const [url] = fetchMock.mock.calls[0];
     expect(url).toContain('/v1/finance/reports/consolidated-profit');
     expect(report.consolidatedProfit).toBe(46500);
@@ -280,5 +280,82 @@ describe('runtime QA [consolidated]: DR-005 抵销恒等式（server 真实测�
     const b = CONSOLIDATED_FIXTURE.costBreakdown;
     expect(b.externalPurchaseNetOfInternal + b.realFabricCost + b.freightCost + b.miscCost)
       .toBe(CONSOLIDATED_FIXTURE.consolidatedCost);
+  });
+});
+
+// ═══ Part 5: 面板接线（G7 写操作 UI + G1 日期范围 + G9 深链，静态源码断言） ═══
+const PANEL_SRC = fs.readFileSync(path.resolve(__dirname, 'finance/FinanceReportsPanel.tsx'), 'utf-8');
+const REPORT_CENTER_SRC = fs.readFileSync(path.resolve(__dirname, 'ReportCenter.tsx'), 'utf-8');
+
+describe('runtime QA [FinanceReportsPanel]: G7 内部供料单写操作 UI 接线', () => {
+  it('面板消费写操作 service 四端点（create / confirm / delivery / cancel）', () => {
+    expect(PANEL_SRC).toContain('internalTradeService.createInternalTransfer(');
+    expect(PANEL_SRC).toContain('internalTradeService.confirmInternalTransfer(');
+    expect(PANEL_SRC).toContain('internalTradeService.registerDelivery(');
+    expect(PANEL_SRC).toContain('internalTradeService.cancelInternalTransfer(');
+  });
+
+  it('按钮按状态机显隐（确认=PendingConfirm；交付=Effective/Delivering；取消=Draft/PendingConfirm）', () => {
+    expect(PANEL_SRC).toContain("payload.status === 'PendingConfirm' && (");
+    expect(PANEL_SRC).toContain("(payload.status === 'Effective' || payload.status === 'Delivering') && (");
+    expect(PANEL_SRC).toContain("(payload.status === 'Draft' || payload.status === 'PendingConfirm') && (");
+    expect(PANEL_SRC).toContain('面料部确认生效');
+    expect(PANEL_SRC).toContain('交付登记');
+    expect(PANEL_SRC).toContain('取消申请');
+  });
+
+  it('新建弹窗加载订单选项（Garment/Fabric 分组），错误内联展示不裸奔', () => {
+    expect(PANEL_SRC).toContain('apiService.listOrders(endpoint)');
+    expect(PANEL_SRC).toContain("o.type === 'Garment'");
+    expect(PANEL_SRC).toContain("o.type === 'Fabric'");
+    expect(PANEL_SRC).toContain('orderOptionsError');
+    expect(PANEL_SRC).toContain('transferDialogError');
+  });
+
+  it('交付登记关联面料订单名下既有运单（shipmentService.listShipments），空选项降级手输', () => {
+    expect(PANEL_SRC).toContain('shipmentService.listShipments(endpoint, { orderId: fabricOrderId })');
+    expect(PANEL_SRC).toContain("s.status !== 'Cancelled'");
+    expect(PANEL_SRC).toContain('请手工输入运单 ID');
+  });
+
+  it('提交防抖 + 提交中禁关（transferSubmitting）', () => {
+    expect(PANEL_SRC).toContain('const [transferSubmitting, setTransferSubmitting] = useState(false)');
+    expect(PANEL_SRC).toContain('if (transferSubmitting) return;');
+  });
+});
+
+describe('runtime QA [FinanceReportsPanel]: G1 合并利润日期范围接线', () => {
+  it('CapsuleDateInput 双日期 + from/to 传入 getConsolidatedProfitReport', () => {
+    expect(PANEL_SRC).toContain('<CapsuleDateInput');
+    expect(PANEL_SRC).toContain('{ from: conFrom || undefined, to: conTo || undefined }');
+  });
+
+  it('日期变更（合法 YYYY-MM-DD 或清空）自动重新拉取', () => {
+    expect(PANEL_SRC).toContain('const settled = (v: string) =>');
+    expect(PANEL_SRC).toContain('[tab, conFrom, conTo, loadConsolidated]');
+  });
+
+  it('口径回显以服务端 range 回声为准（双 null = 全量）', () => {
+    expect(PANEL_SRC).toContain('r.range?.from ?? null');
+    expect(PANEL_SRC).toContain('口径范围：');
+    expect(PANEL_SRC).toContain('（全量，未设日期边界）');
+  });
+});
+
+describe('runtime QA [ReportCenter]: G9 合并利润入口卡片', () => {
+  it('入口卡片仅引擎未注册 consolidatedProfit 数据集时渲染', () => {
+    expect(REPORT_CENTER_SRC).toContain("!datasets.some(d => d.key === 'consolidatedProfit')");
+    expect(REPORT_CENTER_SRC).toContain('合并利润 · Consolidated Profit');
+  });
+
+  it('点击深链：requestFinanceReportTab(consolidated) + 导航财务模块 reports tab', () => {
+    expect(REPORT_CENTER_SRC).toContain("requestFinanceReportTab('consolidated')");
+    expect(REPORT_CENTER_SRC).toContain("onNavigate?.(View.PaymentVouchers, 'reports')");
+  });
+
+  it('面板消费深链意图（pendingReportTab 初始值 + CustomEvent 已挂载监听）', () => {
+    expect(PANEL_SRC).toContain('FINANCE_REPORT_TAB_EVENT');
+    expect(PANEL_SRC).toContain('pendingReportTab');
+    expect(PANEL_SRC).toContain('window.addEventListener(FINANCE_REPORT_TAB_EVENT, handler)');
   });
 });

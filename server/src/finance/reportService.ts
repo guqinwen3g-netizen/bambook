@@ -445,6 +445,9 @@ export interface ConsolidatedProfitDepartment {
 }
 
 export interface ConsolidatedProfitReport {
+  /** 报表范围元数据：订单日期（Order.poDate）过滤区间，未传为 null（与 FxGainLossReport 同模式） */
+  from: string | null;
+  to: string | null;
   baseCurrency: string;
   consolidatedRevenue: number;
   consolidatedCost: number;
@@ -476,13 +479,27 @@ export interface ConsolidatedProfitReport {
   unconverted: Array<{ transferId: string; orderId: string; direction: string; amount: number; currency: string; reason: string }>;
 }
 
-export async function getConsolidatedProfitReport(prisma: PrismaClient): Promise<ConsolidatedProfitReport> {
+export async function getConsolidatedProfitReport(
+  prisma: PrismaClient,
+  params: { from?: string; to?: string } = {},
+): Promise<ConsolidatedProfitReport> {
+  const { from, to } = params;
+  const scoped = Boolean(from || to);
   const db = prisma as any;
 
   const sheets: any[] = await db.orderProfitSheet.findMany({});
   const orderIds: string[] = [...new Set(sheets.map((s) => s.orderId as string))];
+  // 日期过滤：按订单日期（Order.poDate，String?）区间筛选。
+  // poDate 为 null 的订单不满足 gte/lte 比较（Prisma null 语义），过滤模式下自然排除——
+  // 无法证明落在区间内，不计入报表范围。
   const orders: any[] = orderIds.length > 0
-    ? await db.order.findMany({ where: { id: { in: orderIds }, deletedAt: null } })
+    ? await db.order.findMany({
+        where: {
+          id: { in: orderIds },
+          deletedAt: null,
+          ...(scoped ? { poDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+        },
+      })
     : [];
   const orderMap = new Map(orders.map((o) => [o.id, o]));
 
@@ -520,9 +537,16 @@ export async function getConsolidatedProfitReport(prisma: PrismaClient): Promise
   let miscCostTotal = 0;
   let externalCount = 0;
   let internalCount = 0;
+  // 纳入报表范围的订单集合：过滤模式下抵销额/unconverted 只汇总该集合，
+  // 保证"订单被日期过滤 ⇔ 其内部交易同口径收窄"，避免范围不一致。
+  const includedOrderIds = new Set<string>();
 
   for (const sheet of sheets) {
     const order = orderMap.get(sheet.orderId);
+    // 过滤模式：order 不在范围内（日期区间外 / poDate 为空）→ 整张 sheet 排除。
+    // 无过滤模式保持既有语义（含软删订单 sheet 按外部订单计入的历史行为）。
+    if (scoped && !order) continue;
+    includedOrderIds.add(sheet.orderId);
     const isInternal = order?.isInternalFabricTrade === true;
     const sR = Number(sheet.salesRevenue) || 0;
     const pC = Number(sheet.purchaseCost) || 0;
@@ -548,11 +572,22 @@ export async function getConsolidatedProfitReport(prisma: PrismaClient): Promise
     }
   }
 
-  const internalPurchaseTotal = round4([...internalPurchaseByOrder.values()].reduce((a, b) => a + b, 0));
-  const internalSalesTotal = round4([...internalSalesByOrder.values()].reduce((a, b) => a + b, 0));
+  // 抵销合计：过滤模式只汇总范围内订单的内部交易；无过滤保持既有全量口径
+  const sumScoped = (map: Map<string, number>) => {
+    let total = 0;
+    for (const [orderId, amount] of map) {
+      if (!scoped || includedOrderIds.has(orderId)) total = round4(total + amount);
+    }
+    return total;
+  };
+  const internalPurchaseTotal = sumScoped(internalPurchaseByOrder);
+  const internalSalesTotal = sumScoped(internalSalesByOrder);
   const consolidatedCost = round4(externalPurchaseNetOfInternal + realFabricCost + freightCostTotal + miscCostTotal);
+  const scopedUnconverted = scoped ? unconverted.filter((u) => includedOrderIds.has(u.orderId)) : unconverted;
 
   return {
+    from: from ?? null,
+    to: to ?? null,
     baseCurrency: 'CNY',
     consolidatedRevenue,
     consolidatedCost,
@@ -571,6 +606,6 @@ export async function getConsolidatedProfitReport(prisma: PrismaClient): Promise
     },
     departments: { garment, fabric },
     orders: { externalCount, internalCount },
-    unconverted,
+    unconverted: scopedUnconverted,
   };
 }

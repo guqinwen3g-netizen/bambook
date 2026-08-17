@@ -8,18 +8,21 @@
  *   4. 汇率损益 FX Gain/Loss — 核销维度（收款汇率 vs 开票汇率），收益/损失汇总
  *   5. 外汇台账 FX Ledger — 收汇/已结汇/未结汇按币种聚合 + 未结汇凭证清单（F2 外汇核销闭环）
  *   6. 合并利润 Consolidated Profit — DR-005 公司合并视图：抵销内部采购/内部销售，
- *      仅计客户外部收入 + 真实面料成本；合并视图 / 部门视角（DR-043 双口径）切换
- *   7. 内部供料 Internal Supply — DR-033 内部供料单列表：关联服装/面料订单、金额、状态、交付进度
+ *      仅计客户外部收入 + 真实面料成本；合并视图 / 部门视角（DR-043 双口径）切换；
+ *      from/to 日期范围可选（省略=全量），响应 range 回显当前口径
+ *   7. 内部供料 Internal Supply — DR-033 内部供料单：列表（关联服装/面料订单、金额、状态、交付进度）
+ *      + 写操作（新建申请 / 面料部确认生效 / 交付登记 / 取消，按状态机显隐，错误码透传内联展示）
  *
  * 数据源：GET /v1/finance/reports/* + GET /v1/finance/fx-settlements/ledger
- *   + GET /v1/finance/reports/consolidated-profit + GET /v1/internal-trade（只读报表，多币种不折算汇总）
+ *   + GET /v1/finance/reports/consolidated-profit?from&to + GET|POST /v1/internal-trade（多币种不折算汇总）
  * 设计：flat 无阴影、RDL 原语、tabular-nums 数字对齐
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle } from 'lucide-react';
+import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle, Plus, X } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import { fxSettlementService } from '../../services/fxSettlementService';
+import { shipmentService } from '../../services/shipmentService';
 import {
   INTERNAL_TRANSFER_STATUSES,
   INTERNAL_TRANSFER_STATUS_LABEL,
@@ -32,11 +35,28 @@ import type {
   InternalTransferStatus,
 } from '../../services/internalTradeService';
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
-import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Relation, StatementSection, SupplierStatement } from '../../types';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
+import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Order, Relation, Shipment, StatementSection, SupplierStatement } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
 type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-ledger' | 'consolidated' | 'internal-trade';
+
+/** YYYY-MM-DD（与 server internalTrade DATE_RE 一致） */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// ── G9 深链通道：报表中心等外部入口请求定位到指定子视图 ──
+// 与 exceptionService openExceptionEntry 同一 CustomEvent 惯例；模块级待消费意图保证
+// 「先跳转后挂载」时初始 tab 仍能命中（面板挂载即在 useState 初始值中消费）。
+const FINANCE_REPORT_TAB_EVENT = 'bambook:finance-reports-tab';
+let pendingReportTab: ReportTabId | null = null;
+
+export function requestFinanceReportTab(tab: ReportTabId): void {
+  pendingReportTab = tab;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent<ReportTabId>(FINANCE_REPORT_TAB_EVENT, { detail: tab }));
+  }
+}
 
 const REPORT_TABS: Array<{ id: ReportTabId; label: string; en: string }> = [
   { id: 'aging', label: '账龄分析', en: 'Aging' },
@@ -68,9 +88,24 @@ interface FinanceReportsPanelProps {
 }
 
 export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPanelProps) {
-  const [tab, setTab] = useState<ReportTabId>('aging');
+  // 初始 tab 消费外部深链意图（如报表中心「合并利润」入口）；无意图时默认账龄
+  const [tab, setTab] = useState<ReportTabId>(() => {
+    const initial = pendingReportTab;
+    pendingReportTab = null;
+    return initial ?? 'aging';
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 已挂载时响应外部深链事件（未挂载则由上方初始值消费 pendingReportTab）
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const target = (e as CustomEvent<ReportTabId>).detail;
+      if (target) setTab(target);
+    };
+    window.addEventListener(FINANCE_REPORT_TAB_EVENT, handler);
+    return () => window.removeEventListener(FINANCE_REPORT_TAB_EVENT, handler);
+  }, []);
 
   // ── 账龄 ──
   const [agingType, setAgingType] = useState<'Receivable' | 'Payable'>('Receivable');
@@ -103,11 +138,36 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   // ── 合并利润（DR-005）──
   const [consolidated, setConsolidated] = useState<ConsolidatedProfitReport | null>(null);
   const [consolidatedMode, setConsolidatedMode] = useState<'company' | 'department'>('company');
+  // 口径范围（'' = 未设界；双空 = 全量）
+  const [conFrom, setConFrom] = useState('');
+  const [conTo, setConTo] = useState('');
 
   // ── 内部供料单（DR-033）──
   const [transfers, setTransfers] = useState<InternalTransferListItem[] | null>(null);
   const [transferStatus, setTransferStatus] = useState<InternalTransferStatus | ''>('');
   const [expandedTransferId, setExpandedTransferId] = useState<string | null>(null);
+
+  // ── 内部供料单写操作（G7：新建 / 确认生效 / 交付登记 / 取消）──
+  const [transferDialog, setTransferDialog] = useState<
+    | { mode: 'create' }
+    | { mode: 'confirm'; item: InternalTransferListItem }
+    | { mode: 'delivery'; item: InternalTransferListItem }
+    | { mode: 'cancel'; item: InternalTransferListItem }
+    | null
+  >(null);
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
+  const [transferDialogError, setTransferDialogError] = useState<string | null>(null);
+  const [orderOptions, setOrderOptions] = useState<Order[] | null>(null);
+  const [orderOptionsError, setOrderOptionsError] = useState<string | null>(null);
+  const [shipmentOptions, setShipmentOptions] = useState<Shipment[] | null>(null);
+  const [createForm, setCreateForm] = useState({
+    garmentOrderId: '', fabricOrderId: '',
+    requestDepartmentId: 'dept_garment', supplyDepartmentId: 'dept_fabric',
+    materialCode: '', quantity: '', unit: 'm', settlementPrice: '', dueDate: '', memo: '',
+  });
+  const [confirmForm, setConfirmForm] = useState({ confirmedQuantity: '', confirmedDueDate: '' });
+  const [deliveryForm, setDeliveryForm] = useState({ shipmentId: '', quantity: '', deliveryDate: '', receivedQuantity: '', receivedDate: '' });
+  const [cancelReason, setCancelReason] = useState('');
 
   const textPrimary = 'text-[var(--text-primary)]';
   const textSecondary = 'text-[var(--text-tertiary)]';
@@ -181,13 +241,16 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     setLoading(true);
     setError(null);
     try {
-      setConsolidated(await internalTradeService.getConsolidatedProfitReport(endpoint));
+      setConsolidated(await internalTradeService.getConsolidatedProfitReport(
+        { from: conFrom || undefined, to: conTo || undefined },
+        endpoint,
+      ));
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
     }
-  }, [endpoint]);
+  }, [conFrom, conTo, endpoint]);
 
   const loadTransfers = useCallback(async () => {
     setLoading(true);
@@ -210,7 +273,6 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     if (tab === 'aging' && !aging) loadAging();
     if (tab === 'fx' && !fx) loadFx();
     if (tab === 'fx-ledger' && !ledger) loadLedger();
-    if (tab === 'consolidated' && !consolidated) loadConsolidated();
     if (tab === 'statement' && relations.length === 0) {
       apiService.listRelations(endpoint).then(list => {
         // 方向分组以 category 为准（type 是自由文本子类，如 Fabric Mill）；保留 type 回退兼容旧档案
@@ -226,7 +288,15 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         if (suppliers.length > 0 && !supplierId) setSupplierId(suppliers[0].id);
       }).catch(() => {});
     }
-  }, [tab, aging, fx, ledger, consolidated, relations.length, supplierRelations.length, customerId, supplierId, endpoint, loadAging, loadFx, loadLedger, loadConsolidated]);
+  }, [tab, aging, fx, ledger, relations.length, supplierRelations.length, customerId, supplierId, endpoint, loadAging, loadFx, loadLedger]);
+
+  // 合并利润：进入 tab 即加载；日期范围变更后（合法 YYYY-MM-DD 或清空）自动重新拉取
+  useEffect(() => {
+    if (tab !== 'consolidated') return;
+    const settled = (v: string) => v === '' || DATE_RE.test(v);
+    if (!settled(conFrom) || !settled(conTo)) return;
+    loadConsolidated();
+  }, [tab, conFrom, conTo, loadConsolidated]);
 
   // 内部供料单：进入 tab 或状态筛选变化时加载
   useEffect(() => {
@@ -247,6 +317,146 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     'h-8 rounded-field border bg-transparent px-2.5 text-[11px] font-light outline-none tabular-nums',
     divider, textPrimary,
   );
+
+  // ── 内部供料单写操作（状态机显隐以 server ALLOWED_TRANSITIONS 为准： ──
+  //    确认=PendingConfirm；交付=Effective/Delivering；取消=Draft/PendingConfirm）──
+  const closeTransferDialog = () => {
+    if (transferSubmitting) return;
+    setTransferDialog(null);
+    setTransferDialogError(null);
+  };
+
+  const openCreateTransfer = () => {
+    setCreateForm({
+      garmentOrderId: '', fabricOrderId: '',
+      requestDepartmentId: 'dept_garment', supplyDepartmentId: 'dept_fabric',
+      materialCode: '', quantity: '', unit: 'm', settlementPrice: '', dueDate: '', memo: '',
+    });
+    setTransferDialogError(null);
+    setOrderOptionsError(null);
+    setTransferDialog({ mode: 'create' });
+    if (!orderOptions) {
+      apiService.listOrders(endpoint)
+        .then(list => setOrderOptions(list.filter(o => !o.deletedAt)))
+        .catch(e => setOrderOptionsError(String(e?.message || e)));
+    }
+  };
+
+  const openConfirmTransfer = (item: InternalTransferListItem) => {
+    setConfirmForm({ confirmedQuantity: '', confirmedDueDate: '' });
+    setTransferDialogError(null);
+    setTransferDialog({ mode: 'confirm', item });
+  };
+
+  const openDeliveryTransfer = (item: InternalTransferListItem) => {
+    setDeliveryForm({ shipmentId: '', quantity: '', deliveryDate: today(), receivedQuantity: '', receivedDate: '' });
+    setTransferDialogError(null);
+    setShipmentOptions(null);
+    setTransferDialog({ mode: 'delivery', item });
+    const fabricOrderId = item.payload?.fabricOrderId;
+    if (fabricOrderId) {
+      shipmentService.listShipments(endpoint, { orderId: fabricOrderId })
+        .then(list => setShipmentOptions(list.filter(s => s.status !== 'Cancelled')))
+        .catch(() => setShipmentOptions([]));
+    } else {
+      // 无关联面料订单（异常数据）：直接降级为手工输入运单 ID
+      setShipmentOptions([]);
+    }
+  };
+
+  const openCancelTransfer = (item: InternalTransferListItem) => {
+    setCancelReason('');
+    setTransferDialogError(null);
+    setTransferDialog({ mode: 'cancel', item });
+  };
+
+  const submitTransferDialog = async () => {
+    if (!transferDialog) return;
+    setTransferDialogError(null);
+    try {
+      if (transferDialog.mode === 'create') {
+        const f = createForm;
+        const missing: string[] = [];
+        if (!f.garmentOrderId) missing.push('服装订单');
+        if (!f.fabricOrderId) missing.push('面料订单');
+        if (!f.requestDepartmentId.trim()) missing.push('申请部门');
+        if (!f.supplyDepartmentId.trim()) missing.push('供料部门');
+        if (!f.materialCode.trim()) missing.push('物料');
+        if (!f.dueDate) missing.push('交期');
+        if (missing.length > 0) { setTransferDialogError(`请填写：${missing.join('、')}`); return; }
+        const quantity = Number(f.quantity);
+        const settlementPrice = Number(f.settlementPrice);
+        if (!Number.isFinite(quantity) || quantity <= 0) { setTransferDialogError('数量必须为正数'); return; }
+        if (!Number.isFinite(settlementPrice) || settlementPrice <= 0) { setTransferDialogError('内部结算价必须为正数'); return; }
+        if (!DATE_RE.test(f.dueDate)) { setTransferDialogError('交期必须为 YYYY-MM-DD'); return; }
+        if (f.garmentOrderId === f.fabricOrderId) { setTransferDialogError('服装订单与面料订单不得为同一订单'); return; }
+        setTransferSubmitting(true);
+        const result = await internalTradeService.createInternalTransfer({
+          requestDepartmentId: f.requestDepartmentId.trim(),
+          supplyDepartmentId: f.supplyDepartmentId.trim(),
+          garmentOrderId: f.garmentOrderId,
+          fabricOrderId: f.fabricOrderId,
+          materialCode: f.materialCode.trim(),
+          quantity,
+          unit: f.unit.trim() || undefined,
+          settlementPrice,
+          dueDate: f.dueDate,
+          memo: f.memo.trim() || undefined,
+        }, endpoint);
+        setTransferDialog(null);
+        setExpandedTransferId(result.transfer.id);
+        await loadTransfers();
+        return;
+      }
+
+      const { item } = transferDialog;
+      if (transferDialog.mode === 'confirm') {
+        const qtyRaw = confirmForm.confirmedQuantity.trim();
+        const dateRaw = confirmForm.confirmedDueDate.trim();
+        let confirmedQuantity: number | undefined;
+        if (qtyRaw) {
+          confirmedQuantity = Number(qtyRaw);
+          if (!Number.isFinite(confirmedQuantity) || confirmedQuantity <= 0) { setTransferDialogError('确认数量必须为正数'); return; }
+        }
+        if (dateRaw && !DATE_RE.test(dateRaw)) { setTransferDialogError('确认交期必须为 YYYY-MM-DD'); return; }
+        setTransferSubmitting(true);
+        await internalTradeService.confirmInternalTransfer(item.record.id, {
+          confirmedQuantity,
+          confirmedDueDate: dateRaw || undefined,
+        }, endpoint);
+      } else if (transferDialog.mode === 'delivery') {
+        const quantity = Number(deliveryForm.quantity);
+        if (!deliveryForm.shipmentId.trim()) { setTransferDialogError('请选择或输入运单'); return; }
+        if (!Number.isFinite(quantity) || quantity <= 0) { setTransferDialogError('交付数量必须为正数'); return; }
+        if (!DATE_RE.test(deliveryForm.deliveryDate)) { setTransferDialogError('交付日期必须为 YYYY-MM-DD'); return; }
+        let receivedQuantity: number | undefined;
+        const recvRaw = deliveryForm.receivedQuantity.trim();
+        if (recvRaw) {
+          receivedQuantity = Number(recvRaw);
+          if (!Number.isFinite(receivedQuantity) || receivedQuantity < 0) { setTransferDialogError('到货数量必须为非负数字'); return; }
+        }
+        const recvDate = deliveryForm.receivedDate.trim();
+        if (recvDate && !DATE_RE.test(recvDate)) { setTransferDialogError('到货日期必须为 YYYY-MM-DD'); return; }
+        setTransferSubmitting(true);
+        await internalTradeService.registerDelivery(item.record.id, {
+          shipmentId: deliveryForm.shipmentId.trim(),
+          quantity,
+          deliveryDate: deliveryForm.deliveryDate,
+          receivedQuantity,
+          receivedDate: recvDate || undefined,
+        }, endpoint);
+      } else {
+        setTransferSubmitting(true);
+        await internalTradeService.cancelInternalTransfer(item.record.id, cancelReason.trim() || undefined, endpoint);
+      }
+      setTransferDialog(null);
+      await loadTransfers();
+    } catch (e: any) {
+      setTransferDialogError(String(e?.message || e));
+    } finally {
+      setTransferSubmitting(false);
+    }
+  };
 
   // ── 账龄视图 ──
   const renderAging = () => {
@@ -527,10 +737,23 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     if (!consolidated) return null;
     const r = consolidated;
     const cur = r.baseCurrency;
+    // 口径回显：以服务端 range 回声为准（from/to 请求参数的实际生效口径；双 null = 全量）
+    const rangeFrom = r.range?.from ?? null;
+    const rangeTo = r.range?.to ?? null;
+    const renderRangeLine = () => (
+      <div className={cx('shrink-0 text-[10px] font-light tabular-nums', textFaint)}>
+        口径范围：{rangeFrom ?? '—'} ~ {rangeTo ?? '—'}
+        {!rangeFrom && !rangeTo ? '（全量，未设日期边界）' : ''}
+        <span className="ml-2">口径过滤仅作用于本次聚合，不改写任何单据</span>
+      </div>
+    );
     if (r.orders.externalCount === 0 && r.orders.internalCount === 0) {
       return (
-        <div className={cx('py-10 text-center text-xs font-light', textFaint)}>
-          暂无订单利润表数据 — 合并报表在利润表生成后自动聚合（仅读，不改写任何单据）
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+          {renderRangeLine()}
+          <div className={cx('py-10 text-center text-xs font-light', textFaint)}>
+            暂无订单利润表数据 — 合并报表在利润表生成后自动聚合（仅读，不改写任何单据）
+          </div>
         </div>
       );
     }
@@ -601,6 +824,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
       ];
       return (
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+          {renderRangeLine()}
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {departments.map(d => {
               const dept = r.departments[d.key];
@@ -834,6 +1058,26 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                         </div>
                       </div>
                     )}
+                    {/* 写操作：按 server ALLOWED_TRANSITIONS 显隐（确认=PendingConfirm；交付=Effective/Delivering；取消=Draft/PendingConfirm） */}
+                    {(payload.status === 'PendingConfirm' || payload.status === 'Effective' || payload.status === 'Delivering' || payload.status === 'Draft') && (
+                      <div className={cx('flex items-center gap-2 border-t pt-2', divider)}>
+                        {payload.status === 'PendingConfirm' && (
+                          <RdlPill type="button" tone="accent" onClick={() => openConfirmTransfer({ record, payload })} className="min-h-8 px-3 text-[11px]">
+                            面料部确认生效
+                          </RdlPill>
+                        )}
+                        {(payload.status === 'Effective' || payload.status === 'Delivering') && (
+                          <RdlPill type="button" tone="accent" onClick={() => openDeliveryTransfer({ record, payload })} className="min-h-8 px-3 text-[11px]">
+                            交付登记
+                          </RdlPill>
+                        )}
+                        {(payload.status === 'Draft' || payload.status === 'PendingConfirm') && (
+                          <RdlPill type="button" onClick={() => openCancelTransfer({ record, payload })} className="min-h-8 px-3 text-[11px]">
+                            取消申请
+                          </RdlPill>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -905,6 +1149,24 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           )}
           {tab === 'consolidated' && (
             <>
+              <CapsuleDateInput
+                value={conFrom}
+                onChange={setConFrom}
+                isDarkMode={isDarkMode}
+                className={cx(inputCls, 'w-[132px]')}
+                placeholder="开始日期"
+              />
+              <span className={cx('text-[10px]', textFaint)}>至</span>
+              <CapsuleDateInput
+                value={conTo}
+                onChange={setConTo}
+                isDarkMode={isDarkMode}
+                className={cx(inputCls, 'w-[132px]')}
+                placeholder="结束日期"
+              />
+              {(conFrom || conTo) && (
+                <RdlPill type="button" onClick={() => { setConFrom(''); setConTo(''); }} className="min-h-8 px-3 text-[11px]">清空</RdlPill>
+              )}
               <RdlPill type="button" active={consolidatedMode === 'company'} onClick={() => setConsolidatedMode('company')} className="min-h-8 px-3 text-[11px]">合并视图</RdlPill>
               <RdlPill type="button" active={consolidatedMode === 'department'} onClick={() => setConsolidatedMode('department')} className="min-h-8 px-3 text-[11px]">部门视角</RdlPill>
               <RdlPill type="button" active tone="accent" onClick={loadConsolidated} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
@@ -924,6 +1186,9 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 ))}
               </select>
               <RdlPill type="button" active tone="accent" onClick={loadTransfers} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
+              <RdlPill type="button" tone="accent" onClick={openCreateTransfer} className="min-h-8 px-3 text-[11px]">
+                <span className="inline-flex items-center gap-1"><Plus size={12} strokeWidth={1.5} />新建申请</span>
+              </RdlPill>
             </>
           )}
         </div>
@@ -949,6 +1214,238 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           {tab === 'consolidated' && renderConsolidated()}
           {tab === 'internal-trade' && renderTransfers()}
         </>
+      )}
+
+      {/* ── 内部供料单写操作弹窗（G7：新建 / 确认生效 / 交付登记 / 取消）── */}
+      {transferDialog && (
+        <div className="bds-modal-mask" onClick={closeTransferDialog}>
+          <div className="bds-modal" style={{ width: transferDialog.mode === 'create' ? '32rem' : '26rem' }} onClick={e => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className={cx('text-[13px] font-light tracking-[0.02em]', textPrimary)}>
+                {transferDialog.mode === 'create' && '发起内部供料申请'}
+                {transferDialog.mode === 'confirm' && '面料部确认生效'}
+                {transferDialog.mode === 'delivery' && '交付登记'}
+                {transferDialog.mode === 'cancel' && '取消内部供料申请'}
+              </h2>
+              <button
+                type="button"
+                onClick={closeTransferDialog}
+                disabled={transferSubmitting}
+                aria-label="关闭"
+                className={cx('rounded-control p-1 transition-colors hover:bg-[var(--recessed-bg-hover)] disabled:opacity-40', textFaint)}
+              >
+                <X size={14} strokeWidth={1.4} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* 目标单摘要（非新建模式） */}
+              {transferDialog.mode !== 'create' && (
+                <div className={cx('rounded-inset px-3 py-2 text-[11px] font-light', 'bg-[var(--recessed-bg)]', textSecondary)}>
+                  供料单 <span className={textPrimary}>{transferDialog.item.record.id}</span>
+                  {transferDialog.item.payload && (
+                    <>
+                      {' · '}物料 <span className={textPrimary}>{transferDialog.item.payload.materialCode}</span>
+                      {' · '}申请 <span className={cx('tabular-nums', textPrimary)}>{transferDialog.item.payload.quantity.toLocaleString('zh-CN')} {transferDialog.item.payload.unit}</span>
+                      {' · '}交期 <span className={cx('tabular-nums', textPrimary)}>{transferDialog.item.payload.dueDate}</span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {transferDialog.mode === 'create' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>服装订单 *</label>
+                      <select
+                        value={createForm.garmentOrderId}
+                        onChange={e => setCreateForm(f => ({ ...f, garmentOrderId: e.target.value }))}
+                        className="bds-select"
+                        disabled={!orderOptions}
+                      >
+                        <option value="">{orderOptions ? '请选择服装订单' : '加载订单...'}</option>
+                        {(orderOptions ?? []).filter(o => o.type === 'Garment').map(o => (
+                          <option key={o.id} value={o.id}>{o.id} · {o.customer} · {o.product}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>面料订单 *</label>
+                      <select
+                        value={createForm.fabricOrderId}
+                        onChange={e => setCreateForm(f => ({ ...f, fabricOrderId: e.target.value }))}
+                        className="bds-select"
+                        disabled={!orderOptions}
+                      >
+                        <option value="">{orderOptions ? '请选择面料订单' : '加载订单...'}</option>
+                        {(orderOptions ?? []).filter(o => o.type === 'Fabric').map(o => (
+                          <option key={o.id} value={o.id}>{o.id} · {o.customer} · {o.product}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {orderOptionsError && (
+                    <div className="bds-alert danger">订单列表加载失败：{orderOptionsError}（可关闭弹窗重试）</div>
+                  )}
+                  {orderOptions && (
+                    <div className={cx('text-[10px] font-light', textFaint)}>
+                      面料订单须为已标记内部面料交易（isInternalFabricTrade）的订单，服务端 fail-closed 校验
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>申请部门 *</label>
+                      <input value={createForm.requestDepartmentId} onChange={e => setCreateForm(f => ({ ...f, requestDepartmentId: e.target.value }))} className="bds-input sm" />
+                    </div>
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>供料部门 *</label>
+                      <input value={createForm.supplyDepartmentId} onChange={e => setCreateForm(f => ({ ...f, supplyDepartmentId: e.target.value }))} className="bds-input sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>物料编码 *</label>
+                    <input value={createForm.materialCode} onChange={e => setCreateForm(f => ({ ...f, materialCode: e.target.value }))} placeholder="如 FAB-COTTON-40S" className="bds-input sm" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>数量 *</label>
+                      <input type="number" value={createForm.quantity} onChange={e => setCreateForm(f => ({ ...f, quantity: e.target.value }))} className="bds-input sm" />
+                    </div>
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>单位</label>
+                      <input value={createForm.unit} onChange={e => setCreateForm(f => ({ ...f, unit: e.target.value }))} className="bds-input sm" />
+                    </div>
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>内部结算价 *</label>
+                      <input type="number" value={createForm.settlementPrice} onChange={e => setCreateForm(f => ({ ...f, settlementPrice: e.target.value }))} className="bds-input sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交期 *</label>
+                    <input type="date" value={createForm.dueDate} onChange={e => setCreateForm(f => ({ ...f, dueDate: e.target.value }))} className="bds-input sm" />
+                  </div>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>备注</label>
+                    <input value={createForm.memo} onChange={e => setCreateForm(f => ({ ...f, memo: e.target.value }))} className="bds-input sm" />
+                  </div>
+                  <div className={cx('text-[10px] font-light', textFaint)}>
+                    提交后生成结算价审批单（DR-006），审批通过且面料部确认后方可生效
+                  </div>
+                </>
+              )}
+
+              {transferDialog.mode === 'confirm' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>确认数量（缺省=申请数量）</label>
+                      <input
+                        type="number"
+                        value={confirmForm.confirmedQuantity}
+                        onChange={e => setConfirmForm(f => ({ ...f, confirmedQuantity: e.target.value }))}
+                        placeholder={transferDialog.item.payload ? String(transferDialog.item.payload.quantity) : ''}
+                        className="bds-input sm"
+                      />
+                    </div>
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>确认交期（缺省=申请交期）</label>
+                      <input
+                        type="date"
+                        value={confirmForm.confirmedDueDate}
+                        onChange={e => setConfirmForm(f => ({ ...f, confirmedDueDate: e.target.value }))}
+                        className="bds-input sm"
+                      />
+                    </div>
+                  </div>
+                  <div className={cx('text-[10px] font-light', textFaint)}>
+                    确认后单据生效并计入部门核算与合并抵销；前置条件：结算价审批已通过（服务端校验）
+                  </div>
+                </>
+              )}
+
+              {transferDialog.mode === 'delivery' && (
+                <>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>关联运单 *（面料订单名下非取消运单）</label>
+                    {shipmentOptions && shipmentOptions.length > 0 ? (
+                      <select
+                        value={deliveryForm.shipmentId}
+                        onChange={e => setDeliveryForm(f => ({ ...f, shipmentId: e.target.value }))}
+                        className="bds-select"
+                      >
+                        <option value="">请选择运单</option>
+                        {shipmentOptions.map(s => (
+                          <option key={s.id} value={s.id}>{s.shipmentNumber || s.id} · {s.status}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={deliveryForm.shipmentId}
+                        onChange={e => setDeliveryForm(f => ({ ...f, shipmentId: e.target.value }))}
+                        placeholder={shipmentOptions === null ? '加载运单...' : '该面料订单暂无可选运单，请手工输入运单 ID'}
+                        disabled={shipmentOptions === null}
+                        className="bds-input sm"
+                      />
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交付数量 *</label>
+                      <input type="number" value={deliveryForm.quantity} onChange={e => setDeliveryForm(f => ({ ...f, quantity: e.target.value }))} className="bds-input sm" />
+                    </div>
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交付日期 *</label>
+                      <input type="date" value={deliveryForm.deliveryDate} onChange={e => setDeliveryForm(f => ({ ...f, deliveryDate: e.target.value }))} className="bds-input sm" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>到货数量（可后补）</label>
+                      <input type="number" value={deliveryForm.receivedQuantity} onChange={e => setDeliveryForm(f => ({ ...f, receivedQuantity: e.target.value }))} className="bds-input sm" />
+                    </div>
+                    <div>
+                      <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>到货日期</label>
+                      <input type="date" value={deliveryForm.receivedDate} onChange={e => setDeliveryForm(f => ({ ...f, receivedDate: e.target.value }))} className="bds-input sm" />
+                    </div>
+                  </div>
+                  <div className={cx('text-[10px] font-light', textFaint)}>
+                    累计交付满确认数量自动关闭；分批交付进入「交付中」；差异 = 到货 − 出运透明披露
+                  </div>
+                </>
+              )}
+
+              {transferDialog.mode === 'cancel' && (
+                <>
+                  <div>
+                    <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>取消原因</label>
+                    <input value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="记入状态流转历史" className="bds-input sm" />
+                  </div>
+                  <div className={cx('text-[10px] font-light', textFaint)}>
+                    仅草稿 / 待确认状态可取消；生效后须走订单变更或 DR-013 例外链
+                  </div>
+                </>
+              )}
+
+              {transferDialogError && <div className="bds-alert danger">{transferDialogError}</div>}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" disabled={transferSubmitting} onClick={closeTransferDialog} className="bds-btn bds-btn-secondary">取消</button>
+              <button type="button" disabled={transferSubmitting} onClick={submitTransferDialog} className="bds-btn bds-btn-primary">
+                {transferSubmitting
+                  ? '提交中...'
+                  : transferDialog.mode === 'create'
+                    ? '提交申请'
+                    : transferDialog.mode === 'confirm'
+                      ? '确认生效'
+                      : transferDialog.mode === 'delivery'
+                        ? '登记交付'
+                        : '确认取消'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

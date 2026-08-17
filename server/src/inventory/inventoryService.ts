@@ -82,7 +82,13 @@ export interface InventoryItemDetail extends InventoryItem {
 // 常量
 // ────────────────────────────────────────────────────────────────
 
-const VALID_MOVEMENT_TYPES: StockMovementType[] = ['Inbound', 'Outbound', 'Transfer', 'Adjustment', 'Lock', 'Unlock'];
+export const VALID_MOVEMENT_TYPES: readonly StockMovementType[] = ['Inbound', 'Outbound', 'Transfer', 'Adjustment', 'Lock', 'Unlock'];
+
+/** 库存变动可写字段白名单（route / Agent Flow 共用真源；字段语义见 StockMovementInput） */
+export const STOCK_MOVEMENT_INPUT_FIELDS: readonly string[] = [
+  'itemId', 'type', 'quantity', 'unit', 'unitCost', 'targetWarehouseId',
+  'reason', 'referenceType', 'referenceId', 'movementDate', 'notes',
+];
 
 // ────────────────────────────────────────────────────────────────
 // 辅助函数

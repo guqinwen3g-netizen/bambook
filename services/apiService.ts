@@ -331,6 +331,11 @@ const hrRequest = async <T>(path: string, opts: RequestInit & { endpoint?: strin
   });
 };
 
+/** 用户目录选项（/api/hr/personnel 聚合视图）：在 UserAccountOption 之上透出角色快照，供审批委派等选人控件展示 */
+export interface UserAccountDirectoryOption extends UserAccountOption {
+  roles?: string[] | null;
+}
+
 const postData = async (url: string, data: any) => {
   try {
     const response = await fetch(url, {
@@ -1826,12 +1831,12 @@ export const apiService = {
     return hrRequest<T>(path, { endpoint, method, body: JSON.stringify(body) });
   },
 
-  // QC 人员选择器：最小方法，复用已挂载的 /api/hr/personnel（UserAccount 聚合视图）
-  // 该端点要求 owner/admin 角色；调用方需在失败时降级为手工录入 qcUserId
-  async listUserAccounts(endpoint?: string): Promise<UserAccountOption[]> {
+  // QC 人员选择器 / 审批委派选人：最小方法，复用已挂载的 /api/hr/personnel（UserAccount 聚合视图）
+  // 该端点要求 owner/admin 角色；调用方需在失败时降级为手工录入用户 ID
+  async listUserAccounts(endpoint?: string): Promise<UserAccountDirectoryOption[]> {
     const data = await hrRequest<{
       ok: boolean;
-      personnel?: Array<{ id: string; displayName: string; email?: string | null; status?: string | null; department?: string | null }>;
+      personnel?: Array<{ id: string; displayName: string; email?: string | null; status?: string | null; department?: string | null; roles?: string[] | null }>;
     }>('personnel', { endpoint, method: 'GET' });
     const personnel = Array.isArray(data.personnel) ? data.personnel : [];
     return personnel
@@ -1842,6 +1847,7 @@ export const apiService = {
         email: u.email ?? null,
         status: u.status ?? null,
         department: u.department ?? null,
+        roles: Array.isArray(u.roles) ? u.roles : null,
       }));
   },
 

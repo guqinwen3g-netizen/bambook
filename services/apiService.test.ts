@@ -146,3 +146,39 @@ describe('apiService product reads', () => {
     );
   });
 });
+
+describe('apiService listUserAccounts（审批委派/QC 选人数据源）', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
+
+  it('GET /api/hr/personnel，映射 姓名 + 角色 + 部门，过滤 disabled', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        personnel: [
+          { id: 'USR_1', displayName: '张三', email: 'a@b.c', status: 'active', department: '业务一部', roles: ['manager'] },
+          { id: 'USR_2', displayName: '李四', status: 'disabled', department: null, roles: [] },
+        ],
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const list = await apiService.listUserAccounts('https://test.example.com');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/hr/personnel'),
+      expect.any(Object),
+    );
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      id: 'USR_1',
+      displayName: '张三',
+      department: '业务一部',
+      roles: ['manager'],
+    });
+  });
+});

@@ -197,6 +197,13 @@ describe('DR-005 公司合并报表抵销（reportService.getConsolidatedProfitR
           const cond: any = v;
           if ('in' in cond) return cond.in.includes(row[k]);
           if ('not' in cond) return row[k] !== cond.not;
+          if ('gte' in cond || 'lte' in cond) {
+            const val = row[k];
+            if (val == null) return false; // Prisma null 语义：null 不满足区间比较
+            if ('gte' in cond && val < cond.gte) return false;
+            if ('lte' in cond && val > cond.lte) return false;
+            return true;
+          }
           return true;
         }
         return row[k] === v;
@@ -287,5 +294,58 @@ describe('DR-005 公司合并报表抵销（reportService.getConsolidatedProfitR
 
     expect(report.unconverted).toHaveLength(2);
     expect(report.elimination.amount).toBe(0); // 未折算，排除在抵额外
+  });
+
+  it('无过滤：range 元数据 from/to 回显 null', async () => {
+    const prisma = makeReportPrisma({ sheets, orders, transfers });
+    const report = await getConsolidatedProfitReport(prisma);
+    expect(report.from).toBeNull();
+    expect(report.to).toBeNull();
+  });
+
+  it('日期过滤：from/to 按 poDate 收窄报表范围，抵销额同口径收窄，range 元数据回显', async () => {
+    const datedOrders = [
+      { ...orders[0], poDate: '2026-08-01' }, // G1 服装订单 8 月
+      { ...orders[1], poDate: '2026-07-15' }, // F1 内部面料订单 7 月
+    ];
+    const prisma = makeReportPrisma({ sheets, orders: datedOrders, transfers });
+    const report = await getConsolidatedProfitReport(prisma, { from: '2026-08-01', to: '2026-08-31' });
+
+    // range 元数据回显
+    expect(report.from).toBe('2026-08-01');
+    expect(report.to).toBe('2026-08-31');
+
+    // 仅 G1（8 月）纳入；F1（7 月）整单排除
+    expect(report.orders).toEqual({ externalCount: 1, internalCount: 0 });
+    expect(report.consolidatedRevenue).toBe(100000);
+    expect(report.costBreakdown.realFabricCost).toBe(0); // 内部面料订单不在范围
+    expect(report.costBreakdown.freightCost).toBe(2000); // 仅 G1 运费
+    expect(report.costBreakdown.miscCost).toBe(1000);
+    expect(report.costBreakdown.externalPurchaseNetOfInternal).toBe(30000); // 60000 − 30000 内部采购
+    expect(report.consolidatedProfit).toBe(100000 - (30000 + 0 + 2000 + 1000));
+
+    // 抵销同口径收窄：G1 incoming 在范围内计入；F1 outgoing 订单不在范围不计入 → discrepancy 透明披露
+    expect(report.elimination.internalPurchase).toBe(30000);
+    expect(report.elimination.internalSales).toBe(0);
+    expect(report.elimination.discrepancy).toBe(-30000);
+
+    // 部门视角同口径：面料部无纳入订单
+    expect(report.departments.garment).toEqual({ revenue: 100000, cost: 63000, profit: 37000 });
+    expect(report.departments.fabric).toEqual({ revenue: 0, cost: 0, profit: 0 });
+  });
+
+  it('日期过滤：poDate 为空的订单在过滤模式下排除（无法证明落在区间内）', async () => {
+    const mixedOrders = [
+      { ...orders[0], poDate: null },         // G1 无订单日期
+      { ...orders[1], poDate: '2026-08-10' }, // F1 在范围内
+    ];
+    const prisma = makeReportPrisma({ sheets, orders: mixedOrders, transfers });
+    const report = await getConsolidatedProfitReport(prisma, { from: '2026-08-01' });
+
+    expect(report.from).toBe('2026-08-01');
+    expect(report.to).toBeNull();
+    expect(report.orders).toEqual({ externalCount: 0, internalCount: 1 });
+    expect(report.consolidatedRevenue).toBe(0); // G1 被排除，无外部收入
+    expect(report.costBreakdown.realFabricCost).toBe(20000); // 仅 F1 真实面料成本
   });
 });

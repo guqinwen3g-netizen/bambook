@@ -306,6 +306,26 @@ async function backfillShipmentCustoms(
   await tx.shipment.update({ where: { id: shipment.id }, data });
 }
 
+/** 信用证创建可写字段白名单（route / Agent Flow 共用真源；字段定义见 LetterOfCreditInput） */
+export const LETTER_OF_CREDIT_CREATE_FIELDS: readonly string[] = [
+  'lcNumber', 'relationId', 'orderId', 'type', 'issueDate', 'issueBank', 'advisingBank',
+  'negotiatingBank', 'confirmingBank', 'applicant', 'beneficiary', 'amount', 'currency',
+  'availableAmount', 'expiryDate', 'expiryPlace', 'presentationDeadline', 'shipmentDeadline',
+  'tradeTerms', 'portOfLoading', 'portOfDischarge', 'documentsRequired', 'specialConditions',
+  'discrepancies', 'notes',
+];
+
+/**
+ * 报关单更新可 patch 字段白名单（仅 Draft 可编辑；status 走状态机流转，不在 update 通道内；
+ * lines 不在 patch 通道内）
+ */
+export const CUSTOMS_DECLARATION_UPDATE_FIELDS: readonly string[] = [
+  'declarationNumber', 'shipmentId', 'orderId', 'relationId', 'type', 'declarationDate',
+  'customsCode', 'declarationPort', 'tradeTerms', 'totalValue', 'currency', 'totalPackages',
+  'grossWeight', 'netWeight', 'originCountry', 'destinationCountry', 'consignee', 'consignor',
+  'declarant', 'agent', 'notes',
+];
+
 // ════════════════════════════════════════════════════════════════
 // Service Factory
 // ════════════════════════════════════════════════════════════════

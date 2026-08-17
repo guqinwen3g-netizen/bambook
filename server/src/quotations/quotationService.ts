@@ -79,6 +79,23 @@ export interface QuotationDetail extends Quotation {
 
 const VALID_STATUSES: QuotationStatus[] = ['Draft', 'Sent', 'Accepted', 'Rejected', 'Expired'];
 
+/** 报价单创建可写字段白名单（route / Agent Flow 共用真源；lines 元素字段见 QuotationLineInput） */
+export const QUOTATION_CREATE_FIELDS: readonly string[] = [
+  'quotationNumber', 'currency', 'customerRelationId', 'customerName', 'customerCode', 'issueDate',
+  'validUntil', 'deliveryTerms', 'paymentTerms', 'salesperson', 'inquiryRef', 'exchangeRate',
+  'baseCurrency', 'notes', 'lines', 'trackAMedianUsd', 'trackAUnit', 'trackBFinalUsd',
+];
+
+/**
+ * 报价单更新可 patch 字段白名单（仅 Draft 可编辑；双轨快照与 MOQ 快照为 writeOnce，不可 patch；
+ * status 走状态机流转，不在 update 通道内）
+ */
+export const QUOTATION_UPDATE_PATCH_FIELDS: readonly string[] = [
+  'quotationNumber', 'currency', 'customerRelationId', 'customerName', 'customerCode', 'issueDate',
+  'validUntil', 'deliveryTerms', 'paymentTerms', 'salesperson', 'inquiryRef', 'exchangeRate',
+  'baseCurrency', 'notes', 'lines',
+];
+
 // 状态转换矩阵：key → 允许的目标状态
 const TRANSITIONS: Record<string, QuotationStatus[]> = {
   Draft: ['Sent', 'Expired'],

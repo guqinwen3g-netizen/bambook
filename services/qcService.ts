@@ -154,8 +154,15 @@ export type ReportSignRole = 'qc' | 'business';
 
 async function parseError(res: Response, fallback: string): Promise<never> {
   const err = await res.json().catch(() => ({}));
+  // server 信封：{ error: { code, message } }（qcRoute 风格），兼容平铺 { error: 'CODE' }
+  const code = typeof err?.error?.code === 'string' ? err.error.code
+    : typeof err?.error === 'string' ? err.error
+      : undefined;
   const message = err?.error?.message || (typeof err?.error === 'string' ? err.error : null) || `${fallback}: HTTP ${res.status}`;
-  throw new Error(message);
+  const error: any = new Error(code && message !== code && !String(message).includes(code) ? `${code}：${message}` : message);
+  error.status = res.status;
+  error.code = code;
+  throw error;
 }
 
 function qcUrl(path: string, endpoint?: string): string {

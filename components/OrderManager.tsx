@@ -1651,6 +1651,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         isDarkMode={isDarkMode}
                         gatePrefill={changeGatePrefill}
                         onGatePrefillConsumed={() => setChangeGatePrefill(null)}
+                        relations={relations}
                       />
                     </div>
 

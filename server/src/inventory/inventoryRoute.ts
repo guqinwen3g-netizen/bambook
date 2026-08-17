@@ -32,7 +32,7 @@ import {
   WarehouseInput,
   InventoryItemInput,
   StockMovementInput,
-  StockMovementType,
+  VALID_MOVEMENT_TYPES,
 } from './inventoryService';
 
 export interface InventoryRouterOptions {
@@ -41,8 +41,6 @@ export interface InventoryRouterOptions {
   apiKeys: Set<string>;
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
 }
-
-const VALID_MOVEMENT_TYPES: StockMovementType[] = ['Inbound', 'Outbound', 'Transfer', 'Adjustment', 'Lock', 'Unlock'];
 
 export function createInventoryRouter(options: InventoryRouterOptions): Router {
   const router = Router();

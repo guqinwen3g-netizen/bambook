@@ -32,7 +32,9 @@ import { statusSemanticClass } from '../rdlBusinessStatusTokens';
 import { formatYmd } from '../../lib/dateFormat';
 import SidePanelContainer from '../ui/SidePanelContainer';
 import OrderSectionHeader from './OrderSectionHeader';
+import RelationCombobox from './RelationCombobox';
 import { createOrderUiSpec } from './orderUiSpec';
+import type { Relation } from '../../types';
 
 /**
  * 订单详情「变更申请 / Change Requests」区块（DR-010 审批链 UI 落点）。
@@ -64,6 +66,8 @@ interface OrderChangeRequestsSectionProps {
   refreshKey?: number;
   gatePrefill?: ChangeRequestGatePrefill | null;
   onGatePrefillConsumed?: () => void;
+  /** 关系档案列表（客户变更表单的 RelationCombobox 数据源；宿主 OrderManager 传入） */
+  relations?: Relation[];
 }
 
 // ── 展示映射 ──
@@ -135,6 +139,17 @@ const EMPTY_FORM: ChangeFormValues = {
   impactSummary: '',
 };
 
+/** 门禁拦截的单条受控改动 → 预填变更申请表单（按 changeType 映射到对应 after 字段） */
+const prefillFormFromGateEdit = (edit: ControlledFieldEdit): ChangeFormValues => {
+  const next: ChangeFormValues = { ...EMPTY_FORM, changeType: edit.changeType };
+  if (edit.changeType === 'quantity') next.afterQuantity = String(edit.after ?? '');
+  if (edit.changeType === 'price') next.afterAmount = String(edit.after ?? '');
+  if (edit.changeType === 'delivery') next.afterDeliveryDate = formatYmd(edit.after as string) || String(edit.after ?? '');
+  if (edit.changeType === 'customer') next.afterCustomer = String(edit.after ?? '');
+  if (edit.changeType === 'product') next.afterProduct = String(edit.after ?? '');
+  return next;
+};
+
 // ───────────────────────────────────────────────────────────────────
 // Capsule MOQ 豁免徽章（小元素范式；DR-003）
 // ───────────────────────────────────────────────────────────────────
@@ -199,6 +214,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
   refreshKey = 0,
   gatePrefill = null,
   onGatePrefillConsumed,
+  relations = [],
 }) => {
   const spec = useMemo(() => createOrderUiSpec(isDarkMode === true), [isDarkMode]);
   const dark = isDarkMode === true;
@@ -215,6 +231,9 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
   const [successNote, setSuccessNote] = useState<string | null>(null);
   const [gateNote, setGateNote] = useState<string[]>([]);
   const [gateEdits, setGateEdits] = useState<ControlledFieldEdit[]>([]);
+  // 多类型受控改动队列：一次保存检测到多类受控改动时，按类型建队，逐类发起申请单
+  const [gateQueue, setGateQueue] = useState<OrderChangeType[]>([]);
+  const [gateQueueIndex, setGateQueueIndex] = useState(0);
 
   const [moqChecking, setMoqChecking] = useState(false);
   const [moqResult, setMoqResult] = useState<MoqValidateResult | null>(null);
@@ -253,20 +272,16 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
     return () => { cancelled = true; };
   }, [order.id, refreshKey]);
 
-  // 编辑门禁引导：受控字段直改被拦截 → 自动打开表单并预填 before/after
+  // 编辑门禁引导：受控字段直改被拦截 → 自动打开表单并按类型建队预填（多类型队列逐类发起）
   useEffect(() => {
     if (!gatePrefill || gatePrefill.edits.length === 0) return;
-    const first = gatePrefill.edits[0];
-    const next: ChangeFormValues = { ...EMPTY_FORM, changeType: first.changeType };
-    if (first.changeType === 'quantity') next.afterQuantity = String(first.after ?? '');
-    if (first.changeType === 'price') next.afterAmount = String(first.after ?? '');
-    if (first.changeType === 'delivery') next.afterDeliveryDate = formatYmd(first.after as string) || String(first.after ?? '');
-    if (first.changeType === 'customer') next.afterCustomer = String(first.after ?? '');
-    if (first.changeType === 'product') next.afterProduct = String(first.after ?? '');
-    const typeSet = Array.from(new Set(gatePrefill.edits.map((e) => e.changeType)));
-    setGateNote(typeSet.map((t) => ORDER_CHANGE_TYPE_LABELS[t]));
+    const typeQueue = Array.from(new Set(gatePrefill.edits.map((e) => e.changeType)));
+    const firstEdit = gatePrefill.edits.find((e) => e.changeType === typeQueue[0]) ?? gatePrefill.edits[0];
+    setGateNote(typeQueue.map((t) => ORDER_CHANGE_TYPE_LABELS[t]));
     setGateEdits(gatePrefill.edits);
-    setForm(next);
+    setGateQueue(typeQueue);
+    setGateQueueIndex(0);
+    setForm(prefillFormFromGateEdit(firstEdit));
     setSubmitError(null);
     setSubmitErrorCode(null);
     setMoqResult(null);
@@ -283,10 +298,16 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
     openExceptionEntry({ targetType: 'Order', targetId: order.id, ...detail });
   };
 
-  const openComposer = () => {
-    setForm(EMPTY_FORM);
+  const resetGateQueue = () => {
     setGateNote([]);
     setGateEdits([]);
+    setGateQueue([]);
+    setGateQueueIndex(0);
+  };
+
+  const openComposer = () => {
+    setForm(EMPTY_FORM);
+    resetGateQueue();
     setSubmitError(null);
     setSubmitErrorCode(null);
     setMoqResult(null);
@@ -305,8 +326,26 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
     setSubmitting(true);
     try {
       const res = await orderChangeService.createChangeRequest(built.payload);
-      setComposerOpen(false);
-      setSuccessNote(`变更申请 ${res.changeRequest.requestNumber} 已提交，进入审批链`);
+      // 队列推进：提交类型与队列头一致且还有下一类 → 保留表单并预填下一类型，引导逐类发起直至队列清空；
+      // 用户手动改换了变更类型则视为脱离队列，按普通提交收口（队列重置，防串单）
+      const nextIndex = gateQueueIndex + 1;
+      const onQueueTrack = gateQueue.length > 0 && form.changeType === gateQueue[gateQueueIndex];
+      if (onQueueTrack && nextIndex < gateQueue.length) {
+        const nextType = gateQueue[nextIndex];
+        const nextEdit = gateEdits.find((e) => e.changeType === nextType);
+        const remainingLabels = gateQueue.slice(nextIndex).map((t) => ORDER_CHANGE_TYPE_LABELS[t]);
+        setGateQueueIndex(nextIndex);
+        setForm(nextEdit ? prefillFormFromGateEdit(nextEdit) : { ...EMPTY_FORM, changeType: nextType });
+        setMoqResult(null);
+        setMoqError(null);
+        setSuccessNote(
+          `变更申请 ${res.changeRequest.requestNumber} 已提交；还有 ${remainingLabels.length} 类改动待分别发起（${remainingLabels.join('、')}），已为你预填「${ORDER_CHANGE_TYPE_LABELS[nextType]}」申请。`,
+        );
+      } else {
+        setComposerOpen(false);
+        resetGateQueue();
+        setSuccessNote(`变更申请 ${res.changeRequest.requestNumber} 已提交，进入审批链`);
+      }
       await reload();
     } catch (e: any) {
       setSubmitError(e?.message ?? String(e));
@@ -467,7 +506,9 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
               <AlertCircle size={14} className="mt-px shrink-0" />
               <span className="min-w-0 flex-1">
                 检测到受控字段直改（{gateNote.join('、')}）——已批准订单的受控字段变更需经审批，已为你预填「{ORDER_CHANGE_TYPE_LABELS[form.changeType]}」申请；
-                {gateNote.length > 1 ? '其余类型请提交本单后分别再发起。' : '请补充变更理由与影响说明后提交。'}
+                {gateQueue.length > 1
+                  ? `改动队列进度 ${gateQueueIndex + 1}/${gateQueue.length}：提交本单后自动预填下一类型，直至 ${gateQueue.length} 类改动全部发起。`
+                  : '请补充变更理由与影响说明后提交。'}
               </span>
               <button
                 type="button"
@@ -483,6 +524,25 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                 <ShieldPlus size={13} strokeWidth={1.5} />
                 申请受控例外
               </button>
+            </div>
+          )}
+
+          {/* 改动队列进度条：多类型受控改动逐类发起（队列清空前进度常显） */}
+          {gateQueue.length > 1 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {gateQueue.map((t, idx) => (
+                <span
+                  key={t}
+                  className={idx < gateQueueIndex ? spec.chip : idx === gateQueueIndex ? `bds-badge sm info` : `${spec.chip} opacity-50`}
+                >
+                  {idx < gateQueueIndex ? '已提交 · ' : idx === gateQueueIndex ? '进行中 · ' : ''}{ORDER_CHANGE_TYPE_LABELS[t]}
+                </span>
+              ))}
+              {gateQueueIndex < gateQueue.length - 1 && (
+                <span className={`text-[10px] font-light ${spec.textFaint}`}>
+                  还有 {gateQueue.length - gateQueueIndex - 1} 类改动待分别发起
+                </span>
+              )}
             </div>
           )}
 
@@ -536,26 +596,23 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
               </div>
             )}
             {changeType === 'customer' && (
-              <>
-                <div className="space-y-1.5">
-                  <span className={`ml-1 ${spec.subGroupMeta}`}>变更后客户（当前 {order.customer || '—'}）</span>
-                  <input
-                    className={spec.field}
-                    value={form.afterCustomer ?? ''}
-                    onChange={(e) => setForm((p) => ({ ...p, afterCustomer: e.target.value }))}
-                    placeholder="新客户名称"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <span className={`ml-1 ${spec.subGroupMeta}`}>新客户关联 ID（可选）</span>
-                  <input
-                    className={spec.field}
-                    value={form.afterCustomerRelationId ?? ''}
-                    onChange={(e) => setForm((p) => ({ ...p, afterCustomerRelationId: e.target.value }))}
-                    placeholder="Relation ID，缺省按名称"
-                  />
-                </div>
-              </>
+              <div className="space-y-1.5">
+                <span className={`ml-1 ${spec.subGroupMeta}`}>变更后客户（当前 {order.customer || '—'}）</span>
+                <RelationCombobox
+                  value={form.afterCustomer ?? ''}
+                  relationId={form.afterCustomerRelationId || undefined}
+                  relations={relations}
+                  filterCategories={['Customer']}
+                  isDarkMode={dark}
+                  placeholder="搜索并选择新客户（客户类别档案；可直接键入新名称）"
+                  inputClassName={`${spec.field} pr-9`}
+                  onChange={(next) => setForm((p) => ({
+                    ...p,
+                    afterCustomer: next.name,
+                    afterCustomerRelationId: next.relationId ?? '',
+                  }))}
+                />
+              </div>
             )}
             {changeType === 'product' && (
               <div className="space-y-1.5">
@@ -691,7 +748,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
           )}
 
           <div className="mt-4 flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setComposerOpen(false)} disabled={submitting} className="bds-btn bds-btn-ghost">
+            <button type="button" onClick={() => { setComposerOpen(false); resetGateQueue(); }} disabled={submitting} className="bds-btn bds-btn-ghost">
               取消
             </button>
             <button type="button" onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">

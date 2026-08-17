@@ -152,14 +152,14 @@ describe('orderChangeService fetch 行为', () => {
     expect(body.lines[0].quantity).toBe(30);
   });
 
-  it('错误契约: 非 2xx { error, message } → 抛带 code 的 Error(message)', async () => {
+  it('错误契约: 非 2xx { error, message } → 抛带 code 的 Error(CODE：message)', async () => {
     mockFetchOnce(
       { error: 'ORDER_CHANGE_ALREADY_PENDING', message: '存在进行中的变更申请' },
       { ok: false, status: 409 },
     );
     const err = await orderChangeService.listChangeRequests({ orderId: 'O1' }).catch((e) => e);
     expect(err).toBeInstanceOf(Error);
-    expect(err.message).toBe('存在进行中的变更申请');
+    expect(err.message).toBe('ORDER_CHANGE_ALREADY_PENDING：存在进行中的变更申请');
     expect((err as Error & { code?: string }).code).toBe('ORDER_CHANGE_ALREADY_PENDING');
   });
 

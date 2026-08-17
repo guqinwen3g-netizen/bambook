@@ -365,6 +365,42 @@ describe('runtime QA [SampleNodesPanel UI]: 服装多轮样品双门禁', () => 
   });
 });
 
+describe('runtime QA [SampleNodesPanel UI]: 节点动作 BDS 弹窗表单（G6）', () => {
+  it('window.prompt 清零（寄样/修改意见/批准意见全部走弹窗表单）', () => {
+    expect(SAMPLE_PANEL_SRC).not.toContain('window.prompt');
+  });
+  it('弹窗宿主为 BDS BottomSheet，按动作出标题', () => {
+    expect(SAMPLE_PANEL_SRC).toContain("import BottomSheet from '../ui/BottomSheet'");
+    expect(SAMPLE_PANEL_SRC).toContain('<BottomSheet');
+    expect(SAMPLE_PANEL_SRC).toContain('NODE_DIALOG_TITLE');
+    expect(SAMPLE_PANEL_SRC).toContain('寄出样品');
+    expect(SAMPLE_PANEL_SRC).toContain('登记客户修改意见');
+    expect(SAMPLE_PANEL_SRC).toContain('批准样品');
+  });
+  it('三动作弹窗状态机（send / revise / approve）+ 统一提交入口', () => {
+    expect(SAMPLE_PANEL_SRC).toContain("setDialog({ kind: 'send', node })");
+    expect(SAMPLE_PANEL_SRC).toContain("setDialog({ kind: 'revise', node })");
+    expect(SAMPLE_PANEL_SRC).toContain("setDialog({ kind: 'approve', node })");
+    expect(SAMPLE_PANEL_SRC).toContain('const submitNodeDialog = useCallback');
+  });
+  it('寄样弹窗预填既有快递单号/公司，payload 契约与原 prompt 一致（trim || undefined）', () => {
+    expect(SAMPLE_PANEL_SRC).toContain('SendSampleDialogForm');
+    expect(SAMPLE_PANEL_SRC).toContain('useState(node.trackingNumber ||');
+    expect(SAMPLE_PANEL_SRC).toContain('useState(node.courier ||');
+    expect(SAMPLE_PANEL_SRC).toContain('trackingNumber: input.trackingNumber.trim() || undefined');
+    expect(SAMPLE_PANEL_SRC).toContain('courier: input.courier.trim() || undefined');
+  });
+  it('意见弹窗复用（客户修改意见预填既有反馈 / 批准意见空白起步）', () => {
+    expect(SAMPLE_PANEL_SRC).toContain('NodeFeedbackDialogForm');
+    expect(SAMPLE_PANEL_SRC).toContain('initialValue={dialog.node.feedback ||');
+    expect(SAMPLE_PANEL_SRC).toContain("submitNodeDialog({ action: 'revise', feedback: feedback.trim() || undefined })");
+    expect(SAMPLE_PANEL_SRC).toContain("submitNodeDialog({ action: 'approve', feedback: feedback.trim() || undefined })");
+  });
+  it('开始打样仍为直发动作（无弹窗回归）', () => {
+    expect(SAMPLE_PANEL_SRC).toContain("act(node, 'start')");
+  });
+});
+
 describe('runtime QA [DevelopmentManager 接线]: caseType 透传', () => {
   it('SampleNodesPanel 传入 caseType（garment 才渲染双门禁）', () => {
     expect(DEV_MGR_SRC).toContain('<SampleNodesPanel key={selectedCase.id} caseId={selectedCase.id} caseType={selectedCase.type} isDarkMode={isDarkMode} />');

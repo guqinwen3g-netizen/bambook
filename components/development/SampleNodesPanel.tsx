@@ -34,6 +34,7 @@ import {
   type GarmentRoundStatus,
 } from '../../services/sampleService';
 import type { SampleNode, SampleNodeLevel, SampleNodeStatus } from '../../types';
+import BottomSheet from '../ui/BottomSheet';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -51,6 +52,19 @@ const STATUS_LABEL: Record<SampleNodeStatus, string> = {
   revising: '需修改',
 };
 
+/** 节点动作弹窗：寄样（快递单号/快递公司）/ 需修改（客户修改意见）/ 批准（批准意见） */
+type NodeActionDialogState =
+  | { kind: 'send'; node: SampleNode }
+  | { kind: 'revise'; node: SampleNode }
+  | { kind: 'approve'; node: SampleNode }
+  | null;
+
+const NODE_DIALOG_TITLE: Record<'send' | 'revise' | 'approve', string> = {
+  send: '寄出样品',
+  revise: '登记客户修改意见',
+  approve: '批准样品',
+};
+
 interface SampleNodesPanelProps {
   caseId: string;
   isDarkMode: boolean;
@@ -63,6 +77,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<NodeActionDialogState>(null);
 
   const textPrimary = 'text-[var(--text-primary)]';
   const textSecondary = 'text-[var(--text-tertiary)]';
@@ -83,29 +98,13 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
 
   useEffect(() => { load(); }, [load]);
 
-  const act = useCallback(async (node: SampleNode, action: 'start' | 'send' | 'approve' | 'revise') => {
+  const act = useCallback(async (node: SampleNode, action: 'start') => {
     const key = `${node.level}:${action}`;
     if (acting) return;
     setActing(key);
     setError(null);
     try {
-      let payload: any = { action };
-      if (action === 'send') {
-        const trackingNumber = window.prompt('快递单号（可留空）', node.trackingNumber || '') ?? undefined;
-        if (trackingNumber === undefined) { setActing(null); return; }
-        const courier = trackingNumber.trim() ? (window.prompt('快递公司（可留空）', node.courier || '') ?? '') : '';
-        payload = { action, trackingNumber: trackingNumber.trim() || undefined, courier: courier.trim() || undefined };
-      }
-      if (action === 'revise') {
-        const feedback = window.prompt('客户修改意见', node.feedback || '');
-        if (feedback === null) { setActing(null); return; }
-        payload = { action, feedback: feedback.trim() || undefined };
-      }
-      if (action === 'approve') {
-        const feedback = window.prompt('批准意见（可留空）', '') ?? '';
-        payload = { action, feedback: feedback.trim() || undefined };
-      }
-      const updated = await developmentService.advanceSampleNode(caseId, node.level, payload);
+      const updated = await developmentService.advanceSampleNode(caseId, node.level, { action });
       setNodes(prev => prev.map(n => (n.id === updated.id ? updated : n)));
     } catch (e: any) {
       setError(String(e?.message || e));
@@ -113,6 +112,22 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
       setActing(null);
     }
   }, [acting, caseId]);
+
+  // BDS 弹窗表单提交（寄样 / 需修改 / 批准；取代原生 prompt 串联录入）
+  const submitNodeDialog = useCallback(async (payload: { action: 'send' | 'revise' | 'approve'; trackingNumber?: string; courier?: string; feedback?: string }) => {
+    if (!dialog || acting) return;
+    setActing(`${dialog.node.level}:${payload.action}`);
+    setError(null);
+    try {
+      const updated = await developmentService.advanceSampleNode(caseId, dialog.node.level, payload);
+      setNodes(prev => prev.map(n => (n.id === updated.id ? updated : n)));
+      setDialog(null);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setActing(null);
+    }
+  }, [acting, caseId, dialog]);
 
   if (loading) {
     return (
@@ -166,11 +181,11 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                   )}
                   {node.status === 'making' && (
                     <>
-                      <button type="button" disabled={!!acting} onClick={() => act(node, 'send')}
+                      <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'send', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
                         <Send size={10} strokeWidth={1.4} /> 寄出
                       </button>
-                      <button type="button" disabled={!!acting} onClick={() => act(node, 'revise')}
+                      <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'revise', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
                         <RotateCcw size={10} strokeWidth={1.4} /> 需修改
                       </button>
@@ -178,12 +193,12 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                   )}
                   {node.status === 'sent' && (
                     <>
-                      <button type="button" disabled={!!acting} onClick={() => act(node, 'approve')}
+                      <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'approve', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors',
                           'border-success/30 text-[var(--success-text)] hover:bg-[var(--success-tint)]')}>
                         <CheckCircle2 size={10} strokeWidth={1.4} /> 批准
                       </button>
-                      <button type="button" disabled={!!acting} onClick={() => act(node, 'revise')}
+                      <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'revise', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
                         <RotateCcw size={10} strokeWidth={1.4} /> 需修改
                       </button>
@@ -197,7 +212,136 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
         })}
       </div>
       {caseType === 'garment' && <GarmentSampleGateSection caseId={caseId} />}
+
+      {/* 节点动作弹窗表单（BDS BottomSheet；取代原生 prompt） */}
+      <BottomSheet
+        isOpen={dialog !== null}
+        onClose={() => { if (!acting) setDialog(null); }}
+        title={dialog ? NODE_DIALOG_TITLE[dialog.kind] : ''}
+        isDarkMode={isDarkMode}
+      >
+        {dialog?.kind === 'send' && (
+          <SendSampleDialogForm
+            key={`send:${dialog.node.id}`}
+            node={dialog.node}
+            busy={!!acting}
+            onCancel={() => setDialog(null)}
+            onSubmit={(input) => submitNodeDialog({
+              action: 'send',
+              trackingNumber: input.trackingNumber.trim() || undefined,
+              courier: input.courier.trim() || undefined,
+            })}
+          />
+        )}
+        {dialog?.kind === 'revise' && (
+          <NodeFeedbackDialogForm
+            key={`revise:${dialog.node.id}`}
+            busy={!!acting}
+            label="客户修改意见"
+            placeholder="登记客户反馈的修改要求（可留空）"
+            submitLabel="确认需修改"
+            initialValue={dialog.node.feedback || ''}
+            onCancel={() => setDialog(null)}
+            onSubmit={(feedback) => submitNodeDialog({ action: 'revise', feedback: feedback.trim() || undefined })}
+          />
+        )}
+        {dialog?.kind === 'approve' && (
+          <NodeFeedbackDialogForm
+            key={`approve:${dialog.node.id}`}
+            busy={!!acting}
+            label="批准意见"
+            placeholder="批准意见（可留空）"
+            submitLabel="确认批准"
+            initialValue=""
+            onCancel={() => setDialog(null)}
+            onSubmit={(feedback) => submitNodeDialog({ action: 'approve', feedback: feedback.trim() || undefined })}
+          />
+        )}
+      </BottomSheet>
     </div>
+  );
+}
+
+// ── 节点动作弹窗表单（寄样快递信息 / 修改意见 / 批准意见） ──
+
+const dialogInputCls = 'bds-input sm';
+const dialogBtnCls = 'inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors';
+
+function DialogFormButtons({ busy, onCancel, submitLabel }: { busy: boolean; onCancel: () => void; submitLabel: string }) {
+  return (
+    <div className="flex items-center gap-1.5 pt-1">
+      <button type="submit" disabled={busy} className={cx(dialogBtnCls, 'border-success/30 text-[var(--success-text)] hover:bg-[var(--success-tint)]')}>
+        {busy ? <Loader2 size={10} strokeWidth={1.4} className="animate-spin" /> : <CheckCircle2 size={10} strokeWidth={1.4} />}
+        {submitLabel}
+      </button>
+      <button type="button" disabled={busy} onClick={onCancel} className={cx(dialogBtnCls, 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]')}>
+        取消
+      </button>
+    </div>
+  );
+}
+
+/** 寄样弹窗：快递单号 + 快递公司（均可留空，与原 prompt 契约一致） */
+function SendSampleDialogForm({ node, busy, onCancel, onSubmit }: {
+  node: SampleNode;
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (input: { trackingNumber: string; courier: string }) => Promise<void>;
+}) {
+  const [trackingNumber, setTrackingNumber] = useState(node.trackingNumber || '');
+  const [courier, setCourier] = useState(node.courier || '');
+  return (
+    <form
+      className="space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void onSubmit({ trackingNumber, courier });
+      }}
+    >
+      <div className="space-y-1">
+        <span className="ml-1 text-[10px] font-light text-[var(--text-tertiary)]">快递单号（可留空）</span>
+        <input className={dialogInputCls} value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} placeholder="快递单号" />
+      </div>
+      <div className="space-y-1">
+        <span className="ml-1 text-[10px] font-light text-[var(--text-tertiary)]">快递公司（可留空）</span>
+        <input className={dialogInputCls} value={courier} onChange={(e) => setCourier(e.target.value)} placeholder="快递公司" />
+      </div>
+      <DialogFormButtons busy={busy} onCancel={onCancel} submitLabel="确认寄出" />
+    </form>
+  );
+}
+
+/** 意见弹窗：客户修改意见 / 批准意见（可留空） */
+function NodeFeedbackDialogForm({ busy, label, placeholder, submitLabel, initialValue, onCancel, onSubmit }: {
+  busy: boolean;
+  label: string;
+  placeholder: string;
+  submitLabel: string;
+  initialValue: string;
+  onCancel: () => void;
+  onSubmit: (feedback: string) => Promise<void>;
+}) {
+  const [feedback, setFeedback] = useState(initialValue);
+  return (
+    <form
+      className="space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void onSubmit(feedback);
+      }}
+    >
+      <div className="space-y-1">
+        <span className="ml-1 text-[10px] font-light text-[var(--text-tertiary)]">{label}</span>
+        <textarea
+          className="w-full resize-none rounded-inset border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-3 py-2 text-xs font-light leading-relaxed outline-none text-[var(--text-primary)]"
+          rows={3}
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder={placeholder}
+        />
+      </div>
+      <DialogFormButtons busy={busy} onCancel={onCancel} submitLabel={submitLabel} />
+    </form>
   );
 }
 

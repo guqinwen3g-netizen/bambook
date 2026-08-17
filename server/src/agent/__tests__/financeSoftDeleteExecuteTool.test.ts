@@ -109,6 +109,9 @@ describe('task finance-soft-delete-flow: executeAgentTool draft→approval', () 
       invoice: { findUnique: vi.fn().mockResolvedValue({ id: 'INV__1', deletedAt: null }) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation', 'development'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'invoice.delete', toolInput: { invoiceId: 'INV__1' }, sessionId: 's1' });
@@ -123,6 +126,9 @@ describe('task finance-soft-delete-flow: executeAgentTool draft→approval', () 
       paymentVoucher: { findUnique: vi.fn().mockResolvedValue({ id: 'PV__1', deletedAt: null }) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation', 'development'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'payment_voucher.delete', toolInput: { voucherId: 'PV__1' }, sessionId: 's1' });
@@ -145,6 +151,9 @@ describe('task finance-soft-delete-flow: executeAgentTool draft→approval', () 
       invoice: { findUnique: vi.fn().mockResolvedValue(null) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation', 'development'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'invoice.delete', toolInput: { invoiceId: 'INV_MISSING' }, sessionId: 's1' });
@@ -161,6 +170,9 @@ describe('task finance-soft-delete-flow: executeAgentTool draft→approval', () 
       invoice: { findUnique: vi.fn().mockResolvedValue({ id: 'INV__1', deletedAt: 1000 }) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation', 'development'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'invoice.delete', toolInput: { invoiceId: 'INV__1' }, sessionId: 's1' });
@@ -177,6 +189,9 @@ describe('task finance-soft-delete-flow: executeAgentTool draft→approval', () 
       invoice: { findUnique: vi.fn().mockResolvedValue({ id: 'INV__1', deletedAt: null }) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation', 'development'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'invoice.delete', toolInput: { invoiceId: 'INV__1' }, sessionId: 's1' });
@@ -192,6 +207,9 @@ describe('task finance-soft-delete-flow: executeAgentTool draft→approval', () 
       paymentVoucher: { findUnique: vi.fn().mockResolvedValue(null) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation', 'development'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'payment_voucher.delete', toolInput: { voucherId: 'PV_MISSING' }, sessionId: 's1' });
@@ -208,6 +226,9 @@ describe('task finance-soft-delete-flow: executeAgentTool draft→approval', () 
       paymentVoucher: { findUnique: vi.fn().mockResolvedValue({ id: 'PV__1', deletedAt: 1000 }) },
       userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
       actorAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
+      // DR-007 routing 查询面：requester 无部门 → FALLBACK_ADMIN 命中 ua_admin
+      department: { findUnique: vi.fn().mockResolvedValue(null) },
+      userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'ua_admin' }]) },
     } as any;
     const actor = { userId: 'u1', role: 'admin', id: 'u1', roles: ['admin'], toolScopes: ['finance', 'orders', 'shipping', 'relations', 'automation', 'development'], knowledgeScopes: ['company'], departmentIds: [] } as any;
     const result: any = await executeAgentTool({ prisma, actor, toolId: 'payment_voucher.delete', toolInput: { voucherId: 'PV__1' }, sessionId: 's1' });

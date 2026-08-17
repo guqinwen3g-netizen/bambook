@@ -421,8 +421,9 @@ export function buildChangeRequestDraft(
 async function readApiError(res: Response, fallback: string): Promise<Error> {
   const data = await res.json().catch(() => ({}));
   const code = typeof data?.error === 'string' ? data.error : undefined;
-  const message = typeof data?.message === 'string' && data.message ? data.message : `${fallback} (HTTP ${res.status})`;
-  const err = new Error(message) as Error & { code?: string };
+  const rawMessage = typeof data?.message === 'string' && data.message ? data.message : `${fallback} (HTTP ${res.status})`;
+  const err = new Error(code && data?.message && !rawMessage.includes(code) ? `${code}：${rawMessage}` : rawMessage) as Error & { code?: string; status?: number };
+  err.status = res.status;
   if (code) err.code = code;
   return err;
 }
