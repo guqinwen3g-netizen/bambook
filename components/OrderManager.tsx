@@ -9,7 +9,7 @@ import {
   Trash2, Edit2, Save, Package,
   AlertTriangle,
   Globe, List,
-  Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, ChevronDown, GitBranch,
+  Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, GitBranch,
   Search
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
@@ -24,6 +24,7 @@ import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks';
 import { ProductionPipeline } from './ProductionPipeline';
 import { ProductionAlerts } from './ProductionAlerts';
 import { PageHeader } from './ui/PageHeader';
+import CustomSelect from './ui/CustomSelect';
 import { CompiledTableShell } from './ui/osCompiler/compiledPrimitives';
 import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/osCompiler/compiledSurfacePrimitives';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
@@ -199,6 +200,17 @@ const TXT_FAINT = 'text-[var(--text-quaternary)]';
 const KICKER_CLASS = `text-[11px] font-light uppercase tracking-[0.22em] ${TXT_MUTED}`;
 /** 1px 细分隔条底色（竖/横共用） */
 const DIVIDER_CLASS = 'bg-[var(--border-c-strong)]';
+
+/** bar 状态筛选选项（CustomSelect surface="field" 消费） */
+const ORDER_STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: '全部状态' },
+  { value: 'Pending', label: '待确认' },
+  { value: 'Confirmed', label: '已确认' },
+  { value: 'Production', label: '生产中' },
+  { value: 'Shipping', label: '发货中' },
+  { value: 'Delivered', label: '已交付' },
+  { value: 'Alert', label: '异常' },
+];
 /** 细边框色（统计分隔/卡内分隔线） */
 const BORDER_SUBTLE_CLASS = 'border-[var(--border-c-subtle)]';
 
@@ -1034,21 +1046,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               </div>
             </div>
             <div className="hidden md:flex items-center gap-2 ml-auto">
-              <div className="relative shrink-0">
-                <select
-                  className="bds-select w-auto pl-3.5 pr-8 text-xs"
+              {/* 状态筛选：原生 select 元素（OS 原生浮层）→ CustomSelect surface="field"（W4 原生浮层收编），
+                  触发器几何与 bds-select 一致（34px / r-control-sm / recessed），浮层走 BDS 自绘容器 */}
+              <div className="relative shrink-0 w-28">
+                <CustomSelect
+                  surface="field"
+                  options={ORDER_STATUS_FILTER_OPTIONS}
                   value={orderFilterStatus}
-                  onChange={e => setOrderFilterStatus(e.target.value)}
-                >
-                  <option value="all">全部状态</option>
-                  <option value="Pending">待确认</option>
-                  <option value="Confirmed">已确认</option>
-                  <option value="Production">生产中</option>
-                  <option value="Shipping">发货中</option>
-                  <option value="Delivered">已交付</option>
-                  <option value="Alert">异常</option>
-                </select>
-                <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
+                  onChange={setOrderFilterStatus}
+                />
               </div>
               <div className={`h-5 w-px shrink-0 ${DIVIDER_CLASS}`} />
               <div className="flex items-center gap-1">
