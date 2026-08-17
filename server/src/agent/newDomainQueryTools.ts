@@ -11,6 +11,13 @@
  *   7. 内部交易域        internal_trade.query    — DR-005/033 内部供料单列表与详情
  *   8. 付款申请域        payment_requests.query  — DR-017 付款申请列表与详情
  *
+ * W4 收尾补齐（Agent 工具缺口 5 类，与各域路由同一 service 真源）：
+ *   9. 采购域            purchase_orders.query        — 采购单列表（状态/供应商/日期窗/搜索）与详情（含行明细+到货记录）
+ *  10. BOM 域           bom.query                    — BOM 列表（状态/产品/订单/报价过滤）与详情（含行明细+成本估算）
+ *  11. 退税域           customs.query_tax_refunds    — 出口退税记录列表（状态/报关单/订单/客户过滤）与详情
+ *  12. 报关单域         customs.query_declarations   — 报关单列表（类型/状态/运单/订单/客户过滤）与详情（含行明细）
+ *  13. 核销明细域       finance.query_allocations    — 收付款核销明细列表（按发票/凭证过滤，allocationService 真源）
+ *
  * 铁律：
  *   - 全部只读：risk=low + approvalPolicy=never，不触发审批链、不写库
  *   - 直接调用各域 service 层函数（与路由同一真源），禁止绕过 service 直查 prisma
@@ -292,6 +299,157 @@ export const NEW_DOMAIN_QUERY_TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     approvalPolicy: 'never',
   },
+  // ── W4 收尾：Agent 工具缺口 5 类 ──
+  {
+    id: 'purchase_orders.query',
+    name: 'Query Purchase Orders',
+    scope: 'procurement',
+    risk: 'low',
+    description: '查询采购单：按状态、供应商、下单日期窗、单号/供应商名搜索过滤列表，或按采购单 ID 读取单条详情（含行明细与到货记录）。用于回答某订单的采购执行情况、某供应商有哪些在途采购单等问题。只读，无副作用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '采购单 ID（提供时返回单条详情）' },
+        status: { type: 'string', description: '按状态过滤（Draft/Sent/Confirmed/PartiallyReceived/Received/Closed/Cancelled）' },
+        supplierRelationId: { type: 'string', description: '按供应商 Relation ID 过滤' },
+        dateFrom: { type: 'string', description: '下单日期起（YYYY-MM-DD）' },
+        dateTo: { type: 'string', description: '下单日期止（YYYY-MM-DD）' },
+        search: { type: 'string', description: '短文本搜索（采购单号/供应商名）' },
+        limit: { type: 'number', description: '列表条数上限（默认 100，最大 500）' },
+        offset: { type: 'number', description: '列表偏移（默认 0）' },
+      },
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        ok: { type: 'boolean' },
+        items: { type: 'array' },
+        item: { type: ['object', 'null'] },
+        total: { type: 'number' },
+        summary: { type: 'string' },
+      },
+    },
+    approvalPolicy: 'never',
+  },
+  {
+    id: 'bom.query',
+    name: 'Query BOMs',
+    scope: 'bom',
+    risk: 'low',
+    description: '查询 BOM 物料清单：按状态、产品档案、订单、报价单过滤列表，或按 BOM ID 读取单条详情（含行明细与成本估算，料/工/费汇总与利润分析）。用于回答某订单的物料构成、某款产品的成本结构等问题。只读，无副作用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'BOM ID（提供时返回单条详情）' },
+        status: { type: 'string', description: '按状态过滤（Draft/Confirmed/Archived）' },
+        productAssetId: { type: 'string', description: '按产品档案过滤' },
+        orderId: { type: 'string', description: '按订单过滤' },
+        quotationId: { type: 'string', description: '按报价单过滤' },
+        search: { type: 'string', description: '短文本搜索（BOM 号/描述）' },
+        limit: { type: 'number', description: '列表条数上限（默认 100，最大 500）' },
+        offset: { type: 'number', description: '列表偏移（默认 0）' },
+      },
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        ok: { type: 'boolean' },
+        items: { type: 'array' },
+        item: { type: ['object', 'null'] },
+        total: { type: 'number' },
+        summary: { type: 'string' },
+      },
+    },
+    approvalPolicy: 'never',
+  },
+  {
+    id: 'customs.query_tax_refunds',
+    name: 'Query Tax Refunds',
+    scope: 'customs',
+    risk: 'low',
+    description: '查询出口退税记录：按状态、报关单、订单、客户过滤列表，或按退税记录 ID 读取单条详情（含 FOB 金额/退税率/应退金额/审核信息）。用于回答某订单退税进度、哪些退税审核滞留等问题。只读，无副作用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '退税记录 ID（提供时返回单条详情）' },
+        status: { type: 'string', description: '按状态过滤（Draft/Submitted/Reviewing/Approved/Rejected/Refunded/Cancelled）' },
+        declarationId: { type: 'string', description: '按报关单过滤' },
+        orderId: { type: 'string', description: '按订单过滤' },
+        relationId: { type: 'string', description: '按客户 Relation ID 过滤' },
+        search: { type: 'string', description: '短文本搜索（退税申报编号）' },
+        limit: { type: 'number', description: '列表条数上限（默认 100，最大 500）' },
+        offset: { type: 'number', description: '列表偏移（默认 0）' },
+      },
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        ok: { type: 'boolean' },
+        items: { type: 'array' },
+        item: { type: ['object', 'null'] },
+        total: { type: 'number' },
+        summary: { type: 'string' },
+      },
+    },
+    approvalPolicy: 'never',
+  },
+  {
+    id: 'customs.query_declarations',
+    name: 'Query Customs Declarations',
+    scope: 'customs',
+    risk: 'low',
+    description: '查询报关单：按类型、状态、运单、订单、客户过滤列表，或按报关单 ID 读取单条详情（含行明细）。用于回答某票出运的报关状态、某订单的报关单号等问题。只读，无副作用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '报关单 ID（提供时返回单条详情）' },
+        type: { type: 'string', description: '按类型过滤（export/import 等）' },
+        status: { type: 'string', description: '按状态过滤（Draft/Submitted/Released/Cleared 等）' },
+        shipmentId: { type: 'string', description: '按运单过滤' },
+        orderId: { type: 'string', description: '按订单过滤' },
+        relationId: { type: 'string', description: '按客户 Relation ID 过滤' },
+        search: { type: 'string', description: '短文本搜索（报关单号/收发货人/申报单位）' },
+        limit: { type: 'number', description: '列表条数上限（默认 100，最大 500）' },
+        offset: { type: 'number', description: '列表偏移（默认 0）' },
+      },
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        ok: { type: 'boolean' },
+        items: { type: 'array' },
+        item: { type: ['object', 'null'] },
+        total: { type: 'number' },
+        summary: { type: 'string' },
+      },
+    },
+    approvalPolicy: 'never',
+  },
+  {
+    id: 'finance.query_allocations',
+    name: 'Query Invoice Allocations',
+    scope: 'finance',
+    risk: 'low',
+    description: '查询收付款核销明细（InvoiceAllocation）：按发票或收款凭证过滤，返回每笔核销的 appliedAmount/appliedDate。用于回答某发票已核销多少、某笔收款分配到哪些发票等问题。只读，无副作用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        invoiceId: { type: 'string', description: '按发票 ID 过滤' },
+        voucherId: { type: 'string', description: '按收/付款凭证 ID 过滤' },
+        limit: { type: 'number', description: '列表条数上限（默认 200，最大 500）' },
+      },
+    },
+    outputSchema: {
+      type: 'object',
+      properties: {
+        ok: { type: 'boolean' },
+        items: { type: 'array' },
+        total: { type: 'number' },
+        summary: { type: 'string' },
+      },
+    },
+    approvalPolicy: 'never',
+  },
 ];
 
 // ───────────────────────────────────────────────────────────────────
@@ -537,6 +695,151 @@ async function handlePaymentRequestsQuery(prisma: PrismaClient, input: Record<st
   });
 }
 
+// ── W4 收尾：Agent 工具缺口 5 类 handlers ──
+
+async function handlePurchaseOrdersQuery(prisma: PrismaClient, input: Record<string, unknown>) {
+  const { createProcurementService } = await import('../procurement/procurementService');
+  const svc = createProcurementService(prisma);
+  const id = strInput(input.id);
+  if (id) {
+    const item = await svc.getPurchaseOrder(id);
+    if (!item) return failResult('NOT_FOUND', `采购单 ${id} 不存在或已删除`);
+    return serializeValue({
+      ok: true,
+      item,
+      summary: `采购单 ${item.poNumber}：供应商 ${item.supplierName ?? '-'}，金额 ${item.totalAmount} ${item.currency}，状态 ${item.status}，${item.lines?.length ?? 0} 行明细 / ${item.receipts?.length ?? 0} 条到货记录`,
+    });
+  }
+  const { items, total } = await svc.listPurchaseOrders({
+    status: strInput(input.status),
+    supplierRelationId: strInput(input.supplierRelationId),
+    dateFrom: strInput(input.dateFrom),
+    dateTo: strInput(input.dateTo),
+    search: strInput(input.search),
+    limit: numberInput(input.limit, 100),
+    offset: Math.max(0, Number(input.offset) || 0),
+  });
+  return serializeValue({
+    ok: true,
+    items,
+    total,
+    summary: `共 ${total} 张采购单（本页 ${items.length} 张）${items.length > 0 ? `（最新：${items[0].poNumber}，状态 ${items[0].status}）` : ''}`,
+  });
+}
+
+async function handleBomQuery(prisma: PrismaClient, input: Record<string, unknown>) {
+  const { createBOMService } = await import('../bom/bomService');
+  const svc = createBOMService(prisma);
+  const id = strInput(input.id);
+  if (id) {
+    const item = await svc.getBOM(id);
+    if (!item) return failResult('NOT_FOUND', `BOM ${id} 不存在或已删除`);
+    return serializeValue({
+      ok: true,
+      item,
+      summary: `BOM ${item.bomNumber}（v${item.version}）：${item.description}，状态 ${item.status}，总成本 ${item.totalCost} ${item.currency}，${item.lines?.length ?? 0} 行物料`,
+    });
+  }
+  const { items, total } = await svc.listBOMs({
+    status: strInput(input.status),
+    productAssetId: strInput(input.productAssetId),
+    orderId: strInput(input.orderId),
+    quotationId: strInput(input.quotationId),
+    search: strInput(input.search),
+    limit: numberInput(input.limit, 100),
+    offset: Math.max(0, Number(input.offset) || 0),
+  });
+  return serializeValue({
+    ok: true,
+    items,
+    total,
+    summary: `共 ${total} 份 BOM（本页 ${items.length} 份）${items.length > 0 ? `（最新：${items[0].bomNumber}，状态 ${items[0].status}）` : ''}`,
+  });
+}
+
+async function handleTaxRefundsQuery(prisma: PrismaClient, input: Record<string, unknown>) {
+  const { createCustomsService } = await import('../customs/customsService');
+  const svc = createCustomsService(prisma);
+  const id = strInput(input.id);
+  if (id) {
+    try {
+      const item = await svc.getTaxRefund(id);
+      return serializeValue({
+        ok: true,
+        item,
+        summary: `退税记录 ${item.refundNumber}：状态 ${item.status}，应退 ${item.refundAmount ?? '-'} CNY（FOB ${item.exportAmountFob ?? '-'} ${item.exportAmountFobCurrency ?? ''}，退税率 ${item.refundableRate ?? '-'}%）`,
+      });
+    } catch {
+      return failResult('NOT_FOUND', `退税记录 ${id} 不存在或已删除`);
+    }
+  }
+  const { items, total } = await svc.listTaxRefunds({
+    status: strInput(input.status),
+    declarationId: strInput(input.declarationId),
+    orderId: strInput(input.orderId),
+    relationId: strInput(input.relationId),
+    search: strInput(input.search),
+    limit: numberInput(input.limit, 100),
+    offset: Math.max(0, Number(input.offset) || 0),
+  });
+  return serializeValue({
+    ok: true,
+    items,
+    total,
+    summary: `共 ${total} 条退税记录（本页 ${items.length} 条）${items.length > 0 ? `（最新：${items[0].refundNumber}，状态 ${items[0].status}）` : ''}`,
+  });
+}
+
+async function handleCustomsDeclarationsQuery(prisma: PrismaClient, input: Record<string, unknown>) {
+  const { createCustomsService } = await import('../customs/customsService');
+  const svc = createCustomsService(prisma);
+  const id = strInput(input.id);
+  if (id) {
+    try {
+      const item = await svc.getDeclaration(id);
+      return serializeValue({
+        ok: true,
+        item,
+        summary: `报关单 ${item.declarationNumber}：类型 ${item.type}，状态 ${item.status}，${item.lines?.length ?? 0} 行明细`,
+      });
+    } catch {
+      return failResult('NOT_FOUND', `报关单 ${id} 不存在或已删除`);
+    }
+  }
+  const { items, total } = await svc.listDeclarations({
+    type: strInput(input.type),
+    status: strInput(input.status),
+    shipmentId: strInput(input.shipmentId),
+    orderId: strInput(input.orderId),
+    relationId: strInput(input.relationId),
+    search: strInput(input.search),
+    limit: numberInput(input.limit, 100),
+    offset: Math.max(0, Number(input.offset) || 0),
+  });
+  return serializeValue({
+    ok: true,
+    items,
+    total,
+    summary: `共 ${total} 份报关单（本页 ${items.length} 份）${items.length > 0 ? `（最新：${items[0].declarationNumber}，状态 ${items[0].status}）` : ''}`,
+  });
+}
+
+async function handleFinanceAllocationsQuery(prisma: PrismaClient, input: Record<string, unknown>) {
+  const { listInvoiceAllocations } = await import('../finance/allocationService');
+  const { items, total } = await listInvoiceAllocations(prisma, {
+    invoiceId: strInput(input.invoiceId),
+    voucherId: strInput(input.voucherId),
+    limit: numberInput(input.limit, 200),
+  });
+  const sum = items.reduce((acc: number, a: any) => acc + Number(a.appliedAmount ?? 0), 0);
+  return serializeValue({
+    ok: true,
+    items,
+    total,
+    summary: `共 ${total} 笔核销明细，核销金额合计 ${sum.toFixed(4)}${items.length > 0 ? `（最新：发票 ${items[0].invoiceId} ↔ 凭证 ${items[0].voucherId}，金额 ${items[0].appliedAmount}）` : ''}`,
+  });
+}
+
 // ───────────────────────────────────────────────────────────────────
 // 注册入口（toolRuntime 一次性接线）
 // ───────────────────────────────────────────────────────────────────
@@ -550,4 +853,9 @@ export function registerNewDomainQueryTools(): void {
   registerTool('credit.query_status', (prisma, input) => handleCreditQueryStatus(prisma, input));
   registerTool('internal_trade.query', (prisma, input) => handleInternalTradeQuery(prisma, input));
   registerTool('payment_requests.query', (prisma, input) => handlePaymentRequestsQuery(prisma, input));
+  registerTool('purchase_orders.query', (prisma, input) => handlePurchaseOrdersQuery(prisma, input));
+  registerTool('bom.query', (prisma, input) => handleBomQuery(prisma, input));
+  registerTool('customs.query_tax_refunds', (prisma, input) => handleTaxRefundsQuery(prisma, input));
+  registerTool('customs.query_declarations', (prisma, input) => handleCustomsDeclarationsQuery(prisma, input));
+  registerTool('finance.query_allocations', (prisma, input) => handleFinanceAllocationsQuery(prisma, input));
 }
