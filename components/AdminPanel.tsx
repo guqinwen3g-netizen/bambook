@@ -1069,21 +1069,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                   {/* task_mr1ncdp9: audit query filter UI */}
                   <div className={`flex flex-wrap items-center gap-2 p-2 text-xs ${inlineRowClass}`}>
                     <input value={auditFilter.targetType} onChange={(e) => setAuditFilter(s => ({ ...s, targetType: e.target.value }))}
-                      placeholder="targetType" className={`w-24 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                      placeholder="targetType" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.targetId} onChange={(e) => setAuditFilter(s => ({ ...s, targetId: e.target.value }))}
-                      placeholder="targetId" className={`w-28 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                      placeholder="targetId" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.action} onChange={(e) => setAuditFilter(s => ({ ...s, action: e.target.value }))}
-                      placeholder="action" className={`w-24 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                      placeholder="action" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.actorId} onChange={(e) => setAuditFilter(s => ({ ...s, actorId: e.target.value }))}
-                      placeholder="actorId" className={`w-24 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                      placeholder="actorId" className={`w-24 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.createdFrom} onChange={(e) => setAuditFilter(s => ({ ...s, createdFrom: e.target.value }))}
-                      placeholder="createdFrom(ms)" className={`w-28 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                      placeholder="createdFrom(ms)" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <input value={auditFilter.createdTo} onChange={(e) => setAuditFilter(s => ({ ...s, createdTo: e.target.value }))}
-                      placeholder="createdTo(ms)" className={`w-28 rounded border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
+                      placeholder="createdTo(ms)" className={`w-28 rounded-field border px-1.5 py-0.5 border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`} />
                     <button onClick={() => { setAuditFilter({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' }); setAuditFilterError(''); fetchAuditLogs({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' }); }}
-                      className={`rounded border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}>清空</button>
+                      className={`rounded-control border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}>清空</button>
                     <button onClick={() => fetchAuditLogs()}
-                      className={`rounded border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`}>刷新</button>
+                      className={`rounded-control border px-2 py-0.5 border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`}>刷新</button>
                   </div>
                   {auditFilterError && <div className="text-xs text-[var(--text-tertiary)]">{auditFilterError}</div>}
                   <span className={sectionTitleClass}>{auditLogs.length} 条日志</span>

@@ -127,7 +127,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
           <div className="flex items-center gap-2">
             {draft === null && (
               <RdlPill onClick={() => { setDraft(emptyDraft()); setError(null); }} className="min-h-8 px-3 text-xs">
-                <Plus size={14} strokeWidth={1} className="text-blue-500" /> 新建签名
+                <Plus size={14} strokeWidth={1} className="text-[var(--accent-text)]" /> 新建签名
               </RdlPill>
             )}
             <button
@@ -209,7 +209,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-light truncate text-[var(--text-primary)]">{sig.name}</span>
                       {sig.isDefault && (
-                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-[var(--warning-tint)] text-[var(--warning-text)]`}>
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-bds-sm text-[10px] bg-[var(--warning-tint)] text-[var(--warning-text)]`}>
                           <Star size={10} /> 默认
                         </span>
                       )}

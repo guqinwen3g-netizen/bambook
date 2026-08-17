@@ -875,7 +875,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                 <div className={cx('text-[10px]', textSecondaryClass)}>装运行（{packingLines.length}）</div>
                                 <div className="mt-1 space-y-1">
                                   {packingLines.map(line => (
-                                    <div key={line.id} className="flex items-baseline justify-between gap-2 rounded-inset px-2 py-1 bg-[var(--bg-card)]">
+                                    <div key={line.id} className="flex items-baseline justify-between gap-2 rounded-inset px-2 py-1 bds-inset">
                                       <span className={cx('min-w-0 truncate text-[11px]', textPrimaryClass)}>
                                         {line.productName || line.productCode || `行 ${line.lineNumber ?? ''}`}
                                       </span>
@@ -896,7 +896,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                     const dims = [carton.length, carton.width, carton.height].every(v => v != null)
                                       ? `${carton.length}×${carton.width}×${carton.height}cm` : null;
                                     return (
-                                      <div key={carton.id} className="rounded-inset px-2 py-1 bg-[var(--bg-card)]">
+                                      <div key={carton.id} className="rounded-inset px-2 py-1 bds-inset">
                                         <div className="flex items-baseline justify-between gap-2">
                                           <span className={cx('inline-flex min-w-0 items-center gap-1 text-[11px]', textPrimaryClass)}>
                                             <Box size={10} className="shrink-0 opacity-60" />

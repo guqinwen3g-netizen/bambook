@@ -126,7 +126,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
             </div>
 
             {qaError && (
-              <div className={`px-5 py-3 rounded-control border text-xs font-light border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-300`}>{qaError}</div>
+              <div className={`px-5 py-3 rounded-control border text-xs font-light border-danger/30 bg-[var(--danger-tint)] text-[var(--danger-text)]`}>{qaError}</div>
             )}
 
             {/* 回答区 */}
@@ -140,7 +140,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                 {!qaBusy && qaAnswer.trim() && (
                   <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 border-[var(--border-c-default)]`}>
                     {qaArchived ? (
-                      <span className={`text-[11px] font-light text-emerald-600 dark:text-emerald-300/80`}>已归档到企业知识库</span>
+                      <span className={`text-[11px] font-light text-[var(--success-text)]`}>已归档到企业知识库</span>
                     ) : (
                       <>
                         <select

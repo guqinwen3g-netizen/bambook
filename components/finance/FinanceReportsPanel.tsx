@@ -479,7 +479,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 {agingType === 'Receivable' ? '应收未收' : '应付未付'} · {t.currency}
               </div>
               <div className={cx('mt-1.5 text-lg font-light tabular-nums', textPrimary)}>{formatAmount(t.total, t.currency)}</div>
-              <div className={cx('mt-1 text-[10px] font-light tabular-nums', t.d90plus > 0 ? 'text-red-400' : textFaint)}>
+              <div className={cx('mt-1 text-[10px] font-light tabular-nums', t.d90plus > 0 ? 'text-[var(--danger-text)]' : textFaint)}>
                 90 天以上 {formatAmount(t.d90plus, t.currency)}
               </div>
             </RdlMetricCard>
@@ -504,7 +504,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   <div className={cx('text-[10px] font-light', textFaint)}>{row.currency} · {row.invoiceCount} 张发票</div>
                 </div>
                 {bucketCols.map(c => (
-                  <div key={c.key} className={cx('text-right font-light tabular-nums', row.buckets[c.key] > 0 && c.key === 'd90plus' ? 'text-red-400' : textPrimary)}>
+                  <div key={c.key} className={cx('text-right font-light tabular-nums', row.buckets[c.key] > 0 && c.key === 'd90plus' ? 'text-[var(--danger-text)]' : textPrimary)}>
                     {row.buckets[c.key] > 0 ? formatAmount(row.buckets[c.key], row.currency) : '—'}
                   </div>
                 ))}
@@ -603,7 +603,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
           <RdlMetricCard className="px-4 py-3">
             <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>汇兑净{isGain ? '收益' : '损失'} · {fx.baseCurrency}</div>
-            <div className={cx('mt-1.5 text-lg font-light tabular-nums', isGain ? 'text-emerald-400' : 'text-red-400')}>
+            <div className={cx('mt-1.5 text-lg font-light tabular-nums', isGain ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
               {isGain ? '+' : ''}{formatAmount(fx.totalGainLoss, fx.baseCurrency)}
             </div>
             <div className={cx('mt-1 text-[10px] font-light', textFaint)}>{fx.rows.length} 笔核销</div>
@@ -631,7 +631,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(row.appliedAmount, row.currency)}</div>
                 <div className={cx('text-right font-light tabular-nums', textSecondary)}>{row.invoiceRate}</div>
                 <div className={cx('text-right font-light tabular-nums', textSecondary)}>{row.voucherRate}</div>
-                <div className={cx('text-right font-light tabular-nums', row.gainLoss >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                <div className={cx('text-right font-light tabular-nums', row.gainLoss >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
                   {row.gainLoss >= 0 ? '+' : ''}{formatAmount(row.gainLoss, fx.baseCurrency)}
                 </div>
               </div>
@@ -653,7 +653,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     const formatDiff = (diff: string | null) => {
       if (diff == null) return { text: '—', cls: textFaint };
       const n = Number(diff);
-      return { text: `${n >= 0 ? '+' : ''}${formatAmount(n, 'CNY')}`, cls: n >= 0 ? 'text-emerald-400' : 'text-red-400' };
+      return { text: `${n >= 0 ? '+' : ''}${formatAmount(n, 'CNY')}`, cls: n >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]' };
     };
     return (
       <>
@@ -662,7 +662,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           {ledger.rows.map(row => (
             <RdlMetricCard key={row.currency} className="px-4 py-3">
               <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>未结汇余额 · {row.currency}</div>
-              <div className={cx('mt-1.5 text-lg font-light tabular-nums', Number(row.unsettledBalance) > 0 ? 'text-amber-400' : textPrimary)}>
+              <div className={cx('mt-1.5 text-lg font-light tabular-nums', Number(row.unsettledBalance) > 0 ? 'text-[var(--warning-text)]' : textPrimary)}>
                 {formatAmount(Number(row.unsettledBalance), row.currency)}
               </div>
               <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>
@@ -695,7 +695,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                     <div className={cx('font-light', textPrimary)}>{row.currency}</div>
                     <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(row.receivedTotal), row.currency)}</div>
                     <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(row.settledTotal), row.currency)}</div>
-                    <div className={cx('text-right font-light tabular-nums', Number(row.unsettledBalance) > 0 ? 'text-amber-400' : textPrimary)}>
+                    <div className={cx('text-right font-light tabular-nums', Number(row.unsettledBalance) > 0 ? 'text-[var(--warning-text)]' : textPrimary)}>
                       {formatAmount(Number(row.unsettledBalance), row.currency)}
                     </div>
                     <div className={cx('text-right font-light tabular-nums', textSecondary)}>{row.settlementCount}</div>
@@ -722,7 +722,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   <div className={cx('truncate font-light', textPrimary)}>{v.voucherNumber}</div>
                   <div className={cx('truncate font-light', textSecondary)}>{v.customerName || '—'}</div>
                   <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(Number(v.voucherAmount), v.currency)}</div>
-                  <div className={cx('text-right font-light tabular-nums', 'text-amber-400')}>{formatAmount(Number(v.remainingAmount), v.currency)}</div>
+                  <div className={cx('text-right font-light tabular-nums', 'text-[var(--warning-text)]')}>{formatAmount(Number(v.remainingAmount), v.currency)}</div>
                 </div>
               ))}
             </div>
@@ -757,7 +757,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         </div>
       );
     }
-    const profitCls = (n: number) => (n >= 0 ? 'text-emerald-400' : 'text-red-400');
+    const profitCls = (n: number) => (n >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]');
 
     // 抵销过程可视化（内部采购合计 / 内部销售合计 / 抵销净额 + 双边口径差异透明披露）
     const renderElimination = () => (
@@ -785,10 +785,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               抵销净额
               <span className={cx('ml-2 text-[10px]', textFaint)}>不计入公司收入与成本</span>
             </div>
-            <div className={cx('text-right font-light tabular-nums', 'text-amber-400')}>-{formatAmount(r.elimination.amount, cur)}</div>
+            <div className={cx('text-right font-light tabular-nums', 'text-[var(--warning-text)]')}>-{formatAmount(r.elimination.amount, cur)}</div>
           </div>
           {r.elimination.discrepancy !== 0 && (
-            <div className={cx('rounded-control px-2 py-1.5 text-[10px] font-light', 'text-amber-400')}>
+            <div className={cx('rounded-control px-2 py-1.5 text-[10px] font-light', 'text-[var(--warning-text)]')}>
               双边口径不一致披露：内部销售 − 内部采购 = {formatAmount(r.elimination.discrepancy, cur)}（应≈0，请核对内部供料单双边登记）
             </div>
           )}
@@ -798,7 +798,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         </div>
         {r.unconverted.length > 0 && (
           <div className={cx('border-t px-4 pb-2 pt-2', divider)}>
-            <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', 'text-amber-400')}>
+            <div className={cx('pb-1 text-[10px] font-light tracking-[0.14em]', 'text-[var(--warning-text)]')}>
               未折算内部交易披露（{r.unconverted.length} 笔，排除在抵销外）
             </div>
             <div className="space-y-0.5 text-[11px]">
@@ -865,7 +865,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 <div className={cx('font-light', textSecondary)}>合并利润（抵销后）</div>
                 <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(r.consolidatedProfit, cur)}</div>
               </div>
-              <div className={cx('px-2 pt-1 text-[10px] font-light', identityGap === 0 ? 'text-emerald-400' : 'text-amber-400')}>
+              <div className={cx('px-2 pt-1 text-[10px] font-light', identityGap === 0 ? 'text-[var(--success-text)]' : 'text-[var(--warning-text)]')}>
                 {identityGap === 0
                   ? '恒等成立 — 抵销不改变公司利润，仅在部门间重新归属'
                   : `差额披露：${formatAmount(identityGap, cur)}（对应抵销过程的双边口径差异，请核对内部供料单登记）`}
@@ -898,7 +898,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           </RdlMetricCard>
           <RdlMetricCard className="px-4 py-3">
             <div className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>合并抵销额 · {cur}</div>
-            <div className={cx('mt-1.5 text-lg font-light tabular-nums', 'text-amber-400')}>-{formatAmount(r.elimination.amount, cur)}</div>
+            <div className={cx('mt-1.5 text-lg font-light tabular-nums', 'text-[var(--warning-text)]')}>-{formatAmount(r.elimination.amount, cur)}</div>
             <div className={cx('mt-1 text-[10px] font-light tabular-nums', textFaint)}>内部面料订单 {r.orders.internalCount} 张参与抵销</div>
           </RdlMetricCard>
         </div>
@@ -948,11 +948,11 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     const gridCls = 'grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.6fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.8fr)]';
     const statusCls = (s: InternalTransferStatus | undefined): string => {
       switch (s) {
-        case 'PendingConfirm': return 'text-amber-400';
-        case 'Effective': return 'text-emerald-400';
-        case 'Delivering': return 'text-amber-400';
+        case 'PendingConfirm': return 'text-[var(--warning-text)]';
+        case 'Effective': return 'text-[var(--success-text)]';
+        case 'Delivering': return 'text-[var(--warning-text)]';
         case 'Closed': return textPrimary;
-        case 'Cancelled': return 'text-red-400';
+        case 'Cancelled': return 'text-[var(--danger-text)]';
         default: return textFaint;
       }
     };
@@ -1034,7 +1034,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                               <div className={cx('text-right font-light tabular-nums', textPrimary)}>
                                 {d.receivedQuantity !== null ? `到货 ${d.receivedQuantity.toLocaleString('zh-CN')}` : '到货 —'}
                               </div>
-                              <div className={cx('text-right font-light tabular-nums', d.variance !== null && d.variance !== 0 ? 'text-amber-400' : textFaint)}>
+                              <div className={cx('text-right font-light tabular-nums', d.variance !== null && d.variance !== 0 ? 'text-[var(--warning-text)]' : textFaint)}>
                                 {d.variance !== null ? `差异 ${d.variance >= 0 ? '+' : ''}${d.variance.toLocaleString('zh-CN')}` : '差异 —'}
                               </div>
                             </div>
@@ -1201,7 +1201,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         </div>
       ) : error ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2">
-          <AlertCircle size={18} strokeWidth={1.2} className="text-red-400/70" />
+          <AlertCircle size={18} strokeWidth={1.2} className="text-[var(--danger-text)] opacity-70" />
           <div className={cx('text-xs font-light', textSecondary)}>{error}</div>
         </div>
       ) : (

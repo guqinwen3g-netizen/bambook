@@ -55,23 +55,23 @@ const STATUS_LABEL: Record<WorkflowInstanceStatus, string> = {
 };
 
 const STATUS_COLOR: Record<WorkflowInstanceStatus, string> = {
-  running: 'text-blue-400',
-  approved: 'text-emerald-400',
-  rejected: 'text-red-400',
+  running: 'text-[var(--accent-text)]',
+  approved: 'text-[var(--success-text)]',
+  rejected: 'text-[var(--danger-text)]',
   cancelled: 'text-[var(--text-tertiary)]',
 };
 
 const STATUS_BG: Record<WorkflowInstanceStatus, string> = {
-  running: 'bg-blue-400/8',
-  approved: 'bg-emerald-400/8',
-  rejected: 'bg-red-400/8',
+  running: 'bg-[var(--accent-tint)]',
+  approved: 'bg-[var(--success-tint)]',
+  rejected: 'bg-[var(--danger-tint)]',
   cancelled: 'bg-[var(--recessed-bg)]',
 };
 
 const EXCEPTION_STATUS_COLOR: Record<ExceptionStatus, string> = {
-  Pending: 'text-blue-400',
-  ReviewerApproved: 'text-emerald-400',
-  ReviewerRejected: 'text-red-400',
+  Pending: 'text-[var(--accent-text)]',
+  ReviewerApproved: 'text-[var(--success-text)]',
+  ReviewerRejected: 'text-[var(--danger-text)]',
   BossFinalBypass: 'text-[var(--os-vnext-brand-blue)]',
   Consumed: 'text-[var(--text-tertiary)]',
   Expired: 'text-[var(--text-tertiary)]',
@@ -280,7 +280,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                       )}
                       {/* DR-007 路由兜底标识 */}
                       {isFallbackRoute(item.reviewerResolverRoute) && (
-                        <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-light bg-blue-400/8 text-blue-400">
+                        <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--accent-tint)] text-[var(--accent-text)]">
                           <GitBranch size={10} strokeWidth={1.5} />
                           路由兜底 {item.reviewerResolverRoute ? RESOLVER_ROUTE_LABEL[item.reviewerResolverRoute] : ''}
                         </span>
@@ -750,7 +750,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
             发起 DR-013 受控例外申请 New Exception
           </div>
           {entryBanner && (
-            <div className="rounded-control px-3 py-2 text-[11px] font-light bg-blue-400/8 text-blue-400">
+            <div className="rounded-control px-3 py-2 text-[11px] font-light bg-[var(--accent-tint)] text-[var(--accent-text)]">
               从门禁阻断进入{entryBanner.gate ? `（门禁 ${entryBanner.gate}）` : ''}
               {entryBanner.blockingReasons?.length ? `，阻断原因：${entryBanner.blockingReasons.join(', ')}` : ''}
             </div>
@@ -856,7 +856,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
             {gateCheck.result && (
               <div className={`text-[11px] font-light ${weakText}`}>
                 {gateCheck.result.active && gateCheck.result.exception ? (
-                  <span className="text-emerald-400">
+                  <span className="text-[var(--success-text)]">
                     存在生效例外：{gateCheck.result.exception.exceptionNumber}
                     {gateCheck.result.exception.bossFinalBypass ? '（BOSS 最终兜底特批放行）' : ''}
                     {gateCheck.result.exception.validUntil ? `，有效至 ${formatTime(gateCheck.result.exception.validUntil)}` : ''}
@@ -1285,18 +1285,18 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                               <div key={step.id} className="flex items-start gap-3">
                                 <div className="mt-0.5 shrink-0">
                                   {step.decision === 'approved' ? (
-                                    <CheckCircle size={14} strokeWidth={1.5} className="text-emerald-400" />
+                                    <CheckCircle size={14} strokeWidth={1.5} className="text-[var(--success-text)]" />
                                   ) : step.decision === 'rejected' ? (
-                                    <XCircle size={14} strokeWidth={1.5} className="text-red-400" />
+                                    <XCircle size={14} strokeWidth={1.5} className="text-[var(--danger-text)]" />
                                   ) : isCurrent ? (
-                                    <Clock size={14} strokeWidth={1.5} className="text-blue-400" />
+                                    <Clock size={14} strokeWidth={1.5} className="text-[var(--accent-text)]" />
                                   ) : (
                                     <div className="h-3.5 w-3.5 rounded-full border border-[var(--border-c-strong)]" />
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
-                                    <span className={`text-xs font-light ${isCurrent ? 'text-blue-400' : weakText}`}>
+                                    <span className={`text-xs font-light ${isCurrent ? 'text-[var(--accent-text)]' : weakText}`}>
                                       {step.stepName}
                                     </span>
                                     {step.approverRole && (

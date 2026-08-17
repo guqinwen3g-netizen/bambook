@@ -531,7 +531,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                     {lines.length > 1 && (
                       <button
                         onClick={() => removeLine(line.id)}
-                        className={`p-1 rounded text-xs text-[var(--text-tertiary)] hover:text-danger`}
+                        className={`p-1 rounded-control text-xs text-[var(--text-tertiary)] hover:text-danger`}
                         title="删除行"
                       >
                         <Trash2 size={12} />
@@ -581,7 +581,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             </div>
             <div className={`mt-3 pt-3 border-t flex items-center justify-end gap-4 text-xs border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
               <span>币种:
-                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={`ml-1 px-2 py-0.5 rounded text-xs bg-[var(--recessed-bg)] text-[var(--text-primary)]`}>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={`ml-1 px-2 py-0.5 rounded-field text-xs bg-[var(--recessed-bg)] text-[var(--text-primary)]`}>
                   {['USD', 'CNY', 'EUR'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </span>

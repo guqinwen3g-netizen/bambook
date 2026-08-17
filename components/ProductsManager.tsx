@@ -351,7 +351,7 @@ const CertificationCheckboxes: React.FC<{
     'text-[var(--text-secondary)]'
   }`;
   const boxCls = (on: boolean) =>
-    `w-4 h-4 rounded border transition-colors ${
+    `w-4 h-4 rounded-bds-xs border transition-colors ${
       on
         ? 'bg-[var(--os-vnext-brand-blue-strong)] border-[var(--os-vnext-brand-blue-strong)]'
         : 'bg-[var(--recessed-bg)] border-[var(--border-c-strong)]'
@@ -382,7 +382,7 @@ const CertificationCheckboxes: React.FC<{
       {customCerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customCerts.map(cert => (
-            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)] dark:bg-[var(--os-vnext-brand-blue-strong)]/20 dark:text-[var(--os-vnext-brand-blue-strong)]">
+            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-bds-sm text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)] dark:bg-[var(--os-vnext-brand-blue-strong)]/20 dark:text-[var(--os-vnext-brand-blue-strong)]">
               {cert}
               <button type="button" onClick={() => removeCustom(cert)} className="opacity-60 hover:opacity-100">&times;</button>
             </span>
@@ -2631,7 +2631,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       </div>
                       <div className="space-y-2">
                         {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
-                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 bg-white dark:bg-deep/40`}>
+                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 bds-inset`}>
                             <span className={`text-xs font-light text-[var(--text-primary)]`}>
                               {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
                             </span>
@@ -2939,7 +2939,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                           />
                         </div>
                         <div className={`rounded-inset border p-4 flex items-center ${productFormNestedRowClass}`}>
-                          <div className="w-[116px] h-[116px] rounded-inset bg-[var(--bg-card)] border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-[116px] h-[116px] rounded-inset bds-inset border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
                             {skuQrDataUrl ? (
                               <img src={skuQrDataUrl} alt={`${skuForQr} QR Code`} className="w-full h-full object-contain" />
                             ) : (

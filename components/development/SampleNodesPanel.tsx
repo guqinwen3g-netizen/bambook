@@ -142,7 +142,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
   return (
     <div>
       <div className={cx('mb-2 text-[10px] font-light tracking-[0.18em]', textSecondary)}>三级样衣节点</div>
-      {error && <div className="mb-2 text-[11px] font-light text-red-400">{error}</div>}
+      {error && <div className="mb-2 text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
       <div className="space-y-2">
         {LEVELS.map(({ id, label, en }) => {
           const node = nodes.find(n => n.level === id);
@@ -155,7 +155,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                   <div className={cx('truncate text-xs font-light', textPrimary)}>
                     {label} <span className={cx('text-[10px]', textFaint)}>{en}{node.round > 1 ? ` · R${node.round}` : ''}</span>
                   </div>
-                  <div className={cx('mt-0.5 text-[10px] font-light', approved ? 'text-emerald-400' : textSecondary)}>
+                  <div className={cx('mt-0.5 text-[10px] font-light', approved ? 'text-[var(--success-text)]' : textSecondary)}>
                     {STATUS_LABEL[node.status]}
                     {node.sentDate ? ` · 寄出 ${node.sentDate}` : ''}
                     {node.trackingNumber ? ` · ${node.trackingNumber}` : ''}
@@ -204,7 +204,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                       </button>
                     </>
                   )}
-                  {approved && <PackageCheck size={13} strokeWidth={1.2} className="text-emerald-400/80" />}
+                  {approved && <PackageCheck size={13} strokeWidth={1.2} className="text-[var(--success-text)] opacity-80" />}
                 </div>
               </div>
             </div>
@@ -444,7 +444,7 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
           <Plus size={10} strokeWidth={1.4} /> 新建轮次
         </button>
       </div>
-      {error && <div className="mt-2 text-[11px] font-light text-red-400">{error}</div>}
+      {error && <div className="mt-2 text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
 
       {loading ? (
         <div className={cx('flex items-center gap-2 py-4 text-[11px] font-light', textFaint)}>

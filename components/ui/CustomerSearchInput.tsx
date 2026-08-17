@@ -199,12 +199,12 @@ export default function CustomerSearchInput({
                     {(customer.billingAddress || customer.shippingAddress) && (
                       <div className="flex gap-3 mt-1">
                         {customer.billingAddress && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
                             Bill To
                           </span>
                         )}
                         {customer.shippingAddress && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-secondary)] dark:bg-[var(--recessed-bg-strong)]`}>
                             Ship To
                           </span>
                         )}

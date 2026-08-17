@@ -328,7 +328,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
             </button>
             <button
               onClick={() => { setEditingDoc(null); setShowForm(true); }}
-              className="h-8 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors"
+              className="bds-btn bds-btn-primary sm"
             >
               <Plus size={14} /><span>新增单据</span>
             </button>
@@ -403,7 +403,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           {isExpanded ? <ChevronDown size={13} className="shrink-0 opacity-60" /> : <ChevronRight size={13} className="shrink-0 opacity-60" />}
                           <span className="text-sm font-light">{doc.documentNumber}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusSemanticClass(si.semantic, isDarkMode)} ${statusSemanticText(si.semantic, isDarkMode)}`}>{si.label}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                             {docTypeLabel(doc.type)}
                           </span>
                         </div>
@@ -433,7 +433,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           onClick={() => void handleTransition(doc, to)}
                           disabled={!!actionLoading}
                           className={`${actionBtnCls} ${
-                            to === 'Accepted' ? 'bg-green-500 text-white'
+                            to === 'Accepted' ? 'bg-[var(--success)] text-[var(--on-accent)]'
                             : to === 'Rejected' || to === 'Cancelled' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
                             : to === 'Draft' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
                             : 'bg-[var(--os-vnext-brand-blue)] text-white'
@@ -455,7 +455,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                         <button
                           onClick={() => void handleDelete(doc)}
                           disabled={!!actionLoading}
-                          className={`${actionBtnCls} text-red-500 hover:bg-red-500/10 flex items-center gap-1`}
+                          className={`${actionBtnCls} text-[var(--danger-text)] hover:bg-[var(--danger-tint)] flex items-center gap-1`}
                         >
                           <Trash2 size={11} />删除
                         </button>
@@ -619,7 +619,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm" onClick={onClose}>
       <div
         className={`w-[720px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]`}
         onClick={(e) => e.stopPropagation()}
@@ -685,7 +685,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
-            className="h-8 px-5 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 disabled:opacity-50"
+            className="bds-btn bds-btn-primary sm"
           >
             {submitting && <Loader2 size={12} className="animate-spin" />}
             {isEdit ? '保存（自动留痕）' : '创建'}
@@ -737,7 +737,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm" onClick={onClose}>
       <div
         className={`w-[560px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]`}
         onClick={(e) => e.stopPropagation()}
@@ -804,7 +804,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
-            className="h-8 px-5 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 disabled:opacity-50"
+            className="bds-btn bds-btn-primary sm"
           >
             {submitting && <Loader2 size={12} className="animate-spin" />}生成并登记
           </button>
@@ -851,7 +851,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm" onClick={onClose}>
       <div
         className={`w-[640px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]`}
         onClick={(e) => e.stopPropagation()}
@@ -869,7 +869,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
           <button
             onClick={() => void handleLoad()}
             disabled={loading}
-            className="h-8 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 disabled:opacity-50 shrink-0"
+            className="bds-btn bds-btn-primary sm shrink-0"
           >
             {loading && <Loader2 size={12} className="animate-spin" />}加载
           </button>

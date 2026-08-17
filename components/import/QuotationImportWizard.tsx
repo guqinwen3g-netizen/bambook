@@ -273,7 +273,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
     <AnimatePresence>
       <motion.div
         key="overlay"
-        className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        className="absolute inset-0 z-[60] flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -302,7 +302,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
             <button
               onClick={onClose}
               disabled={busy}
-              className={`p-2 rounded transition-colors disabled:opacity-30 text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
+              className={`p-2 rounded-control transition-colors disabled:opacity-30 text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
               aria-label="关闭"
             >
               <X size={18} />
@@ -513,7 +513,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                 type="button"
                 onClick={goNext}
                 disabled={!canNext}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-light transition-all shadow-none disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white"
+                className="bds-btn bds-btn-primary"
               >
                 {busy && <Loader2 size={14} className="animate-spin" />}
                 {nextLabel}

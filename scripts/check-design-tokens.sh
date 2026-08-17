@@ -48,12 +48,19 @@ BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366�
 # ── BDS 高分收编基线（2026-08-17 W0 建立，只减不增）──
 # 依据 docs/design/10-评审与决策/2026-08-17-前端设计地毯式评审报告.md 批 A-J 移交清单建立。
 # 口径：出现次数（rg -o），豁免集与上文 EXCLUDE_GLOBS 一致。
-BASELINE_RAW_SEMANTIC=131      # 批A：raw 语义色 text/bg/border/ring/from/to/via-(red|emerald|blue|rose|amber|…)-N → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
-BASELINE_RAW_MASK=17           # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
-BASELINE_BARE_ROUNDED=43       # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control 等
-BASELINE_HANDWRITTEN_BTN=35    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
-BASELINE_TEXT_WHITE=48         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
-# 批F font-black 基线 0：唯一残留 ProductionGlobe.tsx:654 在 *Globe* 豁免集内（DOM 覆盖层非 WebGL，批F 修复时同步带出豁免）
+BASELINE_RAW_SEMANTIC=33       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
+                               # 2026-08-17 批A 收编 131→33；余量：TraceabilityPanel 14（批H 色板专项）/ FabricSampleInvoiceGenerator 8（豁免清单·测试锁定业务语义）/ App.tsx 5（W5 解锁）/ pwa 3（移动端冻结）/ GarmentOrders 3（批I 死代码）
+BASELINE_RAW_MASK=4            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
+                               # 2026-08-17 批B 收编 17→4；余量：pwa 2（移动端冻结）/ DesignTuner 1（开发工具豁免）/ App.tsx 1（W5 解锁）
+BASELINE_BARE_ROUNDED=5        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
+                               # 2026-08-17 批D 收编 43→5；余量 5 处均为注释文本（StepUpload/Dashboard/compiledSurfacePrimitives×2/compiledDashboardTemplates），非 className
+BASELINE_HANDWRITTEN_BTN=22    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
+                               # 2026-08-17 批E 收编 35→22（13 处按钮：DocumentCenter×4 / ReportCenter×4 / ImportWizard / Register / QuotationImportWizard / compiledProductsTemplates×2）；
+                               # 余量 21 处均非按钮：进度条/圆点/头像/徽章等装饰性 accent 填充（Dashboard×5 / compiledDashboardTemplates×5 / ProductsManager×2 / compiledProductsTemplates×3 / AdminPanel / RelationsManager / ImageUploader / QuotationImportWizard 链接 / DesignTuner 开发工具）+ FabricSampleInvoiceGenerator 1（测试锁定业务语义豁免）
+BASELINE_TEXT_WHITE=34         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
+                               # 2026-08-17 批E 伴随收编 48→34（13 处手写主按钮改 bds-btn-primary 后文字色由组件类 --on-accent 承载）
+# 批F（2026-08-17）：font-black 唯一残留 ProductionGlobe.tsx:654（DOM 覆盖层）已改 font-light；
+# 字重断言同步扩展 font-(medium|semibold|bold) → font-(medium|semibold|bold|black)，基线维持 3（pwa 存量）
 
 errors=0
 
@@ -155,13 +162,13 @@ else
 fi
 echo ""
 
-# ── 7. 检查 font-medium/semibold/bold 字重写法（全局 Light 300 纪律）──
-echo "▸ 检查 font-medium/semibold/bold 字重写法..."
-font_weight_count=$(rg -c 'font-(medium|semibold|bold)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+# ── 7. 检查 font-medium/semibold/bold/black 字重写法（全局 Light 300 纪律）──
+echo "▸ 检查 font-medium/semibold/bold/black 字重写法..."
+font_weight_count=$(rg -c 'font-(medium|semibold|bold|black)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$font_weight_count" -gt "$BASELINE_FONT_WEIGHT" ]; then
   echo "  ❌ 过重字重写法增加（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）"
   echo "  全局 Light 300 纪律：请写 font-light（机制已坍缩 font-medium→300，但写法必须统一）"
-  rg -n 'font-(medium|semibold|bold)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n 'font-(medium|semibold|bold|black)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$font_weight_count" -lt "$BASELINE_FONT_WEIGHT" ]; then
   echo "  ✅ 过重字重写法减少（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）— 恭喜！请更新基线。"

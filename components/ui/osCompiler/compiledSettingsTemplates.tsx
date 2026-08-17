@@ -1107,7 +1107,7 @@ export const CompiledSettingsPage: React.FC<CompiledSettingsPageProps> = ({ mode
       <AnimatePresence>
         {avatarCrop && (
           <motion.div
-            className="absolute inset-0 z-[120] flex items-center justify-center bg-black/18 px-4 backdrop-blur-sm"
+            className="absolute inset-0 z-[120] flex items-center justify-center bg-[var(--mask-bg)] px-4 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

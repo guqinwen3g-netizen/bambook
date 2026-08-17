@@ -198,7 +198,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                 <div className="flex items-center gap-1.5">
                   <FileText size={12} className="text-[var(--text-tertiary)]" />
                   <span className={`text-xs font-light truncate text-[var(--text-primary)]`}>{tpl.name}</span>
-                  {tpl.isDefault && <Star size={10} className="shrink-0 text-amber-500" />}
+                  {tpl.isDefault && <Star size={10} className="shrink-0 text-[var(--warning-text)]" />}
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); handleDelete(tpl.id); }}

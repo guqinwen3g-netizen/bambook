@@ -1735,7 +1735,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                               <span className={`text-xs font-mono text-[var(--text-secondary)]`}>
                                 {resolvedCoords.lat.toFixed(4)}, {resolvedCoords.lng.toFixed(4)}
                               </span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${getRelationsCoordinateStatusClass(resolvedCoords.source)}`}>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm ${getRelationsCoordinateStatusClass(resolvedCoords.source)}`}>
                                 {resolvedCoords.source === 'existing' ? '已保存' : resolvedCoords.source === 'city' ? `城市: ${resolvedCoords.label || ''}` : resolvedCoords.source === 'postcode' ? '邮编匹配' : resolvedCoords.source === 'address_keyword' ? `关键词: ${resolvedCoords.label || ''}` : '兜底'}
                               </span>
                             </div>
@@ -2065,7 +2065,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
           className="fixed inset-0 z-50 flex justify-end"
           onClick={() => setShowTracePanel(false)}
         >
-          <div className={`absolute inset-0 bg-black/20 dark:bg-black/40`} />
+          <div className={`absolute inset-0 bg-[var(--mask-bg)]`} />
           <div
             className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--border-c-strong)] bg-bds-card/95 backdrop-blur-xl`}
             onClick={(e) => e.stopPropagation()}

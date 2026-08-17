@@ -80,7 +80,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
                   e.stopPropagation();
                   onReferenceClick?.({ refId: `ref_${b.toolRunId}`, kind: 'tool_run', label: b.toolId, toolRunId: b.toolRunId, blockId: b.id });
                 }}
-                className={`ml-auto shrink-0 rounded px-1.5 py-[1px] text-[10px] opacity-0 transition-opacity group-hover:opacity-100 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)]`}
+                className={`ml-auto shrink-0 rounded-bds-sm px-1.5 py-[1px] text-[10px] opacity-0 transition-opacity group-hover:opacity-100 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--recessed-bg-hover)]`}
               >
                 详情 →
               </button>
@@ -126,7 +126,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onReferenceClick(anchor); }}
-                  className="ml-1 rounded px-1 text-[10px] text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]"
+                  className="ml-1 rounded-bds-sm px-1 text-[10px] text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]"
                 >
                   查看
                 </button>

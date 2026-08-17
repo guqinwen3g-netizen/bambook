@@ -651,7 +651,7 @@ function BeamTooltip({ order, isFocused, radius }: { order: Order, isFocused: bo
                     : 'bg-slate-950/90 border-white/20 scale-100'}
             `}>
                 <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{order.status}</div>
+                    <div className="text-[10px] font-light uppercase tracking-[0.2em] text-slate-400">{order.status}</div>
                     <div className={`w-2 h-2 rounded-full ${isFocused ? 'animate-pulse' : ''}`} style={{ backgroundColor: color }}></div>
                 </div>
                 <div className="text-sm font-light truncate mb-3">{order.millName}</div>
