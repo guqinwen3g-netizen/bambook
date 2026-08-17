@@ -50,7 +50,8 @@ BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366�
 # 口径：出现次数（rg -o），豁免集与上文 EXCLUDE_GLOBS 一致。
 BASELINE_RAW_SEMANTIC=33       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
                                # 2026-08-17 批A 收编 131→33；余量：TraceabilityPanel 14（批H 色板专项）/ FabricSampleInvoiceGenerator 8（豁免清单·测试锁定业务语义）/ App.tsx 5（W5 解锁）/ pwa 3（移动端冻结）/ GarmentOrders 3（批I 死代码）
-BASELINE_RAW_MASK=17           # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
+BASELINE_RAW_MASK=4            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
+                               # 2026-08-17 批B 收编 17→4；余量：pwa 2（移动端冻结）/ DesignTuner 1（开发工具豁免）/ App.tsx 1（W5 解锁）
 BASELINE_BARE_ROUNDED=43       # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control 等
 BASELINE_HANDWRITTEN_BTN=35    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
 BASELINE_TEXT_WHITE=48         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）

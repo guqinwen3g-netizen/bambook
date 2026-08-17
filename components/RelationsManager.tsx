@@ -2065,7 +2065,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
           className="fixed inset-0 z-50 flex justify-end"
           onClick={() => setShowTracePanel(false)}
         >
-          <div className={`absolute inset-0 bg-black/20 dark:bg-black/40`} />
+          <div className={`absolute inset-0 bg-[var(--mask-bg)]`} />
           <div
             className={`relative flex h-full w-full max-w-2xl flex-col overflow-hidden border-l border-[var(--border-c-strong)] bg-bds-card/95 backdrop-blur-xl`}
             onClick={(e) => e.stopPropagation()}

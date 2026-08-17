@@ -1200,7 +1200,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
   }));
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/35 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-[var(--mask-bg)] backdrop-blur-sm" onClick={onClose}>
       <div
         className="h-full w-[760px] max-w-[92vw] flex flex-col border-l bg-[var(--bg-card)] border-[var(--border-c-subtle)]"
         onClick={e => e.stopPropagation()}

@@ -126,7 +126,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
     <AnimatePresence>
       <motion.div
         key="overlay"
-        className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        className="absolute inset-0 z-[60] flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
