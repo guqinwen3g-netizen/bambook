@@ -127,7 +127,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
           <div className="flex items-center gap-2">
             {draft === null && (
               <RdlPill onClick={() => { setDraft(emptyDraft()); setError(null); }} className="min-h-8 px-3 text-xs">
-                <Plus size={14} strokeWidth={1} className="text-blue-500" /> 新建签名
+                <Plus size={14} strokeWidth={1} className="text-[var(--accent-text)]" /> 新建签名
               </RdlPill>
             )}
             <button

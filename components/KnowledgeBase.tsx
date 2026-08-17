@@ -415,7 +415,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                   <button onClick={(e) => { e.stopPropagation(); setEditingItem(item); }} className={`p-2.5 border rounded-control transition-all ${BAMBOOK_OS.controls.actionControl.base}`}>
                     <Edit2 size={14} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className={`p-2.5 border rounded-control transition-all ${BAMBOOK_OS.controls.actionControl.base} hover:text-red-500`}>
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(item.id); }} className={`p-2.5 border rounded-control transition-all ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -484,7 +484,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             </div>
 
             {qaError && (
-              <div className={`px-5 py-3 rounded-control border text-xs font-light ${'border-red-200 bg-red-50 text-red-500 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300'}`}>{qaError}</div>
+              <div className={`px-5 py-3 rounded-control border text-xs font-light ${'border-danger/30 bg-[var(--danger-tint)] text-[var(--danger-text)]'}`}>{qaError}</div>
             )}
 
             {/* 回答区 */}
@@ -498,7 +498,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 {!qaBusy && qaAnswer.trim() && (
                   <div className={`mt-5 pt-4 border-t flex items-center justify-end gap-3 border-[var(--border-c-default)]`}>
                     {qaArchived ? (
-                      <span className={`text-[11px] font-light ${'text-emerald-600 dark:text-emerald-300/80'}`}>已归档到官方知识库</span>
+                      <span className={`text-[11px] font-light ${'text-[var(--success-text)]'}`}>已归档到官方知识库</span>
                     ) : (
                       <>
                         <select
@@ -552,7 +552,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </button>
             </div>
             {sopError && (
-              <div className={`mb-4 px-5 py-3 rounded-control border text-xs font-light ${'border-red-200 bg-red-50 text-red-500 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300'}`}>{sopError}</div>
+              <div className={`mb-4 px-5 py-3 rounded-control border text-xs font-light ${'border-danger/30 bg-[var(--danger-tint)] text-[var(--danger-text)]'}`}>{sopError}</div>
             )}
             {sopLoading ? (
               <div className={`py-16 flex items-center justify-center gap-2 ${'text-[var(--text-quaternary)] dark:text-[var(--text-tertiary)]'}`}>
@@ -637,7 +637,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
             </div>
             <div className={`px-12 py-10 flex justify-end gap-6 bg-[var(--recessed-bg)]`}>
               {knowledgeError && (
-                <div className="mr-auto text-xs text-red-500">{knowledgeError}</div>
+                <div className="mr-auto text-xs text-[var(--danger-text)]">{knowledgeError}</div>
               )}
               <button
                 onClick={editingItem ? handleEditSave : handleAdd}
@@ -731,9 +731,9 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed ${'text-[var(--text-secondary)] dark:text-[var(--text-quaternary)]'}`}>{sopDetail.content}</p>
             </div>
             <div className={`px-10 py-5 shrink-0 flex items-center justify-end gap-3 bg-[var(--recessed-bg)]`}>
-              {sopInstantiatedMsg && <span className={`mr-auto text-[11px] font-light ${'text-emerald-600 dark:text-emerald-300/80'}`}>{sopInstantiatedMsg}</span>}
-              {sopError && <span className="mr-auto text-[11px] font-light text-red-500">{sopError}</span>}
-              <button onClick={() => setSopDeleteId(sopDetail.id)} className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base} hover:text-red-500`}>
+              {sopInstantiatedMsg && <span className={`mr-auto text-[11px] font-light ${'text-[var(--success-text)]'}`}>{sopInstantiatedMsg}</span>}
+              {sopError && <span className="mr-auto text-[11px] font-light text-[var(--danger-text)]">{sopError}</span>}
+              <button onClick={() => setSopDeleteId(sopDetail.id)} className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base} hover:text-[var(--danger-text)]`}>
                 <Trash2 size={12} /> 删除
               </button>
               <button onClick={() => openEditSop(sopDetail)} className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border ${BAMBOOK_OS.controls.actionControl.base}`}>
@@ -823,7 +823,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                           className={`w-full px-3 py-2 border rounded-control outline-none font-light text-xs transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
                         />
                       </div>
-                      <button onClick={() => setSopDraft({ ...sopDraft, steps: sopDraft.steps.filter((_, j) => j !== i) })} className={`shrink-0 p-1.5 rounded-control transition-all ${'text-[var(--text-quaternary)] hover:text-red-500 dark:text-[var(--text-tertiary)] dark:hover:text-red-400'}`}>
+                      <button onClick={() => setSopDraft({ ...sopDraft, steps: sopDraft.steps.filter((_, j) => j !== i) })} className={`shrink-0 p-1.5 rounded-control transition-all ${'text-[var(--text-quaternary)] hover:text-[var(--danger-text)] dark:text-[var(--text-tertiary)] dark:hover:text-[var(--danger-text)]'}`}>
                         <X size={13} />
                       </button>
                     </div>
@@ -842,7 +842,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
             </div>
             <div className={`px-10 py-5 shrink-0 flex justify-end gap-4 bg-[var(--recessed-bg)]`}>
-              {sopError && <span className="mr-auto text-[11px] font-light text-red-500">{sopError}</span>}
+              {sopError && <span className="mr-auto text-[11px] font-light text-[var(--danger-text)]">{sopError}</span>}
               <button
                 onClick={handleSaveSop}
                 disabled={sopBusy}
@@ -861,7 +861,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent dark:bg-deep/72'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
-              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-red-50 text-red-500 border-red-100 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30'}`}>
+              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>
                 <AlertTriangle size={32} strokeWidth={1} />
               </div>
               <div className="space-y-2">
@@ -869,7 +869,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
                 <p className="text-sm text-[var(--text-quaternary)] font-light leading-relaxed">模板将被移除（已实例化入库的知识文档不受影响）。</p>
               </div>
               <div className="flex flex-col gap-3 pt-4">
-                {sopError && <div className="text-xs text-red-500">{sopError}</div>}
+                {sopError && <div className="text-xs text-[var(--danger-text)]">{sopError}</div>}
                 <button
                   onClick={handleDeleteSop}
                   disabled={sopBusy}
@@ -891,7 +891,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`${BAMBOOK_OS.material.glassColor} ${'bg-[var(--bg-card)] border border-transparent dark:bg-deep/72'} rounded-card w-full max-w-md shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-saturate-[104%]`}>
             <div className="p-10 text-center space-y-6">
-              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-red-50 text-red-500 border-red-100 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30'}`}>
+              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border ${'bg-[var(--danger-tint)] text-[var(--danger-text)] border-danger/30'}`}>
                 <AlertTriangle size={32} strokeWidth={1} />
               </div>
               <div className="space-y-2">
@@ -902,7 +902,7 @@ const KnowledgeBase: React.FC<KBProps> = ({ knowledge, setKnowledge, insights, s
               </div>
               <div className="flex flex-col gap-3 pt-4">
                 {knowledgeError && (
-                  <div className="text-xs text-red-500">{knowledgeError}</div>
+                  <div className="text-xs text-[var(--danger-text)]">{knowledgeError}</div>
                 )}
                 <button
                   onClick={handleDelete}

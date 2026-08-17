@@ -433,7 +433,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           onClick={() => void handleTransition(doc, to)}
                           disabled={!!actionLoading}
                           className={`${actionBtnCls} ${
-                            to === 'Accepted' ? 'bg-green-500 text-white'
+                            to === 'Accepted' ? 'bg-[var(--success)] text-[var(--on-accent)]'
                             : to === 'Rejected' || to === 'Cancelled' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
                             : to === 'Draft' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
                             : 'bg-[var(--os-vnext-brand-blue)] text-white'
@@ -455,7 +455,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                         <button
                           onClick={() => void handleDelete(doc)}
                           disabled={!!actionLoading}
-                          className={`${actionBtnCls} text-red-500 hover:bg-red-500/10 flex items-center gap-1`}
+                          className={`${actionBtnCls} text-[var(--danger-text)] hover:bg-[var(--danger-tint)] flex items-center gap-1`}
                         >
                           <Trash2 size={11} />删除
                         </button>

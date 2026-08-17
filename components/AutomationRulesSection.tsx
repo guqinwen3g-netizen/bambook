@@ -130,7 +130,7 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
       ) : error && rules.length === 0 ? (
         <div className={card + ' p-8'}>
           <div className="flex flex-col items-center justify-center gap-3">
-            <AlertTriangle size={20} strokeWidth={1.2} className="text-amber-400/70" />
+            <AlertTriangle size={20} strokeWidth={1.2} className="text-[var(--warning-text)] opacity-70" />
             <div className={`text-xs font-light ${weakTextCls}`}>{error}</div>
             <button
               type="button"
