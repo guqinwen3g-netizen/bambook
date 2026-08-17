@@ -37,6 +37,15 @@ const mocks = vi.hoisted(() => ({
   itGetInternalTransferById: vi.fn(),
   prListPaymentRequests: vi.fn(),
   prGetPaymentRequest: vi.fn(),
+  poListPurchaseOrders: vi.fn(),
+  poGetPurchaseOrder: vi.fn(),
+  bomListBOMs: vi.fn(),
+  bomGetBOM: vi.fn(),
+  cxListTaxRefunds: vi.fn(),
+  cxGetTaxRefund: vi.fn(),
+  cxListDeclarations: vi.fn(),
+  cxGetDeclaration: vi.fn(),
+  finListInvoiceAllocations: vi.fn(),
 }));
 
 vi.mock('../../moq/moqConfigService', async (importOriginal) => {
@@ -157,6 +166,49 @@ vi.mock('../../approvals/approvalCreateService', async (importOriginal) => {
   return { ...actual, createApprovalCreateService: () => ({}) };
 });
 
+vi.mock('../../procurement/procurementService', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    createProcurementService: () => ({
+      listPurchaseOrders: mocks.poListPurchaseOrders,
+      getPurchaseOrder: mocks.poGetPurchaseOrder,
+    }),
+  };
+});
+
+vi.mock('../../bom/bomService', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    createBOMService: () => ({
+      listBOMs: mocks.bomListBOMs,
+      getBOM: mocks.bomGetBOM,
+    }),
+  };
+});
+
+vi.mock('../../customs/customsService', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    createCustomsService: () => ({
+      listTaxRefunds: mocks.cxListTaxRefunds,
+      getTaxRefund: mocks.cxGetTaxRefund,
+      listDeclarations: mocks.cxListDeclarations,
+      getDeclaration: mocks.cxGetDeclaration,
+    }),
+  };
+});
+
+vi.mock('../../finance/allocationService', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    listInvoiceAllocations: mocks.finListInvoiceAllocations,
+  };
+});
+
 import { executeTool } from '../toolRuntime';
 import { getToolManifestSafety } from '../mcp/manifest';
 import { DEFAULT_AGENT_TOOLS } from '../defaults';
@@ -172,6 +224,11 @@ const TRACK_G_TOOL_IDS = [
   'credit.query_status',
   'internal_trade.query',
   'payment_requests.query',
+  'purchase_orders.query',
+  'bom.query',
+  'customs.query_tax_refunds',
+  'customs.query_declarations',
+  'finance.query_allocations',
 ] as const;
 
 const prisma = {} as any;
@@ -185,7 +242,7 @@ beforeEach(() => {
 // ────────────────────────────────────────────────────────────────
 
 describe('Track G 工具登记一致性', () => {
-  it('8 个工具均在 P0B ToolDefinition 注册（approvalPolicy=never + risk=low）', () => {
+  it('13 个工具均在 P0B ToolDefinition 注册（approvalPolicy=never + risk=low）', () => {
     for (const id of TRACK_G_TOOL_IDS) {
       const def = getToolDefinition(id);
       expect(def, id).toBeDefined();
@@ -196,13 +253,13 @@ describe('Track G 工具登记一致性', () => {
     }
   });
 
-  it('8 个工具均在 manifest 注册为只读（免审批、无副作用）', () => {
+  it('13 个工具均在 manifest 注册为只读（免审批、无副作用）', () => {
     for (const id of TRACK_G_TOOL_IDS) {
       expect(getToolManifestSafety(id)).toEqual({ approval: 'never', sideEffects: false });
     }
   });
 
-  it('8 个工具均在 defaults 角色表中且 risk=low', () => {
+  it('13 个工具均在 defaults 角色表中且 risk=low', () => {
     const byId = new Map(DEFAULT_AGENT_TOOLS.map(t => [t.id, t]));
     for (const id of TRACK_G_TOOL_IDS) {
       const def = byId.get(id);
@@ -212,7 +269,7 @@ describe('Track G 工具登记一致性', () => {
     }
   });
 
-  it('8 个工具均在 LLM runner 描述符表中（agentLoop 可规划）', () => {
+  it('13 个工具均在 LLM runner 描述符表中（agentLoop 可规划）', () => {
     const byId = new Map(AGENT_LOOP_TOOL_DESCRIPTORS.map(d => [d.id, d]));
     for (const id of TRACK_G_TOOL_IDS) {
       const desc = byId.get(id);
@@ -562,5 +619,218 @@ describe('payment_requests.query', () => {
     const result: any = await executeTool(prisma, { toolId: 'payment_requests.query', input: { id: 'pr_x' } } as any);
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe('NOT_FOUND');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// purchase_orders.query（W4 收尾）
+// ────────────────────────────────────────────────────────────────
+
+describe('purchase_orders.query', () => {
+  it('正例：按状态+供应商过滤列表，透传过滤参数并返回 total', async () => {
+    mocks.poListPurchaseOrders.mockResolvedValue({
+      items: [{ id: 'po_1', poNumber: 'PO-20260816-001', status: 'Confirmed', supplierName: '某布行', totalAmount: 50000, currency: 'CNY' }],
+      total: 1,
+    });
+    const result: any = await executeTool(prisma, {
+      toolId: 'purchase_orders.query',
+      input: { status: 'Confirmed', supplierRelationId: 'rel_sup1' },
+    } as any);
+    expect(result.ok).toBe(true);
+    expect(result.total).toBe(1);
+    expect(result.summary).toContain('PO-20260816-001');
+    expect(mocks.poListPurchaseOrders).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'Confirmed', supplierRelationId: 'rel_sup1' }),
+    );
+  });
+
+  it('正例：id 模式返回详情，summary 含行数与到货记录数', async () => {
+    mocks.poGetPurchaseOrder.mockResolvedValue({
+      id: 'po_1', poNumber: 'PO-20260816-001', status: 'PartiallyReceived',
+      supplierName: '某布行', totalAmount: 50000, currency: 'CNY',
+      lines: [{ id: 'l1' }, { id: 'l2' }], receipts: [{ id: 'r1' }],
+    });
+    const result: any = await executeTool(prisma, { toolId: 'purchase_orders.query', input: { id: 'po_1' } } as any);
+    expect(result.ok).toBe(true);
+    expect(result.item.id).toBe('po_1');
+    expect(result.summary).toContain('2 行明细');
+    expect(result.summary).toContain('1 条到货记录');
+    expect(mocks.poListPurchaseOrders).not.toHaveBeenCalled();
+  });
+
+  it('边界：id 模式采购单不存在 → ok=false NOT_FOUND', async () => {
+    mocks.poGetPurchaseOrder.mockResolvedValue(null);
+    const result: any = await executeTool(prisma, { toolId: 'purchase_orders.query', input: { id: 'po_x' } } as any);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('NOT_FOUND');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// bom.query（W4 收尾）
+// ────────────────────────────────────────────────────────────────
+
+describe('bom.query', () => {
+  it('正例：按订单过滤列表，透传 orderId 并返回 total', async () => {
+    mocks.bomListBOMs.mockResolvedValue({
+      items: [{ id: 'bom_1', bomNumber: 'BOM-20260816-001', status: 'Confirmed', description: '男款西装', totalCost: 320, currency: 'CNY' }],
+      total: 1,
+    });
+    const result: any = await executeTool(prisma, {
+      toolId: 'bom.query',
+      input: { orderId: 'ord_1' },
+    } as any);
+    expect(result.ok).toBe(true);
+    expect(result.total).toBe(1);
+    expect(result.summary).toContain('BOM-20260816-001');
+    expect(mocks.bomListBOMs).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: 'ord_1' }),
+    );
+  });
+
+  it('正例：id 模式返回详情，summary 含版本/总成本/物料行数', async () => {
+    mocks.bomGetBOM.mockResolvedValue({
+      id: 'bom_1', bomNumber: 'BOM-20260816-001', version: 2, status: 'Confirmed',
+      description: '男款西装外套', totalCost: 320.5, currency: 'CNY',
+      lines: [{ id: 'l1' }, { id: 'l2' }, { id: 'l3' }], costEstimates: [],
+    });
+    const result: any = await executeTool(prisma, { toolId: 'bom.query', input: { id: 'bom_1' } } as any);
+    expect(result.ok).toBe(true);
+    expect(result.item.id).toBe('bom_1');
+    expect(result.summary).toContain('v2');
+    expect(result.summary).toContain('3 行物料');
+    expect(mocks.bomListBOMs).not.toHaveBeenCalled();
+  });
+
+  it('边界：id 模式 BOM 不存在 → ok=false NOT_FOUND', async () => {
+    mocks.bomGetBOM.mockResolvedValue(null);
+    const result: any = await executeTool(prisma, { toolId: 'bom.query', input: { id: 'bom_x' } } as any);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('NOT_FOUND');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// customs.query_tax_refunds（W4 收尾）
+// ────────────────────────────────────────────────────────────────
+
+describe('customs.query_tax_refunds', () => {
+  it('正例：按状态过滤列表，透传 status 并返回 total', async () => {
+    mocks.cxListTaxRefunds.mockResolvedValue({
+      items: [{ id: 'tr_1', refundNumber: 'TR-20260816-001', status: 'Reviewing', refundAmount: 13000 }],
+      total: 1,
+    });
+    const result: any = await executeTool(prisma, {
+      toolId: 'customs.query_tax_refunds',
+      input: { status: 'Reviewing' },
+    } as any);
+    expect(result.ok).toBe(true);
+    expect(result.total).toBe(1);
+    expect(result.summary).toContain('TR-20260816-001');
+    expect(mocks.cxListTaxRefunds).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'Reviewing' }),
+    );
+  });
+
+  it('正例：id 模式返回详情，summary 含应退金额与退税率', async () => {
+    mocks.cxGetTaxRefund.mockResolvedValue({
+      id: 'tr_1', refundNumber: 'TR-20260816-001', status: 'Approved',
+      refundAmount: 13000, exportAmountFob: 100000, exportAmountFobCurrency: 'USD', refundableRate: 13,
+    });
+    const result: any = await executeTool(prisma, { toolId: 'customs.query_tax_refunds', input: { id: 'tr_1' } } as any);
+    expect(result.ok).toBe(true);
+    expect(result.item.id).toBe('tr_1');
+    expect(result.summary).toContain('13000');
+    expect(result.summary).toContain('13%');
+    expect(mocks.cxListTaxRefunds).not.toHaveBeenCalled();
+  });
+
+  it('边界：id 模式 service 抛错（不存在）→ ok=false NOT_FOUND', async () => {
+    mocks.cxGetTaxRefund.mockRejectedValue(new Error('退税记录 tr_x 不存在'));
+    const result: any = await executeTool(prisma, { toolId: 'customs.query_tax_refunds', input: { id: 'tr_x' } } as any);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('NOT_FOUND');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// customs.query_declarations（W4 收尾）
+// ────────────────────────────────────────────────────────────────
+
+describe('customs.query_declarations', () => {
+  it('正例：按订单过滤列表，透传 orderId 并返回 total', async () => {
+    mocks.cxListDeclarations.mockResolvedValue({
+      items: [{ id: 'cd_1', declarationNumber: 'CD-20260816-001', type: 'export', status: 'Released' }],
+      total: 1,
+    });
+    const result: any = await executeTool(prisma, {
+      toolId: 'customs.query_declarations',
+      input: { orderId: 'ord_1' },
+    } as any);
+    expect(result.ok).toBe(true);
+    expect(result.total).toBe(1);
+    expect(result.summary).toContain('CD-20260816-001');
+    expect(mocks.cxListDeclarations).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: 'ord_1' }),
+    );
+  });
+
+  it('正例：id 模式返回详情，summary 含类型/状态/行数', async () => {
+    mocks.cxGetDeclaration.mockResolvedValue({
+      id: 'cd_1', declarationNumber: 'CD-20260816-001', type: 'export', status: 'Released',
+      lines: [{ id: 'l1' }],
+    });
+    const result: any = await executeTool(prisma, { toolId: 'customs.query_declarations', input: { id: 'cd_1' } } as any);
+    expect(result.ok).toBe(true);
+    expect(result.item.id).toBe('cd_1');
+    expect(result.summary).toContain('export');
+    expect(result.summary).toContain('1 行明细');
+    expect(mocks.cxListDeclarations).not.toHaveBeenCalled();
+  });
+
+  it('边界：id 模式 service 抛错（不存在）→ ok=false NOT_FOUND', async () => {
+    mocks.cxGetDeclaration.mockRejectedValue(new Error('报关单 cd_x 不存在'));
+    const result: any = await executeTool(prisma, { toolId: 'customs.query_declarations', input: { id: 'cd_x' } } as any);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('NOT_FOUND');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// finance.query_allocations（W4 收尾）
+// ────────────────────────────────────────────────────────────────
+
+describe('finance.query_allocations', () => {
+  it('正例：按发票过滤，summary 含笔数与核销金额合计', async () => {
+    mocks.finListInvoiceAllocations.mockResolvedValue({
+      items: [
+        { id: 'ALLOC__inv_1__v_1', invoiceId: 'inv_1', voucherId: 'v_1', appliedAmount: 5000, appliedDate: '2026-08-10' },
+        { id: 'ALLOC__inv_1__v_2', invoiceId: 'inv_1', voucherId: 'v_2', appliedAmount: 3000, appliedDate: '2026-08-12' },
+      ],
+      total: 2,
+    });
+    const result: any = await executeTool(prisma, {
+      toolId: 'finance.query_allocations',
+      input: { invoiceId: 'inv_1' },
+    } as any);
+    expect(result.ok).toBe(true);
+    expect(result.total).toBe(2);
+    expect(result.summary).toContain('2 笔');
+    expect(result.summary).toContain('8000.0000');
+    expect(mocks.finListInvoiceAllocations).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ invoiceId: 'inv_1' }),
+    );
+  });
+
+  it('边界：无核销记录 → ok=true 空列表合计 0', async () => {
+    mocks.finListInvoiceAllocations.mockResolvedValue({ items: [], total: 0 });
+    const result: any = await executeTool(prisma, {
+      toolId: 'finance.query_allocations',
+      input: { voucherId: 'v_x' },
+    } as any);
+    expect(result.ok).toBe(true);
+    expect(result.items).toHaveLength(0);
+    expect(result.summary).toContain('0 笔');
   });
 });

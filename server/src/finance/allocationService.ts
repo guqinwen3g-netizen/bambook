@@ -115,6 +115,28 @@ export function validateAllocationInput(input: {
 }
 
 /**
+ * W4 Agent 工具收尾：核销明细列表只读查询（finance.query_allocations 的 service 真源）。
+ *
+ * 与 finance/route.ts GET /allocations 同一查询口径（invoiceId/voucherId 过滤 +
+ * createdAt desc + take 上限 500）；路由同批改调本函数，保持单一真源不漂移。
+ * 只读：不写库、不触发状态重算。
+ */
+export async function listInvoiceAllocations(
+  prisma: { invoiceAllocation: { findMany: (args: any) => Promise<any[]> } },
+  params: { invoiceId?: string; voucherId?: string; limit?: number } = {},
+): Promise<{ items: any[]; total: number }> {
+  const where: any = {};
+  if (params.invoiceId) where.invoiceId = params.invoiceId;
+  if (params.voucherId) where.voucherId = params.voucherId;
+  const items = await prisma.invoiceAllocation.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(params.limit ?? 200, 500),
+  });
+  return { items, total: items.length };
+}
+
+/**
  * task 阻断3 fix: allocation-aware EntityLink sync。
  *
  * 基于 InvoiceAllocation 当前 rows 维护 paymentVoucher → invoice 的 settlesInvoice links：

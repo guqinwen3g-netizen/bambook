@@ -18,7 +18,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { syncInvoiceReferences, syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { cancelInvoice, cancelVoucher, deleteInvoice, deleteVoucher } from './voidDeleteService';
-import { recalcInvoiceStatus, recalcVoucherStatus, validateAllocationInput, syncAllocationVoucherLinks, applyAllocation } from './allocationService';
+import { recalcInvoiceStatus, recalcVoucherStatus, validateAllocationInput, syncAllocationVoucherLinks, applyAllocation, listInvoiceAllocations } from './allocationService';
 import { createAllocation, updateAllocation, deleteAllocation } from './allocationMutationService';
 import { validateStatusTransition } from '../statusTransition';
 import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMutationService';
@@ -295,15 +295,12 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   // GET /api/v1/finance/allocations — list/query
   router.get('/allocations', async (req: Request, res: Response) => {
     try {
-      const where: any = {};
-      if (req.query.invoiceId) where.invoiceId = String(req.query.invoiceId);
-      if (req.query.voucherId) where.voucherId = String(req.query.voucherId);
-      const items = await (prisma as any).invoiceAllocation.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: Math.min(Number(req.query.limit) || 200, 500),
+      const { items, total } = await listInvoiceAllocations(prisma, {
+        invoiceId: req.query.invoiceId ? String(req.query.invoiceId) : undefined,
+        voucherId: req.query.voucherId ? String(req.query.voucherId) : undefined,
+        limit: Number(req.query.limit) || 200,
       });
-      res.json({ items, total: items.length });
+      res.json({ items, total });
     } catch (err: any) {
       res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
     }

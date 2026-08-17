@@ -1011,6 +1011,67 @@ const MANIFEST_SEEDS: ManifestSeed[] = [
     },
     safety: READ_ONLY_SAFETY,
   },
+  // ── W4 收尾：Agent 工具缺口 5 类只读查询工具 ──
+  {
+    id: 'purchase_orders.query',
+    name: 'Query Purchase Orders',
+    domain: 'procurement',
+    description: '查询采购单：按状态/供应商/下单日期窗/单号搜索过滤列表，或按采购单 ID 读详情（含行明细与到货记录）。',
+    inputHint: '{ id?: string, status?: string, supplierRelationId?: string, dateFrom?: string, dateTo?: string, search?: string, limit?: number, offset?: number }',
+    example: {
+      user: '供应商 XX 有哪些已确认还没到货的采购单？',
+      input: { status: 'Confirmed', supplierRelationId: '<RELATION_ID>' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'bom.query',
+    name: 'Query BOMs',
+    domain: 'bom',
+    description: '查询 BOM 物料清单：按状态/产品/订单/报价过滤列表，或按 BOM ID 读详情（含行明细与料/工/费成本汇总）。',
+    inputHint: '{ id?: string, status?: string, productAssetId?: string, orderId?: string, quotationId?: string, search?: string, limit?: number, offset?: number }',
+    example: {
+      user: '订单 <ORDER_ID> 的 BOM 有哪些物料行？总成本多少？',
+      input: { orderId: '<ORDER_ID>' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'customs.query_tax_refunds',
+    name: 'Query Tax Refunds',
+    domain: 'customs',
+    description: '查询出口退税记录：按状态/报关单/订单/客户过滤列表，或按退税记录 ID 读详情（FOB/退税率/应退金额/审核信息）。',
+    inputHint: '{ id?: string, status?: string, declarationId?: string, orderId?: string, relationId?: string, search?: string, limit?: number, offset?: number }',
+    example: {
+      user: '哪些退税还卡在审核中？',
+      input: { status: 'Reviewing' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'customs.query_declarations',
+    name: 'Query Customs Declarations',
+    domain: 'customs',
+    description: '查询报关单：按类型/状态/运单/订单/客户过滤列表，或按报关单 ID 读详情（含行明细）。',
+    inputHint: '{ id?: string, type?: string, status?: string, shipmentId?: string, orderId?: string, relationId?: string, search?: string, limit?: number, offset?: number }',
+    example: {
+      user: '订单 <ORDER_ID> 的报关单号是多少？放行了吗？',
+      input: { orderId: '<ORDER_ID>' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
+  {
+    id: 'finance.query_allocations',
+    name: 'Query Invoice Allocations',
+    domain: 'finance',
+    description: '查询收付款核销明细：按发票或收款凭证过滤，返回每笔核销金额与日期。',
+    inputHint: '{ invoiceId?: string, voucherId?: string, limit?: number }',
+    example: {
+      user: '发票 <INVOICE_ID> 已经核销了多少钱？',
+      input: { invoiceId: '<INVOICE_ID>' },
+    },
+    safety: READ_ONLY_SAFETY,
+  },
   // ── Phase 2 S3a：六新域写工具 ──
   {
     id: 'order_changes.create',
