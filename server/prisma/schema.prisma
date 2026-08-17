@@ -2387,11 +2387,20 @@ model Shipment {
   otherChargesCurrency String? // 其他费用币种
 
   // ─── 关联（snapshot FK） ───
-  orderId            String? // 关联订单（aboutOrder linkKind）
-  customerRelationId String? // 客户（billTo linkKind）
+  // DR-016：orderId 降级为投影字段，由服务层从分配表首条派生维护，非直接真源
+  orderId            String? // 投影：主订单（分配表首条 orderId）
+  customerRelationId String? // 开票对象 billTo（保持语义不变，DR-016 明确）
   customerName       String? // 冗余快照
   carrierRelationId  String? // 货代/船公司（shipsVia linkKind）
   carrierName        String? // 冗余快照
+
+  // ─── DR-016 四方交易方（均 snapshot FK → Relation，逐步迁移） ───
+  consigneeRelationId    String? // 收货方/目的工厂（consignee linkKind）
+  consigneeName          String? // 冗余快照
+  docRecipientRelationId String? // 单证收件方（docRecipient linkKind）
+  docRecipientName       String? // 冗余快照
+  payerRelationId        String? // 实际付款方（payer linkKind）
+  payerName              String? // 冗余快照
 
   // ─── 报关 ───
   hsCode                   String? // 海关HS编码（统一编码，行级在 ShipmentLine）
@@ -2450,6 +2459,43 @@ model ShipmentLine {
 
   @@index([shipmentId])
   @@index([orderLineId])
+}
+
+// ShipmentOrderAllocation：订单↔出运多对多分配记录（DR-016 合票建模）
+// 业务规则：
+//   - 一单拆多票 + 一票合多单：每个订单参与某票出运须有独立分配记录
+//   - 合票边界：仅同业务线 + 同一签约客户允许合票（服务层校验）
+//   - 数量上限：跨票累计实际出运量 ≤ 订单可出运量（服务层校验）
+//   - 门禁：按每个来源订单分配逐项核验 QC/S/S/RC，整票不合格
+// 设计原则：
+//   - snapshot FK 风格，不加 @relation（与全库一致）
+//   - 无软删：随 Shipment 软删过滤（Shipment.deletedAt IS NULL 才有效）
+//   - orderLineId 为 null 表示订单级整单分配（未细化到行）
+model ShipmentOrderAllocation {
+  id         String @id // 格式：SHPA__${shortId}
+  shipmentId String // 所属票（snapshot FK → Shipment.id）
+  orderId    String // 来源订单（snapshot FK → Order.id）
+  orderLineId String? // 来源订单行（行级分配时填；订单级整单分配为 null）
+
+  // ─── 数量 ───
+  plannedQty Decimal? @db.Decimal(18, 4) // 计划出运数量
+  actualQty  Decimal? @db.Decimal(18, 4) // 实际出运数量（发货确认后回填）
+  unit       String? // 单位快照（m/yd/kg/pcs）
+
+  // ─── 状态 ───
+  status          String // Planned | PartiallyShipped | Fulfilled | ShortShipped | Cancelled
+  batchOrCartonNote String? // 批次/箱号备注（如适用）
+  exception       String? // 异常说明（短装/溢装原因）
+
+  // ─── 时间戳 ───
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@unique([shipmentId, orderId, orderLineId]) // 同票同订单行不重复分配
+  @@index([shipmentId])
+  @@index([orderId])
+  @@index([orderLineId])
+  @@index([status])
 }
 
 // ShipmentEvent：运单物流节点事件（F3 lifecycle 深化）
