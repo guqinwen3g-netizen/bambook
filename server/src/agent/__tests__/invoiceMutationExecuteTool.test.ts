@@ -12,7 +12,7 @@ describe('invoice.create/update executeTool + executeAgentTool', () => {
   it('executeTool approved commits and pending/modified/missing fail closed', async () => {
     const draft = buildInvoiceCreateDraft({ input });
     (createInvoice as any).mockResolvedValue({ ok: true, data: { invoice: { id: 'INV__1' }, auditId: 'AL-1' } });
-    const okPrisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const okPrisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:invoice.create', payload: { processDraft: draft } }) } } as any;
     expect((await executeTool(okPrisma, { toolId: 'invoice.create', input: {}, approvalId: 'AP-1' } as any) as any).ok).toBe(true);
     const pending = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'pending', payload: {} }) } } as any;
     expect((await executeTool(pending, { toolId: 'invoice.update', input: {}, approvalId: 'AP-1' } as any) as any).ok).toBe(false);
@@ -23,7 +23,7 @@ describe('invoice.create/update executeTool + executeAgentTool', () => {
   it('executeTool update approved commits via updateInvoice', async () => {
     const draft = buildInvoiceUpdateDraft({ invoiceId: 'INV__1', patch: { amount: '120.0000' }, currentSnapshot: { amount: '100.0000' } });
     (updateInvoice as any).mockResolvedValue({ ok: true, data: { invoice: { id: 'INV__1' }, auditId: 'AL-2' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:invoice.update', payload: { processDraft: draft } }) } } as any;
     expect((await executeTool(prisma, { toolId: 'invoice.update', input: {}, approvalId: 'AP-1' } as any) as any).ok).toBe(true);
     expect(updateInvoice).toHaveBeenCalledTimes(1);
   });

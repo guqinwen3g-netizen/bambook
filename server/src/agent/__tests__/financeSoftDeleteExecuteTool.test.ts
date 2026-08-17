@@ -14,7 +14,7 @@ describe('task finance-soft-delete-flow: executeTool invoice.delete commit', () 
   it('approved → committed', async () => {
     const draft = buildInvoiceDeleteDraft({ invoiceId: 'INV__1' });
     (deleteInvoice as any).mockResolvedValue({ ok: true, data: { auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:invoice.delete', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'invoice.delete', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -44,7 +44,7 @@ describe('task finance-soft-delete-flow: executeTool invoice.delete commit', () 
   it('service 失败（HAS_ALLOCATIONS）→ failed', async () => {
     const draft = buildInvoiceDeleteDraft({ invoiceId: 'INV__1' });
     (deleteInvoice as any).mockResolvedValue({ ok: false, error: { code: 'HAS_ALLOCATIONS', message: 'has allocations' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:invoice.delete', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'invoice.delete', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
   });
@@ -52,7 +52,7 @@ describe('task finance-soft-delete-flow: executeTool invoice.delete commit', () 
   it('no service bypass', async () => {
     const draft = buildInvoiceDeleteDraft({ invoiceId: 'INV__1' });
     (deleteInvoice as any).mockResolvedValue({ ok: true, data: { auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:invoice.delete', payload: { processDraft: draft } }) } } as any;
     await executeTool(prisma, { toolId: 'invoice.delete', input: {}, approvalId: 'AP1' } as any);
     expect(deleteInvoice).toHaveBeenCalledTimes(1);
   });
@@ -64,7 +64,7 @@ describe('task finance-soft-delete-flow: executeTool payment_voucher.delete comm
   it('approved → committed', async () => {
     const draft = buildPaymentVoucherDeleteDraft({ voucherId: 'PV__1' });
     (deleteVoucher as any).mockResolvedValue({ ok: true, data: { auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:payment_voucher.delete', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'payment_voucher.delete', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -87,7 +87,7 @@ describe('task finance-soft-delete-flow: executeTool payment_voucher.delete comm
   it('service 失败（VOUCHER_NOT_FOUND）→ failed', async () => {
     const draft = buildPaymentVoucherDeleteDraft({ voucherId: 'PV__1' });
     (deleteVoucher as any).mockResolvedValue({ ok: false, error: { code: 'VOUCHER_NOT_FOUND', message: 'not found' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:payment_voucher.delete', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'payment_voucher.delete', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
   });
@@ -95,7 +95,7 @@ describe('task finance-soft-delete-flow: executeTool payment_voucher.delete comm
   it('no service bypass', async () => {
     const draft = buildPaymentVoucherDeleteDraft({ voucherId: 'PV__1' });
     (deleteVoucher as any).mockResolvedValue({ ok: true, data: { auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:payment_voucher.delete', payload: { processDraft: draft } }) } } as any;
     await executeTool(prisma, { toolId: 'payment_voucher.delete', input: {}, approvalId: 'AP1' } as any);
     expect(deleteVoucher).toHaveBeenCalledTimes(1);
   });

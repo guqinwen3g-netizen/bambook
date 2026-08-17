@@ -48,7 +48,7 @@ describe('order_changes create/withdraw executeTool commit', () => {
   it('order_changes.create approved → committed', async () => {
     const draft = buildOrderChangeCreateDraft({ input: createInput });
     mocks.createChangeRequest.mockResolvedValue({ ok: true, data: { changeRequest: { id: 'OCR_1', requestNumber: 'OCR-1' }, approvalRequestId: 'AR-BIZ-1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:order_changes.create', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order_changes.create', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -59,7 +59,7 @@ describe('order_changes create/withdraw executeTool commit', () => {
   it('order_changes.withdraw approved → committed', async () => {
     const draft = buildOrderChangeWithdrawDraft({ changeRequestId: 'OCR_1', actorId: 'usr_1' });
     mocks.withdrawChangeRequest.mockResolvedValue({ ok: true, data: { changeRequest: { id: 'OCR_1', status: 'Cancelled' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', actionType: 'tool:order_changes.withdraw', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order_changes.withdraw', input: {}, approvalId: 'AP-2' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -92,7 +92,7 @@ describe('order_changes create/withdraw executeTool commit', () => {
   it('approved 但 draft hash 被篡改 → PROCESS_DRAFT_HASH_MISMATCH，service 不调用', async () => {
     const draft = buildOrderChangeCreateDraft({ input: createInput });
     const tampered = { ...draft, subOperations: [{ ...draft.subOperations[0], after: { ...(draft.subOperations[0].after as any), changeReason: '篡改后的理由xxxxxxxxxxxx' } }] };
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: tampered } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:order_changes.create', payload: { processDraft: tampered } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order_changes.create', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(false);
     expect(result.errorFeedback.code).toBe('PROCESS_DRAFT_HASH_MISMATCH');
@@ -103,7 +103,7 @@ describe('order_changes create/withdraw executeTool commit', () => {
     registerOrderChangesFlowTools();
     const draft = buildOrderChangeWithdrawDraft({ changeRequestId: 'OCR_9', actorId: 'usr_1' });
     mocks.withdrawChangeRequest.mockResolvedValue({ ok: true, data: { changeRequest: { id: 'OCR_9', status: 'Cancelled' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-9', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-9', status: 'approved', actionType: 'tool:order_changes.withdraw', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order_changes.withdraw', input: {}, approvalId: 'AP-9' } as any);
     expect(result.ok).toBe(true);
     expect(result.changeRequestId).toBe('OCR_9');

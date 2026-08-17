@@ -25,7 +25,7 @@ describe('task order-ship: executeTool order.ship commit 路径', () => {
     const tx = makeShipCommitTx();
     const prisma = {
       $transaction: vi.fn(async (fn: any) => fn(tx)),
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:order.ship', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, {
       toolId: 'order.ship',

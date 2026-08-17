@@ -53,7 +53,7 @@ describe('internal_trade create/confirm executeTool commit', () => {
       ok: true,
       data: { transfer: { id: 'OIT_M1' }, mirror: { id: 'OIT_R1' }, approvalRequestId: 'AR-BIZ-1', payload: { status: 'PendingConfirm' } },
     });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:internal_trade.create', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'internal_trade.create', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -65,7 +65,7 @@ describe('internal_trade create/confirm executeTool commit', () => {
   it('internal_trade.confirm approved → committed', async () => {
     const draft = buildInternalTradeConfirmDraft({ transferId: 'OIT_M1', actorId: 'usr_fabric' });
     mocks.confirmInternalTransfer.mockResolvedValue({ ok: true, data: { transfer: { id: 'OIT_M1' }, payload: { status: 'Effective' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', actionType: 'tool:internal_trade.confirm', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'internal_trade.confirm', input: {}, approvalId: 'AP-2' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -99,7 +99,7 @@ describe('internal_trade create/confirm executeTool commit', () => {
   it('approved 但 draft hash 被篡改 → PROCESS_DRAFT_HASH_MISMATCH，service 不调用', async () => {
     const draft = buildInternalTradeCreateDraft({ input: createInput });
     const tampered = { ...draft, subOperations: [{ ...draft.subOperations[0], after: { ...(draft.subOperations[0].after as any), settlementPrice: 0.01 } }] };
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: tampered } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:internal_trade.create', payload: { processDraft: tampered } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'internal_trade.create', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(false);
     expect(result.errorFeedback.code).toBe('PROCESS_DRAFT_HASH_MISMATCH');

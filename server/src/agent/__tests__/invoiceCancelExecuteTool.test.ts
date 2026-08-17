@@ -14,7 +14,7 @@ describe('task invoice-cancel-flow: executeTool commit 路径', () => {
     const draft = buildInvoiceCancelDraft({ invoiceId: 'INV__1', currentStatus: 'Issued' });
     (cancelInvoice as any).mockResolvedValue({ ok: true, data: { invoice: { id: 'INV__1' }, auditId: 'a1' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:invoice.cancel', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'invoice.cancel', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
@@ -47,7 +47,7 @@ describe('task invoice-cancel-flow: executeTool commit 路径', () => {
     const draft = buildInvoiceCancelDraft({ invoiceId: 'INV__1', currentStatus: 'Issued' });
     (cancelInvoice as any).mockResolvedValue({ ok: false, error: { code: 'CANCEL_FAILED', message: 'sync reject' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:invoice.cancel', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'invoice.cancel', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
@@ -58,7 +58,7 @@ describe('task invoice-cancel-flow: executeTool commit 路径', () => {
     const draft = buildInvoiceCancelDraft({ invoiceId: 'INV__1', currentStatus: 'Issued' });
     (cancelInvoice as any).mockResolvedValue({ ok: true, data: { invoice: { id: 'INV__1' }, auditId: 'a1' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:invoice.cancel', payload: { processDraft: draft } }) },
     } as any;
     await executeTool(prisma, { toolId: 'invoice.cancel', input: {}, approvalId: 'AP1' } as any);
     expect(cancelInvoice).toHaveBeenCalledTimes(1);

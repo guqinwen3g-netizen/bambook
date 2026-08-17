@@ -15,7 +15,7 @@ describe('task order-lifecycle-flow: executeTool commit', () => {
   it('order.status_transition approved → committed', async () => {
     const draft = buildOrderStatusTransitionDraft({ orderId: 'ORD__1', toStatus: 'Confirmed', currentStatus: 'Pending' });
     (transitionOrderStatus as any).mockResolvedValue({ ok: true, data: { order: { id: 'ORD__1' }, auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:order.status_transition', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order.status_transition', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -45,7 +45,7 @@ describe('task order-lifecycle-flow: executeTool commit', () => {
   it('order.delete approved → committed', async () => {
     const draft = buildOrderDeleteDraft({ orderId: 'ORD__1' });
     (deleteOrder as any).mockResolvedValue({ ok: true, data: { auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:order.delete', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order.delete', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -61,7 +61,7 @@ describe('task order-lifecycle-flow: executeTool commit', () => {
   it('no service bypass：executeTool 只调 service', async () => {
     const draft = buildOrderDeleteDraft({ orderId: 'ORD__1' });
     (deleteOrder as any).mockResolvedValue({ ok: true, data: { auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:order.delete', payload: { processDraft: draft } }) } } as any;
     await executeTool(prisma, { toolId: 'order.delete', input: {}, approvalId: 'AP1' } as any);
     expect(deleteOrder).toHaveBeenCalledTimes(1);
   });

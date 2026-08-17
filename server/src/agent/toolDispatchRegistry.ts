@@ -176,6 +176,22 @@ export function registerCommitTool(toolId: string, commitFn: CommitHandler): voi
       };
     }
 
+    // toolId-actionType 交叉绑定校验：防止 A 工具审批被 B 工具 commit 消费（安全 fail-closed）
+    const expectedActionType = `tool:${toolId}`;
+    if (approval.actionType !== expectedActionType) {
+      const message = `COMMIT_FAILED: approval ${targetApprovalId} actionType=${approval.actionType} does not match toolId=${toolId} (expected ${expectedActionType})`;
+      return {
+        ok: false,
+        committed: false,
+        error: message,
+        errorFeedback: {
+          code: 'CROSS_APPROVAL_BINDING',
+          message,
+          retryable: false,
+        },
+      };
+    }
+
     const payload = approval.payload as Record<string, unknown> | null;
 
     // ── 幂等去重：先占 receipt 再执行（唯一键兜底并发重放）──
