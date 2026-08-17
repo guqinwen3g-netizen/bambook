@@ -33,7 +33,7 @@
 - 备份分支：`backup/pre-cleanup-20260728`（保留 339 个旧 commit 历史）
 - 远程：`git@github.com:guqinwen3g-netizen/bambook.git`
 - 提交前必须：tsc 零错误 + 构建通过 + check:tokens 通过 + 前端 `npm test` 全绿
-- 测试套件：后端 `cd server && npx vitest run`（3759/3759 全通过，265 文件，含安全/幂等/并发/KB CRUD/MOQ 双触发/交期锁死回归测试）；前端 `npm test`（2343 通过 + 6 项视觉基线 quarantine 隔离，102 文件）
+- 测试套件：后端 `cd server && npx vitest run`（3837/3837 全通过，267 文件，含安全/幂等/并发/KB CRUD/MOQ 双触发/交期锁死/marketing/shared 补底回归测试）；前端 `npm test`（2343 通过 + 6 项视觉基线 quarantine 隔离，102 文件）
 
 ## Mac Mini 部署
 - **不要用 SSH**，用 OPS Panel（ops.jiangsupanda.com）更稳定
