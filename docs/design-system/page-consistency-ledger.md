@@ -23,10 +23,10 @@
 
 | 页面 | 渲染文件 | 标题区 | 筛选区 | 操作区 | 表单控件 | 内容区 | dark:残留 | raw色残留 | 弹窗 | 问题记录 | 验收状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 全景看板 | components/ui/osCompiler/compiledDashboardTemplates.tsx | ⚠️ 无 PageHeader（定制全景头部，豁免与否待总控校准） | — | ✅ | ✅ | compiled 模板 | 0 | 0 | 0 | compiled 双路径；手写主按钮余量 5 处均为装饰性 accent 填充（批E 余量，非按钮） | ⬜ |
+| 全景看板 | components/ui/osCompiler/compiledDashboardTemplates.tsx | ⚠️ 无 PageHeader（定制全景头部，豁免与否待总控校准） | — | ✅ | ✅ | compiled 模板 | 0 | 0 | 0 | compiled 双路径；手写主按钮余量 5 处装饰性 accent 填充**已收编（W4 · d808a3b）**：bg-[var(--os-vnext-brand-blue)] → bg-[var(--accent)] 主题自适应（装饰下划杠×2/进度条 fill×2/指示圆点×1），手写主按钮基线 22→17；Dashboard.tsx 非渲染路径 5 处遗留（W5/逐页主刀） | ⬜ |
 | 经营驾驶舱 | components/CockpitManager.tsx | ✅ | 组合 bar×1 | ✅ | date×2 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
 | 报表中心 | components/ReportCenter.tsx | ✅ | ⚠️ 待走查 | ⚠️ 手写主按钮×4（批E 余量） | select×8 | ⚠️ 待走查 | 0 | 0 | alert×1 | — | ⬜ |
-| 关系智库 ★ | components/ui/osCompiler/compiledRelationsTemplates.tsx | ✅ | ✅ 已主刀（P2 · e5c77a5） | ✅ | ✅（date×1→CapsuleDateInput） | compiled 模板 | 0 | 0 | 0 | **点名④ 已修复**：搜索 icon 内置 leading icon（span 外挂 → left-3 top-1/2 + pl-9，spec §2.3）；toolbar 全条 h-9→h-10 对齐 34/40 刻度（bar 体 !h-10 覆盖共享 recipe）；font-normal→font-light；对齐开发/货运/财务管理基准范式。遗留 W4：排序 CompiledSelectControl compact 触发器 h-9 来自共享 CustomSelect（inline 透明无可见边界，视觉连续），共享组件刻度专项处理 | ⬜ |
+| 关系智库 ★ | components/ui/osCompiler/compiledRelationsTemplates.tsx | ✅ | ✅ 已主刀（P2 · e5c77a5） | ✅ | ✅（date×1→CapsuleDateInput） | compiled 模板 | 0 | 0 | 0 | **点名④ 已修复**：搜索 icon 内置 leading icon（span 外挂 → left-3 top-1/2 + pl-9，spec §2.3）；toolbar 全条 h-9→h-10 对齐 34/40 刻度（bar 体 !h-10 覆盖共享 recipe）；font-normal→font-light；对齐开发/货运/财务管理基准范式。**遗留 W4 已销**：排序 CompiledSelectControl compact 触发器刻度专项（240ea81）——共享 CustomSelect compact h-9(36px) → h-[var(--h-input-sm)]=34px BDS 规格刻度，Relations/Products 全部 6 处消费点一次性受益（34px = 双上下文安全交集：40px 工具条内符合 filterbar 官方范式，36px 共享 recipe 工具条内 2px 差视觉连续）；default size（form 场景 h-9）遗留逐页主刀表单区 | ⬜ |
 | 客户关系管理 | components/CrmManager.tsx | ✅ | 组合 bar×1 | ✅ | select×10 + date×7 | ⚠️ 待走查 | 0 | 0 | alert×15 | — | ⬜ |
 | 供应商管理 | components/SuppliersManager.tsx | ✅ | ⚠️ 待走查 | ✅ | select×7 + date×4 | ⚠️ 待走查 | 0 | 0 | alert×19 | — | ⬜ |
 | 智能邮箱 | components/EmailManager.tsx | ❌ 缺 PageHeader（M1） | ⚠️ 待走查 | ✅ | ✅ | ⚠️ 待走查 | 0 | 2（豁免域） | alert×2 | M1：缺 PageHeader/bds-pagehead；颜色 token 属邮件模板豁免域，骨架不豁免；子组件 email/SignatureManager.tsx 同缺 PageHeader（M1 基线 3 之二） | ⬜ |
@@ -35,7 +35,7 @@
 | 数字档案 | components/ui/osCompiler/compiledProductsTemplates.tsx | ✅ | — | ⚠️ 手写主按钮×2（批E 余量） | ✅ | compiled 模板 | 0 | 0 | alert×2 | compiled 双路径 | ⬜ |
 | 开发管理 | components/DevelopmentManager.tsx | ✅ | 组合 bar×1（基准范式页） | ✅ | select×4 + date×1 | ⚠️ 待走查 | 0 | 0 | alert×7 | **filterbar 选型基准实现之一**（spec 附录 A） | ⬜ |
 | 报价管理 ★ | components/QuotationManager.tsx | ✅ | ✅ 已主刀（P2 · 088cd10） | ✅ | ✅（select×3 前置修正 + date×2→CapsuleDateInput） | ⚠️ 待走查 | 0 | 0 | 0 | **点名③ 已修复**：状态 segment 并入搜索行单条 filterbar（评估结论：搜索+segment 共行 = 组合嵌套 bar 合法形态，spec §2.1 决策树第二支）；报价日期/有效期至迁 CapsuleDateInput；客户/行单位/币种 select className 前置（断言口径修正） | ⬜ |
-| 订单管理 ★ | components/OrderManager.tsx | ✅ | ✅ 已主刀（P2 · cd54d96） | ✅（M5 清零 4→0） | ✅（select×1 前置修正） | ⚠️ 待走查 | 0 | 0 | alert×10（W4 收敛） | **点名② 已修复**：类型 tab 并入 filterbar 单行（搜索+segment+状态 select+视图 toggle 共行），消除 PageHeader center 槽双行叠加（spec §1 center 槽禁令 + §2.2 单行）；**点名⑤ 已修复**：视图 toggle bds-btn-dark×4 → bds-toggle active 冷墨洗（accent-tint + accent-text，spec §3.2）。遗留 W4：alert×10 随 W4 BdsDialog 收敛 | ⬜ |
+| 订单管理 ★ | components/OrderManager.tsx | ✅ | ✅ 已主刀（P2 · cd54d96） | ✅（M5 清零 4→0） | ✅（select×1 前置修正） | ⚠️ 待走查 | 0 | 0 | alert×10（W4 收敛） | **点名② 已修复**：类型 tab 并入 filterbar 单行（搜索+segment+状态 select+视图 toggle 共行），消除 PageHeader center 槽双行叠加（spec §1 center 槽禁令 + §2.2 单行）；**点名⑤ 已修复**：视图 toggle bds-btn-dark×4 → bds-toggle active 冷墨洗（accent-tint + accent-text，spec §3.2）。**bar 三区同槽追加修复（ac39d30）**：bar 包裹层 px-4 pt-2 → px-7 pt-2 pb-4（原 px-4 与 PageHeader --p-pagehead/表格区 px-7 内容栅格错位，左右各突出 12px 且底部零间距；对齐 DevelopmentManager gap-3 / QuotationManager mb-4 基准范式）；ProductionAlerts 预警横幅全宽出血同族修复（包 shrink-0 px-7 同槽）。遗留 W4：alert×10 随 W4 BdsDialog 收敛 | ⬜ |
 | 生产跟单 | components/ProductionBoard.tsx | ✅ | — | ✅ | ✅ | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
 | 采购管理 | components/ProcurementManager.tsx | ✅ | 组合 bar×1 | ✅ | select×4 + date×3 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
 | 库存管理 | components/InventoryManager.tsx | ✅ | 组合 bar×1 | ✅ | select×8 + date×1 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
@@ -103,3 +103,18 @@
 
 **改前/改后证据**：改前状态以 §2 详录文件行号 + 各页父 commit（`git show <commit>^`）为准；改后深浅双主题截图按 spec §9.2 由产品负责人验收 pass 亲截（关键 4 页口径）。
 **验收状态**：四行验收列留空（⬜），待总控逐页签字销号；签字通过前暂停放量其余 26 页。
+
+---
+
+## §6 W4 组件级专项收口记录（2026-08-17 · P2 校准等待期执行）
+
+> 范围纪律：仅组件层 + compiledDashboardTemplates，未触碰四页主刀文件以外的页面文件；alert→BdsDialog 页面迁移不做（并入后续逐页主刀）。
+
+| 专项 | commit | 内容 | 基线变化 | 三绿 |
+|---|---|---|---|---|
+| 订单管理 bar 三区同槽（P2 追加） | `ac39d30` | bar 包裹层 px-4 pt-2 → px-7 pt-2 pb-4（与 PageHeader/表格共享 28px 内容栅格 + 16px 呼吸间距）；ProductionAlerts 预警横幅全宽出血同族修复（包 shrink-0 px-7） | 不变 | tsc ✓ / tokens ✓ / test ✓ |
+| 共享 CustomSelect 刻度 | `240ea81` | compact 触发器 h-9(36px 旧刻度) → h-[var(--h-input-sm)]=34px（BDS 规格刻度）；34px = 双消费上下文安全交集（Relations 40px 工具条内符合 filterbar 官方范式；Products 36px 共享 recipe 工具条内 2px 差、inline 透明视觉连续）；RelationsManager.test 断言同步 | 不变 | tsc ✓ / tokens ✓ / test ✓ |
+| Dashboard 手写主按钮余量 | `d808a3b` | compiledDashboardTemplates 5 处装饰性 accent 填充（下划杠×2/进度条 fill×2/指示圆点×1）bg-[var(--os-vnext-brand-blue)] → bg-[var(--accent)] 主题自适应 | 手写主按钮 22→17 | tsc ✓ / tokens ✓ / test ✓ |
+
+**双主题截图验证**：OrderManager bar 与表格左右边界对齐 + 间距清晰（浅/深）；关系智库 + 数字档案工具条 inline 触发器垂直对齐自然（浅/深）；全景看板 accent 元素双主题协调可见。
+**遗留登记**：CustomSelect default size（form 场景 h-9）随逐页主刀表单区处理；Dashboard.tsx 非渲染路径 5 处装饰填充（W5/逐页主刀）；四页 alert 迁移并入逐页主刀流程。
