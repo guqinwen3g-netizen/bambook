@@ -91,7 +91,7 @@ BASELINE_FILTERBAR_H=3        # M3: bds-filterbar 行手写非 h-10 高度覆盖
                               # 现存 FinanceManager:1935 / finance/FinanceCreditPanel:367 /
                               # finance/FinancePaymentRequestsPanel:422，均 h-auto min-h-11 撑高违例；
                               # 总控校准：filterbar 内禁任何手写 h- 覆盖，仅 h-10 白名单）
-BASELINE_NATIVE_CONTROLS=272  # M4: 原生 <select（无 bds-select 类）171 + type="date" 101 = 272
+BASELINE_NATIVE_CONTROLS=267  # M4: 原生 <select（无 bds-select 类）168 + type="date" 99 = 267
                               # （含 CapsuleDateInput.tsx:66 内部合法拾取器 1 处，BDS 组件封装内部，
                               #  计入基数保持恒定、不算违例增量）
                               # 粗口径对账：全仓 `<select` 213 + `type="date"` 108 = 321（产品负责人点名⑥）；
@@ -102,6 +102,9 @@ BASELINE_NATIVE_CONTROLS=272  # M4: 原生 <select（无 bds-select 类）171 + 
                               # + tools/DocumentTemplateManager select×2（共 select 178→172 / date 103→101）。
                               # 2026-08-17 W-PG-P2 OrderManager 主刀收编 273→272：状态 select className 前置
                               # （断言前瞻被 onChange 箭头 `=>` 截断的存量误计修正）。
+                              # 2026-08-17 W-PG-P2 QuotationManager 主刀收编 272→267：
+                              # 报价日期/有效期至 date×2（→CapsuleDateInput）+ 客户 select + 行单位 select className 前置
+                              # + 币种 select className 前置（共 select 171→168 / date 101→99）。
                               # 注：select 标签 className 须置首属性（onChange 箭头 `=>` 会截断断言前瞻）。
 BASELINE_BDS_BTN_DARK=0       # M5: bds-btn-dark 计数（行尾注释 `// bds-dark-ok: <原因>` 白名单豁免）
                               # 2026-08-17 W-PG-P2 OrderManager 主刀清零（4→0）：视图 toggle 实心黑
