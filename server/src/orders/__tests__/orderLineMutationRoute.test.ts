@@ -106,7 +106,7 @@ describe('task ERP-P1 order-line-mutation: POST / create', () => {
     const { app } = makeApp({ order: null });
     const res = await request(app).post('/api/v1/order-lines/').set(auth()).send({ poNumber: 'PO-MISSING', itemNo: '0010', quantity: 10 });
     expect(res.status).toBe(404);
-    expect(res.body.error).toBe('ORDER_NOT_FOUND');
+    expect(res.body.error.code).toBe('ORDER_NOT_FOUND');
   });
 
   it('parent order deletedAt → 404', async () => {
@@ -154,7 +154,7 @@ describe('task ERP-P1 order-line-mutation: PUT /:id update', () => {
     const { app } = makeApp({ line: null });
     const res = await request(app).put('/api/v1/order-lines/UNKNOWN').set(auth()).send({ quantity: 200 });
     expect(res.status).toBe(404);
-    expect(res.body.error).toBe('ORDER_LINE_NOT_FOUND');
+    expect(res.body.error.code).toBe('ORDER_LINE_NOT_FOUND');
   });
 
   it('sync reject → UPDATE_LINE_FAILED（事务回滚）', async () => {

@@ -267,7 +267,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       };
     } catch (e: any) {
       logger.error('[OrderV2] list failed', { error: e?.message });
-      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
     }
   }
 
@@ -287,7 +287,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       if (!row) return { ok: false, error: { code: 'NOT_FOUND', message: '订单不存在或无权限查看' } };
       return { ok: true, data: serializeOrder(row) };
     } catch (e: any) {
-      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
     }
   }
 
@@ -393,7 +393,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       return { ok: true, data: { ...serializeOrder(order), moqCheck } };
     } catch (e: any) {
       logger.error('[OrderV2] create failed', { error: e?.message });
-      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
     }
   }
 
@@ -489,7 +489,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       return { ok: true, data: serializeOrder(updated) };
     } catch (e: any) {
       logger.error('[OrderV2] update failed', { id, error: e?.message });
-      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
     }
   }
 
@@ -589,7 +589,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       return { ok: true, data: serializeOrder(updated) };
     } catch (e: any) {
       logger.error('[OrderV2] transition failed', { id, error: e?.message });
-      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
     }
   }
 
@@ -616,7 +616,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       logger.info('[OrderV2] soft-deleted', { id, code: existing.code });
       return { ok: true, data: serializeOrder(del) };
     } catch (e: any) {
-      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
     }
   }
 
@@ -674,7 +674,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       return { ok: true, data: { statuses, total } };
     } catch (e: any) {
       logger.error('[OrderV2] kanban failed', { error: e?.message });
-      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
     }
   }
 

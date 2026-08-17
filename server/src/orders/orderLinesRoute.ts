@@ -38,7 +38,7 @@ export function createOrderLinesRouter(opts: OrderLinesRouterOptions): Router {
       });
       return res.json({ ok: true, lines: rows.map(serializeOrderLine) });
     } catch (e: any) {
-      return res.status(500).json({ error: 'LIST_LINES_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'LIST_LINES_FAILED', message: '订单行查询失败' } });
     }
   });
 
@@ -47,13 +47,13 @@ export function createOrderLinesRouter(opts: OrderLinesRouterOptions): Router {
     const body = (req.body || {}) as Record<string, unknown> & { poNumber?: string };
     const poNumber = String(body.poNumber || '').trim();
     if (!poNumber) {
-      return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'poNumber is required' });
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION_FAILED', message: 'poNumber is required' } });
     }
     try {
       // 查找 parent order（显式校验，不自动 upsert）
       const order = await opts.prisma.order.findUnique({ where: { poNumber } });
       if (!order || order.deletedAt) {
-        return res.status(404).json({ error: 'ORDER_NOT_FOUND', message: `order poNumber=${poNumber} not found or deleted` });
+        return res.status(404).json({ ok: false, error: { code: 'ORDER_NOT_FOUND', message: `order poNumber=${poNumber} not found or deleted` } });
       }
       const writable = stripLineWritable(body);
       const lineSources: Record<string, FieldSourceTag> = {};
@@ -85,9 +85,9 @@ export function createOrderLinesRouter(opts: OrderLinesRouterOptions): Router {
     } catch (e: any) {
       const code = (e?.code as string | undefined) ?? '';
       if (code === 'P2002') {
-        return res.status(409).json({ error: 'DUPLICATE_ITEM_NO', message: 'This PO item number already exists.' });
+        return res.status(409).json({ ok: false, error: { code: 'DUPLICATE_ITEM_NO', message: 'This PO item number already exists.' } });
       }
-      return res.status(500).json({ error: 'CREATE_LINE_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'CREATE_LINE_FAILED', message: '订单行创建失败' } });
     }
   });
 
@@ -95,14 +95,14 @@ export function createOrderLinesRouter(opts: OrderLinesRouterOptions): Router {
     const id = req.params.id;
     const writable = stripLineWritable(req.body || {});
     if (Object.keys(writable).length === 0) {
-      return res.status(400).json({ error: 'EMPTY_PATCH', message: 'patch body has no editable fields' });
+      return res.status(400).json({ ok: false, error: { code: 'EMPTY_PATCH', message: 'patch body has no editable fields' } });
     }
 
     try {
       // Read current fieldSources so we can tag manually-edited fields.
       const current = await opts.prisma.orderLine.findUnique({ where: { id }, select: { fieldSources: true } });
       if (!current) {
-        return res.status(404).json({ error: 'ORDER_LINE_NOT_FOUND', message: `order line ${id} not found` });
+        return res.status(404).json({ ok: false, error: { code: 'ORDER_LINE_NOT_FOUND', message: `order line ${id} not found` } });
       }
       const prevSources = parseFieldSources(current?.fieldSources);
       const nextSources = { ...prevSources };
@@ -128,7 +128,7 @@ export function createOrderLinesRouter(opts: OrderLinesRouterOptions): Router {
       opts.onDataChange?.({ entity: 'order-lines', action: 'update', ids: [id] });
       return res.json({ ok: true, line: serializeOrderLine(result.data!.line) });
     } catch (e: any) {
-      return res.status(500).json({ error: 'UPDATE_LINE_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'UPDATE_LINE_FAILED', message: '订单行更新失败' } });
     }
   });
 
@@ -149,7 +149,7 @@ export function createOrderLinesRouter(opts: OrderLinesRouterOptions): Router {
       opts.onDataChange?.({ entity: 'order-lines', action: 'delete', ids: [id] });
       return res.json({ ok: true });
     } catch (e: any) {
-      return res.status(500).json({ error: 'DELETE_LINE_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'DELETE_LINE_FAILED', message: '订单行删除失败' } });
     }
   });
 

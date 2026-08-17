@@ -46,7 +46,7 @@ describe('GET /api/v1/orders/:id/context（阶段 D / D3）', () => {
     });
     const res = await request(makeApp(prisma)).get('/api/v1/orders/ORD-X/context');
     expect(res.status).toBe(404);
-    expect(res.body.error).toBe('NOT_FOUND');
+    expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
   it('空态：无关联实体时各阶段返回空数组/空分组', async () => {
