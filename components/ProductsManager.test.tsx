@@ -73,7 +73,7 @@ describe('ProductsManager Bambook OS tokens', () => {
 
   it('adapts direct-on-wallpaper product title navigation and actions', () => {
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"');
-    expect(productsSource).toContain('className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors text-[var(--text-secondary)] hover:text-[var(--os-vnext-brand-blue)] dark:hover:text-[var(--text-primary)]`}');
+    expect(productsSource).toContain('className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors text-[var(--text-secondary)] hover:text-[var(--os-vnext-brand-blue)]`}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary"\n                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
     expect(productsSource).toContain('data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS}');
@@ -140,7 +140,7 @@ describe('ProductsManager Bambook OS tokens', () => {
   it('routes form fields, labels, inline panels, and tables through semantic tokens', () => {
     expect(PRODUCT_FORM_FIELD_CLASS).toBe(BAMBOOK_OS.controls.recessedField.base);
     expect(PRODUCT_FORM_LABEL_CLASS).toBe(BAMBOOK_OS.tone.text.formLabel);
-    expect(PRODUCT_FORM_SECTION_TITLE_CLASS).toBe('text-[var(--text-primary)] dark:text-[var(--text-secondary)]');
+    expect(PRODUCT_FORM_SECTION_TITLE_CLASS).toBe('text-[var(--text-primary)]');
     expect(PRODUCT_FORM_MAP_INDEX_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`);
     expect(productsSource).toContain('const productFormSectionTitleClass = PRODUCT_FORM_SECTION_TITLE_CLASS;');
     expect(productsSource).toContain('const productFormMapIndexClass = PRODUCT_FORM_MAP_INDEX_CLASS;');

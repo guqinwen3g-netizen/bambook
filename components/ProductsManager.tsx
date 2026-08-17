@@ -175,7 +175,7 @@ export const PRODUCT_TOOLBAR_SPOTLIGHT_LIGHT_SIZE = BAMBOOK_OS.controls.toolbar.
 export const PRODUCT_SEGMENT_BUTTON_CLASS = `relative z-20 h-9 w-7 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
 export const PRODUCT_FORM_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
 export const PRODUCT_FORM_LABEL_CLASS = BAMBOOK_OS.tone.text.formLabel;
-export const PRODUCT_FORM_SECTION_TITLE_CLASS = 'text-[var(--text-primary)] dark:text-[var(--text-secondary)]';
+export const PRODUCT_FORM_SECTION_TITLE_CLASS = 'text-[var(--text-primary)]';
 export const PRODUCT_FORM_MAP_INDEX_CLASS = `${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`;
 export const PRODUCT_TABLE_HEADER_CLASS = BAMBOOK_OS.controls.table.header;
 export const PRODUCT_TABLE_ROW_HOVER_CLASS = BAMBOOK_OS.controls.table.rowHover;
@@ -265,7 +265,7 @@ const RelatedOrders: React.FC<{
 
   return (
     <div className={`rounded-inset border overflow-hidden border-[var(--border-c-default)]`}>
-      <div className={`px-4 py-2.5 text-xs font-light bg-[var(--recessed-bg)] dark:bg-deep/60 dark:border-b dark:border-[var(--border-c-subtle)] text-[var(--text-secondary)]`}>
+      <div className={`px-4 py-2.5 text-xs font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
         关联订单 ({lines.length})
       </div>
       <div className="divide-y divide-white/5">
@@ -382,7 +382,7 @@ const CertificationCheckboxes: React.FC<{
       {customCerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customCerts.map(cert => (
-            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-bds-sm text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)] dark:bg-[var(--os-vnext-brand-blue-strong)]/20 dark:text-[var(--os-vnext-brand-blue-strong)]">
+            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-bds-sm text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)]">
               {cert}
               <button type="button" onClick={() => removeCustom(cert)} className="opacity-60 hover:opacity-100">&times;</button>
             </span>
@@ -396,14 +396,14 @@ const CertificationCheckboxes: React.FC<{
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="其他认证（回车添加）"
           className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-all ${
-            'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--os-vnext-brand-blue)] dark:bg-deep/60 dark:focus:ring-0 dark:focus:border-[var(--os-vnext-brand-blue-strong)]/40'
+            'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--os-vnext-brand-blue)]'
           }`}
         />
         <button
           type="button"
           onClick={addCustom}
           className={`px-4 py-3 text-xs rounded-control font-light transition-all ${
-            'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)] dark:bg-deep/80 dark:border dark:border-[var(--border-c-default)] dark:hover:bg-deep'
+            'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
           }`}
         >
           添加
@@ -1387,7 +1387,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
   const productFloatingPanelClass = `${OS_MATERIAL.floatingOverlay} bambook-panel-glass`;
   const productStatusChipClass = (complete: boolean) =>
     complete
-      ? 'bg-[var(--os-vnext-brand-blue)]/6 text-[var(--os-vnext-brand-blue-strong)] border-[var(--border-c-default)] dark:bg-[var(--os-vnext-brand-blue)]/10 dark:text-[var(--os-vnext-brand-blue-soft)] dark:shadow-none'
+      ? 'bg-[var(--os-vnext-brand-blue)]/6 text-[var(--os-vnext-brand-blue-strong)] border-[var(--border-c-default)]'
       : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-subtle)]';
   const enabledProductTableColumnIds = new Set(
     moduleSettings?.visibleTableColumnIds?.length
@@ -1922,7 +1922,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     setSearchTerm('');
                   }}
                   data-ui-lab-wallpaper-contrast="primary"
-                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors text-[var(--text-secondary)] hover:text-[var(--os-vnext-brand-blue)] dark:hover:text-[var(--text-primary)]`}
+                  className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors text-[var(--text-secondary)] hover:text-[var(--os-vnext-brand-blue)]`}
                 >
                   {mainCategories.find(c => c.id === selectedMain)?.label}
                 </button>
@@ -2068,7 +2068,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
                 <div className={`relative z-10 mt-auto flex items-center gap-2 pt-4 border-t w-full border-[var(--border-c-default)]`}>
                   <span className={`text-[9px] font-light tracking-wide flex items-center gap-1.5 text-[var(--text-tertiary)]`}>
-                    <Library size={12} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]" />
+                    <Library size={12} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue-strong)]" />
                     {products.filter(p => p.mainCategory === cat.id && !p.deletedAt).length} SKU 档案
                   </span>
                 </div>
@@ -2152,7 +2152,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         <span className={`text-sm font-light text-[var(--text-primary)]`}>{group.count}</span>
                         <div className={`h-1 w-full overflow-hidden rounded-full bg-[var(--recessed-bg)]`}>
                           <span
-                            className={`block h-full rounded-full bg-[var(--os-vnext-brand-blue)]/45 dark:bg-[var(--os-vnext-brand-blue)]/55`}
+                            className={`block h-full rounded-full bg-[var(--os-vnext-brand-blue)]/45`}
                             style={{ width: `${Math.min(100, Math.max(4, ratio))}%` }}
                           />
                         </div>
@@ -2252,7 +2252,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                           ))}
                         </tr>
                       </thead>
-                      <tbody className={`divide-y divide-white/28 dark:divide-white/[0.045]`}>
+                      <tbody className={`divide-y divide-white/28`}>
                         {currentPdmlRawFabrics.map(row => (
                           <tr key={row.id} className={`transition-[background,box-shadow] ${productTableRowHoverClass}`}>
                             <td className={`px-4 py-3 font-light whitespace-nowrap ${productTableCellBorderClass}`}>{row.sourceId}</td>
@@ -2386,7 +2386,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                   <div className={`p-12 text-center text-sm ${productMutedTextClass}`}>当前视图下暂无档案</div>
                 ) : undefined}
               >
-                <div className={`flex flex-col min-w-[1000px] text-left text-xs divide-y divide-white/28 dark:divide-white/[0.045]`}>
+                <div className={`flex flex-col min-w-[1000px] text-left text-xs divide-y divide-white/28`}>
                       {currentProducts.map((product, idx) => (
                         <CompiledMotionInteractiveCard
                           as="div"
@@ -2523,7 +2523,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
                     {selectedProduct.mainCategory === 'Fabric' && (
                       <div className={PRODUCT_DETAIL_STATUS_PANEL_CLASS}>
-                        <div className={`text-xs font-light flex items-center gap-2 ${fabricCompleteness(selectedProduct).complete ? 'text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]' : productMutedTextClass}`}>
+                        <div className={`text-xs font-light flex items-center gap-2 ${fabricCompleteness(selectedProduct).complete ? 'text-[var(--os-vnext-brand-blue-strong)]' : productMutedTextClass}`}>
                           {fabricCompleteness(selectedProduct).complete ? <CheckCircle2 size={16} strokeWidth={1.5} /> : <AlertTriangle size={16} strokeWidth={1.5} />}
                           {fabricCompleteness(selectedProduct).complete ? '核心档案信息已完整' : `核心档案待补全：缺 ${fabricCompleteness(selectedProduct).missing.length} 项`}
                         </div>
@@ -2571,7 +2571,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             </div>
 
             <div className={PRODUCT_DETAIL_MAIN_PANEL_CLASS} data-os-compiler-role="product-detail-main-panel">
-              <div className={`${PRODUCT_DETAIL_HEADER_LAYOUT_CLASS} justify-end bg-[var(--recessed-bg)] border-[var(--border-c-default)] dark:bg-deep/52`}>
+              <div className={`${PRODUCT_DETAIL_HEADER_LAYOUT_CLASS} justify-end bg-[var(--recessed-bg)] border-[var(--border-c-default)]`}>
                 <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
@@ -2670,11 +2670,11 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
             <form onSubmit={editingSub ? handleEditSub : handleAddSub} className="space-y-6 pt-4 pb-12">
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类名称</label>
-                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
+                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
               </div>
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类说明</label>
-                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-full outline-none font-light resize-none bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
+                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-full outline-none font-light resize-none bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
               </div>
               <button type="submit" className={`w-full py-4 rounded-full font-light tracking-wide transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] border border-[var(--border-c-default)] hover:bg-[var(--active-darken)]`}>{editingSub ? '保存' : '确认'}</button>
             </form>
@@ -2697,20 +2697,20 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               )}
               <div className="space-y-3">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">档案款名 (Name)</label>
-                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
+                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">SKU</label>
-                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
+                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Season</label>
-                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
+                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Cost ($)</label>
-                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] dark:bg-deep/80 dark:border-[var(--border-c-default)] dark:text-[var(--text-primary)]`} />
+                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
                 </div>
               </div>
               {renderFabricProfileFields(editingProd)}
@@ -2780,7 +2780,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     />
                   </div>
                 </div>
-                <div className={`px-8 py-5 border-t flex justify-end gap-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)] dark:bg-deep/26`}>
+                <div className={`px-8 py-5 border-t flex justify-end gap-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)]`}>
                   <button
                     type="button"
                     onClick={() => { setshowAddSubModal(false); setEditingSub(null); }}
@@ -3075,7 +3075,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
       {(deleteSubId || deleteProdId) && (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`bg-[var(--bg-card)] dark:bg-deep/90 dark:border dark:border-[var(--border-c-default)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
+          <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-[var(--border-c-default)]`}>
                 <AlertTriangle size={32} strokeWidth={1} />
