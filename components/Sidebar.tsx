@@ -14,19 +14,79 @@ import { canAccessView, getAuthState, hasRole, subscribe } from '../services/aut
 import { getPrimaryNavigationModules, groupPrimaryNavigationModules } from './moduleRegistry';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import UserAvatar from './ui/UserAvatar';
+import { CompiledEdgeFade } from './ui/primitives/compiledPrimitives';
 
-// P3-2 收编：双写常量坍缩为单写自适应，真源 BAMBOOK_OS.controls.listRow / selectedSurface。
-// BDS 纪律：hover 统一 --hover-darken、active 用 --active-darken（styles/bds/components.css v2.1.1）。
-export const SIDEBAR_HOVER_CLASS = BAMBOOK_OS.controls.listRow.hover;
-export const SIDEBAR_PRESS_CLASS = BAMBOOK_OS.controls.listRow.press;
-export const SIDEBAR_ACTIVE_CLASS = BAMBOOK_OS.controls.selectedSurface.base;
-export const SIDEBAR_ACTIVE_GLASS_CLASS = '';
-export const SIDEBAR_ACTIVE_ICON_CLASS = 'text-current';
-export const SIDEBAR_IDLE_TEXT_CLASS = '!text-[var(--text-secondary)]';
-export const SIDEBAR_IDLE_ICON_CLASS = BAMBOOK_OS.controls.listRow.idleIcon;
-export const SIDEBAR_AMBIENT_CLASS = '';
-export const SIDEBAR_SETTINGS_ACTIVE_CLASS = SIDEBAR_ACTIVE_CLASS;
-export const SIDEBAR_HARMONY_PANEL_CLASS = '';
+// Phase 0 收口：SIDEBAR_* 常量唯一真源迁至 ./ui/sidebarConstants（无环叶子模块），
+// 此处 import 供本文件使用并 re-export 保持既有消费方（RelationsManager/ContactList/测试）
+// import './Sidebar' 路径兼容。
+import {
+  SIDEBAR_HOVER_CLASS,
+  SIDEBAR_PRESS_CLASS,
+  SIDEBAR_ACTIVE_CLASS,
+  SIDEBAR_ACTIVE_GLASS_CLASS,
+  SIDEBAR_ACTIVE_ICON_CLASS,
+  SIDEBAR_IDLE_TEXT_CLASS,
+  SIDEBAR_IDLE_ICON_CLASS,
+  SIDEBAR_AMBIENT_CLASS,
+  SIDEBAR_SETTINGS_ACTIVE_CLASS,
+  SIDEBAR_HARMONY_PANEL_CLASS,
+} from './ui/sidebarConstants';
+
+export {
+  SIDEBAR_HOVER_CLASS,
+  SIDEBAR_PRESS_CLASS,
+  SIDEBAR_ACTIVE_CLASS,
+  SIDEBAR_ACTIVE_GLASS_CLASS,
+  SIDEBAR_ACTIVE_ICON_CLASS,
+  SIDEBAR_IDLE_TEXT_CLASS,
+  SIDEBAR_IDLE_ICON_CLASS,
+  SIDEBAR_AMBIENT_CLASS,
+  SIDEBAR_SETTINGS_ACTIVE_CLASS,
+  SIDEBAR_HARMONY_PANEL_CLASS,
+};
+
+type SidebarBlueprint = {
+  template: 'Sidebar';
+  source: 'Sidebar.ui-lab-1.0.contract';
+  provenance: 'accepted';
+  classContract: 'app-sidebar';
+  width: { collapsed: number; expanded: number };
+  layering: { role: 'underlay'; containerized: false };
+  collapsedRail: {
+    paddingClass: string;
+    actionMarginClass: string;
+  };
+  navScroll: {
+    edgeFade: {
+      topHeight: number;
+      bottomHeight: number;
+      compilerRole: string;
+      source: string;
+    };
+  };
+};
+
+export const compileSidebar = (): SidebarBlueprint => ({
+  template: 'Sidebar',
+  source: 'Sidebar.ui-lab-1.0.contract',
+  provenance: 'accepted',
+  classContract: 'app-sidebar',
+  width: { collapsed: 64, expanded: 232 },
+  layering: { role: 'underlay', containerized: false },
+  collapsedRail: {
+    paddingClass: 'pt-8 pb-4',
+    actionMarginClass: 'absolute inset-y-0 left-0 right-0 justify-center',
+  },
+  navScroll: {
+    edgeFade: {
+      topHeight: 28,
+      bottomHeight: 28,
+      compilerRole: 'sidebar-nav-edge-fade',
+      source: 'Sidebar.navScroll.edgeFade',
+    },
+  },
+});
+
 interface SidebarProps {
   currentView: View;
   onViewChange: (view: View) => void;
@@ -38,8 +98,10 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapsed, setIsCollapsed, isDarkMode, onToggleTheme, allowedViews }) => {
+  const blueprint = React.useMemo(() => compileSidebar(), []);
   const isAdmin = hasRole('owner', 'admin');
   const sidebarRef = React.useRef<HTMLDivElement>(null);
+  const navScrollRef = React.useRef<HTMLDivElement | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = React.useState(false);
   const [authUser, setAuthUser] = React.useState(() => getAuthState().user);
 
@@ -87,12 +149,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
       }}
       transition={{ type: 'spring', damping: 25, stiffness: 150 }}
       data-sidebar-state={isCollapsed ? 'collapsed' : 'expanded'}
+      data-os-compiler-template={blueprint.template}
+      data-os-compiler-source={blueprint.source}
+      data-os-compiler-provenance={blueprint.provenance}
+      data-os-compiler-role="global-sidebar"
       data-os-adaptive-container="0"
       className="app-sidebar absolute left-0 top-0 bottom-0 z-10 flex-shrink-0 h-screen overflow-visible"
     >
       {/* The Neutral Spine */}
       <div
-        className={`absolute left-0 top-0 bottom-0 w-16 z-10 flex flex-col items-center py-8 transition-all duration-700 ease-in-out
+        className={`absolute left-0 top-0 bottom-0 w-16 z-10 flex flex-col items-center ${blueprint.collapsedRail.paddingClass} transition-all duration-700 ease-in-out
           ${isCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         data-sidebar-collapsed-rail
       >
@@ -100,19 +166,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
           onClick={() => setIsCollapsed(false)}
           aria-label="展开侧边栏"
           data-sidebar-collapsed-expand-button
-          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[rgb(255_255_255/0.68)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[rgb(255_255_255/0.84)]"
+          className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--recessed-bg)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[var(--recessed-bg-strong)]"
         >
           <ChevronRight size={18} strokeWidth={1.35} />
         </button>
 
-        <div className="absolute inset-y-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-6" data-sidebar-collapsed-actions>
+        <div className={`z-10 flex flex-col items-center gap-6 ${blueprint.collapsedRail.actionMarginClass}`} data-sidebar-collapsed-actions>
           {activeNavItems.slice(0, 4).map(item => {
             return (
               <button
                 key={item.id}
                 onClick={() => triggerViewChange(item.id)}
-                className={`relative group flex items-center justify-center overflow-hidden rounded-control p-2 transition-all duration-300
-                  text-os-adaptive-primary`}
+                aria-label={item.label}
+                data-sidebar-collapsed-nav-button
+                className={`relative group flex h-10 w-10 items-center justify-center overflow-hidden rounded-control p-0 transition-all duration-300
+                  text-[var(--os-adaptive-primary)]`}
                 data-sidebar-adaptive-icon
               >
                 <item.icon size={20} strokeWidth={1} className="relative z-10" />
@@ -143,6 +211,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
             ref={sidebarRef}
             className={`${BAMBOOK_OS.layout.desktopSidebarShellClass} app-sidebar-underlay-content relative z-10 min-h-0 overflow-hidden`}
             data-sidebar-underlay-content
+            data-os-compiler-role="global-sidebar-underlay"
+            data-os-compiler-source="CompiledSidebar.global-sidebar-underlay"
           >
             <button
               type="button"
@@ -155,56 +225,67 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
             </button>
 
             {/* Nav Items */}
-            {/* 阶段 IA：按业务流分组渲染，组序见 moduleRegistry BAMBOOK_NAV_GROUP_ORDER */}
-            <div data-sidebar-nav-scroll className="bambook-sidebar-nav-scroll-viewport px-4 pb-3.5 pt-14 space-y-1.5 overflow-y-auto no-scrollbar flex-1 relative z-10">
-              {groupedNavSections.map((section, sectionIndex) => (
-                <React.Fragment key={section.group}>
-                  <div
-                    data-sidebar-nav-group-label={section.group}
-                    className={`select-none pl-[19px] pr-4 text-xs font-light tracking-wider text-os-adaptive-subtitle opacity-60 ${sectionIndex === 0 ? '' : 'pt-3'}`}
-                  >
-                    {section.label}
-                  </div>
-                  {section.items.map((item) => {
-                    const isActive = currentView === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => triggerViewChange(item.id)}
-                        data-sidebar-nav-item
-                        data-sidebar-nav-active={isActive ? 'true' : 'false'}
-                        className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
-                          ${isActive
-                            ? 'text-[var(--text-primary)]'
-                            : `${SIDEBAR_IDLE_TEXT_CLASS} ${BAMBOOK_OS.controls.listRow.hover}`}
-                          ${BAMBOOK_OS.controls.listRow.press}`}
-                      >
-                        {/* OS-level spring active sliding indicator */}
-                        {isActive && (
-                          <motion.div
-                            layoutId="activeNavIndicator"
-                            className={`absolute inset-0 rounded-control z-0
-                              ${SIDEBAR_ACTIVE_CLASS}`}
-                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                          />
-                        )}
+            <div className="relative z-10 flex-1 min-h-0" data-sidebar-nav-scroll-shell>
+              <CompiledEdgeFade
+                scrollRef={navScrollRef}
+                isDarkMode={isDarkMode}
+                variant="subtle"
+                zIndex={12}
+                topHeight={blueprint.navScroll.edgeFade.topHeight}
+                bottomHeight={blueprint.navScroll.edgeFade.bottomHeight}
+                compilerRole={blueprint.navScroll.edgeFade.compilerRole}
+                source={blueprint.navScroll.edgeFade.source}
+              />
+              <div ref={navScrollRef} data-sidebar-nav-scroll className={`${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-sidebar-nav-scroll-viewport h-full min-h-0 px-4 pb-3.5 pt-14 space-y-1.5 overflow-y-auto no-scrollbar`}>
+                {groupedNavSections.map((section, sectionIndex) => (
+                  <React.Fragment key={section.group}>
+                    <div
+                      data-sidebar-nav-group-label={section.group}
+                      className={`select-none pl-[19px] pr-4 text-xs font-light tracking-wider text-os-adaptive-subtitle opacity-60 ${sectionIndex === 0 ? '' : 'pt-3'}`}
+                    >
+                      {section.label}
+                    </div>
+                    {section.items.map((item) => {
+                      const isActive = currentView === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => triggerViewChange(item.id)}
+                          data-sidebar-nav-item
+                          data-sidebar-nav-active={isActive ? 'true' : 'false'}
+                          className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
+                            ${isActive
+                              ? 'text-[var(--text-primary)]'
+                              : `${SIDEBAR_IDLE_TEXT_CLASS} ${SIDEBAR_HOVER_CLASS}`}
+                            ${SIDEBAR_PRESS_CLASS}`}
+                        >
+                          {/* OS-level spring active sliding indicator */}
+                          {isActive && (
+                            <motion.div
+                              layoutId="activeNavIndicator"
+                              className={`absolute inset-0 rounded-control z-0
+                                ${SIDEBAR_ACTIVE_CLASS}`}
+                              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                            />
+                          )}
 
-                        <div className="relative z-10 flex items-center gap-[15px] pointer-events-none">
-                          <item.icon
-                            size={20}
-                            strokeWidth={1}
-                            data-sidebar-nav-icon
-                            className={`transition-colors duration-300 ${isActive ? SIDEBAR_ACTIVE_ICON_CLASS : BAMBOOK_OS.controls.listRow.idleIcon}`}
-                          />
-                          <span data-sidebar-nav-label className={`text-sm font-light tracking-tight transition-[color,opacity] duration-300 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
-                            {item.label}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
+                          <div className="relative z-10 flex items-center gap-[15px] pointer-events-none">
+                            <item.icon
+                              size={20}
+                              strokeWidth={1}
+                              data-sidebar-nav-icon
+                              className={`transition-colors duration-300 ${isActive ? SIDEBAR_ACTIVE_ICON_CLASS : SIDEBAR_IDLE_ICON_CLASS}`}
+                            />
+                            <span data-sidebar-nav-label className={`text-sm font-light tracking-tight transition-[color,opacity] duration-300 ${isActive ? 'opacity-100' : 'opacity-80'}`}>
+                              {item.label}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
 
             {/* Bottom Utility Bar */}
@@ -232,52 +313,58 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
             </div>
           </div>
 
-          {/* Account Menu Popover — sibling placement to avoid overflow-hidden shadow clipping */}
+          {/* Account Menu Popover — 材质（bds-frosted / backdrop-filter）与动画同元素承载。
+              动画仅用 opacity，禁用 transform：transform 动画会让 Chrome 对 backdrop-filter
+              缓存合成层快照，动画期间磨砂失效；纯 opacity 淡入可保证磨砂全程实时采样。 */}
           <AnimatePresence>
             {accountMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 6, scale: 0.985 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.985 }}
-                transition={{ type: 'spring', damping: 24, stiffness: 180 }}
-                data-sidebar-account-menu
-                className={`!absolute left-10 w-[240px] bottom-[104px] z-30 ${accountMenuSurfaceClass}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                data-os-compiler-role="sidebar-account-menu"
+                data-os-compiler-source="compiledSidebarTemplates.account-menu"
+                data-glass-edge-mask
+                data-os-shadow-mode="flat"
+                data-sidebar-account-menu=""
+                className={`!absolute left-[15px] w-[240px] bottom-[99px] z-30 ${accountMenuSurfaceClass}`}
               >
                 <div aria-hidden className={`pointer-events-none absolute inset-0 rounded-[inherit] ${accountMenuLayerClass}`} />
-                <button
-                  type="button"
-                  onClick={() => openSettingsTab('account')}
-                  data-sidebar-account-menu-item
-                  className={`relative z-10 ${accountMenuItemClass}`}
-                >
-                  <User size={15} strokeWidth={1.4} className={accountMenuIconClass} />
-                  <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">账号设置</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openSettingsTab('system')}
-                  data-sidebar-account-menu-item
-                  className={`relative z-10 ${accountMenuItemClass}`}
-                >
-                  <Monitor size={15} strokeWidth={1.4} className={accountMenuIconClass} />
-                  <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">系统设置</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onToggleTheme();
-                    setAccountMenuOpen(false);
-                  }}
-                  data-sidebar-account-menu-item
-                  className={`relative z-10 ${accountMenuItemClass}`}
-                >
-                  {isDarkMode ? (
-                    <Sun size={15} strokeWidth={1.4} className={accountMenuIconClass} />
-                  ) : (
-                    <Moon size={15} strokeWidth={1.4} className={accountMenuIconClass} />
-                  )}
-                  <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">{isDarkMode ? '切换浅色' : '切换深色'}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => openSettingsTab('account')}
+                    data-sidebar-account-menu-item
+                    className={`relative z-10 ${accountMenuItemClass}`}
+                  >
+                    <User size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                    <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">账号设置</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openSettingsTab('system')}
+                    data-sidebar-account-menu-item
+                    className={`relative z-10 ${accountMenuItemClass}`}
+                  >
+                    <Monitor size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                    <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">系统设置</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onToggleTheme();
+                      setAccountMenuOpen(false);
+                    }}
+                    data-sidebar-account-menu-item
+                    className={`relative z-10 ${accountMenuItemClass}`}
+                  >
+                    {isDarkMode ? (
+                      <Sun size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                    ) : (
+                      <Moon size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                    )}
+                    <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">{isDarkMode ? '切换浅色' : '切换深色'}</span>
+                  </button>
               </motion.div>
             )}
           </AnimatePresence>

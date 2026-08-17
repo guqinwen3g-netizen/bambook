@@ -67,13 +67,15 @@ BASELINE_RAW_SEMANTIC=19       # 批A：raw 语义色 → BDS 语义 token（--s
 BASELINE_RAW_MASK=3            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
                                # 2026-08-17 批B 收编 17→4；批G-5 DesignTuner dark: 收编顺带移除 4→3
                                # 余量：pwa 2（移动端冻结）/ App.tsx 1（W5 解锁）
-BASELINE_BARE_ROUNDED=5        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
+BASELINE_BARE_ROUNDED=4        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
                                # 2026-08-17 批D 收编 43→5；余量 5 处均为注释文本（StepUpload/Dashboard/compiledSurfacePrimitives×2/compiledDashboardTemplates），非 className
-BASELINE_HANDWRITTEN_BTN=17    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
+                               # 2026-08-18 Phase 0 架构收口删除 compiled 模板后 5→4
+BASELINE_HANDWRITTEN_BTN=10    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
                                # 2026-08-17 批E 收编 35→22（13 处按钮：DocumentCenter×4 / ReportCenter×4 / ImportWizard / Register / QuotationImportWizard / compiledProductsTemplates×2）；
                                # 2026-08-17 W4-Dashboard余量 收编 22→17：compiledDashboardTemplates×5 装饰性 accent 填充
                                # （装饰下划杠×2 / 进度条 fill×2 / 指示圆点×1）bg-[var(--os-vnext-brand-blue)] → bg-[var(--accent)] 主题自适应；
                                # 余量 16 处均非按钮：进度条/圆点/头像/徽章等装饰性 accent 填充（Dashboard×5 / ProductsManager×2 / compiledProductsTemplates×3 / AdminPanel / RelationsManager / ImageUploader / QuotationImportWizard 链接 / DesignTuner 开发工具）+ FabricSampleInvoiceGenerator 1（测试锁定业务语义豁免）
+                               # 2026-08-18 Phase 0 架构收口删除 compiled 模板（compiledProductsTemplates 等 7 文件）后 17→10
 BASELINE_TEXT_WHITE=28         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
                                # 2026-08-17 批E 伴随收编 48→34（13 处手写主按钮改 bds-btn-primary 后文字色由组件类 --on-accent 承载）；
                                # 批G-8d Sidebar active 文字 text-deep-alt dark:text-white → text-[var(--text-primary)]，34→33；

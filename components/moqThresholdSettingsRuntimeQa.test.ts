@@ -15,7 +15,7 @@ import { moqService } from '../services/moqService';
 const fs = require('fs');
 const path = require('path');
 const PANEL_SRC = fs.readFileSync(path.resolve(__dirname, 'ui/osCompiler/compiledMoqThresholdsPanel.tsx'), 'utf-8');
-const SETTINGS_SRC = fs.readFileSync(path.resolve(__dirname, 'ui/osCompiler/compiledSettingsTemplates.tsx'), 'utf-8');
+const SETTINGS_SRC = fs.readFileSync(path.resolve(__dirname, 'Settings.tsx'), 'utf-8');
 const SERVICE_SRC = fs.readFileSync(path.resolve(__dirname, '../services/moqService.ts'), 'utf-8');
 
 const ENDPOINT = 'https://test.example.com';
@@ -216,7 +216,7 @@ describe('runtime QA [Settings 接线]: MOQ tab 注册', () => {
     expect(SETTINGS_SRC).toMatch(/hint: 'MOQ Thresholds'/);
   });
   it('activeTab === moq 渲染 CompiledMoqThresholdsPanel', () => {
-    expect(SETTINGS_SRC).toContain("import { CompiledMoqThresholdsPanel } from './compiledMoqThresholdsPanel'");
+    expect(SETTINGS_SRC).toContain("import { CompiledMoqThresholdsPanel } from './ui/osCompiler/compiledMoqThresholdsPanel'");
     expect(SETTINGS_SRC).toMatch(/activeTab === 'moq' && \(/);
     expect(SETTINGS_SRC).toContain('<CompiledMoqThresholdsPanel />');
   });

@@ -239,13 +239,16 @@ export const BAMBOOK_OS = {
       checkToolbar: 'text-slate-700 dark:text-slate-100',
     },
     overlayMenu: {
+      // 圆角对齐 BDS `.bds-pop` 浮层族（styles/bds/components.css #23）：
+      // 容器 --r-pop(24px) + --p-pop(6px)，选项 --radius-sm(12px)。
+      // 原 rounded-2xl(16px=field 档) 与浮层规范不符，v2.2 收口为同心刻度值。
       surfaceBase:
-        'isolate overflow-hidden rounded-2xl border-0 p-1 backdrop-blur-[15px] backdrop-saturate-[104%]',
-      surface: 'bambook-dashboard-glass-color text-slate-700 dark:text-slate-200',
+        'isolate overflow-hidden rounded-card p-1.5',
+      surface: 'bds-frosted text-[var(--text-primary)]',
       surfaceShadow: 'shadow-none',
       surfaceLayer: 'bg-transparent',
       itemBase:
-        'group/menuitem mx-0.5 h-9 w-[calc(100%-4px)] rounded-2xl px-3 py-0 text-left text-xs font-light transition-[background,color,border-color] duration-200',
+        'group/menuitem mx-0.5 h-9 w-[calc(100%-4px)] rounded-bds-sm px-3 py-0 text-left text-xs font-light transition-[background,color,border-color] duration-200',
       item:
         'border border-transparent text-slate-500 dark:text-slate-400 hover:bg-white/44 dark:hover:bg-white/[0.055] hover:text-[#0A2746] dark:hover:text-slate-50 hover:shadow-none',
       itemSelected:

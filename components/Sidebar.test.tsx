@@ -81,6 +81,7 @@ describe('Sidebar reveal material system', () => {
     expect(source).not.toContain("import SidePanelContainer");
     expect(source).not.toContain('MotionSidePanelContainer');
     expect(source).toContain('AnimatePresence');
+    expect(source).toContain('data-sidebar-account-menu');
     expect(expandedHubSource).toContain('data-sidebar-underlay-content');
     expect(expandedHubSource).toContain('app-sidebar-underlay-content');
     expect(expandedHubSource).toContain('data-sidebar-expanded-collapse-button');
@@ -175,12 +176,12 @@ describe('Sidebar reveal material system', () => {
     );
 
     expect(navSource).toContain('SIDEBAR_ACTIVE_CLASS');
-    expect(navSource).toContain('BAMBOOK_OS.controls.listRow.hover');
-    expect(navSource).toContain('BAMBOOK_OS.controls.listRow.press');
+    expect(navSource).toContain('SIDEBAR_HOVER_CLASS');
+    expect(navSource).toContain('SIDEBAR_PRESS_CLASS');
     expect(navSource).not.toContain('dark:active:bg-[var(--recessed-bg)]');
     expect(navSource).toContain('SIDEBAR_IDLE_TEXT_CLASS');
     expect(navSource).toContain('SIDEBAR_ACTIVE_ICON_CLASS');
-    expect(navSource).toContain('BAMBOOK_OS.controls.listRow.idleIcon');
+    expect(navSource).toContain('SIDEBAR_IDLE_ICON_CLASS');
     expect(navSource).not.toMatch(/isDarkMode\s*\?/);
     expect(navSource).toContain('data-sidebar-nav-item');
     expect(navSource).toContain("data-sidebar-nav-active={isActive ? 'true' : 'false'}");
@@ -243,11 +244,11 @@ describe('Sidebar reveal material system', () => {
 
     expect(collapsedRailSource).not.toContain("isDarkMode ? 'text-slate-50' : 'text-[#0A2746]'");
     expect(collapsedRailSource).not.toContain('text-os-adaptive-primary hover:text-os-adaptive-brand');
-    expect(collapsedRailSource).toContain('text-os-adaptive-primary');
+    expect(collapsedRailSource).toContain('text-[var(--os-adaptive-primary)]');
     expect(collapsedRailSource).toContain('data-sidebar-adaptive-icon');
     expect(collapsedRailSource).not.toContain('SIDEBAR_COLLAPSED_SPINE_CLASS');
     expect(collapsedRailSource).not.toContain('bg-gradient-to-b');
-    expect(collapsedRailSource).toContain('absolute inset-y-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-6');
+    expect(collapsedRailSource).toContain('z-10 flex flex-col items-center gap-6 ${blueprint.collapsedRail.actionMarginClass}');
     expect(collapsedRailSource).not.toContain('<div className="flex-1"></div>');
     expect(collapsedRailSource).not.toContain('#5DE0E6');
     expect(collapsedRailSource).not.toContain('animate-pulse');

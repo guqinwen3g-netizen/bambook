@@ -1,11 +1,10 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as QRCode from 'qrcode';
-import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric } from '../types';
+import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory } from '../types';
 import { apiService } from '../services/apiService';
 import { storageService } from '../services/storageService';
-import ImageUploader from './ImageUploader';
+import RelationCombobox from './ui/RelationCombobox';
 import {
   COMPOSITION_TERMS,
   findCompositionTermByValue,
@@ -16,33 +15,61 @@ import {
   Shirt, Search, Plus, LayoutGrid, List,
   ChevronRight, X, Save, ShieldCheck, ChevronLeft,
   Layers, Watch, Scissors, Gift, Box, Edit2, Trash2,
-  DollarSign, FileText, Tag, Sparkles, FolderPlus, Library,
-  CheckCircle2, AlertTriangle, Archive, RefreshCw, Image as ImageIcon,
+  DollarSign, FileText, Tag, Sparkles, Library,
+  CheckCircle2, AlertTriangle, Archive, RefreshCw, Image as ImageIcon, Clock, ArrowDownAZ,
+  BookOpenText, Columns3, Database, SlidersHorizontal, Tags,
   type LucideIcon,
 } from 'lucide-react';
-import BottomSheet from './ui/BottomSheet';
-import CustomSelect from './ui/CustomSelect';
-import { SpotlightCard } from './ui/SpotlightCard';
-import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/osCompiler/compiledSurfacePrimitives';
-import { CompiledModuleTitleBar, CompiledTableShell } from './ui/osCompiler/compiledPrimitives';
-import { PageHeader } from './ui/PageHeader';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
-import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
+import { PageHeader } from './ui/PageHeader';
+import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 import {
-  RELATIONS_FORM_MAP_PANEL_CLASS,
   RELATIONS_FORM_NESTED_ROW_CLASS,
-  RELATIONS_FORM_PANEL_CLASS,
-  RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING,
   RELATIONS_FORM_QUIET_ACTION_CLASS,
 } from './ui/relationsFormStyles';
+import {
+  SIDEBAR_ACTIVE_CLASS,
+  SIDEBAR_HOVER_CLASS,
+  SIDEBAR_PRESS_CLASS,
+} from './ui/sidebarConstants';
+import {
+  COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS,
+  COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS,
+  CompiledDetailShell,
+  COMPILED_MODULE_TITLE_ACTION_BUTTON_CLASS,
+  COMPILED_MODULE_TITLE_BAR_CLASS,
+  COMPILED_MODULE_TITLE_ICON_BUTTON_CLASS,
+  COMPILED_MODULE_TITLE_NAV_GROUP_CLASS,
+  COMPILED_MODULE_TITLE_PAGE_LABEL_CLASS,
+  COMPILED_MODULE_TITLE_SAFE_LEFT_STYLE,
+  COMPILED_MODULE_TITLE_SEPARATOR_CLASS,
+  COMPILED_MODULE_TITLE_TEXT_BUTTON_CLASS,
+  CompiledBottomSheet,
+  CompiledCollectionCardGrid,
+  CompiledEdgeFade,
+  CompiledImageUploader,
+  CompiledInteractiveCard,
+  CompiledFormMapPanel,
+  CompiledFormSectionPanel,
+  CompiledMotionInteractiveCard,
+  CompiledModuleTitleBar,
+  CompiledSelectControl,
+  CompiledSplitMainPanel,
+  CompiledSplitNavPanel,
+  CompiledSplitWorkspace,
+  CompiledSurfacePanel,
+  CompiledTableShell,
+  useCompiledGlassSurfaceEdgeMasks,
+} from './ui/primitives/compiledPrimitives';
 
-interface ProductsProps {
+export interface ProductsManagerProps {
   products: ProductAsset[];
   productCategories: ProductSubCategory[];
-  onUpdateProducts: (items: ProductAsset[], modified?: ProductAsset) => void;
-  onUpdateCategories: (items: ProductSubCategory[], modified?: ProductSubCategory) => void;
+  /** 阶段 D / D2：关系档案列表（供应商/客户字段 RelationCombobox FK 化） */
+  relations?: Relation[];
+  onUpdateProducts?: (items: ProductAsset[], modified?: ProductAsset) => void;
+  onUpdateCategories?: (items: ProductSubCategory[], modified?: ProductSubCategory) => void;
   cloudEndpoint?: string;
   isDarkMode?: boolean;
   isMobile?: boolean;
@@ -55,10 +82,80 @@ interface ProductsProps {
   };
 }
 
-type NavLevel = 'main' | 'sub' | 'list';
+type NavLevel = 'main' | 'sub' | 'list' | 'detail';
 type ClassificationView = 'category' | 'supplier' | 'customer' | 'certification' | 'price' | 'status';
 type ProductListDisplayMode = 'grid' | 'table';
-type ProductFormSectionId = 'images' | 'basic' | 'specs' | 'pricing' | 'risk' | 'notes';
+
+/**
+ * 阶段 D / D2：RelationCombobox 的 FormData 兼容包装器。
+ *
+ * 本页面的产品表单走原生 FormData 收集（非受控），RelationCombobox 是受控组件，
+ * 因此用两个 hidden input 桥接：`name` 输出名称快照、`fkName` 输出 Relation FK。
+ * 与 Order 的 snapshot + FK 双写模式一致：文本快照用于显示，FK 用于图谱与统计。
+ *
+ * 模块级定义（非闭包组件）：保证 combobox 内部 open/query 状态在父级重渲染后不丢失。
+ */
+const ProductRelationField: React.FC<{
+  label: string;
+  /** 名称快照字段（FormData key），如 'millName' / 'customer' / 'supplier' */
+  name: string;
+  /** Relation FK 字段（FormData key），如 'millOrganizationId' / 'customerRelationId' */
+  fkName: string;
+  defaultValue?: string | null;
+  defaultRelationId?: string | null;
+  relations: Relation[];
+  filterCategories?: RelationCategory[];
+  placeholder?: string;
+  isDarkMode: boolean;
+  labelClass: string;
+}> = ({ label, name, fkName, defaultValue, defaultRelationId, relations, filterCategories, placeholder, isDarkMode, labelClass }) => {
+  // 初值解析：FK 命中 Relation → 显示快照名（缺快照回退 Relation.name）+ 保留 FK；
+  // FK 未命中（含历史裸文本残留在 FK 位的情况）→ 退化为纯文本快照，不携带 FK。
+  const resolveInitial = () => {
+    const fkHit = defaultRelationId ? relations.find((r) => r.id === defaultRelationId) : undefined;
+    if (fkHit) return { name: defaultValue || fkHit.name, relationId: fkHit.id as string | undefined };
+    return { name: defaultValue || defaultRelationId || '', relationId: undefined as string | undefined };
+  };
+  const [selection, setSelection] = useState<{ name: string; relationId?: string }>(resolveInitial);
+  // 切换编辑对象时同步外部初值（表单无 key 重置，靠 prop 变化驱动）
+  useEffect(() => {
+    setSelection(resolveInitial());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultValue, defaultRelationId]);
+
+  return (
+    <div className="space-y-2">
+      <label className={labelClass}>{label}</label>
+      <RelationCombobox
+        value={selection.name}
+        relationId={selection.relationId}
+        relations={relations}
+        filterCategories={filterCategories}
+        isDarkMode={isDarkMode}
+        placeholder={placeholder}
+        onChange={(next) => setSelection({ name: next.name, relationId: next.relationId })}
+      />
+      <input type="hidden" name={name} value={selection.name} />
+      <input type="hidden" name={fkName} value={selection.relationId || ''} />
+    </div>
+  );
+};
+type ProductFormSectionId =
+  | 'images'
+  | 'basic'
+  | 'specs'
+  | 'pricing'
+  | 'risk'
+  | 'notes'
+  | 'garmentConstruction'
+  | 'garmentMaterials'
+  | 'garmentSizing'
+  | 'garmentColors'
+  | 'garmentDevelopment'
+  | 'garmentProduction'
+  | 'trimmingSpecs'
+  | 'trimmingSupply'
+  | 'trimmingQuality';
 type ProductTableSortColumn =
   | 'sku'
   | 'name'
@@ -128,7 +225,7 @@ export const PRODUCT_CLASSIFICATION_VIEW_DEFINITIONS: ProductClassificationViewD
   { id: 'status', label: '状态' },
 ];
 
-const productFormSections: { id: ProductFormSectionId; label: string; desc: string }[] = [
+const fabricProductFormSections: { id: ProductFormSectionId; label: string; desc: string }[] = [
   { id: 'basic', label: '基础信息', desc: 'SKU、二维码、品号、克重门幅、成分' },
   { id: 'specs', label: '规格参数', desc: '品质、颜色、组织、生产周期' },
   { id: 'pricing', label: '价格库存', desc: 'Client Code、价格、现货' },
@@ -136,25 +233,49 @@ const productFormSections: { id: ProductFormSectionId; label: string; desc: stri
   { id: 'notes', label: '备注', desc: '特殊备注与补充说明' },
 ];
 
-const PRODUCT_STATUS_OPTIONS = [
+const garmentProductFormSections: { id: ProductFormSectionId; label: string; desc: string }[] = [
+  { id: 'basic', label: '基础身份', desc: '款号、品类、客户、系列和状态' },
+  { id: 'garmentConstruction', label: '成衣结构', desc: '版型、领袖、口袋、里布和工艺' },
+  { id: 'garmentMaterials', label: '材料 BOM', desc: '主面料、配布、辅料、包装和替代料' },
+  { id: 'garmentSizing', label: '尺码量体', desc: '尺码范围、POM、公差和放码' },
+  { id: 'garmentColors', label: '颜色 SKU', desc: '颜色组、条码、可用尺码和起订量' },
+  { id: 'garmentDevelopment', label: '开发版本', desc: '样衣版本、批注、负责人和技术包' },
+  { id: 'garmentProduction', label: '生产质量', desc: '工厂、交期、价格、检验和包装' },
+];
+
+const trimmingProductFormSections: { id: ProductFormSectionId; label: string; desc: string }[] = [
+  { id: 'basic', label: '基础识别', desc: '辅料编号、名称、类别、客户和状态' },
+  { id: 'trimmingSpecs', label: '规格材质', desc: '材质、尺寸、颜色、表面处理和使用部位' },
+  { id: 'trimmingSupply', label: '供应采购', desc: '供应商、工厂、单位、用量、起订量和交期' },
+  { id: 'trimmingQuality', label: '质量合规', desc: '测试、标准、风险、包装和洗护要求' },
+  { id: 'notes', label: '备注', desc: '特殊备注与补充说明' },
+];
+
+const PRODUCT_STATUS_OPTIONS: Array<{ value: ProductAsset['status']; label: string }> = [
   { value: 'Development', label: 'Development' },
   { value: 'Active', label: 'Active' },
   { value: 'Archived', label: 'Archived' },
 ];
 
-export const PRODUCT_TITLE_BAR_CLASS = BAMBOOK_OS.layout.desktopTitleBarWithInsetClass;
-export const PRODUCT_TITLE_SAFE_LEFT_STYLE: React.CSSProperties = BAMBOOK_OS.layout.desktopTitleSafeLeftStyle;
-export const PRODUCT_TITLE_NAV_GROUP_CLASS = 'flex h-full items-center gap-1.5 min-w-0';
-export const PRODUCT_TITLE_TEXT_BUTTON_CLASS = 'h-9 flex items-center shrink-0 bg-transparent border-0 p-0 rounded-none shadow-none transition-colors';
-export const PRODUCT_TITLE_PAGE_LABEL_CLASS = BAMBOOK_OS.controls.title.pageLabel;
-export const PRODUCT_TITLE_SEPARATOR_CLASS = 'h-9 w-5 flex items-center justify-center shrink-0';
-export const PRODUCT_TITLE_ICON_BUTTON_CLASS = BAMBOOK_OS.controls.title.iconButton;
-export const PRODUCT_TITLE_ACTION_BUTTON_CLASS = BAMBOOK_OS.controls.title.actionButton;
+const GARMENT_STATUS_OPTIONS: Array<{ value: ProductAsset['status']; label: string }> = [
+  { value: '开发样', label: '开发样' },
+  { value: '产前样', label: '产前样' },
+  { value: '大货样', label: '大货样' },
+];
+
+export const PRODUCT_TITLE_BAR_CLASS = COMPILED_MODULE_TITLE_BAR_CLASS;
+export const PRODUCT_TITLE_SAFE_LEFT_STYLE: React.CSSProperties = COMPILED_MODULE_TITLE_SAFE_LEFT_STYLE;
+export const PRODUCT_TITLE_NAV_GROUP_CLASS = COMPILED_MODULE_TITLE_NAV_GROUP_CLASS;
+export const PRODUCT_TITLE_TEXT_BUTTON_CLASS = COMPILED_MODULE_TITLE_TEXT_BUTTON_CLASS;
+export const PRODUCT_TITLE_PAGE_LABEL_CLASS = COMPILED_MODULE_TITLE_PAGE_LABEL_CLASS;
+export const PRODUCT_TITLE_SEPARATOR_CLASS = COMPILED_MODULE_TITLE_SEPARATOR_CLASS;
+export const PRODUCT_TITLE_ICON_BUTTON_CLASS = COMPILED_MODULE_TITLE_ICON_BUTTON_CLASS;
+export const PRODUCT_TITLE_ACTION_BUTTON_CLASS = COMPILED_MODULE_TITLE_ACTION_BUTTON_CLASS;
 export const PRODUCT_TITLE_BUTTON_CLASS = BAMBOOK_OS.controls.actionControl.base;
-export const PRODUCT_CATEGORY_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,316px)] justify-center gap-6 content-start';
-export const PRODUCT_CARD_GRID_CLASS = 'grid grid-cols-[repeat(auto-fill,300px)] justify-center gap-6 content-start';
+export const PRODUCT_CATEGORY_CARD_GRID_CLASS = COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS;
+export const PRODUCT_CARD_GRID_CLASS = COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS;
 export const PRODUCT_CARD_CLASS = 'p-6 h-[220px] rounded-card-lg';
-export const PRODUCT_CARD_SURFACE_CLASS = `${OS_MATERIAL.raisedCard} bambook-panel-glass`;
+export const PRODUCT_CARD_SURFACE_CLASS = 'bds-surface';
 export const PRODUCT_CARD_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight.cardDarkColor;
 export const PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.cardLightColor;
 export const PRODUCT_CARD_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.spotlight.panelDarkSize;
@@ -165,6 +286,58 @@ export const PRODUCT_SUB_INDEX_ROW_CLASS = 'h-[72px] border-b last:border-b-0';
 export const PRODUCT_EDGE_FADE_TOP_HEIGHT = 56;
 export const PRODUCT_EDGE_FADE_TOP_START = 0;
 export const PRODUCT_EDGE_FADE_BOTTOM_HEIGHT = 72;
+
+type CompiledProductsPageBlueprint = {
+  template: 'CompiledProductsPage';
+  source: 'ProductsManager.ui-lab-1.0.full-contract';
+  provenance: 'accepted';
+  navLevels: readonly NavLevel[];
+  titleBarClassName: string;
+  titleSafeLeftStyle: React.CSSProperties;
+  edgeFade: {
+    topHeight: number;
+    topFadeStartOffset: number;
+    bottomHeight: number;
+  };
+  form: {
+    mapMaterialRole: 'raisedCard';
+    scrollViewportClassName: string;
+    edgeFade: {
+      topHeight: number;
+      topFadeStartOffset: number;
+      bottomHeight: number;
+      shadowCasterBottomHeight: number;
+      bottomFadeEndOffset: number;
+      syncWheelScroll: true;
+    };
+  };
+};
+
+export const compileProductsPage = (): CompiledProductsPageBlueprint => ({
+  template: 'CompiledProductsPage',
+  source: 'ProductsManager.ui-lab-1.0.full-contract',
+  provenance: 'accepted',
+  navLevels: ['main', 'sub', 'list', 'detail'],
+  titleBarClassName: PRODUCT_TITLE_BAR_CLASS,
+  titleSafeLeftStyle: PRODUCT_TITLE_SAFE_LEFT_STYLE,
+  edgeFade: {
+    topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT,
+    topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START,
+    bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
+  },
+  form: {
+    mapMaterialRole: 'raisedCard',
+    scrollViewportClassName: `bambook-product-form-scroll-viewport min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`,
+    edgeFade: {
+      topHeight: 57,
+      topFadeStartOffset: 58,
+      bottomHeight: 57,
+      shadowCasterBottomHeight: 57,
+      bottomFadeEndOffset: BAMBOOK_OS.layout.desktopMainPanelBottomInset,
+      syncWheelScroll: true,
+    },
+  },
+});
 export const PRODUCT_TOOLBAR_CLASS = BAMBOOK_OS.controls.toolbar.base;
 export const PRODUCT_TOOLBAR_CONTENT_CLASS = BAMBOOK_OS.controls.toolbar.content;
 export const PRODUCT_TOOLBAR_AMBIENT_CLASS = BAMBOOK_OS.controls.toolbar.ambient;
@@ -186,8 +359,8 @@ export const PRODUCT_DETAIL_MEDIA_PANEL_CLASS = 'min-h-0 p-6 flex flex-col gap-4
 export const PRODUCT_DETAIL_MEDIA_FRAME_CLASS = `${OS_MATERIAL.insetSurface} relative aspect-[4/5] rounded-inset overflow-hidden border`;
 export const PRODUCT_DETAIL_MEDIA_META_CLASS = `${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3`;
 export const PRODUCT_DETAIL_MAIN_PANEL_CLASS = 'min-h-0 overflow-hidden flex flex-col';
-export const PRODUCT_DETAIL_HEADER_LAYOUT_CLASS = 'shrink-0 px-8 py-6 border-b flex items-start justify-between gap-4';
-export const PRODUCT_DETAIL_BODY_SCROLL_CLASS = 'flex-1 min-h-0 overflow-y-auto p-8 space-y-8';
+export const PRODUCT_DETAIL_HEADER_LAYOUT_CLASS = 'shrink-0 px-5 py-4 border-b flex items-start justify-between gap-4';
+export const PRODUCT_DETAIL_BODY_SCROLL_CLASS = 'flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6';
 export const PRODUCT_DETAIL_ITEM_CLASS = `${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3`;
 export const PRODUCT_DETAIL_STATUS_PANEL_CLASS = `${OS_MATERIAL.insetSurface} rounded-inset border p-5`;
 export const PRODUCT_DETAIL_HISTORY_PANEL_CLASS = `${OS_MATERIAL.insetSurface} rounded-inset border p-4`;
@@ -205,21 +378,14 @@ const ProductFormSection = ({
   isDarkMode: boolean;
   children: React.ReactNode;
 }) => (
-  <CompiledSurfacePanel
-    as="section"
+  <CompiledFormSectionPanel
     id={`product-form-${id}`}
+    title={title}
     isDarkMode={isDarkMode}
     materialRole="framePanel"
-    edgeFadeItem
-    spotlight
-    spotlightSizing={RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING}
-    className={RELATIONS_FORM_PANEL_CLASS}
   >
-    <h4 className={`text-xs font-light tracking-wide mb-4 ${PRODUCT_FORM_SECTION_TITLE_CLASS}`}>{title}</h4>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-      {children}
-    </div>
-  </CompiledSurfacePanel>
+    {children}
+  </CompiledFormSectionPanel>
 );
 
 // ── 关联订单组件（通过 millQuality 反查 OrderLine）──────────────
@@ -264,20 +430,20 @@ const RelatedOrders: React.FC<{
   }
 
   return (
-    <div className={`rounded-inset border overflow-hidden border-[var(--border-c-default)]`}>
-      <div className={`px-4 py-2.5 text-xs font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
+    <div className={`rounded-card-lg border overflow-hidden border-[var(--border-c-subtle)]`}>
+      <div className={`px-4 py-2.5 text-xs font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-b border-[var(--border-c-subtle)]`}>
         关联订单 ({lines.length})
       </div>
-      <div className="divide-y divide-white/5">
+      <div className="divide-y divide-[var(--border-c-subtle)]">
         {lines.map((line: any) => (
-          <div key={line.id} className={`px-4 py-2.5 flex items-center justify-between text-xs text-[var(--text-secondary)]`}>
+          <div key={line.id} className={`px-4 py-2.5 flex items-center justify-between text-xs text-[var(--text-primary)]`}>
             <div className="flex items-center gap-3 min-w-0">
               <span className="font-mono font-light">{line.order?.poNumber || '-'}-{String(line.itemNo || line.lineNumber).padStart(3, '0')}</span>
               <span className="truncate">{line.description || line.cloth || '-'}</span>
             </div>
             <div className="flex items-center gap-4 shrink-0">
               <span>{line.quantity?.toLocaleString() ?? '-'} {line.unit || ''}</span>
-              <span className={'text-[var(--text-tertiary)]'}>{line.order?.dueDate || ''}</span>
+              <span className="text-[var(--text-tertiary)]">{line.order?.dueDate || ''}</span>
             </div>
           </div>
         ))}
@@ -348,13 +514,13 @@ const CertificationCheckboxes: React.FC<{
   };
 
   const labelCls = `text-[11px] font-light cursor-pointer select-none ${
-    'text-[var(--text-secondary)]'
+    'text-[var(--text-primary)]'
   }`;
   const boxCls = (on: boolean) =>
     `w-4 h-4 rounded-bds-xs border transition-colors ${
       on
         ? 'bg-[var(--os-vnext-brand-blue-strong)] border-[var(--os-vnext-brand-blue-strong)]'
-        : 'bg-[var(--recessed-bg)] border-[var(--border-c-strong)]'
+        : 'bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]'
     }`;
 
   return (
@@ -382,7 +548,7 @@ const CertificationCheckboxes: React.FC<{
       {customCerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customCerts.map(cert => (
-            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-bds-sm text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)]">
+            <span key={cert} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/15 text-[var(--os-vnext-brand-blue-strong)]`}>
               {cert}
               <button type="button" onClick={() => removeCustom(cert)} className="opacity-60 hover:opacity-100">&times;</button>
             </span>
@@ -395,16 +561,12 @@ const CertificationCheckboxes: React.FC<{
           onChange={e => setCustomInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
           placeholder="其他认证（回车添加）"
-          className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-all ${
-            'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--os-vnext-brand-blue)]'
-          }`}
+          className={`flex-1 px-4 py-3 text-xs rounded-control border outline-none transition-all bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-[var(--os-vnext-brand-blue-strong)]/40`}
         />
         <button
           type="button"
           onClick={addCustom}
-          className={`px-4 py-3 text-xs rounded-control font-light transition-all ${
-            'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
-          }`}
+          className={`px-4 py-3 text-xs rounded-full font-light transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-secondary)] border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
         >
           添加
         </button>
@@ -413,8 +575,11 @@ const CertificationCheckboxes: React.FC<{
   );
 };
 
-const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories, onUpdateProducts, onUpdateCategories, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings }) => {
+const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCategories, relations = [], onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings }) => {
+  const blueprint = useMemo(() => compileProductsPage(), []);
   const [navLevel, setNavLevel] = useState<NavLevel>('main');
+  const [sideSearchTerm, setSideSearchTerm] = useState('');
+  const [sideSortOption, setSideSortOption] = useState<'recent' | 'name'>('recent');
   const [selectedMain, setSelectedMain] = useState<MainCategory | null>(null);
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [classificationView, setClassificationView] = useState<ClassificationView>('category');
@@ -434,28 +599,33 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
   const pdmlRawScrollRef = useRef<HTMLDivElement | null>(null);
   const productGridScrollRef = useRef<HTMLDivElement>(null);
   const productFormScrollRef = useRef<HTMLDivElement | null>(null);
+  const productDetailSidebarScrollRef = useRef<HTMLDivElement | null>(null);
+  const productDetailBodyScrollRef = useRef<HTMLDivElement | null>(null);
 
-  useGlassSurfaceEdgeMasks({
+  useCompiledGlassSurfaceEdgeMasks({
     scrollRef: productGridScrollRef,
     enabled: navLevel === 'list' && listDisplayMode === 'grid' && !isPdmlRawView,
+    source: 'CompiledProductsPage.productGrid.surfaceMasks',
     scopeSelector: null,
     topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT,
     bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
     topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START,
   });
 
-  useGlassSurfaceEdgeMasks({
+  useCompiledGlassSurfaceEdgeMasks({
     scrollRef: mainCategoryScrollRef,
     enabled: navLevel === 'main',
+    source: 'CompiledProductsPage.mainCategory.surfaceMasks',
     scopeSelector: null,
     topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT,
     bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
     topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START,
   });
 
-  useGlassSurfaceEdgeMasks({
+  useCompiledGlassSurfaceEdgeMasks({
     scrollRef: subIndexScrollRef,
     enabled: navLevel === 'sub',
+    source: 'CompiledProductsPage.subIndex.surfaceMasks',
     scopeSelector: null,
     topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT,
     bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
@@ -472,19 +642,20 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
   const [editingProd, setEditingProd] = useState<ProductAsset | null>(null);
   const fullscreenProductFormOpen = !isMobile && (showAddProdModal || !!editingProd);
 
-  useGlassSurfaceEdgeMasks({
+  useCompiledGlassSurfaceEdgeMasks({
     scrollRef: productFormScrollRef,
     enabled: fullscreenProductFormOpen,
+    source: 'CompiledProductsPage.productForm.surfaceMasks',
     scopeSelector: null,
-    topHeight: 57,
-    topFadeStartOffset: 58,
-    bottomHeight: 57,
-    shadowCasterBottomHeight: 57,
+    topHeight: blueprint.form.edgeFade.topHeight,
+    topFadeStartOffset: blueprint.form.edgeFade.topFadeStartOffset,
+    bottomHeight: blueprint.form.edgeFade.bottomHeight,
+    shadowCasterBottomHeight: blueprint.form.edgeFade.shadowCasterBottomHeight,
     topFadeActivation: 'clip',
     bottomFadeActivation: 'zone',
-    bottomFadeEndOffset: BAMBOOK_OS.layout.desktopMainPanelBottomInset,
+    bottomFadeEndOffset: blueprint.form.edgeFade.bottomFadeEndOffset,
     bottomContentInset: 0,
-    syncWheelScroll: true,
+    syncWheelScroll: blueprint.form.edgeFade.syncWheelScroll,
   });
 
   const [productStatusValue, setProductStatusValue] = useState('Development');
@@ -502,10 +673,16 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
   const [pdmlRawSyncedAt, setPdmlRawSyncedAt] = useState<number | null>(null);
   const [pdmlRawTotal, setPdmlRawTotal] = useState(0);
   const [pdmlRawHasMore, setPdmlRawHasMore] = useState(false);
+  const formMainCategory = editingProd?.mainCategory || selectedMain;
+  const isFabricFormContext = formMainCategory === 'Fabric';
+  const isGarmentFormContext = formMainCategory === 'Garment';
+  const isTrimmingFormContext = formMainCategory === 'Trimmings';
   const productStatusOptions = useMemo(() => {
-    const enabled = moduleSettings?.statusOptions?.length ? moduleSettings.statusOptions : PRODUCT_STATUS_OPTIONS.map(option => option.value);
-    return PRODUCT_STATUS_OPTIONS.filter(option => enabled.includes(option.value));
-  }, [moduleSettings?.statusOptions]);
+    const baseOptions = isGarmentFormContext ? GARMENT_STATUS_OPTIONS : PRODUCT_STATUS_OPTIONS;
+    const enabled = moduleSettings?.statusOptions?.length ? moduleSettings.statusOptions : baseOptions.map(option => option.value);
+    const filtered = baseOptions.filter(option => enabled.includes(option.value));
+    return filtered.length > 0 ? filtered : baseOptions;
+  }, [isGarmentFormContext, moduleSettings?.statusOptions]);
 
   useEffect(() => {
     if (moduleSettings?.defaultListDisplayMode) {
@@ -542,8 +719,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
   useEffect(() => {
     if (!showAddProdModal && !editingProd) return;
-    setProductStatusValue(editingProd?.status || 'Development');
-  }, [editingProd, showAddProdModal]);
+    setProductStatusValue(editingProd?.status || (selectedMain === 'Garment' ? '开发样' : 'Development'));
+  }, [editingProd, selectedMain, showAddProdModal]);
 
   useEffect(() => {
     if (!fullscreenProductFormOpen) return;
@@ -831,17 +1008,40 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         tone,
       }];
     };
+    const supplierGroup = (product: ProductAsset) => {
+      if (product.mainCategory === 'Garment') return product.garmentProfile?.factory || '';
+      if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.supplier || product.trimmingProfile?.factory || '';
+      return product.fabricProfile?.millOrganizationId || '';
+    };
+    const supplierFallback = selectedMain === 'Garment' ? '工厂未填' : '供应商未填';
+    const priceGroupValue = (product: ProductAsset) => {
+      if (product.mainCategory === 'Garment') return Number(String(product.garmentProfile?.targetCost || product.garmentProfile?.fobPrice || '').replace(/[^\d.]/g, '')) || 0;
+      if (product.mainCategory === 'Trimmings') return Number(String(product.trimmingProfile?.price || '').replace(/[^\d.]/g, '')) || 0;
+      return latestPrice(product, 'factory')?.amount || latestPrice(product, 'customer')?.amount || 0;
+    };
+    const statusGroup = (product: ProductAsset) => {
+      if (product.mainCategory === 'Garment') return product.status || '';
+      if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.stockStatus || product.status || '';
+      return product.fabricProfile?.stockStatus || product.status || '';
+    };
 
     if (classificationView === 'supplier') {
       return makeGroups(selectedMainProducts.map(product => ({
         product,
-        id: product.fabricProfile?.millOrganizationId || '',
-        name: product.fabricProfile?.millOrganizationId || '供应商未填',
-      })), '供应商未填', 'slate');
+        id: supplierGroup(product),
+        name: supplierGroup(product) || supplierFallback,
+      })), supplierFallback, 'slate');
     }
 
     if (classificationView === 'customer') {
       return makeGroups(selectedMainProducts.flatMap(product => {
+        if (product.mainCategory === 'Garment') {
+          return [{ product, id: product.garmentProfile?.customer || '', name: product.garmentProfile?.customer || '客户未填' }];
+        }
+        if (product.mainCategory === 'Trimmings') {
+          const customer = product.trimmingProfile?.customer || product.trimmingProfile?.brand || '';
+          return [{ product, id: customer, name: customer || '客户/品牌未填' }];
+        }
         const codes = product.fabricCustomerCodes || [];
         return codes.length > 0
           ? codes.map(code => ({ product, id: code.customerOrganizationId || code.clientCode, name: code.customerNameSnapshot || code.clientCode }))
@@ -851,6 +1051,18 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
     if (classificationView === 'certification') {
       return makeGroups(selectedMainProducts.flatMap(product => {
+        if (product.mainCategory === 'Garment') {
+          const tests = String(product.garmentProfile?.complianceTests || '').split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
+          return tests.length > 0
+            ? tests.map(test => ({ product, id: test, name: test }))
+            : [{ product, id: '', name: '测试/合规未填' }];
+        }
+        if (product.mainCategory === 'Trimmings') {
+          const tests = String(product.trimmingProfile?.complianceTests || product.trimmingProfile?.qualityStandard || '').split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
+          return tests.length > 0
+            ? tests.map(test => ({ product, id: test, name: test }))
+            : [{ product, id: '', name: '测试/合规未填' }];
+        }
         const certs = product.fabricCertifications || [];
         return certs.length > 0
           ? certs.map(cert => ({ product, id: cert.certification, name: cert.certification }))
@@ -860,7 +1072,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
     if (classificationView === 'price') {
       return makeGroups(selectedMainProducts.map(product => {
-        const price = latestPrice(product, 'factory')?.amount || latestPrice(product, 'customer')?.amount || 0;
+        const price = priceGroupValue(product);
         const bucket = price <= 0 ? '价格未填' : price < 5 ? '低价位' : price < 15 ? '中价位' : '高价位';
         return { product, id: bucket, name: bucket };
       }), '价格未填', 'slate');
@@ -868,8 +1080,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
     return makeGroups(selectedMainProducts.map(product => ({
       product,
-      id: product.fabricProfile?.stockStatus || product.status || '',
-      name: product.fabricProfile?.stockStatus || product.status || '状态未填',
+      id: statusGroup(product),
+      name: statusGroup(product) || '状态未填',
     })), '状态未填', 'slate');
   }, [classificationView, currentSubCategories, pdmlRawFabrics.length, pdmlRawTotal, selectedMain, selectedMainProducts]);
 
@@ -882,9 +1094,18 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       if (classificationView === 'category') {
         list = selectedMainProducts.filter(p => p.subCategoryId === selectedSubId);
       } else if (classificationView === 'supplier') {
-        list = selectedMainProducts.filter(p => (p.fabricProfile?.millOrganizationId || '供应商未填') === selectedSubId);
+        list = selectedMainProducts.filter(p => {
+          const supplier = p.mainCategory === 'Garment'
+            ? (p.garmentProfile?.factory || '工厂未填')
+            : p.mainCategory === 'Trimmings'
+              ? (p.trimmingProfile?.supplier || p.trimmingProfile?.factory || '供应商未填')
+              : (p.fabricProfile?.millOrganizationId || '供应商未填');
+          return supplier === selectedSubId;
+        });
       } else if (classificationView === 'customer') {
         list = selectedMainProducts.filter(p => {
+          if (p.mainCategory === 'Garment') return (p.garmentProfile?.customer || '客户未填') === selectedSubId;
+          if (p.mainCategory === 'Trimmings') return (p.trimmingProfile?.customer || p.trimmingProfile?.brand || '客户/品牌未填') === selectedSubId;
           const codes = p.fabricCustomerCodes || [];
           return codes.length > 0
             ? codes.some(code => (code.customerOrganizationId || code.clientCode) === selectedSubId)
@@ -892,6 +1113,14 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         });
       } else if (classificationView === 'certification') {
         list = selectedMainProducts.filter(p => {
+          if (p.mainCategory === 'Garment') {
+            const tests = String(p.garmentProfile?.complianceTests || '').split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
+            return tests.length > 0 ? tests.includes(selectedSubId) : selectedSubId === '测试/合规未填';
+          }
+          if (p.mainCategory === 'Trimmings') {
+            const tests = String(p.trimmingProfile?.complianceTests || p.trimmingProfile?.qualityStandard || '').split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
+            return tests.length > 0 ? tests.includes(selectedSubId) : selectedSubId === '测试/合规未填';
+          }
           const certs = p.fabricCertifications || [];
           return certs.length > 0
             ? certs.some(cert => cert.certification === selectedSubId)
@@ -899,12 +1128,25 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         });
       } else if (classificationView === 'price') {
         list = selectedMainProducts.filter(p => {
-          const price = latestPrice(p, 'factory')?.amount || latestPrice(p, 'customer')?.amount || 0;
+          const garmentPrice = Number(String(p.garmentProfile?.targetCost || p.garmentProfile?.fobPrice || '').replace(/[^\d.]/g, '')) || 0;
+          const trimmingPrice = Number(String(p.trimmingProfile?.price || '').replace(/[^\d.]/g, '')) || 0;
+          const price = p.mainCategory === 'Garment'
+            ? garmentPrice
+            : p.mainCategory === 'Trimmings'
+              ? trimmingPrice
+              : latestPrice(p, 'factory')?.amount || latestPrice(p, 'customer')?.amount || 0;
           const bucket = price <= 0 ? '价格未填' : price < 5 ? '低价位' : price < 15 ? '中价位' : '高价位';
           return bucket === selectedSubId;
         });
       } else if (classificationView === 'status') {
-        list = selectedMainProducts.filter(p => (p.fabricProfile?.stockStatus || p.status || '状态未填') === selectedSubId);
+        list = selectedMainProducts.filter(p => {
+          const status = p.mainCategory === 'Garment'
+            ? (p.status || '状态未填')
+            : p.mainCategory === 'Trimmings'
+              ? (p.trimmingProfile?.stockStatus || p.status || '状态未填')
+              : (p.fabricProfile?.stockStatus || p.status || '状态未填');
+          return status === selectedSubId;
+        });
       }
     }
     if (searchTerm) {
@@ -916,12 +1158,24 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         (p.fabricProfile?.millQuality || '').toLowerCase().includes(lower) ||
         (p.fabricProfile?.millColorCode || '').toLowerCase().includes(lower) ||
         (p.fabricProfile?.colorDescription || '').toLowerCase().includes(lower) ||
+        (p.garmentProfile?.styleNo || '').toLowerCase().includes(lower) ||
+        (p.garmentProfile?.productName || '').toLowerCase().includes(lower) ||
+        (p.garmentProfile?.garmentCategory || '').toLowerCase().includes(lower) ||
+        (p.garmentProfile?.customer || '').toLowerCase().includes(lower) ||
+        (p.garmentProfile?.factory || '').toLowerCase().includes(lower) ||
+        (p.trimmingProfile?.trimmingCode || '').toLowerCase().includes(lower) ||
+        (p.trimmingProfile?.trimmingName || '').toLowerCase().includes(lower) ||
+        (p.trimmingProfile?.trimmingCategory || '').toLowerCase().includes(lower) ||
+        (p.trimmingProfile?.supplier || '').toLowerCase().includes(lower) ||
+        (p.trimmingProfile?.customer || '').toLowerCase().includes(lower) ||
         (p.fabricCustomerCodes || []).some(item => item.clientCode.toLowerCase().includes(lower)) ||
         (p.fabricCertifications || []).some(item => item.certification.toLowerCase().includes(lower))
       );
     }
     const priceOf = (product: ProductAsset, type: string) => product.fabricPrices?.find(price => price.priceType === type && !price.deletedAt)?.amount || 0;
     const missingCountOf = (product: ProductAsset) => {
+      if (product.mainCategory === 'Garment') return garmentCompleteness(product).missing.length;
+      if (product.mainCategory === 'Trimmings') return trimmingCompleteness(product).missing.length;
       if (product.mainCategory !== 'Fabric') return 0;
       const profile = product.fabricProfile;
       const hasText = (value?: string | null) => !!value?.trim();
@@ -948,6 +1202,42 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
     const cmpStr = (sa: string, sb: string) => dir * sa.localeCompare(sb, 'zh-Hans-CN', { numeric: true });
     const clientCodesJoined = (product: ProductAsset) =>
       (product.fabricCustomerCodes || []).map(c => c.clientCode).join(', ');
+    const articleSortText = (product: ProductAsset) => product.mainCategory === 'Garment'
+      ? (product.garmentProfile?.styleNo || '')
+      : product.mainCategory === 'Trimmings'
+        ? (product.trimmingProfile?.trimmingCode || '')
+        : (product.fabricProfile?.articleNo || '');
+    const qualitySortText = (product: ProductAsset) => product.mainCategory === 'Garment'
+      ? (product.garmentProfile?.garmentCategory || '')
+      : product.mainCategory === 'Trimmings'
+        ? (product.trimmingProfile?.trimmingCategory || '')
+        : (product.fabricProfile?.millQuality || '');
+    const supplierSortText = (product: ProductAsset) => product.mainCategory === 'Garment'
+      ? (product.garmentProfile?.factory || '')
+      : product.mainCategory === 'Trimmings'
+        ? (product.trimmingProfile?.supplier || product.trimmingProfile?.factory || '')
+        : (product.fabricProfile?.millOrganizationId || '');
+    const customerSortText = (product: ProductAsset) => product.mainCategory === 'Garment'
+      ? (product.garmentProfile?.customer || '')
+      : product.mainCategory === 'Trimmings'
+        ? (product.trimmingProfile?.customer || product.trimmingProfile?.brand || '')
+        : clientCodesJoined(product);
+    const factoryPriceSortValue = (product: ProductAsset) => product.mainCategory === 'Garment'
+      ? Number(String(product.garmentProfile?.targetCost || '').replace(/[^\d.]/g, '')) || 0
+      : product.mainCategory === 'Trimmings'
+        ? Number(String(product.trimmingProfile?.price || '').replace(/[^\d.]/g, '')) || 0
+        : priceOf(product, 'factory');
+    const salesPriceSortValue = (product: ProductAsset) => product.mainCategory === 'Garment'
+      ? Number(String(product.garmentProfile?.fobPrice || '').replace(/[^\d.]/g, '')) || 0
+      : product.mainCategory === 'Trimmings'
+        ? Number(String(product.trimmingProfile?.price || '').replace(/[^\d.]/g, '')) || 0
+        : priceOf(product, 'customer');
+    const stockSortQuantity = (product: ProductAsset) => product.mainCategory === 'Trimmings'
+      ? product.trimmingProfile?.stockQuantity ?? 0
+      : product.fabricProfile?.stockQuantity ?? 0;
+    const stockSortStatus = (product: ProductAsset) => product.mainCategory === 'Trimmings'
+      ? product.trimmingProfile?.stockStatus || ''
+      : product.fabricProfile?.stockStatus || '';
 
     return [...list].sort((a, b) => {
       let primary = 0;
@@ -959,29 +1249,29 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           primary = cmpStr(a.name, b.name);
           break;
         case 'articleNo':
-          primary = cmpStr(a.fabricProfile?.articleNo || '', b.fabricProfile?.articleNo || '');
+          primary = cmpStr(articleSortText(a), articleSortText(b));
           break;
         case 'millQuality':
-          primary = cmpStr(a.fabricProfile?.millQuality || '', b.fabricProfile?.millQuality || '');
+          primary = cmpStr(qualitySortText(a), qualitySortText(b));
           break;
         case 'millOrg':
-          primary = cmpStr(a.fabricProfile?.millOrganizationId || '', b.fabricProfile?.millOrganizationId || '');
+          primary = cmpStr(supplierSortText(a), supplierSortText(b));
           break;
         case 'clientCode':
-          primary = cmpStr(clientCodesJoined(a), clientCodesJoined(b));
+          primary = cmpStr(customerSortText(a), customerSortText(b));
           break;
         case 'factoryPrice':
-          primary = cmpNum(priceOf(a, 'factory'), priceOf(b, 'factory'));
+          primary = cmpNum(factoryPriceSortValue(a), factoryPriceSortValue(b));
           break;
         case 'salesPrice':
-          primary = cmpNum(priceOf(a, 'customer'), priceOf(b, 'customer'));
+          primary = cmpNum(salesPriceSortValue(a), salesPriceSortValue(b));
           break;
         case 'stock': {
-          const qa = a.fabricProfile?.stockQuantity ?? 0;
-          const qb = b.fabricProfile?.stockQuantity ?? 0;
+          const qa = stockSortQuantity(a);
+          const qb = stockSortQuantity(b);
           primary = cmpNum(qa, qb);
           if (primary === 0) {
-            primary = dir * (a.fabricProfile?.stockStatus || '').localeCompare(b.fabricProfile?.stockStatus || '', 'zh-Hans-CN');
+            primary = dir * stockSortStatus(a).localeCompare(stockSortStatus(b), 'zh-Hans-CN');
           }
           break;
         }
@@ -998,6 +1288,26 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       return a.sku.localeCompare(b.sku);
     });
   }, [classificationView, searchTerm, selectedMainProducts, selectedSubId, tableSort, uncategorizedProducts]);
+
+  const sidebarProducts = useMemo(() => {
+    let list = [...currentProducts];
+    if (sideSearchTerm) {
+      const q = sideSearchTerm.toLowerCase();
+      list = list.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.sku.toLowerCase().includes(q) || 
+        (p.fabricProfile?.articleNo || '').toLowerCase().includes(q) ||
+        (p.garmentProfile?.styleNo || '').toLowerCase().includes(q) ||
+        (p.trimmingProfile?.trimmingCode || '').toLowerCase().includes(q)
+      );
+    }
+    if (sideSortOption === 'recent') {
+      list.sort((a, b) => (new Date(b.updatedAt).getTime() || 0) - (new Date(a.updatedAt).getTime() || 0));
+    } else {
+      list.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+    }
+    return list;
+  }, [currentProducts, sideSearchTerm, sideSortOption]);
 
   const isFabricContext = selectedMain === 'Fabric';
 
@@ -1024,7 +1334,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
   }, [pdmlRawFabrics, searchTerm]);
 
   const buildFabricProfileFromForm = (formData: FormData, existing?: ProductAsset): ProductAsset['fabricProfile'] => {
-    if (!isFabricContext && existing?.mainCategory !== 'Fabric') return existing?.fabricProfile;
+    if (!isFabricFormContext && existing?.mainCategory !== 'Fabric') return existing?.fabricProfile;
     const now = Date.now();
     const valueOf = (key: string) => {
       const value = String(formData.get(key) || '').trim();
@@ -1060,6 +1370,147 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       sampleMoqValue: numberOf('sampleMoqValue'),
       riskNote: valueOf('riskNote'),
       specialNote: valueOf('specialNote'),
+      updatedAt: now,
+      deletedAt: undefined,
+    };
+  };
+
+  const buildGarmentProfileFromForm = (formData: FormData, existing?: ProductAsset): ProductAsset['garmentProfile'] => {
+    if (!isGarmentFormContext && existing?.mainCategory !== 'Garment') return existing?.garmentProfile;
+    const now = Date.now();
+    const valueOf = (key: string) => {
+      const value = String(formData.get(key) || '').trim();
+      return value || undefined;
+    };
+    return {
+      id: existing?.garmentProfile?.id || `GAR-PROFILE-${now}`,
+      productAssetId: existing?.id || '',
+      styleNo: valueOf('styleNo'),
+      productName: valueOf('productName'),
+      garmentCategory: valueOf('garmentCategory'),
+      collection: valueOf('collection'),
+      customer: valueOf('customer'),
+      brand: valueOf('brand'),
+      project: valueOf('project'),
+      gender: valueOf('gender'),
+      ageGroup: valueOf('ageGroup'),
+      tags: valueOf('tags'),
+      silhouette: valueOf('silhouette'),
+      fit: valueOf('fit'),
+      collarType: valueOf('collarType'),
+      sleeveType: valueOf('sleeveType'),
+      closureType: valueOf('closureType'),
+      pocketDetails: valueOf('pocketDetails'),
+      hemDetails: valueOf('hemDetails'),
+      waistbandDetails: valueOf('waistbandDetails'),
+      liningStructure: valueOf('liningStructure'),
+      interlining: valueOf('interlining'),
+      shoulderPad: valueOf('shoulderPad'),
+      stitchDetails: valueOf('stitchDetails'),
+      constructionNote: valueOf('constructionNote'),
+      mainFabric: valueOf('mainFabric'),
+      contrastFabric: valueOf('contrastFabric'),
+      liningFabric: valueOf('liningFabric'),
+      ribFabric: valueOf('ribFabric'),
+      pocketingFabric: valueOf('pocketingFabric'),
+      button: valueOf('button'),
+      zipper: valueOf('zipper'),
+      snapsEyelets: valueOf('snapsEyelets'),
+      thread: valueOf('thread'),
+      labelTrims: valueOf('labelTrims'),
+      packaging: valueOf('packaging'),
+      materialUsage: valueOf('materialUsage'),
+      substituteMaterials: valueOf('substituteMaterials'),
+      sizeRange: valueOf('sizeRange'),
+      baseSize: valueOf('baseSize'),
+      measurementPoints: valueOf('measurementPoints'),
+      sizeSpec: valueOf('sizeSpec'),
+      tolerance: valueOf('tolerance'),
+      gradingRule: valueOf('gradingRule'),
+      shrinkageAllowance: valueOf('shrinkageAllowance'),
+      garmentWeight: valueOf('garmentWeight'),
+      colorways: valueOf('colorways'),
+      customerColorCodes: valueOf('customerColorCodes'),
+      fabricColorCodes: valueOf('fabricColorCodes'),
+      garmentSku: valueOf('garmentSku'),
+      barcode: valueOf('barcode'),
+      availableSizes: valueOf('availableSizes'),
+      colorImageNotes: valueOf('colorImageNotes'),
+      moq: valueOf('moq'),
+      sampleVersion: valueOf('sampleVersion'),
+      patternMaker: valueOf('patternMaker'),
+      merchandiser: valueOf('merchandiser'),
+      owner: valueOf('owner'),
+      revisionHistory: valueOf('revisionHistory'),
+      fittingComments: valueOf('fittingComments'),
+      customerComments: valueOf('customerComments'),
+      confirmedDate: valueOf('confirmedDate'),
+      techPackVersion: valueOf('techPackVersion'),
+      factory: valueOf('factory'),
+      orderQuantity: valueOf('orderQuantity'),
+      deliveryDate: valueOf('deliveryDate'),
+      targetCost: valueOf('targetCost'),
+      fobPrice: valueOf('fobPrice'),
+      exwPrice: valueOf('exwPrice'),
+      retailPrice: valueOf('retailPrice'),
+      inspectionStandard: valueOf('inspectionStandard'),
+      commonDefects: valueOf('commonDefects'),
+      washFinishing: valueOf('washFinishing'),
+      careLabel: valueOf('careLabel'),
+      complianceTests: valueOf('complianceTests'),
+      packingMethod: valueOf('packingMethod'),
+      cartonSpec: valueOf('cartonSpec'),
+      countryOfOrigin: valueOf('countryOfOrigin'),
+      qualityNote: valueOf('qualityNote'),
+      updatedAt: now,
+      deletedAt: undefined,
+    };
+  };
+
+  const buildTrimmingProfileFromForm = (formData: FormData, existing?: ProductAsset): ProductAsset['trimmingProfile'] => {
+    if (!isTrimmingFormContext && existing?.mainCategory !== 'Trimmings') return existing?.trimmingProfile;
+    const now = Date.now();
+    const valueOf = (key: string) => {
+      const value = String(formData.get(key) || '').trim();
+      return value || undefined;
+    };
+    const numberOf = (key: string) => {
+      const value = valueOf(key);
+      return value ? Number(value) : undefined;
+    };
+    return {
+      id: existing?.trimmingProfile?.id || `TRIM-PROFILE-${now}`,
+      productAssetId: existing?.id || '',
+      trimmingCode: valueOf('trimmingCode'),
+      trimmingName: valueOf('trimmingName'),
+      trimmingCategory: valueOf('trimmingCategory'),
+      material: valueOf('material'),
+      specification: valueOf('specification'),
+      size: valueOf('size'),
+      color: valueOf('color'),
+      colorCode: valueOf('colorCode'),
+      finish: valueOf('finish'),
+      supplier: valueOf('supplier'),
+      factory: valueOf('factory'),
+      brand: valueOf('brand'),
+      customer: valueOf('customer'),
+      applicableProducts: valueOf('applicableProducts'),
+      usagePosition: valueOf('usagePosition'),
+      unit: valueOf('unit'),
+      unitConsumption: valueOf('unitConsumption'),
+      moq: valueOf('moq'),
+      leadTime: valueOf('leadTime'),
+      stockStatus: valueOf('stockStatus'),
+      stockQuantity: numberOf('stockQuantity'),
+      stockUnit: valueOf('stockUnit'),
+      price: valueOf('price'),
+      currency: valueOf('currency'),
+      complianceTests: valueOf('complianceTests'),
+      qualityStandard: valueOf('qualityStandard'),
+      riskNote: valueOf('riskNote'),
+      packaging: valueOf('packaging'),
+      careRequirement: valueOf('careRequirement'),
+      notes: valueOf('notes'),
       updatedAt: now,
       deletedAt: undefined,
     };
@@ -1294,6 +1745,66 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
     return (product.fabricCertifications || []).map(item => item.certification).join(', ') || '未填';
   };
 
+  const productCodeText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return product.garmentProfile?.styleNo || product.sku;
+    if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.trimmingCode || product.sku;
+    return product.fabricProfile?.articleNo || product.sku;
+  };
+
+  const productCategoryText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return product.garmentProfile?.garmentCategory || '品类未填';
+    if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.trimmingCategory || '辅料类别未填';
+    return product.fabricProfile?.millQuality || 'Mill Quality 未填';
+  };
+
+  const productSupplierText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return product.garmentProfile?.factory || '工厂未填';
+    if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.supplier || product.trimmingProfile?.factory || '供应商未填';
+    return product.fabricProfile?.millOrganizationId || '供应商未填';
+  };
+
+  const productCustomerText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return product.garmentProfile?.customer || '客户未填';
+    if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.customer || product.trimmingProfile?.brand || '客户/品牌未填';
+    return clientCodeText(product);
+  };
+
+  const productStockText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return `${product.garmentProfile?.colorways || '颜色未填'} / ${product.garmentProfile?.sizeRange || product.garmentProfile?.availableSizes || '尺码未填'}`;
+    if (product.mainCategory === 'Trimmings') return `${product.trimmingProfile?.stockStatus || '库存未填'} / ${formatMeasure(product.trimmingProfile?.stockQuantity, product.trimmingProfile?.stockUnit)}`;
+    return `${product.fabricProfile?.stockStatus || '未填'} / ${formatMeasure(product.fabricProfile?.stockQuantity, product.fabricProfile?.stockUnit)}`;
+  };
+
+  const productFactoryPriceText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return product.garmentProfile?.targetCost || '未填';
+    if (product.mainCategory === 'Trimmings') return [product.trimmingProfile?.currency, product.trimmingProfile?.price].filter(Boolean).join(' ') || '未填';
+    return formatPrice(product, 'factory');
+  };
+
+  const productSalesPriceText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return product.garmentProfile?.fobPrice || '未填';
+    if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.unit ? `/ ${product.trimmingProfile.unit}` : '未填';
+    return formatPrice(product, 'customer');
+  };
+
+  const productPriceValue = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return Number(String(product.garmentProfile?.targetCost || product.garmentProfile?.fobPrice || '').replace(/[^\d.]/g, '')) || 0;
+    if (product.mainCategory === 'Trimmings') return Number(String(product.trimmingProfile?.price || '').replace(/[^\d.]/g, '')) || 0;
+    return latestPrice(product, 'factory')?.amount || latestPrice(product, 'customer')?.amount || 0;
+  };
+
+  const productCertificationTokens = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return String(product.garmentProfile?.complianceTests || '').split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
+    if (product.mainCategory === 'Trimmings') return String(product.trimmingProfile?.complianceTests || product.trimmingProfile?.qualityStandard || '').split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
+    return (product.fabricCertifications || []).map(cert => cert.certification).filter(Boolean);
+  };
+
+  const productStatusGroupText = (product: ProductAsset) => {
+    if (product.mainCategory === 'Garment') return product.status || '状态未填';
+    if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.stockStatus || product.status || '状态未填';
+    return product.fabricProfile?.stockStatus || product.status || '状态未填';
+  };
+
   const fabricCompleteness = (product: ProductAsset) => {
     if (product.mainCategory !== 'Fabric') {
       return { missing: [] as string[], total: 0, completed: 0, percent: 100, complete: true };
@@ -1327,24 +1838,129 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
     };
   };
 
+  const garmentCompleteness = (product: ProductAsset) => {
+    if (product.mainCategory !== 'Garment') {
+      return { missing: [] as string[], total: 0, completed: 0, percent: 100, complete: true };
+    }
+
+    const profile = product.garmentProfile;
+    const hasText = (value?: string | null) => !!value?.trim();
+    const checks = [
+      { label: '款号', ok: hasText(profile?.styleNo) || hasText(product.sku) },
+      { label: '款名', ok: hasText(profile?.productName) || hasText(product.name) },
+      { label: '品类', ok: hasText(profile?.garmentCategory) },
+      { label: '客户/品牌', ok: hasText(profile?.customer) || hasText(profile?.brand) },
+      { label: '成衣结构', ok: hasText(profile?.silhouette) || hasText(profile?.fit) || hasText(profile?.constructionNote) },
+      { label: '材料 BOM', ok: hasText(profile?.mainFabric) || hasText(profile?.materialUsage) },
+      { label: '尺码', ok: hasText(profile?.sizeRange) || hasText(profile?.sizeSpec) },
+      { label: '颜色/SKU', ok: hasText(profile?.colorways) || hasText(profile?.garmentSku) },
+      { label: '开发记录', ok: hasText(profile?.sampleVersion) || hasText(profile?.revisionHistory) },
+      { label: '生产信息', ok: hasText(profile?.factory) || hasText(profile?.deliveryDate) },
+      { label: '质量包装', ok: hasText(profile?.inspectionStandard) || hasText(profile?.packingMethod) },
+    ];
+    const missing = checks.filter(item => !item.ok).map(item => item.label);
+    const completed = checks.length - missing.length;
+    return {
+      missing,
+      total: checks.length,
+      completed,
+      percent: Math.round((completed / checks.length) * 100),
+      complete: missing.length === 0,
+    };
+  };
+
+  const trimmingCompleteness = (product: ProductAsset) => {
+    if (product.mainCategory !== 'Trimmings') {
+      return { missing: [] as string[], total: 0, completed: 0, percent: 100, complete: true };
+    }
+
+    const profile = product.trimmingProfile;
+    const hasText = (value?: string | null) => !!value?.trim();
+    const hasNumber = (value?: number | null) => value !== null && value !== undefined && !Number.isNaN(value);
+    const checks = [
+      { label: '辅料编号', ok: hasText(profile?.trimmingCode) || hasText(product.sku) },
+      { label: '辅料名称', ok: hasText(profile?.trimmingName) || hasText(product.name) },
+      { label: '辅料类别', ok: hasText(profile?.trimmingCategory) },
+      { label: '材质规格', ok: hasText(profile?.material) || hasText(profile?.specification) || hasText(profile?.size) },
+      { label: '颜色', ok: hasText(profile?.color) || hasText(profile?.colorCode) },
+      { label: '供应商', ok: hasText(profile?.supplier) || hasText(profile?.factory) },
+      { label: '使用部位', ok: hasText(profile?.usagePosition) || hasText(profile?.applicableProducts) },
+      { label: '采购信息', ok: hasText(profile?.unit) || hasText(profile?.unitConsumption) || hasText(profile?.moq) },
+      { label: '库存价格', ok: hasText(profile?.stockStatus) || hasNumber(profile?.stockQuantity) || hasText(profile?.price) },
+      { label: '质量合规', ok: hasText(profile?.complianceTests) || hasText(profile?.qualityStandard) || hasText(profile?.riskNote) },
+      { label: '包装备注', ok: hasText(profile?.packaging) || hasText(profile?.notes) },
+    ];
+    const missing = checks.filter(item => !item.ok).map(item => item.label);
+    const completed = checks.length - missing.length;
+    return {
+      missing,
+      total: checks.length,
+      completed,
+      percent: Math.round((completed / checks.length) * 100),
+      complete: missing.length === 0,
+    };
+  };
+
+  const productCompleteness = (product: ProductAsset) => (
+    product.mainCategory === 'Garment'
+      ? garmentCompleteness(product)
+      : product.mainCategory === 'Trimmings'
+        ? trimmingCompleteness(product)
+        : fabricCompleteness(product)
+  );
+
   const detailValue = (value?: string | number | null) => {
     if (value === null || value === undefined || value === '') return '未填';
     return String(value);
   };
 
   const DetailItem = ({ label, value, wide = false }: { label: string; value?: string | number | null; wide?: boolean }) => (
-    <div className={`${wide ? 'md:col-span-2' : ''} ${PRODUCT_DETAIL_ITEM_CLASS}`}>
-      <div className={`text-[10px] font-light tracking-wide text-[var(--text-tertiary)]`}>{label}</div>
-      <div className={`mt-1 text-sm font-light whitespace-pre-wrap break-words text-[var(--text-primary)]`}>{detailValue(value)}</div>
+    <div className={`${wide ? 'md:col-span-2' : ''} flex flex-col py-1.5`}>
+      <p className={`text-[10px] font-light uppercase tracking-[0.18em] mb-1 text-[var(--text-tertiary)]`}>
+        {label}
+      </p>
+      <div className={`text-sm font-light whitespace-pre-wrap break-words text-[var(--text-primary)]`}>
+        {detailValue(value)}
+      </div>
     </div>
   );
 
-  const DetailSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <section className="space-y-3">
-      <h4 className={`text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>{title}</h4>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{children}</div>
-    </section>
-  );
+  const DetailSection = ({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) => {
+    const sectionDividerClass = BAMBOOK_OS.tone.divider.section;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative mb-4"
+        >
+            <CompiledSurfacePanel
+                as="section"
+                isDarkMode={isDarkMode}
+                materialRole="insetSurface"
+                materialTone="nested"
+                className="p-4 !rounded-inset"
+                contentClassName="relative z-10"
+                compilerRole="detail-section-panel"
+                source="CompiledProductsPage.detail-section"
+            >
+                <div className={`flex items-center gap-2 mb-3 pb-2.5 border-b ${sectionDividerClass}`}>
+                    {icon ? (
+                        <span className={'text-[var(--text-secondary)]'}>{icon}</span>
+                    ) : (
+                        <div className={`w-1.5 h-3.5 rounded-full bg-[var(--active-darken)]`} />
+                    )}
+                    <h4 className={`text-[11px] font-light uppercase tracking-[0.18em] text-[var(--text-primary)]`}>
+                        {title}
+                    </h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                    {children}
+                </div>
+            </CompiledSurfacePanel>
+        </motion.div>
+    );
+  };
 
   const getProductImageSrc = (image: ProductImage) => (
     image.url || (image.filePath ? apiService.getProductImageUrl(image.filePath) : '')
@@ -1368,7 +1984,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
     return formatMeasure(profile?.widthValue, profile?.widthUnit);
   };
 
-  const productFieldShellClass = `rounded-full border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all`;
+  const productFieldShellClass = `rounded-control border outline-none ${BAMBOOK_OS.typography.weight.ui} text-xs transition-all`;
   const productInputClass = `w-full h-9 px-3 ${productFieldShellClass} leading-none ${PRODUCT_FORM_FIELD_CLASS}`;
   const productTextareaClass = `w-full px-3 py-3 ${productFieldShellClass} leading-relaxed resize-none ${PRODUCT_FORM_FIELD_CLASS}`;
   const productLabelClass = `text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} ml-1 ${PRODUCT_FORM_LABEL_CLASS}`;
@@ -1387,7 +2003,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
   const productFloatingPanelClass = `${OS_MATERIAL.floatingOverlay} bambook-panel-glass`;
   const productStatusChipClass = (complete: boolean) =>
     complete
-      ? 'bg-[var(--os-vnext-brand-blue)]/6 text-[var(--os-vnext-brand-blue-strong)] border-[var(--border-c-default)]'
+      ? 'bg-[var(--os-vnext-brand-blue)]/8 text-[var(--os-vnext-brand-blue-strong)] border-[var(--border-c-subtle)] shadow-none'
       : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] border-[var(--border-c-subtle)]';
   const enabledProductTableColumnIds = new Set(
     moduleSettings?.visibleTableColumnIds?.length
@@ -1414,47 +2030,47 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
     },
     {
       id: 'articleNo',
-      header: 'Article',
+      header: selectedMain === 'Garment' ? '款号' : selectedMain === 'Trimmings' ? '辅料编号' : 'Article',
       widthClass: 'w-[9%]',
-      render: (product: ProductAsset) => <div className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{product.fabricProfile?.articleNo || '未填'}</div>,
+      render: (product: ProductAsset) => <div className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{productCodeText(product) || '未填'}</div>,
     },
     {
       id: 'millQuality',
-      header: 'Mill Quality',
+      header: selectedMain === 'Garment' ? '品类' : selectedMain === 'Trimmings' ? '辅料类别' : 'Mill Quality',
       widthClass: 'w-[10%]',
-      render: (product: ProductAsset) => <div className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{product.fabricProfile?.millQuality || '未填'}</div>,
+      render: (product: ProductAsset) => <div className={`px-4 py-3 whitespace-nowrap ${productMutedTextClass}`}>{productCategoryText(product)}</div>,
     },
     {
       id: 'millOrg',
-      header: '供应商',
+      header: selectedMain === 'Garment' ? '工厂' : '供应商',
       widthClass: 'w-[12%]',
-      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-[140px]">{product.fabricProfile?.millOrganizationId || '未填'}</div>,
+      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-[140px]">{productSupplierText(product)}</div>,
     },
     {
       id: 'clientCode',
-      header: 'Client Code',
+      header: selectedMain === 'Garment' ? '客户' : selectedMain === 'Trimmings' ? '客户/品牌' : 'Client Code',
       widthClass: 'w-[12%]',
-      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-[140px]">{clientCodeText(product)}</div>,
+      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-[140px]">{productCustomerText(product)}</div>,
     },
     {
       id: 'factoryPrice',
-      header: '工厂价',
+      header: selectedMain === 'Garment' ? '目标成本' : selectedMain === 'Trimmings' ? '单价' : '工厂价',
       widthClass: 'w-[8%]',
-      render: (product: ProductAsset) => <div className="px-4 py-3 whitespace-nowrap">{formatPrice(product, 'factory')}</div>,
+      render: (product: ProductAsset) => <div className="px-4 py-3 whitespace-nowrap">{productFactoryPriceText(product)}</div>,
     },
     {
       id: 'salesPrice',
-      header: '售价',
+      header: selectedMain === 'Garment' ? 'FOB' : selectedMain === 'Trimmings' ? '单位' : '售价',
       widthClass: 'w-[8%]',
-      render: (product: ProductAsset) => <div className="px-4 py-3 whitespace-nowrap">{formatPrice(product, 'customer')}</div>,
+      render: (product: ProductAsset) => <div className="px-4 py-3 whitespace-nowrap">{productSalesPriceText(product)}</div>,
     },
     {
       id: 'stock',
-      header: '库存',
+      header: selectedMain === 'Garment' ? '颜色/尺码' : selectedMain === 'Trimmings' ? '库存' : '库存',
       widthClass: 'w-[11%]',
       render: (product: ProductAsset) => (
         <div className="px-4 py-3 whitespace-nowrap">
-          {(product.fabricProfile?.stockStatus || '未填')} / {formatMeasure(product.fabricProfile?.stockQuantity, product.fabricProfile?.stockUnit)}
+          {productStockText(product)}
         </div>
       ),
     },
@@ -1464,14 +2080,14 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       widthClass: 'w-[11%]',
       render: (product: ProductAsset) => (
         <div className="px-4 py-3 min-w-[140px]">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-light ${productStatusChipClass(fabricCompleteness(product).complete)}`}>
-            {fabricCompleteness(product).complete ? <CheckCircle2 size={12} strokeWidth={1.5} /> : <AlertTriangle size={12} strokeWidth={1.5} />}
-            {fabricCompleteness(product).complete ? '完整' : `缺 ${fabricCompleteness(product).missing.length} 项`}
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-light ${productStatusChipClass(productCompleteness(product).complete)}`}>
+            {productCompleteness(product).complete ? <CheckCircle2 size={12} strokeWidth={1.5} /> : <AlertTriangle size={12} strokeWidth={1.5} />}
+            {productCompleteness(product).complete ? '完整' : `缺 ${productCompleteness(product).missing.length} 项`}
           </span>
-          {!fabricCompleteness(product).complete && (
+          {!productCompleteness(product).complete && (
             <div className={`mt-1 text-[10px] truncate text-[var(--text-tertiary)]`}>
-              {fabricCompleteness(product).missing.slice(0, 2).join('、')}
-              {fabricCompleteness(product).missing.length > 2 ? '…' : ''}
+              {productCompleteness(product).missing.slice(0, 2).join('、')}
+              {productCompleteness(product).missing.length > 2 ? '…' : ''}
             </div>
           )}
         </div>
@@ -1487,7 +2103,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
   const renderClassificationTabBar = (embedded = false) => {
     return (
-      <SpotlightCard
+      <CompiledInteractiveCard
         spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
         spotlightSize={isDarkMode ? PRODUCT_TOOLBAR_SPOTLIGHT_DARK_SIZE : PRODUCT_TOOLBAR_SPOTLIGHT_LIGHT_SIZE}
         liquidSpotlight
@@ -1501,7 +2117,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         <span className={`relative z-10 px-2 text-[10px] font-light tracking-[0.18em] uppercase text-[var(--text-tertiary)]`}>
           筛选
         </span>
-        <CustomSelect
+        <CompiledSelectControl
           value={classificationView}
           onChange={(value) => {
             setClassificationView(value as ClassificationView);
@@ -1517,12 +2133,12 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           className="relative z-20 w-[148px] shrink-0"
         />
         </div>
-      </SpotlightCard>
+      </CompiledInteractiveCard>
     );
   };
 
   const renderProductListToolbar = (embedded = false) => (
-    <SpotlightCard
+    <CompiledInteractiveCard
       spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
       spotlightSize={isDarkMode ? PRODUCT_TOOLBAR_SPOTLIGHT_DARK_SIZE : PRODUCT_TOOLBAR_SPOTLIGHT_LIGHT_SIZE}
       liquidSpotlight
@@ -1534,7 +2150,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       <span className={PRODUCT_TOOLBAR_AMBIENT_CLASS} aria-hidden="true" />
       <div className={PRODUCT_TOOLBAR_CONTENT_CLASS}>
       <div className="relative h-9 min-w-0 flex-1">
-        <Search className={`absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--text-tertiary)]`} size={14} />
+        <Search className={`absolute left-3 top-1/2 z-10 -translate-y-1/2 ${'text-[var(--text-tertiary)]'}`} size={14} />
         <input
           placeholder="搜索 SKU、款名..."
           value={searchTerm}
@@ -1544,7 +2160,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       </div>
 
       <div className="w-[170px] shrink-0">
-        <CustomSelect
+        <CompiledSelectControl
           value={productSortValue}
           onChange={(value) => {
             const next = productSortOptions.find(option => option.value === value);
@@ -1563,7 +2179,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         <button
           type="button"
           onClick={() => setListDisplayMode(listDisplayMode === 'grid' ? 'table' : 'grid')}
-          className={`${PRODUCT_SEGMENT_BUTTON_CLASS} text-[var(--text-primary)] opacity-100 `}
+          className={`${PRODUCT_SEGMENT_BUTTON_CLASS} text-[var(--os-vnext-brand-blue)] opacity-100 drop-shadow-none`}
           aria-label={listDisplayMode === 'grid' ? '切换到表格视图' : '切换到格子视图'}
         >
           {listDisplayMode === 'grid' ? (
@@ -1574,11 +2190,11 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         </button>
       </div>
       </div>
-    </SpotlightCard>
+    </CompiledInteractiveCard>
   );
 
   const renderFabricProfileFields = (product?: ProductAsset | null) => {
-    if (!isFabricContext && product?.mainCategory !== 'Fabric') return null;
+    if (!isFabricFormContext && product?.mainCategory !== 'Fabric') return null;
     const profile = product?.fabricProfile;
 
     return (
@@ -1691,11 +2307,179 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           </div>
         </ProductFormSection>
 
-        <ProductFormSection id="notes" title="备注" description="放不进结构字段、但业务上需要保留的补充说明。" isDarkMode={isDarkMode}>
-          <div className="md:col-span-2 space-y-2">
-            <label className={productLabelClass}>特殊备注</label>
-            <textarea defaultValue={profile?.specialNote || ''} name="specialNote" rows={4} className={productTextareaClass} />
+	        <ProductFormSection id="notes" title="备注" description="放不进结构字段、但业务上需要保留的补充说明。" isDarkMode={isDarkMode}>
+	          <div className="md:col-span-2 space-y-2">
+	            <label className={productLabelClass}>特殊备注</label>
+	            <textarea defaultValue={profile?.specialNote || ''} name="specialNote" rows={4} className={productTextareaClass} />
+	          </div>
+	        </ProductFormSection>
+      </>
+    );
+  };
+
+  const renderGarmentProfileFields = (product?: ProductAsset | null) => {
+    if (!isGarmentFormContext && product?.mainCategory !== 'Garment') return null;
+    const profile = product?.garmentProfile;
+    const TextField = ({ label, name, value, placeholder }: { label: string; name: string; value?: string | null; placeholder?: string }) => (
+      <div className="space-y-2">
+        <label className={productLabelClass}>{label}</label>
+        <input defaultValue={value || ''} name={name} placeholder={placeholder} className={productInputClass} />
+      </div>
+    );
+    const TextAreaField = ({ label, name, value, rows = 3, wide = true, placeholder }: { label: string; name: string; value?: string | null; rows?: number; wide?: boolean; placeholder?: string }) => (
+      <div className={`${wide ? 'md:col-span-2' : ''} space-y-2`}>
+        <label className={productLabelClass}>{label}</label>
+        <textarea defaultValue={value || ''} name={name} rows={rows} placeholder={placeholder} className={productTextareaClass} />
+      </div>
+    );
+
+    return (
+      <>
+        <ProductFormSection id="garmentConstruction" title="成衣结构" description="记录这件衣服的廓形、版型、部件结构和缝制工艺。" isDarkMode={isDarkMode}>
+          <TextField label="廓形" name="silhouette" value={profile?.silhouette} placeholder="例如 Single Breasted Jacket" />
+          <TextField label="版型" name="fit" value={profile?.fit} placeholder="Slim / Regular / Relaxed" />
+          <TextField label="领型" name="collarType" value={profile?.collarType} />
+          <TextField label="袖型" name="sleeveType" value={profile?.sleeveType} />
+          <TextField label="门襟 / 开合方式" name="closureType" value={profile?.closureType} />
+          <TextField label="口袋结构" name="pocketDetails" value={profile?.pocketDetails} />
+          <TextField label="下摆" name="hemDetails" value={profile?.hemDetails} />
+          <TextField label="腰头 / 袖口 / 裤脚" name="waistbandDetails" value={profile?.waistbandDetails} />
+          <TextField label="里布结构" name="liningStructure" value={profile?.liningStructure} placeholder="全里 / 半里 / 无里" />
+          <TextField label="衬布" name="interlining" value={profile?.interlining} />
+          <TextField label="垫肩 / 胸衬" name="shoulderPad" value={profile?.shoulderPad} />
+          <TextField label="缝制工艺" name="stitchDetails" value={profile?.stitchDetails} />
+          <TextAreaField label="结构备注" name="constructionNote" value={profile?.constructionNote} />
+        </ProductFormSection>
+
+        <ProductFormSection id="garmentMaterials" title="材料 BOM" description="关联或记录主面料、配布、辅料、包装和材料用量。" isDarkMode={isDarkMode}>
+          <TextField label="主面料" name="mainFabric" value={profile?.mainFabric} />
+          <TextField label="配布 / 撞色布" name="contrastFabric" value={profile?.contrastFabric} />
+          <TextField label="里布" name="liningFabric" value={profile?.liningFabric} />
+          <TextField label="罗纹 / 腰里" name="ribFabric" value={profile?.ribFabric} />
+          <TextField label="口袋布" name="pocketingFabric" value={profile?.pocketingFabric} />
+          <TextField label="扣子" name="button" value={profile?.button} />
+          <TextField label="拉链" name="zipper" value={profile?.zipper} />
+          <TextField label="按扣 / 鸡眼 / 绳扣" name="snapsEyelets" value={profile?.snapsEyelets} />
+          <TextField label="线" name="thread" value={profile?.thread} />
+          <TextField label="商标 / 洗标 / 吊牌" name="labelTrims" value={profile?.labelTrims} />
+          <TextField label="包装材料" name="packaging" value={profile?.packaging} />
+          <TextAreaField label="材料用量 / 部位 / 颜色 / 供应商" name="materialUsage" value={profile?.materialUsage} />
+          <TextAreaField label="替代材料" name="substituteMaterials" value={profile?.substituteMaterials} />
+        </ProductFormSection>
+
+        <ProductFormSection id="garmentSizing" title="尺码与量体" description="记录尺码范围、基准码、测量点、公差、放码和缩率预留。" isDarkMode={isDarkMode}>
+          <TextField label="尺码范围" name="sizeRange" value={profile?.sizeRange} placeholder="XS-XXL / 38-52 / Custom" />
+          <TextField label="基准码" name="baseSize" value={profile?.baseSize} />
+          <TextField label="成衣重量" name="garmentWeight" value={profile?.garmentWeight} />
+          <TextField label="缩率预留" name="shrinkageAllowance" value={profile?.shrinkageAllowance} />
+          <TextAreaField label="POM 测量点" name="measurementPoints" value={profile?.measurementPoints} placeholder="胸围、肩宽、衣长、袖长..." />
+          <TextAreaField label="尺码表" name="sizeSpec" value={profile?.sizeSpec} rows={4} />
+          <TextAreaField label="公差" name="tolerance" value={profile?.tolerance} />
+          <TextAreaField label="放码规则" name="gradingRule" value={profile?.gradingRule} />
+        </ProductFormSection>
+
+        <ProductFormSection id="garmentColors" title="颜色与 SKU" description="记录颜色组、客户色号、面料色号、条码、可用尺码和 MOQ。" isDarkMode={isDarkMode}>
+          <TextField label="颜色组" name="colorways" value={profile?.colorways} />
+          <TextField label="客户色号" name="customerColorCodes" value={profile?.customerColorCodes} />
+          <TextField label="面料色号" name="fabricColorCodes" value={profile?.fabricColorCodes} />
+          <TextField label="成衣 SKU" name="garmentSku" value={profile?.garmentSku} />
+          <TextField label="条码" name="barcode" value={profile?.barcode} />
+          <TextField label="可用尺码" name="availableSizes" value={profile?.availableSizes} />
+          <TextField label="MOQ / 起订量" name="moq" value={profile?.moq} />
+          <TextAreaField label="颜色图片备注" name="colorImageNotes" value={profile?.colorImageNotes} />
+        </ProductFormSection>
+
+        <ProductFormSection id="garmentDevelopment" title="开发与版本" description="记录样衣版本、试身意见、客户批注、负责人和技术包版本。" isDarkMode={isDarkMode}>
+          <TextField label="样衣版本号" name="sampleVersion" value={profile?.sampleVersion} />
+          <TextField label="版师" name="patternMaker" value={profile?.patternMaker} />
+          <TextField label="跟单" name="merchandiser" value={profile?.merchandiser} />
+          <TextField label="负责人" name="owner" value={profile?.owner} />
+          <TextField label="确认日期" name="confirmedDate" value={profile?.confirmedDate} placeholder="YYYY-MM-DD" />
+          <TextField label="技术包版本" name="techPackVersion" value={profile?.techPackVersion} />
+          <TextAreaField label="修改记录" name="revisionHistory" value={profile?.revisionHistory} rows={4} />
+          <TextAreaField label="试身意见" name="fittingComments" value={profile?.fittingComments} />
+          <TextAreaField label="客户批注意见" name="customerComments" value={profile?.customerComments} />
+        </ProductFormSection>
+
+        <ProductFormSection id="garmentProduction" title="生产、质量、商业" description="记录工厂、数量、交期、价格、检验标准、合规测试和包装方式。" isDarkMode={isDarkMode}>
+          <TextField label="工厂" name="factory" value={profile?.factory} />
+          <TextField label="订单数量" name="orderQuantity" value={profile?.orderQuantity} />
+          <TextField label="交期" name="deliveryDate" value={profile?.deliveryDate} />
+          <TextField label="目标成本" name="targetCost" value={profile?.targetCost} />
+          <TextField label="FOB" name="fobPrice" value={profile?.fobPrice} />
+          <TextField label="EXW" name="exwPrice" value={profile?.exwPrice} />
+          <TextField label="Retail" name="retailPrice" value={profile?.retailPrice} />
+          <TextField label="原产国" name="countryOfOrigin" value={profile?.countryOfOrigin} />
+          <TextAreaField label="检验标准" name="inspectionStandard" value={profile?.inspectionStandard} />
+          <TextAreaField label="常见疵点" name="commonDefects" value={profile?.commonDefects} />
+          <TextAreaField label="洗水 / 后整理" name="washFinishing" value={profile?.washFinishing} />
+          <TextAreaField label="洗标内容" name="careLabel" value={profile?.careLabel} />
+          <TextAreaField label="合规测试" name="complianceTests" value={profile?.complianceTests} />
+          <TextAreaField label="包装方式" name="packingMethod" value={profile?.packingMethod} />
+          <TextAreaField label="箱规" name="cartonSpec" value={profile?.cartonSpec} />
+          <TextAreaField label="质量备注" name="qualityNote" value={profile?.qualityNote} />
+        </ProductFormSection>
+      </>
+    );
+  };
+
+  const renderTrimmingProfileFields = (product?: ProductAsset | null) => {
+    if (!isTrimmingFormContext && product?.mainCategory !== 'Trimmings') return null;
+    const profile = product?.trimmingProfile;
+    const TextField = ({ label, name, value, placeholder }: { label: string; name: string; value?: string | number | null; placeholder?: string }) => (
+      <div className="space-y-2">
+        <label className={productLabelClass}>{label}</label>
+        <input defaultValue={value ?? ''} name={name} placeholder={placeholder} className={productInputClass} />
+      </div>
+    );
+    const TextAreaField = ({ label, name, value, rows = 3, wide = true, placeholder }: { label: string; name: string; value?: string | null; rows?: number; wide?: boolean; placeholder?: string }) => (
+      <div className={`${wide ? 'md:col-span-2' : ''} space-y-2`}>
+        <label className={productLabelClass}>{label}</label>
+        <textarea defaultValue={value || ''} name={name} rows={rows} placeholder={placeholder} className={productTextareaClass} />
+      </div>
+    );
+
+    return (
+      <>
+        <ProductFormSection id="trimmingSpecs" title="规格材质" description="记录辅料材质、规格、尺寸、颜色、表面处理和使用部位。" isDarkMode={isDarkMode}>
+          <TextField label="材质" name="material" value={profile?.material} placeholder="树脂 / 金属 / 聚酯 / 棉 / 无纺" />
+          <TextField label="规格" name="specification" value={profile?.specification} placeholder="四眼 / YKK 3# / 30D / 2cm" />
+          <TextField label="尺寸" name="size" value={profile?.size} />
+          <TextField label="颜色" name="color" value={profile?.color} />
+          <TextField label="色号" name="colorCode" value={profile?.colorCode} />
+          <TextField label="表面处理" name="finish" value={profile?.finish} placeholder="哑光 / 亮面 / 电镀 / 烫金" />
+          <TextField label="使用部位" name="usagePosition" value={profile?.usagePosition} placeholder="前门襟、袖口、腰头、内里、包装" />
+        </ProductFormSection>
+
+        <ProductFormSection id="trimmingSupply" title="供应采购" description="记录供应来源、采购单位、单件用量、起订量、交期、库存和单价。" isDarkMode={isDarkMode}>
+          <TextField label="供应商" name="supplier" value={profile?.supplier} />
+          <TextField label="工厂" name="factory" value={profile?.factory} />
+          <TextField label="采购单位" name="unit" value={profile?.unit} placeholder="pcs / m / roll / set" />
+          <TextField label="单件用量" name="unitConsumption" value={profile?.unitConsumption} placeholder="6 pcs / garment" />
+          <TextField label="MOQ" name="moq" value={profile?.moq} />
+          <TextField label="交期" name="leadTime" value={profile?.leadTime} placeholder="7 天 / 2 周" />
+          <TextField label="库存状态" name="stockStatus" value={profile?.stockStatus} />
+          <div className="space-y-2">
+            <label className={productLabelClass}>库存数量</label>
+            <div className="grid grid-cols-[1fr,96px] gap-2">
+              <input defaultValue={profile?.stockQuantity ?? ''} type="number" step="0.01" name="stockQuantity" className={productInputClass} />
+              <input defaultValue={profile?.stockUnit || profile?.unit || 'pcs'} name="stockUnit" className={productInputClass} />
+            </div>
           </div>
+          <TextField label="单价" name="price" value={profile?.price} />
+          <TextField label="币种" name="currency" value={profile?.currency || 'USD'} />
+        </ProductFormSection>
+
+        <ProductFormSection id="trimmingQuality" title="质量合规" description="记录测试要求、质量标准、风险、包装和洗护限制。" isDarkMode={isDarkMode}>
+          <TextAreaField label="合规测试" name="complianceTests" value={profile?.complianceTests} placeholder="OEKO-TEX、REACH、Nickel Free、色牢度..." />
+          <TextAreaField label="质量标准" name="qualityStandard" value={profile?.qualityStandard} />
+          <TextAreaField label="风险备注" name="riskNote" value={profile?.riskNote} />
+          <TextAreaField label="包装方式" name="packaging" value={profile?.packaging} />
+          <TextAreaField label="洗护要求" name="careRequirement" value={profile?.careRequirement} />
+        </ProductFormSection>
+
+        <ProductFormSection id="notes" title="备注" description="放不进结构字段、但业务上需要保留的辅料补充说明。" isDarkMode={isDarkMode}>
+          <TextAreaField label="特殊备注" name="notes" value={profile?.notes} rows={4} />
         </ProductFormSection>
       </>
     );
@@ -1768,27 +2552,40 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
     if (!selectedMain || !selectedSubId) return;
     if (!validateCompositionBeforeSave()) return;
     const formData = new FormData(e.currentTarget);
-    const id = `PROD-${Date.now().toString().slice(-6)}`;
-    const fabricProfile = buildFabricProfileFromForm(formData);
-    const sku = String(formData.get('sku') || '').trim();
-    const articleNo = String(formData.get('articleNo') || '').trim();
-    const subCategoryId = selectedSubId === ALL_PRODUCTS_CATEGORY_ID || selectedSubId === UNCATEGORIZED_CATEGORY_ID
-      ? 'uncategorized'
-      : selectedSubId;
-    const newItem: ProductAsset = {
-      id,
-      sku,
-      name: articleNo || sku,
-      mainCategory: selectedMain,
-      subCategoryId,
-      season: '',
-      cost: 0,
-      status: 'Development',
-      updatedAt: Date.now(),
-      fabricProfile: fabricProfile ? { ...fabricProfile, productAssetId: id } : undefined,
-    };
+	    const id = `PROD-${Date.now().toString().slice(-6)}`;
+	    const fabricProfile = buildFabricProfileFromForm(formData);
+	    const garmentProfile = buildGarmentProfileFromForm(formData);
+	    const trimmingProfile = buildTrimmingProfileFromForm(formData);
+	    const sku = String(formData.get('sku') || '').trim();
+	    const articleNo = String(formData.get('articleNo') || '').trim();
+	    const productName = String(formData.get('productName') || '').trim();
+	    const styleNo = String(formData.get('styleNo') || '').trim();
+	    const fallbackName = String(formData.get('name') || '').trim();
+	    const trimmingName = String(formData.get('trimmingName') || fallbackName).trim();
+	    const trimmingCode = String(formData.get('trimmingCode') || '').trim();
+	    const subCategoryId = selectedSubId === ALL_PRODUCTS_CATEGORY_ID || selectedSubId === UNCATEGORIZED_CATEGORY_ID
+	      ? 'uncategorized'
+	      : selectedSubId;
+	    const newItem: ProductAsset = {
+	      id,
+	      sku,
+	      name: selectedMain === 'Garment'
+	        ? (productName || styleNo || sku)
+	        : selectedMain === 'Trimmings'
+	          ? (trimmingName || trimmingCode || sku)
+	          : (articleNo || sku),
+	      mainCategory: selectedMain,
+	      subCategoryId,
+	      season: String(formData.get('season') || formData.get('collection') || '').trim(),
+	      cost: Number(formData.get('cost') || String(formData.get('targetCost') || '').replace(/[^\d.]/g, '') || 0),
+	      status: (String(formData.get('status') || '') as ProductAsset['status']) || (selectedMain === 'Garment' ? '开发样' : 'Development'),
+	      updatedAt: Date.now(),
+	      fabricProfile: fabricProfile ? { ...fabricProfile, productAssetId: id } : undefined,
+	      garmentProfile: garmentProfile ? { ...garmentProfile, productAssetId: id } : undefined,
+	      trimmingProfile: trimmingProfile ? { ...trimmingProfile, productAssetId: id } : undefined,
+	    };
     Object.assign(newItem, buildFabricRelatedDataFromForm(formData, id));
-    const payload = { ...newItem, fabricProfile: newItem.fabricProfile || undefined };
+    const payload = { ...newItem, fabricProfile: newItem.fabricProfile || undefined, garmentProfile: newItem.garmentProfile || undefined, trimmingProfile: newItem.trimmingProfile || undefined };
     setProductWriteError('');
     try {
       ensureOnlineWrite();
@@ -1804,23 +2601,40 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
     e.preventDefault();
     if (!editingProd) return;
     if (!validateCompositionBeforeSave()) return;
-    const formData = new FormData(e.currentTarget);
-    const sku = String(formData.get('sku') || editingProd.sku).trim();
-    const articleNo = String(formData.get('articleNo') || editingProd.fabricProfile?.articleNo || '').trim();
-    const updated: ProductAsset = {
-      ...editingProd,
-      sku,
-      name: articleNo || sku,
-      season: editingProd.season || '',
-      cost: editingProd.cost || 0,
-      status: editingProd.status || 'Development',
-      updatedAt: Date.now(),
-    };
+	    const formData = new FormData(e.currentTarget);
+	    const sku = String(formData.get('sku') || editingProd.sku).trim();
+	    const articleNo = String(formData.get('articleNo') || editingProd.fabricProfile?.articleNo || '').trim();
+	    const productName = String(formData.get('productName') || editingProd.garmentProfile?.productName || '').trim();
+	    const styleNo = String(formData.get('styleNo') || editingProd.garmentProfile?.styleNo || '').trim();
+	    const fallbackName = String(formData.get('name') || editingProd.name || '').trim();
+	    const trimmingName = String(formData.get('trimmingName') || editingProd.trimmingProfile?.trimmingName || fallbackName).trim();
+	    const trimmingCode = String(formData.get('trimmingCode') || editingProd.trimmingProfile?.trimmingCode || '').trim();
+	    const updated: ProductAsset = {
+	      ...editingProd,
+	      sku,
+	      name: editingProd.mainCategory === 'Garment'
+	        ? (productName || styleNo || sku)
+	        : editingProd.mainCategory === 'Trimmings'
+	          ? (trimmingName || trimmingCode || sku)
+	          : (articleNo || sku),
+	      season: String(formData.get('season') || formData.get('collection') || editingProd.season || '').trim(),
+	      cost: Number(formData.get('cost') || String(formData.get('targetCost') || '').replace(/[^\d.]/g, '') || editingProd.cost || 0),
+	      status: (String(formData.get('status') || '') as ProductAsset['status']) || editingProd.status || (editingProd.mainCategory === 'Garment' ? '开发样' : 'Development'),
+	      updatedAt: Date.now(),
+	    };
     const fabricProfile = buildFabricProfileFromForm(formData, updated);
-    if (fabricProfile) {
-      updated.fabricProfile = { ...fabricProfile, productAssetId: updated.id };
-    }
-    Object.assign(updated, buildFabricRelatedDataFromForm(formData, updated.id, updated));
+	    if (fabricProfile) {
+	      updated.fabricProfile = { ...fabricProfile, productAssetId: updated.id };
+	    }
+	    const garmentProfile = buildGarmentProfileFromForm(formData, updated);
+	    if (garmentProfile) {
+	      updated.garmentProfile = { ...garmentProfile, productAssetId: updated.id };
+	    }
+	    const trimmingProfile = buildTrimmingProfileFromForm(formData, updated);
+	    if (trimmingProfile) {
+	      updated.trimmingProfile = { ...trimmingProfile, productAssetId: updated.id };
+	    }
+	    Object.assign(updated, buildFabricRelatedDataFromForm(formData, updated.id, updated));
     const payload = {
       sku: updated.sku,
       name: updated.name,
@@ -1828,9 +2642,11 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
       subCategoryId: updated.subCategoryId,
       season: updated.season,
       cost: updated.cost,
-      status: updated.status,
-      fabricProfile: updated.fabricProfile || undefined,
-      fabricCustomerCodes: updated.fabricCustomerCodes,
+	      status: updated.status,
+	      fabricProfile: updated.fabricProfile || undefined,
+	      garmentProfile: updated.garmentProfile || undefined,
+	      trimmingProfile: updated.trimmingProfile || undefined,
+	      fabricCustomerCodes: updated.fabricCustomerCodes,
       fabricCertifications: updated.fabricCertifications,
       fabricPrices: updated.fabricPrices,
       compositionLines: updated.compositionLines,
@@ -1857,6 +2673,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         await apiService.deleteProductAsset(deleteProdId, cloudEndpoint);
         onUpdateProducts(products.map(p => p.id === deleteProdId ? tombstone : p), tombstone);
         setDeleteProdId(null);
+        setEditingProd(null);
+        setShowAddProdModal(false);
       } catch (error: any) {
         setProductWriteError(error?.message || String(error));
       }
@@ -1867,50 +2685,53 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
   const pdmlRawValue = (row: PdmlRawFabric, key: string) => String(row.rawData?.[key] ?? '').trim();
 
-  const productDetailOpen = !!selectedProduct;
-  const hideUnderlyingProductPage = fullscreenProductFormOpen || productDetailOpen;
+  const hideUnderlyingProductPage = fullscreenProductFormOpen;
   const productContentCanvasClass = isMobile ? 'w-full' : BAMBOOK_OS.layout.desktopPageCanvasClass;
 
   return (
-    <div className="w-full h-full flex flex-col bg-transparent overflow-visible">
+    <div
+      data-os-compiler-template={blueprint.template}
+      data-os-compiler-source={blueprint.source}
+      data-os-compiler-provenance={blueprint.provenance}
+      data-os-compiler-role="products-manager-full-contract"
+      data-os-compiler-edge-fade-source="PRODUCT_EDGE_FADE_*"
+      className="w-full h-full flex flex-col bg-transparent overflow-visible"
+    >
       {/* Primary Header - fixed, transparent title/navigation system. */}
       <PageHeader
         title="数字档案"
         subtitle="Digital Archive"
         isDarkMode={isDarkMode}
         hidden={hideUnderlyingProductPage}
-        safeLeftStyle={PRODUCT_TITLE_SAFE_LEFT_STYLE}
         breadcrumb={(
-          <>
-        <div className={`${PRODUCT_TITLE_NAV_GROUP_CLASS} shrink-0`}>
-          {navLevel !== 'main' && (
-            <SpotlightCard
-              spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-              spotlightSize={isDarkMode ? 180 : 140}
-              idleSpotlightOpacity={0}
-              activeSpotlightOpacity={1}
-              className={`${PRODUCT_TITLE_ICON_BUTTON_CLASS} ${productActionButtonClass}`}
-            >
-            <button
-              onClick={() => {
-                if (navLevel === 'list') {
-                  setNavLevel('sub');
-                  setSelectedSubId(id => (id === ALL_PRODUCTS_CATEGORY_ID ? null : id));
-                } else {
-                  setNavLevel('main');
-                }
-              }}
-              data-ui-lab-wallpaper-contrast="primary"
-              className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center"
-              aria-label="返回上一级"
-            >
-              <ChevronLeft size={18} strokeWidth={1} />
-            </button>
-            </SpotlightCard>
-          )}
-          <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {navLevel !== 'main' && (
+              <CompiledInteractiveCard
+                spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
+                spotlightSize={isDarkMode ? 180 : 140}
+                idleSpotlightOpacity={0}
+                activeSpotlightOpacity={1}
+                className={`${PRODUCT_TITLE_ICON_BUTTON_CLASS} ${productActionButtonClass}`}
+              >
+              <button
+                onClick={() => {
+                  if (navLevel === 'list') {
+                    setNavLevel('sub');
+                    setSelectedSubId(id => (id === ALL_PRODUCTS_CATEGORY_ID ? null : id));
+                  } else {
+                    setNavLevel('main');
+                  }
+                }}
+                data-ui-lab-wallpaper-contrast="primary"
+                className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center"
+                aria-label="返回上一级"
+              >
+                <ChevronLeft size={18} strokeWidth={1} />
+              </button>
+              </CompiledInteractiveCard>
+            )}
             {selectedMain && (
-              <>
+              <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
                 <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
                   <ChevronRight size={18} strokeWidth={1.4} />
                 </span>
@@ -1926,56 +2747,51 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 >
                   {mainCategories.find(c => c.id === selectedMain)?.label}
                 </button>
-              </>
-            )}
-            {navLevel === 'list' && selectedSubId && (
-              <>
-                <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
-                  <ChevronRight size={18} strokeWidth={1.4} />
-                </span>
-                <span data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} text-[var(--text-secondary)]`}>
-                  {selectedSubId === ALL_PRODUCTS_CATEGORY_ID
-                    ? '全部档案'
-                    : categoryGroups.find(group => group.id === selectedSubId)?.name || '列表'}
-                </span>
-              </>
+                {(navLevel === 'list' || navLevel === 'detail') && selectedSubId && (
+                  <>
+                    <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
+                      <ChevronRight size={18} strokeWidth={1.4} />
+                    </span>
+                    {navLevel === 'detail' ? (
+                      <button
+                        type="button"
+                        onClick={() => { setNavLevel('list'); setSelectedProduct(null); }}
+                        data-ui-lab-wallpaper-contrast="primary"
+                        className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} bg-transparent border-0 p-0 rounded-none shadow-none transition-colors text-[var(--text-secondary)] hover:text-[var(--os-vnext-brand-blue)]`}
+                      >
+                        {selectedSubId === ALL_PRODUCTS_CATEGORY_ID
+                          ? '全部档案'
+                          : categoryGroups.find(group => group.id === selectedSubId)?.name || '列表'}
+                      </button>
+                    ) : (
+                      <span data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} text-[var(--text-primary)]`}>
+                        {selectedSubId === ALL_PRODUCTS_CATEGORY_ID
+                          ? '全部档案'
+                          : categoryGroups.find(group => group.id === selectedSubId)?.name || '列表'}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
-        </div>
-          </>
         )}
         center={(
-          <>
-        <div className="mx-4 flex h-full min-w-0 flex-1 items-center justify-center">
+        <>
           {navLevel === 'sub' && renderClassificationTabBar(true)}
           {navLevel === 'list' && renderProductListToolbar(true)}
-        </div>
-          </>
+        </>
         )}
         actions={(
-          <>
-        <div className="flex h-full items-center gap-2 shrink-0">
+        <>
           {productWriteError && (
             <div className={`max-w-[280px] truncate text-[11px] font-light text-[var(--text-secondary)]`}>
               {productWriteError}
             </div>
           )}
-          {navLevel === 'sub' && (
-            <SpotlightCard
-              spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-              spotlightSize={isDarkMode ? 180 : 140}
-              idleSpotlightOpacity={0}
-              activeSpotlightOpacity={1}
-              className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass}`}
-            >
-            <button onClick={() => setshowAddSubModal(true)} data-ui-lab-wallpaper-contrast="primary" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2">
-              <FolderPlus size={14} strokeWidth={1} /> 新增子分类
-            </button>
-            </SpotlightCard>
-          )}
           {navLevel === 'list' && isPdmlRawView && (
             <>
-              <SpotlightCard
+              <CompiledInteractiveCard
                 spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                 spotlightSize={isDarkMode ? 180 : 140}
                 idleSpotlightOpacity={0}
@@ -1990,8 +2806,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 >
                   <RefreshCw size={14} strokeWidth={1} className={pdmlRawSyncing ? 'animate-spin' : ''} /> 同步庞大
                 </button>
-              </SpotlightCard>
-              <SpotlightCard
+              </CompiledInteractiveCard>
+              <CompiledInteractiveCard
                 spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                 spotlightSize={isDarkMode ? 180 : 140}
                 idleSpotlightOpacity={0}
@@ -2006,11 +2822,11 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 >
                   <RefreshCw size={14} strokeWidth={1} className={pdmlRawMapping ? 'animate-spin' : ''} /> 映射入档案
                 </button>
-              </SpotlightCard>
+              </CompiledInteractiveCard>
             </>
           )}
           {navLevel === 'list' && !isPdmlRawView && (
-            <SpotlightCard
+            <CompiledInteractiveCard
               spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
               spotlightSize={isDarkMode ? 180 : 140}
               idleSpotlightOpacity={0}
@@ -2020,21 +2836,23 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               <button onClick={() => setShowAddProdModal(true)} data-ui-lab-wallpaper-contrast="primary" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2">
                 <Plus size={14} strokeWidth={1} /> 录入档案
               </button>
-            </SpotlightCard>
+            </CompiledInteractiveCard>
           )}
-        </div>
-          </>
+        </>
         )}
       />
 
-      <div className={`${productContentCanvasClass} flex-1 overflow-visible ${hideUnderlyingProductPage ? 'hidden' : ''}`}>
+      <div className={`${productContentCanvasClass} flex-1 flex flex-col min-h-0 overflow-visible ${hideUnderlyingProductPage ? 'hidden' : ''}`}>
         {navLevel === 'main' && (
           <div className="relative h-full overflow-hidden">
-          <motion.div
+          <CompiledCollectionCardGrid
+            profile="category"
+            isMobile={isMobile}
+            overlapTitleBar={!isMobile}
+            paddingClassName={isMobile ? 'px-3 pt-5 pb-28' : 'px-5 pt-[104px] pb-5'}
             layout
             ref={mainCategoryScrollRef}
             transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION }}
-            className={`${isMobile ? `h-full overflow-y-scroll grid grid-cols-2 gap-3 px-3 pt-5 pb-28 content-start ${BAMBOOK_OS.layout.panelShadowViewportClass}` : `absolute -top-16 inset-x-0 bottom-0 overflow-y-scroll ${PRODUCT_CATEGORY_CARD_GRID_CLASS} ${BAMBOOK_OS.layout.panelShadowViewportClass} px-8 pt-[104px] pb-8`}`}
           >
             {mainCategories.map((cat, idx) => (
               <CompiledMotionInteractiveCard
@@ -2066,7 +2884,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                   {cat.desc}
                 </p>
 
-                <div className={`relative z-10 mt-auto flex items-center gap-2 pt-4 border-t w-full border-[var(--border-c-default)]`}>
+                <div className={`relative z-10 mt-auto flex items-center gap-2 pt-4 border-t w-full border-[var(--border-c-subtle)]`}>
                   <span className={`text-[9px] font-light tracking-wide flex items-center gap-1.5 text-[var(--text-tertiary)]`}>
                     <Library size={12} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue-strong)]" />
                     {products.filter(p => p.mainCategory === cat.id && !p.deletedAt).length} SKU 档案
@@ -2074,30 +2892,37 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 </div>
               </CompiledMotionInteractiveCard>
             ))}
-          </motion.div>
+          </CompiledCollectionCardGrid>
           </div>
         )}
 
         {navLevel === 'sub' && (
-          <div className={isMobile ? 'h-full overflow-visible px-3 pb-24 pt-5' : BAMBOOK_OS.layout.desktopTablePanelShellCompactClass}>
-            <motion.div
-              layout
-              transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION }}
-              className={`${productGlassPanelClass} overflow-hidden flex h-full min-h-0 flex-col`}
-            >
-              <div className={`hidden md:grid shrink-0 grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] items-center gap-5 border-b px-6 py-3 text-[10px] font-light tracking-wide border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
+          <CompiledTableShell
+            isDarkMode={isDarkMode}
+            scrollRef={subIndexScrollRef}
+            shellBaseClassName={`${isMobile ? 'h-full overflow-visible px-3 pb-24 pt-5' : BAMBOOK_OS.layout.desktopTablePanelShellCompactClass} flex-1 min-h-0 flex flex-col`}
+            panelClassName={`${productGlassPanelClass} overflow-hidden flex h-full min-h-0 flex-col`}
+            scrollClassName={`${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}
+            edgeFade={{
+              topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT,
+              topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START,
+              bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
+            }}
+            header={(
+              <div className={`hidden md:grid shrink-0 grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] items-center gap-5 border-b px-6 py-3 text-[10px] font-light tracking-wide border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>
                 <span>索引</span>
                 <span>档案</span>
                 <span>摘要</span>
                 <span className="text-right">操作</span>
               </div>
-              <div ref={subIndexScrollRef} className={`flex-1 min-h-0 overflow-y-scroll ${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}>
+            )}
+          >
                 {categoryGroups.length === 0 && (
                   <div className={`flex min-h-[360px] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
                     <Archive size={34} strokeWidth={1} className={'text-[var(--text-tertiary)]'} />
-                    <div className={`mt-4 text-sm font-light text-[var(--text-secondary)]`}>当前分类暂无索引</div>
+                    <div className={`mt-4 text-sm font-light text-[var(--text-primary)]`}>当前分类暂无索引</div>
                     <div className="mt-2 max-w-sm text-xs font-light leading-relaxed">
-                      这个主类目还没有子分类或可分组档案。可以新增子分类，或返回选择有数据的类目。
+                      这个主类目还没有子分类或可分组档案。请前往数字档案模块设置管理分类，或返回选择有数据的类目。
                     </div>
                   </div>
                 )}
@@ -2131,7 +2956,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     idleSpotlightOpacity={0}
                     liquidSpotlight
                     liquidSpotlightTone="light"
-                    className={`group relative isolate cursor-pointer overflow-hidden ${PRODUCT_SUB_INDEX_ROW_CLASS} px-4 py-0 text-left transition-[background,box-shadow,color,transform] duration-200 border-[var(--border-c-default)] hover:bg-[var(--hover-darken)]`}
+                    className={`group relative isolate cursor-pointer overflow-hidden ${PRODUCT_SUB_INDEX_ROW_CLASS} px-4 py-0 text-left transition-[background,box-shadow,color,transform] duration-200 border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
                     data-glass-edge-mask
                   >
                     <div className="relative z-10 grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] md:gap-5">
@@ -2152,7 +2977,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         <span className={`text-sm font-light text-[var(--text-primary)]`}>{group.count}</span>
                         <div className={`h-1 w-full overflow-hidden rounded-full bg-[var(--recessed-bg)]`}>
                           <span
-                            className={`block h-full rounded-full bg-[var(--os-vnext-brand-blue)]/45`}
+                            className={`block h-full rounded-full bg-[var(--os-vnext-brand-blue)]/50`}
                             style={{ width: `${Math.min(100, Math.max(4, ratio))}%` }}
                           />
                         </div>
@@ -2163,7 +2988,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       </p>
 
                       <div className="flex items-center justify-end gap-1">
-                        <span className={`md:hidden text-xs font-light text-[var(--text-secondary)]`}>{group.count}</span>
+                        <span className={`md:hidden text-xs font-light text-[var(--text-primary)]`}>{group.count}</span>
                         {editableCategory && (
                           <>
                             <button
@@ -2172,7 +2997,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                                 event.stopPropagation();
                                 setEditingSub(editableCategory);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`编辑${group.name}`}
                             >
                               <Edit2 size={13} strokeWidth={1.4} />
@@ -2183,30 +3008,28 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                                 event.stopPropagation();
                                 setDeleteSubId(editableCategory.id);
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`删除${group.name}`}
                             >
                               <Trash2 size={13} strokeWidth={1.4} />
                             </button>
                           </>
                         )}
-                        <ChevronRight size={16} strokeWidth={1.4} className={'text-[var(--text-tertiary)]'} />
+                        <ChevronRight size={16} strokeWidth={1.4} className="text-[var(--text-tertiary)]" />
                       </div>
                     </div>
                   </CompiledMotionInteractiveCard>
                 );
               })}
-              </div>
-            </motion.div>
-          </div>
+          </CompiledTableShell>
         )}
 
         {navLevel === 'list' && (
-          <div className="h-full flex flex-col">
+          <div className="flex-1 min-h-0 flex flex-col">
             {isPdmlRawView ? (
               <div className={BAMBOOK_OS.layout.desktopTablePanelShellClass}>
                 <div className={`flex h-full min-h-0 w-full flex-col rounded-card border overflow-hidden ${productGlassPanelClass}`}>
-                  <div className={`shrink-0 px-6 py-4 border-b border-[var(--border-c-default)]`}>
+                  <div className={`shrink-0 px-6 py-4 border-b border-[var(--border-c-subtle)]`}>
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
                         <div className={`text-sm font-light text-[var(--text-primary)]`}>庞大面料原始缓存</div>
@@ -2222,11 +3045,12 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       )}
                     </div>
                   </div>
-                  <ScrollEdgeFades
+                  <CompiledEdgeFade
                     scrollRef={pdmlRawScrollRef}
                     isDarkMode={isDarkMode}
                     variant="normal"
                     renderMode="content-mask"
+                    source="CompiledProductsPage.pdmlRawTable.edgeFade"
                     topHeight={PRODUCT_EDGE_FADE_TOP_HEIGHT}
                     topFadeStartOffset={PRODUCT_EDGE_FADE_TOP_START}
                     bottomHeight={PRODUCT_EDGE_FADE_BOTTOM_HEIGHT}
@@ -2252,7 +3076,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                           ))}
                         </tr>
                       </thead>
-                      <tbody className={`divide-y divide-white/28`}>
+                      <tbody className={`divide-y divide-[var(--border-c-subtle)]`}>
                         {currentPdmlRawFabrics.map(row => (
                           <tr key={row.id} className={`transition-[background,box-shadow] ${productTableRowHoverClass}`}>
                             <td className={`px-4 py-3 font-light whitespace-nowrap ${productTableCellBorderClass}`}>{row.sourceId}</td>
@@ -2289,11 +3113,12 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               </div>
             ) : listDisplayMode === 'grid' ? (
               <div className="relative flex-1 min-h-0 overflow-visible">
-              <motion.div
+              <CompiledCollectionCardGrid
+                profile="record"
+                paddingClassName="p-8"
                 layout
                 ref={productGridScrollRef}
                 transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION }}
-                className={`h-full overflow-y-scroll ${PRODUCT_CARD_GRID_CLASS} ${BAMBOOK_OS.layout.panelShadowViewportClass} p-8`}
               >
                 <AnimatePresence>
                   {currentProducts.map((product, idx) => (
@@ -2307,7 +3132,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       whileHover={{ y: -4, transition: { duration: 0.14, ease: [0.16, 1, 0.3, 1] } }}
                       transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION, delay: idx * 0.02 }}
                       key={product.id}
-                      onClick={() => setSelectedProduct(product)}
+                      onClick={() => { setSelectedProduct(product); setNavLevel('detail'); }}
                       spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                       spotlightSize={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_SIZE : PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE}
                       idleSpotlightOpacity={0}
@@ -2320,35 +3145,35 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                         <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
                           <Library size={22} strokeWidth={1} />
                         </div>
-                        <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(fabricCompleteness(product).complete)}`}>
-                          {fabricCompleteness(product).complete ? '完整' : `待补 ${fabricCompleteness(product).missing.length}`}
+                        <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(productCompleteness(product).complete)}`}>
+                          {productCompleteness(product).complete ? '完整' : `待补 ${productCompleteness(product).missing.length}`}
                         </span>
                       </div>
 
                       <h3 className={`relative z-10 text-base font-light line-clamp-1 text-[var(--text-primary)]`}>
                         {product.name}
                       </h3>
-                      <p className={`relative z-10 text-xs font-light mt-1 text-[var(--text-tertiary)]`}>
-                        {product.fabricProfile?.articleNo || product.sku}
-                      </p>
+	                      <p className={`relative z-10 text-xs font-light mt-1 text-[var(--text-tertiary)]`}>
+	                        {productCodeText(product)}
+	                      </p>
 
                       <div className="relative z-10 mt-3 space-y-1.5 flex-1 min-h-0">
                         <div className={`flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)]`}>
-                          <Tag size={12} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
-                          <span className="truncate">{product.fabricProfile?.millQuality || 'Mill Quality 未填'}</span>
+	                          <Tag size={12} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
+	                          <span className="truncate">{productCategoryText(product)}</span>
                         </div>
                         <div className={`flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)]`}>
                           <Box size={12} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
-                          <span className="truncate">{product.fabricProfile?.millOrganizationId || '供应商未填'}</span>
+	                          <span className="truncate">{productSupplierText(product)}</span>
                         </div>
                       </div>
 
-                      <div className={`relative z-10 mt-auto pt-3 border-t flex items-center justify-between gap-3 border-[var(--border-c-default)]`}>
+                      <div className={`relative z-10 mt-auto pt-3 border-t flex items-center justify-between gap-3 border-[var(--border-c-subtle)]`}>
                         <span className={`min-w-0 truncate text-[9px] font-light ${productMutedTextClass}`}>
-                          {clientCodeText(product)}
+	                          {productCustomerText(product)}
                         </span>
                         <span className={`shrink-0 text-[9px] font-light text-[var(--text-tertiary)]`}>
-                          {formatPrice(product, 'factory')}
+	                          {productFactoryPriceText(product)}
                         </span>
                       </div>
                     </CompiledMotionInteractiveCard>
@@ -2357,21 +3182,20 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 {currentProducts.length === 0 && (
                   <div className={`col-span-full flex min-h-[360px] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
                     <Archive size={34} strokeWidth={1} className={'text-[var(--text-tertiary)]'} />
-                    <div className={`mt-4 text-sm font-light text-[var(--text-secondary)]`}>当前视图下暂无档案</div>
+                    <div className={`mt-4 text-sm font-light text-[var(--text-primary)]`}>当前视图下暂无档案</div>
                     <div className="mt-2 max-w-sm text-xs font-light leading-relaxed">
                       可以调整筛选、切换分类方式，或点击右上角录入档案。
                     </div>
                   </div>
                 )}
-              </motion.div>
+              </CompiledCollectionCardGrid>
               </div>
             ) : (
               <CompiledTableShell
                 isDarkMode={isDarkMode}
                 scrollRef={productTableScrollRef}
-                shellBaseClassName={BAMBOOK_OS.layout.desktopTablePanelShellClass}
                 panelClassName={productGlassPanelClass}
-                edgeFade={{ topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT, topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START, bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT }}
+                edgeFade={blueprint.edgeFade}
                 header={(
                   <div className="shrink-0 overflow-hidden">
                     <div className={`flex w-full min-w-[1000px] text-left text-xs ${productTableHeaderClass} text-[var(--text-tertiary)]`}>
@@ -2382,16 +3206,16 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     </div>
                   </div>
                 )}
-                empty={currentProducts.length === 0 ? (
+                empty={currentProducts.length === 0 && (
                   <div className={`p-12 text-center text-sm ${productMutedTextClass}`}>当前视图下暂无档案</div>
-                ) : undefined}
+                )}
               >
-                <div className={`flex flex-col min-w-[1000px] text-left text-xs divide-y divide-white/28`}>
+                    <div className={`flex flex-col min-w-[1000px] text-left text-xs divide-y divide-[var(--border-c-subtle)]`}>
                       {currentProducts.map((product, idx) => (
                         <CompiledMotionInteractiveCard
                           as="div"
                           key={product.id}
-                          onClick={() => setSelectedProduct(product)}
+                          onClick={() => { setSelectedProduct(product); setNavLevel('detail'); }}
                           spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                           spotlightSize={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_SIZE : PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE}
                           idleSpotlightOpacity={0}
@@ -2414,7 +3238,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setEditingProd(product); }}
-                                className={`p-2 rounded-control ${BAMBOOK_OS.controls.table.editAction}`}
+                                className={`p-2 rounded-full ${BAMBOOK_OS.controls.table.editAction}`}
                                 aria-label="编辑档案"
                               >
                                 <Edit2 size={13} />
@@ -2422,7 +3246,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setDeleteProdId(product.id); }}
-                                className={`p-2 rounded-control ${BAMBOOK_OS.controls.table.editAction}`}
+                                className={`p-2 rounded-full ${BAMBOOK_OS.controls.table.editAction}`}
                                 aria-label="归档档案"
                               >
                                 <Trash2 size={13} />
@@ -2431,16 +3255,452 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                           </div>
                         </CompiledMotionInteractiveCard>
                       ))}
-                </div>
+                    </div>
               </CompiledTableShell>
             )}
           </div>
         )}
+      
+        {navLevel === 'detail' && selectedProduct && (
+        <div className={`h-full w-full min-h-0 flex overflow-visible relative ${isMobile ? 'pb-24' : 'bambook-main-panel-bottom-inset'}`}>
+          {/* 左侧产品列表面板 */}
+          <div className={`${BAMBOOK_OS.layout.relationsDetailListShellClass} hidden md:block`}>
+            <CompiledSurfacePanel
+              isDarkMode={isDarkMode}
+              className={BAMBOOK_OS.layout.relationsDetailListPanelClass}
+              contentClassName="relative z-10 flex min-h-0 flex-1 flex-col"
+              compilerRole="detail-sidebar-panel"
+              source="CompiledProductsPage.detail-sidebar"
+            >
+              <div className="px-4 pt-4 pb-3 shrink-0">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className={`text-[10px] font-light uppercase tracking-[0.2em] text-[var(--text-tertiary)]`}>
+                    {!selectedMain ? '全部产品' : (PRODUCT_MAIN_CATEGORY_DEFINITIONS.find(c => c.id === selectedMain)?.label || '产品列表')}
+                  </p>
+                  <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
+                    {sidebarProducts.length} 项
+                  </span>
+                </div>
+                
+                <div className="flex items-center">
+                  <div className="relative flex-1 min-w-0">
+                    <Search
+                      size={14}
+                      strokeWidth={1.5}
+                      className={`absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--text-tertiary)]`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="搜索目录..."
+                      value={sideSearchTerm}
+                      onChange={(e) => setSideSearchTerm(e.target.value)}
+                      className={`w-full h-9 pl-9 pr-[4.35rem] rounded-control text-xs font-light border outline-none transition-all ${BAMBOOK_OS.controls.recessedField.base}`}
+                    />
+                    {sideSearchTerm && (
+                      <button onClick={() => setSideSearchTerm('')} className={`absolute right-8 top-0 z-10 grid h-9 w-7 place-items-center p-0 leading-none transition-colors ${'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}>
+                        <X size={12} strokeWidth={1.5} className="block" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSideSortOption(prev => prev === 'recent' ? 'name' : 'recent')}
+                      title={sideSortOption === 'recent' ? '按名称排序' : '按近期更新排序'}
+                      className={`absolute right-1 top-1/2 z-10 grid h-8 w-7 -translate-y-1/2 place-items-center rounded-full p-0 leading-none transition-colors ${'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]'}`}
+                    >
+                      {sideSortOption === 'recent' ? <Clock size={13} className="block" /> : <ArrowDownAZ size={13} className="block" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <CompiledEdgeFade
+                scrollRef={productDetailSidebarScrollRef}
+                isDarkMode={isDarkMode}
+                renderMode="content-mask"
+                source="CompiledProductsPage.productDetailSidebar.edgeFade"
+                topHeight={40}
+                bottomHeight={52}
+              />
+              <div
+                ref={productDetailSidebarScrollRef}
+                data-os-compiler-role="product-detail-sidebar-scroll"
+                className={`bambook-product-detail-sidebar-scroll-viewport flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1 bambook-scrollbar ${BAMBOOK_OS.layout.panelShadowViewportClass}`}
+              >
+                {sidebarProducts.map((p) => {
+                  const isSelected = p.id === selectedProduct.id;
+                  const displayImages = getDisplayImages(p);
+                  const thumb = displayImages[0] ? getProductImageSrc(displayImages[0]) : null;
+                  const ProductAvatarIcon = PRODUCT_MAIN_CATEGORY_DEFINITIONS.find(category => category.id === p.mainCategory)?.icon || Box;
+                  
+                  const activeClass = SIDEBAR_ACTIVE_CLASS;
+                  const hoverClass = SIDEBAR_HOVER_CLASS;
+                  const pressClass = SIDEBAR_PRESS_CLASS;
+                  
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedProduct(p)}
+                      className={`w-full px-3 py-2.5 flex items-center gap-3 transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] relative isolate overflow-visible rounded-control 
+                        ${isSelected ? activeClass : `${hoverClass} ${pressClass}`}`}
+                    >
+                      {/* OS-level active shadow indicator if selected */}
+                      {isSelected && (
+                        <div className={`absolute inset-0 z-0 pointer-events-none rounded-control ${activeClass}`} />
+                      )}
+                      
+                      {thumb ? (
+                        <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[var(--border-c-subtle)] relative z-10">
+                          <img src={thumb} alt={p.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div
+                          className={`relative z-10 h-8 w-8 shrink-0 overflow-hidden rounded-full bg-[var(--os-vnext-brand-blue)]/12 text-[var(--os-vnext-brand-blue-strong)] shadow-none`}
+                          aria-label={`${p.name} 产品头像`}
+                        >
+                          <div className="grid h-full w-full place-items-center rounded-full">
+                            <ProductAvatarIcon size={14} strokeWidth={1.45} className="block" />
+                          </div>
+                          <div className={`pointer-events-none absolute inset-0 rounded-full ring-1 ring-[var(--border-c-subtle)]`} />
+                          <div className={`pointer-events-none absolute inset-0 rounded-full ${BAMBOOK_OS.material.panelSurface} opacity-55 mix-blend-soft-light`} />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0 text-left relative z-10">
+	                        <p className={`font-light text-sm truncate text-[var(--text-primary)]`}>{productCodeText(p) || p.name}</p>
+                        <p className={`text-[10px] font-light uppercase tracking-wider truncate ${isSelected ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>{p.sku}</p>
+                      </div>
+                      {isSelected && <ChevronRight size={14} className={`relative z-10 ${BAMBOOK_OS.tone.text.brandEmphasis}`} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </CompiledSurfacePanel>
+          </div>
+
+          <div className={BAMBOOK_OS.layout.relationsDetailMainShellClass}>
+            <CompiledDetailShell
+              isDarkMode={isDarkMode}
+              className={`h-full flex flex-col rounded-card shadow-none overflow-hidden ${OS_MATERIAL.raisedCard}`}
+              contentClassName="relative z-10 flex min-h-0 flex-1 flex-col"
+              role="product-detail-panel"
+              source="CompiledProductsPage.product-detail-panel"
+            >
+              {/* 1. Header (模仿 Relations DetailPanel) */}
+              <div className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${BAMBOOK_OS.tone.divider.panel}`}>
+                <div className="flex items-center gap-4 min-w-0">
+                  <button
+                    onClick={() => setSelectedProduct(null)}
+                    className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-colors ${'text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]'}`}
+                  >
+                    <ChevronLeft size={18} strokeWidth={1.5} />
+                  </button>
+                  <div className="flex-1 min-w-0 flex items-center gap-3">
+                    <Library size={22} strokeWidth={1.5} className={BAMBOOK_OS.tone.text.brandEmphasis} />
+                    <h2 className={`text-lg font-light truncate ${'text-[var(--text-primary)]'}`}>
+                      {selectedProduct.name}
+                    </h2>
+                    <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-light tracking-wide ${productStatusChipClass(selectedProduct.status === 'Active')}`}>
+                      {selectedProduct.status}
+                    </span>
+                    <span className={`text-xs font-light text-[var(--text-tertiary)]`}>
+                      {selectedProduct.sku}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { setEditingProd(selectedProduct); setSelectedProduct(null); }}
+                    className={`h-8 px-4 rounded-full border text-xs font-light flex items-center justify-center transition-colors ${BAMBOOK_OS.controls.actionControl.bordered}`}
+                  >
+                    <Edit2 size={13} className="mr-1.5" /> 编辑
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Scrollable Body */}
+              <CompiledEdgeFade
+                scrollRef={productDetailBodyScrollRef}
+                isDarkMode={isDarkMode}
+                renderMode="content-mask"
+                source="CompiledProductsPage.productDetailBody.edgeFade"
+                topHeight={56}
+                bottomHeight={72}
+              />
+              <div
+                ref={productDetailBodyScrollRef}
+                data-os-compiler-role="product-detail-body-scroll"
+                className={`flex-1 min-h-0 overflow-y-auto px-6 py-8 bambook-scrollbar ${BAMBOOK_OS.layout.panelShadowViewportClass}`}
+              >
+                <div className="max-w-[720px] mx-auto space-y-6">
+                  
+                  {/* 图片相册区域 (Image Gallery) */}
+                  {(() => {
+                    const displayImages = getDisplayImages(selectedProduct);
+                    if (displayImages.length === 0) {
+                      return (
+                        <div className="w-full flex gap-3 pb-4">
+                          <div className={`w-[320px] h-[320px] sm:w-[360px] sm:h-[360px] rounded-card border border-dashed flex flex-col items-center justify-center gap-4 border-[var(--border-c-subtle)] text-[var(--text-tertiary)] bg-[var(--recessed-bg)]`}>
+                            <ImageIcon size={48} strokeWidth={1} />
+                            <div className="text-sm font-light tracking-wide">暂无产品图片</div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="w-full flex gap-4 overflow-x-auto pb-6 snap-x hide-scrollbar">
+                        {displayImages.map((img, idx) => {
+                          const src = getProductImageSrc(img);
+                          return (
+                            <div key={img.id} className={`shrink-0 snap-start ${idx === 0 ? 'w-[320px] h-[320px] sm:w-[360px] sm:h-[360px]' : 'w-[200px] h-[200px] mt-auto'} rounded-card overflow-hidden border shadow-none border-[var(--border-c-subtle)] ${OS_MATERIAL.insetSurface}`}>
+                              {src && <img src={src} className="w-full h-full object-cover transition-transform hover:scale-105 duration-300" alt={img.fileName || 'Product Image'} />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 完成度状态 (Completeness Status) */}
+                  {(selectedProduct.mainCategory === 'Fabric' || selectedProduct.mainCategory === 'Garment' || selectedProduct.mainCategory === 'Trimmings') && (
+                    <div className={`rounded-inset p-5 ${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
+                      <div className={`text-xs font-light flex items-center gap-2 ${productCompleteness(selectedProduct).complete ? 'text-[var(--os-vnext-brand-blue-strong)]' : 'text-[var(--text-tertiary)]'}`}>
+                        {productCompleteness(selectedProduct).complete ? <CheckCircle2 size={16} strokeWidth={1.5} /> : <AlertTriangle size={16} strokeWidth={1.5} />}
+                        {productCompleteness(selectedProduct).complete ? '核心档案信息已完整' : `核心档案待补全：缺 ${productCompleteness(selectedProduct).missing.length} 项`}
+                      </div>
+                      <div className={`mt-4 h-1.5 rounded-full overflow-hidden bg-[var(--recessed-bg-strong)]`}>
+                        <div
+                          className="h-full rounded-full bg-[var(--os-vnext-brand-blue)]"
+                          style={{ width: `${productCompleteness(selectedProduct).percent}%` }}
+                        />
+                      </div>
+                      {!productCompleteness(selectedProduct).complete && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {productCompleteness(selectedProduct).missing.map(label => (
+                            <span key={label} className={`px-2.5 py-1 rounded-full border text-[10px] font-light ${BAMBOOK_OS.tone.chip.subtle}`}>
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+	                  {/* 信息区域 (Detail Sections) */}
+	                  {selectedProduct.mainCategory === 'Garment' ? (
+	                    <>
+	                      <DetailSection title="基础身份" icon={<Tag size={14} />}>
+	                        <DetailItem label="SKU" value={selectedProduct.sku} />
+	                        <DetailItem label="款号" value={selectedProduct.garmentProfile?.styleNo} />
+	                        <DetailItem label="成衣名称" value={selectedProduct.garmentProfile?.productName || selectedProduct.name} />
+	                        <DetailItem label="品类" value={selectedProduct.garmentProfile?.garmentCategory} />
+	                        <DetailItem label="系列" value={selectedProduct.garmentProfile?.collection || selectedProduct.season} />
+	                        <DetailItem label="客户" value={selectedProduct.garmentProfile?.customer} />
+	                        <DetailItem label="品牌" value={selectedProduct.garmentProfile?.brand} />
+	                        <DetailItem label="项目" value={selectedProduct.garmentProfile?.project} />
+	                        <DetailItem label="性别 / 年龄段" value={[selectedProduct.garmentProfile?.gender, selectedProduct.garmentProfile?.ageGroup].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="标签" value={selectedProduct.garmentProfile?.tags} wide />
+	                      </DetailSection>
+	                      <DetailSection title="成衣结构" icon={<Shirt size={14} />}>
+	                        <DetailItem label="廓形" value={selectedProduct.garmentProfile?.silhouette} />
+	                        <DetailItem label="版型" value={selectedProduct.garmentProfile?.fit} />
+	                        <DetailItem label="领型" value={selectedProduct.garmentProfile?.collarType} />
+	                        <DetailItem label="袖型" value={selectedProduct.garmentProfile?.sleeveType} />
+	                        <DetailItem label="门襟 / 开合" value={selectedProduct.garmentProfile?.closureType} />
+	                        <DetailItem label="口袋" value={selectedProduct.garmentProfile?.pocketDetails} />
+	                        <DetailItem label="下摆" value={selectedProduct.garmentProfile?.hemDetails} />
+	                        <DetailItem label="腰头 / 袖口 / 裤脚" value={selectedProduct.garmentProfile?.waistbandDetails} />
+	                        <DetailItem label="里布结构" value={selectedProduct.garmentProfile?.liningStructure} />
+	                        <DetailItem label="衬布 / 垫肩" value={[selectedProduct.garmentProfile?.interlining, selectedProduct.garmentProfile?.shoulderPad].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="缝制工艺" value={selectedProduct.garmentProfile?.stitchDetails} wide />
+	                        <DetailItem label="结构备注" value={selectedProduct.garmentProfile?.constructionNote} wide />
+	                      </DetailSection>
+	                      <DetailSection title="材料 BOM" icon={<Layers size={14} />}>
+	                        <DetailItem label="主面料" value={selectedProduct.garmentProfile?.mainFabric} />
+	                        <DetailItem label="配布" value={selectedProduct.garmentProfile?.contrastFabric} />
+	                        <DetailItem label="里布" value={selectedProduct.garmentProfile?.liningFabric} />
+	                        <DetailItem label="罗纹 / 腰里" value={selectedProduct.garmentProfile?.ribFabric} />
+	                        <DetailItem label="口袋布" value={selectedProduct.garmentProfile?.pocketingFabric} />
+	                        <DetailItem label="扣子 / 拉链" value={[selectedProduct.garmentProfile?.button, selectedProduct.garmentProfile?.zipper].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="小五金 / 线" value={[selectedProduct.garmentProfile?.snapsEyelets, selectedProduct.garmentProfile?.thread].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="商标 / 包装" value={[selectedProduct.garmentProfile?.labelTrims, selectedProduct.garmentProfile?.packaging].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="材料用量" value={selectedProduct.garmentProfile?.materialUsage} wide />
+	                        <DetailItem label="替代材料" value={selectedProduct.garmentProfile?.substituteMaterials} wide />
+	                      </DetailSection>
+	                      <DetailSection title="尺码与颜色" icon={<FileText size={14} />}>
+	                        <DetailItem label="尺码范围" value={selectedProduct.garmentProfile?.sizeRange} />
+	                        <DetailItem label="基准码" value={selectedProduct.garmentProfile?.baseSize} />
+	                        <DetailItem label="成衣重量" value={selectedProduct.garmentProfile?.garmentWeight} />
+	                        <DetailItem label="缩率预留" value={selectedProduct.garmentProfile?.shrinkageAllowance} />
+	                        <DetailItem label="POM 测量点" value={selectedProduct.garmentProfile?.measurementPoints} wide />
+	                        <DetailItem label="尺码表" value={selectedProduct.garmentProfile?.sizeSpec} wide />
+	                        <DetailItem label="公差" value={selectedProduct.garmentProfile?.tolerance} />
+	                        <DetailItem label="放码规则" value={selectedProduct.garmentProfile?.gradingRule} />
+	                        <DetailItem label="颜色组" value={selectedProduct.garmentProfile?.colorways} />
+	                        <DetailItem label="客户色号" value={selectedProduct.garmentProfile?.customerColorCodes} />
+	                        <DetailItem label="面料色号" value={selectedProduct.garmentProfile?.fabricColorCodes} />
+	                        <DetailItem label="成衣 SKU / 条码" value={[selectedProduct.garmentProfile?.garmentSku, selectedProduct.garmentProfile?.barcode].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="可用尺码 / MOQ" value={[selectedProduct.garmentProfile?.availableSizes, selectedProduct.garmentProfile?.moq].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="颜色图片备注" value={selectedProduct.garmentProfile?.colorImageNotes} wide />
+	                      </DetailSection>
+	                      <DetailSection title="开发与版本" icon={<Clock size={14} />}>
+	                        <DetailItem label="样衣版本号" value={selectedProduct.garmentProfile?.sampleVersion} />
+	                        <DetailItem label="版师" value={selectedProduct.garmentProfile?.patternMaker} />
+	                        <DetailItem label="跟单" value={selectedProduct.garmentProfile?.merchandiser} />
+	                        <DetailItem label="负责人" value={selectedProduct.garmentProfile?.owner} />
+	                        <DetailItem label="确认日期" value={selectedProduct.garmentProfile?.confirmedDate} />
+	                        <DetailItem label="技术包版本" value={selectedProduct.garmentProfile?.techPackVersion} />
+	                        <DetailItem label="修改记录" value={selectedProduct.garmentProfile?.revisionHistory} wide />
+	                        <DetailItem label="试身意见" value={selectedProduct.garmentProfile?.fittingComments} wide />
+	                        <DetailItem label="客户批注意见" value={selectedProduct.garmentProfile?.customerComments} wide />
+	                      </DetailSection>
+	                      <DetailSection title="生产质量商业" icon={<ShieldCheck size={14} />}>
+	                        <DetailItem label="工厂" value={selectedProduct.garmentProfile?.factory} />
+	                        <DetailItem label="订单数量" value={selectedProduct.garmentProfile?.orderQuantity} />
+	                        <DetailItem label="交期" value={selectedProduct.garmentProfile?.deliveryDate} />
+	                        <DetailItem label="目标成本 / FOB" value={[selectedProduct.garmentProfile?.targetCost, selectedProduct.garmentProfile?.fobPrice].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="EXW / Retail" value={[selectedProduct.garmentProfile?.exwPrice, selectedProduct.garmentProfile?.retailPrice].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="原产国" value={selectedProduct.garmentProfile?.countryOfOrigin} />
+	                        <DetailItem label="检验标准" value={selectedProduct.garmentProfile?.inspectionStandard} wide />
+	                        <DetailItem label="常见疵点" value={selectedProduct.garmentProfile?.commonDefects} wide />
+	                        <DetailItem label="洗水 / 后整理" value={selectedProduct.garmentProfile?.washFinishing} wide />
+	                        <DetailItem label="洗标内容" value={selectedProduct.garmentProfile?.careLabel} wide />
+	                        <DetailItem label="合规测试" value={selectedProduct.garmentProfile?.complianceTests} wide />
+	                        <DetailItem label="包装方式 / 箱规" value={[selectedProduct.garmentProfile?.packingMethod, selectedProduct.garmentProfile?.cartonSpec].filter(Boolean).join('\n')} wide />
+	                        <DetailItem label="质量备注" value={selectedProduct.garmentProfile?.qualityNote} wide />
+	                      </DetailSection>
+	                    </>
+	                  ) : selectedProduct.mainCategory === 'Trimmings' ? (
+	                    <>
+	                      <DetailSection title="基础识别" icon={<Tag size={14} />}>
+	                        <DetailItem label="SKU" value={selectedProduct.sku} />
+	                        <DetailItem label="辅料编号" value={selectedProduct.trimmingProfile?.trimmingCode} />
+	                        <DetailItem label="辅料名称" value={selectedProduct.trimmingProfile?.trimmingName || selectedProduct.name} />
+	                        <DetailItem label="辅料类别" value={selectedProduct.trimmingProfile?.trimmingCategory} />
+	                        <DetailItem label="客户 / 品牌" value={[selectedProduct.trimmingProfile?.customer, selectedProduct.trimmingProfile?.brand].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="适用款式" value={selectedProduct.trimmingProfile?.applicableProducts} wide />
+	                      </DetailSection>
+	                      <DetailSection title="规格材质" icon={<Scissors size={14} />}>
+	                        <DetailItem label="材质" value={selectedProduct.trimmingProfile?.material} />
+	                        <DetailItem label="规格" value={selectedProduct.trimmingProfile?.specification} />
+	                        <DetailItem label="尺寸" value={selectedProduct.trimmingProfile?.size} />
+	                        <DetailItem label="颜色 / 色号" value={[selectedProduct.trimmingProfile?.color, selectedProduct.trimmingProfile?.colorCode].filter(Boolean).join(' / ')} />
+	                        <DetailItem label="表面处理" value={selectedProduct.trimmingProfile?.finish} />
+	                        <DetailItem label="使用部位" value={selectedProduct.trimmingProfile?.usagePosition} />
+	                      </DetailSection>
+	                      <DetailSection title="供应采购" icon={<Box size={14} />}>
+	                        <DetailItem label="供应商" value={selectedProduct.trimmingProfile?.supplier} />
+	                        <DetailItem label="工厂" value={selectedProduct.trimmingProfile?.factory} />
+	                        <DetailItem label="单位" value={selectedProduct.trimmingProfile?.unit} />
+	                        <DetailItem label="单件用量" value={selectedProduct.trimmingProfile?.unitConsumption} />
+	                        <DetailItem label="MOQ" value={selectedProduct.trimmingProfile?.moq} />
+	                        <DetailItem label="交期" value={selectedProduct.trimmingProfile?.leadTime} />
+	                        <DetailItem label="库存状态" value={selectedProduct.trimmingProfile?.stockStatus} />
+	                        <DetailItem label="库存数量" value={formatMeasure(selectedProduct.trimmingProfile?.stockQuantity, selectedProduct.trimmingProfile?.stockUnit)} />
+	                        <DetailItem label="单价" value={[selectedProduct.trimmingProfile?.currency, selectedProduct.trimmingProfile?.price].filter(Boolean).join(' ')} />
+	                      </DetailSection>
+	                      <DetailSection title="质量合规" icon={<ShieldCheck size={14} />}>
+	                        <DetailItem label="合规测试" value={selectedProduct.trimmingProfile?.complianceTests} wide />
+	                        <DetailItem label="质量标准" value={selectedProduct.trimmingProfile?.qualityStandard} wide />
+	                        <DetailItem label="风险备注" value={selectedProduct.trimmingProfile?.riskNote} wide />
+	                        <DetailItem label="包装方式" value={selectedProduct.trimmingProfile?.packaging} wide />
+	                        <DetailItem label="洗护要求" value={selectedProduct.trimmingProfile?.careRequirement} wide />
+	                        <DetailItem label="备注" value={selectedProduct.trimmingProfile?.notes} wide />
+	                      </DetailSection>
+	                    </>
+	                  ) : (
+	                    <>
+	                      <DetailSection title="基础识别" icon={<Tag size={14} />}>
+	                        <DetailItem label="SKU" value={selectedProduct.sku} />
+	                        <DetailItem label="Article No." value={selectedProduct.fabricProfile?.articleNo} />
+	                        <DetailItem label="供应商 / 生产工厂" value={selectedProduct.fabricProfile?.millOrganizationId} />
+	                        <DetailItem label="Mill Quality" value={selectedProduct.fabricProfile?.millQuality} />
+	                        <DetailItem label="Col." value={selectedProduct.fabricProfile?.millColorCode} />
+	                        <DetailItem label="Description" value={selectedProduct.fabricProfile?.colorDescription} wide />
+	                        <DetailItem label="Client Code" value={(selectedProduct.fabricCustomerCodes || []).map(item => item.clientCode).join(', ')} wide />
+	                      </DetailSection>
+	                      <DetailSection title="规格参数" icon={<Layers size={14} />}>
+	                        <DetailItem label="成分" value={(selectedProduct.compositionLines || []).map(line => `${line.percentage}% ${line.term?.chineseName || line.term?.englishName || line.termId}`).join(' + ')} wide />
+	                        <DetailItem label="克重" value={formatMeasure(selectedProduct.fabricProfile?.weightValue, selectedProduct.fabricProfile?.weightUnit)} />
+	                        <DetailItem label="门幅" value={formatWidth(selectedProduct.fabricProfile)} />
+	                        <DetailItem label="组织" value={selectedProduct.fabricProfile?.construction} />
+	                        <DetailItem label="纱支" value={selectedProduct.fabricProfile?.yarnCount} />
+	                        <DetailItem label="花型" value={selectedProduct.fabricProfile?.pattern} />
+	                        <DetailItem label="生产周期" value={selectedProduct.fabricProfile?.productionLeadDays ? `${selectedProduct.fabricProfile.productionLeadDays} 天` : undefined} />
+	                      </DetailSection>
+	                      <DetailSection title="价格与库存" icon={<DollarSign size={14} />}>
+	                        <DetailItem label="工厂价格" value={formatPrice(selectedProduct, 'factory')} />
+	                        <DetailItem label="售价" value={formatPrice(selectedProduct, 'customer')} />
+	                        <DetailItem label="现货状态" value={selectedProduct.fabricProfile?.stockStatus} />
+	                        <DetailItem label="现货数量" value={formatMeasure(selectedProduct.fabricProfile?.stockQuantity, selectedProduct.fabricProfile?.stockUnit)} />
+	                        <DetailItem label="起订量" value={selectedProduct.fabricProfile?.moqValue} />
+	                        <DetailItem label="工厂起订量" value={selectedProduct.fabricProfile?.factoryMoqValue} />
+	                        <DetailItem label="试样起订量" value={selectedProduct.fabricProfile?.sampleMoqValue} />
+                      </DetailSection>
+                      {/* F4 价格生命周期：价格历史时间线（PRD 19.17 面料 360° 价格历史 Tab） */}
+                      <section className="space-y-3">
+                        <h4 className={`text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>价格历史</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {(['factory', 'customer'] as const).map(type => (
+                            <div key={type} className={PRODUCT_DETAIL_HISTORY_PANEL_CLASS}>
+                              <div className={`text-[10px] font-light tracking-wide mb-3 text-[var(--text-tertiary)]`}>
+                                {type === 'factory' ? '工厂价格历史' : '售价历史'}
+                              </div>
+                              <div className="space-y-2">
+                                {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
+                                  <div key={price.id} className={`rounded-control px-3 py-2 bg-[var(--recessed-bg)]`}>
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className={`text-xs font-light ${'text-[var(--text-primary)]'}`}>
+                                        {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
+                                      </span>
+                                      <span className={`text-[10px] text-[var(--text-tertiary)]`}>
+                                        {price.effectiveDate || new Date(price.updatedAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    {(price.note || price.sourceType) && (
+                                      <div className={`mt-1 text-[10px] font-light text-[var(--text-tertiary)]`}>
+                                        {[price.sourceType === 'order' ? '订单回溯' : price.sourceType === 'sample' ? '样品' : price.sourceType === 'manual' ? '手工录入' : null, price.note].filter(Boolean).join(' · ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                )) : (
+                                  <div className={`text-xs text-[var(--text-tertiary)]`}>暂无历史价格</div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                      <DetailSection title="生产追溯与风险" icon={<ShieldCheck size={14} />}>
+	                        <DetailItem label="标样批号" value={selectedProduct.fabricProfile?.referenceBatch} />
+	                        <DetailItem label="认证许可" value={certificationText(selectedProduct)} wide />
+	                        <DetailItem label="品质风险" value={selectedProduct.fabricProfile?.riskNote} wide />
+	                        <DetailItem label="特殊备注" value={selectedProduct.fabricProfile?.specialNote} wide />
+	                      </DetailSection>
+	                      <div className="pt-2">
+	                        <RelatedOrders productId={selectedProduct.id} millQuality={selectedProduct.fabricProfile?.millQuality} cloudEndpoint={cloudEndpoint} isDarkMode={isDarkMode} />
+	                      </div>
+	                    </>
+	                  )}
+
+	                  {/* 跨模块关联视图（EntityLink 图谱）— 开发案/BOM/订单行等 */}
+	                  <div className="pt-2">
+	                    <RelatedEntitiesPanel
+	                      type="product"
+	                      id={selectedProduct.id}
+	                      isDarkMode={isDarkMode}
+	                      title="产品关联视图"
+	                    />
+	                  </div>
+
+                </div>
+              </div>
+            </CompiledDetailShell>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Mobile Options Sheet */}
       {isMobile && (
-        <BottomSheet
+        <CompiledBottomSheet
           isOpen={!!showOptionsSheet}
           onClose={() => setShowOptionsSheet(null)}
           title={showOptionsSheet?.name || 'Item Options'}
@@ -2450,243 +3710,47 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           <div className="space-y-4 py-4">
             <button
               onClick={() => { if (showOptionsSheet) { setEditingProd(showOptionsSheet); setShowOptionsSheet(null); } }}
-              className={`w-full p-4 rounded-full flex items-center gap-4 text-left font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}
+              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${'bg-[var(--recessed-bg)] text-[var(--text-secondary)]'}`}
             >
               <Edit2 size={18} /> 编辑产品信息
             </button>
             <button
               onClick={() => { if (showOptionsSheet) { setDeleteProdId(showOptionsSheet.id); setShowOptionsSheet(null); } }}
-              className={`w-full p-4 rounded-full flex items-center gap-4 text-left font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}
+              className={`w-full p-4 rounded-inset flex items-center gap-4 text-left font-light ${'text-[var(--text-secondary)] bg-[var(--recessed-bg)]'}`}
             >
               <Trash2 size={18} /> 归档此产品
             </button>
           </div>
-        </BottomSheet>
+        </CompiledBottomSheet>
       )}
 
-      {selectedProduct && (
-        <div
-          className="absolute inset-0 z-[80] flex items-center justify-center p-6 bg-transparent"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedProduct(null);
-          }}
-        >
-          <CompiledSurfacePanel
-            materialRole="framePanel"
-            spotlight
-            isDarkMode={isDarkMode}
-            className={`${PRODUCT_DETAIL_PANEL_LAYOUT_CLASS} text-[var(--text-primary)]`}
-            contentClassName={PRODUCT_DETAIL_PANEL_CONTENT_CLASS}
-            data-os-compiler-role="product-detail-panel"
-          >
-            <div
-              className={`${PRODUCT_DETAIL_MEDIA_PANEL_CLASS} border-r border-[var(--border-c-default)]`}
-              data-os-compiler-role="product-detail-media-panel"
-            >
-              {(() => {
-                const displayImages = getDisplayImages(selectedProduct);
-                const primaryImage = displayImages[0];
-                const primaryImageSrc = primaryImage ? getProductImageSrc(primaryImage) : '';
-                return (
-                  <>
-                    <div className={PRODUCT_DETAIL_MEDIA_FRAME_CLASS}>
-                      {primaryImageSrc ? (
-                        <img src={primaryImageSrc} alt={primaryImage?.fileName || selectedProduct.name} className="absolute inset-0 h-full w-full object-cover" />
-                      ) : (
-                        <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center text-[var(--text-tertiary)]`}>
-                          <ImageIcon size={34} strokeWidth={1.3} />
-                          <div className="text-xs font-light leading-relaxed">
-                            暂无产品图片
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={PRODUCT_DETAIL_MEDIA_META_CLASS}>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full border text-[10px] font-light tracking-wide ${productStatusChipClass(selectedProduct.status === 'Active')}`}>
-                          {selectedProduct.status}
-                        </span>
-                        <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>{selectedProduct.mainCategory}</span>
-                      </div>
-                      <h3 className={`mt-4 text-xl font-light leading-tight tracking-tight text-[var(--text-primary)]`}>
-                        {selectedProduct.name}
-                      </h3>
-                      <div className={`mt-3 flex items-center gap-2 text-xs text-[var(--text-tertiary)]`}>
-                        <Tag size={13} strokeWidth={1.5} />
-                        <span className="min-w-0 truncate">{selectedProduct.sku}</span>
-                      </div>
-                      <p className={`mt-2 text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>
-                        {selectedProduct.fabricProfile?.colorDescription || selectedProduct.fabricProfile?.millQuality || selectedProduct.subCategoryId || '产品详情档案'}
-                      </p>
-                    </div>
-
-                    {selectedProduct.mainCategory === 'Fabric' && (
-                      <div className={PRODUCT_DETAIL_STATUS_PANEL_CLASS}>
-                        <div className={`text-xs font-light flex items-center gap-2 ${fabricCompleteness(selectedProduct).complete ? 'text-[var(--os-vnext-brand-blue-strong)]' : productMutedTextClass}`}>
-                          {fabricCompleteness(selectedProduct).complete ? <CheckCircle2 size={16} strokeWidth={1.5} /> : <AlertTriangle size={16} strokeWidth={1.5} />}
-                          {fabricCompleteness(selectedProduct).complete ? '核心档案信息已完整' : `核心档案待补全：缺 ${fabricCompleteness(selectedProduct).missing.length} 项`}
-                        </div>
-                        <div className={`mt-3 h-2 rounded-full overflow-hidden bg-[var(--recessed-bg)]`}>
-                          <div
-                            className="h-full rounded-full bg-[var(--os-vnext-brand-blue)]"
-                            style={{ width: `${fabricCompleteness(selectedProduct).percent}%` }}
-                          />
-                        </div>
-                        {!fabricCompleteness(selectedProduct).complete && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {fabricCompleteness(selectedProduct).missing.map(label => (
-                              <span key={label} className={`px-2.5 py-1 rounded-full border text-[10px] font-light ${productStatusChipClass(false)}`}>
-                                {label}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className={`mt-auto ${PRODUCT_DETAIL_MEDIA_META_CLASS}`}>
-                      <div className={`text-[10px] font-light tracking-[0.22em] uppercase text-[var(--text-tertiary)]`}>
-                        Media
-                      </div>
-                      <div className={`mt-1 text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>
-                        {displayImages.length > 0 ? `${displayImages.length} 张图片 · 主图预览` : '编辑档案后可上传产品图片。'}
-                      </div>
-                      {displayImages.length > 1 && (
-                        <div className="mt-4 grid grid-cols-4 gap-2">
-                          {displayImages.slice(0, 4).map(image => {
-                            const src = getProductImageSrc(image);
-                            return (
-                              <div key={image.id} className={`${OS_MATERIAL.insetSurface} relative aspect-square overflow-hidden rounded-inset border`}>
-                                {src && <img src={src} alt={image.fileName} className="absolute inset-0 h-full w-full object-cover" />}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-
-            <div className={PRODUCT_DETAIL_MAIN_PANEL_CLASS} data-os-compiler-role="product-detail-main-panel">
-              <div className={`${PRODUCT_DETAIL_HEADER_LAYOUT_CLASS} justify-end bg-[var(--recessed-bg)] border-[var(--border-c-default)]`}>
-                <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => { setEditingProd(selectedProduct); setSelectedProduct(null); }}
-                  className={`px-4 py-2 rounded-full text-xs font-light flex items-center gap-2 ${productActionButtonClass}`}
-                >
-                  <Edit2 size={14} /> 编辑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedProduct(null)}
-                  className={`p-2 rounded-full ${productActionButtonClass}`}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className={PRODUCT_DETAIL_BODY_SCROLL_CLASS}>
-              <DetailSection title="基础识别">
-                <DetailItem label="SKU" value={selectedProduct.sku} />
-                <DetailItem label="Article No." value={selectedProduct.fabricProfile?.articleNo} />
-                <DetailItem label="供应商 / 生产工厂" value={selectedProduct.fabricProfile?.millOrganizationId} />
-                <DetailItem label="Mill Quality" value={selectedProduct.fabricProfile?.millQuality} />
-                <DetailItem label="Col." value={selectedProduct.fabricProfile?.millColorCode} />
-                <DetailItem label="Description" value={selectedProduct.fabricProfile?.colorDescription} wide />
-                <DetailItem label="Client Code" value={(selectedProduct.fabricCustomerCodes || []).map(item => item.clientCode).join(', ')} wide />
-              </DetailSection>
-
-              <DetailSection title="规格参数">
-                <DetailItem label="成分" value={(selectedProduct.compositionLines || []).map(line => `${line.percentage}% ${line.term?.chineseName || line.term?.englishName || line.termId}`).join(' + ')} wide />
-                <DetailItem label="克重" value={formatMeasure(selectedProduct.fabricProfile?.weightValue, selectedProduct.fabricProfile?.weightUnit)} />
-                <DetailItem label="门幅" value={formatWidth(selectedProduct.fabricProfile)} />
-                <DetailItem label="组织" value={selectedProduct.fabricProfile?.construction} />
-                <DetailItem label="纱支" value={selectedProduct.fabricProfile?.yarnCount} />
-                <DetailItem label="花型" value={selectedProduct.fabricProfile?.pattern} />
-                <DetailItem label="生产周期" value={selectedProduct.fabricProfile?.productionLeadDays ? `${selectedProduct.fabricProfile.productionLeadDays} 天` : undefined} />
-              </DetailSection>
-
-              <DetailSection title="价格与库存">
-                <DetailItem label="工厂价格" value={formatPrice(selectedProduct, 'factory')} />
-                <DetailItem label="售价" value={formatPrice(selectedProduct, 'customer')} />
-                <DetailItem label="现货状态" value={selectedProduct.fabricProfile?.stockStatus} />
-                <DetailItem label="现货数量" value={formatMeasure(selectedProduct.fabricProfile?.stockQuantity, selectedProduct.fabricProfile?.stockUnit)} />
-                <DetailItem label="起订量" value={selectedProduct.fabricProfile?.moqValue} />
-                <DetailItem label="工厂起订量" value={selectedProduct.fabricProfile?.factoryMoqValue} />
-                <DetailItem label="试样起订量" value={selectedProduct.fabricProfile?.sampleMoqValue} />
-              </DetailSection>
-
-              <section className="space-y-3">
-                <h4 className={`text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>价格历史</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {(['factory', 'customer'] as const).map(type => (
-                    <div key={type} className={PRODUCT_DETAIL_HISTORY_PANEL_CLASS}>
-                      <div className={`text-[10px] font-light tracking-wide mb-3 text-[var(--text-tertiary)]`}>
-                        {type === 'factory' ? '工厂价格历史' : '售价历史'}
-                      </div>
-                      <div className="space-y-2">
-                        {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
-                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 bds-inset`}>
-                            <span className={`text-xs font-light text-[var(--text-primary)]`}>
-                              {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
-                            </span>
-                            <span className={`text-[10px] text-[var(--text-tertiary)]`}>
-                              {price.effectiveDate || new Date(price.updatedAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )) : (
-                          <div className={`text-xs text-[var(--text-tertiary)]`}>暂无历史价格</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <DetailSection title="生产追溯与风险">
-                <DetailItem label="标样批号" value={selectedProduct.fabricProfile?.referenceBatch} />
-                <DetailItem label="认证许可" value={certificationText(selectedProduct)} wide />
-                <DetailItem label="品质风险" value={selectedProduct.fabricProfile?.riskNote} wide />
-                <DetailItem label="特殊备注" value={selectedProduct.fabricProfile?.specialNote} wide />
-              </DetailSection>
-
-              <RelatedOrders productId={selectedProduct.id} millQuality={selectedProduct.fabricProfile?.millQuality} cloudEndpoint={cloudEndpoint} isDarkMode={isDarkMode} />
-              </div>
-            </div>
-          </CompiledSurfacePanel>
-        </div>
-      )}
+      
 
       {/* MODALS / SHEETS */}
       {isMobile ? (
         <>
           {/* Mobile: Add Sub Category Sheet */}
-          <BottomSheet isOpen={showAddSubModal || !!editingSub} onClose={() => { setshowAddSubModal(false); setEditingSub(null); }} title={editingSub ? '编辑类目' : '新增子分类'} height="auto" isDarkMode={isDarkMode}>
+          <CompiledBottomSheet isOpen={showAddSubModal || !!editingSub} onClose={() => { setshowAddSubModal(false); setEditingSub(null); }} title={editingSub ? '编辑类目' : '分类管理'} height="auto" isDarkMode={isDarkMode}>
             <form onSubmit={editingSub ? handleEditSub : handleAddSub} className="space-y-6 pt-4 pb-12">
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类名称</label>
-                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
+                <input defaultValue={editingSub?.name} name="name" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
               </div>
               <div className="space-y-4">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类说明</label>
-                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-full outline-none font-light resize-none bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
+                <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-control outline-none font-light resize-none bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
               </div>
-              <button type="submit" className={`w-full py-4 rounded-full font-light tracking-wide transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] border border-[var(--border-c-default)] hover:bg-[var(--active-darken)]`}>{editingSub ? '保存' : '确认'}</button>
+              <button type="submit" className={`bds-btn bds-btn-primary lg w-full`}>{editingSub ? '保存' : '确认'}</button>
             </form>
-          </BottomSheet>
+          </CompiledBottomSheet>
 
           {/* Mobile: Add Product Sheet */}
-          <BottomSheet isOpen={showAddProdModal || !!editingProd} onClose={() => { setShowAddProdModal(false); setEditingProd(null); }} title={editingProd ? '修正档案' : '录入 SKU'} height="full" isDarkMode={isDarkMode}>
+          <CompiledBottomSheet isOpen={showAddProdModal || !!editingProd} onClose={() => { setShowAddProdModal(false); setEditingProd(null); }} title={editingProd ? '修正档案' : '录入 SKU'} height="full" isDarkMode={isDarkMode}>
             <form onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="space-y-6 pt-2 pb-24">
               {editingProd && (
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">产品图片</label>
-                  <ImageUploader
+                  <CompiledImageUploader
                     productId={editingProd.id}
                     images={editingImages}
                     cloudEndpoint={cloudEndpoint}
@@ -2697,45 +3761,48 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               )}
               <div className="space-y-3">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">档案款名 (Name)</label>
-                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
+                <input defaultValue={editingProd?.name} name="name" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">SKU</label>
-                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
+                <input defaultValue={editingProd?.sku} name="sku" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Season</label>
-                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
+                  <input defaultValue={editingProd?.season} name="season" placeholder="AW25" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Cost ($)</label>
-                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-full outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`} />
+                  <input defaultValue={editingProd?.cost} type="number" step="0.01" name="cost" required className={`w-full px-6 py-4 rounded-control outline-none font-light bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
                 </div>
-              </div>
-              {renderFabricProfileFields(editingProd)}
-              <div className="space-y-3">
+	              </div>
+	              {renderFabricProfileFields(editingProd)}
+	              {renderGarmentProfileFields(editingProd)}
+	              {renderTrimmingProfileFields(editingProd)}
+	              <div className="space-y-3">
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">Status</label>
                 <input type="hidden" name="status" value={productStatusValue} />
-                <CustomSelect
+                <CompiledSelectControl
                   value={productStatusValue}
                   onChange={setProductStatusValue}
                   isDarkMode={isDarkMode}
                   options={productStatusOptions}
                   surface="form"
                   menuPortal
-                  className="w-full"
+                  className="relative z-30 w-full"
+                  source="CompiledProductsPage.mobile-status-select"
                 />
               </div>
-              <button type="submit" className={`w-full py-5 rounded-full font-light tracking-wide mt-4 transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-primary)] border border-[var(--border-c-default)] hover:bg-[var(--active-darken)]`}>{editingProd ? '保存修正' : '确认录入'}</button>
+              <button type="submit" className={`bds-btn bds-btn-primary lg w-full mt-4`}>{editingProd ? '保存修正' : '确认录入'}</button>
             </form>
-          </BottomSheet>
+          </CompiledBottomSheet>
         </>
       ) : (
         <>
           {(showAddSubModal || editingSub) && (
             <motion.div
-              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md bg-slate-950/60`}
+              className={`absolute inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-md bg-slate-950/30`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -2749,12 +3816,12 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                 exit={{ opacity: 0, y: 12, scale: 0.98 }}
                 transition={{ duration: 0.22, ease: 'easeOut' }}
               >
-                <div className={`px-8 py-6 border-b border-[var(--border-c-default)]`}>
+                <div className={`px-8 py-6 border-b border-[var(--border-c-subtle)]`}>
                   <p className={`text-[10px] font-light tracking-[0.24em] uppercase text-[var(--text-tertiary)]`}>
                     {mainCategories.find(c => c.id === selectedMain)?.label || 'Digital Archive'}
                   </p>
                   <h3 className={`mt-1 text-xl font-light tracking-tight text-[var(--text-primary)]`}>
-                    {editingSub ? '编辑子分类' : '新增子分类'}
+                    {editingSub ? '编辑子分类' : '分类管理'}
                   </h3>
                 </div>
                 <div className="px-8 py-7 space-y-4">
@@ -2780,7 +3847,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                     />
                   </div>
                 </div>
-                <div className={`px-8 py-5 border-t flex justify-end gap-3 border-[var(--border-c-default)] bg-[var(--recessed-bg)]`}>
+                <div className={`px-8 py-5 border-t flex justify-end gap-3 border-[var(--border-c-subtle)] bg-[var(--recessed-bg)]`}>
                   <button
                     type="button"
                     onClick={() => { setshowAddSubModal(false); setEditingSub(null); }}
@@ -2802,15 +3869,9 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
           {(showAddProdModal || editingProd) && (
             <div className="absolute inset-0 z-[70] bg-transparent">
               <div className="h-full w-full overflow-hidden flex flex-col bg-transparent">
-                <CompiledModuleTitleBar
-                  template="products-module-title"
-                  source="ProductsManager.productFormTitle"
-                  baseClassName={PRODUCT_TITLE_BAR_CLASS}
-                  style={PRODUCT_TITLE_SAFE_LEFT_STYLE}
-                  leading={(
-                    <>
+                <div className={`${PRODUCT_TITLE_BAR_CLASS} flex`} style={PRODUCT_TITLE_SAFE_LEFT_STYLE}>
                   <div className={PRODUCT_TITLE_NAV_GROUP_CLASS}>
-                    <SpotlightCard
+                    <CompiledInteractiveCard
                       spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                       spotlightSize={isDarkMode ? 180 : 140}
                       idleSpotlightOpacity={0}
@@ -2826,7 +3887,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       >
                         <ChevronLeft size={18} strokeWidth={1.4} />
                       </button>
-                    </SpotlightCard>
+                    </CompiledInteractiveCard>
                     <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
                       <button type="button" onClick={() => { setShowAddProdModal(false); setEditingProd(null); }} className={`${PRODUCT_TITLE_TEXT_BUTTON_CLASS} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}>
                         <span className={`${BAMBOOK_OS.layout.desktopTitleTextClass} text-[var(--text-primary)]`}>
@@ -2836,24 +3897,20 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
                         <ChevronRight size={18} strokeWidth={1.4} />
                       </span>
-                      <h3 data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} text-[var(--text-secondary)]`}>{editingProd ? '修正档案' : '录入档案'}</h3>
+                      <h3 data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} text-[var(--text-primary)]`}>{editingProd ? '修正档案' : '录入档案'}</h3>
                     </div>
                   </div>
-                    </>
-                  )}
-                  actions={(
-                    <>
                   <div className="flex h-full items-center gap-2 shrink-0">
                     {editingProd && (
                       <button
                         type="button"
                         onClick={() => setDeleteProdId(editingProd.id)}
-                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border text-[var(--text-secondary)] border-[var(--border-c-default)] hover:bg-[var(--recessed-bg-hover)] hover:border-[var(--border-c-default)]`}
+                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border text-[var(--text-secondary)] border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
                       >
                         <Trash2 size={13} strokeWidth={1.5} /> 归档
                       </button>
                     )}
-                    <SpotlightCard
+                    <CompiledInteractiveCard
                       spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                       spotlightSize={isDarkMode ? 180 : 140}
                       idleSpotlightOpacity={0}
@@ -2863,8 +3920,8 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       <button type="button" onClick={() => { setShowAddProdModal(false); setEditingProd(null); }} data-ui-lab-wallpaper-contrast="primary" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center">
                         取消
                       </button>
-                    </SpotlightCard>
-                    <SpotlightCard
+                    </CompiledInteractiveCard>
+                    <CompiledInteractiveCard
                       spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                       spotlightSize={isDarkMode ? 180 : 140}
                       idleSpotlightOpacity={0}
@@ -2880,19 +3937,20 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       >
                         <Save size={14} strokeWidth={1.5} /> 保存资料
                       </button>
-                    </SpotlightCard>
+                    </CompiledInteractiveCard>
                   </div>
-                    </>
-                  )}
-                />
+                </div>
                 <form id="product-fullscreen-form" onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">
                     <aside className="self-start">
-                      <CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}>
-                        <p className={`px-3 pb-3 text-[10px] font-light tracking-[0.22em] uppercase ${productFormSectionTitleClass}`}>Form Map</p>
+                      <CompiledFormMapPanel
+                        materialRole={blueprint.form.mapMaterialRole}
+                        isDarkMode={isDarkMode}
+                        titleClassName={productFormSectionTitleClass}
+                        source="CompiledProductsPage.form-map"
+                      >
                         <div className="space-y-1">
-                          {productFormSections
-                            .filter(section => section.id === 'basic' || isFabricContext || editingProd?.mainCategory === 'Fabric')
-                            .map((section, idx) => (
+	                          {(isGarmentFormContext ? garmentProductFormSections : isTrimmingFormContext ? trimmingProductFormSections : fabricProductFormSections)
+	                            .map((section, idx) => (
                             <button
                               key={section.id}
                               type="button"
@@ -2902,21 +3960,21 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               <div className="flex items-center gap-3">
                                 <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>
                                 <div className="min-w-0">
-                                  <div className={`text-xs font-light text-[var(--text-secondary)]`}>{section.label}</div>
+                                  <div className={`text-xs font-light text-[var(--text-primary)]`}>{section.label}</div>
                                   <div className={`text-[10px] mt-0.5 truncate ${productLabelClass}`}>{section.desc}</div>
                                 </div>
                               </div>
                             </button>
                           ))}
                         </div>
-                      </CompiledSurfacePanel>
+                      </CompiledFormMapPanel>
                     </aside>
 
-                    <div ref={productFormScrollRef} className={`bambook-product-form-scroll-viewport min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`}>
+                    <div ref={productFormScrollRef} className={blueprint.form.scrollViewportClassName}>
                       {/* Images section */}
                       {editingProd && (
                         <ProductFormSection id="images" title="产品图片" description="上传面料/产品的实物照片，第一张自动设为主图。" isDarkMode={isDarkMode}>
-                          <ImageUploader
+                          <CompiledImageUploader
                             productId={editingProd.id}
                             images={editingImages}
                             cloudEndpoint={cloudEndpoint}
@@ -2925,7 +3983,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                           />
                         </ProductFormSection>
                       )}
-                      <ProductFormSection id="basic" title="基础信息" description="只保留这条档案最核心的身份信息：SKU、二维码、品号、克重、门幅和成分。" isDarkMode={isDarkMode}>
+	                      <ProductFormSection id="basic" title={isGarmentFormContext ? '基础身份' : isTrimmingFormContext ? '基础识别' : '基础信息'} description={isGarmentFormContext ? '记录款号、款名、品类、客户、系列和样衣状态。' : isTrimmingFormContext ? '记录辅料编号、名称、类别、客户、品牌和状态。' : '只保留这条档案最核心的身份信息：SKU、二维码、品号、克重、门幅和成分。'} isDarkMode={isDarkMode}>
                         <div className="space-y-2">
                           <label className={productLabelClass}>唯一 SKU 识别码</label>
                           <input
@@ -2947,31 +4005,136 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                             )}
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <label className={productLabelClass}>品号 / Article No.</label>
-                          <input defaultValue={editingProd?.fabricProfile?.articleNo || ''} name="articleNo" className={productInputClass} />
-                        </div>
-                        <div className="space-y-2">
-                          <label className={productLabelClass}>克重</label>
-                          <div className="grid grid-cols-[1fr,96px] gap-2">
-                            <input defaultValue={editingProd?.fabricProfile?.weightValue ?? ''} type="number" step="0.01" name="weightValue" className={productInputClass} />
-                            <input defaultValue={editingProd?.fabricProfile?.weightUnit || 'gsm'} name="weightUnit" className={productInputClass} />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <label className={productLabelClass}>门幅</label>
-                          <div className="grid grid-cols-[1fr,96px] gap-2">
-                            <input defaultValue={editingProd?.fabricProfile?.widthValue ?? ''} type="number" step="0.01" name="widthValue" className={productInputClass} />
-                            <input defaultValue={editingProd?.fabricProfile?.widthUnit || 'cm'} name="widthUnit" className={productInputClass} />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <label className={productLabelClass}>门幅原值</label>
-                          <input defaultValue={editingProd?.fabricProfile?.widthText || ''} name="widthText" placeholder="例如 57/58" className={productInputClass} />
-                        </div>
-                        <div className="md:col-span-2 space-y-2">
-                          <label className={productLabelClass}>成分</label>
-                          <datalist id="fabric-composition-abbreviations">
+	                        {isGarmentFormContext ? (
+	                          <>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>款号 / Style No.</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.styleNo || ''} name="styleNo" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>成衣名称</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.productName || editingProd?.name || ''} name="productName" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>品类</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.garmentCategory || ''} name="garmentCategory" placeholder="西装 / 衬衫 / 裤子 / 外套" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>系列 / Season / Collection</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.collection || editingProd?.season || ''} name="collection" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>客户</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.customer || ''} name="customer" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>品牌</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.brand || ''} name="brand" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>项目</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.project || ''} name="project" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>状态</label>
+	                              <input type="hidden" name="status" value={productStatusValue} />
+	                              <CompiledSelectControl
+	                                value={productStatusValue}
+	                                onChange={setProductStatusValue}
+	                                isDarkMode={isDarkMode}
+	                                options={productStatusOptions}
+	                                surface="form"
+	                                menuPortal
+	                                className="relative z-30 w-full"
+	                                source="CompiledProductsPage.garment-status-select"
+	                              />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>性别</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.gender || ''} name="gender" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>年龄段</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.ageGroup || ''} name="ageGroup" className={productInputClass} />
+	                            </div>
+	                            <div className="md:col-span-2 space-y-2">
+	                              <label className={productLabelClass}>标签</label>
+	                              <input defaultValue={editingProd?.garmentProfile?.tags || ''} name="tags" placeholder="商务、制服、婚礼、休闲、可持续" className={productInputClass} />
+	                            </div>
+	                          </>
+	                        ) : isTrimmingFormContext ? (
+	                          <>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>辅料编号 / Trim Code</label>
+	                              <input defaultValue={editingProd?.trimmingProfile?.trimmingCode || ''} name="trimmingCode" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>辅料名称</label>
+	                              <input defaultValue={editingProd?.trimmingProfile?.trimmingName || editingProd?.name || ''} name="trimmingName" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>辅料类别</label>
+	                              <input defaultValue={editingProd?.trimmingProfile?.trimmingCategory || ''} name="trimmingCategory" placeholder="纽扣 / 拉链 / 商标 / 衬布" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>供应商</label>
+	                              <input defaultValue={editingProd?.trimmingProfile?.supplier || ''} name="supplier" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>客户</label>
+	                              <input defaultValue={editingProd?.trimmingProfile?.customer || ''} name="customer" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>品牌</label>
+	                              <input defaultValue={editingProd?.trimmingProfile?.brand || ''} name="brand" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>状态</label>
+	                              <input type="hidden" name="status" value={productStatusValue} />
+	                              <CompiledSelectControl
+	                                value={productStatusValue}
+	                                onChange={setProductStatusValue}
+	                                isDarkMode={isDarkMode}
+	                                options={productStatusOptions}
+	                                surface="form"
+	                                menuPortal
+	                                className="relative z-30 w-full"
+	                                source="CompiledProductsPage.trimming-status-select"
+	                              />
+	                            </div>
+	                            <div className="md:col-span-2 space-y-2">
+	                              <label className={productLabelClass}>适用款式 / 使用范围</label>
+	                              <input defaultValue={editingProd?.trimmingProfile?.applicableProducts || ''} name="applicableProducts" placeholder="西装、衬衫、裤装、指定客户款号" className={productInputClass} />
+	                            </div>
+	                          </>
+	                        ) : (
+	                          <>
+	                            <input type="hidden" name="status" value={productStatusValue} />
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>品号 / Article No.</label>
+	                              <input defaultValue={editingProd?.fabricProfile?.articleNo || ''} name="articleNo" className={productInputClass} />
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>克重</label>
+	                              <div className="grid grid-cols-[1fr,96px] gap-2">
+	                                <input defaultValue={editingProd?.fabricProfile?.weightValue ?? ''} type="number" step="0.01" name="weightValue" className={productInputClass} />
+	                                <input defaultValue={editingProd?.fabricProfile?.weightUnit || 'gsm'} name="weightUnit" className={productInputClass} />
+	                              </div>
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>门幅</label>
+	                              <div className="grid grid-cols-[1fr,96px] gap-2">
+	                                <input defaultValue={editingProd?.fabricProfile?.widthValue ?? ''} type="number" step="0.01" name="widthValue" className={productInputClass} />
+	                                <input defaultValue={editingProd?.fabricProfile?.widthUnit || 'cm'} name="widthUnit" className={productInputClass} />
+	                              </div>
+	                            </div>
+	                            <div className="space-y-2">
+	                              <label className={productLabelClass}>门幅原值</label>
+	                              <input defaultValue={editingProd?.fabricProfile?.widthText || ''} name="widthText" placeholder="例如 57/58" className={productInputClass} />
+	                            </div>
+	                            <div className="md:col-span-2 space-y-2">
+	                              <label className={productLabelClass}>成分</label>
+	                          <datalist id="fabric-composition-abbreviations">
                             {compositionTermSuggestions.map((term, index) => term.abbreviation && (
                               <option key={`${term.abbreviation}-${index}`} value={term.abbreviation} />
                             ))}
@@ -3062,9 +4225,13 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                               当前成分：{compositionDraftText()}
                             </div>
                           )}
-                        </div>
-                      </ProductFormSection>
-                      {renderFabricProfileFields(editingProd)}
+	                            </div>
+	                          </>
+	                        )}
+	                      </ProductFormSection>
+	                      {renderFabricProfileFields(editingProd)}
+	                      {renderGarmentProfileFields(editingProd)}
+	                      {renderTrimmingProfileFields(editingProd)}
                     </div>
                 </form>
               </div>
@@ -3075,9 +4242,9 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
 
       {(deleteSubId || deleteProdId) && (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
+          <div className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-subtle)] rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}>
             <div className="p-10 text-center space-y-6">
-              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-[var(--border-c-default)]`}>
+              <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-[var(--border-c-subtle)]`}>
                 <AlertTriangle size={32} strokeWidth={1} />
               </div>
               <div className="space-y-2">
@@ -3089,13 +4256,13 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
               <div className="flex flex-col gap-3 pt-4">
                 <button
                   onClick={deleteSubId ? handleDeleteSub : handleDeleteProduct}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)] border border-[var(--border-c-default)]`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg-strong)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] border border-[var(--border-c-subtle)]`}
                 >
                   确认{deleteSubId ? '移除' : '归档'}
                 </button>
                 <button
                   onClick={() => { setDeleteSubId(null); setDeleteProdId(null); }}
-                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]`}
+                  className={`w-full py-4 rounded-full text-xs font-light tracking-wide transition-all bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]`}
                 >
                   取消
                 </button>
@@ -3105,6 +4272,755 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
         </div>
       )}
 
+    </div>
+  );
+};
+
+
+export const UI_LAB_PRODUCT_MODULE_SETTINGS_KEY = 'bambook_ui_lab_product_module_settings';
+const PRODUCT_MODULE_SETTINGS_DEMO_NOW = 1772380800000;
+
+const PRODUCT_MODULE_MAIN_CATEGORY_OPTIONS: Array<{ id: MainCategory; label: string }> = [
+  { id: 'Fabric', label: '面料' },
+  { id: 'Garment', label: '成衣' },
+  { id: 'Accessories', label: '配饰' },
+  { id: 'Trimmings', label: '辅料' },
+  { id: 'Merchandise', label: '周边' },
+  { id: 'Other', label: '其他' },
+];
+const PRODUCT_MODULE_FIELD_DEFINITIONS = [
+  { id: 'sku', label: 'SKU', group: '基础信息' },
+  { id: 'name', label: '名称', group: '基础信息' },
+  { id: 'season', label: '季节', group: '基础信息' },
+  { id: 'articleNo', label: '工厂品号', group: '面料信息' },
+  { id: 'millQuality', label: '工厂品质', group: '面料信息' },
+  { id: 'composition', label: '成分', group: '面料信息' },
+  { id: 'weight', label: '克重', group: '规格参数' },
+  { id: 'width', label: '门幅', group: '规格参数' },
+  { id: 'factoryPrice', label: '工厂价', group: '价格库存' },
+  { id: 'customerPrice', label: '销售价', group: '价格库存' },
+  { id: 'stockStatus', label: '库存状态', group: '价格库存' },
+  { id: 'certification', label: '认证', group: '认证风险' },
+];
+const PRODUCT_MODULE_TABLE_COLUMN_DEFINITIONS = [
+  { id: 'sku', label: 'SKU' },
+  { id: 'name', label: '名称' },
+  { id: 'articleNo', label: '品号' },
+  { id: 'millQuality', label: '品质' },
+  { id: 'clientCode', label: '客户编号' },
+  { id: 'factoryPrice', label: '工厂价' },
+  { id: 'salesPrice', label: '销售价' },
+  { id: 'stock', label: '库存' },
+  { id: 'updatedAt', label: '更新' },
+];
+const PRODUCT_MODULE_SORT_OPTIONS = [
+  { value: 'updatedAt:desc', label: '更新 最新优先' },
+  { value: 'sku:asc', label: 'SKU A-Z' },
+  { value: 'name:asc', label: '名称 A-Z' },
+  { value: 'articleNo:asc', label: '品号 A-Z' },
+  { value: 'factoryPrice:desc', label: '工厂价 高到低' },
+  { value: 'stock:desc', label: '库存 多到少' },
+];
+const PRODUCT_MODULE_STATUS_OPTIONS: Array<{ value: ProductAsset['status']; label: string }> = [
+  { value: 'Development', label: '开发中' },
+  { value: 'Active', label: '启用' },
+  { value: 'Archived', label: '归档' },
+];
+export type ProductModuleSettingsSectionId =
+  | 'overview'
+  | 'field-management'
+  | 'classification-system'
+  | 'dictionary-terms'
+  | 'list-display';
+type ProductModuleCompositionTerm = {
+  id: string;
+  abbreviation: string;
+  chineseName: string;
+  englishName: string;
+};
+export type UiLabProductModuleSettings = {
+  requiredFieldIds: string[];
+  visibleTableColumnIds: string[];
+  defaultListDisplayMode: 'grid' | 'table';
+  defaultSortValue: string;
+  statusOptions: Array<ProductAsset['status']>;
+  compositionTerms: ProductModuleCompositionTerm[];
+  requireSkuUnique: boolean;
+  protectManualFields: boolean;
+  pdmlAutoMap: boolean;
+  updatedAt: number;
+};
+export const DEFAULT_PRODUCT_MODULE_SETTINGS: UiLabProductModuleSettings = {
+  requiredFieldIds: ['sku', 'name', 'season', 'articleNo', 'millQuality'],
+  visibleTableColumnIds: ['sku', 'name', 'articleNo', 'millQuality', 'clientCode', 'factoryPrice', 'stock', 'updatedAt'],
+  defaultListDisplayMode: 'grid',
+  defaultSortValue: 'updatedAt:desc',
+  statusOptions: ['Development', 'Active', 'Archived'],
+  compositionTerms: COMPOSITION_TERMS.slice(0, 16).map((term, index) => ({
+    id: `term-${term.abbreviation || index}`,
+    abbreviation: term.abbreviation,
+    chineseName: term.chineseName,
+    englishName: term.englishName,
+  })),
+  requireSkuUnique: true,
+  protectManualFields: true,
+  pdmlAutoMap: false,
+  updatedAt: PRODUCT_MODULE_SETTINGS_DEMO_NOW,
+};
+
+const normalizeProductModuleSettings = (value: Partial<UiLabProductModuleSettings> | null | undefined): UiLabProductModuleSettings => ({
+  ...DEFAULT_PRODUCT_MODULE_SETTINGS,
+  ...value,
+  requiredFieldIds: Array.isArray(value?.requiredFieldIds) ? value.requiredFieldIds : DEFAULT_PRODUCT_MODULE_SETTINGS.requiredFieldIds,
+  visibleTableColumnIds: Array.isArray(value?.visibleTableColumnIds) ? value.visibleTableColumnIds : DEFAULT_PRODUCT_MODULE_SETTINGS.visibleTableColumnIds,
+  defaultListDisplayMode: value?.defaultListDisplayMode === 'table' ? 'table' : 'grid',
+  defaultSortValue: typeof value?.defaultSortValue === 'string' ? value.defaultSortValue : DEFAULT_PRODUCT_MODULE_SETTINGS.defaultSortValue,
+  statusOptions: Array.isArray(value?.statusOptions) && value.statusOptions.length > 0 ? value.statusOptions : DEFAULT_PRODUCT_MODULE_SETTINGS.statusOptions,
+  compositionTerms: Array.isArray(value?.compositionTerms) ? value.compositionTerms : DEFAULT_PRODUCT_MODULE_SETTINGS.compositionTerms,
+  updatedAt: Number(value?.updatedAt || Date.now()),
+});
+
+export const readInitialProductModuleSettings = (): UiLabProductModuleSettings => {
+  if (typeof window === 'undefined') return DEFAULT_PRODUCT_MODULE_SETTINGS;
+  try {
+    const raw = window.localStorage.getItem(UI_LAB_PRODUCT_MODULE_SETTINGS_KEY);
+    return normalizeProductModuleSettings(raw ? JSON.parse(raw) : null);
+  } catch {
+    return DEFAULT_PRODUCT_MODULE_SETTINGS;
+  }
+};
+
+export const persistProductModuleSettings = (settings: UiLabProductModuleSettings) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(UI_LAB_PRODUCT_MODULE_SETTINGS_KEY, JSON.stringify(settings));
+};
+
+export const parseProductModuleSortValue = (value: string) => {
+  const [column = 'updatedAt', dir = 'desc'] = value.split(':');
+  return { column, desc: dir !== 'asc' };
+};
+const UI_LAB_APP_SCALE_POINTS = [
+  { width: 1920, scale: 1.00 },
+  { width: 2400, scale: 1.25 },
+  { width: 2880, scale: 1.45 },
+  { width: 3200, scale: 1.65 },
+  { width: 3840, scale: 1.90 },
+] as const;
+const UI_LAB_APP_HEIGHT_SCALE_POINTS = [
+  { height: 900, scale: 1.00 },
+  { height: 1080, scale: 1.25 },
+  { height: 1200, scale: 1.45 },
+  { height: 1440, scale: 1.65 },
+  { height: 1600, scale: 1.90 },
+] as const;
+const UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS: Array<{
+  id: ProductModuleSettingsSectionId;
+  title: string;
+  desc: string;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+}> = [
+  {
+    id: 'overview',
+    title: '设置总览',
+    desc: '模块规则、默认行为和同步边界。',
+    icon: Database,
+  },
+  {
+    id: 'field-management',
+    title: '字段管理',
+    desc: '表单字段、规格字段和必填规则。',
+    icon: SlidersHorizontal,
+  },
+  {
+    id: 'classification-system',
+    title: '分类体系',
+    desc: '维护数字档案的产品分类。',
+    icon: Tags,
+  },
+  {
+    id: 'dictionary-terms',
+    title: '字典词条',
+    desc: '维护成分缩写和显示名称。',
+    icon: BookOpenText,
+  },
+  {
+    id: 'list-display',
+    title: '列表显示',
+    desc: '卡片、表格、筛选和排序字段。',
+    icon: Columns3,
+  },
+] as const;
+
+
+type CompiledProductModuleSettingsWorkspaceBlueprint = {
+  template: 'CompiledProductModuleSettingsWorkspace';
+  source: 'UiLabProductModuleSettingsWorkspace.ui-lab-1.0.contract';
+  provenance: 'accepted';
+  sections: typeof UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS;
+  shellClassName: string;
+  titleBarClassName: string;
+  panelRowClassName: string;
+};
+
+export const compileProductModuleSettingsWorkspace = (): CompiledProductModuleSettingsWorkspaceBlueprint => ({
+  template: 'CompiledProductModuleSettingsWorkspace',
+  source: 'UiLabProductModuleSettingsWorkspace.ui-lab-1.0.contract',
+  provenance: 'accepted',
+  sections: UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS,
+  shellClassName: BAMBOOK_OS.layout.desktopWorkspaceFrameClass,
+  titleBarClassName: BAMBOOK_OS.layout.desktopTitleBarWithInsetClass,
+  panelRowClassName: BAMBOOK_OS.layout.desktopBackstagePanelRowClass,
+});
+
+export const ProductModuleSettingsWorkspace = ({
+  isDarkMode,
+  products,
+  productCategories,
+  moduleSettings,
+  cloudEndpoint,
+  onBack,
+  onUpdateCategories,
+  onUpdateModuleSettings,
+}: {
+  isDarkMode: boolean;
+  products: ProductAsset[];
+  productCategories: ProductSubCategory[];
+  moduleSettings: UiLabProductModuleSettings;
+  cloudEndpoint?: string;
+  onBack: () => void;
+  onUpdateCategories: (items: ProductSubCategory[], modified?: ProductSubCategory) => void;
+  onUpdateModuleSettings: (settings: UiLabProductModuleSettings) => void;
+}) => {
+  const blueprint = useMemo(() => compileProductModuleSettingsWorkspace(), []);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [activeSectionId, setActiveSectionId] = useState<ProductModuleSettingsSectionId>('overview');
+  const [selectedMainCategory, setSelectedMainCategory] = useState<MainCategory>('Fabric');
+  const [categoryName, setCategoryName] = useState('');
+  const [categoryDescription, setCategoryDescription] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const [termAbbreviation, setTermAbbreviation] = useState('');
+  const [termChineseName, setTermChineseName] = useState('');
+  const [termEnglishName, setTermEnglishName] = useState('');
+  const [editingTermId, setEditingTermId] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState('');
+  const activeSection = UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS.find(section => section.id === activeSectionId) ?? UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS[0];
+  const primaryTextClass = 'text-[var(--text-primary)]';
+  const secondaryTextClass = 'text-[var(--text-tertiary)]';
+  const labelClass = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
+  const inputClass = `h-9 w-full rounded-full border px-3 text-xs font-light outline-none transition ${BAMBOOK_OS.controls.recessedField.base}`;
+  const quietButtonClass = `h-9 rounded-full border px-3 text-[11px] font-light transition ${BAMBOOK_OS.controls.actionControl.base}`;
+  const selectedButtonClass = `${BAMBOOK_OS.controls.selectedSurface.base} text-[var(--text-primary)]`;
+  const tertiaryRowClass = `rounded-inset border p-3 ${RELATIONS_FORM_NESTED_ROW_CLASS}`;
+  const tinyActionClass = `h-8 rounded-full border px-3 text-[11px] font-light transition border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`;
+  const switchControlClass = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
+    ? BAMBOOK_OS.controls.selectedSurface.base
+    : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] shadow-none'}`;
+  const switchSliderClass = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-white shadow-none`;
+
+  const categoriesForMain = useMemo(() => {
+    const query = categoryQuery.trim().toLowerCase();
+    return productCategories
+      .filter(category => category.mainCategory === selectedMainCategory && !category.deletedAt)
+      .filter(category => !query || category.name.toLowerCase().includes(query) || (category.description || '').toLowerCase().includes(query));
+  }, [categoryQuery, productCategories, selectedMainCategory]);
+
+  const productCountByCategory = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const product of products) {
+      if (product.deletedAt || product.mainCategory !== selectedMainCategory) continue;
+      counts.set(product.subCategoryId || '', (counts.get(product.subCategoryId || '') || 0) + 1);
+    }
+    return counts;
+  }, [products, selectedMainCategory]);
+
+  const patchModuleSettings = (patch: Partial<UiLabProductModuleSettings>) => {
+    const next = normalizeProductModuleSettings({ ...moduleSettings, ...patch, updatedAt: Date.now() });
+    onUpdateModuleSettings(next);
+    setStatusText('已保存');
+  };
+
+  const toggleArrayValue = (values: string[], value: string) =>
+    values.includes(value) ? values.filter(item => item !== value) : [...values, value];
+
+  const resetCategoryDraft = () => {
+    setEditingCategoryId(null);
+    setCategoryName('');
+    setCategoryDescription('');
+  };
+
+  const submitCategory = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = categoryName.trim();
+    if (!name) return;
+    const existing = editingCategoryId ? productCategories.find(category => category.id === editingCategoryId) : null;
+    const item: ProductSubCategory = {
+      id: existing?.id || `CAT-${Date.now().toString(36)}`,
+      mainCategory: selectedMainCategory,
+      name,
+      description: categoryDescription.trim() || undefined,
+      updatedAt: Date.now(),
+    };
+    onUpdateCategories(existing ? productCategories.map(category => category.id === item.id ? item : category) : [item, ...productCategories], item);
+    resetCategoryDraft();
+    setStatusText('分类已保存');
+    try {
+      await apiService.saveProductCategory(item, cloudEndpoint);
+    } catch (error: any) {
+      setStatusText(`本地已保存，云端同步失败：${error?.message || String(error)}`);
+    }
+  };
+
+  const editCategory = (category: ProductSubCategory) => {
+    setEditingCategoryId(category.id);
+    setCategoryName(category.name);
+    setCategoryDescription(category.description || '');
+  };
+
+  const deleteCategory = async (category: ProductSubCategory) => {
+    const tombstone = { ...category, deletedAt: Date.now(), updatedAt: Date.now() };
+    onUpdateCategories(productCategories.map(item => item.id === category.id ? tombstone : item), tombstone);
+    if (editingCategoryId === category.id) resetCategoryDraft();
+    setStatusText('分类已删除');
+    try {
+      await apiService.deleteProductCategory(tombstone, cloudEndpoint);
+    } catch (error: any) {
+      setStatusText(`本地已删除，云端同步失败：${error?.message || String(error)}`);
+    }
+  };
+
+  const resetTermDraft = () => {
+    setEditingTermId(null);
+    setTermAbbreviation('');
+    setTermChineseName('');
+    setTermEnglishName('');
+  };
+
+  const submitTerm = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const abbreviation = termAbbreviation.trim();
+    const chineseName = termChineseName.trim();
+    if (!abbreviation || !chineseName) return;
+    const term: ProductModuleCompositionTerm = {
+      id: editingTermId || `term-${Date.now().toString(36)}`,
+      abbreviation,
+      chineseName,
+      englishName: termEnglishName.trim(),
+    };
+    patchModuleSettings({
+      compositionTerms: editingTermId
+        ? moduleSettings.compositionTerms.map(item => item.id === editingTermId ? term : item)
+        : [term, ...moduleSettings.compositionTerms],
+    });
+    resetTermDraft();
+  };
+
+  const editTerm = (term: ProductModuleCompositionTerm) => {
+    setEditingTermId(term.id);
+    setTermAbbreviation(term.abbreviation);
+    setTermChineseName(term.chineseName);
+    setTermEnglishName(term.englishName);
+  };
+
+  const renderSwitch = (label: string, checked: boolean, onChange: () => void) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      className={`flex min-h-11 w-full items-center justify-between gap-4 rounded-inset border px-4 py-2 text-left transition ${checked ? selectedButtonClass : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-secondary)]`}`}
+      onClick={onChange}
+    >
+      <span className="text-xs font-light">{label}</span>
+      <span aria-hidden="true" className={switchControlClass(checked)}>
+        <span className={switchSliderClass(checked)} />
+      </span>
+    </button>
+  );
+
+  const renderOverview = () => (
+    <div className="space-y-4">
+      <CompiledFormSectionPanel
+        id="product-module-settings-overview-rules"
+        title="模块规则"
+        isDarkMode={isDarkMode}
+        materialRole="raisedCard"
+        contentBaseClassName="block"
+        titleClassName={primaryTextClass}
+      >
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          {renderSwitch('SKU 必须唯一', moduleSettings.requireSkuUnique, () => patchModuleSettings({ requireSkuUnique: !moduleSettings.requireSkuUnique }))}
+          {renderSwitch('保护人工编辑字段', moduleSettings.protectManualFields, () => patchModuleSettings({ protectManualFields: !moduleSettings.protectManualFields }))}
+          {renderSwitch('PDML 同步后自动映射', moduleSettings.pdmlAutoMap, () => patchModuleSettings({ pdmlAutoMap: !moduleSettings.pdmlAutoMap }))}
+        </div>
+      </CompiledFormSectionPanel>
+      <CompiledFormSectionPanel
+        id="product-module-settings-overview-status"
+        title="状态选项"
+        isDarkMode={isDarkMode}
+        materialRole="raisedCard"
+        contentBaseClassName="block"
+        titleClassName={primaryTextClass}
+      >
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {PRODUCT_MODULE_STATUS_OPTIONS.map(option => renderSwitch(option.label, moduleSettings.statusOptions.includes(option.value), () => {
+            const next = moduleSettings.statusOptions.includes(option.value)
+              ? moduleSettings.statusOptions.filter(item => item !== option.value)
+              : [...moduleSettings.statusOptions, option.value];
+            patchModuleSettings({ statusOptions: next.length > 0 ? next : DEFAULT_PRODUCT_MODULE_SETTINGS.statusOptions });
+          }))}
+        </div>
+      </CompiledFormSectionPanel>
+    </div>
+  );
+
+  const renderFields = () => (
+    <div className="space-y-4">
+      <CompiledFormSectionPanel
+        id="product-module-settings-fields-required"
+        title="必填字段"
+        isDarkMode={isDarkMode}
+        materialRole="raisedCard"
+        contentBaseClassName="block"
+        titleClassName={primaryTextClass}
+      >
+        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+          {PRODUCT_MODULE_FIELD_DEFINITIONS.map(field => renderSwitch(`${field.group} / ${field.label}`, moduleSettings.requiredFieldIds.includes(field.id), () => {
+            patchModuleSettings({ requiredFieldIds: toggleArrayValue(moduleSettings.requiredFieldIds, field.id) });
+          }))}
+        </div>
+      </CompiledFormSectionPanel>
+    </div>
+  );
+
+  const renderClassification = () => (
+    <div className="grid min-h-0 grid-cols-[220px_1fr] gap-4">
+      <div className="space-y-2">
+        {PRODUCT_MODULE_MAIN_CATEGORY_OPTIONS.map(option => (
+          <button
+            key={option.id}
+            type="button"
+            className={`h-10 w-full rounded-inset border px-4 text-left text-xs font-light transition ${selectedMainCategory === option.id ? selectedButtonClass : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`}`}
+            onClick={() => {
+              setSelectedMainCategory(option.id);
+              resetCategoryDraft();
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <div className="space-y-4">
+        <CompiledFormSectionPanel
+          id="product-module-settings-category-editor"
+          title="分类编辑"
+          isDarkMode={isDarkMode}
+          materialRole="raisedCard"
+          contentBaseClassName="block"
+          titleClassName={primaryTextClass}
+        >
+          <form onSubmit={submitCategory}>
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
+              <label className="space-y-2">
+                <span className={labelClass}>分类名称</span>
+                <input value={categoryName} onChange={event => setCategoryName(event.target.value)} className={inputClass} />
+              </label>
+              <label className="space-y-2">
+                <span className={labelClass}>说明</span>
+                <input value={categoryDescription} onChange={event => setCategoryDescription(event.target.value)} className={inputClass} />
+              </label>
+              <div className="flex items-end gap-2">
+                <button type="submit" className={`${quietButtonClass} flex items-center gap-2`}>
+                  <Save size={14} strokeWidth={1.5} />
+                  {editingCategoryId ? '保存' : '新增'}
+                </button>
+                {editingCategoryId && <button type="button" className={tinyActionClass} onClick={resetCategoryDraft}>取消</button>}
+              </div>
+            </div>
+          </form>
+        </CompiledFormSectionPanel>
+        <CompiledFormSectionPanel
+          id="product-module-settings-category-list"
+          title="分类列表"
+          isDarkMode={isDarkMode}
+          materialRole="raisedCard"
+          contentBaseClassName="block"
+          titleClassName={primaryTextClass}
+        >
+          <div className="mb-3 flex h-9 items-center gap-2">
+            <Search size={15} strokeWidth={1.4} className={secondaryTextClass} />
+            <input value={categoryQuery} onChange={event => setCategoryQuery(event.target.value)} placeholder="搜索分类" className={`${inputClass} h-8 flex-1`} />
+          </div>
+          <div className="grid gap-2">
+            {categoriesForMain.map(category => (
+              <div key={category.id} className={`grid grid-cols-[1fr_auto] items-center gap-4 ${tertiaryRowClass}`}>
+                <button type="button" className="min-w-0 text-left" onClick={() => editCategory(category)}>
+                  <div className={`truncate text-sm font-light ${primaryTextClass}`}>{category.name}</div>
+                  <div className={`mt-1 truncate text-[11px] font-light ${secondaryTextClass}`}>
+                    {category.description || '未填写说明'} · {productCountByCategory.get(category.id) || 0} 个档案
+                  </div>
+                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" className={tinyActionClass} onClick={() => editCategory(category)}>编辑</button>
+                  <button type="button" className={`${tinyActionClass} flex items-center`} onClick={() => deleteCategory(category)} aria-label={`删除 ${category.name}`}>
+                    <Trash2 size={13} strokeWidth={1.5} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {categoriesForMain.length === 0 && (
+              <div className={`py-8 text-center text-xs font-light ${secondaryTextClass}`}>没有匹配的分类</div>
+            )}
+          </div>
+        </CompiledFormSectionPanel>
+      </div>
+    </div>
+  );
+
+  const renderDictionary = () => (
+    <div className="space-y-4">
+      <CompiledFormSectionPanel
+        id="product-module-settings-dictionary-editor"
+        title="成分词典"
+        isDarkMode={isDarkMode}
+        materialRole="raisedCard"
+        contentBaseClassName="block"
+        titleClassName={primaryTextClass}
+      >
+        <form onSubmit={submitTerm}>
+          <div className="grid grid-cols-[120px_1fr_1fr_auto] gap-3">
+            <label className="space-y-2">
+              <span className={labelClass}>缩写</span>
+              <input value={termAbbreviation} onChange={event => setTermAbbreviation(event.target.value)} className={inputClass} />
+            </label>
+            <label className="space-y-2">
+              <span className={labelClass}>中文名</span>
+              <input value={termChineseName} onChange={event => setTermChineseName(event.target.value)} className={inputClass} />
+            </label>
+            <label className="space-y-2">
+              <span className={labelClass}>英文名</span>
+              <input value={termEnglishName} onChange={event => setTermEnglishName(event.target.value)} className={inputClass} />
+            </label>
+            <div className="flex items-end gap-2">
+              <button type="submit" className={`${quietButtonClass} flex items-center gap-2`}>
+                <Plus size={14} strokeWidth={1.5} />
+                {editingTermId ? '保存' : '新增'}
+              </button>
+              {editingTermId && <button type="button" className={tinyActionClass} onClick={resetTermDraft}>取消</button>}
+            </div>
+          </div>
+        </form>
+      </CompiledFormSectionPanel>
+      <CompiledFormSectionPanel
+        id="product-module-settings-dictionary-list"
+        title="词条列表"
+        isDarkMode={isDarkMode}
+        materialRole="raisedCard"
+        contentBaseClassName="block"
+        titleClassName={primaryTextClass}
+      >
+        <div className="grid gap-2">
+          {moduleSettings.compositionTerms.map(term => (
+            <div key={term.id} className={`grid grid-cols-[120px_1fr_1fr_auto] items-center gap-3 ${tertiaryRowClass}`}>
+              <div className={`text-xs font-light ${primaryTextClass}`}>{term.abbreviation}</div>
+              <div className={`truncate text-xs font-light ${primaryTextClass}`}>{term.chineseName}</div>
+              <div className={`truncate text-xs font-light ${secondaryTextClass}`}>{term.englishName || '未填'}</div>
+              <div className="flex items-center gap-2">
+                <button type="button" className={tinyActionClass} onClick={() => editTerm(term)}>编辑</button>
+                <button
+                  type="button"
+                  className={tinyActionClass}
+                  onClick={() => patchModuleSettings({ compositionTerms: moduleSettings.compositionTerms.filter(item => item.id !== term.id) })}
+                  aria-label={`删除 ${term.abbreviation}`}
+                >
+                  <Trash2 size={13} strokeWidth={1.5} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CompiledFormSectionPanel>
+    </div>
+  );
+
+  const renderListDisplay = () => (
+    <div className="space-y-4">
+      <CompiledFormSectionPanel
+        id="product-module-settings-list-default-view"
+        title="默认视图"
+        isDarkMode={isDarkMode}
+        materialRole="raisedCard"
+        contentBaseClassName="block"
+        titleClassName={primaryTextClass}
+      >
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {(['grid', 'table'] as const).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              className={`h-10 rounded-full border text-xs font-light transition ${moduleSettings.defaultListDisplayMode === mode ? selectedButtonClass : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`}`}
+              onClick={() => patchModuleSettings({ defaultListDisplayMode: mode })}
+            >
+              {mode === 'grid' ? '卡片' : '表格'}
+            </button>
+          ))}
+        </div>
+        <label className="mt-4 block space-y-2">
+          <span className={labelClass}>默认排序</span>
+          <select value={moduleSettings.defaultSortValue} onChange={event => patchModuleSettings({ defaultSortValue: event.target.value })} className={inputClass}>
+            {PRODUCT_MODULE_SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+      </CompiledFormSectionPanel>
+      <CompiledFormSectionPanel
+        id="product-module-settings-list-columns"
+        title="表格列"
+        isDarkMode={isDarkMode}
+        materialRole="raisedCard"
+        contentBaseClassName="block"
+        titleClassName={primaryTextClass}
+      >
+        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
+          {PRODUCT_MODULE_TABLE_COLUMN_DEFINITIONS.map(column => renderSwitch(column.label, moduleSettings.visibleTableColumnIds.includes(column.id), () => {
+            const next = toggleArrayValue(moduleSettings.visibleTableColumnIds, column.id);
+            patchModuleSettings({ visibleTableColumnIds: next.length > 0 ? next : DEFAULT_PRODUCT_MODULE_SETTINGS.visibleTableColumnIds });
+          }))}
+        </div>
+      </CompiledFormSectionPanel>
+    </div>
+  );
+
+  const renderActiveSection = () => {
+    if (activeSectionId === 'field-management') return renderFields();
+    if (activeSectionId === 'classification-system') return renderClassification();
+    if (activeSectionId === 'dictionary-terms') return renderDictionary();
+    if (activeSectionId === 'list-display') return renderListDisplay();
+    return renderOverview();
+  };
+
+  return (
+    <div
+      data-os-compiler-template={blueprint.template}
+      data-os-compiler-source={blueprint.source}
+      data-os-compiler-provenance={blueprint.provenance}
+      data-os-compiler-role="product-module-settings-workspace"
+      data-ui-lab-module-settings-workspace
+      className={BAMBOOK_OS.layout.desktopWorkspaceFrameClass}
+      aria-label="数字档案后台配置工作区"
+    >
+      <CompiledModuleTitleBar
+        template={blueprint.template}
+        source="PRODUCT_MODULE_SETTINGS_TITLE_*"
+        leading={(
+        <div className="flex h-full min-w-0 items-center gap-1.5">
+          <CompiledInteractiveCard
+            spotlightColor={isDarkMode ? BAMBOOK_OS.spotlight.cardDarkColor : BAMBOOK_OS.spotlight.cardLightColor}
+            spotlightSize={isDarkMode ? BAMBOOK_OS.controls.title.spotlightDarkSize : BAMBOOK_OS.controls.title.spotlightLightSize}
+            idleSpotlightOpacity={0}
+            activeSpotlightOpacity={1}
+            className={`${BAMBOOK_OS.controls.title.backButton} ${BAMBOOK_OS.controls.title.button}`}
+          >
+            <button
+              type="button"
+              data-ui-lab-module-settings-back
+              aria-label="返回数字档案"
+              data-ui-lab-wallpaper-contrast="primary"
+              className="relative z-10 flex h-full w-full items-center justify-center rounded-[inherit] text-inherit"
+              onClick={onBack}
+            >
+              <ChevronLeft size={18} strokeWidth={1.4} />
+            </button>
+          </CompiledInteractiveCard>
+          <div className={`${BAMBOOK_OS.controls.title.breadcrumb} text-[var(--text-tertiary)]`}>
+            <button
+              type="button"
+              onClick={onBack}
+              className={`${BAMBOOK_OS.controls.title.textButton} text-[var(--text-primary)] hover:text-[var(--os-vnext-brand-blue)]`}
+            >
+              <span className="text-xl font-light tracking-tight leading-none text-[var(--text-primary)]">
+                数字档案
+              </span>
+            </button>
+            <span data-ui-lab-wallpaper-contrast="secondary" className={BAMBOOK_OS.controls.title.separator}>
+              <ChevronRight size={18} strokeWidth={1.4} />
+            </span>
+            <h2 data-ui-lab-wallpaper-contrast="primary" className={`${BAMBOOK_OS.controls.title.pageLabel} text-[var(--text-primary)]`}>
+              配置
+            </h2>
+          </div>
+        </div>
+        )}
+      />
+
+      <CompiledSplitWorkspace
+        blueprint={blueprint as any}
+        source="PRODUCT_MODULE_SETTINGS_SPLIT_WORKSPACE"
+      >
+        <CompiledSplitNavPanel
+          isDarkMode={isDarkMode}
+          className="bambook-module-settings-nav-panel"
+          source="PRODUCT_MODULE_SETTINGS_SPLIT_NAV_PANEL"
+          ariaLabel="数字档案配置分类"
+        >
+          {UI_LAB_PRODUCT_MODULE_SETTINGS_SECTIONS.map((section) => {
+            const Icon = section.icon;
+            const selected = section.id === activeSectionId;
+            const selectedSurfaceClass = BAMBOOK_OS.controls.selectedSurface.base;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                data-ui-lab-module-settings-section={section.id}
+                aria-pressed={selected}
+                className={`group ${BAMBOOK_OS.controls.navigationRow.base} ${
+                  selected
+                    ? `${selectedSurfaceClass} text-[var(--text-primary)]`
+                    : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`
+                }`}
+                onClick={() => setActiveSectionId(section.id)}
+              >
+                <span className="flex items-start gap-3">
+                  <span className={`${BAMBOOK_OS.controls.navigationRow.icon} ${selected ? 'text-current' : ('text-[var(--text-tertiary)]')}`}>
+                    <Icon size={19} strokeWidth={1.35} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className={BAMBOOK_OS.controls.navigationRow.title}>{section.title}</span>
+                    <span className={`${BAMBOOK_OS.controls.navigationRow.desc} ${selected ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>
+                      {section.desc}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </CompiledSplitNavPanel>
+
+        <CompiledSplitMainPanel
+          isDarkMode={isDarkMode}
+          source="PRODUCT_MODULE_SETTINGS_SPLIT_MAIN_PANEL"
+          scrollRef={scrollRef}
+        >
+            <div className="w-full max-w-none space-y-6">
+              <section className={BAMBOOK_OS.layout.desktopDetailStackClass}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className={`text-sm font-light tracking-tight ${'text-[var(--text-primary)]'}`}>{activeSection.title}</h3>
+                    <p className={`mt-1 max-w-2xl text-xs font-light leading-relaxed ${'text-[var(--text-secondary)]'}`}>
+                    {activeSection.desc}
+                    </p>
+                  </div>
+                  {statusText && (
+                    <span className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-light ${'border-[var(--border-c-default)] text-[var(--text-tertiary)]'}`}>
+                      <CheckCircle2 size={13} strokeWidth={1.5} />
+                      {statusText}
+                    </span>
+                  )}
+                </div>
+
+                {renderActiveSection()}
+              </section>
+            </div>
+        </CompiledSplitMainPanel>
+      </CompiledSplitWorkspace>
     </div>
   );
 };

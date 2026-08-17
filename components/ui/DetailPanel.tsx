@@ -18,7 +18,7 @@ import {
     ShieldCheck
 } from 'lucide-react';
 import { BAMBOOK_OS } from './bambookOsTokens';
-import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
+import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
 import AuditHistorySection from '../AuditHistorySection';
 import { FinanceCreditPanel } from '../finance/FinanceCreditPanel';

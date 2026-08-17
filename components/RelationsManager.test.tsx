@@ -273,7 +273,8 @@ describe('RelationsManager title system', () => {
 
     expect(source).toContain("from './ui/SidePanelContainer'");
     expect(source).toContain("import { OS_MATERIAL } from './ui/osMaterial'");
-    expect(source).toContain('OS_MATERIAL.raisedCard');
+    expect(source).toContain('OS_MATERIAL.insetSurface');
+    expect(source).not.toContain('OS_MATERIAL.raisedCard');
     expect(indexCss).not.toContain('.bambook-form-panel-edge');
     expect(indexCss).not.toContain('border: 40px solid transparent !important');
     expect(indexCss).not.toContain('border-radius: 64px !important');
@@ -440,7 +441,7 @@ describe('RelationsManager title system', () => {
   it('applies the settings content fade primitive to the relation detail scroll viewport', () => {
     const detailPanelSource = readFileSync(new URL('./ui/DetailPanel.tsx', import.meta.url), 'utf8');
 
-    expect(detailPanelSource).toContain("import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives'");
+    expect(detailPanelSource).toContain("import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives'");
     expect(detailPanelSource).not.toContain("import ScrollEdgeFades from './ScrollEdgeFades'");
     expect(detailPanelSource).toContain('const detailScrollRef = useRef<HTMLDivElement | null>(null);');
     expect(detailPanelSource).toContain('materialRole="insetSurface"');
@@ -473,7 +474,7 @@ describe('RelationsManager title system', () => {
     const detailPanelSource = readFileSync(new URL('./ui/DetailPanel.tsx', import.meta.url), 'utf8');
     const managerSource = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
 
-    expect(contactListSource).toContain("import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives'");
+    expect(contactListSource).toContain("import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives'");
     expect(contactListSource).not.toContain("import SidePanelContainer from './SidePanelContainer'");
     expect(contactListSource).toContain('CONTACT_LIST_ACTIVE_CLASS');
     expect(contactListSource).toContain('CONTACT_LIST_HOVER_CLASS');
@@ -521,7 +522,7 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).not.toContain('bambook-blue-white-light');
     expect(contactListSource).not.toContain('inset_0_1px_0_rgba(255,255,255,0.13)');
 
-    expect(orgChartSource).toContain("import { CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives'");
+    expect(orgChartSource).toContain("import { CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives'");
     expect(orgChartSource).not.toContain("import SidePanelContainer from './SidePanelContainer'");
     expect(orgChartSource).not.toContain("import { SpotlightCard } from './SpotlightCard'");
     expect(orgChartSource).toContain("import { BAMBOOK_OS } from './bambookOsTokens'");
@@ -567,7 +568,7 @@ describe('RelationsManager title system', () => {
     expect(orgChartSource).not.toContain("bg-[rgba(13,27,42,0.42)] border-white/[0.08]");
     expect(orgChartSource).not.toContain("bg-[#0d1b2a]/72 text-white/58 shadow-[0_8px_20px_-16px_rgba(0,0,0,0.5)]");
 
-    expect(detailPanelSource).toContain("import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives'");
+    expect(detailPanelSource).toContain("import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives'");
     expect(detailPanelSource).not.toContain("import SidePanelContainer from './SidePanelContainer'");
     expect(detailPanelSource).not.toContain("import ScrollEdgeFades from './ScrollEdgeFades'");
     expect(detailPanelSource).toContain("import { BAMBOOK_OS } from './bambookOsTokens'");
@@ -1080,12 +1081,13 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_MOBILE_CATEGORY_GRID_CLASS).toBe('grid grid-cols-2 gap-3 content-start');
     expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('h-[190px]');
     expect(RELATIONS_MOBILE_CATEGORY_CARD_CLASS).toContain('p-4');
-    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('rounded-[24px]');
-    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('backdrop-blur-[15px]');
-    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('bambook-dashboard-glass-color');
-    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(OS_MATERIAL.raisedCard);
-    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-outer-panel');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).toContain('bds-surface');
     expect(RELATIONS_CATEGORY_CARD_CLASS).toContain(SIDEBAR_HOVER_CLASS);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain(OS_MATERIAL.raisedCard);
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('rounded-[');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('backdrop-blur-');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-dashboard-glass-color');
+    expect(RELATIONS_CATEGORY_CARD_CLASS).not.toContain('bambook-outer-panel');
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR).toBe(BAMBOOK_OS.spotlight.cardLightColor);
     expect(RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE).toBe(BAMBOOK_OS.spotlight.panelDarkSize);
@@ -1196,7 +1198,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('hover:bg-white/80 hover:border-white/70');
     expect(sharedCardSource).not.toContain('group-hover:text-blue-600');
     expect(sharedCardSource).not.toContain("text-slate-400 group-hover:text-[#4A90E2]");
-    expect(sharedCardSource).toContain('text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]');
+    expect(sharedCardSource).toContain('text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]');
     expect(sharedCardSource).not.toContain('bg-blue-50 text-[#4A90E2]');
     expect(sharedCardSource).not.toContain('bg-[#4A90E2]/10 text-[#4A90E2]');
     expect(sharedCardSource).not.toContain('rounded-xl mb-4 flex items-center justify-center');
@@ -1253,7 +1255,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).toContain('group relative isolate overflow-hidden flex flex-col items-start text-left');
     expect(sharedCardSource).toContain('${relationCategoryCardClass} transition-colors duration-200');
     expect(sharedCardSource).toContain('-ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center');
-    expect(sharedCardSource).toContain('text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]');
+    expect(sharedCardSource).toContain('text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_CLASS');
     expect(organizationGridSource).not.toContain('{tierLabel(org.rating)}');
     expect(organizationGridSource).not.toContain('relationOrganizationTierBadgeClass');
@@ -1374,12 +1376,15 @@ describe('RelationsManager title system', () => {
 
     expect(menuSource).toContain('overlayMenu.surfaceBase');
     expect(menuSource).toContain('overlayMenu.surface');
-    expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('p-1');
-    expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('rounded-2xl');
-    expect(BAMBOOK_OS.controls.overlayMenu.surface).toContain('bambook-dashboard-glass-color');
+    expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('p-1.5');
+    expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).toContain('rounded-card');
+    expect(BAMBOOK_OS.controls.overlayMenu.surfaceBase).not.toContain('rounded-2xl');
+    expect(BAMBOOK_OS.controls.overlayMenu.surface).toContain('bds-frosted');
+    expect(BAMBOOK_OS.controls.overlayMenu.surface).not.toContain('bambook-dashboard-glass-color');
     expect(menuSource).toContain('menuSurfaceClass');
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('h-9');
-    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('rounded-2xl');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('rounded-bds-sm');
+    expect(BAMBOOK_OS.controls.overlayMenu.itemBase).not.toContain('rounded-2xl');
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('mx-0.5');
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('px-3');
     expect(BAMBOOK_OS.controls.overlayMenu.itemBase).toContain('text-xs');

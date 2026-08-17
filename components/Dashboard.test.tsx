@@ -106,7 +106,7 @@ describe('Dashboard HUD polish', () => {
 
         expect(source).toContain('!isMobileSpatial &&');
         expect(source).toContain('toLocaleTimeString');
-        expect(source).toContain('UTC+8 SHANGHAI');
+        expect(source).toContain('UTC+8 Shanghai');
         expect(source).toContain('data-ui-lab-wallpaper-contrast');
         expect(source).toContain('Bambook Hub');
         expect(source).toContain('aria-label="Search Bambook Hub"');
@@ -127,7 +127,7 @@ describe('Dashboard HUD polish', () => {
     it('routes dashboard cards through the shared flat OS material role instead of legacy glass classes', () => {
         const source = readFileSync(new URL('./Dashboard.tsx', import.meta.url), 'utf8');
         const marketSource = readFileSync(new URL('./ui/MarketIntelligence.tsx', import.meta.url), 'utf8');
-        const primitiveSource = readFileSync(new URL('./ui/osCompiler/compiledSurfacePrimitives.tsx', import.meta.url), 'utf8');
+        const primitiveSource = readFileSync(new URL('./ui/primitives/compiledSurfacePrimitives.tsx', import.meta.url), 'utf8');
         const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
         const osVnextCss = readFileSync(new URL('../styles/os-vnext.css', import.meta.url), 'utf8');
         const flatCss = readFileSync(new URL('../styles/flat-experimental.css', import.meta.url), 'utf8');
@@ -232,17 +232,17 @@ describe('Dashboard HUD polish', () => {
         expect(DASHBOARD_REFRESH_ICON_LIGHT_CLASS).toContain(DASHBOARD_QUIET_ICON_LIGHT_CLASS);
         expect(source).not.toContain('const dashboardQuietIconClass');
         expect(source).not.toContain('className={dashboardQuietIconClass}');
-        expect(source).toContain('isDarkMode ? DASHBOARD_REFRESH_ICON_DARK_CLASS : DASHBOARD_REFRESH_ICON_LIGHT_CLASS');
+        expect(source).toContain('p-1.5 rounded-full transition-all duration-300 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}');
         expect(source).toContain('className={dashboardCardLabelClass}>Cognition');
         expect(cognitionMetricSource).toContain("{cognitionView === 'nodes' ? 'Active Nodes' : 'High Priority'}");
-        expect(cognitionMetricSource).toContain('bg-[var(--os-vnext-brand-blue)]');
+        expect(cognitionMetricSource).toContain('bg-[var(--accent)]');
         expect(source).toContain('className={dashboardCardLabelClass}>Production');
         expect(productionMetricSource).toContain("{productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}");
-        expect(productionMetricSource).toContain('bg-[var(--os-vnext-brand-blue)]');
+        expect(productionMetricSource).toContain('bg-[var(--accent)]');
         expect(source).toContain('${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-all duration-300');
         expect(source).toContain('className={dashboardCardLabelClass}>Critical Analysis');
         expect(criticalMetricSource).toContain("{criticalView === 'production' ? 'Line Blocks' : criticalView === 'logistics' ? 'Delay Risks' : 'Unread Inbox'}");
-        expect(criticalMetricSource).toContain('bg-[var(--os-vnext-brand-blue)]');
+        expect(criticalMetricSource).toContain('bg-[var(--accent)]');
         expect(criticalMetricSource).not.toContain('bambook-dashboard-danger-accent');
         expect(criticalMetricSource).not.toContain('animate-pulse');
         expect(criticalMetricSource).not.toContain('animate-ping');

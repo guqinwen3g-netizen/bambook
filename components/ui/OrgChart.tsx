@@ -14,7 +14,7 @@ import {
     ZoomIn, ZoomOut, RotateCcw
 } from 'lucide-react';
 import { BAMBOOK_OS } from './bambookOsTokens';
-import { CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
+import { CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives';
 
 interface OrgChartProps {
     organization: Relation;

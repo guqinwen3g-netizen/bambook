@@ -31,25 +31,25 @@ describe('Settings permission visibility', () => {
   });
 
   it('uses the shared OS material and control tokens for page chrome', () => {
-    expect(source).toContain("import SidePanelContainer from './ui/SidePanelContainer'");
+    expect(source).toContain("import {\n  CompiledSplitMainPanel,\n  CompiledSplitNavPanel,\n  CompiledSplitWorkspace,\n} from './ui/primitives/compiledPrimitives'");
     expect(source).toContain("import { BAMBOOK_OS } from './ui/bambookOsTokens'");
     expect(source).toContain('BAMBOOK_OS.material.nestedSurface');
     expect(source).toContain('bambook-outer-panel');
     expect(source).toContain('bg-[var(--recessed-bg)]');
     expect(source).toContain('const actionControlCls');
-    expect(source).toContain("const optionActiveCls = 'bg-[var(--active-darken)] text-[var(--text-primary)]'");
+    expect(source).toContain('const optionActiveCls = `${SIDEBAR_ACTIVE_CLASS} text-[var(--text-primary)]`');
     expect(source).toContain('const optionIdleCls');
     expect(source).toContain('const settingsFrameClass = `${BAMBOOK_OS.layout.desktopWorkspaceFrameClass} bambook-settings-frame`');
     expect(source).toContain('bambook-settings-frame');
     expect(source).toContain('bambook-settings-nav-panel');
     expect(source).toContain('<PageHeader');
     expect(source).toContain("title={mode === 'account' ? '账号设置' : '系统设置'}");
-    expect(source).toContain('const settingsPanelRowClass = `${BAMBOOK_OS.layout.desktopPanelRowClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`');
-    expect(source).toContain('className={`${BAMBOOK_OS.layout.desktopSplitNavPanelClass} ${BAMBOOK_OS.layout.desktopSiblingPanelNoBleedClass} bambook-settings-nav-panel`}');
-    expect(source).toContain('contentClassName={BAMBOOK_OS.layout.desktopSplitNavContentClass}');
-    expect(source).toContain('className={BAMBOOK_OS.layout.desktopSplitMainPanelClass}');
-    expect(source).toContain('contentClassName={BAMBOOK_OS.layout.desktopSplitMainContentClass}');
-    expect(source).toContain('className={BAMBOOK_OS.layout.desktopMainScrollViewportClass}');
+    expect(source).toContain('panelRowClassName: `${BAMBOOK_OS.layout.desktopPanelRowClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`');
+    expect(source).toContain('className="bambook-settings-nav-panel"');
+    expect(source).toContain('<CompiledSplitNavPanel');
+    expect(source).toContain('<CompiledSplitMainPanel');
+    expect(source).toContain('scrollRef={settingsScrollRef}');
+    expect(source).toContain('<CompiledSplitWorkspace');
     expect(source).toContain('BAMBOOK_OS.layout.desktopAccountSettingsContentStackClass');
     expect(source).toContain('BAMBOOK_OS.layout.desktopSettingsContentStackClass');
     expect(source).not.toContain('items-end pb-3');
@@ -74,7 +74,7 @@ describe('Settings permission visibility', () => {
 
   it('renders boolean settings as iOS-style switches instead of segmented pills', () => {
     expect(source).toContain('const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px]');
-    expect(source).toContain('bg-[var(--os-vnext-brand-blue)] border-[var(--os-vnext-brand-blue)]');
+    expect(source).toContain('BAMBOOK_OS.controls.selectedSurface.base');
     expect(source).not.toContain('border-[#7DB7FF]/20 bg-[rgba(74,144,226,0.30)]');
     expect(source).not.toContain('border-[#126DCC]/18 bg-[rgba(74,144,226,0.24)]');
     expect(source).not.toContain('inset_0_0_0_1px_rgba(255,255,255,0.018)');

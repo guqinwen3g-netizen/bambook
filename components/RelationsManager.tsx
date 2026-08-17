@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Relation, RelationCategory } from '../types';
+import { Relation, RelationCategory, View } from '../types';
 import { apiService } from '../services/apiService';
 import {
   Users, Search, Plus, Building2, User,
@@ -16,8 +16,6 @@ import DetailPanel from './ui/DetailPanel';
 import OrgChart from './ui/OrgChart';
 import CustomSelect from './ui/CustomSelect';
 import {
-  SIDE_PANEL_BASE_CLASS,
-  SIDE_PANEL_CLASS,
   SIDE_PANEL_SPOTLIGHT_DARK_COLOR,
   SIDE_PANEL_SPOTLIGHT_DARK_SIZE,
   SIDE_PANEL_SPOTLIGHT_LIGHT_COLOR,
@@ -27,8 +25,8 @@ import { SpotlightCard } from './ui/SpotlightCard';
 import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
-import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/osCompiler/compiledSurfacePrimitives';
-import { CompiledTableShell } from './ui/osCompiler/compiledPrimitives';
+import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
+import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
 import { PageHeader } from './ui/PageHeader';
 import { motion } from 'framer-motion';
 import { resolveCoordinates, extractAddressFromRelation, type ResolvedCoordinates } from '../utils/geoResolveService';
@@ -37,6 +35,7 @@ import {
   SIDEBAR_HOVER_CLASS,
   SIDEBAR_PRESS_CLASS,
 } from './Sidebar';
+import { primeSuppliersFactoryPreview } from './SuppliersManager';
 
 interface RelationsManagerProps {
   relations: Relation[];
@@ -45,6 +44,10 @@ interface RelationsManagerProps {
   isMobile?: boolean;
   /** 侧边栏是否收起：用于在 Electron 下避开窗口控制键热区 */
   sidebarCollapsed?: boolean;
+  /** 数据中心 API 入口，用于删除等写入操作直连后端 */
+  cloudEndpoint?: string;
+  /** 跨模块导航（供应商组织详情「工厂档案」直达供应商管理） */
+  onNavigate?: (view: View) => void;
 }
 
 type RelationFormSectionId = 'basic' | 'contact' | 'address' | 'finance' | 'personal' | 'notes';
@@ -236,7 +239,7 @@ export const RELATIONS_TOOLBAR_SURFACE_CLASS = BAMBOOK_OS.controls.toolbar.surfa
 export const RELATIONS_TOOLBAR_CONTROL_SELECTED_CLASS = SIDEBAR_ACTIVE_CLASS;
 export const RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS = SIDEBAR_ACTIVE_CLASS;
 export const RELATIONS_CATEGORY_CARD_HIGHLIGHT_POSITION_CLASS = 'inset-0 rounded-[inherit]';
-export const RELATIONS_CATEGORY_CARD_CLASS = `${SIDE_PANEL_BASE_CLASS} ${SIDE_PANEL_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_CLASS}`;
+export const RELATIONS_CATEGORY_CARD_CLASS = `bds-surface ${SIDEBAR_HOVER_CLASS}`;
 export const RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight.cardDarkColor;
 export const RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.cardLightColor;
 export const RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE = SIDE_PANEL_SPOTLIGHT_DARK_SIZE;
@@ -355,7 +358,7 @@ export const RelationsTitleSpotlightButton: React.FC<RelationsTitleSpotlightButt
   </SpotlightCard>
 );
 
-const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate, isDarkMode = false, isMobile = false, sidebarCollapsed = false }) => {
+const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate, isDarkMode = false, isMobile = false, sidebarCollapsed = false, cloudEndpoint, onNavigate }) => {
   const [previewState] = useState(readRelationsPreviewState);
   // Navigation State
   const [navLevel, setNavLevel] = useState<RelationNavLevel>(() => previewState.navLevel || 'category');
@@ -399,6 +402,18 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
       relationSortMode,
     });
   }, [activeTab, navLevel, relationListDisplayMode, relationSortMode, searchTerm, selectedCategory, selectedContactId, selectedOrgId]);
+
+  // 卸载时清除 preview state：正常进入关系智库始终回到分类卡片页（navLevel='category'）。
+  // 跨模块跳转（CRM/Suppliers 经 primeRelationsOrgDetailPreview 预填）在视图切换前写入，挂载时照常恢复。
+  useEffect(() => {
+    return () => {
+      try {
+        sessionStorage.removeItem(RELATIONS_PREVIEW_STATE_KEY);
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const scrollKey = navLevel === 'category'
@@ -849,8 +864,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     setRelationSaveError(null);
     try {
       const persisted = editingItem
-        ? await apiService.updateRelation(item.id, item)
-        : await apiService.saveRelation(item);
+        ? await apiService.updateRelation(item.id, item, cloudEndpoint)
+        : await apiService.saveRelation(item, cloudEndpoint);
       if (editingItem) {
         onUpdate(relations.map(r => r.id === persisted.id ? persisted : r), persisted);
       } else {
@@ -869,7 +884,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     setRelationSaveError(null);
     setRelationBusy(true);
     try {
-      const deletedRelation = await apiService.deleteRelation(id);
+      const deletedRelation = await apiService.deleteRelation(id, cloudEndpoint);
       onUpdate(relations.filter(r => r.id !== deletedRelation.id), deletedRelation);
       if (selectedContactId === id) setSelectedContactId(null);
       setConfirmDeleteId(null);
@@ -999,7 +1014,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
       <div className={`
         relative z-10 -ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center
         transition-colors duration-300
-        text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]
+        text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]
       `}>
         {icon}
       </div>
@@ -1134,6 +1149,20 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
           <>
 
         <div className="flex h-full items-center gap-2 shrink-0">
+          {/* 阶段 IA 全局收编：供应商组织详情直达「供应商管理」工厂档案（评分/认证/产能） */}
+          {navLevel === 'detail' && selectedOrganization?.category === 'Supplier' && onNavigate && (
+            <RelationsTitleSpotlightButton
+              isDarkMode={isDarkMode}
+              type="button"
+              onClick={() => {
+                primeSuppliersFactoryPreview(selectedOrganization.id);
+                onNavigate(View.Suppliers);
+              }}
+              wrapperClassName={`${RELATIONS_TITLE_ACTION_BUTTON_CLASS} ${RELATIONS_TITLE_BUTTON_CLASS}`}
+            >
+              <Building2 size={14} strokeWidth={1.5} /> 工厂档案
+            </RelationsTitleSpotlightButton>
+          )}
           {/* 新增按钮：分类页不展示 */}
           {(navLevel === 'organizations' || navLevel === 'detail') && (
             <RelationsTitleSpotlightButton
@@ -2042,7 +2071,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                   type="button"
                   disabled={relationBusy}
                   onClick={() => handleDelete(confirmDeleteId)}
-                  className="w-full py-4 rounded-full text-sm font-light text-white bg-[var(--accent)] hover:opacity-90 transition-colors"
+                  className="w-full py-4 rounded-full text-sm font-light text-[var(--on-accent)] bg-[var(--accent)] hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   确认移除
                 </button>

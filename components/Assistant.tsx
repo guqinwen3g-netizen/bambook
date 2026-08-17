@@ -20,7 +20,7 @@ import { AgentMessageCard } from './AgentMessageCard';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
-import { CompiledInteractiveCard } from './ui/osCompiler/compiledPrimitives';
+import { CompiledInteractiveCard } from './ui/primitives/compiledPrimitives';
 import { localSttService } from '../services/localSttService';
 import BambookLowercaseWordmark from './BambookLowercaseWordmark';
 import {

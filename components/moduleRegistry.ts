@@ -299,11 +299,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     permissions: getViewPermissionDefinition(View.Dashboard),
     compiler: compiler('dashboard', 'accepted'),
     runtime: desktopRuntime,
-    entry: {
-      current: 'CompiledDashboardPage / Dashboard',
-      compiled: 'components/ui/osCompiler/compiledDashboardTemplates.tsx',
-      fallback: 'components/Dashboard.tsx',
-    },
+    entry: { current: 'components/Dashboard.tsx' },
   },
   {
     id: 'cockpit',
@@ -338,11 +334,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     permissions: getViewPermissionDefinition(View.Relations),
     compiler: compiler('relations', 'accepted'),
     runtime: desktopRuntime,
-    entry: {
-      current: 'CompiledRelationsPage / RelationsManager',
-      compiled: 'components/ui/osCompiler/compiledRelationsTemplates.tsx',
-      fallback: 'components/RelationsManager.tsx',
-    },
+    entry: { current: 'components/RelationsManager.tsx' },
   },
   {
     id: 'products',
@@ -354,11 +346,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     permissions: getViewPermissionDefinition(View.Products),
     compiler: compiler('products', 'accepted'),
     runtime: desktopRuntime,
-    entry: {
-      current: 'CompiledProductsPage / ProductsManager',
-      compiled: 'components/ui/osCompiler/compiledProductsTemplates.tsx',
-      fallback: 'components/ProductsManager.tsx',
-    },
+    entry: { current: 'components/ProductsManager.tsx' },
     subViews: [
       { id: 'module-settings', label: '数字档案设置', localStateKey: 'isProductModuleSettingsWorkspaceOpen' },
     ],
@@ -666,11 +654,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     permissions: getViewPermissionDefinition(View.Settings),
     compiler: compiler('settings', 'accepted'),
     runtime: desktopRuntime,
-    entry: {
-      current: 'CompiledSettingsPage / Settings',
-      compiled: 'components/ui/osCompiler/compiledSettingsTemplates.tsx',
-      fallback: 'components/Settings.tsx',
-    },
+    entry: { current: 'components/Settings.tsx' },
     subViews: [
       { id: 'account', label: '账号设置', view: View.AccountSettings },
       { id: 'system', label: '系统设置', view: View.SystemSettings },

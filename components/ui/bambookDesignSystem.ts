@@ -66,7 +66,7 @@ export const BAMBOOK_DESIGN_SYSTEM_AUTHORITATIVE_SOURCES = [
     ],
   },
   {
-    path: 'components/ui/osCompiler/compiledPrimitives.tsx',
+    path: 'components/ui/primitives/compiledPrimitives.tsx',
     owns: [
       'compiler-only reusable layout primitives',
       'compiler-only panel and slot rendering',

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 const fs = require('fs');
 const path = require('path');
-const COMPILED_SRC = fs.readFileSync(path.resolve(__dirname, 'ui/osCompiler/compiledProductsTemplates.tsx'), 'utf8');
+const COMPILED_SRC = fs.readFileSync(path.resolve(__dirname, 'ProductsManager.tsx'), 'utf8');
 const MANAGER_SRC = fs.readFileSync(path.resolve(__dirname, 'ProductsManager.tsx'), 'utf8');
 
 const SOURCES = [

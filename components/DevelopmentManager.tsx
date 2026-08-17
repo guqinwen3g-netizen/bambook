@@ -8,7 +8,7 @@ import {
   CompiledMotionInteractiveCard,
   CompiledSurfacePanel,
   CompiledTableShell,
-} from './ui/osCompiler/compiledPrimitives';
+} from './ui/primitives/compiledPrimitives';
 import { developmentService } from '../services/developmentService';
 import type {
   DevelopmentCase as DevCase,

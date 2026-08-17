@@ -34,7 +34,7 @@ import {
   CompiledSurfacePanel,
   CompiledTableShell,
   CompiledToolbarRow,
-} from './compiledPrimitives';
+} from '../primitives/compiledPrimitives';
 
 describe('Bambook OS compiler contract', () => {
   it('compiles a resource library page into one full visual blueprint', () => {

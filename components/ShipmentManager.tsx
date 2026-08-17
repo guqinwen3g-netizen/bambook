@@ -8,7 +8,7 @@ import {
   CompiledMotionInteractiveCard,
   CompiledSurfacePanel,
   CompiledTableShell,
-} from './ui/osCompiler/compiledPrimitives';
+} from './ui/primitives/compiledPrimitives';
 import type { Shipment as ShipmentType, ShipmentStatus, ShipmentEvent, ShipmentLine, ShipmentCarton } from '../types';
 import { shipmentService } from '../services/shipmentService';
 import type { OnTimeStats, MethodStats } from '../services/shipmentService';

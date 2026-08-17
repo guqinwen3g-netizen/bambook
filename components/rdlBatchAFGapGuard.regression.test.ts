@@ -35,7 +35,7 @@ const CLEAN_FILES: Array<{ name: string; p: string }> = [
   { name: 'DocumentTemplateManager', p: 'tools/DocumentTemplateManager.tsx' },
   { name: 'PackingListGenerator', p: 'tools/PackingListGenerator.tsx' },
   { name: 'crmRelationSections', p: 'ui/crm/crmRelationSections.tsx' },
-  { name: 'compiledSettingsTemplates', p: 'ui/osCompiler/compiledSettingsTemplates.tsx' },
+  { name: 'compiledSettingsTemplates', p: 'Settings.tsx' },
 ];
 
 // 手写主按钮基线残留（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合）
@@ -45,7 +45,7 @@ const HANDWRITTEN_BTN_BASELINE: Array<{ name: string; p: string; max: number }> 
   { name: 'DocumentCenter', p: 'DocumentCenter.tsx', max: 1 },
   { name: 'ReportCenter', p: 'ReportCenter.tsx', max: 2 },
   { name: 'QuotationImportWizard', p: 'import/QuotationImportWizard.tsx', max: 1 },
-  { name: 'compiledProductsTemplates', p: 'ui/osCompiler/compiledProductsTemplates.tsx', max: 3 },
+  { name: 'compiledProductsTemplates', p: 'ProductsManager.tsx', max: 3 },
 ];
 
 const CLEAN_SOURCES = CLEAN_FILES.map(({ name, p }) => ({ name, src: read(p) }));

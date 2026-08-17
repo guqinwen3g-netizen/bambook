@@ -32,7 +32,7 @@ describe('Bambook OS design system contract', () => {
       'components/ui/GlassEdgeFadeShadow.tsx',
       'components/ui/ScrollEdgeFades.tsx',
       'components/ui/osCompiler/osCompiler.ts',
-      'components/ui/osCompiler/compiledPrimitives.tsx',
+      'components/ui/primitives/compiledPrimitives.tsx',
       'components/ui/RDLPrimitives.tsx',
       'docs/design-system/rdl-component-authority.md',
     ]);

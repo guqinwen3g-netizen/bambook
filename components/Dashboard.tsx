@@ -1,11 +1,4 @@
 
-/**
- * 全景看板 Dashboard
- * 阶段 IA 定位（PRD 24.2）：全局概览入口——订单/邮件/市场情报/AI 简报的「今日工作台」。
- * 与 经营驾驶舱（预警：AR/AP/敞口/毛利）、报表中心（明细与台账）定位分化，互不渗透。
- * 注意：看板 UI 现状冻结，仅做专项设计优化，不在自动化批次改动范围内。
- */
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { Order, Email, View, Insight } from '../types';
@@ -27,7 +20,7 @@ import { ExchangeScreen } from './ui/MarketIntelligence';
 const DIAG_FREEZE_DASHBOARD = false;
 
 const DIAG_BLANK_DASHBOARD = false;
-import { CompiledDashboardCard } from './ui/osCompiler/compiledSurfacePrimitives';
+import { CompiledDashboardCard } from './ui/primitives/compiledPrimitives';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import UserAvatar from './ui/UserAvatar';
@@ -40,14 +33,12 @@ import {
     ChevronDown
 } from 'lucide-react';
 import { NotificationCenterTrigger } from './NotificationCenter';
-import {
-    ResponsiveContainer,
-    ComposedChart,
-    Area,
-    Bar,
-    Tooltip,
-    XAxis
-} from 'recharts';
+import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
+import { Area } from 'recharts/es6/cartesian/Area';
+import { Bar } from 'recharts/es6/cartesian/Bar';
+import { XAxis } from 'recharts/es6/cartesian/XAxis';
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { Tooltip } from 'recharts/es6/component/Tooltip';
 
 // 行情数据节奏：真源刷新间隔（数值仅随真源更新，无随机抖动轮询）
 export const DASHBOARD_MARKET_TICK_MS = 60000;
@@ -126,6 +117,62 @@ const DashboardProgressRing = ({ value, displayValue }: { value: number; display
         </div>
     );
 };
+
+type CompiledDashboardPageBlueprint = {
+    template: 'CompiledDashboardPage';
+    source: 'Dashboard.ui-lab-1.0.contract';
+    provenance: 'accepted';
+    layout: {
+        hudLayerClass: string;
+        hudScrollerClass: string;
+        hudRootClass: string;
+        globeStageClass: string;
+        globeBottomClass: string;
+    };
+    material: {
+        raisedCardClass: string;
+        insetSurfaceClass: string;
+        floatingOverlayClass: string;
+    };
+    motion: {
+        cardRotationMs: number;
+        velocityRotationMs: number;
+        marketTickMs: number;
+    };
+    edgeFade: {
+        cardSelector: string;
+        featherPx: number;
+        offsetPx: number;
+    };
+};
+
+export const compileDashboardPage = (): CompiledDashboardPageBlueprint => ({
+    template: 'CompiledDashboardPage',
+    source: 'Dashboard.ui-lab-1.0.contract',
+    provenance: 'accepted',
+    layout: {
+        hudLayerClass: DASHBOARD_HUD_LAYER_CLASS,
+        hudScrollerClass: DASHBOARD_HUD_SCROLLER_CLASS,
+        hudRootClass: DASHBOARD_HUD_ROOT_CLASS,
+        globeStageClass: DASHBOARD_GLOBE_STAGE_CLASS,
+        globeBottomClass: DASHBOARD_GLOBE_BOTTOM_CLASS,
+    },
+    material: {
+        raisedCardClass: DASHBOARD_RAISED_CARD_CLASS,
+        insetSurfaceClass: DASHBOARD_INSET_SURFACE_CLASS,
+        floatingOverlayClass: DASHBOARD_FLOATING_OVERLAY_CLASS,
+    },
+    motion: {
+        cardRotationMs: DASHBOARD_CARD_ROTATION_MS,
+        velocityRotationMs: DASHBOARD_VELOCITY_ROTATION_MS,
+        marketTickMs: DASHBOARD_MARKET_TICK_MS,
+    },
+    edgeFade: {
+        cardSelector: DASHBOARD_EDGE_FADE_CARD_SELECTOR,
+        featherPx: DASHBOARD_HEADER_CARD_FADE_FEATHER_PX,
+        offsetPx: DASHBOARD_HEADER_CARD_FADE_OFFSET_PX,
+    },
+});
 
 // TYPEWRITER COMPONENT FOR AI BRIEFING
 // Fixed: Uses proper index tracking to avoid closure issues and character drops
@@ -487,6 +534,7 @@ const DashboardMarketHub = React.memo(function DashboardMarketHub({
             liquidSpotlight={liquidSpotlight}
             idleSpotlightOpacity={idleSpotlightOpacity}
             variant={variant}
+            cardComponent={CompiledDashboardCard}
         />
     );
 });
@@ -499,6 +547,7 @@ function getTouchDistance(touches: TouchList): number {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavigate: _onNavigate, briefing, isBriefingLoading, isCloudConnected: _isCloudConnected, isDarkMode = false, onRefreshBriefing, isMobileSpatial = false, hasGlobeUnderlay = true }) => {
+    const blueprint = useMemo(() => compileDashboardPage(), []);
     const [authUser, setAuthUser] = React.useState(() => getAuthState().user);
 
     React.useEffect(() => subscribe((next) => setAuthUser(next.user)), []);
@@ -716,8 +765,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         ? { gridTemplateColumns: `minmax(${DASHBOARD_EXPANDED_AI_MIN_WIDTH_PX}px, 0.92fr) minmax(${DASHBOARD_EXPANDED_MARKET_MIN_WIDTH_PX}px, 1.08fr)` }
         : undefined;
     const dashboardAiCardClass = useExpandedDashboardLayout
-        ? `${DASHBOARD_RAISED_CARD_CLASS} p-6 xl:p-8 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-all duration-300`
-        : `${DASHBOARD_RAISED_CARD_CLASS} p-6 xl:p-8 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-all duration-300`;
+        ? `${DASHBOARD_RAISED_CARD_CLASS} p-6 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-all duration-300`
+        : `${DASHBOARD_RAISED_CARD_CLASS} p-6 flex flex-col justify-between h-full w-full overflow-y-auto no-scrollbar transition-all duration-300`;
     const dashboardMarketHubClass = useExpandedDashboardLayout
         ? 'h-full min-h-0 overflow-visible transition-all duration-300'
         : 'col-start-1 col-span-4 row-start-1 h-full min-h-0 overflow-visible transition-all duration-300';
@@ -728,7 +777,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         ? { gridTemplateColumns: `minmax(${DASHBOARD_EXPANDED_STATUS_MIN_WIDTH_PX}px, 0.62fr) minmax(${DASHBOARD_EXPANDED_PIPELINE_MIN_WIDTH_PX}px, 0.86fr) minmax(${DASHBOARD_EXPANDED_VELOCITY_MIN_WIDTH_PX}px, 1.72fr)` }
         : undefined;
     const dashboardStatusCardClass = useExpandedDashboardLayout
-        ? `${DASHBOARD_RAISED_CARD_CLASS} p-6 flex flex-col justify-center gap-2 h-full transition-all duration-300`
+        ? `${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-all duration-300`
         : `col-start-5 col-span-2 row-start-1 min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-5 flex flex-col justify-center gap-2 h-full transition-all duration-300`;
     const dashboardPipelineCardClass = useExpandedDashboardLayout
         ? `min-w-0 ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col h-full overflow-visible perspective-[1000px] transition-all duration-300`
@@ -739,7 +788,14 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
     const dashboardHeaderPillClass = BAMBOOK_OS.controls.actionControl.base;
 
     const dashboardContent = (
-        <div className={`relative w-full h-full bg-transparent selection:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.30)] pointer-events-none ${mobileSpatialClass}`}>
+        <div
+            data-os-compiler-template={blueprint.template}
+            data-os-compiler-source={blueprint.source}
+            data-os-compiler-provenance={blueprint.provenance}
+            data-os-compiler-role="dashboard-hud-root"
+            data-os-compiler-edge-fade-source="DASHBOARD_HEADER_CARD_FADE_*"
+            className={`relative w-full h-full bg-transparent selection:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.30)] pointer-events-none ${mobileSpatialClass}`}
+        >
             {/* LAYER 1: GRID OVERLAY ONLY */}
             <div data-dashboard-bg-grid className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
 
@@ -753,12 +809,12 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                     {/* Keep the title row flexible so it can make room for mobile chrome. */}
                     <div className={dashboardHeaderFrameClass}>
                         <div className="flex w-full flex-row flex-wrap justify-between items-center gap-4">
-                            <div className={`flex min-w-0 flex-1 items-center gap-5 text-[var(--text-primary)]`}>
+                            <div className={`flex min-w-0 flex-1 items-center gap-4 text-[var(--text-primary)]`}>
                                 <h1
-                                    className="bambook-title-adaptive-ink text-3xl md:text-4xl font-light tracking-tight whitespace-nowrap text-os-adaptive-title transition-all"
+                                    className="text-[26px] font-light tracking-tight whitespace-nowrap text-os-adaptive-title ![text-shadow:none] transition-all"
                                 >
                                     Bambook Hub
-                                    <span className="ml-2.5 align-middle text-[13px] font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
+                                    <span className="ml-2.5 align-middle text-[12px] font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
                                 </h1>
                                 {!isMobileSpatial && (
                                     <label className={`pointer-events-auto flex h-14 w-[300px] max-w-[30vw] items-center gap-3 rounded-card-lg border px-5 ${dashboardHeaderPillClass} text-os-adaptive-subtitle`}>
@@ -776,14 +832,14 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                 <div className="flex items-center gap-3 self-end md:self-auto">
                                     <div className="text-right">
                                         <div
-                                            className="text-4xl font-light tracking-tighter tabular-nums text-os-adaptive-primary transition-colors"
+                                            className="text-[26px] font-light leading-none tracking-tight tabular-nums text-[var(--os-adaptive-primary)] transition-colors"
                                         >
                                             {new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                         <div
-                                            className="text-[10px] font-normal uppercase tracking-widest text-os-adaptive-subtitle"
+                                            className="text-[11px] font-light uppercase tracking-[0.14em] text-[var(--os-adaptive-subtitle)] mt-1"
                                         >
-                                            UTC+8 SHANGHAI
+                                            UTC+8 Shanghai
                                         </div>
                                     </div>
                                     <NotificationCenterTrigger className="pointer-events-auto" />
@@ -844,7 +900,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                                     {cognitionView === 'nodes' ? 'Active Nodes' : 'High Priority'}
                                                 </div>
-                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--os-vnext-brand-blue)]" />
+                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--accent)]" />
                                             </motion.div>
                                         </AnimatePresence>
                                         <DashboardProgressRing value={memoryPercent} displayValue={cognitionView === 'nodes' ? insightsCount : highInsightCount} />
@@ -872,8 +928,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                             {productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}
                                         </div>
-                                        <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg)]">
-                                            <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${outputPercent}%` }} />
+                                        <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg-strong)]">
+                                            <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${outputPercent}%` }} />
                                         </div>
                                         </div>
                                         {!useExpandedDashboardLayout && (
@@ -884,15 +940,15 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="primary" className="mt-2 text-[24px] font-light leading-none tracking-tight text-os-adaptive-primary tabular-nums">
                                                     ${(totalValue / 1000).toFixed(1)}k
                                                 </div>
-                                                <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg)]">
-                                                    <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
+                                                <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg-strong)]">
+                                                    <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                 </CompiledDashboardCard>
 
-                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} ${DASHBOARD_ACCENT_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-all duration-300 ${useExpandedDashboardLayout ? '' : 'order-3'}`}>
+                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`p-5 xl:p-6 ${DASHBOARD_RAISED_CARD_CLASS} flex flex-col justify-between flex-1 h-full transition-all duration-300 ${useExpandedDashboardLayout ? '' : 'order-3'}`}>
                                     <div className="flex items-center">
                                         <span data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>Critical Analysis</span>
                                     </div>
@@ -908,7 +964,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                                     {criticalView === 'production' ? 'Line Blocks' : criticalView === 'logistics' ? 'Delay Risks' : 'Unread Inbox'}
                                                 </div>
-                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--os-vnext-brand-blue)]" />
+                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--accent)]" />
                                             </motion.div>
                                         </AnimatePresence>
                                         <DashboardProgressRing value={risksPercent} displayValue={criticalView === 'production' ? alertCount : criticalView === 'logistics' ? liveOrders.filter(o => o.status === 'Pending').length : unreadEmailCount} />
@@ -927,7 +983,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                 {/* AI Briefing Module (Restyled to match Pipeline Value/Forex) */}
                                 <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={dashboardAiCardClass}>
                                     <div className="flex items-center">
-                                        <div data-ui-lab-wallpaper-contrast="brand" className="text-[13px] font-normal tracking-[0.04em] text-[var(--os-vnext-brand-blue)]">Neural Intelligence</div>
+                                        <span data-ui-lab-wallpaper-contrast="brand" className="text-[13px] font-normal tracking-[0.04em] text-[var(--os-vnext-brand-blue)]">Neural Intelligence</span>
                                     </div>
 
                                     <div className="flex-1 flex flex-col justify-center mt-4 h-full">
@@ -962,7 +1018,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                                     key={i}
                                                                     animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.6, 0.2] }}
                                                                     transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
-                                                                    className="w-1 h-1 rounded-full bg-[var(--os-vnext-brand-blue)]"
+                                                                    className="w-1 h-1 rounded-full bg-[var(--accent)]"
                                                                 />
                                                             ))}
                                                         </div>
@@ -995,7 +1051,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             onClick={onRefreshBriefing}
                                             disabled={isBriefingLoading}
                                             data-ui-lab-wallpaper-contrast="muted"
-                                            className={`p-1.5 rounded-full transition-all duration-300 ${isDarkMode ? DASHBOARD_REFRESH_ICON_DARK_CLASS : DASHBOARD_REFRESH_ICON_LIGHT_CLASS}`}
+                                            className={`p-1.5 rounded-full transition-all duration-300 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}`}
                                             title="Manual Sync"
                                         >
                                             <RefreshCw size={12} strokeWidth={1} className={isBriefingLoading ? "animate-spin" : ""} />
@@ -1008,17 +1064,17 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         <DashboardMarketHub isDarkMode={isDarkMode} spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} liquidSpotlight idleSpotlightOpacity={dashboardIdleSpotlightOpacity} variant="expanded" />
                                     </div>
                                 )}
-	                            </motion.div>
-	                        </motion.div>
+		                            </motion.div>
+		                        </motion.div>
 
-	                        {/* BOTTOM HUD: TIMELINE & CONTROLS - LIFTED TO FIT ON SCREEN */}
-	                        <div className={dashboardBottomClass} style={dashboardBottomStyle}>
-                                {!useExpandedDashboardLayout && (
-                                    <div className={dashboardMarketHubClass}>
-                                        <DashboardMarketHub isDarkMode={isDarkMode} spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} liquidSpotlight idleSpotlightOpacity={dashboardIdleSpotlightOpacity} variant="compact" />
-                                    </div>
-                                )}
-	                            {/* Legend / Status Panel - Now Responsive Width [180px - 260px] */}
+		                        {/* BOTTOM HUD: TIMELINE & CONTROLS - LIFTED TO FIT ON SCREEN */}
+		                        <div className={dashboardBottomClass} style={dashboardBottomStyle}>
+                                    {!useExpandedDashboardLayout && (
+                                        <div className={dashboardMarketHubClass}>
+                                            <DashboardMarketHub isDarkMode={isDarkMode} spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} liquidSpotlight idleSpotlightOpacity={dashboardIdleSpotlightOpacity} variant="compact" />
+                                        </div>
+                                    )}
+		                            {/* Legend / Status Panel - Now Responsive Width [180px - 260px] */}
                             <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={dashboardStatusCardClass}>
                                 <div data-ui-lab-wallpaper-contrast="muted" className={`${dashboardCardLabelClass} mb-3 block pb-2`}>Status Index</div>
                                 <div className="space-y-3">
@@ -1038,8 +1094,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                 </div>
                             </CompiledDashboardCard>
 
-                            {useExpandedDashboardLayout && (
-                            <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={dashboardPipelineCardClass}>
+	                            {useExpandedDashboardLayout && (
+                                <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={dashboardPipelineCardClass}>
                                 <AnimatePresence mode="wait">
                                     <motion.div
                                         key={pipelineView}
@@ -1050,10 +1106,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         className="w-full h-full p-6 flex flex-col justify-between"
                                     >
                                         <div className="flex items-center">
-                                            <div>
-                                                <div data-ui-lab-wallpaper-contrast="muted" className={`${dashboardCardLabelClass} mb-1`}>
-                                                    {pipelineView === 'total' ? 'Pipeline Value' : 'Regional Alpha'}
-                                                </div>
+                                            <div data-ui-lab-wallpaper-contrast="muted" className={dashboardCardLabelClass}>
+                                                {pipelineView === 'total' ? 'Pipeline Value' : 'Regional Alpha'}
                                             </div>
                                         </div>
 
@@ -1063,7 +1117,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <>
                                                     <div className="flex items-baseline gap-1">
                                                         <span data-ui-lab-wallpaper-contrast="muted" className="text-[13px] font-normal text-os-adaptive-subtitle">$</span>
-                                                        <div data-ui-lab-wallpaper-contrast="primary" className={`text-[30px] font-light leading-none tabular-nums tracking-tight text-[var(--text-primary)]`}>
+                                                        <div data-ui-lab-wallpaper-contrast="muted" className={`text-[30px] font-light leading-none tabular-nums tracking-tight text-[var(--text-primary)]`}>
                                                             {(totalValue / 1000).toFixed(1)}<span className="text-sm ml-0.5 font-light">k</span>
                                                         </div>
                                                     </div>
@@ -1081,11 +1135,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                         {pipelineRegionRows
                                                             .slice(0, useExpandedDashboardLayout ? 3 : 2)
                                                             .map((row) => (
-                                                                <div key={row.label} className="flex justify-between items-center text-[9px] gap-3">
-                                                                    <span data-ui-lab-wallpaper-contrast="muted" className={`text-[13px] text-os-adaptive-subtitle font-normal truncate ${useExpandedDashboardLayout ? 'max-w-[112px]' : 'max-w-[72px]'}`} title={row.label}>
+                                                                <div key={row.label} className="flex justify-between items-center text-[13px] gap-3">
+                                                                    <span data-ui-lab-wallpaper-contrast="muted" className={`text-[var(--text-tertiary)] font-light truncate ${useExpandedDashboardLayout ? 'max-w-[112px]' : 'max-w-[72px]'}`} title={row.label}>
                                                                         {row.label}
                                                                     </span>
-                                                                    <span data-ui-lab-wallpaper-contrast="brand" className="text-[13px] font-mono font-normal text-[var(--os-vnext-brand-blue)]">{row.pct}%</span>
+                                                                    <span data-ui-lab-wallpaper-contrast="brand" className="font-mono font-light text-[var(--os-vnext-brand-blue)]">{row.pct}%</span>
                                                                 </div>
                                                             ))}
                                                     </div>
@@ -1096,14 +1150,14 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         </div>
                                     </motion.div>
                                 </AnimatePresence>
-                            </CompiledDashboardCard>
-                            )}
+	                            </CompiledDashboardCard>
+                                )}
 
                             {/* 3D Switching Velocity Hub (Rubik's Cube Style) */}
                             <div className={dashboardVelocityHubClass}>
                                 <CompiledDashboardCard spotlightColor={dashboardSpotlightColor} spotlightSize={dashboardSpotlightSize} idleSpotlightOpacity={dashboardIdleSpotlightOpacity} liquidSpotlight liquidSpotlightTone="light" className={`relative w-full h-full ${DASHBOARD_RAISED_CARD_CLASS} p-0 flex flex-col overflow-visible transition-all duration-300`}>
                                     {/* Header - Stays Fixed */}
-                                    <div className="flex justify-between items-center px-6 pt-6 mb-2 z-20">
+                                    <div className="flex justify-between items-center px-5 pt-5 mb-1 z-20">
                                         <div className="flex items-center">
                                             <span
                                                 data-ui-lab-wallpaper-contrast="muted"
@@ -1115,7 +1169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         </div>
 
                                         {/* Naked Tacticle Navigation - NO COMPLEX CONTAINERS */}
-                                        <div className="flex items-center gap-4 z-30">
+                                        <div className="flex items-center gap-3 z-30">
                                             <button
                                                 onClick={() => setActiveVelocity('fabric')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'fabric' ? 'brand' : 'muted'}
@@ -1148,7 +1202,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 {(activeVelocity === 'fabric' ? fabricData : garmentData) ? (
                                                 <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 10, height: 10 }}>
                                                     <ComposedChart
-                                                        data={(activeVelocity === 'fabric' ? fabricData : garmentData) ?? undefined}
+                                                        data={activeVelocity === 'fabric' ? fabricData : garmentData}
                                                         margin={{ top: 44, right: 6, left: 4, bottom: 22 }}
                                                         style={{ overflow: 'visible' }}
                                                         barGap={0}
@@ -1168,6 +1222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                             tickLine={false}
                                                             interval={1}
                                                             height={24}
+                                                            boundaryGap={false}
                                                         />
                                                         <Tooltip
                                                             cursor={{ fill: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
@@ -1185,23 +1240,23 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                                             <div className="flex flex-col gap-1">
                                                                                 <div className="flex justify-between gap-3">
                                                                                     <span className="text-[13px]">This week</span>
-                                                                                    <span className="text-[13px] font-mono font-normal text-[var(--os-vnext-brand-blue)]">{Math.round(d.weekly)}</span>
+                                                                                    <span className="text-[13px] font-mono font-light text-[var(--os-vnext-brand-blue)]">{Math.round(d.weekly)}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between gap-3">
                                                                                     <span className="text-[13px]">Prior week</span>
-                                                                                    <span className="text-[13px] font-mono font-normal text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.prevWeekly)}</span>
+                                                                                    <span className="text-[13px] font-mono font-light text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.prevWeekly)}</span>
                                                                                 </div>
                                                                                 {wow !== null && (
                                                                                     <div className="flex justify-between gap-3">
                                                                                         <span className="text-[13px]">WoW</span>
-                                                                                        <span className={`text-[13px] font-mono font-normal ${Number(wow) >= 0 ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}>
+                                                                                        <span className={`text-[13px] font-mono font-light ${Number(wow) >= 0 ? 'text-os-adaptive-brand' : 'text-os-adaptive-subtitle'}`}>
                                                                                             {Number(wow) >= 0 ? '+' : ''}{wow}%
                                                                                         </span>
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="pt-1 mt-1 border-t border-[var(--border-c-default)] flex justify-between gap-3">
                                                                                     <span className="text-[13px]">13w sum</span>
-                                                                                    <span className="text-[13px] font-mono font-normal text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.cumulative)}</span>
+                                                                                    <span className="text-[13px] font-mono font-light text-[var(--os-vnext-brand-blue-soft)]">{Math.round(d.cumulative)}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>

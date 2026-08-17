@@ -14,9 +14,9 @@ import {
 } from 'lucide-react';
 import {
     SIDEBAR_ACTIVE_CLASS,
-} from '../Sidebar';
+} from './sidebarConstants';
 import { BAMBOOK_OS } from './bambookOsTokens';
-import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSurfacePrimitives';
+import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives';
 
 // P3-2 收编：双写坍缩为单写自适应（真源 BAMBOOK_OS.controls.listRow / selectedSurface）。
 export const CONTACT_LIST_ACTIVE_CLASS =

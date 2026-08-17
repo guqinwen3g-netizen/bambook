@@ -20,7 +20,7 @@ import {
   Plus, Trash2, Loader2, Star, Phone, Mail,
 } from 'lucide-react';
 import { BAMBOOK_OS } from '../bambookOsTokens';
-import { CompiledSurfacePanel } from '../osCompiler/compiledSurfacePrimitives';
+import { CompiledSurfacePanel } from '../primitives/compiledSurfacePrimitives';
 import { statusSemanticClass, StatusSemantic } from '../../rdlBusinessStatusTokens';
 import { apiService } from '../../../services/apiService';
 import {

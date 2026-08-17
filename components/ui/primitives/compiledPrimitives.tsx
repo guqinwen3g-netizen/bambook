@@ -56,7 +56,7 @@ export type {
   CompiledToolbarProps,
   CompiledToolbarShadowMode,
 } from './compiledSurfacePrimitives';
-import type { OSCompilerPageBlueprint } from './osCompiler';
+import type { OSCompilerPageBlueprint } from '../osCompiler/osCompiler';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 

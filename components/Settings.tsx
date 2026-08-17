@@ -10,21 +10,31 @@ import {
   Monitor, Moon, Sun, DatabaseZap,
   Bot, Cable, Server, Cpu, Globe, User, ArrowRight, LogOut,
   HardDrive, RefreshCw, Trash2, Pencil, RotateCw, Image, Upload,
-  Sparkles, Workflow, Building2
+  Sparkles, Ruler, Workflow, Building2
 } from 'lucide-react';
 import { AutomationRulesSection } from './AutomationRulesSection';
-import ScrollEdgeFades from './ui/ScrollEdgeFades';
-import SidePanelContainer from './ui/SidePanelContainer';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { requestOsAdaptiveContrastRefresh } from './ui/osAdaptiveContrast';
 import UserAvatar from './ui/UserAvatar';
 import { resolvePublicAssetUrl } from '../utils/publicAssets';
 import { setWallpaperAccentSample } from '../utils/wallpaperAccent';
+import {
+  SIDEBAR_ACTIVE_CLASS,
+  SIDEBAR_HOVER_CLASS,
+  SIDEBAR_IDLE_ICON_CLASS,
+  SIDEBAR_PRESS_CLASS,
+} from './ui/sidebarConstants';
+import {
+  CompiledSplitMainPanel,
+  CompiledSplitNavPanel,
+  CompiledSplitWorkspace,
+} from './ui/primitives/compiledPrimitives';
+import { CompiledMoqThresholdsPanel } from './ui/osCompiler/compiledMoqThresholdsPanel';
 
 const ENABLE_WALLPAPER_SWITCHING = false;
 
-interface SettingsProps {
+export interface SettingsProps {
   mode?: 'account' | 'system';
   config: SystemConfig;
   onUpdateConfig: (c: SystemConfig) => void;
@@ -32,7 +42,7 @@ interface SettingsProps {
   isDarkMode?: boolean;
 }
 
-type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'security' | 'account' | 'automation' | 'company';
+type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'moq' | 'account' | 'automation' | 'security' | 'company';
 type AvatarCropDraft = {
   src: string;
   fileName: string;
@@ -290,11 +300,32 @@ export const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: type
   { id: 'voice', label: '朗读', hint: '自动播报语速', icon: Volume2 },
   { id: 'sync', label: '同步', hint: '云端与知识库', icon: Globe },
   { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive },
+  { id: 'moq', label: 'MOQ 阈值', hint: 'MOQ Thresholds', icon: Ruler },
   { id: 'api', label: 'API', hint: '对外接口密钥', icon: Cable },
   { id: 'automation', label: '自动化', hint: '业务流程联动规则', icon: Workflow },
   { id: 'security', label: '安全', hint: '隐私与重置', icon: Shield },
   { id: 'company', label: '公司抬头', hint: '出口方与银行信息', icon: Building2 }
 ];
+
+type CompiledSettingsPageBlueprint = {
+  template: 'CompiledSettingsPage';
+  source: 'Settings.ui-lab-1.0.full-contract';
+  provenance: 'accepted';
+  modes: readonly ['system', 'account'];
+  tabs: typeof SETTINGS_TABS;
+  titleBarClassName: string;
+  panelRowClassName: string;
+};
+
+export const compileSettingsPage = (): CompiledSettingsPageBlueprint => ({
+  template: 'CompiledSettingsPage',
+  source: 'Settings.ui-lab-1.0.full-contract',
+  provenance: 'accepted',
+  modes: ['system', 'account'],
+  tabs: SETTINGS_TABS,
+  titleBarClassName: BAMBOOK_OS.layout.desktopTitleBarWithInsetClass,
+  panelRowClassName: `${BAMBOOK_OS.layout.desktopPanelRowClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`,
+});
 
 const formatBytes = (bytes: number | null | undefined) => {
   if (bytes === null || bytes === undefined) return '不可用';
@@ -360,6 +391,7 @@ const createCircularAvatarDataUrl = async (draft: AvatarCropDraft): Promise<stri
 };
 
 const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateConfig, isDarkMode = false }) => {
+  const blueprint = useMemo(() => compileSettingsPage(), []);
   const settingsScrollRef = useRef<HTMLDivElement | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>(() => (mode === 'account' ? 'account' : 'appearance'));
   const [localConfig, setLocalConfig] = useState<SystemConfig>(config);
@@ -455,24 +487,26 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   };
 
   const card = `${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.nestedSurface} bambook-settings-nested-panel bambook-outer-panel transition-[background,border-color,box-shadow] duration-300`;
-  const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} text-[var(--text-tertiary)]`;
-  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-all ${BAMBOOK_OS.typography.weight.ui} bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--os-vnext-brand-blue)]`;
-  const actionControlCls = `h-9 rounded-control border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-all border-transparent text-[var(--text-tertiary)] bg-[var(--recessed-bg)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)] active:bg-[var(--active-darken)]`;
-  const titleBrandClass = 'text-[var(--os-vnext-brand-blue)]';
-  const brandIconCls = 'text-[var(--os-vnext-brand-blue)]';
+  const labelCls = `text-[11px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.tone.text.formLabel}`;
+  const inputCls = `w-full h-9 px-4 rounded-control outline-none transition-all ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.controls.recessedField.base}`;
+  const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-all ${BAMBOOK_OS.controls.actionControl.bordered}`;
+  const brandIconCls = BAMBOOK_OS.tone.text.brandEmphasis;
   const primaryTextCls = 'text-[var(--text-primary)]';
-  const secondaryTextCls = 'text-[var(--text-secondary)]';
+  const secondaryTextCls = BAMBOOK_OS.tone.text.quiet;
   const weakTextCls = 'text-[var(--text-tertiary)]';
-  const sectionDividerCls = 'border-[var(--border-c-subtle)]';
-  const iconWellCls = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-field border bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--os-vnext-brand-blue)]';
-  const optionActiveCls = 'bg-[var(--active-darken)] text-[var(--text-primary)]';
-  const optionIdleCls = 'border border-transparent bg-transparent shadow-none text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] active:scale-[0.98] active:bg-[var(--active-darken)]';
+  const sectionDividerCls = BAMBOOK_OS.tone.divider.section;
+  const iconWellCls = `flex h-9 w-9 shrink-0 items-center justify-center rounded-field border ${BAMBOOK_OS.tone.surface.quietIcon} border-[var(--border-c-subtle)] ${BAMBOOK_OS.tone.text.brandEmphasis}`;
+  const optionActiveCls = `${SIDEBAR_ACTIVE_CLASS} text-[var(--text-primary)]`;
+  // SIDEBAR_HOVER/PRESS 的 DARK 与 LIGHT 版已坍缩为同一自适应配方，单类承载双主题
+  const optionIdleCls = `border border-transparent bg-transparent shadow-none text-[var(--text-secondary)] ${SIDEBAR_HOVER_CLASS} ${SIDEBAR_PRESS_CLASS}`;
   const uploadDropzoneCls = 'relative h-20 rounded-control border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] active:scale-[0.98] active:bg-[var(--active-darken)]';
   const selectedWallpaperCls = 'border-[var(--os-vnext-brand-blue)] shadow-none';
   const idleWallpaperCls = 'border-[var(--border-c-subtle)] hover:border-[var(--border-c-default)]';
   const rangeCls = 'bambook-settings-range w-full appearance-none cursor-pointer';
-  const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'bg-[var(--os-vnext-brand-blue)] border-[var(--os-vnext-brand-blue)]' : 'border-transparent bg-[var(--recessed-bg)] shadow-none'}`;
-  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-[var(--invert-bg)] shadow-none`;
+  const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
+    ? BAMBOOK_OS.controls.selectedSurface.base
+    : 'border-transparent bg-[var(--recessed-bg-strong)] shadow-none'}`;
+  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-[var(--bg-card)] shadow-none`;
 
   const modelId = localConfig.chatModelId || MODELS.FAST;
   const canOpenAgentPetWindow = Boolean(window.bambookAgent?.openPetWindow);
@@ -639,42 +673,47 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   };
 
   const settingsFrameClass = `${BAMBOOK_OS.layout.desktopWorkspaceFrameClass} bambook-settings-frame`;
-  const settingsPanelRowClass = `${BAMBOOK_OS.layout.desktopPanelRowClass} ${BAMBOOK_OS.layout.desktopPageCanvasClass}`;
+  const settingsPanelRowClass = blueprint.panelRowClassName;
 
   return (
-    <div className={settingsFrameClass}>
+    <div
+      className={settingsFrameClass}
+      data-os-compiler-page="settings"
+      data-os-compiler-template={blueprint.template}
+      data-os-compiler-source={blueprint.source}
+      data-os-compiler-provenance={blueprint.provenance}
+      data-os-compiler-role="settings-full-contract"
+    >
       <PageHeader
         title={mode === 'account' ? '账号设置' : '系统设置'}
         subtitle={mode === 'account' ? 'Account Settings' : 'System Settings'}
         isDarkMode={isDarkMode}
       />
 
-      <div className={settingsPanelRowClass}>
+      <CompiledSplitWorkspace
+        blueprint={blueprint as any}
+        source="SETTINGS_SPLIT_WORKSPACE"
+        baseClassName={settingsPanelRowClass}
+      >
         {/* 左侧导航 */}
         {mode === 'system' && (
-          <SidePanelContainer
-            as="nav"
+          <CompiledSplitNavPanel
             isDarkMode={isDarkMode}
-            spotlight
-            data-os-adaptive-container="1"
-            className={`${BAMBOOK_OS.layout.desktopSplitNavPanelClass} ${BAMBOOK_OS.layout.desktopSiblingPanelNoBleedClass} bambook-settings-nav-panel`}
-            contentClassName={BAMBOOK_OS.layout.desktopSplitNavContentClass}
+            className="bambook-settings-nav-panel"
+            source="SETTINGS_SPLIT_NAV_PANEL"
           >
             {visibleTabs.map(tab => {
               const Icon = tab.icon;
               const on = activeTab === tab.id;
-              const hintCls = on
-                ? 'text-[var(--text-tertiary)]'
-                : weakTextCls;
+              const hintCls = weakTextCls;
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  data-ui-lab-wallpaper-contrast={on ? undefined : 'primary'}
                   className={`text-left rounded-control px-3 py-2.5 transition-all flex items-start gap-2 border ${BAMBOOK_OS.typography.weight.ui} ${on ? optionActiveCls : optionIdleCls}`}
                 >
-                  <Icon size={16} strokeWidth={1.5} className={`mt-0.5 shrink-0 transition-colors ${on ? 'text-current' : 'text-[var(--text-tertiary)]'}`} />
+                  <Icon size={16} strokeWidth={1.5} className={`mt-0.5 shrink-0 transition-colors ${on ? 'text-current' : SIDEBAR_IDLE_ICON_CLASS}`} />
                   <span>
                     <span className="block text-sm font-light leading-tight">{tab.label}</span>
                     <span className={`block text-[10px] mt-0.5 ${hintCls}`}>{tab.hint}</span>
@@ -682,21 +721,18 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                 </button>
               );
             })}
-            <div data-ui-lab-wallpaper-contrast="muted" className="mt-auto pt-3 px-2 pb-1 text-[10px] text-[var(--text-tertiary)]">
+            <div className="mt-auto pt-3 px-2 pb-1 text-[10px] text-[var(--text-tertiary)]">
               Bambook Hub v3.0
             </div>
-          </SidePanelContainer>
+          </CompiledSplitNavPanel>
         )}
 
         {/* 主内容 */}
-        <SidePanelContainer
+        <CompiledSplitMainPanel
           isDarkMode={isDarkMode}
-          spotlight
-          className={BAMBOOK_OS.layout.desktopSplitMainPanelClass}
-          contentClassName={BAMBOOK_OS.layout.desktopSplitMainContentClass}
+          source="SETTINGS_SPLIT_MAIN_PANEL"
+          scrollRef={settingsScrollRef}
         >
-          <ScrollEdgeFades scrollRef={settingsScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} />
-          <div ref={settingsScrollRef} className={BAMBOOK_OS.layout.desktopMainScrollViewportClass}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -930,7 +966,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           className={`text-left p-4 rounded-control border transition-all ${modelId === m.id ? optionActiveCls : optionIdleCls}`}
                         >
                           <div className={`text-sm font-light ${modelId === m.id ? 'text-current' : primaryTextCls}`}>{m.title}</div>
-                          <div className={`text-[11px] mt-1 ${modelId === m.id ? 'text-[var(--text-tertiary)]' : weakTextCls}`}>{m.sub}</div>
+                          <div className={`text-[11px] mt-1 ${weakTextCls}`}>{m.sub}</div>
                         </button>
                       ))}
                     </div>
@@ -1003,7 +1039,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     />
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <div className="flex items-center gap-2">
-                        <span className={`inline-block w-2 h-2 rounded-full ${config.isCloudConnected ? 'bg-[var(--success-tint)]' : 'bg-[var(--text-tertiary)]'}`} />
+                        <span className={`inline-block w-2 h-2 rounded-full ${config.isCloudConnected ? 'bg-[var(--os-vnext-brand-blue-strong)]' : 'bg-[var(--text-tertiary)]'}`} />
                         <span className={secondaryTextCls}>
                           当前探测：{config.isCloudConnected ? '已连接' : '未连接'}
                         </span>
@@ -1074,9 +1110,9 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     />
                   </div>
 
-                  <div className={`p-3 rounded-control border font-mono text-[10px] h-36 overflow-y-auto custom-scrollbar bg-[var(--recessed-bg-strong)] border-[var(--border-c-default)] text-[var(--text-secondary)]`}>
+                  <div className={`p-3 rounded-control border font-mono text-[10px] h-36 overflow-y-auto custom-scrollbar bg-[var(--recessed-bg-strong)] border-[var(--border-c-subtle)] text-[var(--text-secondary)]`}>
                     {testLogs.map((log, i) => (
-                      <div key={i} className={`mb-1 ${log.type === 'error' ? 'text-[var(--danger-text)]' : log.type === 'success' ? 'text-[var(--success-text)]' : ''}`}>
+                      <div key={i} className={`mb-1 ${log.type === 'error' ? 'text-[var(--text-tertiary)]' : log.type === 'success' ? 'text-[var(--text-secondary)]' : ''}`}>
                         {log.msg}
                       </div>
                     ))}
@@ -1168,7 +1204,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         ['浏览器缓存', formatBytes(storageReport?.indexedDbUsageBytes)],
                         ['设备配额', formatBytes(storageReport?.quotaBytes)],
                       ].map(([title, value]) => (
-                        <div key={title} className={`rounded-control border px-4 py-3 bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
+                        <div key={title} className={`rounded-control border px-4 py-3 ${BAMBOOK_OS.tone.surface.inlinePanel}`}>
                           <div className={labelCls}>{title}</div>
                           <div className={`mt-1 text-sm font-light ${primaryTextCls}`}>{value}</div>
                         </div>
@@ -1178,7 +1214,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
                   <div className="space-y-3">
                     {(storageReport?.categories || []).map(category => (
-                      <div key={category.id} className={`rounded-control border p-4 flex items-center justify-between gap-4 bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]`}>
+                      <div key={category.id} className={`rounded-control border p-4 flex items-center justify-between gap-4 ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
                         <div className="min-w-0">
                           <div className={`text-sm font-light ${primaryTextCls}`}>{category.label}</div>
                           <div className={`mt-1 text-[11px] leading-relaxed ${weakTextCls}`}>{category.description}</div>
@@ -1190,7 +1226,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       </div>
                     ))}
                     {!storageReport && (
-                      <div className={`rounded-control border p-4 text-xs bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>
+                      <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} text-[var(--text-tertiary)]`}>
                         {storageLoading ? '正在读取本机存储...' : '暂无存储报告'}
                       </div>
                     )}
@@ -1233,6 +1269,10 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                 </div>
               )}
 
+              {activeTab === 'moq' && (
+                <CompiledMoqThresholdsPanel />
+              )}
+
               {activeTab === 'account' && (
                 <div className="space-y-6">
                   {accountView === 'overview' && (
@@ -1250,7 +1290,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                             />
                             {user && (
                               <label
-                                className={`absolute -bottom-1 -right-1 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border opacity-0 shadow-none transition-all duration-200 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 ${avatarLoading ? 'pointer-events-none opacity-60' : 'hover:scale-105'} border-transparent bg-[var(--recessed-bg)] text-[var(--os-vnext-brand-blue)]}`}
+                                className={`absolute -bottom-1 -right-1 z-20 flex h-8 w-7 cursor-pointer items-center justify-center rounded-full border opacity-0 shadow-none transition-all duration-200 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 ${avatarLoading ? 'pointer-events-none opacity-60' : 'hover:scale-105'} border-transparent bg-[var(--recessed-bg)] text-[var(--os-vnext-brand-blue-strong)]`}
                                 aria-label="编辑头像"
                               >
                                 <Pencil size={13} strokeWidth={1.6} />
@@ -1334,7 +1374,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className={`p-4 rounded-control border text-left transition-all bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]`}
+                          className={`p-4 rounded-control border text-left transition-all bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
@@ -1537,9 +1577,8 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
               </motion.div>
             </AnimatePresence>
-          </div>
-        </SidePanelContainer>
-      </div>
+        </CompiledSplitMainPanel>
+      </CompiledSplitWorkspace>
       <AnimatePresence>
         {avatarCrop && (
           <motion.div
@@ -1572,7 +1611,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
               <div className="flex flex-col items-center gap-4">
                 <div
-                  className={`relative h-56 w-56 cursor-grab touch-none select-none overflow-hidden rounded-full border active:cursor-grabbing border-[var(--border-c-default)] bg-[var(--recessed-bg)]`}
+                  className={`relative h-56 w-56 cursor-grab touch-none select-none overflow-hidden rounded-full border active:cursor-grabbing border-[var(--border-c-subtle)] bg-[var(--recessed-bg)]`}
                   onPointerDown={handleAvatarCropPointerDown}
                   onPointerMove={handleAvatarCropPointerMove}
                   onPointerUp={handleAvatarCropPointerUp}
@@ -1597,9 +1636,9 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       transform: `translate(-50%, -50%) translate(${avatarCrop.offset.x}px, ${avatarCrop.offset.y}px) rotate(${avatarCrop.rotation}deg) scale(${avatarCrop.scale})`,
                     }}
                   />
-                  <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-white/70" />
-                  <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[var(--active-darken)]" />
-                  <div className="pointer-events-none absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-[var(--active-darken)]" />
+                  <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-[var(--border-c-subtle)]" />
+                  <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[var(--border-c-subtle)]" />
+                  <div className="pointer-events-none absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-[var(--border-c-subtle)]" />
                 </div>
 
                 <div className="w-full space-y-3">

@@ -138,7 +138,6 @@ import { NotificationCenter } from './components/NotificationCenter';
 
 import Dashboard from './components/Dashboard';
 import CockpitManager from './components/CockpitManager';
-import { CompiledDashboardPage } from './components/ui/osCompiler/compiledDashboardTemplates';
 import Assistant, { assistantRuntimeStore, type AssistantRuntimeSnapshot } from './components/Assistant';
 import DataCenter from './components/DataCenter';
 import OrderManager, { savedRowToOrder } from './components/OrderManager';
@@ -146,21 +145,14 @@ import CommandPalette from './components/CommandPalette';
 import GarmentOrders from './components/GarmentOrders';
 import EmailManager from './components/EmailManager';
 import Settings, { WALLPAPER_PRESETS } from './components/Settings';
-import { CompiledSettingsPage } from './components/ui/osCompiler/compiledSettingsTemplates';
 import RelationsManager from './components/RelationsManager';
-import { CompiledRelationsPage } from './components/ui/osCompiler/compiledRelationsTemplates';
-import ProductsManager from './components/ProductsManager';
-import { CompiledProductsPage } from './components/ui/osCompiler/compiledProductsTemplates';
-import { CompiledMainModuleSlot } from './components/ui/osCompiler/compiledMainModuleTemplates';
-import {
+import ProductsManager, {
   parseProductModuleSortValue,
   persistProductModuleSettings,
-  CompiledProductModuleSettingsWorkspace,
+  ProductModuleSettingsWorkspace,
   readInitialProductModuleSettings,
   type UiLabProductModuleSettings,
-} from './components/ui/osCompiler/compiledProductModuleSettingsTemplates';
-import { CompiledSidebar } from './components/ui/osCompiler/compiledSidebarTemplates';
-import { CompiledInteractiveCard } from './components/ui/osCompiler/compiledPrimitives';
+} from './components/ProductsManager';
 import { BAMBOOK_OS } from './components/ui/bambookOsTokens';
 import { OS_MATERIAL } from './components/ui/osMaterial';
 import DevelopmentManager from './components/DevelopmentManager';
@@ -190,12 +182,7 @@ import {
   computeResponsiveUiLabScale,
   applyCollapsedSidebarContrast
 } from './components/ui/osAdaptiveContrast';
-import {
-  BAMBOOK_MAIN_COMPILER_SURFACES,
-  getCompilerSurfaceConfig,
-  resolveSettingsMode,
-  type MainCompilerSurface,
-} from './components/moduleRegistry';
+import { resolveSettingsMode } from './components/moduleRegistry';
 type GlobeRendererMode = 'maplibre' | 'three';
 
 function readInitialGlobeRendererFromUrl(): GlobeRendererMode {
@@ -275,49 +262,6 @@ type AgentPetRendererErrorNotice = {
   source?: string;
 };
 
-export function shouldUseCompilerSurface(surface: MainCompilerSurface): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    const compilerConfig = getCompilerSurfaceConfig(surface);
-    const params = new URLSearchParams(window.location.search);
-    const param = params.get(compilerConfig.queryKey);
-    if (param === '0' || param === 'false') {
-      localStorage.setItem(compilerConfig.storageKey, '0');
-      return false;
-    }
-    if (param === '1' || param === 'true') {
-      localStorage.setItem(compilerConfig.storageKey, '1');
-      return true;
-    }
-
-    const allParam = params.get('mainCompiler');
-    if (allParam === '0' || allParam === 'false') {
-      localStorage.setItem(compilerConfig.storageKey, '0');
-      return false;
-    }
-    if (allParam === '1' || allParam === 'true') {
-      localStorage.setItem(compilerConfig.storageKey, '1');
-      return true;
-    }
-
-    const stored = localStorage.getItem(compilerConfig.storageKey);
-    if (stored === '0') return false;
-    if (stored === '1') return true;
-  } catch {
-    return true;
-  }
-
-  return true;
-}
-
-type CompilerSurfaceFlags = Record<MainCompilerSurface, boolean>;
-
-function readCompilerSurfaceFlags(): CompilerSurfaceFlags {
-  return Object.fromEntries(
-    BAMBOOK_MAIN_COMPILER_SURFACES.map(surface => [surface, shouldUseCompilerSurface(surface)]),
-  ) as CompilerSurfaceFlags;
-}
-
 /** Read optional `?globeQuality=high|medium|low|auto&globeRenderer=maplibre|three` once at boot. */
 function readGlobeParamsFromUrl(): { quality: GlobeQualityMode; renderer: GlobeRendererMode } {
   if (typeof window === 'undefined') return { quality: 'auto', renderer: initialGlobeRenderer };
@@ -348,7 +292,6 @@ function shouldUseDevPreviewContinuity(): boolean {
 const App: React.FC = () => {
   const appRootRef = useRef<HTMLDivElement | null>(null);
   const mainViewportRef = useRef<HTMLDivElement | null>(null);
-  const [compilerSurfaces] = useState(readCompilerSurfaceFlags);
   // Restore UI state from localStorage on init
   const [uiState] = useState(() => storageService.getUIState());
   const [authState, setAuthState] = useState<AuthState>(() => {
@@ -1285,14 +1228,6 @@ const App: React.FC = () => {
     };
   }, [appScale, activeView, authState.isLoading, isCollapsed, isFullBleedView, isGlobeUnderlay, orderViewMode]);
 
-  const renderMainCompilerSlot = (
-    enabled: boolean,
-    pageId: React.ComponentProps<typeof CompiledMainModuleSlot>['pageId'],
-    children: React.ReactNode,
-  ) => enabled
-    ? <CompiledMainModuleSlot pageId={pageId}>{children}</CompiledMainModuleSlot>
-    : <>{children}</>;
-
   // 顶层 viewport mask 容易和页面自己的真实滚动容器 mask 叠加，形成数字档案底部大模糊。
   // OS 规范：边缘消失效果归属具体滚动容器，不再由 App 全局兜底。
   // Auth gate: show Login or Register page if not authenticated
@@ -1470,25 +1405,14 @@ const App: React.FC = () => {
         onOpenOrder={(order) => { setPaletteOpen(false); setSelectedOrder(order); handleViewChange(View.Orders); }}
       />
 
-      {compilerSurfaces.sidebar ? (
-        <CompiledSidebar
-          currentView={activeView}
-          onViewChange={handleViewChange}
-          isCollapsed={isCollapsed}
-          setIsCollapsed={setIsCollapsed}
-          isDarkMode={isDarkMode}
-          onToggleTheme={handleToggleTheme}
-        />
-      ) : (
-        <Sidebar
-          currentView={activeView}
-          onViewChange={handleViewChange}
-          isCollapsed={isCollapsed}
-          setIsCollapsed={setIsCollapsed}
-          isDarkMode={isDarkMode}
-          onToggleTheme={handleToggleTheme}
-        />
-      )}
+      <Sidebar
+        currentView={activeView}
+        onViewChange={handleViewChange}
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        isDarkMode={isDarkMode}
+        onToggleTheme={handleToggleTheme}
+      />
 
       {/* Main Content Area - Reveal-underlay mode.
           `app-main` enables the big-screen zoom rules in index.css.
@@ -1504,115 +1428,84 @@ const App: React.FC = () => {
           <MainContentShell isFullBleedView={isFullBleedView} isEmails={(activeView as string) === View.Emails} isGlobeUnderlay={isGlobeUnderlay}>
 
             {activeView === View.Dashboard && (
-              compilerSurfaces.dashboard
-                ? (
-                  <CompiledDashboardPage
-                    orders={orders}
-                    emails={emails}
-                    insights={insights}
-                    onNavigate={handleViewChange}
-                    briefing={briefing}
-                    isBriefingLoading={isBriefingLoading}
-                    isCloudConnected={isCloudConnected}
-                    isDarkMode={isDarkMode}
-                    onRefreshBriefing={handleManualRefresh}
-                    hasGlobeUnderlay={isGlobeUnderlay}
-                  />
-                )
-                : <Dashboard orders={orders} emails={emails} insights={insights} onNavigate={handleViewChange} briefing={briefing} isBriefingLoading={isBriefingLoading} isCloudConnected={isCloudConnected} isDarkMode={isDarkMode} onRefreshBriefing={handleManualRefresh} hasGlobeUnderlay={isGlobeUnderlay} />
+              <Dashboard
+                orders={orders}
+                emails={emails}
+                insights={insights}
+                onNavigate={handleViewChange}
+                briefing={briefing}
+                isBriefingLoading={isBriefingLoading}
+                isCloudConnected={isCloudConnected}
+                isDarkMode={isDarkMode}
+                onRefreshBriefing={handleManualRefresh}
+                hasGlobeUnderlay={isGlobeUnderlay}
+              />
             )}
             {activeView === View.Assistant && (
-              renderMainCompilerSlot(
-                compilerSurfaces.assistant,
-                'assistant',
-                <Assistant
-                  knowledge={knowledge}
-                  orders={orders}
-                  relations={relations}
-                  insights={insights}
-                  onUpdateOrders={handleUpdateOrders}
-                  onUpdateKnowledge={handleUpdateKnowledge}
-                  onUpdateInsights={handleUpdateInsights}
-                  isDarkMode={isDarkMode}
-                  chatModelId={config.chatModelId}
-                  temperature={config.temperature}
-                  voiceSpeed={config.voiceSpeed}
-                />,
-              )
+              <Assistant
+                knowledge={knowledge}
+                orders={orders}
+                relations={relations}
+                insights={insights}
+                onUpdateOrders={handleUpdateOrders}
+                onUpdateKnowledge={handleUpdateKnowledge}
+                onUpdateInsights={handleUpdateInsights}
+                isDarkMode={isDarkMode}
+                chatModelId={config.chatModelId}
+                temperature={config.temperature}
+                voiceSpeed={config.voiceSpeed}
+              />
             )}
             {activeView === View.Relations && (
               relationsReady
-                ? (
-                  compilerSurfaces.relations
-                    ? <CompiledRelationsPage relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} cloudEndpoint={config.cloudEndpoint} onNavigate={handleViewChange} />
-                    : <RelationsManager relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} />
-                )
+                ? <RelationsManager relations={relations} onUpdate={handleUpdateRelations} isDarkMode={isDarkMode} sidebarCollapsed={isCollapsed} cloudEndpoint={config.cloudEndpoint} onNavigate={handleViewChange} />
                 : <div className="text-slate-500 dark:text-slate-400">关系智库正在读取数据中心...</div>
             )}
             {activeView === View.Products && (
-              compilerSurfaces.products
+              isProductModuleSettingsWorkspaceOpen
                 ? (
-                  isProductModuleSettingsWorkspaceOpen
-                    ? (
-                      <CompiledProductModuleSettingsWorkspace
-                        isDarkMode={isDarkMode}
-                        products={products}
-                        productCategories={productCategories}
-                        moduleSettings={productModuleSettings}
-                        cloudEndpoint={config.cloudEndpoint}
-                        onBack={() => setIsProductModuleSettingsWorkspaceOpen(false)}
-                        onUpdateCategories={handleUpdateProductCategories}
-                        onUpdateModuleSettings={handleUpdateProductModuleSettings}
-                      />
-                    )
-                    : (
-                      <CompiledProductsPage
-                        products={products}
-                        productCategories={productCategories}
-                        onUpdateProducts={handleUpdateProducts}
-                        onUpdateCategories={handleUpdateProductCategories}
-                        cloudEndpoint={config.cloudEndpoint}
-                        isDarkMode={isDarkMode}
-                        moduleSettings={productModuleRuntimeSettings}
-                      />
-                    )
+                  <ProductModuleSettingsWorkspace
+                    isDarkMode={isDarkMode}
+                    products={products}
+                    productCategories={productCategories}
+                    moduleSettings={productModuleSettings}
+                    cloudEndpoint={config.cloudEndpoint}
+                    onBack={() => setIsProductModuleSettingsWorkspaceOpen(false)}
+                    onUpdateCategories={handleUpdateProductCategories}
+                    onUpdateModuleSettings={handleUpdateProductModuleSettings}
+                  />
                 )
-                : <ProductsManager products={products} productCategories={productCategories} onUpdateProducts={handleUpdateProducts} onUpdateCategories={handleUpdateProductCategories} cloudEndpoint={config.cloudEndpoint} isDarkMode={isDarkMode} />
+                : (
+                  <ProductsManager
+                    products={products}
+                    productCategories={productCategories}
+                    onUpdateProducts={handleUpdateProducts}
+                    onUpdateCategories={handleUpdateProductCategories}
+                    cloudEndpoint={config.cloudEndpoint}
+                    isDarkMode={isDarkMode}
+                    moduleSettings={productModuleRuntimeSettings}
+                  />
+                )
             )}
-            {activeView === View.Products && compilerSurfaces.products && !isProductModuleSettingsWorkspaceOpen && (
+            {activeView === View.Products && !isProductModuleSettingsWorkspaceOpen && (
               <div className="fixed bottom-8 right-8 z-[120] h-12 w-12">
-                <CompiledInteractiveCard
-                  as="button"
+                <button
                   type="button"
-                  compilerRole="floating-settings-action"
-                  source="MainApp.productSettingsFab"
                   data-main-app-module-settings-fab
                   data-os-surface-role="floatingOverlay"
-                  data-os-shadow-role="floating"
-                  data-os-shadow-mode="attached"
                   aria-label="打开数字档案模块设置"
                   title="数字档案设置"
-                  spotlightColor={isDarkMode ? BAMBOOK_OS.spotlight.cardDarkColor : BAMBOOK_OS.spotlight.cardLightColor}
-                  spotlightSize={isDarkMode ? BAMBOOK_OS.controls.title.spotlightDarkSize : BAMBOOK_OS.controls.title.spotlightLightSize}
-                  idleSpotlightOpacity={0}
-                  activeSpotlightOpacity={1}
-                  liquidSpotlight
-                  liquidSpotlightTone="light"
                   className={`flex h-full w-full items-center justify-center !rounded-full ${BAMBOOK_OS.material.panelBase} ${BAMBOOK_OS.material.glassColor} bambook-outer-panel ${OS_MATERIAL.floatingOverlay} transition-colors text-slate-600 hover:text-slate-900 dark:text-white/72 dark:hover:text-white/88`}
                   onClick={() => setIsProductModuleSettingsWorkspaceOpen(true)}
                 >
                   <Settings2 size={20} strokeWidth={1.7} />
-                </CompiledInteractiveCard>
+                </button>
               </div>
             )}
-            {activeView === View.Development && renderMainCompilerSlot(
-              compilerSurfaces.development,
-              'development',
-              <DevelopmentManager isDarkMode={isDarkMode} cases={developmentCases} setCases={setDevelopmentCases} onNavigate={handleViewChange} />,
+            {activeView === View.Development && (
+              <DevelopmentManager isDarkMode={isDarkMode} cases={developmentCases} setCases={setDevelopmentCases} onNavigate={handleViewChange} />
             )}
-            {(activeView === View.Invoices || activeView === View.PaymentVouchers) && renderMainCompilerSlot(
-              compilerSurfaces.paymentVouchers,
-              'payment-vouchers',
+            {(activeView === View.Invoices || activeView === View.PaymentVouchers) && (
               <FinanceManager
                 isDarkMode={isDarkMode}
                 initialTab={(moduleTabOverrides[activeView] as FinanceTabId | undefined) ?? (activeView === View.Invoices ? 'invoices' : 'vouchers')}
@@ -1620,40 +1513,28 @@ const App: React.FC = () => {
                 setInvoices={setInvoices}
                 vouchers={paymentVouchers}
                 setVouchers={setPaymentVouchers}
-              />,
+              />
             )}
             {activeView === View.Reports && (
               <ReportCenter isDarkMode={isDarkMode} onNavigate={handleReportNavigate} />
             )}
-            {activeView === View.Shipments && renderMainCompilerSlot(
-              compilerSurfaces.shipments,
-              'shipments',
-              <ShipmentManager isDarkMode={isDarkMode} shipments={shipments} setShipments={setShipments} />,
+            {activeView === View.Shipments && (
+              <ShipmentManager isDarkMode={isDarkMode} shipments={shipments} setShipments={setShipments} />
             )}
-            {activeView === View.Quotations && renderMainCompilerSlot(
-              compilerSurfaces.quotations,
-              'quotations',
-              <QuotationManager isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} />,
+            {activeView === View.Quotations && (
+              <QuotationManager isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} />
             )}
-            {activeView === View.Procurement && renderMainCompilerSlot(
-              compilerSurfaces.procurement,
-              'procurement',
-              <ProcurementManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />,
+            {activeView === View.Procurement && (
+              <ProcurementManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
             )}
-            {activeView === View.Inventory && renderMainCompilerSlot(
-              compilerSurfaces.inventory,
-              'inventory',
-              <InventoryManager isDarkMode={isDarkMode} />,
+            {activeView === View.Inventory && (
+              <InventoryManager isDarkMode={isDarkMode} />
             )}
-            {activeView === View.BOM && renderMainCompilerSlot(
-              compilerSurfaces.bom,
-              'bom',
-              <BomManager isDarkMode={isDarkMode} />,
+            {activeView === View.BOM && (
+              <BomManager isDarkMode={isDarkMode} />
             )}
-            {activeView === View.CRM && renderMainCompilerSlot(
-              compilerSurfaces.crm,
-              'crm',
-              <CrmManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />,
+            {activeView === View.CRM && (
+              <CrmManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
             )}
             {activeView === View.Suppliers && (
               <SuppliersManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
@@ -1673,15 +1554,11 @@ const App: React.FC = () => {
             {activeView === View.Marketing && (
               <MarketingManager isDarkMode={isDarkMode} />
             )}
-            {activeView === View.MES && renderMainCompilerSlot(
-              compilerSurfaces.mes,
-              'mes',
-              <MesManager isDarkMode={isDarkMode} />,
+            {activeView === View.MES && (
+              <MesManager isDarkMode={isDarkMode} />
             )}
-            {activeView === View.Customs && renderMainCompilerSlot(
-              compilerSurfaces.customs,
-              'customs',
-              <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} onOpenDocumentCenter={() => handleViewChange(View.DocumentCenter)} />,
+            {activeView === View.Customs && (
+              <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} onOpenDocumentCenter={() => handleViewChange(View.DocumentCenter)} />
             )}
             {activeView === View.DocumentCenter && (
               <DocumentCenter isDarkMode={isDarkMode} />
@@ -1689,107 +1566,67 @@ const App: React.FC = () => {
             {activeView === View.ProductionBoard && (
               <ProductionBoard isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} />
             )}
-            {activeView === View.DataCenter && renderMainCompilerSlot(
-              compilerSurfaces.dataCenter,
-              'data-center',
-              <DataCenter isDarkMode={isDarkMode} dataCenterEndpoint={config.cloudEndpoint} />,
+            {activeView === View.DataCenter && (
+              <DataCenter isDarkMode={isDarkMode} dataCenterEndpoint={config.cloudEndpoint} />
             )}
             {activeView === View.Orders && (
-              renderMainCompilerSlot(
-                compilerSurfaces.orders,
-                orderType === 'garment' ? 'garment-orders' : orderType === 'other' ? 'other-orders' : 'fabric-orders',
-                ordersReady
-                  ? (
-                    <OrderManager
-                      orders={orders}
-                      dirtyIds={new Set()}
-                      setOrders={handleUpdateOrders}
-                      onSyncComplete={() => { }}
-                      knowledge={knowledge}
-                      viewMode={orderViewMode}
-                      onViewModeChange={setOrderViewMode}
-                      selectedOrder={selectedOrder}
-                      onSelectOrder={setSelectedOrder}
-                      isDarkMode={isDarkMode}
-                      orderType={orderType}
-                      onOrderTypeChange={setOrderType}
-                      relations={relations}
-                      allowGlobeView={isProductionGlobeEnabled}
-                      onFullscreenOpenChange={setOrderFullscreenOpen}
-                      onNavigate={handleViewChange}
-                    />
-                  )
-                  : <div className="text-slate-500 dark:text-slate-400">订单正在读取数据中心...</div>,
-              )
+              ordersReady
+                ? (
+                  <OrderManager
+                    orders={orders}
+                    dirtyIds={new Set()}
+                    setOrders={handleUpdateOrders}
+                    onSyncComplete={() => { }}
+                    knowledge={knowledge}
+                    viewMode={orderViewMode}
+                    onViewModeChange={setOrderViewMode}
+                    selectedOrder={selectedOrder}
+                    onSelectOrder={setSelectedOrder}
+                    isDarkMode={isDarkMode}
+                    orderType={orderType}
+                    onOrderTypeChange={setOrderType}
+                    relations={relations}
+                    allowGlobeView={isProductionGlobeEnabled}
+                    onFullscreenOpenChange={setOrderFullscreenOpen}
+                    onNavigate={handleViewChange}
+                  />
+                )
+                : <div className="text-slate-500 dark:text-slate-400">订单正在读取数据中心...</div>
             )}
-            {activeView === View.Emails && renderMainCompilerSlot(
-              compilerSurfaces.emails,
-              'emails',
-              <EmailManager emails={emails} setEmails={handleUpdateEmails} knowledge={knowledge} orders={orders} onAddKnowledge={(item) => handleUpdateKnowledge([item, ...knowledge], item)} isDarkMode={isDarkMode} />,
+            {activeView === View.Emails && (
+              <EmailManager emails={emails} setEmails={handleUpdateEmails} knowledge={knowledge} orders={orders} onAddKnowledge={(item) => handleUpdateKnowledge([item, ...knowledge], item)} isDarkMode={isDarkMode} />
             )}
             {settingsMode && (
-              compilerSurfaces.settings
-                ? (
-                  <CompiledSettingsPage
-                    mode={settingsMode}
-                    config={config}
-                    onUpdateConfig={(nc) => {
-                      const nextIsDarkMode = nc.themeMode === 'light'
-                        ? false
-                        : nc.themeMode === 'dark'
-                          ? true
-                          : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                      syncWallpaperAccentForConfig(nc, nextIsDarkMode);
-                      setConfig(nc);
-                      apiService.saveConfig(nc);
-                      if (nc.themeMode === 'light') setIsDarkMode(false);
-                      else if (nc.themeMode === 'dark') setIsDarkMode(true);
-                      else if (nc.themeMode === 'system') {
-                        localStorage.removeItem('theme_preference');
-                        setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
-                      }
-                      checkConnection();
-                    }}
-                    onRefreshData={checkConnection}
-                    isDarkMode={isDarkMode}
-                  />
-                )
-                : (
-                  <Settings
-                    mode={settingsMode}
-                    config={config}
-                    onUpdateConfig={(nc) => {
-                      const nextIsDarkMode = nc.themeMode === 'light'
-                        ? false
-                        : nc.themeMode === 'dark'
-                          ? true
-                          : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                      syncWallpaperAccentForConfig(nc, nextIsDarkMode);
-                      setConfig(nc);
-                      apiService.saveConfig(nc);
-                      if (nc.themeMode === 'light') setIsDarkMode(false);
-                      else if (nc.themeMode === 'dark') setIsDarkMode(true);
-                      else if (nc.themeMode === 'system') {
-                        localStorage.removeItem('theme_preference');
-                        setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
-                      }
-                      checkConnection();
-                    }}
-                    onRefreshData={checkConnection}
-                    isDarkMode={isDarkMode}
-                  />
-                )
+              <Settings
+                mode={settingsMode}
+                config={config}
+                onUpdateConfig={(nc) => {
+                  const nextIsDarkMode = nc.themeMode === 'light'
+                    ? false
+                    : nc.themeMode === 'dark'
+                      ? true
+                      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  syncWallpaperAccentForConfig(nc, nextIsDarkMode);
+                  setConfig(nc);
+                  apiService.saveConfig(nc);
+                  if (nc.themeMode === 'light') setIsDarkMode(false);
+                  else if (nc.themeMode === 'dark') setIsDarkMode(true);
+                  else if (nc.themeMode === 'system') {
+                    localStorage.removeItem('theme_preference');
+                    setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+                  }
+                  checkConnection();
+                }}
+                onRefreshData={checkConnection}
+                isDarkMode={isDarkMode}
+              />
             )}
 
-            {activeView === View.BusinessTools && renderMainCompilerSlot(
-              compilerSurfaces.businessTools,
-              'business-tools',
-              <BusinessTools isDarkMode={isDarkMode} relations={relationsReady ? relations : []} orders={ordersReady ? orders : []} onNavigate={handleReportNavigate} />,
+            {activeView === View.BusinessTools && (
+              <BusinessTools isDarkMode={isDarkMode} relations={relationsReady ? relations : []} orders={ordersReady ? orders : []} onNavigate={handleReportNavigate} />
             )}
-            {activeView === View.AdminPanel && renderMainCompilerSlot(
-              compilerSurfaces.adminPanel,
-              'admin-panel',
-              <AdminPanel isDarkMode={isDarkMode} />,
+            {activeView === View.AdminPanel && (
+              <AdminPanel isDarkMode={isDarkMode} />
             )}
             {activeView === View.HR && (
               <HRManager isDarkMode={isDarkMode} />

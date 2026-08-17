@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 const fs = require('fs');
 const path = require('path');
-const ARCHIVE_SRC = fs.readFileSync(path.resolve(__dirname, 'ui/osCompiler/compiledRelationsTemplates.tsx'), 'utf-8');
+const ARCHIVE_SRC = fs.readFileSync(path.resolve(__dirname, 'RelationsManager.tsx'), 'utf-8');
 
 // ═══ Part 1: 禁彩色语义 ═══
 describe('digital archive RDL flat [禁彩色语义]', () => {
@@ -51,8 +51,9 @@ describe('digital archive RDL flat [删除中性]', () => {
 
 // ═══ Part 5: 权威文件确认（不误改 Data Center）═══
 describe('digital archive RDL flat [权威文件]', () => {
-  it('compiledRelationsTemplates 是数字档案权威源', () => {
-    expect(ARCHIVE_SRC).toContain('CompiledRelationsPage');
-    expect(ARCHIVE_SRC).toContain('source: \'RelationsManager.ui-lab-1.0');
+  it('RelationsManager 是数字档案权威单源', () => {
+    expect(ARCHIVE_SRC).toContain('export default RelationsManager');
+    expect(ARCHIVE_SRC).toContain('RELATIONS_PREVIEW_STATE_KEY');
+    expect(ARCHIVE_SRC).not.toContain('compiledRelationsTemplates');
   });
 });

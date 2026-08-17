@@ -6,10 +6,10 @@ const FILES = [
   { name: 'OrderClusterBlock', p: 'order/OrderClusterBlock.tsx' },
   { name: 'DetailPanel', p: 'ui/DetailPanel.tsx' },
   { name: 'SmartLinkedInput', p: 'ui/SmartLinkedInput.tsx' },
-  { name: 'compiledRelationsTemplates', p: 'ui/osCompiler/compiledRelationsTemplates.tsx' },
+  { name: 'RelationsManager', p: 'RelationsManager.tsx' },
   { name: 'compiledMaterialLibraryTemplates', p: 'ui/osCompiler/compiledMaterialLibraryTemplates.tsx' },
-  { name: 'compiledProductModuleSettingsTemplates', p: 'ui/osCompiler/compiledProductModuleSettingsTemplates.tsx' },
-  { name: 'compiledSurfacePrimitives', p: 'ui/osCompiler/compiledSurfacePrimitives.tsx' },
+  { name: 'ProductsManager', p: 'ProductsManager.tsx' },
+  { name: 'compiledSurfacePrimitives', p: 'ui/primitives/compiledSurfacePrimitives.tsx' },
   { name: 'AgentProcessPanel', p: 'AgentProcessPanel.tsx' },
   { name: 'AgentLiveStatusBar', p: 'AgentLiveStatusBar.tsx' },
   { name: 'Assistant', p: 'Assistant.tsx' },
@@ -50,8 +50,8 @@ describe('RDL low-residue UI flat [Typography]', () => {
 
 // ═══ Part 4: destructive/status 非 accent ═══
 describe('RDL low-residue UI flat [destructive/status 非 accent]', () => {
-  it('compiledRelations 确认移除按钮不用 brand-blue', () => {
-    const compiledRelations = SOURCES.find(s => s.name === 'compiledRelationsTemplates');
+  it('RelationsManager 确认移除按钮不用 brand-blue', () => {
+    const compiledRelations = SOURCES.find(s => s.name === 'RelationsManager');
     const m = compiledRelations!.src.match(/确认移除.*?<\/button>/s);
     expect(m).toBeTruthy();
     expect(m![0]).not.toContain('os-vnext-brand-blue');
@@ -66,14 +66,14 @@ describe('RDL low-residue UI flat [destructive/status 非 accent]', () => {
     expect(m).toBeTruthy();
     expect(m![0]).not.toContain('os-vnext-brand-blue');
   });
-  it('compiledRelations Tier badge 不用 brand-blue', () => {
-    const compiled = SOURCES.find(s => s.name === 'compiledRelationsTemplates');
+  it('RelationsManager Tier badge 不用 brand-blue', () => {
+    const compiled = SOURCES.find(s => s.name === 'RelationsManager');
     const m = compiled!.src.match(/tierLabel\(org\.rating\)[\s\S]*?<\/span>/);
     expect(m).toBeTruthy();
     expect(m![0]).not.toContain('os-vnext-brand-blue');
   });
-  it('compiledRelations category icon 默认态不用 brand-blue', () => {
-    const compiled = SOURCES.find(s => s.name === 'compiledRelationsTemplates');
+  it('RelationsManager category icon 默认态不用 brand-blue', () => {
+    const compiled = SOURCES.find(s => s.name === 'RelationsManager');
     const m = compiled!.src.match(/relationCategoryIconClass[\s\S]*?<\/div>/);
     expect(m).toBeTruthy();
     expect(m![0]).not.toContain('os-vnext-brand-blue');

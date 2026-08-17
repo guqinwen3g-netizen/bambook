@@ -27,16 +27,10 @@ import FabricSampleInvoiceGenerator from './tools/FabricSampleInvoiceGenerator';
 import ShippingNoticeGenerator from './tools/ShippingNoticeGenerator';
 import PackingListGenerator from './tools/PackingListGenerator';
 import ContractGenerator from './tools/ContractGenerator';
-import { BAMBOOK_OS } from './ui/bambookOsTokens';
-import { OS_MATERIAL } from './ui/osMaterial';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
-import {
-  CompiledInteractiveCard,
-  COMPILED_SIDE_PANEL_BASE_CLASS,
-  COMPILED_SIDE_PANEL_CLASS
-} from './ui/osCompiler/compiledPrimitives';
+import { CompiledInteractiveCard } from './ui/primitives/compiledPrimitives';
 import { PageHeader } from './ui/PageHeader';
-import { SIDEBAR_HOVER_CLASS } from './ui/osCompiler/compiledSidebarTemplates';
+import { SIDEBAR_HOVER_CLASS } from './ui/sidebarConstants';
 import { Relation, Order, View } from '../types';
 
 interface Tool {
@@ -152,9 +146,9 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
     setSelectedTool(null);
   };
 
-  // P3-2 收编：COMPILED_SIDE_PANEL_CLASS / SIDEBAR_HOVER_CLASS 单写自适应承载双主题
-  // （真源 BAMBOOK_OS.material.glassColor / controls.listRow.hover）。
-  const cardClass = `${COMPILED_SIDE_PANEL_BASE_CLASS} ${COMPILED_SIDE_PANEL_CLASS} ${OS_MATERIAL.raisedCard} ${SIDEBAR_HOVER_CLASS}`;
+  // BDS 收编：bds-surface 单写自适应承载双主题（半透膜 + blur，无 rim），
+  // SIDEBAR_HOVER_CLASS 提供 hover 反馈（真源 controls.listRow.hover）。
+  const cardClass = `bds-surface ${SIDEBAR_HOVER_CLASS}`;
 
   return (
     <div
@@ -227,7 +221,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         activeSpotlightOpacity={1}
                         className={`
                           group relative isolate overflow-hidden flex flex-col items-start text-left
-                          p-6 h-[220px] rounded-card-lg border transition-all duration-200 select-none
+                          p-6 h-[220px] rounded-card-lg transition-all duration-200 select-none
                           cursor-pointer hover:-translate-y-1
                           ${cardClass}
                         `}

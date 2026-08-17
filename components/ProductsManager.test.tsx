@@ -84,9 +84,9 @@ describe('ProductsManager Bambook OS tokens', () => {
   it('keeps OS title bars full-width while constraining product content canvases', () => {
     expect(productsSource).toContain("const productContentCanvasClass = isMobile ? 'w-full' : BAMBOOK_OS.layout.desktopPageCanvasClass;");
     expect(productsSource).toContain('style={PRODUCT_TITLE_SAFE_LEFT_STYLE}');
-    expect(productsSource).toContain('<div className="w-full h-full flex flex-col bg-transparent overflow-visible">');
-    expect(productsSource).toContain("<div className={`${productContentCanvasClass} flex-1 overflow-visible ${hideUnderlyingProductPage ? 'hidden' : ''}`}>");
-    expect(productsSource).toContain("className={isMobile ? 'h-full overflow-visible px-3 pb-24 pt-5' : BAMBOOK_OS.layout.desktopTablePanelShellCompactClass}");
+    expect(productsSource).toContain('className="w-full h-full flex flex-col bg-transparent overflow-visible"');
+    expect(productsSource).toContain('${productContentCanvasClass} flex-1 flex flex-col min-h-0 overflow-visible');
+    expect(productsSource).toContain("isMobile ? 'h-full overflow-visible px-3 pb-24 pt-5' : BAMBOOK_OS.layout.desktopTablePanelShellCompactClass");
     expect(productsSource).toContain('className={BAMBOOK_OS.layout.desktopTablePanelShellClass}');
     expect(productsSource).toContain('form="product-fullscreen-form"');
     expect(productsSource).toContain('<form id="product-fullscreen-form" onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="w-full flex-1 min-h-0 px-7 pt-3 grid grid-cols-[240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-5 items-stretch">');
@@ -108,8 +108,8 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('if (!fullscreenProductFormOpen) return;');
     expect(productsSource).toContain('document.body.style.overflow = \'hidden\';');
     expect(productsSource).toContain('document.body.style.overflow = prev;');
-    expect(productsSource).toContain('className={`bambook-product-form-scroll-viewport min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`}');
-    expect(productsSource).toContain('edgeFadeItem');
+    expect(productsSource).toContain('scrollViewportClassName: `bambook-product-form-scroll-viewport min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`');
+    expect(productsSource).toContain("source: 'CompiledProductsPage.productForm.surfaceMasks'");
     expect(indexCss).toContain('.bambook-relation-form-scroll-viewport,\n.bambook-product-form-scroll-viewport');
     expect(indexCss).toContain('.bambook-product-form-scroll-viewport {\n        overflow-x: clip;');
   });
@@ -118,15 +118,17 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_CATEGORY_CARD_GRID_CLASS).toContain('repeat(auto-fill,316px)');
     expect(PRODUCT_CARD_GRID_CLASS).toContain('repeat(auto-fill,300px)');
     expect(PRODUCT_CARD_CLASS).toContain('rounded-card-lg');
-    expect(PRODUCT_CARD_SURFACE_CLASS).toBe(`${OS_MATERIAL.raisedCard} bambook-panel-glass`);
+    expect(PRODUCT_CARD_SURFACE_CLASS).toBe('bds-surface');
     expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain('bambook-outer-panel');
+    expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain(OS_MATERIAL.raisedCard);
+    expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain('bambook-panel-glass');
     expect(PRODUCT_SUB_INDEX_PANEL_CLASS).toContain(OS_MATERIAL.framePanel);
     expect(PRODUCT_SUB_INDEX_ROW_CLASS).toContain('h-[72px]');
     expect(PRODUCT_SUB_INDEX_ROW_CLASS).not.toContain('min-h-[72px]');
     expect(PRODUCT_CARD_LAYOUT_TRANSITION).toBe(BAMBOOK_OS.motion.layoutTransition);
     expect(PRODUCT_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
     expect(PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR).toBe(BAMBOOK_OS.spotlight.cardLightColor);
-    expect(productsSource).toContain('<SpotlightCard');
+    expect(productsSource).toContain('<CompiledMotionInteractiveCard');
     expect(productsSource).toContain('CompiledMotionInteractiveCard');
     expect(productsSource).toContain('const productGlassPanelClass = `${OS_MATERIAL.framePanel} bambook-panel-glass bambook-outer-panel`;');
     expect(productsSource).toContain('const productFloatingPanelClass = `${OS_MATERIAL.floatingOverlay} bambook-panel-glass`;');
@@ -144,16 +146,16 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_FORM_MAP_INDEX_CLASS).toBe(`${OS_MATERIAL.insetSurface} ${BAMBOOK_OS.tone.surface.formMapIndex}`);
     expect(productsSource).toContain('const productFormSectionTitleClass = PRODUCT_FORM_SECTION_TITLE_CLASS;');
     expect(productsSource).toContain('const productFormMapIndexClass = PRODUCT_FORM_MAP_INDEX_CLASS;');
-    expect(productsSource).toContain('<CompiledSurfacePanel materialRole="raisedCard" spotlight isDarkMode={isDarkMode} className={RELATIONS_FORM_MAP_PANEL_CLASS}>');
-    expect(productsSource).toContain('${productFormSectionTitleClass}`}>Form Map</p>');
+    expect(productsSource).toContain("mapMaterialRole: 'raisedCard'");
+    expect(productsSource).toContain('titleClassName={productFormSectionTitleClass}');
     expect(productsSource).toContain('w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-light transition-colors ${productFormMapIndexClass}`}>{idx + 1}</span>');
     expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-5 bambook-relations-form-panel');
     expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-4 bambook-relations-form-map-panel');
     expect(RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING).toBe('width');
     expect(productsSource).toContain("} from './ui/relationsFormStyles';");
-    expect(productsSource).toContain('className={RELATIONS_FORM_PANEL_CLASS}');
-    expect(productsSource).toContain('className={RELATIONS_FORM_MAP_PANEL_CLASS}');
-    expect(productsSource).toContain('spotlightSizing={RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING}');
+    expect(productsSource).toContain('<CompiledFormSectionPanel');
+    expect(productsSource).toContain('<CompiledFormMapPanel');
+    expect(productsSource).toContain('materialRole={blueprint.form.mapMaterialRole}');
     expect(indexCss).toContain('background-color: var(--ui-lab-panel-glass-film-color) !important;');
     expect(indexCss).toContain('background-image: var(--ui-lab-panel-shared-glass-background) !important;');
     expect(indexCss).toContain('box-shadow: var(--ui-lab-panel-frame-inset-shadow) !important;');
@@ -172,7 +174,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).not.toContain("bg-slate-50/50 border-slate-100");
     expect(productsSource).not.toContain('className="scroll-mt-28 p-5 space-y-6"');
     expect(productsSource).not.toContain('contentClassName="relative z-10 space-y-6"');
-    expect(productsSource).toContain('<h4 className={`text-xs font-light tracking-wide mb-4 ${PRODUCT_FORM_SECTION_TITLE_CLASS}`}>{title}</h4>');
+    expect(productsSource).toContain('title={title}');
     expect(productsSource).not.toContain('Archive Section');
 
     expect(PRODUCT_TABLE_HEADER_CLASS).toBe(BAMBOOK_OS.controls.table.header);
@@ -184,7 +186,7 @@ describe('ProductsManager Bambook OS tokens', () => {
 
   it('aligns archive text inputs with the custom select trigger shell', () => {
     expect(productsSource).toContain('const productFieldShellClass =');
-    expect(productsSource).toContain('rounded-full border outline-none');
+    expect(productsSource).toContain('rounded-control border outline-none');
     expect(productsSource).not.toContain('const productFieldShellClass = `rounded-2xl bambook-blue-white-light');
     expect(productsSource).toContain('const productInputClass = `w-full h-9 px-3 ${productFieldShellClass}');
     expect(productsSource).toContain('const productTextareaClass = `w-full px-3 py-3 ${productFieldShellClass}');
@@ -197,21 +199,20 @@ describe('ProductsManager Bambook OS tokens', () => {
       productsSource.indexOf("navLevel === 'sub' && (", mainViewStart)
     );
     const edgeMaskHookSource = productsSource.slice(
-      productsSource.indexOf('useGlassSurfaceEdgeMasks({'),
+      productsSource.indexOf('useCompiledGlassSurfaceEdgeMasks({'),
       productsSource.indexOf('const productTableScrollRef')
     );
 
     expect(PRODUCT_EDGE_FADE_TOP_HEIGHT).toBe(56);
     expect(PRODUCT_EDGE_FADE_TOP_START).toBe(0);
     expect(PRODUCT_EDGE_FADE_BOTTOM_HEIGHT).toBe(72);
-    expect(productsSource).toContain('ScrollEdgeFades');
+    expect(productsSource).toContain('CompiledEdgeFade');
     expect(productsSource).toContain('renderMode="content-mask"');
     expect(productsSource).toContain('BAMBOOK_OS.layout.panelShadowViewportClass');
-    expect(productsSource).toContain('${PRODUCT_CATEGORY_CARD_GRID_CLASS} ${BAMBOOK_OS.layout.panelShadowViewportClass} px-8 pt-[104px] pb-8');
-    expect(productsSource).toContain('${PRODUCT_CARD_GRID_CLASS} ${BAMBOOK_OS.layout.panelShadowViewportClass} p-8');
+    expect(productsSource).toContain("paddingClassName={isMobile ? 'px-3 pt-5 pb-28' : 'px-5 pt-[104px] pb-5'}");
+    expect(productsSource).toContain('paddingClassName="p-8"');
     expect(productsSource).toContain('className="relative flex-1 min-h-0 overflow-visible"');
-    expect(productsSource).not.toContain('bambook-edge-mask-parent-shadow');
-    expect(productsSource).toContain('ref={subIndexScrollRef} className={`flex-1 min-h-0 overflow-y-scroll ${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}');
+    expect(productsSource).toContain('scrollClassName={`${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}');
     expect(productsSource).not.toContain('<div ref={subIndexScrollRef} className="flex-1 min-h-0 overflow-y-scroll">');
     expect(edgeMaskHookSource).toContain('scrollRef: productGridScrollRef');
     expect(edgeMaskHookSource).toContain("enabled: navLevel === 'list' && listDisplayMode === 'grid' && !isPdmlRawView");
@@ -256,40 +257,44 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_DETAIL_STATUS_PANEL_CLASS).toContain(OS_MATERIAL.insetSurface);
     expect(PRODUCT_DETAIL_HEADER_LAYOUT_CLASS).toContain('shrink-0');
     expect(PRODUCT_DETAIL_HEADER_LAYOUT_CLASS).not.toContain('sticky');
-    expect(PRODUCT_DETAIL_BODY_SCROLL_CLASS).toBe('flex-1 min-h-0 overflow-y-auto p-8 space-y-8');
+    expect(PRODUCT_DETAIL_BODY_SCROLL_CLASS).toBe('flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6');
     expect(productsSource).toContain('materialRole="framePanel"');
-    expect(productsSource).toContain('data-os-compiler-role="product-detail-panel"');
-    expect(productsSource).toContain('data-os-compiler-role="product-detail-media-panel"');
-    expect(productsSource).toContain('data-os-compiler-role="product-detail-main-panel"');
+    expect(productsSource).toContain('role="product-detail-panel"');
+    expect(productsSource).toContain('data-os-compiler-role="product-detail-body-scroll"');
+    expect(productsSource).toContain('source="CompiledProductsPage.product-detail-panel"');
     expect(productsSource).toContain('const getDisplayImages = (product: ProductAsset) =>');
-    expect(productsSource).toContain('<ImageIcon size={34} strokeWidth={1.3} />');
-    expect(productsSource).toContain('selectedProduct.fabricProfile?.colorDescription || selectedProduct.fabricProfile?.millQuality || selectedProduct.subCategoryId ||');
-    expect(productsSource).toContain('className={`${PRODUCT_DETAIL_HEADER_LAYOUT_CLASS} justify-end');
-    expect(productsSource).toContain('contentClassName={PRODUCT_DETAIL_PANEL_CONTENT_CLASS}');
-    expect(productsSource).toContain('className={PRODUCT_DETAIL_MAIN_PANEL_CLASS}');
-    expect(productsSource).toContain('className={PRODUCT_DETAIL_BODY_SCROLL_CLASS}');
-    expect(productsSource).toContain("className={`${wide ? 'md:col-span-2' : ''} ${PRODUCT_DETAIL_ITEM_CLASS}`}");
-    const mediaPanelSource = productsSource.slice(
-      productsSource.indexOf('data-os-compiler-role="product-detail-media-panel"'),
-      productsSource.indexOf('data-os-compiler-role="product-detail-main-panel"'),
+    expect(productsSource).toContain('<ImageIcon size={48} strokeWidth={1} />');
+    expect(productsSource).toContain('selectedProduct.fabricProfile?.colorDescription');
+    expect(productsSource).toContain('ref={productDetailBodyScrollRef}');
+    expect(productsSource).toContain('contentClassName="relative z-10 flex min-h-0 flex-1 flex-col"');
+    expect(productsSource).toContain('className={`h-full flex flex-col rounded-card shadow-none overflow-hidden ${OS_MATERIAL.raisedCard}`}');
+    expect(productsSource).toContain('data-os-compiler-role="product-detail-body-scroll"');
+    expect(productsSource).toContain('className={`flex-1 min-h-0 overflow-y-auto px-6 py-8 bambook-scrollbar ${BAMBOOK_OS.layout.panelShadowViewportClass}`}');
+    const detailHeaderSource = productsSource.slice(
+      productsSource.indexOf('role="product-detail-panel"'),
+      productsSource.indexOf('ref={productDetailBodyScrollRef}'),
     );
-    const mainPanelSource = productsSource.slice(
-      productsSource.indexOf('data-os-compiler-role="product-detail-main-panel"'),
+    const detailBodySource = productsSource.slice(
+      productsSource.indexOf('ref={productDetailBodyScrollRef}'),
       productsSource.indexOf('<DetailSection title="基础识别">'),
     );
-    expect(mediaPanelSource).toContain('{selectedProduct.name}');
-    expect(mediaPanelSource).toContain('核心档案信息已完整');
-    expect(mainPanelSource).not.toContain('{selectedProduct.name}');
-    expect(mainPanelSource).not.toContain('核心档案信息已完整');
+    expect(detailHeaderSource).toContain('{selectedProduct.name}');
+    expect(detailHeaderSource).not.toContain('核心档案信息已完整');
+    expect(detailBodySource).toContain('核心档案信息已完整');
+    expect(detailBodySource).not.toContain('{selectedProduct.name}');
     expect(productsSource).not.toContain("bg-slate-50/80 border-slate-100");
     expect(productsSource).not.toContain("bg-[#0d1b2a]/40 border-white/10");
   });
 
   it('keeps the product toolbar on the project select/menu system instead of native controls', () => {
-    expect(productsSource).toContain('<CustomSelect');
-    expect(productsSource).not.toContain('<select');
-    expect(productsSource).toContain('surface="toolbar"');
-    expect(productsSource).toContain('triggerVariant="inline"');
+    const toolbarSource = productsSource.slice(
+      productsSource.indexOf('const renderClassificationTabBar ='),
+      productsSource.indexOf('const renderFabricProfileFields =')
+    );
+    expect(toolbarSource).toContain('<CompiledSelectControl');
+    expect(toolbarSource).not.toContain('<select');
+    expect(toolbarSource).toContain('surface="toolbar"');
+    expect(toolbarSource).toContain('triggerVariant="inline"');
   });
 
   it('keeps price grouping helpers hoisted so the price tier tab cannot trip render-time TDZ', () => {
@@ -301,8 +306,8 @@ describe('ProductsManager Bambook OS tokens', () => {
 
   it('defines the PDML raw view guard before scroll mask hooks read it', () => {
     expect(productsSource.indexOf('const isPdmlRawView')).toBeGreaterThan(-1);
-    expect(productsSource.indexOf('useGlassSurfaceEdgeMasks({')).toBeGreaterThan(-1);
-    expect(productsSource.indexOf('const isPdmlRawView')).toBeLessThan(productsSource.indexOf('useGlassSurfaceEdgeMasks({'));
+    expect(productsSource.indexOf('useCompiledGlassSurfaceEdgeMasks({')).toBeGreaterThan(-1);
+    expect(productsSource.indexOf('const isPdmlRawView')).toBeLessThan(productsSource.indexOf('useCompiledGlassSurfaceEdgeMasks({'));
   });
 
   it('does not reintroduce heavy font weights into the archive surface', () => {

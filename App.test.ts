@@ -137,32 +137,29 @@ describe('App light background tone', () => {
     expect(source).toContain('mode={settingsMode}');
   });
 
-  it('mounts mature UI Lab 2 compiler surfaces in the production shell by default', () => {
+  it('routes the four recovered pages and the shell through single Manager sources without compiler switches', () => {
     const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain("import { CompiledDashboardPage }");
-    expect(source).toContain("import { CompiledProductsPage }");
-    expect(source).toContain("import { CompiledRelationsPage }");
-    expect(source).toContain("import { CompiledSettingsPage }");
-    expect(source).toContain("CompiledProductModuleSettingsWorkspace");
-    expect(source).toContain("import { CompiledMainModuleSlot }");
-    expect(source).toContain("import { CompiledSidebar }");
-    expect(source).toContain('BAMBOOK_MAIN_COMPILER_SURFACES');
-    expect(source).toContain('function readCompilerSurfaceFlags()');
-    expect(source).toContain('BAMBOOK_MAIN_COMPILER_SURFACES.map(surface => [surface, shouldUseCompilerSurface(surface)])');
-    expect(source).toContain('<CompiledSidebar');
-    expect(source).not.toContain('allowedViews={MAIN_APP_UI_LAB_2_SIDEBAR_VIEWS}');
-    expect(source).toContain('<CompiledDashboardPage');
-    expect(source).toContain('<CompiledRelationsPage');
-    expect(source).toContain('<CompiledProductsPage');
-    expect(source).toContain('<CompiledProductModuleSettingsWorkspace');
-    expect(source).toContain('<CompiledSettingsPage');
-    expect(source).toContain('<CompiledMainModuleSlot pageId={pageId}');
+    // compilerSurfaces 开关与 compiled 渲染分支已全部退役
+    expect(source).not.toContain('compilerSurfaces');
+    expect(source).not.toContain('CompiledDashboardPage');
+    expect(source).not.toContain('CompiledRelationsPage');
+    expect(source).not.toContain('CompiledProductsPage');
+    expect(source).not.toContain('CompiledSettingsPage');
+    expect(source).not.toContain('CompiledSidebar');
+    expect(source).not.toContain('CompiledProductModuleSettingsWorkspace');
+
+    // 统一走 Manager 单路径
+    expect(source).toContain('<Dashboard\n');
+    expect(source).toContain('<Sidebar\n');
+    expect(source).toContain('<RelationsManager relations={relations}');
+    expect(source).toContain('<ProductsManager');
+    expect(source).toContain('<Settings\n');
   });
 
-  it('transfers the accepted UI Lab 2 product module settings workspace into the main products page', () => {
+  it('hosts the product module settings workspace on the single products page source', () => {
     const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
-    const workspaceSource = readFileSync(new URL('./components/ui/osCompiler/compiledProductModuleSettingsTemplates.tsx', import.meta.url), 'utf8');
+    const workspaceSource = readFileSync(new URL('./components/ProductsManager.tsx', import.meta.url), 'utf8');
 
     expect(workspaceSource).toContain("template: 'CompiledProductModuleSettingsWorkspace'");
     expect(workspaceSource).toContain("provenance: 'accepted'");
@@ -171,13 +168,12 @@ describe('App light background tone', () => {
     expect(source).toContain('persistProductModuleSettings(nextSettings)');
     expect(source).toContain('if (currentView !== View.Products)');
     expect(source).toContain('setIsProductModuleSettingsWorkspaceOpen(false)');
-    expect(source).toContain('isProductModuleSettingsWorkspaceOpen\n                    ? (\n                      <CompiledProductModuleSettingsWorkspace');
+    expect(source).toContain('<ProductModuleSettingsWorkspace\n');
     expect(source).toContain('onUpdateModuleSettings={handleUpdateProductModuleSettings}');
     expect(source).toContain('data-main-app-module-settings-fab');
-    expect(source).toContain('source="MainApp.productSettingsFab"');
   });
 
-  it('keeps explicit compiler fallback and global opt-in switches for production preview', () => {
+  it('keeps the module registry surface config while retiring the runtime switch machinery', () => {
     const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
     const registrySource = readFileSync(new URL('./components/moduleRegistry.ts', import.meta.url), 'utf8');
 
@@ -193,30 +189,26 @@ describe('App light background tone', () => {
     expect(registrySource).toContain("'emailsCompiler'");
     expect(registrySource).toContain("'businessToolsCompiler'");
     expect(registrySource).toContain("'adminPanelCompiler'");
-    expect(source).toContain('getCompilerSurfaceConfig(surface)');
-    expect(source).toContain("params.get('mainCompiler')");
-    expect(source).toContain("localStorage.setItem(compilerConfig.storageKey, '0')");
-    expect(source).toContain("localStorage.setItem(compilerConfig.storageKey, '1')");
+    expect(source).not.toContain('getCompilerSurfaceConfig');
+    expect(source).not.toContain('shouldUseCompilerSurface');
+    expect(source).not.toContain('readCompilerSurfaceFlags');
+    expect(source).not.toContain("params.get('mainCompiler')");
+    expect(source).not.toContain('localStorage.setItem(compilerConfig.storageKey');
   });
 
-  it('routes remaining production views through compiler-owned main module slots', () => {
+  it('routes production views directly without compiler-owned main module slots', () => {
     const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
-    const templateSource = readFileSync(new URL('./components/ui/osCompiler/compiledMainModuleTemplates.tsx', import.meta.url), 'utf8');
 
-    expect(templateSource).toContain('export const compileMainModuleSlot');
-    expect(templateSource).toContain("template: 'CompiledMainModuleSlot'");
-    expect(templateSource).toContain("layoutMode: 'preserve-current-pixels'");
-    expect(templateSource).toContain("provenance: 'provisional'");
-    expect(templateSource).toContain('data-os-compiler-role="main-module-slot"');
-    expect(templateSource).toContain("className = 'contents'");
-
-    expect(source).toContain("renderMainCompilerSlot(\n                compilerSurfaces.assistant,\n                'assistant'");
-    expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.development,\n              'development'");
-    expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.dataCenter,\n              'data-center'");
-    expect(source).toContain("renderMainCompilerSlot(\n                compilerSurfaces.orders,\n                orderType === 'garment' ? 'garment-orders' : orderType === 'other' ? 'other-orders' : 'fabric-orders'");
-    expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.emails,\n              'emails'");
-    expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.businessTools,\n              'business-tools'");
-    expect(source).toContain("renderMainCompilerSlot(\n              compilerSurfaces.adminPanel,\n              'admin-panel'");
+    // 26 个非双路径模块已废弃透明包裹器（CompiledMainModuleSlot），直接渲染 Manager
+    expect(source).not.toContain('CompiledMainModuleSlot');
+    expect(source).not.toContain('renderMainCompilerSlot');
+    expect(source).toContain('{activeView === View.Development && (\n              <DevelopmentManager');
+    expect(source).toContain('{(activeView === View.Invoices || activeView === View.PaymentVouchers) && (\n              <FinanceManager');
+    expect(source).toContain('{activeView === View.DataCenter && (\n              <DataCenter');
+    expect(source).toContain('{activeView === View.Orders && (\n              ordersReady');
+    expect(source).toContain('{activeView === View.Emails && (\n              <EmailManager');
+    expect(source).toContain('{activeView === View.BusinessTools && (\n              <BusinessTools');
+    expect(source).toContain('{activeView === View.AdminPanel && (\n              <AdminPanel');
   });
 
   it('passes the company data-center endpoint into the data twin layout page', () => {
