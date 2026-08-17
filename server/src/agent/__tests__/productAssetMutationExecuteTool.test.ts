@@ -15,7 +15,7 @@ describe('task product-asset-mutation-flow: executeTool commit', () => {
   it('product_asset.create approved → committed', async () => {
     const draft = buildProductAssetCreateDraft({ body: { sku: 'FAB-1', name: 'Twill', mainCategory: 'Fabric' } });
     (createProductAsset as any).mockResolvedValue({ ok: true, data: { asset: { id: 'PROD-1' }, auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:product_asset.create', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'product_asset.create', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -31,7 +31,7 @@ describe('task product-asset-mutation-flow: executeTool commit', () => {
   it('product_asset.update approved → committed', async () => {
     const draft = buildProductAssetUpdateDraft({ assetId: 'PROD-1', patch: { name: 'Updated' } });
     (updateProductAsset as any).mockResolvedValue({ ok: true, data: { asset: { id: 'PROD-1' }, auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:product_asset.update', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'product_asset.update', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -40,7 +40,7 @@ describe('task product-asset-mutation-flow: executeTool commit', () => {
   it('product_asset.delete approved → committed', async () => {
     const draft = buildProductAssetDeleteDraft({ assetId: 'PROD-1' });
     (deleteProductAsset as any).mockResolvedValue({ ok: true, data: { asset: { id: 'PROD-1' }, auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:product_asset.delete', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'product_asset.delete', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');

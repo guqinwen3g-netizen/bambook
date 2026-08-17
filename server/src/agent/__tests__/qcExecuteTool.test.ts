@@ -44,7 +44,7 @@ describe('qc executeTool commit', () => {
   it('qc.review_garment_sample approved → committed', async () => {
     const draft = buildQcGarmentReviewDraft({ orderId: 'ORD_1', input: garmentInput, actorId: 'usr_qc' });
     mocks.reviewGarmentSample.mockResolvedValue({ ok: true, data: { report: { id: 'INR__ORD_1__smp__pp__r1', result: 'pass' }, gate: null } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:qc.review_garment_sample', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'qc.review_garment_sample', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -55,7 +55,7 @@ describe('qc executeTool commit', () => {
   it('qc.review_fabric_sample approved → committed', async () => {
     const draft = buildQcFabricReviewDraft({ orderId: 'ORD_F1', input: fabricInput, actorId: 'usr_qc' });
     mocks.reviewFabricSample.mockResolvedValue({ ok: true, data: { report: { id: 'INR__ORD_F1__fqc__FSS_1__1', result: 'pass' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', actionType: 'tool:qc.review_fabric_sample', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'qc.review_fabric_sample', input: {}, approvalId: 'AP-2' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -65,7 +65,7 @@ describe('qc executeTool commit', () => {
   it('qc.sign_report approved → committed', async () => {
     const draft = buildQcSignReportDraft({ reportId: 'INR_1', role: 'qc', actorId: 'usr_qc' });
     mocks.signReport.mockResolvedValue({ id: 'INR_1', orderId: 'ORD_1' });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-3', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-3', status: 'approved', actionType: 'tool:qc.sign_report', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'qc.sign_report', input: {}, approvalId: 'AP-3' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -99,7 +99,7 @@ describe('qc executeTool commit', () => {
   it('approved 但 draft hash 被篡改 → PROCESS_DRAFT_HASH_MISMATCH，service 不调用', async () => {
     const draft = buildQcGarmentReviewDraft({ orderId: 'ORD_1', input: garmentInput, actorId: 'usr_qc' });
     const tampered = { ...draft, subOperations: [{ ...draft.subOperations[0], after: { ...(draft.subOperations[0].after as any), conclusion: 'fail' } }] };
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: tampered } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:qc.review_garment_sample', payload: { processDraft: tampered } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'qc.review_garment_sample', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(false);
     expect(result.errorFeedback.code).toBe('PROCESS_DRAFT_HASH_MISMATCH');
@@ -109,7 +109,7 @@ describe('qc executeTool commit', () => {
   it('sign service throw → 结构化错误码（executeTool 链路）', async () => {
     const draft = buildQcSignReportDraft({ reportId: 'INR_1', role: 'business', actorId: 'usr_qc' });
     mocks.signReport.mockRejectedValue(new Error('业务签字仅限订单负责人或部门主管（PP_SIGN_BUSINESS_ROLE_REQUIRED）'));
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-3', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-3', status: 'approved', actionType: 'tool:qc.sign_report', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'qc.sign_report', input: {}, approvalId: 'AP-3' } as any);
     expect(result.ok).toBe(false);
     expect(result.errorFeedback.code).toBe('PP_SIGN_BUSINESS_ROLE_REQUIRED');

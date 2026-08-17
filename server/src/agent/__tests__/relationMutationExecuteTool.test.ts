@@ -20,7 +20,7 @@ describe('relation.update/delete executeTool commit', () => {
   it('relation.update approved → committed', async () => {
     const draft = buildRelationUpdateDraft({ relationId: 'REL-1', patch: { name: 'New' }, currentSnapshot: { name: 'Old' } });
     (updateRelation as any).mockResolvedValue({ ok: true, data: { relation: { id: 'REL-1' }, auditId: 'AL-1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:relation.update', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'relation.update', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -30,7 +30,7 @@ describe('relation.update/delete executeTool commit', () => {
   it('relation.delete approved → committed', async () => {
     const draft = buildRelationDeleteDraft({ relationId: 'REL-1' });
     (deleteRelation as any).mockResolvedValue({ ok: true, data: { relation: { id: 'REL-1' }, auditId: 'AL-2' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:relation.delete', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'relation.delete', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');

@@ -45,7 +45,7 @@ describe('payment_requests create/cancel executeTool commit', () => {
   it('payment_requests.create approved → committed', async () => {
     const draft = buildPaymentRequestCreateDraft({ input: createInput });
     mocks.createPaymentRequest.mockResolvedValue({ ok: true, data: { paymentRequest: { id: 'PAYR_1', requestNumber: 'PAYR-1' }, approvalRequestId: 'AR-BIZ-1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:payment_requests.create', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'payment_requests.create', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -56,7 +56,7 @@ describe('payment_requests create/cancel executeTool commit', () => {
   it('payment_requests.cancel approved → committed', async () => {
     const draft = buildPaymentRequestCancelDraft({ paymentRequestId: 'PAYR_1', actorId: 'usr_1' });
     mocks.cancelPaymentRequest.mockResolvedValue({ ok: true, data: { paymentRequest: { id: 'PAYR_1', status: 'Cancelled' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', actionType: 'tool:payment_requests.cancel', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'payment_requests.cancel', input: {}, approvalId: 'AP-2' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -89,7 +89,7 @@ describe('payment_requests create/cancel executeTool commit', () => {
   it('approved 但 draft hash 被篡改 → PROCESS_DRAFT_HASH_MISMATCH，service 不调用', async () => {
     const draft = buildPaymentRequestCreateDraft({ input: createInput });
     const tampered = { ...draft, subOperations: [{ ...draft.subOperations[0], after: { ...(draft.subOperations[0].after as any), totalAmount: '1.0000' } }] };
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: tampered } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:payment_requests.create', payload: { processDraft: tampered } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'payment_requests.create', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(false);
     expect(result.errorFeedback.code).toBe('PROCESS_DRAFT_HASH_MISMATCH');

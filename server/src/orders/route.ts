@@ -60,8 +60,8 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     } catch (e: any) {
       logger.error('[orders/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({
-        error: 'LIST_FAILED',
-        message: String(e?.message ?? e),
+        ok: false,
+        error: { code: 'LIST_FAILED', message: '订单列表查询失败' },
       });
     }
   });
@@ -72,7 +72,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       return res.json({ ok: true, ...result });
     } catch (e: any) {
       logger.error('[orders/query] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'QUERY_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'QUERY_FAILED', message: '订单查询失败' } });
     }
   });
 
@@ -80,22 +80,22 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
   router.get('/:id/context', async (req: Request, res: Response) => {
     try {
       const result = await getOrderContext(opts.prisma, req.params.id);
-      if (!result.found) return res.status(404).json({ error: 'NOT_FOUND', message: 'Order not found' });
+      if (!result.found) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
       return res.json({ ok: true, ...result });
     } catch (e: any) {
       logger.error('[orders/context] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'CONTEXT_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'CONTEXT_FAILED', message: '订单全链路聚合查询失败' } });
     }
   });
 
   router.get('/:id', async (req: Request, res: Response) => {
     try {
       const result = await getOrder(opts.prisma, { id: req.params.id });
-      if (!(result as any).found) return res.status(404).json({ error: 'NOT_FOUND', message: 'Order not found' });
+      if (!(result as any).found) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
       return res.json({ ok: true, order: (result as any).item });
     } catch (e: any) {
       logger.error('[orders/detail] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'DETAIL_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'DETAIL_FAILED', message: '订单详情查询失败' } });
     }
   });
 
@@ -104,16 +104,16 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     const orders = Array.isArray(body?.orders) ? body!.orders : [];
     if (orders.length === 0) {
       return res.status(400).json({
-        error: 'NO_ORDERS',
-        message: 'POST body must be { "orders": ParsedOrder[] } with at least one order',
+        ok: false,
+        error: { code: 'NO_ORDERS', message: 'POST body must be { "orders": ParsedOrder[] } with at least one order' },
       });
     }
 
     const invalid = orders.filter((o) => !o || typeof o.poNumber !== 'string' || !o.poNumber);
     if (invalid.length > 0) {
       return res.status(400).json({
-        error: 'INVALID_ORDER',
-        message: `Every order must have a non-empty poNumber. ${invalid.length} bad row(s).`,
+        ok: false,
+        error: { code: 'INVALID_ORDER', message: `Every order must have a non-empty poNumber. ${invalid.length} bad row(s).` },
       });
     }
 
@@ -149,8 +149,8 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     } catch (e: any) {
       logger.error('[orders/import] failed', { error: e?.message || String(e) });
       return res.status(500).json({
-        error: 'PERSIST_FAILED',
-        message: String(e?.message ?? e),
+        ok: false,
+        error: { code: 'PERSIST_FAILED', message: '订单导入持久化失败' },
       });
     }
   });
@@ -166,7 +166,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     if (!body.customer) errors.push('customer (客户) is required');
     if (!body.millName) errors.push('millName (面料工厂) is required');
     if (errors.length > 0) {
-      return res.status(400).json({ error: 'VALIDATION_FAILED', message: errors.join('; ') });
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION_FAILED', message: errors.join('; ') } });
     }
 
     const ts = Date.now();
@@ -260,11 +260,11 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       const code = (e?.code as string | undefined) ?? '';
       if (code === 'P2002') {
         return res.status(409).json({
-          error: 'DUPLICATE_PO',
-          message: `Order with poNumber=${body.poNumber} already exists. Use PUT /api/v1/orders/:id to update it.`,
+          ok: false,
+          error: { code: 'DUPLICATE_PO', message: `Order with poNumber=${body.poNumber} already exists. Use PUT /api/v1/orders/:id to update it.` },
         });
       }
-      return res.status(500).json({ error: 'CREATE_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'CREATE_FAILED', message: '订单创建失败' } });
     }
   });
 
@@ -276,12 +276,12 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
    */
   router.put('/:id', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
     const id = req.params.id;
-    if (!id) return res.status(400).json({ error: 'BAD_ID', message: 'order id required' });
+    if (!id) return res.status(400).json({ ok: false, error: { code: 'BAD_ID', message: 'order id required' } });
 
     const body = (req.body || {}) as Record<string, unknown>;
     const writableInput = stripReadonly(body);
     if (Object.keys(writableInput).length === 0) {
-      return res.status(400).json({ error: 'EMPTY_PATCH', message: 'patch body has no editable fields' });
+      return res.status(400).json({ ok: false, error: { code: 'EMPTY_PATCH', message: 'patch body has no editable fields' } });
     }
 
     try {
@@ -302,7 +302,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
         },
       });
       if (!existing) {
-        return res.status(404).json({ error: 'NOT_FOUND', message: `order ${id} not found` });
+        return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: `order ${id} not found` } });
       }
 
       const previousSources = parsePrevSources(existing.fieldSources);
@@ -363,14 +363,14 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       return res.json({ ok: true, order: serializeOrder(updated) });
     } catch (e: any) {
       logger.error('[orders/update] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'UPDATE_FAILED', message: '订单更新失败' } });
     }
   });
 
   // task ERP-P1: DELETE /:id 调 lifecycleService（事务+audit+EntityLink inactive）
   router.delete('/:id', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
     const id = req.params.id;
-    if (!id) return res.status(400).json({ error: 'BAD_ID', message: 'order id required' });
+    if (!id) return res.status(400).json({ ok: false, error: { code: 'BAD_ID', message: 'order id required' } });
     try {
       const result = await deleteOrder({
         prisma: opts.prisma, orderId: id,
@@ -384,7 +384,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       return res.json({ ok: true, order: serializeOrder(result.data!.order) });
     } catch (e: any) {
       logger.error('[orders/delete] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'DELETE_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'DELETE_FAILED', message: '订单删除失败' } });
     }
   });
 
@@ -430,7 +430,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       });
     } catch (e: any) {
       logger.error('[orders/status-transition] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'TRANSITION_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'TRANSITION_FAILED', message: '订单状态流转失败' } });
     }
   });
 
@@ -452,7 +452,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       return res.json({ ok: true, timeline: serialized });
     } catch (e: any) {
       logger.error('[orders/timeline] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'TIMELINE_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'TIMELINE_FAILED', message: '订单时间线查询失败' } });
     }
   });
 
@@ -463,10 +463,10 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     const toStatus = String(body.toStatus || '').trim();
 
     if (ids.length === 0) {
-      return res.status(400).json({ error: 'NO_IDS', message: 'ids array is required' });
+      return res.status(400).json({ ok: false, error: { code: 'NO_IDS', message: 'ids array is required' } });
     }
     if (!toStatus || !LIFECYCLE_VALID_STATUSES.includes(toStatus as any)) {
-      return res.status(400).json({ error: 'INVALID_STATUS', message: `toStatus must be one of: ${LIFECYCLE_VALID_STATUSES.join(', ')}` });
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_STATUS', message: `toStatus must be one of: ${LIFECYCLE_VALID_STATUSES.join(', ')}` } });
     }
 
     try {
@@ -494,7 +494,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       return res.json({ ok: true, updated: results });
     } catch (e: any) {
       logger.error('[orders/batch-status] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'BATCH_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'BATCH_FAILED', message: '订单批量状态更新失败' } });
     }
   });
 
@@ -515,7 +515,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       return res.json({ ok: true, kanban });
     } catch (e: any) {
       logger.error('[orders/kanban] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'KANBAN_FAILED', message: String(e?.message ?? e) });
+      return res.status(500).json({ ok: false, error: { code: 'KANBAN_FAILED', message: '订单看板查询失败' } });
     }
   });
 

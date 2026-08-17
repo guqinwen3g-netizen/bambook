@@ -17,7 +17,7 @@ describe('task invoice-issue: executeTool commit 路径', () => {
     const tx = makeCommitTx();
     const prisma = {
       $transaction: vi.fn(async (fn: any) => fn(tx)),
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:invoice.issue', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'invoice.issue', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);

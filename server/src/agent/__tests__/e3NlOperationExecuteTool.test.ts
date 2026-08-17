@@ -39,7 +39,7 @@ describe('task dev-create-flow: executeTool commit 路径', () => {
     const draft = buildDevCreateDraft(DEV_CREATE_INPUT);
     (createDevelopmentCase as any).mockResolvedValue({ ok: true, data: { case: { id: 'DEV__1', code: 'DEV-2608-001' }, auditId: 'a1' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:development.create', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'development.create', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
@@ -73,7 +73,7 @@ describe('task dev-create-flow: executeTool commit 路径', () => {
     const draft = buildDevCreateDraft(DEV_CREATE_INPUT);
     (createDevelopmentCase as any).mockResolvedValue({ ok: false, error: { code: 'DUPLICATE_CODE', message: 'dup' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:development.create', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'development.create', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
@@ -244,7 +244,7 @@ describe('task statement-send-flow: executeTool commit 路径', () => {
     });
     const { tx, emailCreate } = makeCommitPrisma();
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:statement.send', payload: { processDraft: draft } }) },
       $transaction: vi.fn(async (fn: any) => fn(tx)),
       // 防重算断言：commit 不得再查 invoice/paymentVoucher
       invoice: { findMany: vi.fn().mockRejectedValue(new Error('MUST_NOT_REQUERY')) },

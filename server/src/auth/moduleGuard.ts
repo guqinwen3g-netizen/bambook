@@ -56,13 +56,14 @@ export function createModuleAuthGuard(opts: ModuleAuthGuardOptions) {
       return next();
     }
 
-    // Priority 2: API key
-    const apiKey = (req.headers['x-bambook-api-key'] || req.query.apiKey) as string | undefined;
+    // Priority 2: API key (accept both canonical and legacy header names)
+    const apiKey = (req.headers['x-bambook-api-key'] || req.headers['x-api-key'] || req.query.apiKey) as string | undefined;
     if (!apiKey) {
       return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Login (JWT) or X-Bambook-API-Key required.' });
     }
     if (!opts.apiKeys.has(apiKey)) {
-      return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid API key.' });
+      // 与旧模块手写 authenticate 对齐：无效凭证统一 401（未认证），403 留给已认证但越权场景
+      return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid API key.' });
     }
 
     // Strict principal mode: API key must be bound to an explicit service principal.

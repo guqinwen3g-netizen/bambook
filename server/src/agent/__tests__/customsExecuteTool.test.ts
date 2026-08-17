@@ -49,7 +49,7 @@ describe('task customs-flow: executeTool commit（注册表分发）', () => {
   it('customs.register_lc approved → committed', async () => {
     const draft = buildCustomsRegisterLcDraft({ input: lcInput });
     createLetterOfCredit.mockResolvedValue({ id: 'LC__1', lcNumber: 'LC-2026-0001' });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:customs.register_lc', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'customs.register_lc', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -61,7 +61,7 @@ describe('task customs-flow: executeTool commit（注册表分发）', () => {
   it('customs.update_declaration approved → committed', async () => {
     const draft = buildCustomsUpdateDeclarationDraft({ declarationId: 'CD__1', patch: { declarationPort: '上海港' }, currentSnapshot: { declarationPort: '宁波港' } });
     updateDeclaration.mockResolvedValue({ id: 'CD__1', declarationNumber: 'CD-2026-0001' });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:customs.update_declaration', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'customs.update_declaration', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -107,7 +107,7 @@ describe('task customs-flow: executeTool 全链路重放幂等（receipt 收口�
     const receipts = new Map<string, any>();
     const prisma = {
       approvalRequest: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }),
+        findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:customs.register_lc', payload: { processDraft: draft } }),
       },
       agentCommitReceipt: {
         create: vi.fn(async ({ data }: any) => {

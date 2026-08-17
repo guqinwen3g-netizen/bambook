@@ -47,6 +47,13 @@ function makePrisma(opts: {
     auditCreate: vi.fn(async () => ({ id: 'AL-1' })),
     creditHistoryCreate: vi.fn(async ({ data }: any) => data),
     creditLimitUpdate: vi.fn(async ({ where, data }: any) => ({ ...Object.values(creditLimits)[0], ...data, id: where.id })),
+    // CAS 原子自增 mock（shiftUsedAmount 已收口 updateMany）：按 where.id 命中内存记录并应用 increment
+    creditLimitUpdateMany: vi.fn(async ({ where, data }: any) => {
+      const rec = Object.values(creditLimits).find((cl: any) => cl.id === where.id) as any;
+      if (!rec) return { count: 0 };
+      if (typeof data?.usedAmount?.increment === 'number') rec.usedAmount += data.usedAmount.increment;
+      return { count: 1 };
+    }),
     preCutUpdateMany: vi.fn(async () => ({ count: 1 })),
     approvalUpdateMany: vi.fn(async () => ({ count: 1 })),
   };
@@ -82,6 +89,7 @@ function makePrisma(opts: {
     creditLimit: {
       findFirst: vi.fn(async ({ where }: any) => creditLimits[where.relationId] ?? null),
       update: calls.creditLimitUpdate,
+      updateMany: calls.creditLimitUpdateMany,
     },
     creditLimitHistory: { create: calls.creditHistoryCreate },
     preCutChecklist: { updateMany: calls.preCutUpdateMany },
@@ -373,7 +381,7 @@ describe('applyChangeRequest（审批通过后生效）', () => {
     }));
     expect(deltas).toContainEqual({ relationId: 'REL_A', delta: -10000, triggerType: 'order_change_customer' });
     expect(deltas).toContainEqual({ relationId: 'REL_B', delta: 10000, triggerType: 'order_change_customer' });
-    expect(calls.creditLimitUpdate).toHaveBeenCalledTimes(2);
+    expect(calls.creditLimitUpdateMany).toHaveBeenCalledTimes(2);
     // 订单客户字段更新
     expect(calls.orderUpdate.mock.calls[0][0].data.customerRelationId).toBe('REL_B');
   });

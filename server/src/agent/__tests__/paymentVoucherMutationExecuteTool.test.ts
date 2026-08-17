@@ -20,7 +20,7 @@ describe('payment_voucher create/update executeTool commit', () => {
   it('payment_voucher.create approved → committed', async () => {
     const draft = buildPaymentVoucherCreateDraft({ input: createInput });
     (createPaymentVoucher as any).mockResolvedValue({ ok: true, data: { voucher: { id: 'PAY__1' }, auditId: 'AL-1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:payment_voucher.create', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'payment_voucher.create', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -30,7 +30,7 @@ describe('payment_voucher create/update executeTool commit', () => {
   it('payment_voucher.update approved → committed', async () => {
     const draft = buildPaymentVoucherUpdateDraft({ voucherId: 'PAY__1', patch: { amount: '120.0000' }, currentSnapshot: { amount: '100.0000' } });
     (updatePaymentVoucher as any).mockResolvedValue({ ok: true, data: { voucher: { id: 'PAY__1' }, auditId: 'AL-2' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:payment_voucher.update', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'payment_voucher.update', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');

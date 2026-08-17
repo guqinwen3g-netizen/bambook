@@ -126,7 +126,7 @@ describe('POST /api/v1/orders/import', () => {
   it('400 on empty or missing orders array', async () => {
     const r1 = await request(makeApp()).post('/api/v1/orders/import').set(auth()).send({});
     expect(r1.status).toBe(400);
-    expect(r1.body.error).toBe('NO_ORDERS');
+    expect(r1.body.error.code).toBe('NO_ORDERS');
 
     const r2 = await request(makeApp())
       .post('/api/v1/orders/import')
@@ -143,7 +143,7 @@ describe('POST /api/v1/orders/import', () => {
       .set(auth())
       .send({ orders });
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('INVALID_ORDER');
+    expect(res.body.error.code).toBe('INVALID_ORDER');
   });
 
   it('401 without API key when auth required', async () => {

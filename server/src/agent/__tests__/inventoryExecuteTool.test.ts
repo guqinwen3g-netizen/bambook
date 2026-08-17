@@ -28,7 +28,7 @@ describe('task inventory-flow: executeTool commit（注册表分发）', () => {
   it('inventory.adjust_stock approved → committed', async () => {
     const draft = buildInventoryAdjustStockDraft({ movement: movementInput });
     createStockMovement.mockResolvedValue({ id: 'MOV__1' });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:inventory.adjust_stock', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'inventory.adjust_stock', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -74,7 +74,7 @@ describe('task inventory-flow: executeTool 全链路重放幂等（receipt 收�
     const receipts = new Map<string, any>();
     const prisma = {
       approvalRequest: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }),
+        findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:inventory.adjust_stock', payload: { processDraft: draft } }),
       },
       agentCommitReceipt: {
         create: vi.fn(async ({ data }: any) => {

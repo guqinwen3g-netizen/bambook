@@ -9,6 +9,7 @@
  *   - POST /:id/confirm                            — 客户确认登记（结果/日期/渠道/意见/证据）
  *   - GET  /fabric/:orderId/samples                — 样品列表（含 Exmill 倒计时/逾期标记）
  *   - GET  /fabric/:orderId/shipment-eligibility   — DR-012 样品链发货资格判定（出运域消费）
+ *   - GET  /fabric/:orderId/shipment-gate          — DR-013 例外门禁消费（叠加生效例外：gate/exception 放行或 409 GATE_BLOCKED）
  *
  *   投产后早期生产样（DR-028，不限轮次闭环）：
  *   - POST /early-production/:orderId/rounds           — 登记新一轮（previousSampleId 链入上一轮）
@@ -37,6 +38,9 @@ import { logger } from '../lib/logger';
 import { createFabricShipmentSampleService } from './fabricShipmentSampleService';
 import { createEarlyProductionSampleService } from './earlyProductionSampleService';
 import { createGarmentSampleGateService } from './garmentSampleGateService';
+import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
+import { createApprovalCreateService } from '../approvals/approvalCreateService';
+import { createExceptionService } from '../exceptions/exceptionService';
 
 export interface SampleRouterOptions {
   prisma: PrismaClient;
@@ -64,7 +68,12 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
   const apiKeys = options.apiKeys ?? new Set<string>();
   const router = Router();
 
-  const fabricService = createFabricShipmentSampleService({ prisma });
+  // DR-013 例外查询链（门禁消费真源）：hasActiveException 注入样品链门禁消费点
+  const exceptionRoutingService = createApprovalRoutingService({ prisma });
+  const exceptionApprovalCreateService = createApprovalCreateService({ prisma, routingService: exceptionRoutingService });
+  const exceptionService = createExceptionService({ prisma, approvalCreateService: exceptionApprovalCreateService });
+
+  const fabricService = createFabricShipmentSampleService({ prisma, exceptionChecker: exceptionService.hasActiveException });
   const earlyService = createEarlyProductionSampleService({ prisma });
   const garmentService = createGarmentSampleGateService({ prisma });
 
@@ -144,6 +153,29 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
     } catch (e: any) {
       logger.error('[SampleRoute] SHIPMENT_ELIGIBILITY_FAILED', { error: e?.message });
       res.status(500).json({ error: { code: 'SHIPMENT_ELIGIBILITY_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // DR-013 例外门禁消费端点：叠加生效例外后的放行结论（gate / exception）或 409 GATE_BLOCKED
+  // （阻断时透传 blockingReasons + exceptionReason + exceptionEntryHint，引导 DR-013 申请入口）
+  router.get('/fabric/:orderId/shipment-gate', async (req: Request, res: Response) => {
+    try {
+      const r = await fabricService.assertFabricShipmentGate({ orderId: req.params.orderId });
+      if (!r.ok) {
+        return res.status(r.error.status ?? 400).json({
+          error: {
+            code: r.error.code,
+            message: r.error.message,
+            blockingReasons: r.error.blockingReasons,
+            exceptionReason: r.error.exceptionReason,
+            exceptionEntryHint: r.error.exceptionEntryHint,
+          },
+        });
+      }
+      res.status(200).json(serializeValue({ ok: true, pass: r.data.pass, eligibility: r.data.eligibility }));
+    } catch (e: any) {
+      logger.error('[SampleRoute] SHIPMENT_GATE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'SHIPMENT_GATE_FAILED', message: e?.message ?? 'operation failed' } });
     }
   });
 

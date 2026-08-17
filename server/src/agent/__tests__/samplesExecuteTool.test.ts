@@ -37,7 +37,7 @@ describe('samples executeTool commit', () => {
   it('samples.create_round approved → committed', async () => {
     const draft = buildSampleRoundCreateDraft({ caseId: 'CASE_1', input: roundInput, actorId: 'usr_1' });
     mocks.createRound.mockResolvedValue({ ok: true, data: { round: { id: 'GSR_1', developmentCaseId: 'CASE_1', status: 'in_progress' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:samples.create_round', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'samples.create_round', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -48,7 +48,7 @@ describe('samples executeTool commit', () => {
   it('samples.submit_to_customer approved → committed', async () => {
     const draft = buildSampleSubmitToCustomerDraft({ roundId: 'GSR_1', input: submitInput, actorId: 'usr_1' });
     mocks.submitToCustomer.mockResolvedValue({ ok: true, data: { round: { id: 'GSR_1', developmentCaseId: 'CASE_1', status: 'submitted' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', actionType: 'tool:samples.submit_to_customer', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'samples.submit_to_customer', input: {}, approvalId: 'AP-2' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -58,7 +58,7 @@ describe('samples executeTool commit', () => {
   it('samples.register_customer_confirmation approved → committed', async () => {
     const draft = buildSampleCustomerConfirmationDraft({ roundId: 'GSR_1', input: confirmInput, actorId: 'usr_1' });
     mocks.registerCustomerConfirmation.mockResolvedValue({ ok: true, data: { round: { id: 'GSR_1', developmentCaseId: 'CASE_1', status: 'confirmed' } } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-3', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-3', status: 'approved', actionType: 'tool:samples.register_customer_confirmation', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'samples.register_customer_confirmation', input: {}, approvalId: 'AP-3' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -92,7 +92,7 @@ describe('samples executeTool commit', () => {
   it('approved 但 draft hash 被篡改 → PROCESS_DRAFT_HASH_MISMATCH，service 不调用', async () => {
     const draft = buildSampleRoundCreateDraft({ caseId: 'CASE_1', input: roundInput, actorId: 'usr_1' });
     const tampered = { ...draft, subOperations: [{ ...draft.subOperations[0], after: { ...(draft.subOperations[0].after as any), version: 'V9' } }] };
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: tampered } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:samples.create_round', payload: { processDraft: tampered } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'samples.create_round', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(false);
     expect(result.errorFeedback.code).toBe('PROCESS_DRAFT_HASH_MISMATCH');

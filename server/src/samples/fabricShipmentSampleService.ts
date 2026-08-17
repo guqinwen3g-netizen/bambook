@@ -19,14 +19,24 @@
  * 边界声明：
  *   - 本服务只输出「样品链发货资格判定」（computeShipmentEligibility），
  *     实际出运门禁由出运域消费本判定；面料大货 QC 条件由 QC/出运域独立评估（DR-014）。
- *   - DR-013 接入点（未实现，仅声明）：客户未回复/明确拒绝/紧急业务例外时，
- *     出运域可在消费本判定时叠加已批准的 Dr013ExceptionRequest 放行；
- *     本服务不提供任何绕过通道，未确认一律输出不具备正常发货条件。
+ *   - DR-013 例外门禁消费点：assertFabricShipmentGate — 在 computeShipmentEligibility
+ *     之上叠加 exceptionGate SDK（assertGateOrThrow + bindExceptionChecker），
+ *     生效例外精确命中（targetType=Order + targetId=orderId + action=shipment:release）才放行；
+ *     无 checker 注入时不具备资格一律 GATE_BLOCKED（fail-closed，无隐藏旁路）。
  */
 
 import type { PrismaClient } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
+import {
+  assertGateOrThrow,
+  bindExceptionChecker,
+  GateBlockedError,
+  GATE_BLOCKED,
+  type ExceptionChecker,
+  type ExceptionInactiveReason,
+  type GatePassResult,
+} from '../exceptions/exceptionGate';
 
 // ────────────────────────────────────────────────────────────────────
 // 常量与类型
@@ -54,6 +64,25 @@ export const SHIPMENT_GATE_BLOCKERS = [
 export type ShipmentGateBlocker = (typeof SHIPMENT_GATE_BLOCKERS)[number];
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string; status: number } };
+
+/**
+ * DR-013 例外门禁消费结果（assertFabricShipmentGate 专用）：
+ *   放行分支携带 GatePassResult（gate 正常放行 / exception 例外放行 + 例外摘要供徽标展示）；
+ *   阻断分支透传 blockingReasons + exceptionReason + exceptionEntryHint（引导 DR-013 申请入口）。
+ */
+export type FabricShipmentGateResult =
+  | { ok: true; data: { eligibility: any; pass: GatePassResult } }
+  | {
+      ok: false;
+      error: {
+        code: string;
+        message: string;
+        status: number;
+        blockingReasons?: string[];
+        exceptionReason?: ExceptionInactiveReason;
+        exceptionEntryHint?: string;
+      };
+    };
 
 function ok<T>(data: T): Result<T> {
   return { ok: true, data };
@@ -214,8 +243,8 @@ export interface RegisterSampleConfirmationInput {
 // 服务工厂
 // ────────────────────────────────────────────────────────────────────
 
-export function createFabricShipmentSampleService(opts: { prisma: PrismaClient }) {
-  const { prisma } = opts;
+export function createFabricShipmentSampleService(opts: { prisma: PrismaClient; exceptionChecker?: ExceptionChecker }) {
+  const { prisma, exceptionChecker } = opts;
 
   /** S/S 船样登记（DR-011：面料订单必须管理；允许同订单多批次） */
   async function registerShipmentSample(params: {
@@ -593,12 +622,61 @@ export function createFabricShipmentSampleService(opts: { prisma: PrismaClient }
             countdown: rcLatest ? computeSampleCountdown(rcLatest, order) : null,
           },
         },
-        // DR-013 接入点声明：例外放行由出运域在消费本判定时叠加已批准的
-        // Dr013ExceptionRequest（exceptionCategory=shipment_release）实现；
-        // 本服务不感知、不提供绕过通道。
-        exceptionHook: 'DR-013 controlled exception must be applied by the shipping domain; this判定不含例外放行',
+        // DR-013 例外叠加消费点：出运域调用 assertFabricShipmentGate（本判定下方），
+        // 由 exceptionGate SDK 统一完成「阻断 → 查例外 → 放行或 GATE_BLOCKED」；
+        // 本判定始终输出原始门禁状态（DR-013：例外不改变原规则）。
+        exceptionHook: 'DR-013 controlled exception is applied via assertFabricShipmentGate by the shipping domain; 本判定不含例外放行',
       },
     });
+  }
+
+  /**
+   * DR-013 例外门禁消费点（出运域在放行动作前调用）：
+   *   1. 先做样品链原始资格判定（computeShipmentEligibility，不感知例外）；
+   *   2. 不具备资格 → assertGateOrThrow 查「本订单 + shipment:release」生效例外：
+   *      - 例外精确命中 → passedVia='exception'（携带例外摘要，供「DR-013 例外放行」徽标展示）；
+   *      - 无生效例外 → GATE_BLOCKED 409（blockingReasons + exceptionEntryHint 引导申请入口）；
+   *   3. 具备资格 → passedVia='gate'，不触碰例外（一次性例外不被无意核销）；
+   *   4. 未注入 exceptionChecker → 不具备资格一律 GATE_BLOCKED（fail-closed，无隐藏旁路）。
+   *
+   * 例外 scope 精确绑定：targetType='Order' + targetId=orderId + action='shipment:release'
+   * （订单级样品链门禁锚定订单；EXC 创建时 scope 必须与此精确一致，绝不泛化到整类对象）。
+   */
+  async function assertFabricShipmentGate(params: { orderId: string; at?: Date }): Promise<FabricShipmentGateResult> {
+    const r = await computeShipmentEligibility({ orderId: params.orderId });
+    if (!r.ok) return r;
+    const { eligibility } = r.data;
+    const checkOrderRelease = exceptionChecker
+      ? bindExceptionChecker(exceptionChecker, { targetType: 'Order', action: 'shipment:release' })
+      : null;
+    try {
+      const pass = await assertGateOrThrow(
+        {
+          eligible: eligibility.eligibleForNormalShipment,
+          gate: 'shipment_release',
+          blockingReasons: eligibility.blockingReasons,
+        },
+        checkOrderRelease
+          ? () => checkOrderRelease(params.orderId, params.at)
+          : { active: false, reason: 'NO_ACTIVE_EXCEPTION' },
+      );
+      return { ok: true, data: { eligibility, pass } };
+    } catch (e) {
+      if (e instanceof GateBlockedError) {
+        return {
+          ok: false,
+          error: {
+            code: GATE_BLOCKED,
+            message: e.message,
+            status: e.statusCode,
+            blockingReasons: e.blockingReasons,
+            exceptionReason: e.exceptionReason,
+            exceptionEntryHint: e.exceptionEntryHint,
+          },
+        };
+      }
+      throw e;
+    }
   }
 
   return {
@@ -608,6 +686,7 @@ export function createFabricShipmentSampleService(opts: { prisma: PrismaClient }
     registerCustomerConfirmation,
     listOrderSamples,
     computeShipmentEligibility,
+    assertFabricShipmentGate,
   };
 }
 

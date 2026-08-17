@@ -13,7 +13,7 @@ describe('task email-send-outbox: executeTool commit 路径', () => {
     const draft = buildEmailSendOutboxDraft({ emailId: 'EML__1', credentials: { user: 'a@b.com', pass: 'p' } });
     (sendOutboxEmail as any).mockResolvedValue({ ok: true, data: { emailId: 'EML__1', messageId: '<m@x>', sentAt: '2026-06-29 12:00:00', auditId: 'a1' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft, credentialsPassword: 'p' } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:email.send', payload: { processDraft: draft, credentialsPassword: 'p' } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'email.send', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
@@ -46,7 +46,7 @@ describe('task email-send-outbox: executeTool commit 路径', () => {
     const draft = buildEmailSendOutboxDraft({ emailId: 'EML__1', credentials: { user: 'a@b.com', pass: 'p' } });
     (sendOutboxEmail as any).mockResolvedValue({ ok: false, error: { code: 'SMTP_SEND_FAILED', message: 'conn refused', statusCode: 502 } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft, credentialsPassword: 'p' } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:email.send', payload: { processDraft: draft, credentialsPassword: 'p' } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'email.send', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
@@ -136,7 +136,7 @@ describe('task email-send-outbox review-fix: 真实 approval 恢复链路（pass
   it('credential missing（credentialRef 无效/过期）→ MISSING_CREDENTIALS，不调用 sendOutboxEmail', async () => {
     const draft = buildEmailSendOutboxDraft({ emailId: 'EML__1', credentials: { user: 'a@b.com', pass: 'p' } });
     // approval payload 含 credentialRef 但 secret context 已清空（模拟过期/进程重启）
-    const approval = { id: 'AP1', status: 'approved', payload: { processDraft: draft, input: { credentials: { credentialRef: 'ecred_expired', pass: '' } } } };
+    const approval = { id: 'AP1', status: 'approved', actionType: 'tool:email.send', payload: { processDraft: draft, input: { credentials: { credentialRef: 'ecred_expired', pass: '' } } } };
     (sendOutboxEmail as any).mockResolvedValue({ ok: false, error: { code: 'MISSING_CREDENTIALS', message: 'pass empty', statusCode: 400 } });
     const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue(approval) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'email.send', input: {}, approvalId: 'AP1' } as any);

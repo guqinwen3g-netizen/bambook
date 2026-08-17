@@ -132,6 +132,7 @@ function makeApp(opts: { requireAuth?: boolean; apiKeys?: Set<string> } = {}) {
     }),
   };
   const inspectionReport: any = { findUnique: vi.fn().mockResolvedValue(null) };
+  const dr013ExceptionRequest: any = { findMany: vi.fn().mockResolvedValue([]) };
   const tx: any = { fabricShipmentSample, earlyProductionSample, developmentCase, sampleNode, inspectionReport };
   const prisma: any = {
     order: {
@@ -144,6 +145,7 @@ function makeApp(opts: { requireAuth?: boolean; apiKeys?: Set<string> } = {}) {
     developmentCase,
     sampleNode,
     inspectionReport,
+    dr013ExceptionRequest,
     $transaction: vi.fn(async (fn: any) => fn(tx)),
   };
   const onDataChange = vi.fn();
@@ -235,6 +237,36 @@ describe('面料 S/S + RC 路由', () => {
     const res = await request(app).post('/api/v1/samples/FSS__x/ship').set(authHeader()).send({ courier: 'DHL' });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('GET /fabric/:orderId/shipment-gate：无样品且无生效例外 → 409 GATE_BLOCKED + 申请入口提示（DR-013 消费端）', async () => {
+    const { app } = makeApp();
+    const res = await request(app).get('/api/v1/samples/fabric/ORD-F1/shipment-gate').set(authHeader());
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('GATE_BLOCKED');
+    expect(res.body.error.blockingReasons).toContain('SS_NOT_REGISTERED');
+    expect(res.body.error.exceptionReason).toBe('NO_ACTIVE_EXCEPTION');
+    expect(res.body.error.exceptionEntryHint).toContain('POST /api/v1/exceptions');
+  });
+
+  it('GET /fabric/:orderId/shipment-gate：S/S 已确认 → 200 passedVia=gate + eligibility 透传', async () => {
+    const { app, state } = makeApp();
+    state.samples.push({
+      id: 'FSS__ok',
+      sampleCode: 'FSS-20990101-001',
+      orderId: 'ORD-F1',
+      sentToCustomer: true,
+      sentDate: '2099-01-05',
+      customerStatus: 'approved',
+      attachments: { sampleKind: 'SS' },
+      deletedAt: null,
+      createdAt: BigInt(1000),
+    });
+    const res = await request(app).get('/api/v1/samples/fabric/ORD-F1/shipment-gate').set(authHeader());
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.pass).toEqual({ passedVia: 'gate' });
+    expect(res.body.eligibility.eligibleForNormalShipment).toBe(true);
   });
 });
 

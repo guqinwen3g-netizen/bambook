@@ -33,7 +33,7 @@ describe('credit freeze/thaw executeTool commit', () => {
   it('credit.freeze approved → committed', async () => {
     const draft = buildCreditFreezeDraft(freezeInput);
     mocks.freezeCredit.mockResolvedValue({ ok: true, data: { frozen: ['CL_1'] } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:credit.freeze', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'credit.freeze', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -45,7 +45,7 @@ describe('credit freeze/thaw executeTool commit', () => {
   it('credit.thaw approved → committed', async () => {
     const draft = buildCreditThawDraft(thawInput);
     mocks.thawCredit.mockResolvedValue({ ok: true, data: { thawed: ['CL_1'] } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-2', status: 'approved', actionType: 'tool:credit.thaw', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'credit.thaw', input: {}, approvalId: 'AP-2' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -79,7 +79,7 @@ describe('credit freeze/thaw executeTool commit', () => {
   it('approved 但 draft hash 被篡改 → PROCESS_DRAFT_HASH_MISMATCH，service 不调用', async () => {
     const draft = buildCreditFreezeDraft(freezeInput);
     const tampered = { ...draft, subOperations: [{ ...draft.subOperations[0], after: { ...freezeInput, reason: '篡改理由' } }] };
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', payload: { processDraft: tampered } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP-1', status: 'approved', actionType: 'tool:credit.freeze', payload: { processDraft: tampered } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'credit.freeze', input: {}, approvalId: 'AP-1' } as any);
     expect(result.ok).toBe(false);
     expect(result.errorFeedback.code).toBe('PROCESS_DRAFT_HASH_MISMATCH');

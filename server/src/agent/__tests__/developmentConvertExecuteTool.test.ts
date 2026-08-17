@@ -14,7 +14,7 @@ describe('task dev-convert-flow: executeTool commit 路径', () => {
     const draft = buildDevConvertDraft({ caseId: 'DC__1', mode: 'autoCreate' });
     (convertDevCaseToOrder as any).mockResolvedValue({ ok: true, data: { case: { id: 'DC__1', linkedOrderId: 'ORD-NEW' }, order: { id: 'ORD-NEW' }, auditId: 'a1' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:development.convert_to_order', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'development.convert_to_order', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
@@ -47,7 +47,7 @@ describe('task dev-convert-flow: executeTool commit 路径', () => {
     const draft = buildDevConvertDraft({ caseId: 'DC__1', mode: 'autoCreate' });
     (convertDevCaseToOrder as any).mockResolvedValue({ ok: false, error: { code: 'CONVERT_FAILED', message: 'sync reject' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:development.convert_to_order', payload: { processDraft: draft } }) },
     } as any;
     const result: any = await executeTool(prisma, { toolId: 'development.convert_to_order', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
@@ -58,7 +58,7 @@ describe('task dev-convert-flow: executeTool commit 路径', () => {
     const draft = buildDevConvertDraft({ caseId: 'DC__1', mode: 'autoCreate' });
     (convertDevCaseToOrder as any).mockResolvedValue({ ok: true, data: { case: { id: 'DC__1', linkedOrderId: 'ORD-NEW' }, order: null, auditId: 'a1' } });
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:development.convert_to_order', payload: { processDraft: draft } }) },
     } as any;
     await executeTool(prisma, { toolId: 'development.convert_to_order', input: {}, approvalId: 'AP1' } as any);
     expect(convertDevCaseToOrder).toHaveBeenCalledTimes(1);

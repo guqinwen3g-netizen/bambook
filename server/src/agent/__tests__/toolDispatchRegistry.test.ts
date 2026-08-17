@@ -130,7 +130,7 @@ describe('toolDispatchRegistry: commit tools (approval boilerplate)', () => {
     const mockPayload = { input: { poNumber: 'PO-001' }, draft: { totalAmount: 1000 } };
     (mockPrisma.approvalRequest.findUnique as any).mockResolvedValue({
       id: 'appr_ok',
-      status: 'approved',
+      status: 'approved', actionType: 'tool:test.commit.success',
       payload: mockPayload,
     });
 
@@ -158,13 +158,40 @@ describe('toolDispatchRegistry: commit tools (approval boilerplate)', () => {
     expect(capturedCtx.approvalPayload).toEqual(mockPayload);
     expect(capturedCtx.prisma).toBe(mockPrisma);
   });
+
+  it('approval actionType 与 toolId 不匹配 → CROSS_APPROVAL_BINDING fail-closed，commitFn 不执行', async () => {
+    // 安全场景：A 工具的审批单被 B 工具的 commit 消费（跨审批绑定攻击）
+    (mockPrisma.approvalRequest.findUnique as any).mockResolvedValue({
+      id: 'appr_cross',
+      status: 'approved',
+      actionType: 'tool:test.commit.attacker',
+      payload: {},
+    });
+    const commitFn = vi.fn(async () => ({ ok: true }));
+    registerCommitTool('test.commit.victim', commitFn);
+
+    const result = await dispatchFromRegistry(mockPrisma, {
+      toolId: 'test.commit.victim',
+      input: {},
+      approvalId: 'appr_cross',
+    });
+
+    expect(result.hit).toBe(true);
+    if (result.hit) {
+      expect(result.result.ok).toBe(false);
+      expect((result.result as any).committed).toBe(false);
+      expect((result.result as any).errorFeedback.code).toBe('CROSS_APPROVAL_BINDING');
+      expect((result.result as any).errorFeedback.retryable).toBe(false);
+    }
+    expect(commitFn).not.toHaveBeenCalled();
+  });
 });
 
 // ══════════════════════════════════════════════════════════════
 // Phase 2 · 任务 2.1：commit 幂等去重（AgentCommitReceipt 统一收口）
 // ══════════════════════════════════════════════════════════════
 describe('toolDispatchRegistry: commit 幂等去重（Phase 2 · 2.1）', () => {
-  const approvedApproval = { id: 'appr_idem', status: 'approved', payload: {} };
+  const approvedApproval = { id: 'appr_idem', status: 'approved', actionType: 'tool:test.idem.first', payload: {} };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -208,6 +235,7 @@ describe('toolDispatchRegistry: commit 幂等去重（Phase 2 · 2.1）', () => 
       status: 'committed',
       result: { ok: true, committed: true, entityId: 'E-1' },
     });
+    (mockPrisma.approvalRequest.findUnique as any).mockResolvedValue({ ...approvedApproval, actionType: 'tool:test.idem.replay' });
     const commitFn = vi.fn(async () => ({ ok: true }));
     registerCommitTool('test.idem.replay', commitFn);
 
@@ -229,6 +257,7 @@ describe('toolDispatchRegistry: commit 幂等去重（Phase 2 · 2.1）', () => 
   it('重放（P2002 + receipt 仍 committing，崩溃窗口）→ COMMIT_REPLAY_BLOCKED fail-closed', async () => {
     receipts.create.mockRejectedValue({ code: 'P2002' });
     receipts.findUnique.mockResolvedValue({ status: 'committing', result: null });
+    (mockPrisma.approvalRequest.findUnique as any).mockResolvedValue({ ...approvedApproval, actionType: 'tool:test.idem.inflight' });
     const commitFn = vi.fn(async () => ({ ok: true }));
     registerCommitTool('test.idem.inflight', commitFn);
 
@@ -248,6 +277,7 @@ describe('toolDispatchRegistry: commit 幂等去重（Phase 2 · 2.1）', () => 
   });
 
   it('commit 失败（ok:false）→ 删除 receipt 允许重试；重试时 commitFn 再次执行', async () => {
+    (mockPrisma.approvalRequest.findUnique as any).mockResolvedValue({ ...approvedApproval, actionType: 'tool:test.idem.retry' });
     const commitFn = vi.fn()
       .mockResolvedValueOnce({ ok: false, error: 'boom' })
       .mockResolvedValueOnce({ ok: true, committed: true });
@@ -271,6 +301,7 @@ describe('toolDispatchRegistry: commit 幂等去重（Phase 2 · 2.1）', () => 
   });
 
   it('commitFn 抛异常 → 删除 receipt 并向上抛出（不吞错误）', async () => {
+    (mockPrisma.approvalRequest.findUnique as any).mockResolvedValue({ ...approvedApproval, actionType: 'tool:test.idem.throw' });
     const commitFn = vi.fn(async () => { throw new Error('tx exploded'); });
     registerCommitTool('test.idem.throw', commitFn);
 

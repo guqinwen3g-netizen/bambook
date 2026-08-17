@@ -97,12 +97,12 @@ describe('Module auth guard · runtime 401/403/allowed', () => {
       expect(res.status).toBe(200);
     });
 
-    it('403 with invalid API key', async () => {
+    it('401 with invalid API key（与旧模块手写 authenticate 契约对齐）', async () => {
       const app = makeTestApp();
       const res = await request(app)
         .get('/api/v1/test/items')
         .set('x-bambook-api-key', 'wrong-key');
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(401);
     });
   });
 

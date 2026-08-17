@@ -13,7 +13,7 @@ describe('task order-line-update-flow: executeTool commit', () => {
   it('approved → committed', async () => {
     const draft = buildOrderLineUpdateDraft({ lineId: 'ORD__1__0010', patch: { quantity: 200 } });
     (updateOrderLine as any).mockResolvedValue({ ok: true, data: { line: { id: 'ORD__1__0010' }, auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:order.line_update', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order.line_update', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(true);
     expect(result.status).toBe('committed');
@@ -43,7 +43,7 @@ describe('task order-line-update-flow: executeTool commit', () => {
   it('service 失败（UPDATE_LINE_FAILED）→ failed', async () => {
     const draft = buildOrderLineUpdateDraft({ lineId: 'ORD__1__0010', patch: { quantity: 200 } });
     (updateOrderLine as any).mockResolvedValue({ ok: false, error: { code: 'UPDATE_LINE_FAILED', message: 'sync reject' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:order.line_update', payload: { processDraft: draft } }) } } as any;
     const result: any = await executeTool(prisma, { toolId: 'order.line_update', input: {}, approvalId: 'AP1' } as any);
     expect(result.ok).toBe(false);
   });
@@ -51,7 +51,7 @@ describe('task order-line-update-flow: executeTool commit', () => {
   it('no service bypass：只调 updateOrderLine', async () => {
     const draft = buildOrderLineUpdateDraft({ lineId: 'ORD__1__0010', patch: { quantity: 200 } });
     (updateOrderLine as any).mockResolvedValue({ ok: true, data: { line: { id: 'ORD__1__0010' }, auditId: 'a1' } });
-    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }) } } as any;
+    const prisma = { approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:order.line_update', payload: { processDraft: draft } }) } } as any;
     await executeTool(prisma, { toolId: 'order.line_update', input: {}, approvalId: 'AP1' } as any);
     expect(updateOrderLine).toHaveBeenCalledTimes(1);
   });

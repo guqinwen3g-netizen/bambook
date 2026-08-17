@@ -45,7 +45,7 @@ describe('task Agent-P1: executeTool payment.receive_and_reconcile commit 路径
       $transaction: vi.fn(async (fn: any) => fn(tx)),
       approvalRequest: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'AP1', status: 'approved', payload: { processDraft: draft },
+          id: 'AP1', status: 'approved', actionType: 'tool:payment.receive_and_reconcile', payload: { processDraft: draft },
         }),
       },
     } as any;
@@ -118,7 +118,7 @@ describe('task Agent-P1: executeTool payment.receive_and_reconcile commit 路径
 
   it('approval payload 无 processDraft → fail closed（PROCESS_DRAFT_MISSING，不伪成功）', async () => {
     const prisma = {
-      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: {} }) },
+      approvalRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:payment.receive_and_reconcile', payload: {} }) },
       $transaction: vi.fn(),
     } as any;
     const result: any = await executeTool(prisma, {
@@ -148,7 +148,7 @@ describe('task 2.2: executeTool payment.receive_and_reconcile 全链路重放幂
     const prisma = {
       $transaction: txFn,
       approvalRequest: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', payload: { processDraft: draft } }),
+        findUnique: vi.fn().mockResolvedValue({ id: 'AP1', status: 'approved', actionType: 'tool:payment.receive_and_reconcile', payload: { processDraft: draft } }),
       },
       agentCommitReceipt: {
         create: vi.fn(async ({ data }: any) => {
