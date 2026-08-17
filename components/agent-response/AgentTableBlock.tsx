@@ -72,7 +72,7 @@ export const AgentTableBlock: React.FC<AgentBlockComponentProps<AgentTableBlockM
             {block.rows.map((row, rowIndex) => (
               <tr key={rowIndex} className={rowIndex % 2 === 1 ? 'bg-[var(--recessed-bg)]' : undefined}>
                 {block.columns.map(column => (
-                  <td key={column.key} className={`border-b px-3 py-2 ${alignClass(column.align)} ${borderClass} text-[var(--text-primary)] dark:text-[var(--text-secondary)]`}>
+                  <td key={column.key} className={`border-b px-3 py-2 ${alignClass(column.align)} ${borderClass} text-[var(--text-primary)]`}>
                     {formatCellValue(row[column.key])}
                   </td>
                 ))}

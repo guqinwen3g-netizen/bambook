@@ -35,7 +35,7 @@ export const AgentDiagramBlock: React.FC<AgentBlockComponentProps<AgentDiagramBl
             {block.edges.slice(0, 6).map((edge, index) => (
               <div key={`${edge.from}-${edge.to}-${index}`} className={`flex min-w-0 items-center gap-2 text-[11px] ${quietTextClass}`}>
                 <span className="truncate">{nodeById.get(edge.from)?.label ?? edge.from}</span>
-                <span className="text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]">→</span>
+                <span className="text-[var(--text-tertiary)]">→</span>
                 <span className="truncate">{nodeById.get(edge.to)?.label ?? edge.to}</span>
                 {edge.label && <span className={`shrink-0 rounded-full border px-1.5 py-0.5 ${borderClass}`}>{edge.label}</span>}
               </div>

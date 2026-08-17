@@ -288,7 +288,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
                   e.stopPropagation();
                   onReferenceClick?.({ refId: `ref_${block.toolRunId}`, kind: 'tool_run', label: block.toolId, toolRunId: block.toolRunId, blockId: block.id });
                 }}
-                className="mt-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)] dark:text-[var(--os-vnext-brand-blue-soft)]"
+                className="mt-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]"
               >
                 查看运行详情 →
               </button>
@@ -317,7 +317,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
   return (
     <div className="flex items-start gap-2.5 py-1">
       <span className="mt-[2px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-        <FileText size={14} className="text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]" />
+        <FileText size={14} className="text-[var(--os-vnext-brand-blue-strong)]" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -344,7 +344,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onReferenceClick(anchor); }}
-                      className="ml-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)] dark:text-[var(--os-vnext-brand-blue-soft)]"
+                      className="ml-1.5 text-[11px] text-[var(--os-vnext-brand-blue-strong)] hover:text-[var(--os-vnext-brand-blue)]"
                     >
                       查看
                     </button>
