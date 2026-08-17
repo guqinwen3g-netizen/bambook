@@ -49,7 +49,7 @@ const StepPreview: React.FC<Props> = ({ results, onResultsChange, isDarkMode }) 
             onClick={() => setActiveIdx(i)}
             className={`flex h-10 items-center gap-2 px-4 rounded-full text-xs whitespace-nowrap transition-colors ${
               i === activeIdx
-                ? 'bg-[var(--os-vnext-brand-blue)]/10 dark:bg-[var(--os-vnext-brand-blue)]/20 text-[var(--os-vnext-brand-blue)] dark:text-[var(--os-vnext-brand-blue-strong)] border border-[var(--os-vnext-brand-blue)]/30 dark:border-[var(--os-vnext-brand-blue)]/40'
+                ? 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)] border border-[var(--os-vnext-brand-blue)]/30'
                 : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] border border-[var(--border-c-strong)] hover:bg-[var(--recessed-bg-hover)]'
             }`}
           >
@@ -104,7 +104,7 @@ const OrderPreview: React.FC<{
   const card = 'bds-surface border border-[var(--border-c-default)]';
   const labelCls = 'text-[var(--text-tertiary)]';
   const valueCls = 'text-[var(--text-primary)]';
-  const inputBase = `w-full bg-transparent border rounded-full text-sm text-[var(--text-primary)] focus:border-[var(--os-vnext-brand-blue)] border-[rgba(100,116,139,0.40)] dark:border-[rgba(255,255,255,0.15)] focus:outline-none focus:ring-1 focus:ring-[var(--os-vnext-brand-blue)]/40`;
+  const inputBase = `w-full bg-transparent border rounded-full text-sm text-[var(--text-primary)] focus:border-[var(--os-vnext-brand-blue)] border-[rgba(100,116,139,0.40)] focus:outline-none focus:ring-1 focus:ring-[var(--os-vnext-brand-blue)]/40`;
   const inputCls = `${inputBase} h-10 px-4`;
   const cellInputCls = `${inputBase} px-3 py-1`;
 
