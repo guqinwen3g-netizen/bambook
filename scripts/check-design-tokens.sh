@@ -59,7 +59,8 @@ BASELINE_HANDWRITTEN_BTN=22    # 批E：手写主按钮（rounded-full + bg-[var
                                # 余量 21 处均非按钮：进度条/圆点/头像/徽章等装饰性 accent 填充（Dashboard×5 / compiledDashboardTemplates×5 / ProductsManager×2 / compiledProductsTemplates×3 / AdminPanel / RelationsManager / ImageUploader / QuotationImportWizard 链接 / DesignTuner 开发工具）+ FabricSampleInvoiceGenerator 1（测试锁定业务语义豁免）
 BASELINE_TEXT_WHITE=34         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
                                # 2026-08-17 批E 伴随收编 48→34（13 处手写主按钮改 bds-btn-primary 后文字色由组件类 --on-accent 承载）
-# 批F font-black 基线 0：唯一残留 ProductionGlobe.tsx:654 在 *Globe* 豁免集内（DOM 覆盖层非 WebGL，批F 修复时同步带出豁免）
+# 批F（2026-08-17）：font-black 唯一残留 ProductionGlobe.tsx:654（DOM 覆盖层）已改 font-light；
+# 字重断言同步扩展 font-(medium|semibold|bold) → font-(medium|semibold|bold|black)，基线维持 3（pwa 存量）
 
 errors=0
 
@@ -161,13 +162,13 @@ else
 fi
 echo ""
 
-# ── 7. 检查 font-medium/semibold/bold 字重写法（全局 Light 300 纪律）──
-echo "▸ 检查 font-medium/semibold/bold 字重写法..."
-font_weight_count=$(rg -c 'font-(medium|semibold|bold)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+# ── 7. 检查 font-medium/semibold/bold/black 字重写法（全局 Light 300 纪律）──
+echo "▸ 检查 font-medium/semibold/bold/black 字重写法..."
+font_weight_count=$(rg -c 'font-(medium|semibold|bold|black)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
 if [ "$font_weight_count" -gt "$BASELINE_FONT_WEIGHT" ]; then
   echo "  ❌ 过重字重写法增加（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）"
   echo "  全局 Light 300 纪律：请写 font-light（机制已坍缩 font-medium→300，但写法必须统一）"
-  rg -n 'font-(medium|semibold|bold)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
+  rg -n 'font-(medium|semibold|bold|black)\b' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" 2>/dev/null | head -10
   errors=$((errors + 1))
 elif [ "$font_weight_count" -lt "$BASELINE_FONT_WEIGHT" ]; then
   echo "  ✅ 过重字重写法减少（基线 ${BASELINE_FONT_WEIGHT} → 当前 ${font_weight_count}）— 恭喜！请更新基线。"
