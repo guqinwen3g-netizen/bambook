@@ -1012,9 +1012,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       />
 
       {/* 单行筛选 bar（点名② 双行→单行重构）：搜索 + 类型 segment + 状态 + 视图 toggle 共行；
-          搜索/状态/视图桌面端渲染（移动端沿用 segment 横滚，原独立 tab 行并入本 bar） */}
+          搜索/状态/视图桌面端渲染（移动端沿用 segment 横滚，原独立 tab 行并入本 bar）。
+          三区同槽：bar 与 PageHeader（--p-pagehead）/ 表格区共享 px-7（28px）页面内容栅格，
+          左右边界严格对齐；pb-4 呼吸间距与下方内容面板分层（基准范式同 QuotationManager mb-4） */}
       {!desktopFullscreenOpen && (
-        <div className="shrink-0 px-4 pt-2 pointer-events-auto">
+        <div className="shrink-0 px-7 pt-2 pb-4 pointer-events-auto">
           <div className="bds-filterbar flex-wrap gap-y-2">
             <div className="relative hidden md:block min-w-[160px] flex-[1_1_180px] max-w-[240px]">
               <Search size={13} strokeWidth={1.5} className={`absolute left-3 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
@@ -1159,10 +1161,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 </div>
               ) : (
                 <>
-                <ProductionAlerts isDarkMode={isDarkMode} onSelectOrder={(oid) => {
-                  const item = lineItems.find(li => li.order?.id === oid);
-                  if (item) handleLineClick(item);
-                }} />
+                {/* 预警横幅同槽 px-7：原全宽出血，与表格左右边界错位（同属 bar 超槽家族） */}
+                <div className="shrink-0 px-7">
+                  <ProductionAlerts isDarkMode={isDarkMode} onSelectOrder={(oid) => {
+                    const item = lineItems.find(li => li.order?.id === oid);
+                    if (item) handleLineClick(item);
+                  }} />
+                </div>
                 <div className="w-full h-full flex flex-col min-h-0 overflow-visible bg-transparent">
                 <div className="flex-1 min-h-0 flex px-7 pt-0 bambook-main-panel-bottom-inset gap-4 overflow-visible">
                 <CompiledTableShell
