@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { createAuthService } from '../service';
 
 const JWT_SECRET = 'test-secret-key-at-least-32-chars';
@@ -53,5 +53,44 @@ describe('Auth service', () => {
     expect(payload.roles).toEqual(['finance']);
     expect(payload.permissions).toEqual(['finance:read']);
     expect(payload.departmentIds).toEqual(['finance']);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// JWT_SECRET 生产环境启动断言（fail-closed：未配置即抛错阻断启动）
+// ══════════════════════════════════════════════════════════════════
+describe('JWT_SECRET 生产启动断言', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalJwtSecret = process.env.JWT_SECRET;
+
+  afterEach(() => {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+    if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalJwtSecret;
+  });
+
+  it('NODE_ENV=production 且未配置 JWT_SECRET（含 options）→ 构造即抛错', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.JWT_SECRET;
+    expect(() => createAuthService()).toThrow(/JWT_SECRET is not configured/);
+  });
+
+  it('NODE_ENV=production 且已通过环境变量配置 JWT_SECRET → 正常构造', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'prod-secret-at-least-32-chars-long';
+    expect(() => createAuthService()).not.toThrow();
+  });
+
+  it('NODE_ENV=production 且通过 options.jwtSecret 显式注入 → 正常构造', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.JWT_SECRET;
+    expect(() => createAuthService({ jwtSecret: 'injected-secret-at-least-32-chars' })).not.toThrow();
+  });
+
+  it('非生产环境未配置 JWT_SECRET → 回退开发默认值，不抛错', () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.JWT_SECRET;
+    expect(() => createAuthService()).not.toThrow();
   });
 });

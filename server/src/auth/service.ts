@@ -18,6 +18,12 @@ export type TokenPayload = {
 };
 
 export function createAuthService(options: AuthServiceOptions = {}) {
+  // 生产环境启动断言：JWT_SECRET 必须显式配置，禁止回退到开发默认值（安全 fail-closed）
+  if (process.env.NODE_ENV === 'production' && !options.jwtSecret && !process.env.JWT_SECRET) {
+    throw new Error(
+      '[SECURITY] JWT_SECRET is not configured. Production startup aborted to prevent weak default signing.',
+    );
+  }
   const jwtSecret = options.jwtSecret || process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
   const jwtExpiresIn = options.jwtExpiresIn || '7d';
 
