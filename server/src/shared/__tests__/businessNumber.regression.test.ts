@@ -17,12 +17,16 @@ import { logger } from '../../lib/logger';
  *   2. 序列存储键约定：SEQ_{prefix}_{year}（upsert/update/findUnique/deleteMany 均按此键）
  *   3. 原子性契约：取号只通过 DB 侧 `{ increment: 1 }` 递增（应用层不做 read-modify-write）
  *   4. 并发取号唯一性：Promise.all 50 并发，断言无重号且序号连续闭合
- *   5. 冲突路径：首次 upsert 冲突（模拟 P2002）→ fail-closed 抛错，不发放任何编号
+ *   5. 冲突路径：首次 upsert 冲突（模拟 P2002）→ QA-SEC-4A 限定重试后恢复；持续冲突超上限 → fail-closed 抛错
  *   6. 前缀隔离矩阵：21 个合法前缀各自独立从 0001 起号；交错取号互不影响
  *   7. 边界输入：非法/空/小写/null/undefined 前缀 → fail-closed 抛错且不触库
- *   8. 降级路径：db 无 businessSequence 模型 → next 走时间戳随机后缀（warn 留痕），peek 恒回 0001
+ *   8. 降级路径：db 无 businessSequence 模型 → 测试环境 next 走时间戳随机后缀（warn 留痕），peek 恒回 0001；
+ *      生产环境（NODE_ENV≠test）→ QA-SEC-4B 直接 throw，禁止格式外编号
  *   9. peek 不消费序号（不触发任何写操作）
  *  10. reset 删除对应序列行后重新从 0001 起号
+ *
+ * 2026-08-17 总控仲裁（纪律文档 §6.1）：QA-SEC-4 修复后，P2002 与降级路径 2 项期望值由旧行为
+ * 更新为新契约，由总控直接修订并复核。
  */
 
 vi.mock('../../lib/logger', () => ({
@@ -208,16 +212,25 @@ describe('businessNumberService 回归', () => {
       expect(invSeqs).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
     });
 
-    it('首次 upsert 冲突（模拟 P2002 并发首插竞争）→ fail-closed 抛错，不发放编号', async () => {
+    it('首次 upsert 冲突（模拟 P2002 并发首插竞争）→ QA-SEC-4A 限定重试后恢复；持续冲突 → fail-closed 抛错', async () => {
       const { prisma, businessSequence } = makePrismaWithSequences();
       businessSequence.upsert.mockRejectedValueOnce(
         Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
       );
 
-      await expect(nextBusinessNumber(prisma, 'LC', 2037)).rejects.toThrow('Unique constraint failed');
-      // 冲突后不得有部分状态被当作有效编号发放：store 仍为空，重试可正常起号
+      // 单次 P2002 → 自动重试（最多 3 次）并成功起号
       const num = await nextBusinessNumber(prisma, 'LC', 2037);
       expect(num).toBe('LC-2037-0001');
+      expect(logger.warn).toHaveBeenCalledWith(
+        '[BusinessNumber] upsert P2002, retrying',
+        expect.objectContaining({ prefix: 'LC', year: 2037, attempt: 1 }),
+      );
+
+      // 持续 P2002（超过重试上限）→ 抛错，不发放任何编号
+      businessSequence.upsert.mockRejectedValue(
+        Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+      );
+      await expect(nextBusinessNumber(prisma, 'TR', 2037)).rejects.toThrow('Unique constraint failed');
     });
   });
 
@@ -294,11 +307,12 @@ describe('businessNumberService 回归', () => {
   // 降级路径（db 无 businessSequence 模型）
   // ═══════════════════════════════════════════════════════════════
   describe('降级路径（无 businessSequence 模型）', () => {
-    it('next 降级为时间戳随机后缀：格式 {PREFIX}-{YYYY}-{6位时间戳}{4位随机}，且 warn 留痕', async () => {
+    it('next 降级为时间戳随机后缀（仅测试环境）：格式 {PREFIX}-{YYYY}-{6位时间戳}{4位随机}，且 warn 留痕', async () => {
       const num = await nextBusinessNumber({} as any, 'QT', 2041);
       expect(num).toMatch(/^QT-2041-\d{6}[0-9a-z]{4}$/);
+      // QA-SEC-4B：降级仅限测试注入，warn 文案如实标注 test-only
       expect(logger.warn).toHaveBeenCalledWith(
-        '[BusinessNumber] fallback to timestamp (no businessSequence model)',
+        '[BusinessNumber] fallback to timestamp (test-only injection)',
         expect.objectContaining({ prefix: 'QT', year: 2041 }),
       );
     });

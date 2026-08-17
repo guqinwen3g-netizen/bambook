@@ -5,12 +5,14 @@
  *   1. Campaign CRUD 主流程（创建 / 列表 / 详情 / 更新 / 软删除）
  *   2. Campaign ROI 计算（含 Decimal/BigInt 序列化、空线索、零成本）
  *   3. Lead CRUD 主流程（创建 / 列表 / 更新 / 软删除）+ 转化自动落 convertedAt
- *   4. Scope 行级守卫（无 actor → __NOBODY__；self 非 owner → FORBIDDEN；all → 直通）
+ *   4. Scope 行级守卫（无 actor → __NOBODY__；self 非 owner → NOT_FOUND（QA-SEC-2 后不泄露存在性）；all → 直通）
  *   5. 边界输入（非法 campaignId、缺失 name、缺线索 id、scope 拦截 → NOT_FOUND）
- *   6. 编号生成失败兜底（seqSvc.nextNumber 抛错 → code=null 仍能创建）
+ *   6. 编号生成失败兜底（QA-SEC-3 后契约：seqSvc.nextNumber 抛错 → createCampaign fail-closed 抛错，无记录落库）
  *
  * 说明：本 service 层无强制状态机（status 字段是自由字符串），因此不校验状态转换的
  * 合法性，而是聚焦于 CRUD、scope 守卫、转化时间自动写入、错误码精确匹配。
+ * 2026-08-17 总控仲裁（§6.1）：QA-SEC-1/2/3 修复后，本文件 9 项期望值由旧行为更新为新契约
+ * （两段式 scope 校验 / 越权统一 NOT_FOUND / 编号失败抛错），由总控直接修订并复核。
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -95,6 +97,8 @@ function makeLeadRow(over: any = {}) {
     actualValue: null,
     convertedAt: null,
     notes: null,
+    // QA-SEC-2 后 service 以 include campaign 两段式校验 scope，mock 默认携带关系
+    campaign: { id: 'MC_1' },
     createdAt: BigInt(2000),
     updatedAt: BigInt(2000),
     deletedAt: null,
@@ -120,6 +124,16 @@ function makePrisma(opts: {
       if (!campaign) return null;
       // 简单模拟 id 匹配
       if (where?.id && campaign.id !== where.id) return null;
+      // QA-SEC 后 service 传入 scopeWhere（ownerId 等值 / OR in 列表），mock 按最小匹配语义生效
+      if (where?.ownerId && campaign.ownerId !== where.ownerId) return null;
+      if (Array.isArray(where?.OR)) {
+        const hit = where.OR.some((c: any) => {
+          if (c.ownerId?.in) return c.ownerId.in.includes(campaign.ownerId);
+          if (c.departmentId?.in) return c.departmentId.in.includes(campaign.departmentId);
+          return false;
+        });
+        if (!hit) return null;
+      }
       return campaign;
     }),
     campaignCreate: vi.fn(async ({ data }: any) => ({ id: 'MC_NEW', ...data })),
@@ -210,13 +224,12 @@ describe('Campaign CRUD 主流程', () => {
     expect(data.departmentId).toBe('d_other');
   });
 
-  it('createCampaign：seqSvc.nextNumber 抛错 → 兜底 code=null 仍可创建', async () => {
+  it('createCampaign：seqSvc.nextNumber 抛错 → fail-closed 抛错，无记录落库（QA-SEC-3 契约）', async () => {
     mockNextNumber.mockRejectedValueOnce(new Error('sequence unavailable'));
     const { prisma, calls } = makePrisma();
     const svc = makeService(prisma);
-    const result = await svc.createCampaign(ADMIN_ACTOR, { name: 'X' });
-    expect(result.id).toBe('MC_NEW');
-    expect(calls.campaignCreate.mock.calls[0][0].data.code).toBeNull();
+    await expect(svc.createCampaign(ADMIN_ACTOR, { name: 'X' })).rejects.toThrow('sequence unavailable');
+    expect(calls.campaignCreate).not.toHaveBeenCalled();
   });
 
   it('listCampaigns：默认 limit=50/offset=0 + 携带 deletedAt:null 过滤', async () => {
@@ -534,9 +547,10 @@ describe('Scope 行级守卫（PL-2B marketing 模块）', () => {
     expect(where.OR).toContainEqual({ departmentId: { in: ['d1', 'd2'] } });
   });
 
-  it('updateLead：kind=self 且 campaign.ownerId ≠ actor.userId → FORBIDDEN', async () => {
+  it('updateLead：kind=self 且 campaign 不在 scope → NOT_FOUND（QA-SEC-2：越权与不存在统一，不泄露存在性）', async () => {
     mockGetDataScopeResolver.mockResolvedValue(SCOPE_SELF_SALES);
     const { prisma } = makePrisma({
+      campaign: makeCampaignRow({ ownerId: 'u_other', departmentId: 'd_other' }),
       lead: makeLeadRow({
         campaign: { id: 'MC_1', ownerId: 'u_other', departmentId: 'd_other' },
       }),
@@ -544,7 +558,7 @@ describe('Scope 行级守卫（PL-2B marketing 模块）', () => {
     const svc = makeService(prisma);
     await expect(
       svc.updateLead(SALES_ACTOR, 'ML_1', { notes: 'x' }),
-    ).rejects.toThrow('FORBIDDEN');
+    ).rejects.toThrow('NOT_FOUND');
   });
 
   it('updateLead：kind=self 且 campaign.ownerId = actor.userId → 通过', async () => {
@@ -571,20 +585,21 @@ describe('Scope 行级守卫（PL-2B marketing 模块）', () => {
     expect(calls.leadUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it('deleteLead：kind=self 且非 owner → FORBIDDEN', async () => {
+  it('deleteLead：kind=self 且非 owner → NOT_FOUND（QA-SEC-2：越权与不存在统一）', async () => {
     mockGetDataScopeResolver.mockResolvedValue(SCOPE_SELF_SALES);
     const { prisma } = makePrisma({
+      campaign: makeCampaignRow({ ownerId: 'u_other', departmentId: 'd_other' }),
       lead: makeLeadRow({
         campaign: { id: 'MC_1', ownerId: 'u_other', departmentId: 'd_other' },
       }),
     });
     const svc = makeService(prisma);
-    await expect(svc.deleteLead(SALES_ACTOR, 'ML_1')).rejects.toThrow('FORBIDDEN');
+    await expect(svc.deleteLead(SALES_ACTOR, 'ML_1')).rejects.toThrow('NOT_FOUND');
   });
 
-  it('deleteLead：kind=department（非 self）→ 当前 service 未拦截（生产代码事实，盲区记录）', async () => {
-    // 注意：deleteLead 仅显式检查 kind==='self'，department 规则未走 campaign.ownerId 比较
-    // 这与 updateLead 的实现一致（updateLead 也只判 self）；属生产代码行为基线而非 bug 修复对象
+  it('deleteLead：kind=department 且 campaign 不在 scope → NOT_FOUND（QA-SEC-2 收口原盲区）', async () => {
+    // QA-SEC-2 前 deleteLead 仅检查 kind==='self'，dept 规则零校验（原盲区）；
+    // 修复后与 createLead/updateLead 一致走两段式 scope 校验，dept 不匹配 → NOT_FOUND
     mockGetDataScopeResolver.mockResolvedValue({
       rule: { kind: 'department', own: true },
       allowedDepartmentIds: ['d_other'],
@@ -596,8 +611,8 @@ describe('Scope 行级守卫（PL-2B marketing 模块）', () => {
       }),
     });
     const svc = makeService(prisma);
-    await svc.deleteLead(SALES_ACTOR, 'ML_1');
-    expect(calls.leadUpdate).toHaveBeenCalledTimes(1);
+    await expect(svc.deleteLead(SALES_ACTOR, 'ML_1')).rejects.toThrow('NOT_FOUND');
+    expect(calls.leadUpdate).not.toHaveBeenCalled();
   });
 
   it('createLead：campaign 不在 scope 内 → NOT_FOUND（不暴露 campaign 是否存在）', async () => {
