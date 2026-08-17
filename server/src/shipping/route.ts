@@ -22,6 +22,7 @@ import {
   listShipmentLines, listShipmentCartons,
   replaceShipmentLines, replaceShipmentCartons, pullLinesFromOrder,
 } from './shipmentPackingService';
+import { createAllocationService } from './allocationService';
 
 export interface ShippingRouterOptions {
   prisma: PrismaClient;
@@ -102,6 +103,7 @@ function pickFields<T extends Record<string, any>>(obj: T, keys: string[]): Part
 export function createShippingRouter(options: ShippingRouterOptions): Router {
   const { prisma, onDataChange, requireAuth, apiKeys } = options;
   const router = Router();
+  const allocationService = createAllocationService(prisma);
 
   // Shared auth guard: JWT or API-key (restored — was silently dropped by scaffold)
   const guard = createModuleAuthGuard({ requireAuth, apiKeys });
@@ -354,6 +356,102 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     }
     onDataChange?.({ entity: 'shipping', action: 'delete', ids: [result.data!.shipment.id] });
     res.json({ ok: true, id: result.data!.shipment.id });
+  });
+
+  // ════════════════════════════════════════════════════════════════
+  // DR-016 合票建模 — ShipmentOrderAllocation 分配记录路由
+  // ════════════════════════════════════════════════════════════════
+
+  // GET /api/v1/shipping/:id/allocations — 票内分配列表
+  router.get('/:id/allocations', async (req: Request, res: Response) => {
+    try {
+      const sh = await (prisma as any).shipment.findUnique({ where: { id: req.params.id }, select: { id: true, deletedAt: true } });
+      if (!sh || sh.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '运单不存在' } });
+      const result = await allocationService.listAllocations(req.params.id);
+      if (!result.ok) {
+        res.status(500).json({ error: result.error });
+        return;
+      }
+      res.json(result.data);
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /api/v1/shipping/:id/allocations — 新增分配（合票/拆票）
+  router.post('/:id/allocations', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const { orderId, orderLineId, plannedQty, actualQty, unit, status, batchOrCartonNote, exception } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'body.orderId 必填' } });
+    }
+    const result = await allocationService.createAllocation(req.params.id, {
+      orderId, orderLineId, plannedQty, actualQty, unit, status, batchOrCartonNote, exception,
+    }, actorIdFromRequest(req), req.ip || null);
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        SHIPMENT_NOT_FOUND: 404,
+        ORDER_NOT_FOUND: 404,
+        CONSOLIDATION_CUSTOMER_MISMATCH: 409,
+        CONSOLIDATION_BUSINESS_LINE_MISMATCH: 409,
+        ORDER_LINE_OVER_ALLOCATED: 409,
+        VALIDATION_FAILED: 400,
+        CREATE_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'shipping', action: 'update', ids: [req.params.id] });
+    res.status(201).json(result.data!.allocation);
+  });
+
+  // PATCH /api/v1/shipping/:id/allocations/:allocId — 更新分配
+  router.patch('/:id/allocations/:allocId', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await allocationService.updateAllocation(req.params.id, req.params.allocId, req.body || {},
+      actorIdFromRequest(req), req.ip || null);
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        SHIPMENT_NOT_FOUND: 404,
+        ALLOCATION_NOT_FOUND: 404,
+        ORDER_LINE_OVER_ALLOCATED: 409,
+        VALIDATION_FAILED: 400,
+        UPDATE_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'shipping', action: 'update', ids: [req.params.id] });
+    res.json(result.data!.allocation);
+  });
+
+  // DELETE /api/v1/shipping/:id/allocations/:allocId — 删除分配
+  router.delete('/:id/allocations/:allocId', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await allocationService.deleteAllocation(req.params.id, req.params.allocId,
+      actorIdFromRequest(req), req.ip || null);
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        SHIPMENT_NOT_FOUND: 404,
+        ALLOCATION_NOT_FOUND: 404,
+        DELETE_FAILED: 500,
+      };
+      res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
+      return;
+    }
+    onDataChange?.({ entity: 'shipping', action: 'update', ids: [req.params.id] });
+    res.json({ ok: true, id: result.data!.allocation.id });
+  });
+
+  // GET /api/v1/shipping/allocations/by-order/:orderId — 按订单查询跨票分配
+  router.get('/allocations/by-order/:orderId', async (req: Request, res: Response) => {
+    try {
+      const result = await allocationService.listAllocationsByOrder(req.params.orderId);
+      if (!result.ok) {
+        res.status(500).json({ error: result.error });
+        return;
+      }
+      res.json(result.data);
+    } catch (err: any) {
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
   });
 
   return router;
