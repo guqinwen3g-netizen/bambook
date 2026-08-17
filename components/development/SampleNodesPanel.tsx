@@ -137,7 +137,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
     );
   }
 
-  const actionBtnCls = 'border-[var(--border-c-strong)] dark:border-[var(--border-c-default)] text-[var(--text-tertiary)] dark:text-[var(--text-secondary)] hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]';
+  const actionBtnCls = 'border-[var(--border-c-strong)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]';
 
   return (
     <div>

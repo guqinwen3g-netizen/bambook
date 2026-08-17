@@ -182,7 +182,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
               <button
                 onClick={handleBack}
                 className={`mb-4 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-light transition-all duration-300 w-fit
-                bg-[var(--recessed-bg-strong)] dark:bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--active-darken)] dark:hover:bg-[var(--recessed-bg-hover)]`}
+                bg-[var(--recessed-bg-strong)] border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--active-darken)]`}
               >
                 <ChevronRight size={14} className="rotate-180" />
                 <span>返回工具箱</span>
