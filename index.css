@@ -863,9 +863,18 @@ body {
    ========================================== */
 
 /* 1. Card Glass - 轻量级数据卡片材质 */
+/* position 默认值下沉 @layer components：级联层铁律——未分层声明恒胜 Tailwind layered
+   工具类；surface 材质类一旦与 absolute/fixed/sticky 同用，定位会被静默吞掉、元素滞留
+   文档流撑爆父容器（W4 浮层收编后 bambook-dashboard-glass-color 下拉菜单事故根因）。
+   下沉后：无定位工具类的元素表现不变，定位工具类可正常接管。 */
+@layer components {
+    .bambook-card-glass,
+    .liquid-glass-card {
+        position: relative;
+    }
+}
 .bambook-card-glass,
 .liquid-glass-card {
-    position: relative;
     overflow: hidden;
     background-color: rgba(255, 255, 255, 0.44);
     background-image: none;
@@ -895,10 +904,18 @@ body {
 }
 
 /* 2. Panel Glass - 页面级内容面板材质 */
+/* position 默认值下沉 @layer components（原因同上条注释：浮层菜单 absolute 曾被此族
+   未分层 position:relative 静默压制，在文档流内把 OrderManager 工具条撑成巨块）。 */
+@layer components {
+    .glass-panel,
+    .bambook-panel-glass,
+    .bambook-dashboard-glass-color {
+        position: relative;
+    }
+}
 .glass-panel,
 .bambook-panel-glass,
 .bambook-dashboard-glass-color {
-    position: relative;
     overflow: hidden;
     isolation: isolate;
 }

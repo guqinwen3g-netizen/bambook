@@ -1047,10 +1047,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             </div>
             <div className="hidden md:flex items-center gap-2 ml-auto">
               {/* 状态筛选：原生 select 元素（OS 原生浮层）→ CustomSelect surface="field"（W4 原生浮层收编），
-                  触发器几何与 bds-select 一致（34px / r-control-sm / recessed），浮层走 BDS 自绘容器 */}
+                  触发器几何与 .bds-filterbar .bds-select 一致（40px / pill / recessed）。
+                  menuPortal：全站 CustomSelect 唯一漏配处——非 portal 时菜单 absolute 悬浮于
+                  .bds-filterbar（backdrop-filter 创建 stacking context）内，z-50 被表格区 z-10
+                  压制，展开后被下方列表盖住。与 Products/Relations/compiled 模板同收编到 body 浮层。 */}
               <div className="relative shrink-0 w-28">
                 <CustomSelect
                   surface="field"
+                  menuPortal
                   options={ORDER_STATUS_FILTER_OPTIONS}
                   value={orderFilterStatus}
                   onChange={setOrderFilterStatus}

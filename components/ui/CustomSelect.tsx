@@ -20,7 +20,7 @@ interface CustomSelectProps {
   className?: string;
   menuPortal?: boolean;
   size?: 'default' | 'compact';
-  /** field = bds-select 触发器几何（h-34px / rounded-[--r-control-sm] / text-xs / recessed），
+  /** field = bds-select 触发器几何（h-40px(--h-btn-md) / rounded-[--radius-pill] / text-xs / recessed），
    *  供 filterbar/表单以同几何替换原生 select 元素，浮层走 BDS 自绘容器（W4 原生浮层收编） */
   surface?: 'default' | 'toolbar' | 'form' | 'field';
   triggerVariant?: 'boxed' | 'inline';
@@ -50,13 +50,12 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const isFormSurface = surface === 'form';
   const isFieldSurface = surface === 'field';
   const isInlineToolbarTrigger = isToolbarSurface && triggerVariant === 'inline';
-  // W4 刻度专项：compact 触发器 h-9(36px 旧刻度) → var(--h-input-sm)=34px BDS 规格刻度。
-  // 34px 是两消费上下文的安全交集：Relations 工具条(h-10=40px) 内 = filterbar 官方范式
-  // (input sm 34px + 按钮 40px，6px 高差)；Products 工具条(共享 recipe h-9=36px) 内仅 2px 差、
-  // inline 透明无边框视觉连续。h-10 方案会高出 Products 工具条 4px 故弃用。
-  // default size（form 场景 h-9）不在本专项范围，随逐页主刀表单区处理。
+  // field 触发器几何对齐 `.bds-filterbar .bds-select`（filterbar 规范强制 40px + pill，
+  // 见 components.css §21 .bds-filterbar .bds-select 等高同形纪律）。原 `--r-control-sm`
+  // token 在 styles/ 全局不存在（tailwind 静默丢弃 → 方形按钮），且 34px 与同 bar 的
+  // bds-input(40px)/segment/toggle 高度错位，故收拢为 --h-btn-md + --radius-pill。
   const triggerSizeClass = isFieldSurface
-    ? 'h-[var(--h-input-sm)] px-3 py-0 rounded-[var(--r-control-sm)] text-xs leading-none'
+    ? 'h-[var(--h-btn-md)] px-3 py-0 rounded-[var(--radius-pill)] text-xs leading-none'
     : isCompact
       ? `${isInlineToolbarTrigger ? 'h-[var(--h-input-sm)] px-2' : 'h-[var(--h-input-sm)] px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-[11px] leading-none`
       : 'h-9 px-3 py-0 rounded-full text-xs leading-none';
