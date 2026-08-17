@@ -9,7 +9,8 @@ import {
   Trash2, Edit2, Save, Package,
   AlertTriangle,
   Globe, List,
-  Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, ChevronDown, GitBranch
+  Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, ChevronDown, GitBranch,
+  Search
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
 import BottomSheet from './ui/BottomSheet';
@@ -937,54 +938,6 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         contextLabel="Order Desk"
         hidden={desktopFullscreenOpen}
         className="pointer-events-auto"
-        center={(
-          <div className="hidden md:flex bds-filterbar max-w-[440px]">
-            <input
-              type="text"
-              value={orderSearchTerm}
-              onChange={e => setOrderSearchTerm(e.target.value)}
-              placeholder="搜索订单号/客户/品号..."
-              className="bds-input sm min-w-[100px] max-w-[180px] flex-1"
-            />
-            <div className="relative shrink-0">
-              <select
-                value={orderFilterStatus}
-                onChange={e => setOrderFilterStatus(e.target.value)}
-                className="bds-select pl-3.5 pr-8 text-xs"
-              >
-                <option value="all">全部状态</option>
-                <option value="Pending">待确认</option>
-                <option value="Confirmed">已确认</option>
-                <option value="Production">生产中</option>
-                <option value="Shipping">发货中</option>
-                <option value="Delivered">已交付</option>
-                <option value="Alert">异常</option>
-              </select>
-              <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
-            </div>
-            <div className={`h-5 w-px shrink-0 ${DIVIDER_CLASS}`} />
-            <div className="flex items-center gap-0.5">
-              {allowGlobeView && (
-                <button
-                  type="button"
-                  title="地球视图"
-                  onClick={() => onViewModeChange('globe')}
-                  className={`bds-btn bds-btn-icon ${effectiveViewMode === 'globe' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
-                >
-                  <Globe size={14} strokeWidth={1.5} />
-                </button>
-              )}
-              <button
-                type="button"
-                title="列表视图"
-                onClick={() => onViewModeChange('list')}
-                className={`bds-btn bds-btn-icon ${effectiveViewMode === 'list' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
-              >
-                <List size={14} strokeWidth={1.5} />
-              </button>
-            </div>
-          </div>
-        )}
         actions={(
           <>
             <div className="flex items-center gap-1 md:hidden">
@@ -993,7 +946,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   type="button"
                   title="地球视图"
                   onClick={() => onViewModeChange('globe')}
-                  className={`bds-btn bds-btn-icon ${effectiveViewMode === 'globe' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
+                  className={`bds-toggle${effectiveViewMode === 'globe' ? ' active' : ''}`}
                 >
                   <Globe size={15} strokeWidth={1.5} />
                 </button>
@@ -1002,7 +955,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 type="button"
                 title="列表视图"
                 onClick={() => onViewModeChange('list')}
-                className={`bds-btn bds-btn-icon ${effectiveViewMode === 'list' ? 'bds-btn-dark' : 'bds-btn-ghost'}`}
+                className={`bds-toggle${effectiveViewMode === 'list' ? ' active' : ''}`}
               >
                 <List size={15} strokeWidth={1.5} />
               </button>
@@ -1058,11 +1011,65 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         isDarkMode={isDarkMode}
       />
 
-      {/* 独立订单类型 Tab 栏 — 统一桌面/移动/Globe 三种场景，不与搜索/筛选混在一起（BDS 分段控件） */}
+      {/* 单行筛选 bar（点名② 双行→单行重构）：搜索 + 类型 segment + 状态 + 视图 toggle 共行；
+          搜索/状态/视图桌面端渲染（移动端沿用 segment 横滚，原独立 tab 行并入本 bar） */}
       {!desktopFullscreenOpen && (
-        <div className={`shrink-0 px-4 py-2 pointer-events-auto ${isMobile ? 'overflow-x-auto no-scrollbar' : ''}`}>
-          <div className="bds-segment w-fit">
-            {renderOrderTypeSwitcher()}
+        <div className="shrink-0 px-4 pt-2 pointer-events-auto">
+          <div className="bds-filterbar flex-wrap gap-y-2">
+            <div className="relative hidden md:block min-w-[160px] flex-[1_1_180px] max-w-[240px]">
+              <Search size={13} strokeWidth={1.5} className={`absolute left-3 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
+              <input
+                type="text"
+                value={orderSearchTerm}
+                onChange={e => setOrderSearchTerm(e.target.value)}
+                placeholder="搜索订单号/客户/品号..."
+                className="bds-input pl-9"
+              />
+            </div>
+            <div className={`min-w-0 flex-[1_1_auto] ${isMobile ? 'overflow-x-auto no-scrollbar' : ''}`}>
+              <div className="bds-segment w-fit">
+                {renderOrderTypeSwitcher()}
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-2 ml-auto">
+              <div className="relative shrink-0">
+                <select
+                  className="bds-select w-auto pl-3.5 pr-8 text-xs"
+                  value={orderFilterStatus}
+                  onChange={e => setOrderFilterStatus(e.target.value)}
+                >
+                  <option value="all">全部状态</option>
+                  <option value="Pending">待确认</option>
+                  <option value="Confirmed">已确认</option>
+                  <option value="Production">生产中</option>
+                  <option value="Shipping">发货中</option>
+                  <option value="Delivered">已交付</option>
+                  <option value="Alert">异常</option>
+                </select>
+                <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
+              </div>
+              <div className={`h-5 w-px shrink-0 ${DIVIDER_CLASS}`} />
+              <div className="flex items-center gap-1">
+                {allowGlobeView && (
+                  <button
+                    type="button"
+                    title="地球视图"
+                    onClick={() => onViewModeChange('globe')}
+                    className={`bds-toggle${effectiveViewMode === 'globe' ? ' active' : ''}`}
+                  >
+                    <Globe size={14} strokeWidth={1.5} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  title="列表视图"
+                  onClick={() => onViewModeChange('list')}
+                  className={`bds-toggle${effectiveViewMode === 'list' ? ' active' : ''}`}
+                >
+                  <List size={14} strokeWidth={1.5} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
