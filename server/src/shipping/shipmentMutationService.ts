@@ -13,6 +13,8 @@ import { validateStatusTransition } from '../statusTransition';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { publishBusinessEvent } from '../events/businessEventBus';
 import { mapOrderLinesToShipmentLineInputs, replaceShipmentLinesTx } from './shipmentPackingService';
+import { evaluateShipmentReleaseGate, type ShipmentReleaseGateBlockedError } from './shipmentEligibilityGate';
+import type { ExceptionChecker } from '../exceptions/exceptionGate';
 
 export type ShipmentMutationErrorCode =
   | 'NOT_FOUND'
@@ -24,6 +26,7 @@ export type ShipmentMutationErrorCode =
   | 'ORDER_TERMINAL'
   | 'INVALID_CURRENT_ORDER_STATUS'
   | 'INVALID_SHIPMENT_STATUS'
+  | 'GATE_BLOCKED'
   | 'CREATE_FAILED'
   | 'UPDATE_FAILED'
   | 'DELETE_FAILED'
@@ -32,6 +35,8 @@ export type ShipmentMutationErrorCode =
 export interface ShipmentMutationError {
   code: ShipmentMutationErrorCode;
   message: string;
+  /** GATE_BLOCKED 时的门禁明细（blockingReasons 带订单维度 + 逐订单判定结果 + DR-013 申请入口） */
+  gateDetails?: Pick<ShipmentReleaseGateBlockedError, 'blockingReasons' | 'orders' | 'exceptionReason' | 'exceptionEntryHint'>;
 }
 
 export interface ShipmentMutationResult<T = any> {
@@ -90,11 +95,49 @@ function toMutationError(e: any, fallback: ShipmentMutationErrorCode): ShipmentM
   const passThroughCodes: ShipmentMutationErrorCode[] = [
     'NOT_FOUND', 'INVALID_STATUS', 'INVALID_INITIAL_STATUS', 'INVALID_TRANSITION', 'INVALID_CURRENT_STATUS',
     'ORDER_NOT_FOUND', 'ORDER_TERMINAL', 'INVALID_CURRENT_ORDER_STATUS', 'INVALID_SHIPMENT_STATUS',
+    'GATE_BLOCKED',
   ];
   if (e?.code && passThroughCodes.includes(e.code)) {
-    return { code: e.code, message: String(e.message ?? e) };
+    return {
+      code: e.code,
+      message: String(e.message ?? e),
+      ...(e.gateDetails ? { gateDetails: e.gateDetails } : {}),
+    };
   }
   return { code: fallback, message: String(e?.message ?? e) };
+}
+
+/**
+ * DR-012/014 + REL-14-A4 出运放行门禁（目标状态 = Shipped 的统一前置校验）。
+ * 门禁失败抛 code=GATE_BLOCKED（statusCode=409）错误，由 toMutationError 透传；
+ * 例外查询器缺失时 fail-closed（无例外放行能力，隐藏旁路禁止）。
+ */
+async function assertShipmentReleaseGateOrThrow(params: {
+  tx: any;
+  orderIds: Array<string | null | undefined>;
+  exceptionChecker?: ExceptionChecker | null;
+}): Promise<void> {
+  const gate = await evaluateShipmentReleaseGate({
+    prisma: params.tx,
+    orderIds: params.orderIds,
+    exceptionChecker: params.exceptionChecker ?? null,
+  });
+  if (!gate.ok) {
+    // 订单存在性失败（404 语义）与门禁阻断（409 语义）分流
+    if (gate.error.code === 'ORDER_NOT_FOUND') {
+      throw Object.assign(new Error(gate.error.message), { code: 'ORDER_NOT_FOUND' as const, statusCode: 404 });
+    }
+    throw Object.assign(new Error(gate.error.message), {
+      code: 'GATE_BLOCKED' as const,
+      statusCode: 409,
+      gateDetails: {
+        blockingReasons: gate.error.blockingReasons,
+        orders: gate.error.orders,
+        exceptionReason: gate.error.exceptionReason,
+        exceptionEntryHint: gate.error.exceptionEntryHint,
+      },
+    });
+  }
 }
 
 // ─── CREATE ────────────────────────────────────────────────────────
@@ -120,6 +163,8 @@ export interface CreateShipmentParams {
   auditAfterBuilder?: (sh: any, extras: { orderStatus: string | null; transactionId?: string }) => Record<string, unknown>;
   /** 传给 audit.after 的 transactionId（agent flow 用） */
   transactionId?: string;
+  /** DR-013 例外查询器（出运放行门禁用）；缺省 → 无例外放行能力（fail-closed） */
+  exceptionChecker?: ExceptionChecker | null;
 }
 
 export interface CreateShipmentData {
@@ -137,6 +182,7 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
     generateIdIfMissing = false,
     auditAfterBuilder,
     transactionId,
+    exceptionChecker,
   } = params;
 
   // status 合法枚举（fail closed，事务前）
@@ -160,6 +206,13 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
       const shipmentNumber = input.shipmentNumber || await nextBusinessNumber(t, 'SH');
       const data: any = { ...input, shipmentNumber, status: shipmentStatus, createdAt: now, updatedAt: now };
       if (shipmentId) data.id = shipmentId;
+
+      // DR-012/014 出运放行门禁：直建 Shipped（补录场景）视同出运放行，须过资格判定
+      // （create 时合票分配尚未建立，仅校验主订单；合票订单在 update → Shipped 时校验）
+      if (shipmentStatus === 'Shipped') {
+        await assertShipmentReleaseGateOrThrow({ tx: t, orderIds: [input.orderId], exceptionChecker });
+      }
+
       const sh = await t.shipment.create({ data });
 
       // F3：首节点事件（创建即入时间轴，fromNode=null）
@@ -249,10 +302,12 @@ export interface UpdateShipmentParams {
   tx?: any;
   auditSource?: string;
   syncSource?: string;
+  /** DR-013 例外查询器（出运放行门禁用）；缺省 → 无例外放行能力（fail-closed） */
+  exceptionChecker?: ExceptionChecker | null;
 }
 
 export async function updateShipment(params: UpdateShipmentParams): Promise<ShipmentMutationResult<{ shipment: any; orderStatus: string | null; auditId: string }>> {
-  const { prisma, shipmentId, patch, hasStatus, actorId, ip, tx, auditSource = 'route:shipping:update', syncSource = 'route:update' } = params;
+  const { prisma, shipmentId, patch, hasStatus, actorId, ip, tx, auditSource = 'route:shipping:update', syncSource = 'route:update', exceptionChecker } = params;
   try {
     const result = await withTx(prisma, tx, async (t: any) => {
       const existing = await t.shipment.findUnique({ where: { id: shipmentId }, select: { id: true, status: true, shipmentNumber: true, orderId: true, deletedAt: true } });
@@ -264,6 +319,16 @@ export async function updateShipment(params: UpdateShipmentParams): Promise<Ship
         }
         const tCheck = validateStatusTransition('Shipment', existing.status, newStatus);
         if (!tCheck.ok) throw Object.assign(new Error(tCheck.message!), { statusCode: 400, code: tCheck.error! });
+        // DR-012/014 出运放行门禁：流转至 Shipped（出运放行语义）时校验全部关联订单
+        // （DR-016 合票：主订单 + ShipmentOrderAllocation 分配订单逐单校验；同状态幂等 patch 不重复校验）
+        if (newStatus === 'Shipped' && existing.status !== 'Shipped') {
+          const allocations = await t.shipmentOrderAllocation.findMany({ where: { shipmentId }, select: { orderId: true } });
+          await assertShipmentReleaseGateOrThrow({
+            tx: t,
+            orderIds: [existing.orderId, ...allocations.map((a: any) => a.orderId)],
+            exceptionChecker,
+          });
+        }
       }
       const now = BigInt(Date.now());
       const upd = await t.shipment.update({ where: { id: shipmentId }, data: { ...patch, updatedAt: now } });

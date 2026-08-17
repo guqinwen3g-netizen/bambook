@@ -59,6 +59,7 @@ function makeApp(opts: {
   const tx: any = {
     shipment: { create: shipmentCreate, update: shipmentUpdate, findUnique: shipmentFindUnique },
     shipmentEvent: { create: shipmentEventCreate, findMany: shipmentEventFindMany },
+    shipmentOrderAllocation: { findMany: vi.fn().mockResolvedValue([]) }, // DR-016 合票分配（本组用例无合票）
     order: { findUnique: orderFindUnique, update: orderUpdate },
     orderLine: { findMany: vi.fn().mockResolvedValue([]) }, // C4：首装自动带出装运行——空订单行跳过
     orderStatusTransition: { create: orderStatusTransitionCreate },

@@ -16,6 +16,10 @@ import type { AgentRole } from '../agent/types';
 import { PrismaClient } from '@prisma/client';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { createShipment, updateShipment, deleteShipment, VALID_SHIPMENT_STATUSES } from './shipmentMutationService';
+import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
+import { createApprovalCreateService } from '../approvals/approvalCreateService';
+import { createExceptionService } from '../exceptions/exceptionService';
+import type { ExceptionChecker } from '../exceptions/exceptionGate';
 import { assembleDocumentSetData } from './documentSetService';
 import { getOnTimeStats, getMethodStats } from './shipmentStatsService';
 import {
@@ -29,6 +33,13 @@ export interface ShippingRouterOptions {
   requireAuth: boolean;
   apiKeys: Set<string>;
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
+  /**
+   * DR-013 例外查询器（出运放行门禁用）：
+   *   - undefined（缺省）→ 构建真实例外链（生产路径）
+   *   - 显式 null → fail-closed 无例外通道
+   *   - 注入函数 → 测试可控（mock 例外查询）
+   */
+  exceptionChecker?: ExceptionChecker | null;
 }
 
 // ── 字段白名单 ──
@@ -104,6 +115,20 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   const { prisma, onDataChange, requireAuth, apiKeys } = options;
   const router = Router();
   const allocationService = createAllocationService(prisma);
+
+  // DR-013 例外查询链（出运放行门禁消费真源，与 samples 域同一装配范式）：
+  // hasActiveException 注入 mutationService，→Shipped 放行时不具备资格订单可经生效例外放行；
+  // 测试可经 options.exceptionChecker 注入 mock（显式 null = fail-closed 无例外通道）
+  const shipmentReleaseChecker: ExceptionChecker | null = options.exceptionChecker !== undefined
+    ? options.exceptionChecker
+    : (() => {
+        const exceptionRoutingService = createApprovalRoutingService({ prisma });
+        const exceptionService = createExceptionService({
+          prisma,
+          approvalCreateService: createApprovalCreateService({ prisma, routingService: exceptionRoutingService }),
+        });
+        return exceptionService.hasActiveException;
+      })();
 
   // Shared auth guard: JWT or API-key (restored — was silently dropped by scaffold)
   const guard = createModuleAuthGuard({ requireAuth, apiKeys });
@@ -295,6 +320,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     ]);
     const result = await createShipment({
       prisma, input, actorId: actorIdFromRequest(req), ip: req.ip || null,
+      exceptionChecker: shipmentReleaseChecker,
     });
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = {
@@ -303,6 +329,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
         ORDER_NOT_FOUND: 404,
         ORDER_TERMINAL: 400,
         INVALID_CURRENT_ORDER_STATUS: 400,
+        GATE_BLOCKED: 409,
         CREATE_FAILED: 500,
       };
       const code = result.error!.code;
@@ -321,6 +348,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     const result = await updateShipment({
       prisma, shipmentId: req.params.id, patch, hasStatus,
       actorId: actorIdFromRequest(req), ip: req.ip || null,
+      exceptionChecker: shipmentReleaseChecker,
     });
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = {
@@ -331,6 +359,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
         ORDER_NOT_FOUND: 404,
         ORDER_TERMINAL: 400,
         INVALID_CURRENT_ORDER_STATUS: 400,
+        GATE_BLOCKED: 409,
         UPDATE_FAILED: 500,
       };
       const code = result.error!.code;

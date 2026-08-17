@@ -221,6 +221,7 @@ describe('task order-shipment-link: shipping route PATCH 状态变更 → order 
     const tx = {
       shipment: { findUnique: vi.fn().mockResolvedValue({ id: 'S1', status: 'Booked', shipmentNumber: 'SHP001', orderId: 'O1' }), update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, status: data.status, shipmentNumber: 'SHP001', orderId: 'O1' })) },
       shipmentEvent: { create: vi.fn().mockResolvedValue({}) },
+      shipmentOrderAllocation: { findMany: vi.fn().mockResolvedValue([]) }, // DR-016 合票分配（本用例无合票）
       order: { findUnique: vi.fn().mockResolvedValue({ id: 'O1', status: 'Confirmed', deletedAt: null }), update: vi.fn().mockResolvedValue({}) },
       orderStatusTransition: { create: vi.fn().mockResolvedValue({}) },
       auditLog: { create: vi.fn().mockResolvedValue({}) },

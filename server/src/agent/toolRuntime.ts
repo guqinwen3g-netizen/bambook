@@ -18,6 +18,7 @@ import { writeRouteAuditLog } from '../audit/routeAudit';
 import { validateStatusTransition } from '../statusTransition';
 import { linkOrderStatusFromShipment } from '../shipping/orderLinkService';
 import { appendShipmentEvent } from '../shipping/shipmentMutationService';
+import { evaluateShipmentReleaseGate } from '../shipping/shipmentEligibilityGate';
 import { extractEmailAi } from '../email/aiExtract';
 import { syncEmailReferences } from '../email/sync';
 import { createInvoice, updateInvoice } from '../finance/invoiceMutationService';
@@ -6052,6 +6053,16 @@ export async function handleShippingCreateShipment(prisma: PrismaClient, input: 
   try {
     // task order-shipment-link: 业务写入 + sync + order 联动 + AuditLog 同事务闭环
     const created = await (prisma as any).$transaction(async (tx: any) => {
+      // DR-012/014 出运放行门禁：直建 Shipped 视同出运放行（Agent 直改路径无例外通道，fail-closed）
+      if ((input.status ?? 'Booked') === 'Shipped') {
+        const gate = await evaluateShipmentReleaseGate({ prisma: tx, orderIds: [input.orderId], exceptionChecker: null });
+        if (!gate.ok) {
+          throw Object.assign(new Error(gate.error.message), {
+            code: gate.error.code, // 'ORDER_NOT_FOUND'（404 语义）| 'GATE_BLOCKED'（409 语义）
+            ...(gate.error.code === 'GATE_BLOCKED' ? { gateDetails: gate.error } : {}),
+          });
+        }
+      }
       const sh = await tx.shipment.create({
         data: {
           ...input,
@@ -6081,6 +6092,7 @@ export async function handleShippingCreateShipment(prisma: PrismaClient, input: 
     if (e?.code === 'ORDER_NOT_FOUND') return { ok: false, error: 'ORDER_NOT_FOUND', message: e.message, dataSource: 'bambook-data-center' };
     if (e?.code === 'ORDER_TERMINAL') return { ok: false, error: 'ORDER_TERMINAL', message: e.message, dataSource: 'bambook-data-center' };
     if (e?.code === 'INVALID_CURRENT_ORDER_STATUS') return { ok: false, error: 'INVALID_CURRENT_ORDER_STATUS', message: e.message, dataSource: 'bambook-data-center' };
+    if (e?.code === 'GATE_BLOCKED') return { ok: false, error: 'GATE_BLOCKED', message: e.message, gateDetails: e.gateDetails ?? null, dataSource: 'bambook-data-center' };
     return { ok: false, error: 'CREATE_FAILED', message: String(e?.message ?? e), dataSource: 'bambook-data-center' };
   }
 }
@@ -6111,6 +6123,23 @@ export async function handleShippingUpdateTrackingStatus(prisma: PrismaClient, i
       const t = validateStatusTransition('Shipment', existing.status, status);
       if (!t.ok) throw Object.assign(new Error(t.message!), { code: t.error! });
 
+      // DR-012/014 + DR-016 出运放行门禁：流转至 Shipped 时校验全部关联订单
+      // （Agent 直改路径无例外通道，fail-closed；例外放行须走 route 人工路径）
+      if (status === 'Shipped' && existing.status !== 'Shipped') {
+        const allocations = await tx.shipmentOrderAllocation.findMany({ where: { shipmentId }, select: { orderId: true } });
+        const gate = await evaluateShipmentReleaseGate({
+          prisma: tx,
+          orderIds: [existing.orderId, ...allocations.map((a: any) => a.orderId)],
+          exceptionChecker: null,
+        });
+        if (!gate.ok) {
+          throw Object.assign(new Error(gate.error.message), {
+            code: gate.error.code, // 'ORDER_NOT_FOUND'（404 语义）| 'GATE_BLOCKED'（409 语义）
+            ...(gate.error.code === 'GATE_BLOCKED' ? { gateDetails: gate.error } : {}),
+          });
+        }
+      }
+
       const upd = await tx.shipment.update({ where: { id: shipmentId }, data: patchData });
       // F3：状态实际变更时落节点事件（agent 直改路径同口径）
       if (existing.status !== upd.status) {
@@ -6136,6 +6165,7 @@ export async function handleShippingUpdateTrackingStatus(prisma: PrismaClient, i
     if (e?.code === 'ORDER_TERMINAL') return { ok: false, error: 'ORDER_TERMINAL', message: e.message, dataSource: 'bambook-data-center' };
     if (e?.code === 'INVALID_CURRENT_ORDER_STATUS') return { ok: false, error: 'INVALID_CURRENT_ORDER_STATUS', message: e.message, dataSource: 'bambook-data-center' };
     if (e?.code === 'INVALID_TRANSITION' || e?.code === 'INVALID_STATUS' || e?.code === 'INVALID_CURRENT_STATUS') return { ok: false, error: e.code, message: e.message, dataSource: 'bambook-data-center' };
+    if (e?.code === 'GATE_BLOCKED') return { ok: false, error: 'GATE_BLOCKED', message: e.message, gateDetails: e.gateDetails ?? null, dataSource: 'bambook-data-center' };
     return { ok: false, error: 'UPDATE_FAILED', message: String(e?.message ?? e), dataSource: 'bambook-data-center' };
   }
 }

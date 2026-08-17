@@ -28,6 +28,7 @@ function makeTx(opts: {
   const tx = {
     shipment: { create: shipmentCreate, findUnique: shipmentFind, update: shipmentUpdate },
     shipmentEvent: { create: shipmentEventCreate },
+    shipmentOrderAllocation: { findMany: vi.fn().mockResolvedValue([]) }, // DR-016 合票分配（本组用例无合票）
     auditLog: { create: auditCreate },
     entityReference: { upsert: entityRefUpsert },
     entityLink: { upsert: entityLinkUpsert },

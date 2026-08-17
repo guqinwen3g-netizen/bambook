@@ -20,7 +20,7 @@ import { PrismaClient, QCLocation, QCAssignment } from '@prisma/client';
 import { logger } from '../lib/logger';
 import crypto from 'crypto';
 import { writeRouteAuditLog } from '../audit/routeAudit';
-import { isFabricChainOrder, isDevelopmentSampleType } from './qcChainService';
+import { isFabricChainOrder, isGarmentChainOrder, isDevelopmentSampleType } from './qcChainService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型定义
@@ -78,7 +78,7 @@ export interface ShipmentGateState {
 
 export interface ShipmentEligibility {
   orderId: string;
-  /** DR-014 三条件仅适用于面料订单；服装订单出运门禁=大货 Final QC（REL-14-A4，由状态机承担） */
+  /** DR-014 三条件仅适用于面料订单；服装订单出运门禁=大货 Final QC（REL-14-A4，由 checkGarmentShipmentEligibility 承担） */
   applicable: boolean;
   eligible: boolean;
   /** 三条件并行状态（完成顺序无关；缺任一条即 eligible=false） */
@@ -87,6 +87,22 @@ export interface ShipmentEligibility {
     ss: ShipmentGateState;
     rc: ShipmentGateState & { enabled: boolean };
   };
+  missingGates: ShipmentGateCode[];
+  /** applicable=false 时的原因说明（链边界） */
+  reason?: string;
+}
+
+/**
+ * REL-14-A4 服装链出运资格视图：仅大货终期 Final QC 单条件（与样品 QC 严格独立）。
+ * 与面料链 ShipmentEligibility 分离定义——服装链无 S/S、RC 概念，复用同一结构会产生误导性空槽。
+ */
+export interface GarmentShipmentEligibility {
+  orderId: string;
+  /** 仅服装链订单适用（isGarmentChainOrder）；非服装订单 applicable=false */
+  applicable: boolean;
+  eligible: boolean;
+  /** 大货终期 Final QC 状态（InspectionReport id=INR__{orderId}, inspectionType='final', result='pass'） */
+  bulkQc: ShipmentGateState;
   missingGates: ShipmentGateCode[];
   /** applicable=false 时的原因说明（链边界） */
   reason?: string;
@@ -490,6 +506,54 @@ export function createQcService(prisma: PrismaClient) {
   }
 
   // ══════════════════════════════════════════════════════════════
+  // 3B. REL-14-A4 服装出运资格判定（大货终期 Final QC 单条件，与样品 QC 独立）
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * REL-14-A4：服装订单出运门禁 = 大货终期 Final QC 通过（InspectionReport id=INR__{orderId},
+   * inspectionType='final', result='pass'），与样品链 QC 严格独立（样品打回不阻断大货出运判定，
+   * 大货 Final QC 缺/未过即不具备出运资格）。
+   * 本函数只做原始门禁状态报告（fail-closed 视图），DR-013 受控例外由出运域另行绑定，
+   * 例外不改变此处返回的门禁状态（DR-013「例外不改变原规则」）。
+   * 面料订单不适用（走 checkShipmentEligibility 三条件并行）→ applicable=false。
+   */
+  async function checkGarmentShipmentEligibility(orderId: string): Promise<GarmentShipmentEligibility> {
+    if (!orderId?.trim()) throw new Error('orderId 必填');
+    const order = await db.order.findUnique({ where: { id: orderId } });
+    if (!order || order.deletedAt !== null) throw new Error('订单不存在');
+
+    if (!isGarmentChainOrder(order)) {
+      return {
+        orderId,
+        applicable: false,
+        eligible: false,
+        bulkQc: { satisfied: false },
+        missingGates: [],
+        reason: 'REL-14-A4 服装出运门禁仅适用于服装链订单（含 capsule）；面料订单走 DR-014 三条件并行判定',
+      };
+    }
+
+    const finalReport = await db.inspectionReport.findUnique({
+      where: { id: `INR__${orderId}` },
+    });
+    const bulkQcPassed = !!finalReport && finalReport.inspectionType === 'final' && finalReport.result === 'pass';
+
+    return {
+      orderId,
+      applicable: true,
+      eligible: bulkQcPassed,
+      bulkQc: {
+        satisfied: bulkQcPassed,
+        reportId: finalReport?.id ?? null,
+        result: finalReport?.result ?? null,
+        inspectedBy: finalReport?.inspectedBy ?? null,
+        inspectionDate: finalReport?.inspectionDate ?? null,
+      },
+      missingGates: bulkQcPassed ? [] : ['BULK_QC_NOT_PASSED'],
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════
   // 4. DR-027 开发样排除（订单前开发样不进入 QC 门禁，业务员自行登记）
   // ══════════════════════════════════════════════════════════════
 
@@ -612,8 +676,9 @@ export function createQcService(prisma: PrismaClient) {
     deleteAssignment,
     listAssignments,
     getWorkbench,
-    // DR-014 出运资格 / DR-027 开发样排除
+    // DR-014 出运资格 / REL-14-A4 服装 Final QC / DR-027 开发样排除
     checkShipmentEligibility,
+    checkGarmentShipmentEligibility,
     shouldExcludeFromQc,
     // 报告读取 + 双签
     getReport,
