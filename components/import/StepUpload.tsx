@@ -137,7 +137,7 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
                     type="button"
                     onClick={() => removeOne(f.id)}
                     disabled={isParsing}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-30 text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] dark:hover:bg-[var(--active-darken)] hover:text-[var(--text-primary)]`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-30 text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
                     aria-label="移除"
                   >
                     <X size={16} />
