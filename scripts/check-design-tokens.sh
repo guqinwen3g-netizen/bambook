@@ -48,8 +48,9 @@ BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366�
 # ── BDS 高分收编基线（2026-08-17 W0 建立，只减不增）──
 # 依据 docs/design/10-评审与决策/2026-08-17-前端设计地毯式评审报告.md 批 A-J 移交清单建立。
 # 口径：出现次数（rg -o），豁免集与上文 EXCLUDE_GLOBS 一致。
-BASELINE_RAW_SEMANTIC=33       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
-                               # 2026-08-17 批A 收编 131→33；余量：TraceabilityPanel 14（批H 色板专项）/ FabricSampleInvoiceGenerator 8（豁免清单·测试锁定业务语义）/ App.tsx 5（W5 解锁）/ pwa 3（移动端冻结）/ GarmentOrders 3（批I 死代码）
+BASELINE_RAW_SEMANTIC=19       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
+                               # 2026-08-17 批A 收编 131→33；批H 收编 TraceabilityPanel 14（33→19，接入 §4.5 雾化分类色板 mask-*）
+                               # 余量：FabricSampleInvoiceGenerator 8（豁免清单·测试锁定业务语义）/ App.tsx 5（W5 解锁）/ pwa 3（移动端冻结）/ GarmentOrders 3（批I 死代码移交 W5）
 BASELINE_RAW_MASK=4            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
                                # 2026-08-17 批B 收编 17→4；余量：pwa 2（移动端冻结）/ DesignTuner 1（开发工具豁免）/ App.tsx 1（W5 解锁）
 BASELINE_BARE_ROUNDED=5        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
