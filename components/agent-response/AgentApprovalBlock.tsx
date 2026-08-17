@@ -36,7 +36,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {draft.beforeAfterDiff.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
-            <GitBranch size={10} />
+            <GitBranch size={14} />
             <span>变更清单</span>
           </div>
           <div className="flex flex-col gap-1">
@@ -56,7 +56,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {draft.subOperations.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
-            <Wrench size={10} />
+            <Wrench size={14} />
             <span>操作步骤 · {draft.subOperations.length} 步</span>
           </div>
           <div className="flex flex-col gap-1">
@@ -74,7 +74,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {draft.impactScope.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
-            <Globe size={10} />
+            <Globe size={14} />
             <span>影响范围</span>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -88,13 +88,13 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
         <div className="flex flex-wrap items-center gap-2">
           {draft.irreversible && (
             <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-              <AlertTriangle size={10} />
+              <AlertTriangle size={14} />
               <span>不可逆操作</span>
             </span>
           )}
           {draft.postCommitHooks.map((hook: AgentProcessDraftPostCommitHook, idx: number) => (
             <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-              <Mail size={10} />
+              <Mail size={14} />
               <span>提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
             </span>
           ))}

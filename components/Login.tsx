@@ -44,6 +44,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
     <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center bg-[var(--bg-page)]`}>
       <div className={`w-full max-w-sm p-8 rounded-card-lg border bg-[var(--bg-card)] border-[var(--border-c-default)] shadow-none`}>
         <div className="flex flex-col items-center mb-8">
+          {/* bds-ok: 品牌 logo SVG（非 lucide 功能图标），装饰性 hero 位，size 不套 icon 刻度 */}
           <BambookIcon size={40} strokeWidth={1} className="text-[var(--os-vnext-brand-blue)] drop-shadow-none" />
           <h1 className="mt-4 text-xl font-light tracking-tight text-[var(--text-primary)]">
             Bambook Neural
@@ -95,11 +96,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
           <button
             type="submit"
             disabled={isLoading || !email || !password}
-            className={`w-full py-3 rounded-full text-sm font-light transition-all ${
-              isLoading || !email || !password
-                ? 'bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)] cursor-not-allowed'
-                : 'bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98]'
-            }`}
+            className="bds-btn bds-btn-primary w-full"
           >
             {isLoading ? 'Signing in...' : 'Sign in'}
           </button>

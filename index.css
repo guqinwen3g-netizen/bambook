@@ -32,6 +32,7 @@
    （Tailwind utilities 可对组件做合法微调）。 */
 @import './styles/bds/tokens.css';
 @import './styles/bds/components.css';
+@import './styles/bds/layout.css';
 
 /* Tailwind CSS v3 — local PostCSS pipeline.
    Replaces the legacy cdn.tailwindcss.com Play CDN that prevented

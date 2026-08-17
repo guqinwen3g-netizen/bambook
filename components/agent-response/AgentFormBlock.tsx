@@ -58,7 +58,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
 
           {submitted ? (
             <div className={`mt-3 flex items-center gap-1.5 rounded-compact border px-3 py-2 text-xs ${borderClass} ${quietTextClass}`}>
-              <Check size={12} strokeWidth={1.5} className="shrink-0" />
+              <Check size={14} strokeWidth={1.5} className="shrink-0" />
               已提交{block.submittedValues ? `：${Object.entries(block.submittedValues).map(([k, v]) => `${k}=${String(v)}`).join(', ')}` : ''}
             </div>
           ) : (
@@ -85,7 +85,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                       <select
                         value={values[field.key] ?? ''}
                         onChange={(e) => handleChange(field.key, e.target.value)}
-                        className={`mt-1 w-full rounded-control border px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--os-vnext-brand-blue)]/50 ${inputClass}`}
+                        className="bds-select mt-1 w-full"
                       >
                         <option value="">请选择...</option>
                         {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -133,7 +133,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                   submitting ? 'cursor-wait opacity-60' : 'hover:opacity-80'
                 } ${borderClass} bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)]`}
               >
-                <Send size={13} />
+                <Send size={14} />
                 {submitting ? '提交中...' : (block.submitLabel || '提交')}
               </button>
             </div>

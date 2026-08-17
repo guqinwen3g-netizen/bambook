@@ -203,7 +203,7 @@ export default function ImageUploader({
                     className="p-1.5 rounded-control transition-colors bg-[var(--recessed-bg-strong)] hover:bg-[var(--active-darken)] text-[var(--text-primary)]"
                     title="设为主图"
                   >
-                    <Star size={12} />
+                    <Star size={14} />
                   </button>
                 )}
 
@@ -214,7 +214,7 @@ export default function ImageUploader({
                     className="p-1.5 rounded-control transition-colors bg-[var(--recessed-bg-strong)] hover:bg-[var(--active-darken)] text-[var(--text-primary)]"
                     title="上移"
                   >
-                    <GripVertical size={12} className="rotate-90" />
+                    <GripVertical size={14} className="rotate-90" />
                   </button>
                 )}
 
@@ -224,7 +224,7 @@ export default function ImageUploader({
                   className="p-1.5 rounded-control transition-colors bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-tertiary)]"
                   title="删除"
                 >
-                  <X size={12} />
+                  <X size={14} />
                 </button>
               </div>
 
@@ -240,7 +240,7 @@ export default function ImageUploader({
       {/* Empty state */}
       {images.length === 0 && !uploading && (
         <div className={`flex flex-col items-center justify-center py-8 rounded-inset border ${glassCard}`}>
-          <ImageIcon size={40} className="text-[var(--text-tertiary)]" />
+          <ImageIcon size={24} className="text-[var(--text-tertiary)]" />
           <span className="mt-2 text-xs text-[var(--text-tertiary)]">
             暂无图片
           </span>

@@ -18,9 +18,9 @@ type Props = {
 };
 
 const ApprovalIcon: React.FC<{ approval: AgentToolManifestEntry['safety']['approval']; className: string }> = ({ approval, className }) => {
-  if (approval === 'always') return <ShieldX size={11} strokeWidth={1.5} className={className} />;
-  if (approval === 'risk_based') return <ShieldAlert size={11} strokeWidth={1.5} className={className} />;
-  return <ShieldCheck size={11} strokeWidth={1.5} className={className} />;
+  if (approval === 'always') return <ShieldX size={14} strokeWidth={1.5} className={className} />;
+  if (approval === 'risk_based') return <ShieldAlert size={14} strokeWidth={1.5} className={className} />;
+  return <ShieldCheck size={14} strokeWidth={1.5} className={className} />;
 };
 
 const approvalTooltip = (approval: AgentToolManifestEntry['safety']['approval']): string => {
@@ -105,7 +105,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--hover-darken)] rounded-inset`}
                 title={meta.hint}
               >
-                <Wrench size={11} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
+                <Wrench size={14} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
                 <span className={`text-[11px] font-light text-[var(--text-primary)]`}>{meta.label}</span>
                 <span className={`text-[10px] ${quietTextClass}`}>{group.tools.length}</span>
                 {approvalCount > 0 && (
@@ -117,7 +117,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
                   </span>
                 )}
                 <ChevronDown
-                  size={12}
+                  size={14}
                   strokeWidth={1.5}
                   className={`ml-auto transition-transform ${isOpen ? 'rotate-180' : ''} ${quietTextClass}`}
                 />

@@ -19,6 +19,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { Order, Relation } from '../../types';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 import { printHtmlDocument, formatDate, formatDocNumber, escapeHtml } from './printDocument';
 import { getExporterProfile } from './exportDocs/exporterProfile';
@@ -403,10 +404,10 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                 <button
                   key={type}
                   onClick={() => setContractType(type)}
-                  className={`flex-1 py-2 rounded-full text-sm transition-colors ${
+                  className={`bds-btn flex-1 ${
                     contractType === type
-                      ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-                      : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'
+                      ? 'bds-btn-primary'
+                      : 'bds-btn-secondary'
                   }`}
                 >
                   {type === 'sales' ? '销售合同 Sales' : '采购合同 Purchase'}
@@ -426,11 +427,11 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
               </div>
               <div>
                 <label className={labelClass}>签订日期</label>
-                <input
-                  type="date"
+                <CapsuleDateInput
+                  className="bds-input"
                   value={signDate}
-                  onChange={(e) => setSignDate(e.target.value)}
-                  className={fieldClass}
+                  onChange={(v) => setSignDate(v)}
+                  isDarkMode={isDarkMode}
                 />
               </div>
               <div>
@@ -454,7 +455,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                 <select
                   value={sellerId}
                   onChange={(e) => setSellerId(e.target.value)}
-                  className={fieldClass}
+                  className="bds-select"
                 >
                   <option value="">选择卖方...</option>
                   {relationOptions.map(r => (
@@ -467,7 +468,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                 <select
                   value={buyerId}
                   onChange={(e) => setBuyerId(e.target.value)}
-                  className={fieldClass}
+                  className="bds-select"
                 >
                   <option value="">选择买方...</option>
                   {relationOptions.map(r => (
@@ -515,7 +516,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                 onClick={addLine}
                 className={`text-xs px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
               >
-                <Plus size={12} /> 添加行
+                <Plus size={14} /> 添加行
               </button>
             </div>
             <div className="space-y-2">
@@ -534,7 +535,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                         className={`p-1 rounded-control text-xs text-[var(--text-tertiary)] hover:text-danger`}
                         title="删除行"
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>
@@ -563,7 +564,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                     <select
                       value={line.unit}
                       onChange={(e) => updateLine(line.id, 'unit', e.target.value)}
-                      className={`${fieldClass} py-1.5 text-xs`}
+                      className="bds-select sm"
                     >
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
@@ -581,7 +582,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             </div>
             <div className={`mt-3 pt-3 border-t flex items-center justify-end gap-4 text-xs border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
               <span>币种:
-                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={`ml-1 px-2 py-0.5 rounded-field text-xs bg-[var(--recessed-bg)] text-[var(--text-primary)]`}>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bds-select sm ml-1 w-auto">
                   {['USD', 'CNY', 'EUR'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </span>
@@ -592,19 +593,19 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
           {/* ── 条款 ── */}
           <div className={`p-4 rounded-card ${panelClass}`}>
             <div className="flex items-center gap-2 mb-3">
-              <Settings2 size={12} className="text-[var(--text-tertiary)]" />
+              <Settings2 size={14} className="text-[var(--text-tertiary)]" />
               <h3 className={sectionTitleClass.replace('mb-3', '')}>合同条款</h3>
             </div>
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>付款方式 Payment Terms</label>
-                <select value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className={fieldClass}>
+                <select value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className="bds-select">
                   {PAYMENT_TERMS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label className={labelClass}>交货条款 Delivery Terms</label>
-                <select value={deliveryTerms} onChange={(e) => setDeliveryTerms(e.target.value)} className={fieldClass}>
+                <select value={deliveryTerms} onChange={(e) => setDeliveryTerms(e.target.value)} className="bds-select">
                   {DELIVERY_TERMS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -656,11 +657,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className={`w-full py-3 rounded-full font-light text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
-                isGenerating
-                  ? 'bg-[var(--accent)] cursor-not-allowed'
-                  : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)]'
-              } text-white`}
+              className="bds-btn bds-btn-primary w-full"
             >
               {isGenerating ? (
                 <><Loader2 size={16} className="animate-spin" /><span>生成中...</span></>

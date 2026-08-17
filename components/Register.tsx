@@ -124,7 +124,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
         <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border bg-[var(--bg-card)] border-[var(--border-c-default)] shadow-none`}>
           <div className="flex flex-col items-center text-center">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center bg-[var(--recessed-bg)]`}>
-              <CheckCircle2 size={32} strokeWidth={1.5} className="text-[var(--text-secondary)]" />
+              <CheckCircle2 size={24} strokeWidth={1.5} className="text-[var(--text-secondary)]" />
             </div>
             <h1 className={`mt-5 text-lg font-light tracking-tight text-[var(--text-primary)]`}>
               申请已提交，等待管理员审批
@@ -158,12 +158,13 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
     <div className={`bambook-mobile-auth-page w-full h-screen flex items-center justify-center overflow-y-auto bg-[var(--bg-page)]`}>
       <div className={`w-full max-w-md my-10 p-8 rounded-card-lg border bg-[var(--bg-card)] border-[var(--border-c-default)] shadow-none`}>
         <div className="flex flex-col items-center mb-6">
+          {/* bds-ok: 品牌 logo SVG（非 lucide 功能图标），装饰性 hero 位，size 不套 icon 刻度 */}
           <BambookIcon size={36} strokeWidth={1} className="text-[var(--os-vnext-brand-blue)] drop-shadow-none" />
           <h1 className={`mt-3 text-lg font-light tracking-tight text-[var(--text-primary)]`}>
             申请加入 Bambook Neural
           </h1>
           <p
-            className={`mt-1 text-[11px] min-h-[16px] text-center px-2 leading-4 ${
+            className={`mt-1 text-[11px] min-h-4 text-center px-2 leading-4 ${
               error ? 'text-[var(--text-tertiary)]' : success ? 'text-[var(--text-secondary)]' : info ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-tertiary)]'
             }`}
           >
@@ -251,11 +252,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
           <button
             type="submit"
             disabled={isLoading || !email || !password || !displayName || !confirm || !code}
-            className={`w-full py-2.5 rounded-full text-sm font-light transition-all ${
-              isLoading || !email || !password || !displayName || !confirm || !code
-                ? 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] cursor-not-allowed'
-                : 'bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98]'
-            }`}
+            className="bds-btn bds-btn-primary w-full"
           >
             {isLoading ? '提交中...' : '提交注册申请'}
           </button>

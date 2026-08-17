@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import { Order, Relation } from '../../types';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { statusSemanticClass, statusSemanticText } from '../rdlBusinessStatusTokens';
 
 // ==================== 类型定义 ====================
@@ -416,11 +417,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   <select
                     value={options.destinationPort}
                     onChange={(e) => setOptions({ ...options, destinationPort: e.target.value })}
-                    className={`
-                      w-full px-3 py-2 rounded-control text-sm
-                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
-                      focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
-                    `}
+                    className="bds-select"
                   >
                     <option value="">选择目的港...</option>
                     {DESTINATION_PORTS.map(port => (
@@ -434,15 +431,11 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>
                     装船期限
                   </label>
-                  <input
-                    type="date"
+                  <CapsuleDateInput
+                    className="bds-input"
                     value={options.shipmentDate}
-                    onChange={(e) => setOptions({ ...options, shipmentDate: e.target.value })}
-                    className={`
-                      w-full px-3 py-2 rounded-control text-sm
-                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
-                      focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
-                    `}
+                    onChange={(v) => setOptions({ ...options, shipmentDate: v })}
+                    isDarkMode={isDarkMode}
                   />
                 </div>
 
@@ -454,11 +447,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                   <select
                     value={options.paymentTerms}
                     onChange={(e) => setOptions({ ...options, paymentTerms: e.target.value })}
-                    className={`
-                      w-full px-3 py-2 rounded-control text-sm
-                      bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-primary)]
-                      focus:outline-none focus:border-[var(--os-vnext-brand-blue)] transition-colors
-                    `}
+                    className="bds-select"
                   >
                     <option value="">选择付款方式...</option>
                     {PAYMENT_TERMS_OPTIONS.map(term => (
@@ -477,12 +466,11 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                       <button
                         key={method}
                         onClick={() => setOptions({ ...options, shippingMethod: method })}
-                        className={`
-                          flex-1 py-2 rounded-full text-sm transition-colors
-                          ${options.shippingMethod === method
-                            ? 'bg-[var(--os-vnext-brand-blue)] text-white'
-                            : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}
-                        `}
+                        className={`bds-btn flex-1 ${
+                          options.shippingMethod === method
+                            ? 'bds-btn-primary'
+                            : 'bds-btn-secondary'
+                        }`}
                       >
                         {method}
                       </button>
@@ -559,16 +547,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating || selectedPOs.length === 0}
-                className={`
-                  w-full py-3 rounded-full font-light text-sm flex items-center justify-center gap-2
-                  transition-all duration-300
-                  ${isGenerating
-                    ? 'bg-[var(--accent)] cursor-not-allowed'
-                    : selectedPOs.length === 0
-                      ? 'bg-[var(--recessed-bg-strong)] cursor-not-allowed'
-                      : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)]'}
-                  text-white
-                `}
+                className="bds-btn bds-btn-primary w-full"
               >
                 {isGenerating ? (
                   <>

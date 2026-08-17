@@ -172,7 +172,7 @@ export const RelatedEntitiesPanel: React.FC<RelatedEntitiesPanelProps> = ({
                       <span className="truncate text-[13px] font-light">{n.label || n.id}</span>
                       <span className={`flex shrink-0 items-center gap-2 text-[10px] font-light ${mutedCls}`}>
                         {n.type} · {n.direction === 'out' ? '指向' : '被指向'}
-                        {onSelectNeighbor && <ExternalLink size={12} strokeWidth={1.5} />}
+                        {onSelectNeighbor && <ExternalLink size={14} strokeWidth={1.5} />}
                       </span>
                     </button>
                   ))}

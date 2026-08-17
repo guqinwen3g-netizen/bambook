@@ -148,6 +148,7 @@
     <a href="#x-ai">AI 协作 Agent</a>
     <div class="nav-cap">组合 Patterns</div>
     <a href="#page">页面组合 Page</a>
+    <a href="#layout">布局原语 Layout</a>
   </nav>
 
   <div class="main">
@@ -1610,8 +1611,82 @@
       </div>
     </section>
 
+    <section id="layout">
+      <div class="sec-head">
+        <div class="sec-title">布局原语<span class="en">Layout Layer — L1-L8 页面构建语言</span></div>
+        <div class="sec-desc">页面骨架 / 容器尺寸族 / 表格密度 / 错误态 / 行三态。Phase 2 逐页重建只允许由本层原语组合，禁自由手写 Tailwind 布局（守卫：npm run check:tokens L1-L8，只减不增）。</div>
+      </div>
+
+      <!-- L1 页面骨架 -->
+      <div class="specimen">
+        <div class="demo-label">L1 页面骨架 PageShell — px-7 pt-5 pb-4 唯一刻度</div>
+        <div class="bds-page-shell" style="border: var(--border-default); border-radius: var(--r-card);">
+          <div class="bds-pagehead">
+            <div class="ph-main">
+              <div class="ph-title">客户档案<span class="en">Relations</span></div>
+              <div class="ph-sub">bds-page-shell 包裹 · 中英标题 + 右侧 breadcrumb</div>
+            </div>
+            <div class="ph-side">
+              <div class="bds-breadcrumb"><a href="#">客户与市场</a><span class="sep">/</span><span class="current">客户档案</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- L3 容器与长宽比 -->
+      <div class="specimen" style="margin-top: var(--space-6);">
+        <div class="demo-label">L3 容器与长宽比 — 图表井 / 方形缩略图 / 等高卡片</div>
+        <div class="grid g3">
+          <div class="bds-well bds-well--sm" style="padding: var(--space-4); display: flex; align-items: flex-end;">
+            <span class="bds-text-xs" style="color: var(--text-tertiary);">bds-well--sm · 180px</span>
+          </div>
+          <div class="bds-well" style="padding: var(--space-4); display: flex; align-items: flex-end;">
+            <span class="bds-text-xs" style="color: var(--text-tertiary);">bds-well · 220px</span>
+          </div>
+          <div class="bds-well bds-well--lg" style="padding: var(--space-4); display: flex; align-items: flex-end;">
+            <span class="bds-text-xs" style="color: var(--text-tertiary);">bds-well--lg · 280px</span>
+          </div>
+        </div>
+        <div class="row" style="gap: var(--space-4); margin-top: var(--space-5);">
+          <div class="bds-thumb bds-thumb--s" style="display: flex; align-items: center; justify-content: center;"><span class="bds-text-xs" style="color: var(--text-tertiary);">40</span></div>
+          <div class="bds-thumb bds-thumb--m" style="display: flex; align-items: center; justify-content: center;"><span class="bds-text-xs" style="color: var(--text-tertiary);">56</span></div>
+          <div class="bds-thumb bds-thumb--l" style="display: flex; align-items: center; justify-content: center;"><span class="bds-text-xs" style="color: var(--text-tertiary);">96</span></div>
+          <div class="bds-thumb bds-thumb--xl" style="display: flex; align-items: center; justify-content: center;"><span class="bds-text-xs" style="color: var(--text-tertiary);">116</span></div>
+        </div>
+      </div>
+
+      <!-- L5 表格密度 -->
+      <div class="specimen" style="margin-top: var(--space-6);">
+        <div class="demo-label">L5 表格密度 TableDensity — compact(40px) / standard(48px) / cozy(56px)</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5);">
+          <table class="bds-table compact"><thead><tr><th>报价号</th><th>金额</th></tr></thead><tbody><tr><td>QT-1042</td><td class="bds-tnum">48,200</td></tr><tr><td>QT-1041</td><td class="bds-tnum">62,000</td></tr></tbody></table>
+          <table class="bds-table"><thead><tr><th>报价号</th><th>金额</th></tr></thead><tbody><tr><td>QT-1042</td><td class="bds-tnum">48,200</td></tr><tr><td>QT-1041</td><td class="bds-tnum">62,000</td></tr></tbody></table>
+          <table class="bds-table cozy"><thead><tr><th>报价号</th><th>金额</th></tr></thead><tbody><tr><td>QT-1042</td><td class="bds-tnum">48,200</td></tr><tr><td>QT-1041</td><td class="bds-tnum">62,000</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- L7 错误态 -->
+      <div class="specimen" style="margin-top: var(--space-6);">
+        <div class="demo-label">L7 错误态 ErrorBanner — --danger-tint + --danger-text + 左缘 danger 条</div>
+        <div class="bds-error-banner">
+          <svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <span>数据加载失败，请检查网络后重试。</span>
+        </div>
+      </div>
+
+      <!-- L8 视觉反馈 -->
+      <div class="specimen" style="margin-top: var(--space-6);">
+        <div class="demo-label">L8 行三态视觉反馈 — hover / press / active（冷墨洗，禁暖色）</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4);">
+          <div class="bds-row bds-row--hover" style="padding: var(--space-4);"><span class="bds-text-sm" style="color: var(--text-secondary);">hover — --hover-darken</span></div>
+          <div class="bds-row bds-row--press" style="padding: var(--space-4);"><span class="bds-text-sm" style="color: var(--text-secondary);">press — --active-darken</span></div>
+          <div class="bds-row bds-row--active" style="padding: var(--space-4);"><span class="bds-text-sm" style="color: var(--text-secondary);">active — accent-tint-strong</span></div>
+        </div>
+      </div>
+    </section>
+
     <footer>
-      Bambook Design System v2.2 · token 真源 styles/bds/tokens.css · 组件真源 styles/bds/components.css · 防回退 npm run check:tokens
+      Bambook Design System v2.2 · token 真源 styles/bds/tokens.css · 组件真源 styles/bds/components.css · 布局原语 styles/bds/layout.css · 防回退 npm run check:tokens
     </footer>
   </div>
 </div>

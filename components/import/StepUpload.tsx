@@ -68,7 +68,7 @@ const StepUpload: React.FC<Props> = ({ files, onFilesChange, isDarkMode, isParsi
           dragOver ? dropzoneActive : dropzoneBase
         }`}
       >
-        <Upload size={36} strokeWidth={1.2} />
+        <Upload size={24} strokeWidth={1.25} />
         <p className="mt-4 text-sm font-light">
           拖拽 PDF 到此处，或点击选择文件
         </p>

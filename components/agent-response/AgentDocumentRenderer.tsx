@@ -113,24 +113,24 @@ const OrderConfirmFeedbackView: React.FC<{
       <div className={`mt-2 flex flex-col gap-1.5 rounded-compact border ${cardBorder} px-2.5 py-2`}>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-            <CheckCircle2 size={10} />
+            <CheckCircle2 size={14} />
             <span>订单已确认</span>
           </span>
           {result.previousStatus && result.newStatus && (
             <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-              <FileText size={10} />
+              <FileText size={14} />
               <span>{result.previousStatus} → {result.newStatus}</span>
             </span>
           )}
           {result.invoiceId && (
             <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-              <Receipt size={10} />
+              <Receipt size={14} />
               <span>发票已开具</span>
             </span>
           )}
           {result.auditId && (
             <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
-              <ShieldCheck size={10} />
+              <ShieldCheck size={14} />
               <span>审计已记录</span>
             </span>
           )}
@@ -160,7 +160,7 @@ const OrderConfirmFeedbackView: React.FC<{
         )}
         {/* P1-D §2.1: 必须告知 email 未发送，避免"全部完成"误导 */}
         <div className={`flex items-start gap-1 text-[10.5px] leading-[1.4] text-[var(--text-tertiary)]`}>
-          <AlertTriangle size={10} className="mt-[1px] shrink-0" />
+          <AlertTriangle size={14} className="mt-[1px] shrink-0" />
           <span>确认邮件尚未自动发送（当前 scope 限制），请手动在邮件模块发送确认通知。</span>
         </div>
       </div>
@@ -172,7 +172,7 @@ const OrderConfirmFeedbackView: React.FC<{
     return (
       <div className={`mt-2 rounded-compact border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-2.5 py-2`}>
         <div className={`flex items-center gap-1.5 text-[11.5px] font-light text-[var(--text-secondary)]`}>
-          <XCircle size={12} />
+          <XCircle size={14} />
           <span>订单确认已取消</span>
         </div>
         <div className={`mt-1 text-[11px] leading-[1.5] ${quietText}`}>
@@ -187,7 +187,7 @@ const OrderConfirmFeedbackView: React.FC<{
     return (
       <div className={`mt-2 rounded-compact border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-2.5 py-2`}>
         <div className={`flex items-center gap-1.5 text-[11.5px] font-light text-[var(--text-secondary)]`}>
-          <ShieldAlert size={12} />
+          <ShieldAlert size={14} />
           <span>该操作需要审批后才能执行</span>
         </div>
         <div className={`mt-1 text-[11px] ${quietText}`}>审批通过后，订单状态变更与发票开具将在单一事务内原子提交。</div>
@@ -204,7 +204,7 @@ const OrderConfirmFeedbackView: React.FC<{
     <div className={`mt-2 flex flex-col gap-1.5 rounded-compact border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-2.5 py-2`}>
       <div className="flex flex-wrap items-center gap-1.5">
         <span className={`flex items-center gap-1 text-[11.5px] font-light text-[var(--text-secondary)]`}>
-          <XCircle size={12} />
+          <XCircle size={14} />
           <span>{codeLabel}</span>
         </span>
         <span className={`rounded-bds-sm px-1 py-0.5 text-[9.5px] font-mono bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)]`}>{code}</span>
@@ -258,7 +258,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
             className={`ml-auto shrink-0 p-0.5 rounded-control transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
             aria-label={expanded ? '收起详情' : '展开详情'}
           >
-            <ChevronRight size={13} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
+            <ChevronRight size={14} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
           </button>
         </div>
         {expanded && (
@@ -329,7 +329,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
             className={`ml-auto shrink-0 p-0.5 rounded-control transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
             aria-label={expanded ? '收起详情' : '展开详情'}
           >
-            <ChevronRight size={13} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
+            <ChevronRight size={14} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
           </button>
         </div>
         {expanded && (
@@ -389,7 +389,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {draft.beforeAfterDiff.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
-            <GitBranch size={10} />
+            <GitBranch size={14} />
             <span>变更清单</span>
           </div>
           <div className="flex flex-col gap-1">
@@ -409,7 +409,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {draft.subOperations.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
-            <Wrench size={10} />
+            <Wrench size={14} />
             <span>操作步骤 · {draft.subOperations.length} 步</span>
           </div>
           <div className="flex flex-col gap-1">
@@ -427,7 +427,7 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
       {draft.impactScope.length > 0 && (
         <div>
           <div className={`mb-1 flex items-center gap-1 text-[10px] uppercase tracking-widest ${labelCls}`}>
-            <Globe size={10} />
+            <Globe size={14} />
             <span>影响范围</span>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -443,13 +443,13 @@ const ProcessDraftView: React.FC<{ draft: AgentProcessDraft; isDarkMode?: boolea
         <div className="flex flex-wrap items-center gap-2">
           {draft.irreversible && (
             <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-              <AlertTriangle size={10} />
+              <AlertTriangle size={14} />
               <span>不可逆操作</span>
             </span>
           )}
           {draft.postCommitHooks.map((hook: AgentProcessDraftPostCommitHook, idx) => (
             <span key={idx} className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
-              <Mail size={10} />
+              <Mail size={14} />
               <span>提交后 · {HOOK_TYPE_LABEL[hook.type] ?? hook.type}</span>
             </span>
           ))}

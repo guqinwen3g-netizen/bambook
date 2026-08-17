@@ -123,14 +123,14 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
       {loading ? (
         <div className={card + ' p-8'}>
           <div className="flex flex-col items-center justify-center gap-3">
-            <RefreshCw size={20} strokeWidth={1.2} className={`animate-spin ${brandIconCls}`} />
+            <RefreshCw size={20} strokeWidth={1.5} className={`animate-spin ${brandIconCls}`} />
             <div className={`text-xs font-light ${weakTextCls}`}>加载自动化规则...</div>
           </div>
         </div>
       ) : error && rules.length === 0 ? (
         <div className={card + ' p-8'}>
           <div className="flex flex-col items-center justify-center gap-3">
-            <AlertTriangle size={20} strokeWidth={1.2} className="text-[var(--warning-text)] opacity-70" />
+            <AlertTriangle size={20} strokeWidth={1.5} className="text-[var(--warning-text)] opacity-70" />
             <div className={`text-xs font-light ${weakTextCls}`}>{error}</div>
             <button
               type="button"
@@ -144,7 +144,7 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
       ) : rules.length === 0 ? (
         <div className={card + ' p-8'}>
           <div className="flex flex-col items-center justify-center gap-3">
-            <Workflow size={24} strokeWidth={1} className="text-[var(--text-quaternary)]" />
+            <Workflow size={24} strokeWidth={1.25} className="text-[var(--text-quaternary)]" />
             <div className={`text-xs font-light ${weakTextCls}`}>暂无可用自动化规则</div>
           </div>
         </div>
@@ -164,7 +164,7 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
                 <div className="flex items-start gap-3">
                   {/* 图标井 */}
                   <div className={iconWellCls}>
-                    <Icon size={16} strokeWidth={1.4} />
+                    <Icon size={16} strokeWidth={1.5} />
                   </div>
 
                   {/* 内容 */}
@@ -175,7 +175,7 @@ export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionPro
                         {meta.label}
                       </span>
                       {isUpdating && (
-                        <RefreshCw size={11} strokeWidth={1.5} className={`animate-spin ${weakTextCls}`} />
+                        <RefreshCw size={14} strokeWidth={1.5} className={`animate-spin ${weakTextCls}`} />
                       )}
                     </div>
                     <p className={`mt-1 text-xs leading-relaxed ${weakTextCls}`}>{rule.description}</p>

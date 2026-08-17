@@ -311,18 +311,18 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
 
           {/* Step indicator */}
           <div className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50`}>
-            <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={12} />} isDarkMode={isDarkMode} />
+            <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={14} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 2} isDarkMode={isDarkMode} />
-            <StepDot n={2} label="校验预览" active={step >= 2} current={step === 2} icon={<ScanLine size={12} />} isDarkMode={isDarkMode} />
+            <StepDot n={2} label="校验预览" active={step >= 2} current={step === 2} icon={<ScanLine size={14} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 3} isDarkMode={isDarkMode} />
-            <StepDot n={3} label="导入报告" active={step >= 3} current={step === 3} icon={<ShieldCheck size={12} />} isDarkMode={isDarkMode} />
+            <StepDot n={3} label="导入报告" active={step >= 3} current={step === 3} icon={<ShieldCheck size={14} />} isDarkMode={isDarkMode} />
           </div>
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {serverError && (
               <div className={`mb-4 rounded-inset px-4 py-3 text-sm flex items-center gap-2 bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-secondary)]`}>
-                <AlertCircle size={15} className="flex-shrink-0" />
+                <AlertCircle size={14} className="flex-shrink-0" />
                 <span>{serverError}</span>
               </div>
             )}
@@ -338,7 +338,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                     onClick={downloadTemplate}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-light text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/10 transition-colors flex-shrink-0"
                   >
-                    <Download size={13} />
+                    <Download size={14} />
                     下载模板
                   </button>
                 </div>
@@ -348,7 +348,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                     'border-[var(--border-c-strong)] hover:border-[var(--accent)] hover:bg-[var(--hover-darken)]'
                   }`}
                 >
-                  <Upload size={22} className={mutedText} />
+                  <Upload size={24} className={mutedText} />
                   <span className={`text-sm font-light ${'text-[var(--text-primary)]'}`}>
                     {fileName ?? '点击选择 Excel 文件（.xlsx / .xls / .csv）'}
                   </span>
@@ -370,7 +370,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
 
                 {parseError && (
                   <div className={`rounded-inset px-4 py-3 text-sm flex items-center gap-2 bg-[var(--recessed-bg)] border border-[var(--border-c-default)] text-[var(--text-secondary)]`}>
-                    <AlertCircle size={15} className="flex-shrink-0" />
+                    <AlertCircle size={14} className="flex-shrink-0" />
                     <span>{parseError}</span>
                   </div>
                 )}
@@ -496,16 +496,16 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
               type="button"
               onClick={() => setStep(s => (s - 1) as Step)}
               disabled={step === 1 || busy}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${'text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}`}
+              className="bds-btn bds-btn-ghost min-w-[96px]"
             >
-              <ChevronLeft size={16} /> 上一步
+              <ChevronLeft size={14} strokeWidth={1.5} /> 上一步
             </button>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className={`px-4 py-2 rounded-full text-sm transition-colors disabled:opacity-30 ${'text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]'}`}
+                className="bds-btn bds-btn-ghost min-w-[80px]"
               >
                 关闭
               </button>
@@ -517,7 +517,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
               >
                 {busy && <Loader2 size={14} className="animate-spin" />}
                 {nextLabel}
-                {!busy && step < 3 && <ChevronRight size={16} />}
+                {!busy && step < 3 && <ChevronRight size={14} strokeWidth={1.5} />}
               </button>
             </div>
           </div>

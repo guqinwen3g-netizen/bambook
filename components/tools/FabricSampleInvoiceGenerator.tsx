@@ -19,6 +19,7 @@ import {
   Upload,
 } from 'lucide-react';
 import CustomerSearchInput from '../ui/CustomerSearchInput';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { BusinessProfile, ProductAsset, Relation } from '../../types';
 import { apiService } from '../../services/apiService';
 import {
@@ -864,8 +865,8 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mt-4 pb-4">
           {savedInvoices.length === 0 ? (
-            <section className={`${panelClass(isDarkMode)} min-h-[280px] flex flex-col items-center justify-center text-center`}>
-              <History size={32} strokeWidth={1} className="text-[var(--text-secondary)]" />
+            <section className={`${panelClass(isDarkMode)} bds-well--lg flex flex-col items-center justify-center text-center`}>
+              <History size={24} strokeWidth={1.25} className="text-[var(--text-secondary)]" />
               <h3 className={`mt-4 text-base font-light ${'text-[var(--text-primary)]'}`}>
                 暂无历史发票
               </h3>
@@ -957,11 +958,11 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                 </div>
                 <div>
                   <label className={labelClass(isDarkMode)}>Invoice Date</label>
-                  <input
-                    type="date"
+                  <CapsuleDateInput
+                    className="bds-input"
                     value={invoiceDate}
-                    onChange={e => setInvoiceDate(e.target.value)}
-                    className={fieldClass(isDarkMode)}
+                    onChange={setInvoiceDate}
+                    isDarkMode={isDarkMode}
                   />
                 </div>
                 <div className="col-span-2">
@@ -1008,7 +1009,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                     <div className="space-y-2">
                       {selectedCustomer.billingAddress && (
                         <div className="flex items-start gap-2">
-                          <MapPin size={12} className={'text-[var(--text-tertiary)] mt-0.5'} />
+                          <MapPin size={14} className={'text-[var(--text-tertiary)] mt-0.5'} />
                           <p className={`text-xs ${'text-[var(--text-secondary)]'}`}>
                             {selectedCustomer.billingAddress}
                           </p>
@@ -1047,7 +1048,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                 <select
                   value={selectedProfileId}
                   onChange={event => handleSelectProfile(event.target.value)}
-                  className={fieldClass(isDarkMode, 'text-xs')}
+                  className="bds-select"
                 >
                   {profiles.map(profile => (
                     <option key={profile.id} value={profile.id}>{profile.name}</option>
@@ -1124,7 +1125,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                 >
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-light cursor-pointer transition-colors bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`}>
-                      <Upload size={13} />
+                      <Upload size={14} />
                       上传 Logo
                       <input
                         type="file"
@@ -1134,7 +1135,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                       />
                     </label>
                     <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-light cursor-pointer transition-colors bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`}>
-                      <ImageIcon size={13} />
+                      <ImageIcon size={14} />
                       上传印章
                       <input
                         type="file"
@@ -1240,7 +1241,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                       : 'bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.08)] text-[var(--os-vnext-brand-blue)] hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.12)]'
                   }`}
                 >
-                  <Plus size={12} />
+                  <Plus size={14} />
                   添加样品
                 </button>
               </div>
@@ -1393,7 +1394,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="col-span-3 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)]/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bds-btn bds-btn-primary col-span-3 sm:col-span-1"
               >
                 {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <FileCode size={16} />}
                 生成预览
@@ -1472,7 +1473,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
                 />
               ) : (
                 <div className={`flex flex-col items-center justify-center h-full ${'text-[var(--text-tertiary)]'}`}>
-                  <FileCode size={48} strokeWidth={0.5} className="mb-4 opacity-30" />
+                  <FileCode size={24} strokeWidth={1.25} className="mb-4 opacity-30" />
                   <p className="text-sm">填写表单后点击“生成预览”</p>
                 </div>
               )}

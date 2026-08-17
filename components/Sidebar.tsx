@@ -168,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
           data-sidebar-collapsed-expand-button
           className="group relative z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--recessed-bg)] text-deep transition-[background,color,transform] duration-300 hover:scale-105 hover:bg-[var(--recessed-bg-strong)]"
         >
-          <ChevronRight size={18} strokeWidth={1.35} />
+          <ChevronRight size={18} strokeWidth={1.25} />
         </button>
 
         <div className={`z-10 flex flex-col items-center gap-6 ${blueprint.collapsedRail.actionMarginClass}`} data-sidebar-collapsed-actions>
@@ -183,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                   text-[var(--os-adaptive-primary)]`}
                 data-sidebar-adaptive-icon
               >
-                <item.icon size={20} strokeWidth={1} className="relative z-10" />
+                <item.icon size={20} strokeWidth={1.25} className="relative z-10" />
               </button>
             );
           })}
@@ -221,7 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
               data-sidebar-expanded-collapse-button
               className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full text-os-adaptive-subtitle transition-colors duration-300 hover:bg-[rgb(var(--bambook-rdl-theme-rgb)/0.08)] hover:text-os-adaptive-primary"
             >
-              <ChevronLeft size={18} strokeWidth={1.35} />
+              <ChevronLeft size={18} strokeWidth={1.25} />
             </button>
 
             {/* Nav Items */}
@@ -247,6 +247,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                     </div>
                     {section.items.map((item) => {
                       const isActive = currentView === item.id;
+                      // bds-ok: Sidebar 导航行高 54px，待总控原语化（.bds-nav-row）后迁移
                       return (
                         <button
                           key={item.id}
@@ -272,7 +273,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                           <div className="relative z-10 flex items-center gap-[15px] pointer-events-none">
                             <item.icon
                               size={20}
-                              strokeWidth={1}
+                              strokeWidth={1.25}
                               data-sidebar-nav-icon
                               className={`transition-colors duration-300 ${isActive ? SIDEBAR_ACTIVE_ICON_CLASS : SIDEBAR_IDLE_ICON_CLASS}`}
                             />
@@ -318,6 +319,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
               缓存合成层快照，动画期间磨砂失效；纯 opacity 淡入可保证磨砂全程实时采样。 */}
           <AnimatePresence>
             {accountMenuOpen && (
+              // bds-ok: 账户菜单弹层宽度 240px（=w-60 刻度），刻意设计宽度
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -328,7 +330,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                 data-glass-edge-mask
                 data-os-shadow-mode="flat"
                 data-sidebar-account-menu=""
-                className={`!absolute left-[15px] w-[240px] bottom-[99px] z-30 ${accountMenuSurfaceClass}`}
+                className={`!absolute left-[15px] w-60 bottom-[99px] z-30 ${accountMenuSurfaceClass}`}
               >
                 <div aria-hidden className={`pointer-events-none absolute inset-0 rounded-[inherit] ${accountMenuLayerClass}`} />
                   <button
@@ -337,7 +339,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                     data-sidebar-account-menu-item
                     className={`relative z-10 ${accountMenuItemClass}`}
                   >
-                    <User size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                    <User size={16} strokeWidth={1.5} className={accountMenuIconClass} />
                     <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">账号设置</span>
                   </button>
                   <button
@@ -346,7 +348,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                     data-sidebar-account-menu-item
                     className={`relative z-10 ${accountMenuItemClass}`}
                   >
-                    <Monitor size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                    <Monitor size={16} strokeWidth={1.5} className={accountMenuIconClass} />
                     <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">系统设置</span>
                   </button>
                   <button
@@ -359,9 +361,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                     className={`relative z-10 ${accountMenuItemClass}`}
                   >
                     {isDarkMode ? (
-                      <Sun size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                      <Sun size={16} strokeWidth={1.5} className={accountMenuIconClass} />
                     ) : (
-                      <Moon size={15} strokeWidth={1.4} className={accountMenuIconClass} />
+                      <Moon size={16} strokeWidth={1.5} className={accountMenuIconClass} />
                     )}
                     <span data-ui-lab-wallpaper-contrast="primary" className="text-xs font-light">{isDarkMode ? '切换浅色' : '切换深色'}</span>
                   </button>

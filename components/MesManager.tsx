@@ -947,9 +947,6 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
           {activeTab === 'pieceRateRecords' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <button onClick={() => setShowRecordForm(true)} className="bds-btn bds-btn-primary">
-                  <Plus size={14} /><span>新增计件</span>
-                </button>
                 <button onClick={() => refreshTab('pieceRateRecords')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:pieceRateRecords' ? 'animate-spin' : ''} />
                 </button>

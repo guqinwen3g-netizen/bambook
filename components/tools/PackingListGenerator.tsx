@@ -361,7 +361,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                 <select
                   value={selectedRelationId}
                   onChange={(e) => setSelectedRelationId(e.target.value)}
-                  className={fieldClass}
+                  className="bds-select"
                 >
                   <option value="">选择客户...</option>
                   {relationOptions.map(r => (
@@ -424,7 +424,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                 onClick={addLine}
                 className={`text-xs px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
               >
-                <Plus size={12} /> 添加行
+                <Plus size={14} /> 添加行
               </button>
             </div>
 
@@ -444,7 +444,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                         className={`p-1 rounded-control text-xs text-[var(--text-tertiary)] hover:text-danger`}
                         title="删除行"
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>
@@ -494,7 +494,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                     <select
                       value={line.unit}
                       onChange={(e) => updateLine(line.id, 'unit', e.target.value)}
-                      className={`${fieldClass} py-1.5 text-xs`}
+                      className="bds-select sm"
                     >
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
@@ -560,11 +560,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className={`w-full py-3 rounded-full font-light text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
-                isGenerating
-                  ? 'bg-[var(--accent)] cursor-not-allowed'
-                  : 'bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)]'
-              } text-white`}
+              className="bds-btn bds-btn-primary w-full"
             >
               {isGenerating ? (
                 <><Loader2 size={16} className="animate-spin" /><span>生成中...</span></>

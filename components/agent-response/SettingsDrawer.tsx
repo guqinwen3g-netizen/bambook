@@ -27,9 +27,9 @@ type SettingsDrawerProps = {
 };
 
 const ApprovalIcon: React.FC<{ approval: AgentToolManifestEntry['safety']['approval']; className: string }> = ({ approval, className }) => {
-  if (approval === 'always') return <ShieldX size={11} strokeWidth={1.5} className={className} />;
-  if (approval === 'risk_based') return <ShieldAlert size={11} strokeWidth={1.5} className={className} />;
-  return <ShieldCheck size={11} strokeWidth={1.5} className={className} />;
+  if (approval === 'always') return <ShieldX size={14} strokeWidth={1.5} className={className} />;
+  if (approval === 'risk_based') return <ShieldAlert size={14} strokeWidth={1.5} className={className} />;
+  return <ShieldCheck size={14} strokeWidth={1.5} className={className} />;
 };
 
 const ToolCatalogSection: React.FC<{
@@ -76,10 +76,10 @@ const ToolCatalogSection: React.FC<{
               onClick={() => setOpenDomains(prev => ({ ...prev, [group.domain]: !isOpen }))}
               className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-[var(--hover-darken)] rounded-inset`}
             >
-              <Wrench size={11} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
+              <Wrench size={14} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
               <span className={`text-[11px] font-light flex-1 text-[var(--text-primary)]`}>{meta.label}</span>
               <span className={`text-[10px] ${quietText}`}>{group.tools.length}</span>
-              <ChevronRight size={12} strokeWidth={1.5} className={`transition-transform ${isOpen ? 'rotate-90' : ''} ${quietText}`} />
+              <ChevronRight size={14} strokeWidth={1.5} className={`transition-transform ${isOpen ? 'rotate-90' : ''} ${quietText}`} />
             </button>
             {isOpen && (
               <div className={`border-t ${surfaceClass} px-1.5 py-1 space-y-0.5`}>
@@ -143,7 +143,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             {/* 头部 */}
             <div className={`shrink-0 flex items-center justify-between px-4 h-12 border-b ${surfaceClass}`}>
               <div className="flex items-center gap-2">
-                <Settings size={15} className={quietText} />
+                <Settings size={16} className={quietText} />
                 <span className={`text-[13px] font-light ${mainText}`}>设置</span>
               </div>
               <button

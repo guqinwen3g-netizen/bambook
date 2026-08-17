@@ -228,11 +228,11 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
 
       {loading ? (
         <div className={`${card} rounded-card p-8 flex items-center justify-center`}>
-          <RefreshCw size={18} strokeWidth={1.2} className={`animate-spin ${brandIcon}`} />
+          <RefreshCw size={18} strokeWidth={1.5} className={`animate-spin ${brandIcon}`} />
         </div>
       ) : items.length === 0 ? (
         <div className={`${card} rounded-card p-8 flex flex-col items-center justify-center gap-2`}>
-          <UserCheck size={24} strokeWidth={1} className="text-[var(--text-quaternary)]" />
+          <UserCheck size={24} strokeWidth={1.25} className="text-[var(--text-quaternary)]" />
           <span className={`text-xs font-light ${weakText}`}>{view === 'pending' ? '暂无待审批单' : '暂无已办审批'}</span>
         </div>
       ) : (
@@ -274,20 +274,20 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                       {/* BOSS 最终兜底特批标识 */}
                       {item.bossFinalBypassBy && (
                         <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--danger-tint)] text-[var(--danger-text)]">
-                          <ShieldAlert size={10} strokeWidth={1.5} />
+                          <ShieldAlert size={14} strokeWidth={1.5} />
                           BOSS 最终兜底特批
                         </span>
                       )}
                       {/* DR-007 路由兜底标识 */}
                       {isFallbackRoute(item.reviewerResolverRoute) && (
                         <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--accent-tint)] text-[var(--accent-text)]">
-                          <GitBranch size={10} strokeWidth={1.5} />
+                          <GitBranch size={14} strokeWidth={1.5} />
                           路由兜底 {item.reviewerResolverRoute ? RESOLVER_ROUTE_LABEL[item.reviewerResolverRoute] : ''}
                         </span>
                       )}
                       {item.delegatedBy && (
                         <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)]">
-                          <CornerUpRight size={10} strokeWidth={1.5} />
+                          <CornerUpRight size={14} strokeWidth={1.5} />
                           已委派
                         </span>
                       )}
@@ -312,17 +312,17 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                     {/* ── 路由解析轨迹（DR-007） ── */}
                     <div className="rounded-inset bg-[var(--recessed-bg)] px-3 py-2.5 space-y-1.5">
                       <div className={`flex items-center gap-1.5 text-[11px] font-light ${primaryText}`}>
-                        <GitBranch size={12} strokeWidth={1.5} className={brandIcon} />
+                        <GitBranch size={14} strokeWidth={1.5} className={brandIcon} />
                         路由解析轨迹 Resolution Trace
                       </div>
                       {trace?.loading ? (
                         <div className={`flex items-center gap-1.5 text-[11px] font-light ${weakText}`}>
-                          <RefreshCw size={10} strokeWidth={1.5} className="animate-spin" />
+                          <RefreshCw size={14} strokeWidth={1.5} className="animate-spin" />
                           轨迹加载中…
                         </div>
                       ) : trace?.error ? (
                         <div className="flex items-center gap-1.5 text-[11px] font-light text-[var(--danger-text)]">
-                          <AlertTriangle size={10} strokeWidth={1.5} />
+                          <AlertTriangle size={14} strokeWidth={1.5} />
                           {trace.error}
                           <button type="button" onClick={() => loadTrace(item.id)} className={`underline ${brandIcon}`}>重试</button>
                         </div>
@@ -330,16 +330,16 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                         <div className={`text-[11px] font-light ${weakText} space-y-1`}>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span>请求人 {trace.data.requesterId}</span>
-                            <ChevronRight size={10} strokeWidth={1.5} />
+                            <ChevronRight size={14} strokeWidth={1.5} />
                             <span>部门快照 {trace.data.departmentSnapshotId || 'DEPT_NONE'}</span>
-                            <ChevronRight size={10} strokeWidth={1.5} />
+                            <ChevronRight size={14} strokeWidth={1.5} />
                             <span>{trace.data.reviewerResolverRoute ? RESOLVER_ROUTE_LABEL[trace.data.reviewerResolverRoute] : '未记录解析路径'}</span>
-                            <ChevronRight size={10} strokeWidth={1.5} />
+                            <ChevronRight size={14} strokeWidth={1.5} />
                             <span className={primaryText}>审批人 {trace.data.reviewerId || '—'}</span>
                           </div>
                           {trace.data.delegatedBy && (
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <CornerUpRight size={10} strokeWidth={1.5} />
+                              <CornerUpRight size={14} strokeWidth={1.5} />
                               <span>
                                 委派记录：{trace.data.delegatedBy} 于 {formatTime(trace.data.delegatedAt)} 转派
                                 {trace.data.delegateReason ? `，理由：${trace.data.delegateReason}` : ''}
@@ -348,7 +348,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                           )}
                           {trace.data.bossFinalBypassBy && (
                             <div className="flex items-center gap-1.5 flex-wrap text-[var(--danger-text)]">
-                              <ShieldAlert size={10} strokeWidth={1.5} />
+                              <ShieldAlert size={14} strokeWidth={1.5} />
                               <span>
                                 BOSS 最终兜底特批：{trace.data.bossFinalBypassBy} 于 {formatTime(trace.data.bossFinalBypassAt)}
                               </span>
@@ -356,7 +356,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                           )}
                           {trace.data.clientReviewerIdSupplied && (
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <AlertTriangle size={10} strokeWidth={1.5} />
+                              <AlertTriangle size={14} strokeWidth={1.5} />
                               <span>前端曾传入 reviewerId（已忽略，仅审计标记；服务端 DR-007 解析为唯一真源）</span>
                             </div>
                           )}
@@ -385,7 +385,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                             onClick={() => handleDecide(item.id, 'approved')}
                             className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
-                            <CheckCircle size={12} strokeWidth={1.5} className="inline mr-1" />
+                            <CheckCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                             通过
                           </button>
                           <button
@@ -394,7 +394,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                             onClick={() => handleDecide(item.id, 'rejected')}
                             className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === item.id ? 'opacity-50 cursor-wait' : ''}`}
                           >
-                            <XCircle size={12} strokeWidth={1.5} className="inline mr-1" />
+                            <XCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                             驳回
                           </button>
                         </div>
@@ -405,7 +405,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                             {delegateFor === item.id ? (
                               <>
                                 <div className={`flex items-center gap-1.5 text-[11px] font-light ${primaryText}`}>
-                                  <CornerUpRight size={12} strokeWidth={1.5} className={brandIcon} />
+                                  <CornerUpRight size={14} strokeWidth={1.5} className={brandIcon} />
                                   委派给他人 Delegate
                                 </div>
                                 <UserCombobox
@@ -447,7 +447,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                                 onClick={() => setDelegateFor(item.id)}
                                 className={`flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-light ${brandIcon} hover:bg-[var(--active-darken)] transition-colors`}
                               >
-                                <CornerUpRight size={12} strokeWidth={1.5} />
+                                <CornerUpRight size={14} strokeWidth={1.5} />
                                 委派 Delegate
                               </button>
                             )}
@@ -460,7 +460,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                             {bossFor === item.id ? (
                               <>
                                 <div className="flex items-center gap-1.5 text-[11px] font-light text-[var(--danger-text)]">
-                                  <ShieldAlert size={12} strokeWidth={1.5} />
+                                  <ShieldAlert size={14} strokeWidth={1.5} />
                                   BOSS 最终兜底特批 Final Bypass（绝密级审计）
                                 </div>
                                 <input
@@ -494,7 +494,7 @@ function ApprovalsSection({ skin }: { skin: Skin }) {
                                 onClick={() => setBossFor(item.id)}
                                 className="flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-light text-[var(--danger-text)] hover:bg-[var(--danger-tint)] transition-colors"
                               >
-                                <ShieldAlert size={12} strokeWidth={1.5} />
+                                <ShieldAlert size={14} strokeWidth={1.5} />
                                 BOSS 兜底特批
                               </button>
                             )}
@@ -726,7 +726,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
           onClick={() => { setShowForm(prev => !prev); setEntryBanner(null); }}
           className={`ml-auto flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-light ${brandIcon} hover:bg-[var(--active-darken)] transition-colors`}
         >
-          <PlusCircle size={12} strokeWidth={1.5} />
+          <PlusCircle size={14} strokeWidth={1.5} />
           发起例外申请
         </button>
       </div>
@@ -763,7 +763,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
               <select
                 value={form.exceptionCategory}
                 onChange={e => setField('exceptionCategory', e.target.value as ExceptionCategory)}
-                className={inputCls}
+                className="bds-select sm"
               >
                 {EXCEPTION_CATEGORIES.map(c => (
                   <option key={c} value={c}>{EXCEPTION_CATEGORY_LABEL[c]}（{c}）</option>
@@ -839,7 +839,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
           <div className={`rounded-inset bg-[var(--recessed-bg)] px-3 py-2.5 space-y-1.5`}>
             <div className={`flex items-center justify-between gap-2`}>
               <span className={`flex items-center gap-1.5 text-[11px] font-light ${primaryText}`}>
-                <Search size={11} strokeWidth={1.5} className={brandIcon} />
+                <Search size={14} strokeWidth={1.5} className={brandIcon} />
                 门禁查询 Gate Check（按当前对象 / 动作精确匹配）
               </span>
               <button
@@ -895,11 +895,11 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
       {/* ── 例外列表 ── */}
       {loading ? (
         <div className={`${card} rounded-card p-8 flex items-center justify-center`}>
-          <RefreshCw size={18} strokeWidth={1.2} className={`animate-spin ${brandIcon}`} />
+          <RefreshCw size={18} strokeWidth={1.5} className={`animate-spin ${brandIcon}`} />
         </div>
       ) : items.length === 0 ? (
         <div className={`${card} rounded-card p-8 flex flex-col items-center justify-center gap-2`}>
-          <FileWarning size={24} strokeWidth={1} className="text-[var(--text-quaternary)]" />
+          <FileWarning size={24} strokeWidth={1.25} className="text-[var(--text-quaternary)]" />
           <span className={`text-xs font-light ${weakText}`}>暂无例外申请</span>
         </div>
       ) : (
@@ -935,7 +935,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
                       </span>
                       {isBossBypassed && (
                         <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--danger-tint)] text-[var(--danger-text)]">
-                          <ShieldAlert size={10} strokeWidth={1.5} />
+                          <ShieldAlert size={14} strokeWidth={1.5} />
                           BOSS 最终兜底特批
                         </span>
                       )}
@@ -1038,7 +1038,7 @@ function ExceptionsSection({ skin, entryPrefill, onConsumePrefill }: {
                               onClick={() => setBossFor(exc.id)}
                               className="flex items-center gap-1 rounded-control px-3 py-1.5 text-xs font-light text-[var(--danger-text)] hover:bg-[var(--danger-tint)] transition-colors"
                             >
-                              <ShieldAlert size={12} strokeWidth={1.5} />
+                              <ShieldAlert size={14} strokeWidth={1.5} />
                               BOSS 兜底特批
                             </button>
                           )
@@ -1158,7 +1158,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
           onClick={() => setRefreshTick(t => t + 1)}
           className={`flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-light ${brandIcon} hover:bg-[var(--active-darken)] transition-colors`}
         >
-          <RefreshCw size={12} strokeWidth={1.5} />
+          <RefreshCw size={14} strokeWidth={1.5} />
           刷新
         </button>
       </div>
@@ -1220,11 +1220,11 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
           {/* ── 实例列表 ── */}
           {loading ? (
             <div className={`${card} rounded-card p-8 flex items-center justify-center`}>
-              <RefreshCw size={18} strokeWidth={1.2} className={`animate-spin ${brandIcon}`} />
+              <RefreshCw size={18} strokeWidth={1.5} className={`animate-spin ${brandIcon}`} />
             </div>
           ) : instances.length === 0 ? (
             <div className={`${card} rounded-card p-8 flex flex-col items-center justify-center gap-2`}>
-              <Workflow size={24} strokeWidth={1} className="text-[var(--text-quaternary)]" />
+              <Workflow size={24} strokeWidth={1.25} className="text-[var(--text-quaternary)]" />
               <span className={`text-xs font-light ${weakText}`}>暂无工作流实例</span>
             </div>
           ) : (
@@ -1308,7 +1308,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                                   )}
                                   {step.deciderName && (
                                     <div className={`mt-0.5 text-[10px] font-light ${weakText}`}>
-                                      <User size={9} strokeWidth={1.5} className="inline mr-1" />
+                                      <User size={14} strokeWidth={1.5} className="inline mr-1" />
                                       {step.deciderName} · {formatTime(step.decidedAt)}
                                     </div>
                                   )}
@@ -1335,7 +1335,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                                 onClick={() => handleAction(instance.id, 'approve')}
                                 className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--success-tint)] text-[var(--success-text)] hover:bg-[var(--success-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
                               >
-                                <CheckCircle size={12} strokeWidth={1.5} className="inline mr-1" />
+                                <CheckCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                                 通过
                               </button>
                               <button
@@ -1344,7 +1344,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
                                 onClick={() => handleAction(instance.id, 'reject')}
                                 className={`flex-1 rounded-control py-2 text-xs font-light transition-all bg-[var(--danger-tint)] text-[var(--danger-text)] hover:bg-[var(--danger-tint-hover)] ${actionLoading === instance.id ? 'opacity-50 cursor-wait' : ''}`}
                               >
-                                <XCircle size={12} strokeWidth={1.5} className="inline mr-1" />
+                                <XCircle size={14} strokeWidth={1.5} className="inline mr-1" />
                                 驳回
                               </button>
                             </div>
@@ -1353,7 +1353,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
 
                         {instance.initiatorName && (
                           <div className={`flex items-center gap-1.5 text-[10px] font-light ${weakText}`}>
-                            <User size={10} strokeWidth={1.5} />
+                            <User size={14} strokeWidth={1.5} />
                             发起人：{instance.initiatorName}
                           </div>
                         )}

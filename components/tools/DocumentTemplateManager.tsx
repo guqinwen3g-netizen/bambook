@@ -188,7 +188,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
           {items === null ? (
             <div className="flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)] px-2 py-3">
-              <Loader2 size={13} className="animate-spin" /> 加载模板...
+              <Loader2 size={14} className="animate-spin" /> 加载模板...
             </div>
           ) : items.length === 0 ? (
             <div className={`text-xs font-light px-2 py-3 text-[var(--text-tertiary)]`}>
@@ -204,9 +204,9 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                 onClick={() => openEdit(tpl)}
               >
                 <div className="flex items-center gap-1.5">
-                  <FileText size={12} className="text-[var(--text-tertiary)]" />
+                  <FileText size={14} className="text-[var(--text-tertiary)]" />
                   <span className={`text-xs font-light truncate text-[var(--text-primary)]`}>{tpl.name}</span>
-                  {tpl.isDefault && <Star size={10} className="shrink-0 text-[var(--warning-text)]" />}
+                  {tpl.isDefault && <Star size={14} className="shrink-0 text-[var(--warning-text)]" />}
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); handleDelete(tpl.id); }}
@@ -214,7 +214,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                     className={`ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-danger`}
                     title="删除模板"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 <div className={`text-[10px] mt-0.5 text-[var(--text-tertiary)]`}>
@@ -237,7 +237,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
         )}
         {draft === null ? (
           <div className={`flex-1 flex flex-col items-center justify-center gap-2 text-[var(--text-tertiary)]`}>
-            <FileText size={28} strokeWidth={1} />
+            <FileText size={24} strokeWidth={1.25} />
             <p className="text-xs font-light">选择左侧模板进行编辑，或点击「新建」创建模板</p>
             <p className="text-[11px] font-light">内容支持 {'{{variable}}'} 占位符，保存时服务端自动解析变量清单</p>
           </div>

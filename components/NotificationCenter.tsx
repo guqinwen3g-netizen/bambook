@@ -158,7 +158,7 @@ export function NotificationCenterTrigger({
       {hasUnread && (
         /* 未读徽章：默认品牌 accent 蓝（与状态步骤条当前态同配方）；critical 升级为 RDL danger 实心灰阶 */
         <span
-          className={`absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-light leading-none
+          className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-light leading-none
             ${criticalCount > 0
               ? `${statusSemanticBg('danger', isDarkMode)} text-[var(--text-primary)] ring-2 ring-[var(--border-c-strong)]`
               : `bg-[var(--os-vnext-brand-blue)] text-[var(--text-primary)]`}
@@ -541,6 +541,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
           />
 
           {/* 抽屉主体（跟随主题：dark=深膜 / light=亮膜，hairline 左边线分隔页面） */}
+          {/* bds-ok: 通知抽屉面板宽度 420px，功能性固定面板宽，无刻度对应 */}
           <div
             ref={drawerRef}
             className={`fixed right-0 top-0 z-[90] flex h-full w-[420px] flex-col overflow-hidden rounded-l-panel border-l backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
@@ -561,7 +562,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                     className={`mr-1 flex h-7 w-7 items-center justify-center self-center rounded-full transition-colors ${ui.iconBtn}`}
                     aria-label="返回通知列表"
                   >
-                    <ArrowLeft size={15} strokeWidth={1.5} />
+                    <ArrowLeft size={16} strokeWidth={1.5} />
                   </button>
                 )}
                 {view === 'prefs' ? (
@@ -599,7 +600,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                     className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-light transition-colors ${ui.textBtn}`}
                     title="全部标记已读"
                   >
-                    <CheckCheck size={14} strokeWidth={1.4} />
+                    <CheckCheck size={14} strokeWidth={1.5} />
                     全部已读
                   </button>
                 )}
@@ -637,7 +638,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                   </div>
                 ) : !catalog || catalog.length === 0 ? (
                   <div className="flex h-40 flex-col items-center justify-center gap-3">
-                    <Bell size={24} strokeWidth={1} className={ui.iconEmpty} />
+                    <Bell size={24} strokeWidth={1.25} className={ui.iconEmpty} />
                     <div className={`text-sm font-light ${ui.faint}`}>暂无通知类型</div>
                   </div>
                 ) : (
@@ -650,7 +651,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                           className={`flex items-center gap-3 rounded-control px-4 py-3 transition-colors duration-200 ${ui.rowHover}`}
                         >
                           <div className={`shrink-0 ${entry.isEnabled ? 'text-[var(--text-secondary)]' : (dk ? 'text-[var(--text-quaternary)]' : 'text-[var(--text-tertiary)]')}`}>
-                            <Icon size={17} strokeWidth={1.3} />
+                            <Icon size={18} strokeWidth={1.25} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className={`text-sm ${entry.isEnabled ? `font-light ${ui.primary}` : `font-light ${ui.faint}`}`}>
@@ -706,12 +707,12 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                   </div>
                 ) : approvalsError && !approvals ? (
                   <div className="flex h-40 flex-col items-center justify-center gap-3">
-                    <Stamp size={24} strokeWidth={1} className={ui.iconEmpty} />
+                    <Stamp size={24} strokeWidth={1.25} className={ui.iconEmpty} />
                     <div className={`text-sm font-light ${ui.faint}`}>{approvalsError}</div>
                   </div>
                 ) : !approvals || approvals.length === 0 ? (
                   <div className="flex h-40 flex-col items-center justify-center gap-3">
-                    <Stamp size={24} strokeWidth={1} className={ui.iconEmpty} />
+                    <Stamp size={24} strokeWidth={1.25} className={ui.iconEmpty} />
                     <div className={`text-sm font-light ${ui.faint}`}>{approvalView === 'pending' ? '暂无待办审批' : '暂无已办记录'}</div>
                   </div>
                 ) : (
@@ -789,7 +790,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                                       onClick={() => handleDecideApproval(item, 'rejected')}
                                       className={`flex items-center gap-1.5 rounded-control border px-3 py-1.5 text-xs font-light transition-colors ${ui.semanticBtnHover} disabled:opacity-40 ${statusSemanticClass('danger', dk)}`}
                                     >
-                                      {deciding ? <Loader2 size={12} className="animate-spin" /> : <AlertCircle size={12} strokeWidth={1.5} />}
+                                      {deciding ? <Loader2 size={14} className="animate-spin" /> : <AlertCircle size={14} strokeWidth={1.5} />}
                                       确认驳回
                                     </button>
                                     <button
@@ -810,7 +811,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                                     onClick={() => handleDecideApproval(item, 'approved')}
                                     className={`flex items-center gap-1.5 rounded-control border px-3 py-1.5 text-xs font-light transition-colors ${ui.semanticBtnHover} disabled:opacity-40 ${statusSemanticClass('success', dk)}`}
                                   >
-                                    {deciding ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={1.5} />}
+                                    {deciding ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={1.5} />}
                                     通过
                                   </button>
                                   <button
@@ -819,7 +820,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                                     onClick={() => { setRejectingId(item.id); setRejectNote(''); }}
                                     className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-light transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`}
                                   >
-                                    <X size={12} strokeWidth={1.5} />
+                                    <X size={14} strokeWidth={1.5} />
                                     驳回
                                   </button>
                                 </div>
@@ -843,7 +844,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                 </div>
               ) : error ? (
                 <div className="flex h-40 flex-col items-center justify-center gap-2">
-                  <AlertTriangle size={20} strokeWidth={1.2} className={statusSemanticText('danger', dk)} />
+                  <AlertTriangle size={20} strokeWidth={1.25} className={statusSemanticText('danger', dk)} />
                   <div className={`text-sm font-light ${ui.muted}`}>{error}</div>
                   <button
                     type="button"
@@ -855,7 +856,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                 </div>
               ) : items.length === 0 ? (
                 <div className="flex h-40 flex-col items-center justify-center gap-3">
-                  <Bell size={24} strokeWidth={1} className={ui.iconEmpty} />
+                  <Bell size={24} strokeWidth={1.25} className={ui.iconEmpty} />
                   <div className={`text-sm font-light ${ui.faint}`}>暂无通知</div>
                 </div>
               ) : (
@@ -883,7 +884,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
 
                         {/* 类型图标 */}
                         <div className={`mt-0.5 shrink-0 ${isUnread ? levelColor : ui.ghost}`}>
-                          <Icon size={18} strokeWidth={1.3} />
+                          <Icon size={18} strokeWidth={1.25} />
                         </div>
 
                         {/* 内容 */}
@@ -951,7 +952,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                               className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:text-link ${ui.iconBtnRow}`}
                               title="转为跟进任务"
                             >
-                              <UserPlus size={13} strokeWidth={1.5} />
+                              <UserPlus size={14} strokeWidth={1.5} />
                             </button>
                           )}
                           {isUnread && (
@@ -964,7 +965,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                               className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} hover:text-[var(--text-primary)]`}
                               title="标记已读"
                             >
-                              <Check size={13} strokeWidth={1.5} />
+                              <Check size={14} strokeWidth={1.5} />
                             </button>
                           )}
                           {/* PRD 7.1 忽略（需填原因） */}
@@ -979,7 +980,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                             className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} hover:text-[var(--text-secondary)]`}
                             title="忽略（需填原因）"
                           >
-                            <BellOff size={13} strokeWidth={1.5} />
+                            <BellOff size={14} strokeWidth={1.5} />
                           </button>
                           <button
                             type="button"
@@ -990,7 +991,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                             className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${ui.iconBtnRow} ${dk ? 'hover:text-[var(--text-secondary)]' : 'hover:text-[var(--text-primary)]'}`}
                             title="删除"
                           >
-                            <Trash2 size={13} strokeWidth={1.5} />
+                            <Trash2 size={14} strokeWidth={1.5} />
                           </button>
                         </div>
                       </div>

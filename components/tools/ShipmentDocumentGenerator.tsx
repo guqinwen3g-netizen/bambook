@@ -143,7 +143,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
           <Ship size={14} className="text-[var(--os-vnext-brand-blue)]" />
           <h3 className={`text-xs font-light uppercase tracking-wider ${textSecondary}`}>选择运单 Select Shipment</h3>
           <button onClick={fetchShipments} className={`ml-auto p-1 rounded-control transition-colors ${textSecondary} ${hoverRow}`} title="刷新">
-            <RefreshCw size={13} className={loadingList ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loadingList ? 'animate-spin' : ''} />
           </button>
         </div>
 
@@ -183,7 +183,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
                   </div>
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-light flex-shrink-0 bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>{s.status}</span>
-                <ChevronRight size={13} className={textSecondary} />
+                <ChevronRight size={14} className={textSecondary} />
               </button>
             ))
           )}
@@ -212,7 +212,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
             {docSet.missing.length > 0 && (
               <div className={`p-3 rounded-card border bg-[var(--warning-tint)] border-warning/30 text-[var(--warning-text)]`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <AlertCircle size={13} />
+                  <AlertCircle size={14} />
                   <span className="text-xs">数据完整度提示（仍可生成，缺失字段显示为 —）</span>
                 </div>
                 <ul className="text-[11px] font-light ml-5 list-disc space-y-0.5">
@@ -265,7 +265,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
               <button
                 onClick={handleGenerate}
                 disabled={selectedCount === 0 || generating}
-                className={`mt-4 h-9 px-5 rounded-control text-xs font-light inline-flex items-center gap-2 transition-colors disabled:opacity-40 bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/90 text-white`}
+                className="bds-btn bds-btn-primary mt-4"
               >
                 {generating ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
                 <span>生成并打印（{selectedCount} 份）</span>

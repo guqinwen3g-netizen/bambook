@@ -267,7 +267,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         onClick={() => execute(item)}
         className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isActive ? activeClass : ''}`}
       >
-        <span className={`shrink-0 ${idleTextClass}`}><Icon size={15} strokeWidth={1.5} /></span>
+        <span className={`shrink-0 ${idleTextClass}`}><Icon size={16} strokeWidth={1.5} /></span>
         <span className="flex-1 min-w-0">
           <span className={`block truncate text-[13px] font-light ${titleTextClass}`}>
             {item.kind === 'view' ? item.label : item.title}
@@ -280,7 +280,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           <span className={`shrink-0 text-[10px] font-light uppercase tracking-wider ${idleTextClass}`}>前往</span>
         )}
         {isActive && (
-          <span className={`shrink-0 ${idleTextClass}`}><CornerDownLeft size={13} strokeWidth={1.5} /></span>
+          <span className={`shrink-0 ${idleTextClass}`}><CornerDownLeft size={14} strokeWidth={1.5} /></span>
         )}
       </button>
     );
@@ -300,7 +300,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       >
         {/* 搜索输入 */}
         <div className={`flex items-center gap-3 px-5 py-4 border-b border-[var(--border-c-subtle)]`}>
-          <Search size={17} strokeWidth={1.5} className={idleTextClass} />
+          <Search size={18} strokeWidth={1.5} className={idleTextClass} />
           <input
             ref={inputRef}
             value={query}
@@ -342,9 +342,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* 底部快捷键提示 */}
         <div className={`flex items-center gap-4 px-5 py-2.5 border-t text-[10px] font-light border-[var(--border-c-subtle)] text-[var(--text-tertiary)]`}>
           <span className="flex items-center gap-1">↑↓ 导航</span>
-          <span className="flex items-center gap-1"><CornerDownLeft size={10} strokeWidth={1.5} /> 打开</span>
+          <span className="flex items-center gap-1"><CornerDownLeft size={14} strokeWidth={1.5} /> 打开</span>
           <span className="flex-1" />
-          <span className="flex items-center gap-1"><ArrowRight size={10} strokeWidth={1.5} /> 订单记录直达详情</span>
+          <span className="flex items-center gap-1"><ArrowRight size={14} strokeWidth={1.5} /> 订单记录直达详情</span>
         </div>
       </RdlSurface>
     </div>

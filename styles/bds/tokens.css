@@ -440,13 +440,16 @@
    accent 提亮为雾蓝，atmosphere 转为深夜雾池。
    ═══════════════════════════════════════════════════════════════════ */
 .dark, [data-theme="dark"] {
-  /* 表面 — 深夜雾蓝黑体系（比中性黑多一丝雾青） */
+  /* 表面 — 深夜雾蓝黑体系（比中性黑多一丝雾青）
+     阶梯纪律（2026-08-18 用户裁决 — 深浅模式"底座浅→内嵌深→选中浮"同心不反转）：
+     明度序须与浅色一致 raised > card > glass > page > panel > sunken。
+     曾将 card(#151E23)/panel(#1C272D) 反序，致内嵌面板反比底座浅，已对调。 */
   --bg-page: #0E1519;
   --bg-page-rgb: 14 21 25;
-  --bg-card: #151E23;
-  --bg-card-rgb: 21 30 35;
-  --bg-panel: #1C272D;
-  --bg-panel-rgb: 28 39 45;
+  --bg-card: #1C272D;
+  --bg-card-rgb: 28 39 45;
+  --bg-panel: #0C1216;
+  --bg-panel-rgb: 12 18 22;
   --bg-sunken: #0A1013;
   --bg-sunken-rgb: 10 16 19;
   --bg-raised: #24323A;
@@ -576,10 +579,12 @@
   /* 状态层翻转（色相同样匹配深夜雾蓝黑底：带冷青倾向的白雾洗，非纯白中性） */
   --hover-darken: rgba(214,230,238,0.06);
   --active-darken: rgba(214,230,238,0.10);
-  /* 凹槽填充（暗色）— 白雾洗蚀刻，与深色玻璃同源 */
-  --recessed-bg: rgba(255,255,255,0.07);
-  --recessed-bg-hover: rgba(255,255,255,0.10);
-  --recessed-bg-strong: rgba(255,255,255,0.14);
+  /* 凹槽填充（暗色）— 冷雾黑墨洗（与雾蓝黑表面同源，R≈G<B 保冷色温）。
+     曾用白雾洗蚀刻，会把玻璃底座上的内嵌控件（filterbar 内 input/segment 轨道等）
+     洗浅成"白框"，违背"底座浅→内嵌深"阶梯；改为深墨洗让内嵌整体下沉。 */
+  --recessed-bg: rgba(6,10,13,0.32);
+  --recessed-bg-hover: rgba(6,10,13,0.38);
+  --recessed-bg-strong: rgba(6,10,13,0.46);
 
   /* 反色按钮翻转 */
   --invert-bg: #F2F5F4;

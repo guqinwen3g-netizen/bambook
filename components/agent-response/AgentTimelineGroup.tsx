@@ -36,10 +36,10 @@ const isRunning = (s: AgentToolLifecycleBlockModel['lifecycleStatus']) =>
 const ToolStatusIcon: React.FC<{ status: AgentToolLifecycleBlockModel['lifecycleStatus']; isDarkMode?: boolean }> = ({ status, isDarkMode }) => {
   const cls = 'shrink-0';
   // 终态图标用 key 触发 fade-in，避免从 spinner 硬切到对勾的视觉跳变
-  if (status === 'succeeded') return <CheckCircle2 key="ok" size={13} className={`${cls} agent-fade-in ${statusIconClass(status, isDarkMode)}`} />;
-  if (status === 'failed') return <XCircle key="fail" size={13} className={`${cls} agent-fade-in ${statusIconClass(status, isDarkMode)}`} />;
-  if (status === 'blocked') return <ShieldAlert key="blk" size={13} className={`${cls} agent-fade-in ${statusIconClass(status, isDarkMode)}`} />;
-  return <CircleDashed key="run" size={13} className={`${cls} animate-spin ${statusIconClass(status, isDarkMode)}`} />;
+  if (status === 'succeeded') return <CheckCircle2 key="ok" size={14} className={`${cls} agent-fade-in ${statusIconClass(status, isDarkMode)}`} />;
+  if (status === 'failed') return <XCircle key="fail" size={14} className={`${cls} agent-fade-in ${statusIconClass(status, isDarkMode)}`} />;
+  if (status === 'blocked') return <ShieldAlert key="blk" size={14} className={`${cls} agent-fade-in ${statusIconClass(status, isDarkMode)}`} />;
+  return <CircleDashed key="run" size={14} className={`${cls} animate-spin ${statusIconClass(status, isDarkMode)}`} />;
 };
 
 const RiskPill: React.FC<{ risk?: AgentToolLifecycleBlockModel['risk']; isDarkMode?: boolean }> = ({ risk, isDarkMode }) => {
@@ -110,7 +110,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
   return (
     <li onMouseEnter={onEnter} onMouseLeave={onLeave} className={`group relative flex items-start gap-2 px-3 py-1.5 ${hoverBg}`}>
       <span className="relative z-10 mt-[3px] flex h-[14px] w-[14px] items-center justify-center">
-        <FileText size={12} className={`shrink-0 ${quietTextClass}`} />
+        <FileText size={14} className={`shrink-0 ${quietTextClass}`} />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export const AgentTimelineGroup: React.FC<AgentTimelineGroupProps> = ({ entries,
         aria-expanded={effectiveOpen}
       >
         <ChevronRight size={14} className={`shrink-0 transition-transform duration-200 ${effectiveOpen ? 'rotate-90' : ''} ${quietTextClass}`} />
-        <Wrench size={12} className={`shrink-0 ${quietTextClass}`} />
+        <Wrench size={14} className={`shrink-0 ${quietTextClass}`} />
         <span className={`text-[12px] font-light text-[var(--text-primary)]`}>{headerLabel}</span>
         {isStreaming && (
           <span className="ml-auto flex items-center gap-1">

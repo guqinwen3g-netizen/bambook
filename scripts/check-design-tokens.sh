@@ -97,7 +97,7 @@ BASELINE_FILTERBAR_H=3        # M3: bds-filterbar 行手写非 h-10 高度覆盖
                               # 现存 FinanceManager:1935 / finance/FinanceCreditPanel:367 /
                               # finance/FinancePaymentRequestsPanel:422，均 h-auto min-h-11 撑高违例；
                               # 总控校准：filterbar 内禁任何手写 h- 覆盖，仅 h-10 白名单）
-BASELINE_NATIVE_CONTROLS=264  # M4: 原生 <select（无 bds-select 类）168 + type="date" 96 = 264
+BASELINE_NATIVE_CONTROLS=261  # M4: 原生 <select（无 bds-select 类）168 + type="date" 93 = 261
                               # 2026-08-17 W4 原生浮层收编 266→264：CapsuleDateInput 内部隐藏原生 date
                               # 拾取器移除（改 BDS 自绘月历浮层）+ 同文件旧注释字面量随重写消除；
                               # OrderManager 状态筛选原生 select（bds-select 类，本就不计 M4）→
@@ -387,18 +387,70 @@ fi
 errors=$((errors + pg_errors))
 echo ""
 
+# ── 14. L1-L8 布局构建语言守卫（Phase 1 建仓 2026-08-18，只减不增）──
+# 依据 docs/design/06-组件规格/布局构建语言.md §1-8。
+# 作用域 PG_SCAN_PATHS（components/）；基线 = Phase 1 建仓实测值（排除 test/豁免集），Phase 2 逐页收编只减不增。
+echo "▸ 检查 L1-L8 布局原语守卫（间距刻度 L2 / 容器尺寸 L3 / 表格行高 L5 / icon 尺寸 L6 / 错误态 L7 / 暖色 hover L8）..."
+layout_errors=0
+layout_guard() {
+  local name="$1" baseline="$2" current="$3" hint="$4"
+  if [ "$current" -gt "$baseline" ]; then
+    echo "  ❌ ${name} 增加（基线 ${baseline} → 当前 ${current}）"
+    echo "     ${hint}"
+    layout_errors=$((layout_errors + 1))
+  elif [ "$current" -lt "$baseline" ]; then
+    echo "  ✅ ${name} 减少（基线 ${baseline} → 当前 ${current}）— 恭喜！请更新基线。"
+  else
+    echo "  ✅ ${name} 维持基线（${current} 处）"
+  fi
+}
+
+# L2 间距刻度：非刻度数值（p-9/p-11 等）与任意值（px-[15px]/gap-[7px] 等）
+# p-0/m-0/gap-0 为去边距 reset 语义豁免；刻度值 = 4/8/12/16/20/24/28/32/40/48/64（--space-1/2/3/4/5/6/7/8/10/12/16）
+l2_a=$(rg -o -P '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-(?!0\b|1\b|2\b|3\b|4\b|5\b|6\b|7\b|8\b|10\b|12\b|16\b)[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l2_b=$(rg -o -P '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l2_count=$((l2_a + l2_b))
+layout_guard "L2 间距刻度越界" 0 "$l2_count" "间距只取刻度 4/8/12/16/20/24/28/32/40/48/64（--space-*），禁 p-9/p-11/px-[15px]"
+
+# L3 容器与长宽比：硬编码 h/min-h/w/min-w px 尺寸 → bds-well/bds-thumb/尺寸族
+# 豁免：模态 max-h-[85vh/88vh]、Agent 滚动区 max-h-[Npx]、图片预览 max-h-[90vh]（均为 max-h，本正则不含）
+l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+layout_guard "L3 硬编码尺寸" 204 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
+
+# L5 表格密度：行高 40-99px 硬编码 → .bds-table 密度修饰符（compact 40 / standard 48 / cozy 56）
+l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+layout_guard "L5 表格行高硬编码" 8 "$l5_count" "行高走 .bds-table 密度修饰符，禁行内 h-[Npx]"
+
+# L6 icon 尺寸体系：size 非刻度（∉{14,16,18,20,24}）+ strokeWidth 自由数值（∉ --icon-w-* 档）
+l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9]+' | rg -v '^(14|16|18|20|24)$' | wc -l | tr -d ' ')
+l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
+layout_guard "L6 icon size 非刻度" 539 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
+layout_guard "L6 icon strokeWidth 自由数值" 203 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
+
+# L7 错误态：raw 错误色 → .bds-error-banner（--danger-tint/--danger-text）
+l7_count=$(rg -o 'text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+layout_guard "L7 raw 错误色" 0 "$l7_count" "错误横幅统一 .bds-error-banner，字段级走 .bds-formfield.error"
+
+# L8 视觉反馈：暖色 hover → 统一 --hover-darken
+l8_count=$(rg -o 'hover:(bg|text|border)-(amber|orange|yellow)' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+layout_guard "L8 暖色 hover" 0 "$l8_count" "hover 统一 --hover-darken，禁 amber/orange/yellow 暖色"
+
+errors=$((errors + layout_errors))
+echo ""
+
 # ── 总结 ──
 echo "═══ 总结 ═══"
 if [ "$errors" -gt 0 ]; then
-  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex/裸刻度/过重字重/raw语义色/自造遮罩/裸rounded/手写主按钮/页面规格化 M1-M5）"
+  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex/裸刻度/过重字重/raw语义色/自造遮罩/裸rounded/手写主按钮/页面规格化 M1-M5/L1-L8 布局守卫）"
   echo "   基线：rounded=$BASELINE_ROUNDED, hex_tailwind=$BASELINE_HEX_TAILWIND, bare_radius=$BASELINE_BARE_RADIUS, font_weight=$BASELINE_FONT_WEIGHT, raw_semantic=$BASELINE_RAW_SEMANTIC, raw_mask=$BASELINE_RAW_MASK, bare_rounded=$BASELINE_BARE_ROUNDED, handwritten_btn=$BASELINE_HANDWRITTEN_BTN"
   echo "   W-PG：pagehead_missing=$BASELINE_PAGEHEAD_MISSING, bds_btn_sm=$BASELINE_BDS_BTN_SM, filterbar_h=$BASELINE_FILTERBAR_H, native_controls=$BASELINE_NATIVE_CONTROLS, bds_btn_dark=$BASELINE_BDS_BTN_DARK"
   echo "   如需更新基线，请编辑 scripts/check-design-tokens.sh 并在 commit 中说明"
   exit 1
 else
-  echo "✅ 设计 token 防回退检查通过（基线模式 · BDS v2.2 + 高分收编 W0 + W-PG 页面规格化 M1-M5）"
+  echo "✅ 设计 token 防回退检查通过（基线模式 · BDS v2.2 + 高分收编 W0 + W-PG 页面规格化 M1-M5 + L1-L8 布局守卫）"
   echo "   当前：rounded=$rounded_count, hex_tailwind=$hex_tailwind_count, hex_inline=$hex_inline_count, bare_radius=$bare_radius_count, font_weight=$font_weight_count"
   echo "   收编：raw_semantic=$raw_semantic_count, raw_mask=$raw_mask_count, bare_rounded=$bare_rounded_count, handwritten_btn=$handwritten_btn_count, text_white=$text_white_count"
   echo "   W-PG：pagehead_missing=$pg_missing_pagehead, bds_btn_sm=$pg_btn_sm, filterbar_h=$pg_filterbar_h, native_controls=$pg_native_total, bds_btn_dark=$pg_btn_dark"
+  echo "   L1-L8：spacing=$l2_count, hardcoded_size=$l3_count, row_h=$l5_count, icon_size=$l6_size, stroke_width=$l6_stroke, err_color=$l7_count, warm_hover=$l8_count"
   exit 0
 fi

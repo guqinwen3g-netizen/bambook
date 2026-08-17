@@ -165,7 +165,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
               aria-label="关闭"
             >
-              <X size={17} strokeWidth={1.5} />
+              <X size={16} strokeWidth={1.5} />
             </button>
           </div>
 
@@ -173,11 +173,11 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
           <div
             className={`flex items-center gap-3 px-6 py-3 border-b border-[var(--border-c-default)] bg-[var(--recessed-bg)]/50`}
           >
-            <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={12} />} isDarkMode={isDarkMode} />
+            <StepDot n={1} label="选择文件" active={step >= 1} current={step === 1} icon={<Upload size={14} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 2} />
-            <StepDot n={2} label="预览 / 修正" active={step >= 2} current={step === 2} icon={<ScanLine size={12} />} isDarkMode={isDarkMode} />
+            <StepDot n={2} label="预览 / 修正" active={step >= 2} current={step === 2} icon={<ScanLine size={14} />} isDarkMode={isDarkMode} />
             <Connector active={step >= 3} />
-            <StepDot n={3} label="确认" active={step >= 3} current={step === 3} icon={<ShieldCheck size={12} />} isDarkMode={isDarkMode} />
+            <StepDot n={3} label="确认" active={step >= 3} current={step === 3} icon={<ShieldCheck size={14} />} isDarkMode={isDarkMode} />
           </div>
 
           {/* Body */}
@@ -214,7 +214,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               type="button"
               onClick={goBack}
               disabled={step === 1 || isParsing}
-              className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]`}
+              className="bds-btn bds-btn-ghost min-w-[96px]"
             >
               <ChevronLeft size={14} strokeWidth={1.5} /> 上一步
             </button>
@@ -222,9 +222,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               <button
                 type="button"
                 onClick={onClose}
-                className={`flex h-10 min-w-[80px] items-center justify-center rounded-full px-4 text-xs font-light tracking-wide whitespace-nowrap transition-all ${
-                  'text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]'
-                }`}
+                className="bds-btn bds-btn-ghost min-w-[80px]"
               >
                 关闭
               </button>
