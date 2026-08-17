@@ -2631,7 +2631,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                       </div>
                       <div className="space-y-2">
                         {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
-                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 bg-white dark:bg-deep/40`}>
+                          <div key={price.id} className={`flex items-center justify-between gap-3 rounded-control px-3 py-2 bds-inset`}>
                             <span className={`text-xs font-light text-[var(--text-primary)]`}>
                               {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
                             </span>
@@ -2939,7 +2939,7 @@ const ProductsManager: React.FC<ProductsProps> = ({ products, productCategories,
                           />
                         </div>
                         <div className={`rounded-inset border p-4 flex items-center ${productFormNestedRowClass}`}>
-                          <div className="w-[116px] h-[116px] rounded-inset bg-[var(--bg-card)] border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-[116px] h-[116px] rounded-inset bds-inset border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
                             {skuQrDataUrl ? (
                               <img src={skuQrDataUrl} alt={`${skuForQr} QR Code`} className="w-full h-full object-contain" />
                             ) : (

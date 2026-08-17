@@ -224,7 +224,7 @@ export const AgentMessageCard: React.FC<AgentMessageCardProps> = ({
 
   // user 气泡 hover 操作按钮（icon-only，紧凑），与 model 操作栏共用设计语言
   const userActionBtnClass = 'flex items-center justify-center rounded-control p-1 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-secondary)]';
-  const userEditorClass = 'w-full max-w-[85%] rounded-inset border border-[var(--border-c-strong)] bg-[var(--bg-card)] px-3 py-2.5';
+  const userEditorClass = 'w-full max-w-[85%] rounded-inset border border-[var(--border-c-strong)] bds-inset px-3 py-2.5';
 
   // 右键/长按复制完整工作流
   const handleContextMenu = useCallback((e: React.MouseEvent) => {

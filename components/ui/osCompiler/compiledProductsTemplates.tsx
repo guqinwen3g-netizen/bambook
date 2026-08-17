@@ -3993,7 +3993,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                           />
                         </div>
                         <div className={`rounded-inset border p-4 flex items-center ${productFormNestedRowClass}`}>
-                          <div className="w-[116px] h-[116px] rounded-inset bg-[var(--bg-card)] border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-[116px] h-[116px] rounded-inset bds-inset border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
                             {skuQrDataUrl ? (
                               <img src={skuQrDataUrl} alt={`${skuForQr} QR Code`} className="w-full h-full object-contain" />
                             ) : (
