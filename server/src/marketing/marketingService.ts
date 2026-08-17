@@ -76,17 +76,26 @@ export function createMarketingService(prisma: PrismaClient) {
   // ── Campaign CRUD ──
   async function listCampaigns(actor: any, filter: { status?: string; type?: string; search?: string; limit?: number; offset?: number } = {}) {
     const scopeWhere = await buildScopeWhere(actor);
-    const where: Record<string, unknown> = { deletedAt: null, ...scopeWhere };
-    if (filter.status) where.status = filter.status;
-    if (filter.type) where.type = filter.type;
+    const searchParts: any[] = [];
     if (filter.search) {
       const s = filter.search.trim();
-      (where as any).OR = [
+      searchParts.push(
         { name: { contains: s, mode: 'insensitive' } },
         { code: { contains: s, mode: 'insensitive' } },
         { description: { contains: s, mode: 'insensitive' } },
-      ];
+      );
     }
+    const where: any = { deletedAt: null };
+    if (Object.keys(scopeWhere).length > 0 && searchParts.length > 0) {
+      // QA-SEC-1: 禁止顶层 OR 直接赋值覆盖 scopeWhere.OR；改用 AND 组合
+      where.AND = [scopeWhere, { OR: searchParts }];
+    } else if (Object.keys(scopeWhere).length > 0) {
+      Object.assign(where, scopeWhere);
+    } else if (searchParts.length > 0) {
+      where.OR = searchParts;
+    }
+    if (filter.status) where.status = filter.status;
+    if (filter.type) where.type = filter.type;
     const limit = Math.min(Math.max(filter.limit ?? 50, 1), 500);
     const offset = Math.max(filter.offset ?? 0, 0);
     const [items, total] = await Promise.all([
@@ -103,10 +112,8 @@ export function createMarketingService(prisma: PrismaClient) {
 
   async function createCampaign(actor: TokenPayload | null | undefined, input: CampaignInput) {
     if (!actor) throw new Error('UNAUTHORIZED');
-    let code: string | null = null;
-    try {
-      code = await seqSvc.nextNumber(prisma as any, 'marketing');
-    } catch (e: any) { logger.error('[Marketing] code gen failed', { error: e?.message }); }
+    // QA-SEC-3: 编号生成失败必须 throw（禁止 code=null 静默落库）
+    const code = await seqSvc.nextNumber(prisma as any, 'marketing');
     const ownerId = input.ownerId || actor.userId;
     const departmentId = input.departmentId || actor.departmentIds?.[0] || null;
     const now = BigInt(Date.now());
@@ -177,16 +184,13 @@ export function createMarketingService(prisma: PrismaClient) {
   }
 
   async function updateLead(actor: any, id: string, patch: Record<string, unknown>) {
-    // 校验 lead 所属 campaign 在 scope 内
-    const lead = await (prisma as any).marketingLead.findFirst({ where: { id, deletedAt: null }, include: { campaign: { select: { id: true, ownerId: true, departmentId: true } } } });
+    // QA-SEC-2：与 createLead 一致的 scope 校验 — 先查 lead，再用 scopeWhere 校验 campaign 可见性；
+    // scope 未命中与不存在统一 NOT_FOUND（模块惯例：不泄露越权数据存在性）
+    const lead = await (prisma as any).marketingLead.findFirst({ where: { id, deletedAt: null }, include: { campaign: { select: { id: true } } } });
     if (!lead) throw new Error('NOT_FOUND');
     const scopeWhere = await buildScopeWhere(actor);
-    // 复用 scopeWhere 逻辑验证 campaign 可见性
-    const resolver = await permSvc.getDataScopeResolver(actor, 'marketing');
-    if (resolver.rule.kind !== 'all') {
-      const campaign = lead.campaign;
-      if (resolver.rule.kind === 'self' && campaign.ownerId !== actor.userId) throw new Error('FORBIDDEN');
-    }
+    const campaignCheck = await (prisma as any).marketingCampaign.findFirst({ where: { id: lead.campaign.id, deletedAt: null, ...scopeWhere }, select: { id: true } });
+    if (!campaignCheck) throw new Error('NOT_FOUND');
     delete patch.id; delete patch.campaignId;
     patch.updatedAt = BigInt(Date.now());
     // 如果状态变为 Converted，记录转化时间
@@ -197,11 +201,12 @@ export function createMarketingService(prisma: PrismaClient) {
   }
 
   async function deleteLead(actor: any, id: string) {
-    // 同 updateLead 的 scope 校验
-    const lead = await (prisma as any).marketingLead.findFirst({ where: { id, deletedAt: null }, include: { campaign: { select: { ownerId: true, departmentId: true } } } });
+    // QA-SEC-2：同 updateLead 的 scope 校验模式
+    const lead = await (prisma as any).marketingLead.findFirst({ where: { id, deletedAt: null }, include: { campaign: { select: { id: true } } } });
     if (!lead) throw new Error('NOT_FOUND');
-    const resolver = await permSvc.getDataScopeResolver(actor, 'marketing');
-    if (resolver.rule.kind === 'self' && lead.campaign.ownerId !== actor.userId) throw new Error('FORBIDDEN');
+    const scopeWhere = await buildScopeWhere(actor);
+    const campaignCheck = await (prisma as any).marketingCampaign.findFirst({ where: { id: lead.campaign.id, deletedAt: null, ...scopeWhere }, select: { id: true } });
+    if (!campaignCheck) throw new Error('NOT_FOUND');
     return await (prisma as any).marketingLead.update({ where: { id }, data: { deletedAt: BigInt(Date.now()) } });
   }
 
