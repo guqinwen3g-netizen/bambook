@@ -3736,7 +3736,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                 <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">分类说明</label>
                 <textarea defaultValue={editingSub?.description || ''} name="description" rows={3} className={`w-full px-6 py-4 rounded-control outline-none font-light resize-none bg-[var(--recessed-bg)] border-[var(--border-c-subtle)] text-[var(--text-primary)]`} />
               </div>
-              <button type="submit" className={`w-full py-4 rounded-full font-light tracking-wide transition-all bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue-strong)]`}>{editingSub ? '保存' : '确认'}</button>
+              <button type="submit" className={`bds-btn bds-btn-primary lg w-full`}>{editingSub ? '保存' : '确认'}</button>
             </form>
           </CompiledBottomSheet>
 
@@ -3790,7 +3790,7 @@ export const CompiledProductsPage: React.FC<CompiledProductsPageProps> = ({ prod
                   source="CompiledProductsPage.mobile-status-select"
                 />
               </div>
-              <button type="submit" className={`w-full py-5 rounded-full font-light tracking-wide mt-4 transition-all bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue-strong)]`}>{editingProd ? '保存修正' : '确认录入'}</button>
+              <button type="submit" className={`bds-btn bds-btn-primary lg w-full mt-4`}>{editingProd ? '保存修正' : '确认录入'}</button>
             </form>
           </CompiledBottomSheet>
         </>

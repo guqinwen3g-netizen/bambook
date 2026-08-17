@@ -141,7 +141,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin, onRegistered, isDark
             <button
               type="button"
               onClick={handleReturnNow}
-              className="mt-5 w-full py-2.5 rounded-full text-sm font-light bg-[var(--os-vnext-brand-blue)] text-white hover:bg-[var(--os-vnext-brand-blue)] active:scale-[0.98] transition-all"
+              className="bds-btn bds-btn-primary mt-5 w-full"
             >
               立即返回登录
             </button>

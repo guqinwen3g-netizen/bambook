@@ -513,7 +513,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                 type="button"
                 onClick={goNext}
                 disabled={!canNext}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-light transition-all shadow-none disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white"
+                className="bds-btn bds-btn-primary"
               >
                 {busy && <Loader2 size={14} className="animate-spin" />}
                 {nextLabel}

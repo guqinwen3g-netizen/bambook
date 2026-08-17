@@ -328,7 +328,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
             </button>
             <button
               onClick={() => { setEditingDoc(null); setShowForm(true); }}
-              className="h-8 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors"
+              className="bds-btn bds-btn-primary sm"
             >
               <Plus size={14} /><span>新增单据</span>
             </button>
@@ -685,7 +685,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
-            className="h-8 px-5 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 disabled:opacity-50"
+            className="bds-btn bds-btn-primary sm"
           >
             {submitting && <Loader2 size={12} className="animate-spin" />}
             {isEdit ? '保存（自动留痕）' : '创建'}
@@ -804,7 +804,7 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
-            className="h-8 px-5 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 disabled:opacity-50"
+            className="bds-btn bds-btn-primary sm"
           >
             {submitting && <Loader2 size={12} className="animate-spin" />}生成并登记
           </button>
@@ -869,7 +869,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
           <button
             onClick={() => void handleLoad()}
             disabled={loading}
-            className="h-8 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 disabled:opacity-50 shrink-0"
+            className="bds-btn bds-btn-primary sm shrink-0"
           >
             {loading && <Loader2 size={12} className="animate-spin" />}加载
           </button>

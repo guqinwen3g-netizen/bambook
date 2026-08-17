@@ -232,7 +232,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
                 type="button"
                 onClick={goNext}
                 disabled={!canNext}
-                className={`flex h-10 min-w-[96px] items-center justify-center gap-1.5 rounded-full px-5 text-xs font-light tracking-wide whitespace-nowrap transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white`}
+                className={`bds-btn bds-btn-primary min-w-[96px]`}
               >
                 {isParsing && <Loader2 size={14} className="animate-spin" />}
                 {nextLabel}

@@ -371,7 +371,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
                   requestFinanceReportTab('consolidated');
                   onNavigate?.(View.PaymentVouchers, 'reports');
                 }}
-                className="shrink-0 h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light inline-flex items-center gap-1.5 transition-colors"
+                className="bds-btn bds-btn-primary sm shrink-0"
               >
                 <ExternalLink size={13} />打开报表
               </button>
@@ -785,7 +785,7 @@ function DesignerPanel(props: DesignerPanelProps) {
           <button
             onClick={handlePreview}
             disabled={previewLoading || designer.metrics.length === 0}
-            className="h-9 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] disabled:opacity-50 text-white text-xs font-light flex items-center gap-1.5 transition-colors"
+            className="bds-btn bds-btn-primary sm"
           >
             {previewLoading ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
             预览
@@ -889,7 +889,7 @@ function SavedPanel(props: SavedPanelProps) {
         <p className="text-sm">暂无保存的报表</p>
         <button
           onClick={onNewReport}
-          className="h-8 px-4 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light flex items-center gap-1.5 transition-colors"
+          className="bds-btn bds-btn-primary sm"
         >
           <Plus size={13} />去设计器创建
         </button>
@@ -1296,7 +1296,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
                     {onNavigate && navTarget && (
                       <button
                         onClick={() => { onNavigate(navTarget.view, navTarget.tab); onClose(); }}
-                        className="ml-auto h-7 px-3 rounded-full bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-[11px] font-light inline-flex items-center gap-1 transition-colors"
+                        className="bds-btn bds-btn-primary sm ml-auto"
                       >
                         <ExternalLink size={11} />打开所在模块
                       </button>
