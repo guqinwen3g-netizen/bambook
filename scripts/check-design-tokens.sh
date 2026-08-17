@@ -81,22 +81,26 @@ BASELINE_TEXT_WHITE=33         # 批E 伴随项：accent 填充上 text-white �
 # ── W-PG 页面规格化断言基线（2026-08-17 W-PG-P0 建立，只减不增）──
 # 依据 docs/design-system/page-skeleton-spec.md §8（总控审定）+ 纪律文档 §10.3。
 # 作用域 PG_SCAN_PATHS（components/ + src/）。
-BASELINE_PAGEHEAD_MISSING=3   # M1: *Manager.tsx 缺 PageHeader/bds-pagehead 文件数（24 文件清单断言；
+BASELINE_PAGEHEAD_MISSING=2   # M1: *Manager.tsx 缺 PageHeader/bds-pagehead 文件数（24 文件清单断言；
                               # 骨架为页面级规格，颜色 token 豁免不适用 → 仅豁免 node_modules/测试；
-                              # 现存 EmailManager / email/SignatureManager / tools/DocumentTemplateManager，
-                              # 随逐页主刀清零）
+                              # 2026-08-17 W-PG-P2 DocumentCenter 主刀：tools/DocumentTemplateManager 补 PageHeader（3→2）；
+                              # 现存 EmailManager / email/SignatureManager，随逐页主刀清零）
 BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-ok: <原因>` 白名单豁免，
                               # 白名单仅限表格行内操作，spec §3.1）
 BASELINE_FILTERBAR_H=3        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
                               # 现存 FinanceManager:1935 / finance/FinanceCreditPanel:367 /
                               # finance/FinancePaymentRequestsPanel:422，均 h-auto min-h-11 撑高违例；
                               # 总控校准：filterbar 内禁任何手写 h- 覆盖，仅 h-10 白名单）
-BASELINE_NATIVE_CONTROLS=281  # M4: 原生 <select（无 bds-select 类）178 + type="date" 103 = 281
+BASELINE_NATIVE_CONTROLS=273  # M4: 原生 <select（无 bds-select 类）172 + type="date" 101 = 273
                               # （含 CapsuleDateInput.tsx:66 内部合法拾取器 1 处，BDS 组件封装内部，
                               #  计入基数保持恒定、不算违例增量）
                               # 粗口径对账：全仓 `<select` 213 + `type="date"` 108 = 321（产品负责人点名⑥）；
                               # 粗口径把已 bds-select 化 33 处也计入总数，BDS 化后总数不变、无法感知进展，
                               # 故入库采用精确口径 281，随逐页主刀只减不增。
+                              # 2026-08-17 W-PG-P2 DocumentCenter 主刀收编 281→273：
+                              # DocumentCenter 工具栏 select×2 + 表单 select×2 + date×2（→CapsuleDateInput）
+                              # + tools/DocumentTemplateManager select×2（共 select 178→172 / date 103→101）。
+                              # 注：select 标签 className 须置首属性（onChange 箭头 `=>` 会截断断言前瞻）。
 BASELINE_BDS_BTN_DARK=4       # M5: bds-btn-dark 计数（全部位于 OrderManager 视图 toggle
                               # 972/981/996/1005，点名问题⑤，P2 OrderManager 主刀清零；
                               # 行尾注释 `// bds-dark-ok: <原因>` 白名单豁免）

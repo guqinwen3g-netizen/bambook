@@ -44,6 +44,8 @@ import {
   TradeDocumentType,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import { BdsDialog } from './ui/BdsDialog';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
@@ -195,6 +197,9 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
   const [showGenerate, setShowGenerate] = useState(false);
   const [generateShipmentId, setGenerateShipmentId] = useState('');
   const [showPack, setShowPack] = useState(false);
+  // BdsDialog 状态（替代 window.alert / window.confirm）
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TradeDocument | null>(null);
 
   // ── 数据拉取 ──
   const fetchDocs = useCallback(async () => {
@@ -278,15 +283,15 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
       const updated = await apiService.transitionTradeDocumentStatus(doc.id, toStatus);
       setDocs(prev => prev.map(d => (d.id === doc.id ? updated : d)));
     } catch (e: any) {
-      window.alert(`状态流转失败：${e?.message || e}`);
+      setAlertMessage(`状态流转失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
   }, []);
 
-  // ── 删除（软删，仅 Draft/Cancelled）──
+  // ── 删除（软删，仅 Draft/Cancelled；BdsDialog 确认后执行）──
   const handleDelete = useCallback(async (doc: TradeDocument) => {
-    if (!window.confirm(`确认删除单据 ${doc.documentNumber}？（软删除，编号不回收）`)) return;
+    setDeleteTarget(null);
     setActionLoading(doc.id);
     setError(null);
     try {
@@ -294,7 +299,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
       setDocs(prev => prev.filter(d => d.id !== doc.id));
       if (expandedId === doc.id) setExpandedId(null);
     } catch (e: any) {
-      window.alert(`删除失败：${e?.message || e}`);
+      setAlertMessage(`删除失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
@@ -303,7 +308,6 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
   // ── 样式 ──
   const cardClass = `rounded-card border border-[var(--border-c-subtle)] bg-[var(--hover-darken)] ${BAMBOOK_OS.material.glassColor}`;
   const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
-  const actionBtnCls = `h-7 px-3 rounded-control text-[11px] font-light disabled:opacity-50 transition-colors`;
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
@@ -316,19 +320,19 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setGenerateShipmentId(''); setShowGenerate(true); }}
-              className="h-8 px-3.5 rounded-full border border-[var(--border-c-subtle)] text-xs font-light flex items-center gap-1.5 hover:bg-[var(--hover-darken)] transition-colors"
+              className="bds-btn bds-btn-outline"
             >
-              <FileOutput size={13} /><span>从运单生成</span>
+              <FileOutput size={14} /><span>从运单生成</span>
             </button>
             <button
               onClick={() => setShowPack(true)}
-              className="h-8 px-3.5 rounded-full border border-[var(--border-c-subtle)] text-xs font-light flex items-center gap-1.5 hover:bg-[var(--hover-darken)] transition-colors"
+              className="bds-btn bds-btn-outline"
             >
-              <PackageOpen size={13} /><span>订单打包</span>
+              <PackageOpen size={14} /><span>订单打包</span>
             </button>
             <button
               onClick={() => { setEditingDoc(null); setShowForm(true); }}
-              className="bds-btn bds-btn-primary sm"
+              className="bds-btn bds-btn-primary"
             >
               <Plus size={14} /><span>新增单据</span>
             </button>
@@ -339,34 +343,34 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
         <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
-          {/* 工具栏 */}
-          <div className="flex items-center gap-3 mb-4 flex-wrap">
+          {/* 工具栏（组合嵌套 bar：搜索 + 类型/状态筛选 + 刷新共行，spec §2.1） */}
+          <div className="bds-filterbar mb-4 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">
-              <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]`} />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索编号 / 收发货人 / 港口..."
-                className={`${fieldClass} pl-9 py-1.5`}
+                className="bds-input pl-9"
                 onKeyDown={(e) => { if (e.key === 'Enter') void fetchDocs(); }}
               />
             </div>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={`${fieldClass} max-w-[150px] py-1.5`}>
+            <select className="bds-select w-auto min-w-[132px]" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
               <option value="">全部类型</option>
               {DOC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${fieldClass} max-w-[130px] py-1.5`}>
+            <select className="bds-select w-auto min-w-[116px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">全部状态</option>
               {DOC_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
             <button
               onClick={() => void fetchDocs()}
-              className="h-9 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]"
+              className="bds-btn bds-btn-ghost"
             >
-              <RefreshCw size={12} />刷新
+              <RefreshCw size={14} />刷新
             </button>
-            <span className={`text-xs text-[var(--text-tertiary)]`}>共 {total} 份</span>
+            <span className="text-xs text-[var(--text-tertiary)] px-2">共 {total} 份</span>
           </div>
 
           {error && (
@@ -427,37 +431,38 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
 
                     {/* 操作行 */}
                     <div className="flex items-center gap-2 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                      {transitions.map(to => (
-                        <button
-                          key={to}
-                          onClick={() => void handleTransition(doc, to)}
-                          disabled={!!actionLoading}
-                          className={`${actionBtnCls} ${
-                            to === 'Accepted' ? 'bg-[var(--success)] text-[var(--on-accent)]'
-                            : to === 'Rejected' || to === 'Cancelled' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
-                            : to === 'Draft' ? 'border border-[var(--border-c-subtle)] text-[var(--text-tertiary)]'
-                            : 'bg-[var(--os-vnext-brand-blue)] text-white'
-                          }`}
-                        >
-                          {TRANSITION_LABELS[to]}
-                        </button>
-                      ))}
+                      {transitions.map(to => {
+                        const variant =
+                          to === 'Accepted' ? 'bds-btn-success'
+                            : to === 'Rejected' || to === 'Cancelled' || to === 'Draft' ? 'bds-btn-ghost'
+                              : 'bds-btn-primary';
+                        return (
+                          <button
+                            key={to}
+                            onClick={() => void handleTransition(doc, to)}
+                            disabled={!!actionLoading}
+                            className={`bds-btn ${variant}`}
+                          >
+                            {TRANSITION_LABELS[to]}
+                          </button>
+                        );
+                      })}
                       {doc.status === 'Draft' && (
                         <button
                           onClick={() => { setEditingDoc(doc); setShowForm(true); }}
                           disabled={!!actionLoading}
-                          className={`${actionBtnCls} border border-[var(--border-c-subtle)] text-[var(--text-secondary)]`}
+                          className="bds-btn bds-btn-ghost"
                         >
                           编辑
                         </button>
                       )}
                       {(doc.status === 'Draft' || doc.status === 'Cancelled') && (
                         <button
-                          onClick={() => void handleDelete(doc)}
+                          onClick={() => setDeleteTarget(doc)}
                           disabled={!!actionLoading}
-                          className={`${actionBtnCls} text-[var(--danger-text)] hover:bg-[var(--danger-tint)] flex items-center gap-1`}
+                          className="bds-btn bds-btn-danger"
                         >
-                          <Trash2 size={11} />删除
+                          <Trash2 size={14} />删除
                         </button>
                       )}
                     </div>
@@ -498,11 +503,11 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                                       </div>
                                       {renderable && (
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                          <button onClick={() => togglePreview(doc, v)} className={`${actionBtnCls} border border-[var(--border-c-subtle)] text-[var(--text-tertiary)] flex items-center gap-1`}>
-                                            <Eye size={11} />{previewHtml ? '收起预览' : '预览'}
+                                          <button onClick={() => togglePreview(doc, v)} className="bds-btn bds-btn-outline">
+                                            <Eye size={14} />{previewHtml ? '收起预览' : '预览'}
                                           </button>
-                                          <button onClick={() => printVersion(doc, v)} className={`${actionBtnCls} border border-[var(--border-c-subtle)] text-[var(--text-tertiary)] flex items-center gap-1`}>
-                                            <Printer size={11} />打印/PDF
+                                          <button onClick={() => printVersion(doc, v)} className="bds-btn bds-btn-outline">
+                                            <Printer size={14} />打印/PDF
                                           </button>
                                         </div>
                                       )}
@@ -554,6 +559,27 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
       {/* 订单打包弹窗 */}
       {showPack && (
         <PackDialog isDarkMode={isDarkMode} onClose={() => setShowPack(false)} />
+      )}
+
+      {/* BdsDialog：操作失败提示（替代 window.alert） */}
+      {alertMessage && (
+        <BdsDialog title="操作提示" onConfirm={() => setAlertMessage(null)}>
+          {alertMessage}
+        </BdsDialog>
+      )}
+
+      {/* BdsDialog：删除确认（替代 window.confirm） */}
+      {deleteTarget && (
+        <BdsDialog
+          title="删除单据"
+          danger
+          confirmLabel="删除"
+          loading={actionLoading === deleteTarget.id}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void handleDelete(deleteTarget)}
+        >
+          {`确认删除单据 ${deleteTarget.documentNumber}？（软删除，编号不回收）`}
+        </BdsDialog>
       )}
     </div>
   );
@@ -639,7 +665,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>单据类型 *</label>
-            <select className={inputCls} value={form.type} disabled={isEdit} onChange={(e) => set({ type: e.target.value as TradeDocumentType })}>
+            <select className="bds-select" value={form.type} disabled={isEdit} onChange={(e) => set({ type: e.target.value as TradeDocumentType })}>
               {DOC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
           </div>
@@ -647,8 +673,14 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
             <label className={labelClass}>单据编号{isEdit ? '' : '（留空自动取号）'}</label>
             <input className={inputCls} value={isEdit ? doc.documentNumber : (form.documentNumber ?? '')} disabled={isEdit} onChange={setStr('documentNumber')} placeholder="CI-2026-0001" />
           </div>
-          <div><label className={labelClass}>签发日期</label><input type="date" className={inputCls} value={form.issueDate ?? ''} onChange={setStr('issueDate')} /></div>
-          <div><label className={labelClass}>有效期至</label><input type="date" className={inputCls} value={form.expiryDate ?? ''} onChange={setStr('expiryDate')} /></div>
+          <div>
+            <label className={labelClass}>签发日期</label>
+            <CapsuleDateInput className="bds-input" value={form.issueDate ?? ''} onChange={(v) => set({ issueDate: v || undefined })} isDarkMode={isDarkMode} />
+          </div>
+          <div>
+            <label className={labelClass}>有效期至</label>
+            <CapsuleDateInput className="bds-input" value={form.expiryDate ?? ''} onChange={(v) => set({ expiryDate: v || undefined })} isDarkMode={isDarkMode} />
+          </div>
           <div><label className={labelClass}>发货人 Consignor</label><input className={inputCls} value={form.consignor ?? ''} onChange={setStr('consignor')} /></div>
           <div><label className={labelClass}>收货人 Consignee</label><input className={inputCls} value={form.consignee ?? ''} onChange={setStr('consignee')} /></div>
           <div><label className={labelClass}>装运港</label><input className={inputCls} value={form.portOfLoading ?? ''} onChange={setStr('portOfLoading')} /></div>
@@ -659,7 +691,7 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
           </div>
           <div>
             <label className={labelClass}>币种</label>
-            <select className={inputCls} value={form.currency ?? ''} onChange={setStr('currency')}>
+            <select className="bds-select" value={form.currency ?? ''} onChange={setStr('currency')}>
               <option value="">—</option>
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -681,13 +713,13 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
         </div>
 
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="h-8 px-4 rounded-full border border-[var(--border-c-subtle)] text-xs font-light">取消</button>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost">取消</button>
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
-            className="bds-btn bds-btn-primary sm"
+            className="bds-btn bds-btn-primary"
           >
-            {submitting && <Loader2 size={12} className="animate-spin" />}
+            {submitting && <Loader2 size={14} className="animate-spin" />}
             {isEdit ? '保存（自动留痕）' : '创建'}
           </button>
         </div>
@@ -754,16 +786,12 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
         <input className={`${fieldClass} py-1.5 mb-4`} value={shipmentId} onChange={(e) => setShipmentId(e.target.value)} placeholder="SHP_..." />
 
         <label className={`block text-xs mb-1.5 text-[var(--text-tertiary)]`}>单据类型 *</label>
-        <div className="grid grid-cols-3 gap-1.5 mb-4">
+        <div className="bds-toggle-group mb-4">
           {DOC_TYPES.map(t => (
             <button
               key={t.id}
               onClick={() => toggle(t.id)}
-              className={`px-2 py-1.5 rounded-control text-[11px] font-light border transition-colors ${
-                selected.has(t.id)
-                  ? 'border-[var(--os-vnext-brand-blue)] bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue)]'
-                  : 'border-[var(--border-c-subtle)] text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)]'
-              }`}
+              className={`bds-toggle${selected.has(t.id) ? ' active' : ''}`}
             >
               {t.label}
             </button>
@@ -800,13 +828,13 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
         )}
 
         <div className="flex justify-end gap-2 mt-2">
-          <button onClick={onClose} className="h-8 px-4 rounded-full border border-[var(--border-c-subtle)] text-xs font-light">关闭</button>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost">关闭</button>
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
-            className="bds-btn bds-btn-primary sm"
+            className="bds-btn bds-btn-primary"
           >
-            {submitting && <Loader2 size={12} className="animate-spin" />}生成并登记
+            {submitting && <Loader2 size={14} className="animate-spin" />}生成并登记
           </button>
         </div>
       </div>
@@ -869,9 +897,9 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
           <button
             onClick={() => void handleLoad()}
             disabled={loading}
-            className="bds-btn bds-btn-primary sm shrink-0"
+            className="bds-btn bds-btn-primary shrink-0"
           >
-            {loading && <Loader2 size={12} className="animate-spin" />}加载
+            {loading && <Loader2 size={14} className="animate-spin" />}加载
           </button>
         </div>
 
@@ -902,9 +930,9 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
                       onClick={() => printItem(item)}
                       disabled={!renderable}
                       title={renderable ? '渲染最新快照并打印' : '无可渲染快照（手工登记单据请先补录/生成）'}
-                      className={`h-7 px-3 rounded-control text-[11px] font-light flex items-center gap-1 border border-[var(--border-c-subtle)] text-[var(--text-tertiary)] disabled:opacity-40 shrink-0`}
+                      className="bds-btn bds-btn-outline shrink-0"
                     >
-                      <Printer size={11} />打印/PDF
+                      <Printer size={14} />打印/PDF
                     </button>
                   </div>
                 );

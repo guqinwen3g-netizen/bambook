@@ -14,6 +14,7 @@ import { Plus, Loader2, FileText, Trash2, Star, AlertCircle } from 'lucide-react
 import { apiService } from '../../services/apiService';
 import { DocumentTemplate, DocumentTemplateInput, DocumentTemplateType, DocumentTemplateLanguage } from '../../types';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
+import { PageHeader } from '../ui/PageHeader';
 
 interface Props {
   isDarkMode: boolean;
@@ -143,25 +144,32 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
   const labelClass = `block text-xs mb-1 text-[var(--text-tertiary)]`;
 
   return (
-    <div className="flex gap-4 h-full min-h-0">
-      {/* 左列：类型筛选 + 模板列表 */}
-      <div className={`w-80 shrink-0 flex flex-col rounded-card border overflow-hidden ${panelClass}`}>
-        <div className={`px-4 py-3 border-b flex items-center justify-between border-[var(--border-c-subtle)]`}>
-          <span className={`text-xs font-light uppercase tracking-[0.18em] text-[var(--text-secondary)]`}>单据模板</span>
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <PageHeader
+        title="单据模板"
+        subtitle="Document Templates"
+        actions={(
           <button
             type="button"
             onClick={() => openCreate(typeFilter === 'all' ? 'CommercialInvoice' : typeFilter)}
-            className={`h-7 px-2.5 rounded-control text-[11px] font-light inline-flex items-center gap-1 transition-colors bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]`}
+            className="bds-btn bds-btn-primary"
           >
-            <Plus size={12} /> 新建
+            <Plus size={14} /> 新建
           </button>
-        </div>
-        {/* 类型筛选 */}
-        <div className={`px-3 py-2 flex flex-wrap gap-1.5 border-b border-[var(--border-c-subtle)]`}>
+        )}
+      />
+      <div className="flex-1 min-h-0 flex gap-4 px-7 pb-6 pt-2">
+        {/* 左列：类型筛选 + 模板列表 */}
+        <div className={`w-80 shrink-0 flex flex-col rounded-card border overflow-hidden ${panelClass}`}>
+          <div className={`px-4 py-3 border-b flex items-center justify-between border-[var(--border-c-subtle)]`}>
+            <span className={`text-xs font-light uppercase tracking-[0.18em] text-[var(--text-secondary)]`}>类型</span>
+          </div>
+        {/* 类型筛选（bds-toggle：active 冷墨洗，spec §3.2） */}
+        <div className={`px-3 py-2 bds-toggle-group border-b border-[var(--border-c-subtle)]`}>
           <button
             type="button"
             onClick={() => setTypeFilter('all')}
-            className={`px-2 py-1 rounded-full text-[11px] font-light transition-colors ${typeFilter === 'all' ? 'bg-[var(--os-vnext-brand-blue)] text-white' : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}`}
+            className={`bds-toggle${typeFilter === 'all' ? ' active' : ''}`}
           >
             全部
           </button>
@@ -170,7 +178,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
               key={t}
               type="button"
               onClick={() => setTypeFilter(t)}
-              className={`px-2 py-1 rounded-full text-[11px] font-light transition-colors ${typeFilter === t ? 'bg-[var(--os-vnext-brand-blue)] text-white' : 'bg-[var(--recessed-bg)] text-[var(--text-secondary)] hover:bg-[var(--active-darken)]'}`}
+              className={`bds-toggle${typeFilter === t ? ' active' : ''}`}
             >
               {TYPE_LABELS[t]}
             </button>
@@ -243,7 +251,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                 <button
                   type="button"
                   onClick={() => { setDraft(null); setError(null); }}
-                  className={`h-8 px-3 rounded-control text-xs font-light transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
+                  className="bds-btn bds-btn-ghost"
                 >
                   取消
                 </button>
@@ -251,9 +259,9 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                   type="button"
                   onClick={handleSave}
                   disabled={busy}
-                  className="h-8 px-4 rounded-control bg-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue-strong)] text-white text-xs font-light inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="bds-btn bds-btn-primary"
                 >
-                  {busy && <Loader2 size={12} className="animate-spin" />}
+                  {busy && <Loader2 size={14} className="animate-spin" />}
                   {draft.id ? '保存修改' : '创建模板'}
                 </button>
               </div>
@@ -263,10 +271,10 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                 <div className="w-44">
                   <label className={labelClass}>单据类型</label>
                   <select
+                    className="bds-select disabled:opacity-50"
                     value={draft.type}
                     onChange={e => setDraft({ ...draft, type: e.target.value as DocumentTemplateType })}
                     disabled={!!draft.id}
-                    className={`${fieldClass} disabled:opacity-50`}
                   >
                     {TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
                   </select>
@@ -277,7 +285,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
                 </div>
                 <div className="w-36">
                   <label className={labelClass}>语言</label>
-                  <select value={draft.language} onChange={e => setDraft({ ...draft, language: e.target.value as DocumentTemplateLanguage })} className={fieldClass}>
+                  <select className="bds-select" value={draft.language} onChange={e => setDraft({ ...draft, language: e.target.value as DocumentTemplateLanguage })}>
                     {LANGUAGES.map(l => <option key={l} value={l}>{LANGUAGE_LABELS[l]}</option>)}
                   </select>
                 </div>
@@ -304,6 +312,7 @@ const DocumentTemplateManager: React.FC<Props> = ({ isDarkMode }) => {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );
