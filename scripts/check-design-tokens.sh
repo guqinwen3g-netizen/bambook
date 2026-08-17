@@ -39,10 +39,11 @@ BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + Mo
 # P2 收口（2026-08-15）允许单写自适应类内使用 Tailwind `dark:` 变体
 # （.dark 根 class，替代旧 isDarkMode JS 三元 + _DARK/_LIGHT 双写常量），
 # dark: 变体因此成为合规载体并一次性上调基线，此后只减不增。
-BASELINE_DARK_VARIANT=53       # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
+BASELINE_DARK_VARIANT=44       # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
                                # 2026-08-17 W0 锁进度 196→182（实测回归）；批G-1 KnowledgeBase 收编 182→111；
                                # 批G-2 ProductsManager+compiledProductsTemplates 收编 111→89；
-                               # 批G-3 ui/ 控件族 收编 89→64；批G-4 Relations域 收编 64→53；批 G 目标 ≤10
+                               # 批G-3 ui/ 控件族 收编 89→64；批G-4 Relations域 收编 64→53；
+                               # 批G-5 AdminPanel+DesignTuner 收编 53→44；批 G 目标 ≤10
 BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366→226→220；
                                # 2026-08-17 W0 锁进度 220→219；
                                # 余量为 spotlight/图表数值型三元 + isDarkMode?: 类型声明 + 冻结/搁置文件，合规保留）
@@ -52,8 +53,9 @@ BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366�
 BASELINE_RAW_SEMANTIC=19       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
                                # 2026-08-17 批A 收编 131→33；批H 收编 TraceabilityPanel 14（33→19，接入 §4.5 雾化分类色板 mask-*）
                                # 余量：FabricSampleInvoiceGenerator 8（豁免清单·测试锁定业务语义）/ App.tsx 5（W5 解锁）/ pwa 3（移动端冻结）/ GarmentOrders 3（批I 死代码移交 W5）
-BASELINE_RAW_MASK=4            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
-                               # 2026-08-17 批B 收编 17→4；余量：pwa 2（移动端冻结）/ DesignTuner 1（开发工具豁免）/ App.tsx 1（W5 解锁）
+BASELINE_RAW_MASK=3            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
+                               # 2026-08-17 批B 收编 17→4；批G-5 DesignTuner dark: 收编顺带移除 4→3
+                               # 余量：pwa 2（移动端冻结）/ App.tsx 1（W5 解锁）
 BASELINE_BARE_ROUNDED=5        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
                                # 2026-08-17 批D 收编 43→5；余量 5 处均为注释文本（StepUpload/Dashboard/compiledSurfacePrimitives×2/compiledDashboardTemplates），非 className
 BASELINE_HANDWRITTEN_BTN=22    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary

@@ -181,7 +181,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
     }
   };
 
-  const panelClass = 'bambook-dashboard-glass-color bambook-blue-white-light text-[var(--text-primary)] dark:text-[var(--text-secondary)]';
+  const panelClass = 'bambook-dashboard-glass-color bambook-blue-white-light text-[var(--text-primary)]';
 
   return (
     <div
@@ -208,7 +208,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
           type="button"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => setIsCollapsed((current) => !current)}
-          className={`h-8 w-7 rounded-control flex items-center justify-center transition-colors text-[var(--text-tertiary)] hover:bg-[var(--active-darken)] dark:hover:bg-[rgb(var(--os-vnext-brand-blue-rgb)/0.075)]`}
+          className={`h-8 w-7 rounded-control flex items-center justify-center transition-colors text-[var(--text-tertiary)] hover:bg-[var(--active-darken)]`}
           aria-label={isCollapsed ? '展开调参面板' : '折叠调参面板'}
         >
           <ChevronDown size={15} strokeWidth={1.6} className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
@@ -224,7 +224,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
                 {controls.map((control) => {
                   const value = values[control.key] ?? control.defaultValue;
                   return (
-                    <label key={control.key} className={`rounded-inset border p-2 border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)] dark:border-[var(--border-c-subtle)] dark:bg-[var(--recessed-bg)]`}>
+                    <label key={control.key} className={`rounded-inset border p-2 border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)]`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[10px] font-light truncate">{control.label}</span>
                         <input
@@ -234,7 +234,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
                           max={control.max}
                           step={control.step}
                           onChange={(event) => updateValue(control.key, clamp(Number(event.target.value), control.min, control.max))}
-                          className={`w-16 h-8 rounded-control border px-1.5 text-[10px] outline-none border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)] dark:border-[var(--border-c-default)] dark:bg-black/20 dark:text-[var(--text-secondary)]`}
+                          className={`w-16 h-8 rounded-control border px-1.5 text-[10px] outline-none border-[var(--border-c-strong)] bg-[var(--bg-card)] text-[var(--text-primary)]`}
                         />
                       </div>
                       <input
@@ -259,7 +259,7 @@ const DesignTuner: React.FC<DesignTunerProps> = ({ isDarkMode }) => {
               <button
                 type="button"
                 onClick={resetValues}
-                className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-[10px] transition-colors border-[var(--border-c-strong)] hover:bg-[var(--active-darken)] dark:border-[var(--border-c-default)]`}
+                className={`h-8 px-3 rounded-full border flex items-center gap-1.5 text-[10px] transition-colors border-[var(--border-c-strong)] hover:bg-[var(--active-darken)]`}
               >
                 <RotateCcw size={13} strokeWidth={1.6} />
                 Reset
