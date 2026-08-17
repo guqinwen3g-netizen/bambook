@@ -252,7 +252,7 @@ export const RELATIONS_TOOLBAR_SORT_CLASS = 'w-[104px] shrink-0';
 export const RELATIONS_TOOLBAR_SEGMENT_CLASS = 'relative h-9 shrink-0 overflow-visible rounded-none p-0 flex items-center';
 export const RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS = `relative z-20 h-9 w-7 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
 // P3-1 收编：双写常量坍缩为单写自适应（DARK/LIGHT 同值合并；异值改 dark 变体承载）。
-export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS = 'text-[var(--os-vnext-brand-blue)] dark:text-[var(--text-primary)] opacity-100 drop-shadow-none';
+export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS = 'text-[var(--os-vnext-brand-blue)] opacity-100 drop-shadow-none';
 export const RELATIONS_TOOLBAR_CONTROL_CLASS = BAMBOOK_OS.controls.stateControl.base;
 export const RELATIONS_TOOLBAR_SURFACE_CLASS = BAMBOOK_OS.controls.toolbar.surface;
 export const RELATIONS_TOOLBAR_SURFACE_SHADOW_CLASS = BAMBOOK_OS.controls.toolbar.surfaceShadow;
@@ -797,7 +797,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
             <button
               type="button"
               onClick={() => setRelationListDisplayMode(relationListDisplayMode === 'grid' ? 'table' : 'grid')}
-              className={`${RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS} text-[var(--os-vnext-brand-blue)] dark:text-[var(--text-primary)] opacity-100 drop-shadow-none`}
+              className={`${RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS} text-[var(--os-vnext-brand-blue)] opacity-100 drop-shadow-none`}
               aria-label={relationListDisplayMode === 'grid' ? '切换到表格视图' : '切换到格子视图'}
             >
               {relationListDisplayMode === 'grid' ? (
@@ -988,7 +988,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
   const relationCoordinateIconClass = RELATIONS_COORDINATE_ICON_CLASS;
   const relationBrandInlineClass = RELATIONS_BRAND_INLINE_CLASS;
   const relationFormLabelClass = RELATIONS_FORM_LABEL_CLASS;
-  const relationFormSectionTitleClass = 'text-[var(--text-primary)] dark:text-[var(--text-secondary)]';
+  const relationFormSectionTitleClass = 'text-[var(--text-primary)]';
   const relationTableHeaderClass = RELATIONS_TABLE_HEADER_CLASS;
   const relationTableRowHoverClass = RELATIONS_TABLE_ROW_HOVER_CLASS;
   const relationTableRowSeparatorClass = RELATIONS_TABLE_ROW_SEPARATOR_CLASS;
