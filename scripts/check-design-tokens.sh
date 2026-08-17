@@ -22,6 +22,11 @@ EXCLUDE_GLOBS=(
   -g '!**/fabricSampleInvoice*' # 面料发票模板
 )
 
+# ── W-PG 页面规格化断言作用域（M1-M5）：components/ + src/ ──
+# S-FE 排他工作面；server/ops-panel 归 S-BE 不入断言；pwa/ 移动端冻结区存量不入断言。
+PG_SCAN_PATHS=(components)
+[ -d src ] && PG_SCAN_PATHS+=(src)
+
 # ── 基线（2026-08-06 根背景色 token 化后收拢，只减不增）──
 BASELINE_ROUNDED=1        # 2026-08-16 批 1 收拢 3→1：Sidebar/Settings 2 处改语义类；
                           # 余 1 处为 pwa/mobile/MobileWebNavigation.tsx rounded-[20px]（移动端冻结区，搁置不动）
@@ -72,6 +77,29 @@ BASELINE_TEXT_WHITE=33         # 批E 伴随项：accent 填充上 text-white �
                                # 批G-8d Sidebar active 文字 text-deep-alt dark:text-white → text-[var(--text-primary)]，34→33
 # 批F（2026-08-17）：font-black 唯一残留 ProductionGlobe.tsx:654（DOM 覆盖层）已改 font-light；
 # 字重断言同步扩展 font-(medium|semibold|bold) → font-(medium|semibold|bold|black)，基线维持 3（pwa 存量）
+
+# ── W-PG 页面规格化断言基线（2026-08-17 W-PG-P0 建立，只减不增）──
+# 依据 docs/design-system/page-skeleton-spec.md §8（总控审定）+ 纪律文档 §10.3。
+# 作用域 PG_SCAN_PATHS（components/ + src/）。
+BASELINE_PAGEHEAD_MISSING=3   # M1: *Manager.tsx 缺 PageHeader/bds-pagehead 文件数（24 文件清单断言；
+                              # 骨架为页面级规格，颜色 token 豁免不适用 → 仅豁免 node_modules/测试；
+                              # 现存 EmailManager / email/SignatureManager / tools/DocumentTemplateManager，
+                              # 随逐页主刀清零）
+BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-ok: <原因>` 白名单豁免，
+                              # 白名单仅限表格行内操作，spec §3.1）
+BASELINE_FILTERBAR_H=3        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
+                              # 现存 FinanceManager:1935 / finance/FinanceCreditPanel:367 /
+                              # finance/FinancePaymentRequestsPanel:422，均 h-auto min-h-11 撑高违例；
+                              # 总控校准：filterbar 内禁任何手写 h- 覆盖，仅 h-10 白名单）
+BASELINE_NATIVE_CONTROLS=281  # M4: 原生 <select（无 bds-select 类）178 + type="date" 103 = 281
+                              # （含 CapsuleDateInput.tsx:66 内部合法拾取器 1 处，BDS 组件封装内部，
+                              #  计入基数保持恒定、不算违例增量）
+                              # 粗口径对账：全仓 `<select` 213 + `type="date"` 108 = 321（产品负责人点名⑥）；
+                              # 粗口径把已 bds-select 化 33 处也计入总数，BDS 化后总数不变、无法感知进展，
+                              # 故入库采用精确口径 281，随逐页主刀只减不增。
+BASELINE_BDS_BTN_DARK=4       # M5: bds-btn-dark 计数（全部位于 OrderManager 视图 toggle
+                              # 972/981/996/1005，点名问题⑤，P2 OrderManager 主刀清零；
+                              # 行尾注释 `// bds-dark-ok: <原因>` 白名单豁免）
 
 errors=0
 
@@ -262,16 +290,96 @@ else
 fi
 echo ""
 
+# ── 13. W-PG 页面规格化断言 M1-M5（page-skeleton-spec §8 / 纪律 §10.3）──
+echo "▸ 检查 W-PG 页面规格化断言（M1 PageHeader / M2 btn-sm / M3 filterbar 高度 / M4 原生控件 / M5 btn-dark）..."
+pg_errors=0
+
+# M1: 每个 *Manager.tsx 必含 PageHeader 或 bds-pagehead（24 文件清单；缺失数只减不增）
+# 口径：骨架为页面级规格，邮件模板等颜色 token 豁免不适用 → 仅豁免 node_modules/测试。
+pg_missing_pagehead=0
+pg_missing_list=""
+for f in $(rg --files -g '*Manager.tsx' -g '!**/node_modules/**' -g '!**/__tests__/**' -g '!**/*.test.*' "${PG_SCAN_PATHS[@]}" 2>/dev/null | sort); do
+  if ! rg -lq 'PageHeader|bds-pagehead' "$f" 2>/dev/null; then
+    pg_missing_pagehead=$((pg_missing_pagehead + 1))
+    pg_missing_list="$pg_missing_list $f"
+  fi
+done
+if [ "$pg_missing_pagehead" -gt "$BASELINE_PAGEHEAD_MISSING" ]; then
+  echo "  ❌ M1: 缺 PageHeader/bds-pagehead 的 Manager 文件增加（基线 ${BASELINE_PAGEHEAD_MISSING} → 当前 ${pg_missing_pagehead}）"
+  echo "     缺失文件:$pg_missing_list"
+  pg_errors=$((pg_errors + 1))
+elif [ "$pg_missing_pagehead" -lt "$BASELINE_PAGEHEAD_MISSING" ]; then
+  echo "  ✅ M1: PageHeader 缺失减少（基线 ${BASELINE_PAGEHEAD_MISSING} → 当前 ${pg_missing_pagehead}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ M1: PageHeader 缺失维持基线（${pg_missing_pagehead} 个，逐页主刀清零对象）"
+fi
+
+# M2: bds-btn-sm 计数（行尾 `// bds-sm-ok: <原因>` 白名单豁免；仅表格行内操作可用）
+pg_btn_sm=$(rg -n 'bds-btn-sm' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-sm-ok' | rg -o 'bds-btn-sm' 2>/dev/null | wc -l | tr -d ' ')
+if [ "$pg_btn_sm" -gt "$BASELINE_BDS_BTN_SM" ]; then
+  echo "  ❌ M2: bds-btn-sm 增加（基线 ${BASELINE_BDS_BTN_SM} → 当前 ${pg_btn_sm}）"
+  echo "     操作区主操作一律 bds-btn 默认 40px；bds-btn-sm 仅表格行内操作白名单（spec §3.1）"
+  rg -n 'bds-btn-sm' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-sm-ok' | head -10
+  pg_errors=$((pg_errors + 1))
+else
+  echo "  ✅ M2: bds-btn-sm 维持或低于基线（${pg_btn_sm} 处）"
+fi
+
+# M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径；总控校准：仅 h-10 白名单；
+# 单行 className 约定，多行拼接场景随逐页主刀人工复核）
+pg_filterbar_h=$(rg -n 'bds-filterbar' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -P '(?<![\w-])(min-h|max-h|h)-(?!10\b)[0-9a-z\[]' 2>/dev/null | wc -l | tr -d ' ')
+if [ "$pg_filterbar_h" -gt "$BASELINE_FILTERBAR_H" ]; then
+  echo "  ❌ M3: filterbar 手写非 h-10 高度覆盖增加（基线 ${BASELINE_FILTERBAR_H} → 当前 ${pg_filterbar_h}）"
+  echo "     filterbar 内禁任何手写 h- 覆盖（仅 h-10 白名单）；禁撑高筛选行抬高页面上边距"
+  rg -n 'bds-filterbar' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -P '(?<![\w-])(min-h|max-h|h)-(?!10\b)[0-9a-z\[]' | head -10
+  pg_errors=$((pg_errors + 1))
+elif [ "$pg_filterbar_h" -lt "$BASELINE_FILTERBAR_H" ]; then
+  echo "  ✅ M3: filterbar 高度违例减少（基线 ${BASELINE_FILTERBAR_H} → 当前 ${pg_filterbar_h}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ M3: filterbar 高度违例维持基线（${pg_filterbar_h} 行，逐页主刀清零对象）"
+fi
+
+# M4: 原生 <select（无 bds-select 类）+ type="date" 合计（精确口径 281，spec §8 M4 对账注释）
+pg_native_select=$(rg -o '<select(?![^>]*bds-select)[^>]*>' --pcre2 -U --multiline-dotall --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -c '<select')
+pg_native_date=$(rg -o 'type="date"' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+pg_native_total=$((pg_native_select + pg_native_date))
+if [ "$pg_native_total" -gt "$BASELINE_NATIVE_CONTROLS" ]; then
+  echo "  ❌ M4: 原生表单控件增加（基线 ${BASELINE_NATIVE_CONTROLS} → 当前 ${pg_native_total}）"
+  echo "     select → bds-select；date → CapsuleDateInput（spec §4）；禁新增原生渲染"
+  pg_errors=$((pg_errors + 1))
+elif [ "$pg_native_total" -lt "$BASELINE_NATIVE_CONTROLS" ]; then
+  echo "  ✅ M4: 原生控件减少（基线 ${BASELINE_NATIVE_CONTROLS} → 当前 ${pg_native_total}，select ${pg_native_select} + date ${pg_native_date}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ M4: 原生控件维持基线（${pg_native_total} 处 = select ${pg_native_select} + date ${pg_native_date}，逐页清零对象）"
+fi
+
+# M5: bds-btn-dark 计数（行尾 `// bds-dark-ok: <原因>` 白名单豁免；toggle active 禁实心黑，spec §3.2）
+pg_btn_dark=$(rg -n 'bds-btn-dark' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-dark-ok' | rg -o 'bds-btn-dark' 2>/dev/null | wc -l | tr -d ' ')
+if [ "$pg_btn_dark" -gt "$BASELINE_BDS_BTN_DARK" ]; then
+  echo "  ❌ M5: bds-btn-dark 增加（基线 ${BASELINE_BDS_BTN_DARK} → 当前 ${pg_btn_dark}）"
+  echo "     toggle active 态禁用实心黑填充，改用冷墨洗 tint/inset（spec §3.2）"
+  rg -n 'bds-btn-dark' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-dark-ok' | head -10
+  pg_errors=$((pg_errors + 1))
+elif [ "$pg_btn_dark" -lt "$BASELINE_BDS_BTN_DARK" ]; then
+  echo "  ✅ M5: bds-btn-dark 减少（基线 ${BASELINE_BDS_BTN_DARK} → 当前 ${pg_btn_dark}）— 恭喜！请更新基线。"
+else
+  echo "  ✅ M5: bds-btn-dark 维持基线（${pg_btn_dark} 处，P2 OrderManager 主刀清零对象）"
+fi
+errors=$((errors + pg_errors))
+echo ""
+
 # ── 总结 ──
 echo "═══ 总结 ═══"
 if [ "$errors" -gt 0 ]; then
-  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex/裸刻度/过重字重/raw语义色/自造遮罩/裸rounded/手写主按钮）"
+  echo "❌ 发现 $errors 项硬编码回退（新增的 rounded/hex/裸刻度/过重字重/raw语义色/自造遮罩/裸rounded/手写主按钮/页面规格化 M1-M5）"
   echo "   基线：rounded=$BASELINE_ROUNDED, hex_tailwind=$BASELINE_HEX_TAILWIND, bare_radius=$BASELINE_BARE_RADIUS, font_weight=$BASELINE_FONT_WEIGHT, raw_semantic=$BASELINE_RAW_SEMANTIC, raw_mask=$BASELINE_RAW_MASK, bare_rounded=$BASELINE_BARE_ROUNDED, handwritten_btn=$BASELINE_HANDWRITTEN_BTN"
+  echo "   W-PG：pagehead_missing=$BASELINE_PAGEHEAD_MISSING, bds_btn_sm=$BASELINE_BDS_BTN_SM, filterbar_h=$BASELINE_FILTERBAR_H, native_controls=$BASELINE_NATIVE_CONTROLS, bds_btn_dark=$BASELINE_BDS_BTN_DARK"
   echo "   如需更新基线，请编辑 scripts/check-design-tokens.sh 并在 commit 中说明"
   exit 1
 else
-  echo "✅ 设计 token 防回退检查通过（基线模式 · BDS v2.2 + 高分收编 W0）"
+  echo "✅ 设计 token 防回退检查通过（基线模式 · BDS v2.2 + 高分收编 W0 + W-PG 页面规格化 M1-M5）"
   echo "   当前：rounded=$rounded_count, hex_tailwind=$hex_tailwind_count, hex_inline=$hex_inline_count, bare_radius=$bare_radius_count, font_weight=$font_weight_count"
   echo "   收编：raw_semantic=$raw_semantic_count, raw_mask=$raw_mask_count, bare_rounded=$bare_rounded_count, handwritten_btn=$handwritten_btn_count, text_white=$text_white_count"
+  echo "   W-PG：pagehead_missing=$pg_missing_pagehead, bds_btn_sm=$pg_btn_sm, filterbar_h=$pg_filterbar_h, native_controls=$pg_native_total, bds_btn_dark=$pg_btn_dark"
   exit 0
 fi
