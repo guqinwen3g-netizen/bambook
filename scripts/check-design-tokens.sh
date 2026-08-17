@@ -72,9 +72,11 @@ BASELINE_BARE_ROUNDED=5        # 批D：裸 rounded（非 BDS 刻度，Tailwind 
 BASELINE_HANDWRITTEN_BTN=22    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
                                # 2026-08-17 批E 收编 35→22（13 处按钮：DocumentCenter×4 / ReportCenter×4 / ImportWizard / Register / QuotationImportWizard / compiledProductsTemplates×2）；
                                # 余量 21 处均非按钮：进度条/圆点/头像/徽章等装饰性 accent 填充（Dashboard×5 / compiledDashboardTemplates×5 / ProductsManager×2 / compiledProductsTemplates×3 / AdminPanel / RelationsManager / ImageUploader / QuotationImportWizard 链接 / DesignTuner 开发工具）+ FabricSampleInvoiceGenerator 1（测试锁定业务语义豁免）
-BASELINE_TEXT_WHITE=33         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
+BASELINE_TEXT_WHITE=28         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
                                # 2026-08-17 批E 伴随收编 48→34（13 处手写主按钮改 bds-btn-primary 后文字色由组件类 --on-accent 承载）；
-                               # 批G-8d Sidebar active 文字 text-deep-alt dark:text-white → text-[var(--text-primary)]，34→33
+                               # 批G-8d Sidebar active 文字 text-deep-alt dark:text-white → text-[var(--text-primary)]，34→33；
+                               # W-PG-P2 Relations 主刀：删除确认弹窗 accent 按钮 text-white → text-[var(--on-accent)]；
+                               # 同步实测校准 33→28（期间批G/批H 收编未回写警告级基线，只减不增原则下按实测值入库）
 # 批F（2026-08-17）：font-black 唯一残留 ProductionGlobe.tsx:654（DOM 覆盖层）已改 font-light；
 # 字重断言同步扩展 font-(medium|semibold|bold) → font-(medium|semibold|bold|black)，基线维持 3（pwa 存量）
 
@@ -91,7 +93,7 @@ BASELINE_FILTERBAR_H=3        # M3: bds-filterbar 行手写非 h-10 高度覆盖
                               # 现存 FinanceManager:1935 / finance/FinanceCreditPanel:367 /
                               # finance/FinancePaymentRequestsPanel:422，均 h-auto min-h-11 撑高违例；
                               # 总控校准：filterbar 内禁任何手写 h- 覆盖，仅 h-10 白名单）
-BASELINE_NATIVE_CONTROLS=267  # M4: 原生 <select（无 bds-select 类）168 + type="date" 99 = 267
+BASELINE_NATIVE_CONTROLS=266  # M4: 原生 <select（无 bds-select 类）168 + type="date" 98 = 266
                               # （含 CapsuleDateInput.tsx:66 内部合法拾取器 1 处，BDS 组件封装内部，
                               #  计入基数保持恒定、不算违例增量）
                               # 粗口径对账：全仓 `<select` 213 + `type="date"` 108 = 321（产品负责人点名⑥）；
@@ -106,6 +108,8 @@ BASELINE_NATIVE_CONTROLS=267  # M4: 原生 <select（无 bds-select 类）168 + 
                               # 报价日期/有效期至 date×2（→CapsuleDateInput）+ 客户 select + 行单位 select className 前置
                               # + 币种 select className 前置（共 select 171→168 / date 101→99）。
                               # 注：select 标签 className 须置首属性（onChange 箭头 `=>` 会截断断言前瞻）。
+                              # 2026-08-17 W-PG-P2 Relations 主刀收编 267→266：
+                              # compiledRelationsTemplates 生日 date×1（→CapsuleDateInput，date 99→98）。
 BASELINE_BDS_BTN_DARK=0       # M5: bds-btn-dark 计数（行尾注释 `// bds-dark-ok: <原因>` 白名单豁免）
                               # 2026-08-17 W-PG-P2 OrderManager 主刀清零（4→0）：视图 toggle 实心黑
                               # → bds-toggle active 冷墨洗（accent-tint + accent-text，spec §3.2 点名⑤）

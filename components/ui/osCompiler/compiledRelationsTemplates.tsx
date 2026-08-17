@@ -12,6 +12,7 @@ import {
 import { BAMBOOK_OS } from '../bambookOsTokens';
 import { OS_MATERIAL } from '../osMaterial';
 import { PageHeader } from '../PageHeader';
+import CapsuleDateInput from '../CapsuleDateInput';
 import { motion } from 'framer-motion';
 import { resolveCoordinates, extractAddressFromRelation, type ResolvedCoordinates } from '../../../utils/geoResolveService';
 import { apiService } from '../../../services/apiService';
@@ -246,11 +247,12 @@ export const RELATIONS_TOOLBAR_CONTENT_CLASS = BAMBOOK_OS.controls.toolbar.conte
 export const RELATIONS_TOOLBAR_AMBIENT_CLASS = BAMBOOK_OS.controls.toolbar.ambient;
 export const RELATIONS_TOOLBAR_SEARCH_COMPACT_CLASS = 'w-full min-w-[180px] max-w-[320px] flex-[0_1_320px]';
 export const RELATIONS_TOOLBAR_SEARCH_EXPANDED_CLASS = RELATIONS_TOOLBAR_SEARCH_COMPACT_CLASS;
-export const RELATIONS_TOOLBAR_SEARCH_SHELL_CLASS = 'relative h-9 min-w-0 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] focus-within:translate-y-[1px]';
-export const RELATIONS_TOOLBAR_VIEW_GROUP_CLASS = 'ml-auto flex h-9 shrink-0 items-center gap-1';
+// P2 主刀（2026-08-17 点名④）：toolbar 全条对齐 34/40 刻度（h-9 36px → h-10 40px，spec §2.2 基准范式）
+export const RELATIONS_TOOLBAR_SEARCH_SHELL_CLASS = 'relative h-10 min-w-0 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] focus-within:translate-y-[1px]';
+export const RELATIONS_TOOLBAR_VIEW_GROUP_CLASS = 'ml-auto flex h-10 shrink-0 items-center gap-1';
 export const RELATIONS_TOOLBAR_SORT_CLASS = 'w-[104px] shrink-0';
-export const RELATIONS_TOOLBAR_SEGMENT_CLASS = 'relative h-9 shrink-0 overflow-visible rounded-none p-0 flex items-center';
-export const RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS = `relative z-20 h-9 w-7 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
+export const RELATIONS_TOOLBAR_SEGMENT_CLASS = 'relative h-10 shrink-0 overflow-visible rounded-none p-0 flex items-center';
+export const RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS = `relative z-20 h-10 w-10 rounded-none bg-transparent border-0 shadow-none text-[10px] ${BAMBOOK_OS.typography.weight.ui} ${BAMBOOK_OS.typography.tracking.label} flex items-center justify-center transition-[color,opacity,filter,transform] duration-200 ease-out active:translate-y-[1px]`;
 // P3-1 收编：双写常量坍缩为单写自适应（DARK/LIGHT 同值合并；异值改 dark 变体承载）。
 export const RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS = 'text-[var(--os-vnext-brand-blue)] opacity-100 drop-shadow-none';
 export const RELATIONS_TOOLBAR_CONTROL_CLASS = BAMBOOK_OS.controls.stateControl.base;
@@ -403,6 +405,8 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
   const [shipToRows, setShipToRows] = useState<ShipToRow[]>([{ id: 'shipto-0', contactName: '', city: '', postcode: '', phone: '', address: '', note: '' }]);
   const [otherContactRows, setOtherContactRows] = useState<OtherContactRow[]>([{ id: 'oc-0', type: '', value: '' }]);
   const [formSelectValues, setFormSelectValues] = useState<Record<string, string>>({});
+  // P2 主刀：birthday 原生 date 输入迁 CapsuleDateInput（spec §4 唯一合法形态），受控态与 formSelectValues 同模式
+  const [birthdayValue, setBirthdayValue] = useState('');
   const [resolvedCoords, setResolvedCoords] = useState<ResolvedCoordinates | null>(null);
   const relationCategoryScrollRef = useRef<HTMLDivElement | null>(null);
   const relationListScrollRef = useRef<HTMLDivElement | null>(null);
@@ -593,6 +597,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
       currency: editingItem?.currency || '',
       language: editingItem?.language || '',
     });
+    setBirthdayValue(editingItem?.birthday || '');
   }, [editingItem?.id, showAddModal]);
 
   // Constants
@@ -758,7 +763,8 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
       // 布局类（max-width / margin / inset）→ 外层 sibling-stack
       wrapperClassName={`max-w-[560px] ${toolbarInsetClass} ${includeOffset ? RELATIONS_TOOLBAR_OFFSET_CLASS : ''}`}
       // 视觉类（base + surface bg/border + backdrop-filter）→ 玻璃面板自身（不含 box-shadow）
-      className={`${BAMBOOK_OS.controls.toolbar.base} ${RELATIONS_TOOLBAR_SURFACE_CLASS}`}
+      // P2 主刀：!h-10 覆盖共享 recipe h-9（36px→40px 刻度对齐，bambookOsTokens 为跨页共享文件不动）
+      className={`!h-10 ${BAMBOOK_OS.controls.toolbar.base} ${RELATIONS_TOOLBAR_SURFACE_CLASS}`}
       // 阴影（独立 caster）
       shadowClassName={RELATIONS_TOOLBAR_SURFACE_SHADOW_CLASS}
       // 滑光
@@ -766,17 +772,19 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
     >
       <div className={RELATIONS_TOOLBAR_CONTENT_CLASS}>
         <div className={`${RELATIONS_TOOLBAR_SEARCH_SHELL_CLASS} ${RELATIONS_TOOLBAR_SEARCH_COMPACT_CLASS}`}>
-          <span
-            className="pointer-events-none absolute left-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-control text-[var(--text-tertiary)]"
+          {/* P2 主刀（点名④）：leading icon 内置（spec §2.3：pl-9 + left-3 top-1/2 绝对定位），
+              对齐开发/货运/财务管理基准范式；font-normal → font-light（字重 ≤300 纪律） */}
+          <Search
+            size={14}
+            strokeWidth={1.5}
+            className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--text-tertiary)]"
             aria-hidden="true"
-          >
-            <Search size={14} strokeWidth={1.5} />
-          </span>
+          />
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="搜索组织..."
-            className={`h-9 w-full rounded-control border pl-10 pr-3 outline-none font-normal text-xs ${RELATIONS_TOOLBAR_SEARCH_CLASS}`}
+            className={`h-10 w-full rounded-control border pl-9 pr-3 outline-none font-light text-xs ${RELATIONS_TOOLBAR_SEARCH_CLASS}`}
           />
         </div>
 
@@ -871,7 +879,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
         wechat: formData.get('wechat') as string || undefined,
         whatsapp: formData.get('whatsapp') as string || undefined,
         otherContacts: otherContactsFromRows(),
-        birthday: formData.get('birthday') as string || undefined,
+        birthday: birthdayValue.trim() || undefined,
         language: formData.get('language') as string || undefined,
         timezone: formData.get('timezone') as string || undefined,
         personalNote: formData.get('personalNote') as string || undefined,
@@ -2070,7 +2078,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                     >
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>生日</label>
-                          <input name="birthday" type="date" defaultValue={editingItem?.birthday} className={`w-full mt-1 h-9 px-3 rounded-control border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <CapsuleDateInput value={birthdayValue} onChange={setBirthdayValue} isDarkMode={isDarkMode} className={`w-full mt-1 h-9 px-3 rounded-control border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>语言偏好</label>
@@ -2144,7 +2152,7 @@ export const CompiledRelationsPage: React.FC<CompiledRelationsPageProps> = ({ re
                   type="button"
                   disabled={isDeleting}
                   onClick={() => confirmDeleteId && handleDelete(confirmDeleteId)}
-                  className="w-full py-4 rounded-full text-sm font-light text-white bg-[var(--accent)] hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 rounded-full text-sm font-light text-[var(--on-accent)] bg-[var(--accent)] hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDeleting ? '正在移除…' : '确认移除'}
                 </button>
