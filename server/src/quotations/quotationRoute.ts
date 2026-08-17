@@ -12,13 +12,13 @@
  *   POST   /:id/reject    — 拒绝报价单（Sent → Rejected）
  *   POST   /:id/expire    — 标记过期（Draft/Sent → Expired）
  *
- * 鉴权：JWT（写操作需要认证），读取操作支持 apiKey
+ * 鉴权：统一 createModuleAuthGuard（JWT 或 API-Key）；写操作必须 JWT（requireJwtForWrite，API-Key 不足）
  * 审计：所有 mutation 写入 AuditLog（字段级审计）
  */
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { extractActorFromRequest } from '../auth/middleware';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { createQuotationService, CreateQuotationInput, UpdateQuotationInput } from './quotationService';
@@ -37,20 +37,12 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   const service = createQuotationService(prisma);
   const importService = createQuotationImportService(prisma);
 
-  // ── 简易 apiKey 校验 ──
-  const authenticate = (req: Request, res: Response): boolean => {
-    if (!requireAuth) return true;
-    const apiKey = (req.query.apiKey as string) || (req.headers['x-bambook-api-key'] as string) || (req.headers['x-api-key'] as string);
-    if (apiKey && apiKeys.has(apiKey)) return true;
-    const actor = extractActorFromRequest(req);
-    if (actor?.userId) return true;
-    res.status(401).json({ error: 'authentication required' });
-    return false;
-  };
+  // ── 统一模块鉴权（JWT 或 API-Key；写操作另行要求 JWT） ──
+  router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
+  const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
 
   // ── GET / — 列表 ──
   router.get('/', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const { status, customerRelationId, dateFrom, dateTo, search, limit, offset } = req.query;
       const result = await service.listQuotations({
@@ -71,7 +63,6 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
 
   // ── GET /:id — 详情 ──
   router.get('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const quotation = await service.getQuotation(req.params.id);
       if (!quotation) {
@@ -85,10 +76,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST / — 创建 ──
-  router.post('/', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const input = req.body as CreateQuotationInput;
 
       // 基本校验
@@ -125,10 +115,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
 
   // ── POST /import — 历史报价导入（阶段 P3c，PRD 16.1；mode=preview 只校验，mode=commit 导入合法行）──
   // 注意：须注册在 /:id 之前，避免 'import' 被 :id 捕获
-  router.post('/import', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/import', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const rows = req.body?.rows as HistoricalQuotationRow[];
       const mode = req.body?.mode === 'commit' ? 'commit' : 'preview';
       if (!Array.isArray(rows)) {
@@ -148,10 +137,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── PUT /:id — 更新（仅 Draft） ──
-  router.put('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.put('/:id', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const input = req.body as UpdateQuotationInput;
       const quotation = await service.updateQuotation(req.params.id, input, actor?.userId || 'system');
 
@@ -166,10 +154,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── DELETE /:id — 软删除（仅 Draft） ──
-  router.delete('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.delete('/:id', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       await service.deleteQuotation(req.params.id, actor?.userId || 'system');
 
       onDataChange?.({ entity: 'Quotation', action: 'delete', ids: [req.params.id] });
@@ -183,10 +170,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/send — 发送报价单（Draft → Sent） ──
-  router.post('/:id/send', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/send', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const quotation = await service.sendQuotation(req.params.id, actor?.userId || 'system');
 
       onDataChange?.({ entity: 'Quotation', action: 'send', ids: [quotation.id] });
@@ -201,10 +187,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/accept — 接受报价单（Sent → Accepted） ──
-  router.post('/:id/accept', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/accept', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const { note } = req.body;
       const quotation = await service.acceptQuotation(req.params.id, actor?.userId || 'system', note);
 
@@ -219,10 +204,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/reject — 拒绝报价单（Sent → Rejected） ──
-  router.post('/:id/reject', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/reject', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const { note } = req.body;
       const quotation = await service.rejectQuotation(req.params.id, actor?.userId || 'system', note);
 
@@ -237,10 +221,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/expire — 标记过期 ──
-  router.post('/:id/expire', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/expire', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const quotation = await service.expireQuotation(req.params.id, actor?.userId || 'system');
 
       onDataChange?.({ entity: 'Quotation', action: 'expire', ids: [quotation.id] });
@@ -254,10 +237,9 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/convert-to-order — 转为正式订单（Accepted → Order） ──
-  router.post('/:id/convert-to-order', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/convert-to-order', requireWrite, async (req: Request, res: Response) => {
     try {
-      const actor = extractActorFromRequest(req);
+      const actor = (req as any).actor;
       const { poNumber, millName, type, dueDate } = req.body || {};
       const result = await service.convertToOrder(
         req.params.id,

@@ -459,12 +459,12 @@ describe('Security · ai 模块严格主体映射（Phase 1 守卫统一）', ()
     expect(res.status).not.toBe(403);
   });
 
-  it('无效 API-Key POST /chat → 403（严格模式：未映射主体）', async () => {
+  it('无效 API-Key POST /chat → 401（凭证未识别，与旧模块 authenticate 契约对齐；403 留给已认证未映射主体）', async () => {
     const app = mountAi({ requireAuth: true, apiKeys });
     const res = await request(app)
       .post('/api/ai/chat')
       .set('x-bambook-api-key', 'totally-invalid-key')
       .send({ message: 'hi' });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 });

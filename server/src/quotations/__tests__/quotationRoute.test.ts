@@ -1,8 +1,13 @@
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import jwt from 'jsonwebtoken';
 import { createQuotationRouter } from '../quotationRoute';
 import { businessEventBus } from '../../events/businessEventBus';
+
+// JWT mock for auth-guard 契约测试（与 auth/service.ts 默认 secret 对齐）
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
+const userToken = jwt.sign({ userId: 'u_sales', roles: ['sales'] }, JWT_SECRET);
 
 /**
  * task ERP-P2-quotation-route-contract:
@@ -23,6 +28,8 @@ function makeApp(opts: {
   createFail?: boolean;
   updateFail?: boolean;
   onDataChange?: any;
+  requireAuth?: boolean;
+  apiKeys?: Set<string>;
 } = {}) {
   const existing = opts.existing ?? null;
   const existingByNumber = opts.existingByNumber ?? null;
@@ -112,8 +119,8 @@ function makeApp(opts: {
   app.use(express.json());
   app.use('/api/v1/quotations', createQuotationRouter({
     prisma,
-    requireAuth: false,
-    apiKeys: new Set<string>(),
+    requireAuth: opts.requireAuth ?? false,
+    apiKeys: opts.apiKeys ?? new Set<string>(),
     onDataChange,
   }));
 
@@ -225,6 +232,44 @@ describe('quotationRoute: POST / (create)', () => {
     const res = await request(app).post('/api/v1/quotations').send(validInput);
     expect(res.status).toBe(500);
     expect(onDataChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('quotationRoute: auth-guard 契约（requireAuth=true）', () => {
+  it('无 JWT / API-Key → POST / 401', async () => {
+    const { app } = makeApp({ requireAuth: true });
+    const res = await request(app).post('/api/v1/quotations').send(validInput);
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('UNAUTHORIZED');
+  });
+
+  it('API-Key 读操作 → 通过', async () => {
+    const { app } = makeApp({ requireAuth: true, apiKeys: new Set(['ak-test']) });
+    const res = await request(app)
+      .get('/api/v1/quotations')
+      .set('X-Bambook-API-Key', 'ak-test');
+    expect(res.status).toBe(200);
+  });
+
+  it('API-Key 写操作 → 401（API key insufficient）', async () => {
+    const { app } = makeApp({ requireAuth: true, apiKeys: new Set(['ak-test']) });
+    const res = await request(app)
+      .post('/api/v1/quotations')
+      .set('X-Bambook-API-Key', 'ak-test')
+      .send(validInput);
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('UNAUTHORIZED');
+    expect(res.body.message).toMatch(/API key insufficient/);
+  });
+
+  it('Bearer JWT 写操作 → 通过', async () => {
+    const { app, onDataChange } = makeApp({ requireAuth: true });
+    const res = await request(app)
+      .post('/api/v1/quotations')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send(validInput);
+    expect(res.status).toBe(201);
+    expect(onDataChange).toHaveBeenCalled();
   });
 });
 
