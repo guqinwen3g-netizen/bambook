@@ -480,7 +480,7 @@ describe('RelationsManager title system', () => {
     expect(contactListSource).not.toContain('CONTACT_LIST_ACTIVE_DARK_CLASS');
     expect(contactListSource).not.toContain('CONTACT_LIST_HOVER_DARK_CLASS');
     expect(contactListSource).toContain('const activeItemClass =');
-    expect(contactListSource).toContain('${SIDEBAR_ACTIVE_CLASS} text-deep-alt dark:text-[var(--text-primary)]');
+    expect(contactListSource).toContain('${SIDEBAR_ACTIVE_CLASS} text-deep-alt');
     expect(contactListSource).toContain('? activeItemClass');
     expect(contactListSource).toContain('const idleItemClass =');
     expect(contactListSource).toContain('border border-transparent bg-transparent shadow-none ${CONTACT_LIST_HOVER_CLASS} ${BAMBOOK_OS.controls.listRow.press}');

@@ -198,7 +198,7 @@ const OrgNodeCard: React.FC<{
                                 {contact.name}
                             </h4>
                             <div className="mt-0.5">
-                                <span className={`text-[10px] font-light truncate text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>
+                                <span className={`text-[10px] font-light truncate text-[var(--text-tertiary)]`}>
                                     {contact.role || '未设置职位'}
                                 </span>
                             </div>
@@ -214,7 +214,7 @@ const OrgNodeCard: React.FC<{
                         )}
 
                         {hasChildren && (
-                            <span className={`text-[9px] font-light text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]`}>
+                            <span className={`text-[9px] font-light text-[var(--text-tertiary)]`}>
                                 {children.length} 下级
                             </span>
                         )}
@@ -449,7 +449,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8">
                 <div className={`w-20 h-20 rounded-card flex items-center justify-center mb-5 ${quietIconSurfaceClass}`}>
-                    <Users size={40} strokeWidth={1} className="text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]" />
+                    <Users size={40} strokeWidth={1} className="text-[var(--text-tertiary)]" />
                 </div>
                 <h3 className="text-base font-light mb-2 text-[var(--text-primary)]">
                     暂无组织架构
@@ -492,7 +492,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current - ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="缩小组织架构"
                     >
                         <ZoomOut size={14} strokeWidth={1.6} />
@@ -503,7 +503,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                             updateZoom(1);
                             setPan({ x: 0, y: 0 });
                         }}
-                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
+                        className={`h-8 min-w-12 rounded-compact px-2 text-[10px] font-light tracking-wide transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="重置组织架构缩放"
                     >
                         <span className="inline-flex items-center gap-1">
@@ -514,7 +514,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     <button
                         type="button"
                         onClick={() => updateZoom(current => current + ORG_CHART_ZOOM_STEP)}
-                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}
+                        className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="放大组织架构"
                     >
                         <ZoomIn size={14} strokeWidth={1.6} />
@@ -535,15 +535,15 @@ const OrgChart: React.FC<OrgChartProps> = ({
                 </span>
                 <div className="flex items-center gap-1.5">
                     <Building2 size={12} className={brandTextClass} />
-                    <span className={`text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>组织</span>
+                    <span className={`text-xs font-light text-[var(--text-tertiary)]`}>组织</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <User size={12} className={brandTextClass} />
-                    <span className={`text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>人员</span>
+                    <span className={`text-xs font-light text-[var(--text-tertiary)]`}>人员</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <ChevronDown size={12} className="text-[var(--text-tertiary)]" />
-                    <span className={`text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>下级关系</span>
+                    <span className={`text-xs font-light text-[var(--text-tertiary)]`}>下级关系</span>
                 </div>
                 <span className="text-[11px] ml-auto font-light text-[var(--text-tertiary)]">
                     拖动人员卡片到另一张卡片下方，或拖到组织卡片设为顶层

@@ -16,10 +16,9 @@ interface ToggleSwitchProps {
 const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, disabled = false, ariaLabel }) => {
   // 注意：轨道带 rounded-full，class 中若出现 Tailwind 语义描边/背景类等子串会命中
   // flat-experimental.css 护栏被强制 border:0。统一用 rgba() 任意值，保证描边可见。
-  // 暗色由 Tailwind dark 变体承载（同为 rgba 任意值），亮色为基值。
   const trackCls = checked
-    ? 'bg-[rgba(51,65,85,0.82)] border border-[rgba(51,65,85,0.90)] dark:bg-[rgba(255,255,255,0.72)] dark:border-[rgba(255,255,255,0.80)]'
-    : 'bg-[rgba(100,116,139,0.26)] border border-[rgba(15,23,42,0.20)] dark:bg-[rgba(255,255,255,0.13)] dark:border-[rgba(255,255,255,0.22)]';
+    ? 'bg-[rgba(51,65,85,0.82)] border border-[rgba(51,65,85,0.90)]'
+    : 'bg-[rgba(100,116,139,0.26)] border border-[rgba(15,23,42,0.20)]';
   return (
     <button
       type="button"
@@ -31,7 +30,7 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, disabled
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${trackCls} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
     >
       <span
-        className={`absolute top-0.5 h-[14px] w-[14px] rounded-full transition-transform ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'} bg-[var(--bg-card)] ${checked ? 'dark:bg-[rgba(13,27,42,0.85)]' : 'dark:bg-[rgba(255,255,255,0.75)]'}`}
+        className={`absolute top-0.5 h-[14px] w-[14px] rounded-full transition-transform ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'} bg-[var(--bg-card)]`}
       />
     </button>
   );

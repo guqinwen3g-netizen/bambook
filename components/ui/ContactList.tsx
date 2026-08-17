@@ -20,7 +20,7 @@ import { CompiledEdgeFade, CompiledSurfacePanel } from './osCompiler/compiledSur
 
 // P3-2 收编：双写坍缩为单写自适应（真源 BAMBOOK_OS.controls.listRow / selectedSurface）。
 export const CONTACT_LIST_ACTIVE_CLASS =
-    `${SIDEBAR_ACTIVE_CLASS} text-deep-alt dark:text-[var(--text-primary)]`;
+    `${SIDEBAR_ACTIVE_CLASS} text-deep-alt`;
 export const CONTACT_LIST_HOVER_CLASS =
     BAMBOOK_OS.controls.listRow.hover;
 
@@ -79,11 +79,11 @@ const ContactList: React.FC<ContactListProps> = ({
                         <p className={`text-[10px] font-light uppercase tracking-[0.2em] text-[var(--text-tertiary)]`}>
                             通讯录
                         </p>
-                        <p className={`mt-1 text-xs font-light text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]`}>
+                        <p className={`mt-1 text-xs font-light text-[var(--text-tertiary)]`}>
                             {filteredContacts.length} 位联系人
                         </p>
                     </div>
-                    <span className={`text-[10px] font-light text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]`}>
+                    <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
                         {selectedId ? '联系人' : '组织'}
                     </span>
                 </div>
@@ -140,7 +140,7 @@ const ContactList: React.FC<ContactListProps> = ({
             </div>
 
             {/* 联系人列表 (可滚动) */}
-            <div className={`mx-4 mb-1 h-px shrink-0 bg-[var(--recessed-bg-strong)] dark:bg-[var(--recessed-bg)]`} />
+            <div className={`mx-4 mb-1 h-px shrink-0 bg-[var(--recessed-bg-strong)]`} />
             <CompiledEdgeFade
                 scrollRef={contactListScrollRef}
                 isDarkMode={isDarkMode}
@@ -174,7 +174,7 @@ const ContactList: React.FC<ContactListProps> = ({
                                     className={`w-4 shrink-0 text-center text-sm font-light transition-colors duration-200 ${
                                         isSelected
                                             ? brandTextClass
-                                            : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] dark:text-[var(--text-secondary)] dark:group-hover:text-[var(--text-primary)]'
+                                            : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)]'
                                     }`}
                                 >
                                     {contact.name.charAt(0).toUpperCase()}
@@ -201,7 +201,7 @@ const ContactList: React.FC<ContactListProps> = ({
 
                 {/* 空状态 */}
                 {filteredContacts.length === 0 && (
-                    <div className={`py-8 text-center text-[var(--text-tertiary)] dark:text-[var(--text-quaternary)]`}>
+                    <div className={`py-8 text-center text-[var(--text-tertiary)]`}>
                         <User size={24} className="mx-auto mb-2 opacity-50" />
                         <p className="text-xs font-light">
                             {searchTerm ? '未找到匹配的联系人' : '暂无联系人'}
