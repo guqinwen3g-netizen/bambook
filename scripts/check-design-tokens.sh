@@ -39,7 +39,7 @@ BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + Mo
 # P2 收口（2026-08-15）允许单写自适应类内使用 Tailwind `dark:` 变体
 # （.dark 根 class，替代旧 isDarkMode JS 三元 + _DARK/_LIGHT 双写常量），
 # dark: 变体因此成为合规载体并一次性上调基线，此后只减不增。
-BASELINE_DARK_VARIANT=9        # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
+BASELINE_DARK_VARIANT=7        # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
                                # 2026-08-17 W0 锁进度 196→182（实测回归）；批G-1 KnowledgeBase 收编 182→111；
                                # 批G-2 ProductsManager+compiledProductsTemplates 收编 111→89；
                                # 批G-3 ui/ 控件族 收编 89→64；批G-4 Relations域 收编 64→53；
@@ -47,7 +47,9 @@ BASELINE_DARK_VARIANT=9        # dark: Tailwind 变体（行数口径；历史�
                                # 批G-7 UserAvatar+StepPreview+EmailEditor+NotificationCenter 收编 33→26；
                                # 批G-8a ImportWizard+QuotationImportWizard+StepUpload 收编 26→19；
                                # 批G-8b AgentDocumentRenderer+AgentTableBlock+AgentDiagramBlock 收编 19→14；
-                               # 批G-8c OrderLinesTable+ImageUploader+SampleNodesPanel+BusinessTools+SplashScreen 收编 14→9；批 G 目标 ≤10
+                               # 批G-8c OrderLinesTable+ImageUploader+SampleNodesPanel+BusinessTools+SplashScreen 收编 14→9；
+                               # 批G-8d Sidebar+compiledPrimitives 收编 9→7（目标 ≤10 达成）
+                               # 余量 7 行：App.tsx 5（W5 冻结移交 S-ARCH）+ NotificationCenter 2（levelColorFor/levelBgFor 形参 `dark: boolean` 误匹配，非 Tailwind 变体）
 BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366→226→220；
                                # 2026-08-17 W0 锁进度 220→219；
                                # 余量为 spotlight/图表数值型三元 + isDarkMode?: 类型声明 + 冻结/搁置文件，合规保留）
@@ -65,8 +67,9 @@ BASELINE_BARE_ROUNDED=5        # 批D：裸 rounded（非 BDS 刻度，Tailwind 
 BASELINE_HANDWRITTEN_BTN=22    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
                                # 2026-08-17 批E 收编 35→22（13 处按钮：DocumentCenter×4 / ReportCenter×4 / ImportWizard / Register / QuotationImportWizard / compiledProductsTemplates×2）；
                                # 余量 21 处均非按钮：进度条/圆点/头像/徽章等装饰性 accent 填充（Dashboard×5 / compiledDashboardTemplates×5 / ProductsManager×2 / compiledProductsTemplates×3 / AdminPanel / RelationsManager / ImageUploader / QuotationImportWizard 链接 / DesignTuner 开发工具）+ FabricSampleInvoiceGenerator 1（测试锁定业务语义豁免）
-BASELINE_TEXT_WHITE=34         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
-                               # 2026-08-17 批E 伴随收编 48→34（13 处手写主按钮改 bds-btn-primary 后文字色由组件类 --on-accent 承载）
+BASELINE_TEXT_WHITE=33         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
+                               # 2026-08-17 批E 伴随收编 48→34（13 处手写主按钮改 bds-btn-primary 后文字色由组件类 --on-accent 承载）；
+                               # 批G-8d Sidebar active 文字 text-deep-alt dark:text-white → text-[var(--text-primary)]，34→33
 # 批F（2026-08-17）：font-black 唯一残留 ProductionGlobe.tsx:654（DOM 覆盖层）已改 font-light；
 # 字重断言同步扩展 font-(medium|semibold|bold) → font-(medium|semibold|bold|black)，基线维持 3（pwa 存量）
 

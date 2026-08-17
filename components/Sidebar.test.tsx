@@ -137,7 +137,8 @@ describe('Sidebar reveal material system', () => {
     expect(osVnextCss).toContain('background: rgba(255, 255, 255, 0.055) !important;');
     expect(SIDEBAR_ACTIVE_CLASS).not.toContain('rgba(255,255,255,0.6)');
     expect(SIDEBAR_ACTIVE_CLASS).not.toContain('rgba(255,255,255,0.85)');
-    expect(source).toContain("'text-deep-alt dark:text-white'");
+    expect(source).toContain("'text-[var(--text-primary)]'");
+    expect(source).not.toContain('dark:text-white');
     expect(SIDEBAR_ACTIVE_GLASS_CLASS).toBe('');
     expect(SIDEBAR_ACTIVE_ICON_CLASS).toBe('text-current');
     expect(SIDEBAR_IDLE_TEXT_CLASS).toBe('!text-[var(--text-secondary)]');
