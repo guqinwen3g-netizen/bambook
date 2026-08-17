@@ -13,7 +13,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
   const labelTextClass = BAMBOOK_OS.tone.text.formLabel;
   const quietTextClass = BAMBOOK_OS.tone.text.quiet;
   const borderClass = 'border-[var(--border-c-default)]';
-  const inputClass = 'bg-[var(--recessed-bg)] text-[var(--text-primary)] border-[var(--border-c-default)] placeholder-[var(--text-tertiary)] dark:placeholder-[var(--text-quaternary)]';
+  const inputClass = 'bg-[var(--recessed-bg)] text-[var(--text-primary)] border-[var(--border-c-default)] placeholder-[var(--text-tertiary)]';
 
   const handleChange = (key: string, val: string) => {
     setValues(prev => ({ ...prev, [key]: val }));
@@ -48,7 +48,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
     <div className={`${OS_MATERIAL.insetSurface} rounded-inset border px-4 py-3 ${borderClass}`}>
       <div className="flex items-start gap-3">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border ${borderClass}`}>
-          <ClipboardList size={16} className="text-[var(--os-vnext-brand-blue-strong)] dark:text-[var(--os-vnext-brand-blue-soft)]" />
+          <ClipboardList size={16} className="text-[var(--os-vnext-brand-blue-strong)]" />
         </div>
         <div className="min-w-0 flex-1">
           <div className={`text-[11px] uppercase tracking-widest ${labelTextClass}`}>{block.title ?? '请填写信息'}</div>
@@ -105,7 +105,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                             }}
                             className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${borderClass} ${
                               (values[field.key] || '').includes(opt)
-                                ? 'bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)] dark:bg-[var(--os-vnext-brand-blue)]/20 dark:text-[var(--os-vnext-brand-blue-soft)]'
+                                ? 'bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)]'
                                 : 'text-[var(--text-secondary)]'
                             }`}
                           >
@@ -131,7 +131,7 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
                 disabled={submitting || !onExecuteAction}
                 className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-light transition-opacity ${
                   submitting ? 'cursor-wait opacity-60' : 'hover:opacity-80'
-                } ${borderClass} bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)] dark:bg-[var(--os-vnext-brand-blue)]/15 dark:text-[var(--os-vnext-brand-blue-soft)]`}
+                } ${borderClass} bg-[var(--os-vnext-brand-blue-soft)] text-[var(--os-vnext-brand-blue-strong)]`}
               >
                 <Send size={13} />
                 {submitting ? '提交中...' : (block.submitLabel || '提交')}

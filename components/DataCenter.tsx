@@ -93,7 +93,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
             </div>
 
             {/* 提问区 */}
-            <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)] dark:bg-deep/48`}>
+            <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)]`}>
               <textarea
                 rows={3}
                 value={qaQuestion}
@@ -131,7 +131,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
 
             {/* 回答区 */}
             {(qaAnswer || qaBusy) && (
-              <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)] dark:bg-deep/48`}>
+              <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)]`}>
                 <div className={`mb-3 text-[10px] font-light tracking-[0.18em] text-[var(--text-tertiary)]`}>回答</div>
                 <p className={`whitespace-pre-wrap text-[13px] font-light leading-relaxed text-[var(--text-secondary)]`}>
                   {qaAnswer}
@@ -167,7 +167,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
 
             {/* 引用片段 */}
             {qaCitations.length > 0 && (
-              <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)] dark:bg-deep/48`}>
+              <div className={`p-6 ${BAMBOOK_OS.material.card} bg-[var(--recessed-bg)]`}>
                 <div className={`mb-3 text-[10px] font-light tracking-[0.18em] text-[var(--text-tertiary)]`}>命中片段 ({qaCitations.length})</div>
                 <div className="space-y-3">
                   {qaCitations.map((c) => (
