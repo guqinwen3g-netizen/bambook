@@ -900,7 +900,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                 <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                                     {cognitionView === 'nodes' ? 'Active Nodes' : 'High Priority'}
                                                 </div>
-                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--os-vnext-brand-blue)]" />
+                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--accent)]" />
                                             </motion.div>
                                         </AnimatePresence>
                                         <DashboardProgressRing value={memoryPercent} displayValue={cognitionView === 'nodes' ? insightsCount : highInsightCount} />
@@ -929,7 +929,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                             {productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}
                                         </div>
                                         <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg-strong)]">
-                                            <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${outputPercent}%` }} />
+                                            <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${outputPercent}%` }} />
                                         </div>
                                         </div>
                                         {!useExpandedDashboardLayout && (
@@ -941,7 +941,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                     ${(totalValue / 1000).toFixed(1)}k
                                                 </div>
                                                 <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg-strong)]">
-                                                    <div className="h-full rounded-full transition-all duration-1000 bg-[var(--os-vnext-brand-blue)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
+                                                    <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
                                                 </div>
                                             </div>
                                         )}
@@ -964,7 +964,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                 <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                                     {criticalView === 'production' ? 'Line Blocks' : criticalView === 'logistics' ? 'Delay Risks' : 'Unread Inbox'}
                                                 </div>
-                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--os-vnext-brand-blue)]" />
+                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--accent)]" />
                                             </motion.div>
                                         </AnimatePresence>
                                         <DashboardProgressRing value={risksPercent} displayValue={criticalView === 'production' ? alertCount : criticalView === 'logistics' ? liveOrders.filter(o => o.status === 'Pending').length : unreadEmailCount} />
@@ -1018,7 +1018,7 @@ export const CompiledDashboardPage: React.FC<CompiledDashboardPageProps> = ({ or
                                                                     key={i}
                                                                     animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.6, 0.2] }}
                                                                     transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
-                                                                    className="w-1 h-1 rounded-full bg-[var(--os-vnext-brand-blue)]"
+                                                                    className="w-1 h-1 rounded-full bg-[var(--accent)]"
                                                                 />
                                                             ))}
                                                         </div>

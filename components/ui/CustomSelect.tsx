@@ -47,8 +47,13 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   const isToolbarSurface = surface === 'toolbar';
   const isFormSurface = surface === 'form';
   const isInlineToolbarTrigger = isToolbarSurface && triggerVariant === 'inline';
+  // W4 刻度专项：compact 触发器 h-9(36px 旧刻度) → var(--h-input-sm)=34px BDS 规格刻度。
+  // 34px 是两消费上下文的安全交集：Relations 工具条(h-10=40px) 内 = filterbar 官方范式
+  // (input sm 34px + 按钮 40px，6px 高差)；Products 工具条(共享 recipe h-9=36px) 内仅 2px 差、
+  // inline 透明无边框视觉连续。h-10 方案会高出 Products 工具条 4px 故弃用。
+  // default size（form 场景 h-9）不在本专项范围，随逐页主刀表单区处理。
   const triggerSizeClass = isCompact
-    ? `${isInlineToolbarTrigger ? 'h-9 px-2' : 'h-9 px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-[11px] leading-none`
+    ? `${isInlineToolbarTrigger ? 'h-[var(--h-input-sm)] px-2' : 'h-[var(--h-input-sm)] px-3'} py-0 ${isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'} text-[11px] leading-none`
     : 'h-9 px-3 py-0 rounded-full text-xs leading-none';
   const toolbarBaseClass = BAMBOOK_OS.controls.select.toolbarBase;
   const toolbarHoverClass = `${toolbarBaseClass} text-[var(--text-tertiary)] hover:!bg-[var(--active-darken)] hover:text-deep-alt hover:shadow-none active:scale-[0.98] active:bg-[var(--active-darken)]`;

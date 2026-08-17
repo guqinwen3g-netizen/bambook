@@ -890,7 +890,8 @@ describe('RelationsManager title system', () => {
     expect(BAMBOOK_OS.controls.title.pageLabel).not.toContain('font-medium');
     expect(BAMBOOK_OS.controls.title.viewSwitchButton).not.toContain('font-medium');
     expect(RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS).not.toContain('py-1.5');
-    expect(customSelectSource).toContain("isInlineToolbarTrigger ? 'h-9 px-2' : 'h-9 px-3'");
+    // W4 刻度专项：compact 触发器对齐 BDS 规格刻度 var(--h-input-sm)=34px（原 h-9 36px 旧刻度）
+    expect(customSelectSource).toContain("isInlineToolbarTrigger ? 'h-[var(--h-input-sm)] px-2' : 'h-[var(--h-input-sm)] px-3'");
     expect(customSelectSource).toContain("isInlineToolbarTrigger ? 'rounded-control' : 'rounded-full'");
     expect(customSelectSource).toContain("'h-9 px-3 py-0 rounded-full text-xs leading-none'");
     expect(customSelectSource).not.toContain("'px-4 py-3 rounded-xl text-[12px]'");
