@@ -39,9 +39,9 @@ BASELINE_FONT_WEIGHT=3    # pwa/mobile 字重写法：MobileWebNavigation 2 + Mo
 # P2 收口（2026-08-15）允许单写自适应类内使用 Tailwind `dark:` 变体
 # （.dark 根 class，替代旧 isDarkMode JS 三元 + _DARK/_LIGHT 双写常量），
 # dark: 变体因此成为合规载体并一次性上调基线，此后只减不增。
-BASELINE_DARK_VARIANT=182      # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
-                               # 2026-08-17 W0 锁进度 196→182（实测回归）；批 G 收编目标 ≤10，
-                               # 出现次数口径（评审口径）实测 251，随批 G 单调下降）
+BASELINE_DARK_VARIANT=111      # dark: Tailwind 变体（行数口径；历史注释见 git 记录）
+                               # 2026-08-17 W0 锁进度 196→182（实测回归）；批G-1 KnowledgeBase 收编 182→111（71 行 dark: 清零，token 已主题自适应）；
+                               # 批 G 收编目标 ≤10，出现次数口径（评审口径）随批 G 单调下降）
 BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366→226→220；
                                # 2026-08-17 W0 锁进度 220→219；
                                # 余量为 spotlight/图表数值型三元 + isDarkMode?: 类型声明 + 冻结/搁置文件，合规保留）
