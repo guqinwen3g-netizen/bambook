@@ -111,6 +111,12 @@ function makeApp(opts: {
       count: vi.fn().mockResolvedValue(0),
       update: quotationUpdate, // expireQuotation 不用事务
     },
+    // §9.2 价格规则 ①②④ 评估依赖（默认空 → 仅 ② relationUnbound 命中路径，requester 不可解析则不建审批单）
+    relation: { findUnique: vi.fn().mockResolvedValue(null) },
+    order: { count: vi.fn().mockResolvedValue(0) },
+    fabricPriceHistory: { findMany: vi.fn().mockResolvedValue([]) },
+    productAsset: { findMany: vi.fn().mockResolvedValue([]) },
+    userAccount: { findFirst: vi.fn().mockResolvedValue(null) },
     $transaction: vi.fn(async (fn: any) => fn(tx)),
   };
 

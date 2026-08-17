@@ -28,7 +28,7 @@ function normalizeLoginIdentifier(value: unknown): string {
 
 /**
  * 新 RBAC 角色 id → 旧 AgentRole 字符串列表的映射（兼容旧 requireRole 调用）。
- * - 角色 id 匹配系统内置 6 种（role-sales / role-sales-manager 等）时走 ROLE_ID_TO_LEGACY_AGENT_ROLE
+ * - 角色 id 匹配系统内置 8 种（role-sales / role-sales-manager / role-qc / role-logistics 等）时走 ROLE_ID_TO_LEGACY_AGENT_ROLE
  * - 其他自定义角色（isSystem=false）退回到 role.name 作为 legacy 字符串
  * - 返回 AgentRole[]：一个新角色可能映射到多个旧 role code（例如 FINANCE_MANAGER → ['finance', 'manager']）
  */

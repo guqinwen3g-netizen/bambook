@@ -26,6 +26,11 @@ import { createMoqResolutionService, isValidSnapshot } from '../moq/moqResolutio
 import { createMoqValidationService } from '../moq/moqValidationService';
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
+import {
+  createPriceDeviationRuleService,
+  PRICE_APPROVAL_POLICY_KEY,
+  PRICE_RULE_CONDITION,
+} from '../pricing/priceDeviationRuleService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -141,15 +146,18 @@ export function createQuotationService(prisma: PrismaClient) {
   // 豁免审批单统一经 approvalCreateService（DR-007 服务端解析 reviewerId，禁止前端/调用方传入）
   const moqConfigSvc = createMoqConfigService({ prisma });
   const moqResolutionSvc = createMoqResolutionService({ prisma, configService: moqConfigSvc });
+  const approvalCreateService = createApprovalCreateService({
+    prisma,
+    routingService: createApprovalRoutingService({ prisma }),
+  });
   const moqValidationSvc = createMoqValidationService({
     prisma,
     configService: moqConfigSvc,
     resolutionService: moqResolutionSvc,
-    approvalCreateService: createApprovalCreateService({
-      prisma,
-      routingService: createApprovalRoutingService({ prisma }),
-    }),
+    approvalCreateService,
   });
+  // §9.2 价格审批规则 ①②④ 评估（折扣>10%/新客首单/低于成本价；⑤ 双轨偏差在 createQuotation 内联计算）
+  const priceRuleSvc = createPriceDeviationRuleService(prisma);
 
   // ── MOQ 行级业务线推导：Quotation 无单据级 type/businessLine 字段，按行 unit 归族 ──
   // PC/PCS/SET（件/套）→ garment 成衣族；其余（M/YD/KG 等）→ fabric 面料族
@@ -201,11 +209,31 @@ export function createQuotationService(prisma: PrismaClient) {
       deviation = calculatePriceDeviation(input.trackBFinalUsd as number, input.trackAMedianUsd as number);
     }
 
-    // warn/block → 需要审批：先解析 requester（actor → UserAccount，fallback owner）
+    // ── §9.2 价格规则 ①②④ 评估（折扣>10% / 新客首单 / 低于成本价） ──
+    const ruleEval = await priceRuleSvc.evaluateQuotationRules({
+      customerRelationId: input.customerRelationId ?? null,
+      currency: input.currency,
+      exchangeRate: input.exchangeRate ?? null,
+      lines: input.lines.map((l) => ({ fabricCode: l.fabricCode ?? null, unitPrice: l.unitPrice, unit: l.unit })),
+    });
+
+    // ── 决策点 3-A 合并：多条件命中 → 单条 ApprovalRequest，hitConditions 数组标注全部命中编号 ──
+    const hitConditions: string[] = [...ruleEval.hitConditions];
+    if (deviation && deviation.level !== 'ok') hitConditions.push(PRICE_RULE_CONDITION.DUAL_TRACK_DEVIATION);
+    // 合并分级：④ 或 ⑤>30% → block；①② 或 ⑤>15% → warn；仅 ⑤ok → ok；全无 → null（保持历史快照语义）
+    const mergedLevel: DeviationLevel | null = ruleEval.level === 'block' || deviation?.level === 'block'
+      ? 'block'
+      : ruleEval.level === 'warn' || deviation?.level === 'warn'
+        ? 'warn'
+        : deviation
+          ? 'ok'
+          : null;
+
+    // 任一价格规则命中 → 需要审批：先解析 requester（actor → UserAccount，fallback owner）
     // 无法解析时不阻断创建：快照照常落库，priceApprovalId 置空；发送门禁对 block 仍 fail-closed
     let approvalId: string | null = null;
     let approvalRequesterId: string | null = null;
-    if (deviation && deviation.level !== 'ok') {
+    if (hitConditions.length > 0) {
       approvalRequesterId = await resolveActorUserAccountId(prisma, { userId: actorId }).catch(() => null);
       if (!approvalRequesterId) {
         const owner = await prisma.userAccount.findFirst({
@@ -217,8 +245,8 @@ export function createQuotationService(prisma: PrismaClient) {
       if (approvalRequesterId) {
         approvalId = `ar_${now}_${Math.random().toString(36).slice(2, 8)}`;
       } else {
-        logger.warn('[QuotationService] price deviation approval skipped: no resolvable requester', {
-          quotationNumber: input.quotationNumber, deviationPercent: deviation.deviationPercent, level: deviation.level,
+        logger.warn('[QuotationService] price approval skipped: no resolvable requester', {
+          quotationNumber: input.quotationNumber, hitConditions, level: mergedLevel,
         });
       }
     }
@@ -253,7 +281,7 @@ export function createQuotationService(prisma: PrismaClient) {
           trackAUnit: trackAOk ? (input.trackAUnit ?? null) : null,
           trackBFinalUsd: trackBOk ? (input.trackBFinalUsd as number) : null,
           priceDeviationPercent: deviation?.deviationPercent ?? null,
-          priceDeviationLevel: deviation?.level ?? null,
+          priceDeviationLevel: mergedLevel,
           priceApprovalId: approvalId,
           // MOQ 快照（writeOnce）
           moqSnapshot: moqSnapshot as any,
@@ -277,8 +305,9 @@ export function createQuotationService(prisma: PrismaClient) {
         include: { lines: { orderBy: { lineNumber: 'asc' } } },
       });
 
-      // 偏差 >15% → 同事务自动生成审批请求（warn 提示审批，block 未通过禁止发送）
-      if (approvalId && deviation && approvalRequesterId) {
+      // 任一价格规则命中（①②④⑤，决策点 3-A 合并单条）→ 同事务自动生成审批请求
+      // （warn 提示审批，block 未通过禁止发送；policyKey 走审批策略配置 price_approval）
+      if (approvalId && approvalRequesterId) {
         await tx.approvalRequest.create({
           data: {
             id: approvalId,
@@ -287,17 +316,20 @@ export function createQuotationService(prisma: PrismaClient) {
             targetType: 'Quotation',
             targetId: quotationId,
             status: 'pending',
-            risk: deviation.level === 'block' ? 'high' : 'medium',
+            risk: mergedLevel === 'block' ? 'high' : 'medium',
             payload: {
+              policyKey: PRICE_APPROVAL_POLICY_KEY,
+              hitConditions,
               quotationId,
               quotationNumber: input.quotationNumber,
               trackAMedianUsd: input.trackAMedianUsd,
               trackAUnit: input.trackAUnit ?? null,
               trackBFinalUsd: input.trackBFinalUsd,
-              deviationPercent: deviation.deviationPercent,
-              level: deviation.level,
+              deviationPercent: deviation?.deviationPercent ?? null,
+              level: mergedLevel,
+              ruleFindings: ruleEval.findings as any,
               requestedAt: new Date(now).toISOString(),
-              source: 'quotation-dual-track',
+              source: deviation && deviation.level !== 'ok' ? 'quotation-dual-track' : 'quotation-price-rules',
             },
           },
         });
@@ -311,7 +343,7 @@ export function createQuotationService(prisma: PrismaClient) {
           action: 'create_quotation',
           targetType: 'Quotation',
           targetId: quotationId,
-          detail: { source: 'api:quotation', after: { quotationNumber, totalAmount, lineCount: input.lines.length, priceDeviationLevel: deviation?.level ?? null } } as any,
+          detail: { source: 'api:quotation', after: { quotationNumber, totalAmount, lineCount: input.lines.length, priceDeviationLevel: mergedLevel, priceHitConditions: hitConditions } } as any,
           ip: null,
           operationType: 'create',
           fieldPath: null,
@@ -544,16 +576,22 @@ export function createQuotationService(prisma: PrismaClient) {
     if (!existing || existing.deletedAt) throw new Error(`报价单 ${id} 不存在`);
     validateStatusTransition(existing.status, 'Sent');
 
-    // ── 双轨红标门禁（PRD 8.6）：偏差 >30% 未审批通过禁止发送（fail-closed）──
+    // ── 价格审批红标门禁（PRD 8.6 ⑤ + §9.2 ④ 合并分级）：block 未审批通过禁止发送（fail-closed）──
     if (existing.priceDeviationLevel === 'block') {
       let approved = false;
+      let approval: any = null;
       if (existing.priceApprovalId) {
-        const approval = await prisma.approvalRequest.findUnique({ where: { id: existing.priceApprovalId } });
+        approval = await prisma.approvalRequest.findUnique({ where: { id: existing.priceApprovalId } });
         approved = approval?.status === 'approved';
       }
       if (!approved) {
+        // 命中条件取自审批单 payload.hitConditions（①②④⑤ 合并单条，决策点 3-A）；历史数据缺省时回退双轨口径
+        const hitConditions: string[] = Array.isArray(approval?.payload?.hitConditions) ? approval.payload.hitConditions : [];
+        const conditionText = hitConditions.length > 0
+          ? `命中价格审批条件 [${hitConditions.join(' / ')}]`
+          : `双轨偏差 ${existing.priceDeviationPercent ?? '?'}% 超过 30% 红标阈值`;
         throw new Error(
-          `报价单 ${existing.quotationNumber} 双轨偏差 ${existing.priceDeviationPercent ?? '?'}% 超过 30% 红标阈值，`
+          `报价单 ${existing.quotationNumber} ${conditionText}，`
           + `需审批通过后方可发送（门禁：price-deviation${existing.priceApprovalId ? '' : '，审批请求缺失'}）`,
         );
       }

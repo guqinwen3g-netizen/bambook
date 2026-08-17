@@ -97,6 +97,11 @@ function makePrisma(opts: {
     // 双轨偏差：requester 解析（默认命中 owner）+ 发送门禁查询审批状态
     userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
     approvalRequest: { findUnique: vi.fn().mockResolvedValue(null) },
+    // §9.2 价格规则 ①②④ 评估依赖（默认空 → 无命中，保持历史用例断言不变）
+    relation: { findUnique: vi.fn().mockResolvedValue(null) },
+    order: { count: vi.fn().mockResolvedValue(0) },
+    fabricPriceHistory: { findMany: vi.fn().mockResolvedValue([]) },
+    productAsset: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn(async (fn: any) => fn(tx)),
   };
 
@@ -108,6 +113,8 @@ const baseInput: CreateQuotationInput = {
   currency: 'USD',
   issueDate: '2026-08-06',
   customerName: 'ACME Corp',
+  // §9.2-② 新客首单规则：绑定 Relation 且默认 mock 返回 stage=null（非新客 stage）→ 不命中，保持历史断言口径
+  customerRelationId: 'rel_acme',
   lines: [
     { description: 'Fabric A', quantity: 100, unit: 'YD', unitPrice: 5.5 },
     { description: 'Fabric B', quantity: 50, unit: 'M', unitPrice: 12 },
