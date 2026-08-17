@@ -278,7 +278,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                     <ul className="space-y-1.5">
                         {followUps.map(fu => (
                             <li key={fu.id} className={`text-xs leading-5 text-[var(--text-secondary)]`}>
-                                <span className={`inline-block px-1.5 py-0.5 rounded mr-1.5 text-[10px] ${dataChipClass}`}>
+                                <span className={`inline-block px-1.5 py-0.5 rounded-bds-sm mr-1.5 text-[10px] ${dataChipClass}`}>
                                     {FOLLOW_UP_TYPE_LABELS[fu.type] ?? fu.type}
                                 </span>
                                 <span className="text-[var(--text-tertiary)]">{fu.followUpAt}</span>
@@ -306,7 +306,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             <li key={bl.id} className={`group flex items-center gap-1.5 text-xs leading-5 text-[var(--text-secondary)]`}>
                                 <span className="break-all">{bl.name}</span>
                                 {bl.code && (
-                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${dataChipClass}`}>{bl.code}</span>
+                                    <span className={`inline-block px-1.5 py-0.5 rounded-bds-sm text-[10px] ${dataChipClass}`}>{bl.code}</span>
                                 )}
                                 {!bl.isActive && (
                                     <span className={`text-[10px] text-[var(--text-tertiary)]`}>已停用</span>
@@ -364,7 +364,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                     <ul className="space-y-1.5">
                         {commLogs.map(cl => (
                             <li key={cl.id} className={`group flex items-baseline gap-1.5 text-xs leading-5 text-[var(--text-secondary)]`}>
-                                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] shrink-0 ${dataChipClass}`}>
+                                <span className={`inline-block px-1.5 py-0.5 rounded-bds-sm text-[10px] shrink-0 ${dataChipClass}`}>
                                     {COMM_TYPE_LABELS[cl.type] ?? cl.type}
                                 </span>
                                 <span className={`shrink-0 text-[var(--text-tertiary)]`}>{cl.occurredAt}</span>
@@ -684,7 +684,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                           <InfoSection title="AI 标签" icon={<Tag size={14} />} isDarkMode={isDarkMode}>
                             <div className="flex flex-wrap gap-1.5">
                               {(data.tags || []).map((tag: string, i: number) => (
-                                <span key={i} className={`px-2 py-0.5 rounded text-[11px] font-light ${accentChipClass}`}>{tag}</span>
+                                <span key={i} className={`px-2 py-0.5 rounded-bds-sm text-[11px] font-light ${accentChipClass}`}>{tag}</span>
                               ))}
                             </div>
                           </InfoSection>

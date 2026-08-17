@@ -302,7 +302,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
             <button
               onClick={onClose}
               disabled={busy}
-              className={`p-2 rounded transition-colors disabled:opacity-30 text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
+              className={`p-2 rounded-control transition-colors disabled:opacity-30 text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`}
               aria-label="关闭"
             >
               <X size={18} />

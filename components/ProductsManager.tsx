@@ -351,7 +351,7 @@ const CertificationCheckboxes: React.FC<{
     'text-[var(--text-secondary)]'
   }`;
   const boxCls = (on: boolean) =>
-    `w-4 h-4 rounded border transition-colors ${
+    `w-4 h-4 rounded-bds-xs border transition-colors ${
       on
         ? 'bg-[var(--os-vnext-brand-blue-strong)] border-[var(--os-vnext-brand-blue-strong)]'
         : 'bg-[var(--recessed-bg)] border-[var(--border-c-strong)]'
@@ -382,7 +382,7 @@ const CertificationCheckboxes: React.FC<{
       {customCerts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customCerts.map(cert => (
-            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)] dark:bg-[var(--os-vnext-brand-blue-strong)]/20 dark:text-[var(--os-vnext-brand-blue-strong)]">
+            <span key={cert} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-bds-sm text-[11px] font-light bg-[var(--os-vnext-brand-blue-strong)]/10 text-[var(--os-vnext-brand-blue)] dark:bg-[var(--os-vnext-brand-blue-strong)]/20 dark:text-[var(--os-vnext-brand-blue-strong)]">
               {cert}
               <button type="button" onClick={() => removeCustom(cert)} className="opacity-60 hover:opacity-100">&times;</button>
             </span>

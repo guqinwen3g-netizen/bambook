@@ -712,7 +712,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                           <div className="flex items-center justify-between mb-2">
                             <span className="bds-mono text-xs" style={{ color: 'var(--text-quaternary)' }}>行 {formLines.indexOf(line) + 1}</span>
                             {formLines.length > 1 && (
-                              <button onClick={() => removeFormLine(line.key)} className="p-1 rounded transition-colors" style={{ color: 'var(--text-quaternary)' }}>
+                              <button onClick={() => removeFormLine(line.key)} className="p-1 rounded-control transition-colors" style={{ color: 'var(--text-quaternary)' }}>
                                 <Trash2 size={12} />
                               </button>
                             )}

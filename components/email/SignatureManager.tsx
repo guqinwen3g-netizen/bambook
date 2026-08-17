@@ -209,7 +209,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-light truncate text-[var(--text-primary)]">{sig.name}</span>
                       {sig.isDefault && (
-                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-[var(--warning-tint)] text-[var(--warning-text)]`}>
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-bds-sm text-[10px] bg-[var(--warning-tint)] text-[var(--warning-text)]`}>
                           <Star size={10} /> 默认
                         </span>
                       )}

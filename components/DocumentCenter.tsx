@@ -403,7 +403,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           {isExpanded ? <ChevronDown size={13} className="shrink-0 opacity-60" /> : <ChevronRight size={13} className="shrink-0 opacity-60" />}
                           <span className="text-sm font-light">{doc.documentNumber}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusSemanticClass(si.semantic, isDarkMode)} ${statusSemanticText(si.semantic, isDarkMode)}`}>{si.label}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                             {docTypeLabel(doc.type)}
                           </span>
                         </div>

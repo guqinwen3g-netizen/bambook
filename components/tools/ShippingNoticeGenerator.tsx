@@ -315,7 +315,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                       </span>
                       <button
                         onClick={handleSelectAll}
-                        className={`text-xs px-2 py-1 rounded text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
+                        className={`text-xs px-2 py-1 rounded-control text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
                       >
                         全选
                       </button>
@@ -389,7 +389,7 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                       </div>
                       <button
                         onClick={() => handleRemovePO(po.po_number)}
-                        className={`p-1 rounded ${statusSemanticText('destructive', isDarkMode)} hover:bg-[var(--recessed-bg-hover)]`}
+                        className={`p-1 rounded-control ${statusSemanticText('destructive', isDarkMode)} hover:bg-[var(--recessed-bg-hover)]`}
                       >
                         <Trash2 size={14} />
                       </button>

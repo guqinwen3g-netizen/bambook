@@ -207,7 +207,7 @@ const OrderConfirmFeedbackView: React.FC<{
           <XCircle size={12} />
           <span>{codeLabel}</span>
         </span>
-        <span className={`rounded px-1 py-0.5 text-[9.5px] font-mono bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)]`}>{code}</span>
+        <span className={`rounded-bds-sm px-1 py-0.5 text-[9.5px] font-mono bg-[var(--recessed-bg-strong)] text-[var(--text-tertiary)]`}>{code}</span>
         {errorFeedback?.retryable === false && (
           <span className={`text-[9.5px] ${quietText}`}>不可重试</span>
         )}
@@ -255,7 +255,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className={`ml-auto shrink-0 p-0.5 rounded transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
+            className={`ml-auto shrink-0 p-0.5 rounded-control transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
             aria-label={expanded ? '收起详情' : '展开详情'}
           >
             <ChevronRight size={13} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
@@ -326,7 +326,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className={`ml-auto shrink-0 p-0.5 rounded transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
+            className={`ml-auto shrink-0 p-0.5 rounded-control transition-colors ${quietText} hover:bg-[var(--recessed-bg-hover)]`}
             aria-label={expanded ? '收起详情' : '展开详情'}
           >
             <ChevronRight size={13} className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />

@@ -309,7 +309,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             placeholder="搜索客户、订单、产品、发票、知识、邮件，或前往模块…"
             className={`flex-1 bg-transparent outline-none text-[15px] font-light placeholder:font-light ${titleTextClass} placeholder:text-[var(--text-tertiary)]`}
           />
-          <kbd className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-light bg-[var(--active-darken)] text-[var(--text-tertiary)]`}>ESC</kbd>
+          <kbd className={`shrink-0 px-1.5 py-0.5 rounded-bds-sm text-[10px] font-light bg-[var(--active-darken)] text-[var(--text-tertiary)]`}>ESC</kbd>
         </div>
 
         {/* 结果列表 */}

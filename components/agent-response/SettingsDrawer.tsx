@@ -87,7 +87,7 @@ const ToolCatalogSection: React.FC<{
                   <div key={tool.id} className={`rounded-compact px-2 py-1.5 hover:bg-[var(--hover-darken)]`}>
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[11px] font-light truncate text-[var(--text-primary)]`}>{tool.name}</span>
-                      <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded border ${riskPillClass(tool.risk, isDarkMode)}`}>{tool.risk}</span>
+                      <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded-bds-sm border ${riskPillClass(tool.risk, isDarkMode)}`}>{tool.risk}</span>
                       <ApprovalIcon
                         approval={tool.safety.approval}
                         className={`shrink-0 ml-auto text-[var(--text-secondary)]`}

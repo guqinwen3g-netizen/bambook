@@ -441,7 +441,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                     {lines.length > 1 && (
                       <button
                         onClick={() => removeLine(line.id)}
-                        className={`p-1 rounded text-xs text-[var(--text-tertiary)] hover:text-danger`}
+                        className={`p-1 rounded-control text-xs text-[var(--text-tertiary)] hover:text-danger`}
                         title="删除行"
                       >
                         <Trash2 size={12} />

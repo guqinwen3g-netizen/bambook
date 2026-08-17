@@ -79,7 +79,7 @@ const mutedTextCls = (isDarkMode: boolean) => `text-xs text-[var(--text-tertiary
 const rowTextCls = (isDarkMode: boolean) => `text-xs leading-5 text-[var(--text-secondary)]`;
 
 const chip = (semantic: StatusSemantic, isDarkMode: boolean) =>
-  `inline-block px-1.5 py-0.5 rounded text-[10px] shrink-0 border ${statusSemanticClass(semantic, isDarkMode)}`;
+  `inline-block px-1.5 py-0.5 rounded-bds-sm text-[10px] shrink-0 border ${statusSemanticClass(semantic, isDarkMode)}`;
 
 const fmtMoney = (n: number, currency = 'CNY') => `${currency} ${Number(n || 0).toLocaleString()}`;
 const todayStr = () => new Date().toISOString().slice(0, 10);

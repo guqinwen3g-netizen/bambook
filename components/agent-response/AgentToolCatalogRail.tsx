@@ -134,7 +134,7 @@ export const AgentToolCatalogRail: React.FC<Props> = ({ catalog, status, error, 
                         <span className={`text-[11px] font-light leading-4 truncate text-[var(--text-primary)]`}>
                           {tool.name}
                         </span>
-                        <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded border ${riskPillClass(tool.risk, isDarkMode)}`}>
+                        <span className={`shrink-0 text-[8.5px] uppercase tracking-wider px-1 py-0.5 rounded-bds-sm border ${riskPillClass(tool.risk, isDarkMode)}`}>
                           {tool.risk}
                         </span>
                         <ApprovalIcon

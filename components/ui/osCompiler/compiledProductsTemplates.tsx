@@ -513,7 +513,7 @@ const CertificationCheckboxes: React.FC<{
     'text-[var(--text-primary)]'
   }`;
   const boxCls = (on: boolean) =>
-    `w-4 h-4 rounded border transition-colors ${
+    `w-4 h-4 rounded-bds-xs border transition-colors ${
       on
         ? 'bg-[var(--os-vnext-brand-blue-strong)] border-[var(--os-vnext-brand-blue-strong)]'
         : 'bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]'

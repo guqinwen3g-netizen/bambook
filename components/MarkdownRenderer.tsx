@@ -30,7 +30,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isD
                             </div>
                         </div>
                     ) : (
-                        <code {...props} className={`px-1.5 py-0.5 rounded text-[13px] font-mono bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
+                        <code {...props} className={`px-1.5 py-0.5 rounded-bds-sm text-[13px] font-mono bg-[var(--recessed-bg)] text-[var(--text-secondary)]`}>
                             {children}
                         </code>
                     );
