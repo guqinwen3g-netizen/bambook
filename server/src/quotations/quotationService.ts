@@ -231,7 +231,6 @@ export function createQuotationService(prisma: PrismaClient) {
 
     // 任一价格规则命中 → 需要审批：先解析 requester（actor → UserAccount，fallback owner）
     // 无法解析时不阻断创建：快照照常落库，priceApprovalId 置空；发送门禁对 block 仍 fail-closed
-    let approvalId: string | null = null;
     let approvalRequesterId: string | null = null;
     if (hitConditions.length > 0) {
       approvalRequesterId = await resolveActorUserAccountId(prisma, { userId: actorId }).catch(() => null);
@@ -242,9 +241,7 @@ export function createQuotationService(prisma: PrismaClient) {
         }).catch(() => null);
         approvalRequesterId = owner?.id ?? null;
       }
-      if (approvalRequesterId) {
-        approvalId = `ar_${now}_${Math.random().toString(36).slice(2, 8)}`;
-      } else {
+      if (!approvalRequesterId) {
         logger.warn('[QuotationService] price approval skipped: no resolvable requester', {
           quotationNumber: input.quotationNumber, hitConditions, level: mergedLevel,
         });
@@ -282,7 +279,8 @@ export function createQuotationService(prisma: PrismaClient) {
           trackBFinalUsd: trackBOk ? (input.trackBFinalUsd as number) : null,
           priceDeviationPercent: deviation?.deviationPercent ?? null,
           priceDeviationLevel: mergedLevel,
-          priceApprovalId: approvalId,
+          // DR-007：审批单由事务外 approvalCreateService 通道创建（reviewerId 服务端解析）后回填
+          priceApprovalId: null,
           // MOQ 快照（writeOnce）
           moqSnapshot: moqSnapshot as any,
           createdAt: now,
@@ -305,35 +303,8 @@ export function createQuotationService(prisma: PrismaClient) {
         include: { lines: { orderBy: { lineNumber: 'asc' } } },
       });
 
-      // 任一价格规则命中（①②④⑤，决策点 3-A 合并单条）→ 同事务自动生成审批请求
-      // （warn 提示审批，block 未通过禁止发送；policyKey 走审批策略配置 price_approval）
-      if (approvalId && approvalRequesterId) {
-        await tx.approvalRequest.create({
-          data: {
-            id: approvalId,
-            requesterId: approvalRequesterId,
-            actionType: 'quotation:price-deviation',
-            targetType: 'Quotation',
-            targetId: quotationId,
-            status: 'pending',
-            risk: mergedLevel === 'block' ? 'high' : 'medium',
-            payload: {
-              policyKey: PRICE_APPROVAL_POLICY_KEY,
-              hitConditions,
-              quotationId,
-              quotationNumber: input.quotationNumber,
-              trackAMedianUsd: input.trackAMedianUsd,
-              trackAUnit: input.trackAUnit ?? null,
-              trackBFinalUsd: input.trackBFinalUsd,
-              deviationPercent: deviation?.deviationPercent ?? null,
-              level: mergedLevel,
-              ruleFindings: ruleEval.findings as any,
-              requestedAt: new Date(now).toISOString(),
-              source: deviation && deviation.level !== 'ok' ? 'quotation-dual-track' : 'quotation-price-rules',
-            },
-          },
-        });
-      }
+      // 价格审批单不在本事务内直写（DR-007：reviewerId 必须经 approvalCreateService 路由解析，
+      // 禁止 reviewerId=null 落库）；报价单提交后由事务外通道创建并回填 priceApprovalId
 
       // 审计日志
       await tx.auditLog.create({
@@ -358,6 +329,42 @@ export function createQuotationService(prisma: PrismaClient) {
 
       return quotation;
     });
+
+    // ── 价格审批单创建（DR-007：approvalCreateService 通道，reviewerId 由 routingService 解析） ──
+    // 与 MOQ 豁免同范式：事务外创建；失败（含 NO_REVIEWER_RESOLVED）不阻断报价创建，
+    // reviewerId=null 审批单绝不落库；block 门禁由 sendQuotation fail-closed 兜底
+    if (hitConditions.length > 0 && approvalRequesterId) {
+      try {
+        const approval = await approvalCreateService.createBusinessApproval({
+          requesterId: approvalRequesterId,
+          actionType: 'quotation:price-deviation',
+          targetType: 'Quotation',
+          targetId: quotationId,
+          risk: mergedLevel === 'block' ? 'high' : 'medium',
+          payload: {
+            policyKey: PRICE_APPROVAL_POLICY_KEY,
+            hitConditions,
+            quotationId,
+            quotationNumber: (created as any).quotationNumber ?? input.quotationNumber,
+            trackAMedianUsd: input.trackAMedianUsd,
+            trackAUnit: input.trackAUnit ?? null,
+            trackBFinalUsd: input.trackBFinalUsd,
+            deviationPercent: deviation?.deviationPercent ?? null,
+            level: mergedLevel,
+            ruleFindings: ruleEval.findings as any,
+            requestedAt: new Date(now).toISOString(),
+            source: deviation && deviation.level !== 'ok' ? 'quotation-dual-track' : 'quotation-price-rules',
+          },
+        });
+        // 回填报价单 ↔ 审批单互链（返回对象同步，保证调用方读到最终态）
+        await prisma.quotation.update({ where: { id: quotationId }, data: { priceApprovalId: approval.id } });
+        (created as any).priceApprovalId = approval.id;
+      } catch (e: any) {
+        logger.warn('[QuotationService] 价格审批单创建失败（报价单已落库，发送门禁 fail-closed 兜底）', {
+          quotationId, hitConditions, level: mergedLevel, code: e?.code, error: e?.message,
+        });
+      }
+    }
 
     // ── MOQ 创建校验（advisory：草稿保存不阻断；sendQuotation 门禁 fail-closed 兜底） ──
     let moqCheck: unknown = null;

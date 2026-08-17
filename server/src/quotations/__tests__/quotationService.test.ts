@@ -72,8 +72,7 @@ function makePrisma(opts: {
     quotation: { create: quotationCreate, update: quotationUpdate },
     quotationLine: { deleteMany: quotationLineDeleteMany, createMany: quotationLineCreateMany },
     auditLog: { create: auditCreate },
-    // 双轨偏差审批（PRD 8.6）：warn/block 偏差同事务生成 ApprovalRequest
-    approvalRequest: { create: vi.fn().mockResolvedValue({}) },
+    // DR-007：价格审批单不在 tx 内直写（tx 无 approvalRequest；误写会 TypeError 暴露）
     // EntityLink 图谱（D1.1a）：sync/deactivate 走 tx 内 upsert/findMany/update
     entityReference: {
       upsert: vi.fn().mockResolvedValue({}),
@@ -95,8 +94,15 @@ function makePrisma(opts: {
       update: quotationUpdate, // expireQuotation 不用事务，直接调 prisma.quotation.update
     },
     // 双轨偏差：requester 解析（默认命中 owner）+ 发送门禁查询审批状态
+    // DR-007 审批单创建通道（approvalCreateService）：事务外 outer prisma 直写，reviewerId 由路由解析
     userAccount: { findFirst: vi.fn().mockResolvedValue({ id: 'usr_owner_default' }) },
-    approvalRequest: { findUnique: vi.fn().mockResolvedValue(null) },
+    approvalRequest: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data })),
+    },
+    // DR-007 路由解析依赖（默认：requester 无部门 → FALLBACK_ADMIN 兜底命中 usr_admin）
+    department: { findUnique: vi.fn().mockResolvedValue(null) },
+    userRole: { findMany: vi.fn().mockResolvedValue([{ userId: 'usr_admin' }]) },
     // §9.2 价格规则 ①②④ 评估依赖（默认空 → 无命中，保持历史用例断言不变）
     relation: { findUnique: vi.fn().mockResolvedValue(null) },
     order: { count: vi.fn().mockResolvedValue(0) },
@@ -798,7 +804,7 @@ describe('quotationService: 双轨偏差快照与审批联动（PRD 8.6）', () 
   };
 
   it('ok 偏差（≤15%）→ 快照落库，不生成审批', async () => {
-    const { prisma, tx, quotationCreate } = makePrisma();
+    const { prisma, quotationCreate } = makePrisma();
     const service = createQuotationService(prisma);
 
     await service.createQuotation(dualTrackBase, 'u_test');
@@ -810,39 +816,51 @@ describe('quotationService: 双轨偏差快照与审批联动（PRD 8.6）', () 
     expect(data.priceDeviationPercent).toBeCloseTo(10, 4);
     expect(data.priceDeviationLevel).toBe('ok');
     expect(data.priceApprovalId).toBeNull();
-    expect(tx.approvalRequest.create).not.toHaveBeenCalled();
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
   });
 
-  it('warn 偏差（>15%）→ 快照落库 + 同事务生成 medium 风险审批', async () => {
-    const { prisma, tx, quotationCreate } = makePrisma();
+  it('warn 偏差（>15%）→ 快照落库 + 事务外生成 medium 风险审批（DR-007 路由）', async () => {
+    const { prisma, quotationCreate } = makePrisma();
     const service = createQuotationService(prisma);
 
-    await service.createQuotation({ ...dualTrackBase, trackBFinalUsd: 1.2 }, 'u_test'); // +20%
+    const created = await service.createQuotation({ ...dualTrackBase, trackBFinalUsd: 1.2 }, 'u_test'); // +20%
 
     const data = quotationCreate.mock.calls[0][0].data;
     expect(data.priceDeviationPercent).toBeCloseTo(20, 4);
     expect(data.priceDeviationLevel).toBe('warn');
-    expect(data.priceApprovalId).toMatch(/^ar_/);
+    expect(data.priceApprovalId).toBeNull(); // tx 内不直写审批，先置空后回填
 
-    expect(tx.approvalRequest.create).toHaveBeenCalledTimes(1);
-    const approvalData = tx.approvalRequest.create.mock.calls[0][0].data;
-    expect(approvalData.id).toBe(data.priceApprovalId); // 报价单 ↔ 审批同 id 互链
+    expect(prisma.approvalRequest.create).toHaveBeenCalledTimes(1);
+    const approvalData = prisma.approvalRequest.create.mock.calls[0][0].data;
+    expect(approvalData.id).toMatch(/^ar_/);
     expect(approvalData.actionType).toBe('quotation:price-deviation');
     expect(approvalData.targetType).toBe('Quotation');
     expect(approvalData.targetId).toBe(data.id);
     expect(approvalData.status).toBe('pending');
     expect(approvalData.risk).toBe('medium');
     expect(approvalData.requesterId).toBe('usr_owner_default');
+    // DR-007：reviewerId 非空且经 routingService 解析（默认 mock → FALLBACK_ADMIN）
+    expect(approvalData.reviewerId).toBe('usr_admin');
+    expect(approvalData.reviewerResolverRoute).toBe('FALLBACK_ADMIN');
+    expect(approvalData.departmentSnapshotId).toBe('DEPT_NONE');
     expect(approvalData.payload).toEqual(expect.objectContaining({
+      policyKey: 'price_approval',
+      hitConditions: ['dual_track_deviation'],
       trackAMedianUsd: 1.0,
       trackBFinalUsd: 1.2,
       level: 'warn',
       source: 'quotation-dual-track',
     }));
+    // 报价单 ↔ 审批单互链回填（返回对象读最终态）
+    expect((created as any).priceApprovalId).toBe(approvalData.id);
+    expect(prisma.quotation.update).toHaveBeenCalledWith({
+      where: { id: data.id },
+      data: { priceApprovalId: approvalData.id },
+    });
   });
 
   it('block 偏差（>30%）→ 快照落库 + high 风险审批', async () => {
-    const { prisma, tx, quotationCreate } = makePrisma();
+    const { prisma, quotationCreate } = makePrisma();
     const service = createQuotationService(prisma);
 
     await service.createQuotation({ ...dualTrackBase, trackBFinalUsd: 1.35 }, 'u_test'); // +35%
@@ -850,8 +868,30 @@ describe('quotationService: 双轨偏差快照与审批联动（PRD 8.6）', () 
     const data = quotationCreate.mock.calls[0][0].data;
     expect(data.priceDeviationPercent).toBeCloseTo(35, 4);
     expect(data.priceDeviationLevel).toBe('block');
-    expect(tx.approvalRequest.create).toHaveBeenCalledTimes(1);
-    expect(tx.approvalRequest.create.mock.calls[0][0].data.risk).toBe('high');
+    expect(prisma.approvalRequest.create).toHaveBeenCalledTimes(1);
+    expect(prisma.approvalRequest.create.mock.calls[0][0].data.risk).toBe('high');
+  });
+
+  it('价格审批单 reviewerId 非空且经 DR-007 解析（DEPT_HEAD 路径）', async () => {
+    const { prisma, quotationCreate } = makePrisma();
+    // requester=usr_owner_default（owner 兜底），部门 dept_sales 主管 usr_mgr → DEPT_HEAD
+    prisma.userAccount.findFirst.mockImplementation(async ({ where }: any) =>
+      where.id === 'usr_mgr' ? { id: 'usr_mgr' } : { id: 'usr_owner_default', primaryDeptId: 'dept_sales' });
+    prisma.department.findUnique.mockResolvedValue({ id: 'dept_sales', status: 'active', headId: 'usr_mgr', parentId: null });
+    const service = createQuotationService(prisma);
+
+    const created = await service.createQuotation({ ...dualTrackBase, trackBFinalUsd: 1.35 }, 'u_test'); // +35% block
+
+    expect(prisma.approvalRequest.create).toHaveBeenCalledTimes(1);
+    const approvalData = prisma.approvalRequest.create.mock.calls[0][0].data;
+    expect(approvalData.reviewerId).toBe('usr_mgr'); // 非空且经 DR-007 路由解析，非 requester 本人
+    expect(approvalData.reviewerResolverRoute).toBe('DEPT_HEAD');
+    expect(approvalData.departmentSnapshotId).toBe('dept_sales');
+    expect(approvalData.payload.policyKey).toBe('price_approval');
+    expect(approvalData.payload.hitConditions).toContain('dual_track_deviation');
+    const data = quotationCreate.mock.calls[0][0].data;
+    expect(data.priceApprovalId).toBeNull(); // tx 内置空
+    expect((created as any).priceApprovalId).toBe(approvalData.id); // 事务外回填
   });
 
   it('负向偏差绝对值同样分级（-35% → block）', async () => {
@@ -866,7 +906,7 @@ describe('quotationService: 双轨偏差快照与审批联动（PRD 8.6）', () 
   });
 
   it('无双轨输入 → 快照字段为 null，不生成审批（向后兼容）', async () => {
-    const { prisma, tx, quotationCreate } = makePrisma();
+    const { prisma, quotationCreate } = makePrisma();
     const service = createQuotationService(prisma);
 
     await service.createQuotation(baseInput, 'u_test');
@@ -877,11 +917,11 @@ describe('quotationService: 双轨偏差快照与审批联动（PRD 8.6）', () 
     expect(data.priceDeviationPercent).toBeNull();
     expect(data.priceDeviationLevel).toBeNull();
     expect(data.priceApprovalId).toBeNull();
-    expect(tx.approvalRequest.create).not.toHaveBeenCalled();
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
   });
 
   it('仅单轨输入（缺轨道 B）→ 不计算偏差，不生成审批', async () => {
-    const { prisma, tx, quotationCreate } = makePrisma();
+    const { prisma, quotationCreate } = makePrisma();
     const service = createQuotationService(prisma);
 
     await service.createQuotation({ ...baseInput, trackAMedianUsd: 1.0, trackAUnit: 'M' }, 'u_test');
@@ -889,11 +929,11 @@ describe('quotationService: 双轨偏差快照与审批联动（PRD 8.6）', () 
     const data = quotationCreate.mock.calls[0][0].data;
     expect(data.trackAMedianUsd).toBe(1.0);
     expect(data.priceDeviationLevel).toBeNull();
-    expect(tx.approvalRequest.create).not.toHaveBeenCalled();
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
   });
 
   it('requester 无法解析（无 owner）→ 快照照常落库但不生成审批（不阻断创建）', async () => {
-    const { prisma, tx, quotationCreate } = makePrisma();
+    const { prisma, quotationCreate } = makePrisma();
     prisma.userAccount.findFirst.mockResolvedValue(null); // actor 解析失败 + owner 缺失
     const service = createQuotationService(prisma);
 
@@ -902,7 +942,7 @@ describe('quotationService: 双轨偏差快照与审批联动（PRD 8.6）', () 
     const data = quotationCreate.mock.calls[0][0].data;
     expect(data.priceDeviationLevel).toBe('block');
     expect(data.priceApprovalId).toBeNull();
-    expect(tx.approvalRequest.create).not.toHaveBeenCalled();
+    expect(prisma.approvalRequest.create).not.toHaveBeenCalled();
   });
 });
 
