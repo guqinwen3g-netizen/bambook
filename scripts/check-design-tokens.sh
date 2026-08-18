@@ -70,7 +70,8 @@ BASELINE_RAW_MASK=3            # 批B：自造遮罩 bg-black/N → var(--mask-b
 BASELINE_BARE_ROUNDED=4        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
                                # 2026-08-17 批D 收编 43→5；余量 5 处均为注释文本（StepUpload/Dashboard/compiledSurfacePrimitives×2/compiledDashboardTemplates），非 className
                                # 2026-08-18 Phase 0 架构收口删除 compiled 模板后 5→4
-BASELINE_HANDWRITTEN_BTN=10    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
+BASELINE_HANDWRITTEN_BTN=9    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
+                               # 2026-08-18 W1 组2 ReportCenter 收编 10→9（W0 已收至 9，基线随 W1 一并纠正）
                                # 2026-08-17 批E 收编 35→22（13 处按钮：DocumentCenter×4 / ReportCenter×4 / ImportWizard / Register / QuotationImportWizard / compiledProductsTemplates×2）；
                                # 2026-08-17 W4-Dashboard余量 收编 22→17：compiledDashboardTemplates×5 装饰性 accent 填充
                                # （装饰下划杠×2 / 进度条 fill×2 / 指示圆点×1）bg-[var(--os-vnext-brand-blue)] → bg-[var(--accent)] 主题自适应；
@@ -93,15 +94,10 @@ BASELINE_PAGEHEAD_MISSING=2   # M1: *Manager.tsx 缺 PageHeader/bds-pagehead 文
                               # 现存 EmailManager / email/SignatureManager，随逐页主刀清零）
 BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-ok: <原因>` 白名单豁免，
                               # 白名单仅限表格行内操作，spec §3.1）
-BASELINE_FILTERBAR_H=3        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
-                              # 现存 FinanceManager:1935 / finance/FinanceCreditPanel:367 /
-                              # finance/FinancePaymentRequestsPanel:422，均 h-auto min-h-11 撑高违例；
-                              # 总控校准：filterbar 内禁任何手写 h- 覆盖，仅 h-10 白名单）
-BASELINE_NATIVE_CONTROLS=261  # M4: 原生 <select（无 bds-select 类）168 + type="date" 93 = 261
-                              # 2026-08-17 W4 原生浮层收编 266→264：CapsuleDateInput 内部隐藏原生 date
-                              # 拾取器移除（改 BDS 自绘月历浮层）+ 同文件旧注释字面量随重写消除；
-                              # OrderManager 状态筛选原生 select（bds-select 类，本就不计 M4）→
-                              # CustomSelect surface="field"，OS 原生选项浮层同步消除（体验口径）
+BASELINE_FILTERBAR_H=0        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
+                              # 2026-08-18 W1 组2 收编 3→0：FinanceManager:1935 / FinanceCreditPanel:367 / FinancePaymentRequestsPanel:422 均删 h-auto min-h-11）
+BASELINE_NATIVE_CONTROLS=203  # M4: 原生 <select（无 bds-select 类）145 + type="date" 58 = 203
+                              # 2026-08-18 W1 组1+组2 收编 261→205→203：订单/财务/定价/关务/报表域 M4 清零
                               # 粗口径对账：全仓 `<select` 213 + `type="date"` 108 = 321（产品负责人点名⑥）；
                               # 粗口径把已 bds-select 化 33 处也计入总数，BDS 化后总数不变、无法感知进展，
                               # 故入库采用精确口径 281，随逐页主刀只减不增。
@@ -407,25 +403,29 @@ layout_guard() {
 
 # L2 间距刻度：非刻度数值（p-9/p-11 等）与任意值（px-[15px]/gap-[7px] 等）
 # p-0/m-0/gap-0 为去边距 reset 语义豁免；刻度值 = 4/8/12/16/20/24/28/32/40/48/64（--space-1/2/3/4/5/6/7/8/10/12/16）
-l2_a=$(rg -o -P '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-(?!0\b|1\b|2\b|3\b|4\b|5\b|6\b|7\b|8\b|10\b|12\b|16\b)[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-l2_b=$(rg -o -P '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+# 注意：正则以 - 开头，必须用 -e 传参（rg 会把以 - 开头的独立参数当 flag 解析报错，2>/dev/null 吞掉后恒报 0）
+# 2026-08-18 W1 修复 flag 缺陷后实测真实基线 = 11（l2_a 4 + l2_b 7）：-mt-28×4（compiledPrimitives×2/RelationsManager/OrderManager）
+#   + -mb-[1px]（AgentMarkdownBlock）/ -mt-[112px]×4（ShipmentManager/RelationsManager/ProductsManager/DevelopmentManager）
+#   + -mt-[8px]/-mt-[10px]（Assistant）；均为间距刻度外债务，随逐页重建清零
+l2_a=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-(?!0\b|1\b|2\b|3\b|4\b|5\b|6\b|7\b|8\b|10\b|12\b|16\b)[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+l2_b=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 l2_count=$((l2_a + l2_b))
-layout_guard "L2 间距刻度越界" 0 "$l2_count" "间距只取刻度 4/8/12/16/20/24/28/32/40/48/64（--space-*），禁 p-9/p-11/px-[15px]"
+layout_guard "L2 间距刻度越界" 11 "$l2_count" "间距只取刻度 4/8/12/16/20/24/28/32/40/48/64（--space-*），禁 p-9/p-11/px-[15px]"
 
 # L3 容器与长宽比：硬编码 h/min-h/w/min-w px 尺寸 → bds-well/bds-thumb/尺寸族
 # 豁免：模态 max-h-[85vh/88vh]、Agent 滚动区 max-h-[Npx]、图片预览 max-h-[90vh]（均为 max-h，本正则不含）
 l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-layout_guard "L3 硬编码尺寸" 204 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
+layout_guard "L3 硬编码尺寸" 163 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
 
 # L5 表格密度：行高 40-99px 硬编码 → .bds-table 密度修饰符（compact 40 / standard 48 / cozy 56）
 l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-layout_guard "L5 表格行高硬编码" 8 "$l5_count" "行高走 .bds-table 密度修饰符，禁行内 h-[Npx]"
+layout_guard "L5 表格行高硬编码" 7 "$l5_count" "行高走 .bds-table 密度修饰符，禁行内 h-[Npx]"
 
 # L6 icon 尺寸体系：size 非刻度（∉{14,16,18,20,24}）+ strokeWidth 自由数值（∉ --icon-w-* 档）
 l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9]+' | rg -v '^(14|16|18|20|24)$' | wc -l | tr -d ' ')
 l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
-layout_guard "L6 icon size 非刻度" 539 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
-layout_guard "L6 icon strokeWidth 自由数值" 203 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
+layout_guard "L6 icon size 非刻度" 350 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
+layout_guard "L6 icon strokeWidth 自由数值" 144 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
 
 # L7 错误态：raw 错误色 → .bds-error-banner（--danger-tint/--danger-text）
 l7_count=$(rg -o 'text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
