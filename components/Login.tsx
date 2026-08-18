@@ -45,7 +45,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
       <div className={`w-full max-w-sm p-8 rounded-card-lg border bg-[var(--bg-card)] border-[var(--border-c-default)] shadow-none`}>
         <div className="flex flex-col items-center mb-8">
           {/* bds-ok: 品牌 logo SVG（非 lucide 功能图标），装饰性 hero 位，size 不套 icon 刻度 */}
-          <BambookIcon size={40} strokeWidth={1} className="text-[var(--os-vnext-brand-blue)] drop-shadow-none" />
+          <BambookIcon size={40} strokeWidth={1.25} className="text-[var(--os-vnext-brand-blue)] drop-shadow-none" />
           <h1 className="mt-4 text-xl font-light tracking-tight text-[var(--text-primary)]">
             Bambook Neural
           </h1>
