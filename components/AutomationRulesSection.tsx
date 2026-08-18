@@ -49,10 +49,7 @@ export function AutomationRulesSection() {
   const brandIconCls = BAMBOOK_OS.tone.text.brandEmphasis;
   const sectionDividerCls = BAMBOOK_OS.tone.divider.section;
 
-  const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
-    ? BAMBOOK_OS.controls.selectedSurface.base
-    : 'border-transparent bg-[var(--recessed-bg-strong)] shadow-none'}`;
-  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-[var(--bg-card)] shadow-none`;
+  const switchControlCls = (checked: boolean) => `bds-switch ${checked ? 'on' : ''}`;
 
   const iconWellCls = `flex h-9 w-9 shrink-0 items-center justify-center rounded-field border ${BAMBOOK_OS.tone.surface.quietIcon} border-[var(--border-c-default)] ${BAMBOOK_OS.tone.text.brandEmphasis}`;
 
@@ -186,7 +183,6 @@ export function AutomationRulesSection() {
                     onClick={() => handleToggle(rule.id, !rule.enabled)}
                     className={`${switchControlCls(rule.enabled)} ${isUpdating ? 'opacity-50 cursor-wait' : ''}`}
                   >
-                    <span className={switchSliderCls(rule.enabled)} />
                   </button>
                 </div>
               </div>

@@ -235,7 +235,7 @@ export function TraceabilityPanel({
                 loading && 'opacity-50',
               )}
             >
-              {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
               溯源
             </button>
           </div>
@@ -265,7 +265,7 @@ export function TraceabilityPanel({
           {Object.keys(result.summary).length > 0 && (
             <div>
               <div className={cx('mb-1.5 flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textFaint)}>
-                <Boxes size={11} />
+                <Boxes size={14} />
                 汇总 SUMMARY
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -282,7 +282,7 @@ export function TraceabilityPanel({
           {/* 节点分组展示 */}
           <div>
             <div className={cx('mb-1.5 flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textFaint)}>
-              <GitBranch size={11} />
+              <GitBranch size={14} />
               节点 NODES ({result.nodes.length})
             </div>
             <div className="space-y-2">
@@ -326,7 +326,7 @@ export function TraceabilityPanel({
           {result.edges.length > 0 && (
             <div>
               <div className={cx('mb-1.5 flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textFaint)}>
-                <ArrowRight size={11} />
+                <ArrowRight size={14} />
                 关联 EDGES ({result.edges.length})
               </div>
               <RdlSurface tone="card" padding="compact">
@@ -342,7 +342,7 @@ export function TraceabilityPanel({
                         <span className={cx('shrink-0 rounded-control px-1.5 py-0.5 text-[9px] font-light', 'bg-[var(--recessed-bg-strong)]', 'text-[var(--text-secondary)]')}>
                           {edgeLabel(edge.relation)}
                         </span>
-                        <ArrowRight size={10} className={cx('shrink-0', textFaint)} />
+                        <ArrowRight size={14} className={cx('shrink-0', textFaint)} />
                         <span className={cx('min-w-0 flex-1 truncate text-right font-light', textPrimary)}>
                           {toNode?.label || edge.to}
                         </span>
@@ -366,7 +366,7 @@ export function TraceabilityPanel({
       {/* ── 初始空状态 ── */}
       {!result && !loading && !error && !presetScenario && (
         <div className={cx('flex flex-col items-center justify-center gap-2 py-20 text-xs font-light', textFaint)}>
-          <GitBranch size={32} className="opacity-40" />
+          <GitBranch size={24} className="opacity-40" />
           <div>选择场景并输入 ID 开始溯源查询</div>
         </div>
       )}
