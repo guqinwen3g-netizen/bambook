@@ -7,6 +7,13 @@
  *   3. 数据字典校验（dataDictionaryService → stage/tier 合法性）
  *   4. 系统配置默认值（systemConfigService → 默认币种/付款条款）
  *
+ * DR-042 小组数据共享接入（设计真源：docs/design/03-业务规则/小组与业务数据共享.md v2）：
+ *   - 读 scope = 部门维（PL-2B）∪ 小组维（TeamDataGrant 生效授权）——§5.1
+ *   - 写 scope = 仅部门维——§6.2「档案本体永远只归属部门可写」，读写分离是越权防线
+ *   - 列表项携带 teamShares 徽章（用户所在组的共享来源，§8.2）
+ *   - 详情携带 accessMode（department/team-followup/team-read，§6.2 档位）
+ *   - 详情页就地共享 API（shareRelationToTeams / unshareRelation / getRelationTeamShares）
+ *
  * 并新增：销售漏斗聚合（按 stage 分组 count → 前端 Kanban/漏斗图渲染）
  *
  * 与现有 route.ts / relationMutationService.ts 的关系：
@@ -27,6 +34,7 @@ import {
   serializeRelation,
   VALID_RELATION_CATEGORIES,
 } from '../relations/relationMutationService';
+import { createTeamShareService } from '../teams/teamShareService';
 import { logger } from '../lib/logger';
 
 // ────────────────────────────────────────────────────────────────────
@@ -40,6 +48,7 @@ export interface RelationListFilter {
   departmentId?: string;
   search?: string;         // name / englishName / chineseName / code 模糊搜索
   isOrganization?: boolean;
+  teamId?: string;         // DR-042 §8.2 组筛选器：只看某个组的共享数据
   limit?: number;
   offset?: number;
   sort?: string;           // name / lastInteraction / rating / createdAt
@@ -107,9 +116,10 @@ export function createRelationServiceV2(prisma: PrismaClient) {
   const seqSvc = createSequenceService(prisma);
   const dictSvc = getDataDictionaryService(prisma);
   const configSvc = getSystemConfigService(prisma);
+  const teamShareSvc = createTeamShareService(prisma);
 
-  // ── 行级权限 where 构造 ──
-  async function buildScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
+  // ── 行级权限 where 构造（部门维，读写共用基座）──
+  async function buildDeptScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
     if (!actor) return { ownerId: '__NOBODY__' }; // 未登录 → 看不到任何数据
     const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
     if (resolver.rule.kind === 'all') return {};
@@ -129,6 +139,36 @@ export function createRelationServiceV2(prisma: PrismaClient) {
     }
     if (orParts.length === 0) return { ownerId: '__NOBODY__' };
     return { OR: orParts };
+  }
+
+  /**
+   * 读 scope（DR-042 §5.1）：部门维（PL-2B）∪ 小组维（TeamDataGrant）。
+   * 用于 listRelations / getRelation / get360View / getSalesFunnel。
+   */
+  async function buildScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
+    if (!actor) return { ownerId: '__NOBODY__' };
+    const deptWhere = await buildDeptScopeWhere(actor);
+    // all → 无过滤（小组维对其透明，T-11）
+    if (Object.keys(deptWhere).length === 0) return {};
+    // 小组维：用户所在组的生效授权实体（§5.2 每请求解析 + 60s 缓存）
+    const grantedIds = await teamShareSvc.getActiveGrantedRelationIds(actor.userId);
+    if (grantedIds.length === 0) return deptWhere;
+    // 部门维 OR 组合 + 小组维分支（并集，T-09）
+    const deptOr = deptWhere.OR as any[] | undefined;
+    const orParts: any[] = deptOr ? [...deptOr] : [];
+    orParts.push({ id: { in: grantedIds } });
+    // deptWhere 可能是 OR 组合 / ownerId 单值兜底形态（self 无部门时）
+    if (!deptOr && (deptWhere as any).ownerId) orParts.push({ ownerId: (deptWhere as any).ownerId });
+    return { OR: orParts };
+  }
+
+  /**
+   * 写 scope（DR-042 §6.2）：仅部门维——组共享不开放档案本体写。
+   * 用于 updateRelation / deleteRelation / changeStage / batchChangeStage。
+   * 读写的分离是防越权核心：组员经小组维可见 ≠ 可改（T-19/T-21）。
+   */
+  async function buildWriteScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
+    return buildDeptScopeWhere(actor);
   }
 
   // ── 字典校验 ──
@@ -186,6 +226,14 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       if (filter.tier) where.tier = filter.tier;
       if (filter.ownerId) where.ownerId = filter.ownerId;
       if (filter.departmentId) where.departmentId = filter.departmentId;
+      if (filter.teamId) {
+        // DR-042 §8.2 组筛选器：只看某个组的共享数据（与 scope 求交）
+        const teamGrantIds = await (prisma as any).teamDataGrant.findMany({
+          where: { teamId: filter.teamId, entityType: 'relation', revokedAt: null, team: { deletedAt: null } },
+          select: { entityId: true },
+        });
+        where.id = { in: teamGrantIds.map((g: any) => g.entityId) };
+      }
       if (filter.isOrganization !== undefined) where.isOrganization = filter.isOrganization;
       if (filter.search) {
         const s = filter.search.trim();
@@ -220,10 +268,28 @@ export function createRelationServiceV2(prisma: PrismaClient) {
         (prisma as any).relation.count({ where }),
       ]);
 
+      // DR-042 §8.2 徽章：标注每项经用户所在组的共享来源（部门维项为空数组=显示「本部门」）
+      const serialized = items.map(serializeRelation);
+      let annotated = serialized;
+      try {
+        if (actor) {
+          const itemIds = serialized.map((i: any) => i.id).filter(Boolean);
+          const shareMap = await teamShareSvc.getMyTeamSharesForEntities(actor.userId, 'relation', itemIds);
+          annotated = serialized.map((i: any) => ({
+            ...i,
+            teamShares: (shareMap.get(i.id) || []).map(chip => ({
+              teamId: chip.teamId, teamName: chip.teamName, permission: chip.permission,
+            })),
+          }));
+        }
+      } catch (e: any) {
+        logger.warn('[RelationV2] teamShares badge annotate failed（不影响列表）', { error: e?.message });
+      }
+
       return {
         ok: true,
         data: {
-          items: items.map(serializeRelation),
+          items: annotated,
           total,
           limit,
           offset,
@@ -249,7 +315,13 @@ export function createRelationServiceV2(prisma: PrismaClient) {
         where: { id, deletedAt: null, ...scopeWhere },
       });
       if (!row) return { ok: false, error: { code: 'NOT_FOUND', message: '客户/实体不存在或无权限查看' } };
-      return { ok: true, data: serializeRelation(row) };
+      // DR-042 §6.2/§8.3：访问档位（前端按档位渲染跟进输入框）+ 共享 chips。
+      // 档位解析失败按最严格档（none）——写门禁 fail-closed；chips 失败降级为空——展示元数据 fail-soft。
+      let accessMode = 'none';
+      let teamShares: any[] = [];
+      try { accessMode = await teamShareSvc.resolveRelationAccess(actor, id); } catch { /* fail-closed */ }
+      try { teamShares = await teamShareSvc.getEntityTeamShares('relation', id); } catch { /* fail-soft */ }
+      return { ok: true, data: { ...serializeRelation(row), accessMode, teamShares } };
     } catch (e: any) {
       return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
     }
@@ -327,8 +399,8 @@ export function createRelationServiceV2(prisma: PrismaClient) {
     try {
       if (!actor) return { ok: false, error: { code: 'UNAUTHORIZED', message: '更新客户需登录' } };
 
-      // 权限校验：先查是否存在 + scope 可见
-      const scopeWhere = await buildScopeWhere(actor);
+      // 权限校验：写 scope（DR-042 §6.2 仅部门维——组共享不开放本体写，T-19）
+      const scopeWhere = await buildWriteScopeWhere(actor);
       const existing = await (prisma as any).relation.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
       });
@@ -370,7 +442,8 @@ export function createRelationServiceV2(prisma: PrismaClient) {
   ): Promise<RelationV2Result<any>> {
     try {
       if (!actor) return { ok: false, error: { code: 'UNAUTHORIZED', message: '删除客户需登录' } };
-      const scopeWhere = await buildScopeWhere(actor);
+      // 写 scope（DR-042 §6.2 仅部门维）
+      const scopeWhere = await buildWriteScopeWhere(actor);
       const existing = await (prisma as any).relation.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
         select: { id: true, name: true, code: true },
@@ -462,7 +535,8 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       const err = await validateDictField('relation_stage', newStage);
       if (err) return { ok: false, error: { code: 'VALIDATION_FAILED', message: `stage ${err}` } };
 
-      const scopeWhere = await buildScopeWhere(actor);
+      // 写 scope（DR-042 §6.2 仅部门维——组员不可拖拽共享客户的阶段，T-19）
+      const scopeWhere = await buildWriteScopeWhere(actor);
       const existing = await (prisma as any).relation.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
         select: { id: true, stage: true, name: true },
@@ -538,6 +612,13 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       const pendingFollowUps = rel.followUpRecords?.filter((f: any) => f.nextFollowUpAt && new Date(f.nextFollowUpAt) < new Date()) || [];
       const activeOpportunities = rel.opportunities?.filter((o: any) => !['Won', 'Lost'].includes(o.stage)) || [];
 
+      // DR-042 §6.2/§8.3：访问档位 + 共享 chips（跟进输入框按 accessMode 渲染；
+      // 档位解析失败按最严格档——写门禁 fail-closed；chips 失败降级为空——fail-soft）
+      let accessMode = 'none';
+      let teamShares: any[] = [];
+      try { accessMode = await teamShareSvc.resolveRelationAccess(actor, id); } catch { /* fail-closed */ }
+      try { teamShares = await teamShareSvc.getEntityTeamShares('relation', id); } catch { /* fail-soft */ }
+
       // 序列化 BigInt/Decimal
       const serializeRow = (row: any) => {
         const out: any = { ...row };
@@ -552,6 +633,8 @@ export function createRelationServiceV2(prisma: PrismaClient) {
         ok: true,
         data: {
           relation: serializeRow(rel),
+          accessMode,       // DR-042：department / team-followup / team-read
+          teamShares,       // DR-042：详情页共享 chips
           contacts: (rel.contacts || []).map(serializeRow),
           creditLimit: rel.creditLimits?.[0] ? serializeRow(rel.creditLimits[0]) : null,
           customerTier: rel.customerTiers?.[0] ? serializeRow(rel.customerTiers[0]) : null,
@@ -592,7 +675,8 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       const err = await validateDictField('relation_stage', newStage);
       if (err) return { ok: false, error: { code: 'VALIDATION_FAILED', message: `stage ${err}` } };
 
-      const scopeWhere = await buildScopeWhere(actor);
+      // 写 scope（DR-042 §6.2 仅部门维）
+      const scopeWhere = await buildWriteScopeWhere(actor);
       let updated = 0;
       let failed = 0;
       for (const id of ids) {
@@ -616,6 +700,89 @@ export function createRelationServiceV2(prisma: PrismaClient) {
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // 10. DR-042 小组共享（详情页就地共享 API，§7）
+  // ══════════════════════════════════════════════════════════════════
+
+  /** 反查该客户共享给了哪些组（chips 数据；权限=该数据可见者） */
+  async function getRelationTeamShares(
+    actor: TokenPayload | null | undefined,
+    id: string,
+  ): Promise<RelationV2Result<any>> {
+    try {
+      const scopeWhere = await buildScopeWhere(actor);
+      const row = await (prisma as any).relation.findFirst({
+        where: { id, deletedAt: null, ...scopeWhere },
+        select: { id: true },
+      });
+      if (!row) return { ok: false, error: { code: 'NOT_FOUND', message: '客户/实体不存在或无权限查看' } };
+      const shares = await teamShareSvc.getEntityTeamShares('relation', id);
+      return { ok: true, data: shares };
+    } catch (e: any) {
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+    }
+  }
+
+  /**
+   * 详情页就地共享：等价 grants 批量接口的便捷封装（§7 POST /:id/team-shares）。
+   * 多组共享 = 逐组调用授权引擎（单组内部事务整批回滚；跨组首个失败即中止，
+   * 已成功组保持生效——授权幂等，重试安全）。
+   */
+  async function shareRelationToTeams(
+    actor: TokenPayload | null | undefined,
+    id: string,
+    input: { teamIds: string[]; permission?: 'read' | 'read+followup' },
+    ip?: string | null,
+  ): Promise<RelationV2Result<any>> {
+    try {
+      if (!actor) return { ok: false, error: { code: 'UNAUTHORIZED', message: '共享客户需登录' } };
+      const teamIds = Array.isArray(input?.teamIds) ? input.teamIds.filter(Boolean) : [];
+      if (teamIds.length === 0) return { ok: false, error: { code: 'VALIDATION_FAILED', message: 'teamIds 必填' } };
+      const permission = input.permission || 'read+followup';
+
+      let granted = 0;
+      for (const teamId of teamIds) {
+        const result = await teamShareSvc.grantEntitiesToTeam(
+          actor, teamId,
+          [{ entityType: 'relation', entityId: id, permission }],
+          ip,
+        );
+        if (!result.ok) {
+          const code = result.error!.code as RelationV2Error;
+          const msg = granted > 0
+            ? `${result.error!.message}（前 ${granted} 个组已生效，重试安全）`
+            : result.error!.message;
+          return { ok: false, error: { code, message: msg } };
+        }
+        granted += result.data?.granted || 0;
+      }
+      return { ok: true, data: { granted } };
+    } catch (e: any) {
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+    }
+  }
+
+  /** 详情页就地移除共享（§8.3 chips ✕） */
+  async function unshareRelationFromTeam(
+    actor: TokenPayload | null | undefined,
+    id: string,
+    teamId: string,
+    reason: string,
+    ip?: string | null,
+  ): Promise<RelationV2Result<any>> {
+    try {
+      if (!actor) return { ok: false, error: { code: 'UNAUTHORIZED', message: '移除共享需登录' } };
+      const result = await teamShareSvc.revokeGrant(actor, teamId, 'relation', id, reason, ip);
+      if (!result.ok) {
+        const code = result.error!.code as RelationV2Error;
+        return { ok: false, error: { code, message: result.error!.message } };
+      }
+      return { ok: true, data: result.data };
+    } catch (e: any) {
+      return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
+    }
+  }
+
   return {
     listRelations,
     getRelation,
@@ -626,8 +793,13 @@ export function createRelationServiceV2(prisma: PrismaClient) {
     changeStage,
     get360View,
     batchChangeStage,
+    // DR-042 小组共享
+    getRelationTeamShares,
+    shareRelationToTeams,
+    unshareRelationFromTeam,
     // 供路由直接调用
     buildScopeWhere,
+    buildWriteScopeWhere,
     validateDictField,
   };
 }

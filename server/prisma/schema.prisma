@@ -1207,9 +1207,10 @@ model Team {
   updatedAt    DateTime @updatedAt
   deletedAt    BigInt?
 
-  department Department?  @relation(fields: [departmentId], references: [id])
+  department Department?    @relation(fields: [departmentId], references: [id])
   members    TeamMember[]
   projects   Project[]
+  grants     TeamDataGrant[]
 
   @@index([departmentId])
   @@index([status])
@@ -1228,6 +1229,31 @@ model TeamMember {
 
   @@unique([teamId, userId])
   @@index([userId])
+}
+
+/// DR-042 小组数据共享授权：业务实体 × 小组 多对多受控共享。
+/// 设计真源：docs/design/03-业务规则/小组与业务数据共享.md
+/// 铁律：数据本体组织归属不变（部门链路），本表仅表达「共享视图」；
+///       起步仅消费 entityType='relation'（订单/报价/跟进为子实体派生可见，§5.3）。
+model TeamDataGrant {
+  id           String    @id @default(cuid())
+  teamId       String
+  entityType   String // 起步仅 'relation'；字段为未来独立共享单据场景保留扩展位
+  entityId     String // 被共享实体 id（快照引用，不强 FK——与 Order.customerRelationId 同范式）
+  permission   String    @default("read+followup") // 'read'（纯只读）| 'read+followup'（可加跟进记录）
+  grantedBy    String // 授权人 UserAccount.id
+  grantedAt    DateTime  @default(now())
+  revokedAt    DateTime? // 软撤销（null=生效中）；再授权=复活原行，历史保留
+  revokedBy    String?
+  revokeReason String?
+
+  // 无 onDelete: Cascade（DR-042 §0 修订2）：物理删组被服务层禁止，
+  // 解散走事务化软删（先批量 revoke 再软删组），授权历史不丢失
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, entityType, entityId]) // 幂等锚点：同实体对同组仅一行
+  @@index([entityType, entityId]) // 反查：这条数据共享给了哪些组
+  @@index([teamId, revokedAt]) // 正查：这个组生效中的授权
 }
 
 /// 项目（可关联订单/开发案，也可独立）

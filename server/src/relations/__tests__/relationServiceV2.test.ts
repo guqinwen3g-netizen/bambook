@@ -83,6 +83,8 @@ function makePrisma(overrides: {
   findFirst?: any;
   upsert?: any;
   update?: any;
+  teamMemberFindMany?: any;
+  teamGrantFindMany?: any;
 } = {}) {
   return {
     relation: {
@@ -92,9 +94,29 @@ function makePrisma(overrides: {
       upsert: overrides.upsert ?? vi.fn().mockImplementation(async ({ where, create }: any) => ({ ...create, id: where.id })),
       update: overrides.update ?? vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
     },
+    // DR-042 小组共享依赖模型（默认：不在任何组、无授权）
+    teamMember: {
+      findMany: overrides.teamMemberFindMany ?? vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    team: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      findFirst: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    teamDataGrant: {
+      findMany: overrides.teamGrantFindMany ?? vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    auditLog: { create: vi.fn().mockResolvedValue({}) },
     order: { findMany: vi.fn().mockResolvedValue([]) },
     invoice: { findMany: vi.fn().mockResolvedValue([]) },
     paymentVoucher: { findMany: vi.fn().mockResolvedValue([]) },
+    $transaction: vi.fn(async (fn: any) => fn({})),
   } as any;
 }
 
@@ -413,5 +435,157 @@ describe('batchChangeStage 批量阶段变更', () => {
       expect(r.data.updated).toBe(1);
       expect(r.data.failed).toBe(2);
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// DR-042 小组数据共享（设计真源：docs/design/03-业务规则/小组与业务数据共享.md v2）
+// ═══════════════════════════════════════════════════════════════
+
+import { createPermissionService } from '../../auth/permissionService';
+import { __clearTeamShareCacheForTests } from '../../teams/teamShareService';
+
+describe('DR-042 buildScopeWhere 读/写 scope 分离', () => {
+  beforeEach(() => { __clearTeamShareCacheForTests(); });
+
+  function useDepartmentRule() {
+    vi.mocked(createPermissionService).mockImplementation((() => ({
+      getDataScopeResolver: vi.fn().mockResolvedValue({
+        rule: { kind: 'department', own: true },
+        allowedDepartmentIds: ['dept_1'],
+        allowedUserIds: ['user_1'],
+      }),
+    })) as any);
+  }
+
+  function useAllRule() {
+    vi.mocked(createPermissionService).mockImplementation((() => ({
+      getDataScopeResolver: vi.fn().mockResolvedValue({ rule: { kind: 'all' } }),
+    })) as any);
+  }
+
+  it('T-09：读 scope = 部门维 ∪ 小组维（OR 含 id-in 分支）', async () => {
+    useDepartmentRule();
+    const prisma = makePrisma({
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      teamGrantFindMany: vi.fn().mockResolvedValue([{ entityId: 'REL__TEAM' }]),
+    });
+    const svc = createRelationServiceV2(prisma);
+    const where = await svc.buildScopeWhere(ACTOR);
+    const orParts = (where as any).OR as any[];
+    expect(orParts).toBeDefined();
+    // 部门维分支保留
+    expect(orParts.some((p: any) => p.departmentId)).toBe(true);
+    // 小组维分支注入（T-07：组共享实体可见）
+    expect(orParts.some((p: any) => p.id && p.id.in && p.id.in.includes('REL__TEAM'))).toBe(true);
+  });
+
+  it('T-19：写 scope 不含小组维（组共享 ≠ 可写，防越权核心）', async () => {
+    useDepartmentRule();
+    const prisma = makePrisma({
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      teamGrantFindMany: vi.fn().mockResolvedValue([{ entityId: 'REL__TEAM' }]),
+    });
+    const svc = createRelationServiceV2(prisma);
+    const where = await svc.buildWriteScopeWhere(ACTOR);
+    const orParts = (where as any).OR as any[] | undefined;
+    // 小组维 id-in 分支绝不能出现在写 scope
+    const hasTeamBranch = orParts?.some((p: any) => p.id && p.id.in) ?? false;
+    expect(hasTeamBranch).toBe(false);
+  });
+
+  it('T-11：all 规则下小组维透明（无过滤，财务/QC 可见性不变）', async () => {
+    useAllRule();
+    const prisma = makePrisma({
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      teamGrantFindMany: vi.fn().mockResolvedValue([{ entityId: 'REL__TEAM' }]),
+    });
+    const svc = createRelationServiceV2(prisma);
+    const where = await svc.buildScopeWhere(ACTOR);
+    expect(where).toEqual({}); // 无过滤
+  });
+
+  it('T-19 场景：仅组共享可见的实体 → updateRelation 拒绝（NOT_FOUND）', async () => {
+    useDepartmentRule();
+    // relation.findFirst 模拟：写 scope（部门维）查不到 REL__TEAM → findFirst 返回 null
+    const prisma = makePrisma({
+      findFirst: vi.fn().mockResolvedValue(null),
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      teamGrantFindMany: vi.fn().mockResolvedValue([{ entityId: 'REL__TEAM' }]),
+    });
+    const svc = createRelationServiceV2(prisma);
+    const r = await svc.updateRelation(ACTOR, 'REL__TEAM', { stage: 'Key' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.code).toBe('NOT_FOUND');
+    // 防线断言：写路径 where 的 OR 分支绝不含小组维 id-in（where.id 本身是查询目标，应存在）
+    const callWhere = (prisma.relation.findFirst as any).mock.calls[0][0].where;
+    const orParts = (callWhere.OR || []) as any[];
+    expect(orParts.some((p: any) => p.id && p.id.in)).toBe(false);
+  });
+
+  it('§8.2 徽章：列表项携带 teamShares（用户所在组的共享来源）', async () => {
+    useAllRule();
+    const prisma = makePrisma({
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      teamGrantFindMany: vi.fn().mockImplementation(async ({ where }: any) => {
+        // getActiveGrantedRelationIds（scope）与 getMyTeamSharesForEntities（徽章）共用 findMany
+        if (where?.teamId && !where.entityId) return [{ entityId: 'REL__1' }];
+        return [{
+          id: 'g_1', entityId: 'REL__1', permission: 'read+followup',
+          teamId: 'team_1', grantedBy: 'user_mgr', grantedAt: new Date(),
+          team: { id: 'team_1', name: '欧洲市场组' },
+        }];
+      }),
+    });
+    const svc = createRelationServiceV2(prisma);
+    const r = await svc.listRelations(ACTOR, {});
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const item = r.data.items[0];
+      expect(item.teamShares).toHaveLength(1);
+      expect(item.teamShares[0]).toMatchObject({ teamId: 'team_1', teamName: '欧洲市场组', permission: 'read+followup' });
+    }
+  });
+
+  it('§8.3 详情：all 规则 → accessMode=department（全权）', async () => {
+    useAllRule();
+    const prisma = makePrisma({
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      teamGrantFindMany: vi.fn().mockImplementation(async ({ where }: any) => {
+        if (where?.teamId && !where.entityId) return [{ entityId: 'REL__1' }];
+        return [{
+          id: 'g_1', entityId: 'REL__1', permission: 'read',
+          teamId: 'team_1', grantedBy: 'user_mgr', grantedAt: new Date(),
+          team: { id: 'team_1', name: '欧洲市场组' },
+        }];
+      }),
+    });
+    const svc = createRelationServiceV2(prisma);
+    const r = await svc.getRelation(ACTOR, 'REL__1');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.accessMode).toBe('department');
+      expect(r.data.teamShares).toHaveLength(1);
+    }
+  });
+
+  it('§8.3 详情：部门外实体 + 组共享 read 档 → accessMode=team-read（T-20 前端门禁依据）', async () => {
+    useDepartmentRule();
+    const prisma = makePrisma({
+      // relation.findFirst：读 scope 命中（返回实体）→ 详情可见；
+      // hasRelationWriteAccess 查他人实体（部门维不可写）——salesRepIds 须清空避免误判
+      findFirst: vi.fn().mockResolvedValue(makeRelation({ id: 'REL__TEAM', ownerId: 'user_x', departmentId: 'dept_9', salesRepIds: [] })),
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      teamGrantFindMany: vi.fn().mockImplementation(async ({ where }: any) => {
+        if (where?.teamId && !where.entityId) return [{ entityId: 'REL__TEAM' }];
+        return []; // getMyTeamSharesForEntities（徽章）——详情 chips 走 getEntityTeamShares 的 findMany，此处兜底
+      }),
+    });
+    // getEntityTeamShares（chips）与 resolveRelationAccess 的 grant 查询走 teamDataGrant.findFirst
+    (prisma.teamDataGrant.findFirst as any) = vi.fn().mockResolvedValue({ permission: 'read' });
+    const svc = createRelationServiceV2(prisma);
+    const r = await svc.getRelation(ACTOR, 'REL__TEAM');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.accessMode).toBe('team-read');
   });
 });

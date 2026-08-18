@@ -16,6 +16,7 @@ import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { requirePermission } from '../auth/permissionGuard';
 import { extractActorFromRequest } from '../auth/middleware';
 import { createPermissionService } from '../auth/permissionService';
+import { createTeamShareService } from '../teams/teamShareService';
 import { createCrmService } from './crmService';
 import { logger } from '../lib/logger';
 
@@ -32,11 +33,12 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
 
   const svc = createCrmService(opts.prisma);
   const permSvc = createPermissionService({ prisma: opts.prisma });
+  const teamShareSvc = createTeamShareService(opts.prisma);
 
   const actorOf = (req: Request) => extractActorFromRequest(req);
   const actorId = (req: Request) => actorOf(req)?.userId || '';
 
-  // ── 行级权限：校验 relationId 是否在 actor 的 dataScope 内 ──
+  // ── 行级权限：校验 relationId 是否在 actor 的 dataScope 内（部门维，DR-042 写口径）──
   async function checkRelationScope(actor: any, relationId: string): Promise<boolean> {
     if (!actor) return false;
     const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
@@ -62,6 +64,18 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     return true;
   }
 
+  // ── DR-042 §5.3 派生可见：读 = 部门维 ∨ 小组维共享（跟进历史/联系人等子实体随客户可见，T-17）──
+  async function requireRelationReadScope(req: Request, res: Response): Promise<boolean> {
+    const relationId = req.params.relationId;
+    if (!relationId) return true;
+    const actor = actorOf(req);
+    if (await checkRelationScope(actor, relationId)) return true;
+    const access = await teamShareSvc.resolveRelationAccess(actor, relationId);
+    if (access === 'team-followup' || access === 'team-read') return true;
+    res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此客户的 CRM 数据' });
+    return false;
+  }
+
   function serialize(row: any): any {
     if (!row) return null;
     const out: any = { ...row };
@@ -76,7 +90,8 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
 
   // ═══════════ Contact ═══════════
   router.get('/:relationId/contacts', requirePermission('crm:read'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    // DR-042 §5.3 派生可见：联系人随客户可见（组员协作必需——知道联系谁）
+    if (!(await requireRelationReadScope(req, res))) return;
     try {
       const items = await svc.listContacts(req.params.relationId);
       res.json({ ok: true, contacts: items.map(serialize) });
@@ -160,7 +175,8 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
 
   // ═══════════ FollowUp ═══════════
   router.get('/:relationId/follow-ups', requirePermission('crm:read'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    // DR-042 §5.3：跟进历史派生可见（部门维 ∨ 小组维共享，T-17）
+    if (!(await requireRelationReadScope(req, res))) return;
     try {
       const items = await svc.listFollowUps(req.params.relationId);
       res.json({ ok: true, followUps: items.map(serialize) });
@@ -168,7 +184,19 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
   });
 
   router.post('/:relationId/follow-ups', requireWrite, requirePermission('crm:write'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    // DR-042 §6.2 跟进门禁：归属部门（部门维写权限）∨ 小组共享 read+followup 档（T-18/T-20）
+    const relationId = req.params.relationId;
+    const actor = actorOf(req);
+    const deptOk = await checkRelationScope(actor, relationId);
+    if (!deptOk) {
+      const access = await teamShareSvc.resolveRelationAccess(actor, relationId);
+      if (access !== 'team-followup') {
+        return res.status(403).json({
+          error: 'GRANT_PERMISSION_BLOCKED',
+          message: access === 'team-read' ? '组共享为只读档位，不可添加跟进记录' : '无权限操作此客户的 CRM 数据',
+        });
+      }
+    }
     try {
       const item = await svc.createFollowUp(req.params.relationId, req.body, actorId(req));
       res.json({ ok: true, followUp: serialize(item) });

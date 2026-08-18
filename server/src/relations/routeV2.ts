@@ -11,13 +11,16 @@
  *   - V2 新增：销售漏斗聚合 GET /funnel + 阶段变更 PATCH /:id/stage
  *
  * 路由表：
- *   GET    /                  — 列表（带 scope + 筛选 + 分页）
+ *   GET    /                  — 列表（带 scope + 筛选 + 分页；DR-042 读 scope 含小组维 + teamShares 徽章 + ?teamId= 组筛选器）
  *   GET    /funnel            — 销售漏斗聚合（按 stage 分组 count）
- *   GET    /:id               — 详情（带 scope 校验）
+ *   GET    /:id               — 详情（带 scope 校验；DR-042 附 accessMode + teamShares chips）
+ *   GET    /:id/team-shares   — DR-042 反查该客户共享给了哪些组（chips 数据）
+ *   POST   /:id/team-shares   — DR-042 详情页就地共享 { teamIds[], permission }
+ *   DELETE /:id/team-shares/:teamId — DR-042 就地移除共享 { reason }
  *   POST   /                  — 创建（编号 + 字典 + 配置默认值）
- *   PUT    /:id               — 更新（scope + 字典校验）
- *   PATCH  /:id/stage         — 阶段变更（Kanban 拖拽）
- *   DELETE /:id               — 软删除（scope 校验）
+ *   PUT    /:id               — 更新（scope + 字典校验；DR-042 写 scope 仅部门维）
+ *   PATCH  /:id/stage         — 阶段变更（Kanban 拖拽；写 scope 仅部门维）
+ *   DELETE /:id               — 软删除（scope 校验；写 scope 仅部门维）
  */
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
@@ -64,6 +67,7 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
       limit: req.query.limit ? Number(req.query.limit) : undefined,
       offset: req.query.offset ? Number(req.query.offset) : undefined,
       sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
+      teamId: typeof req.query.teamId === 'string' ? req.query.teamId : undefined, // DR-042 §8.2 组筛选器
     };
     const result = await svc.listRelations(actor, filter);
     if (!result.ok) return res.status(500).json({ error: result.error!.code, message: result.error!.message });
@@ -79,6 +83,51 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
     };
     const result = await svc.getSalesFunnel(actor, filter);
     if (!result.ok) return res.status(500).json({ error: result.error!.code, message: result.error!.message });
+    return res.json({ ok: true, ...result.data });
+  });
+
+  // ── GET /:id/team-shares DR-042 反查共享组（chips）──
+  router.get('/:id/team-shares', requirePermission('relations:read'), async (req, res) => {
+    const actor = actorOf(req);
+    const result = await svc.getRelationTeamShares(actor, req.params.id);
+    if (!result.ok) {
+      const statusMap: Record<string, number> = { NOT_FOUND: 404, INTERNAL_ERROR: 500 };
+      return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
+    }
+    return res.json({ ok: true, teamShares: result.data });
+  });
+
+  // ── POST /:id/team-shares DR-042 详情页就地共享 ──
+  router.post('/:id/team-shares', requireWrite, requirePermission('relations:write'), async (req, res) => {
+    const actor = actorOf(req);
+    const teamIds: string[] = Array.isArray(req.body?.teamIds) ? req.body.teamIds.map(String).filter(Boolean) : [];
+    const permission = req.body?.permission === 'read' ? 'read' : 'read+followup';
+    if (teamIds.length === 0) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.teamIds[] 必填' });
+    const result = await svc.shareRelationToTeams(actor, req.params.id, { teamIds, permission }, req.ip);
+    if (!result.ok) {
+      // DR-042 §7 错误码契约
+      const statusMap: Record<string, number> = {
+        UNAUTHORIZED: 401, VALIDATION_FAILED: 400, INVALID_GRANT: 400,
+        NOT_FOUND: 404, ENTITY_NOT_FOUND: 404, TEAM_NOT_FOUND: 404,
+        TEAM_DISSOLVED: 409, FORBIDDEN: 403, GRANT_SCOPE_BLOCKED: 403,
+      };
+      return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
+    }
+    return res.json({ ok: true, ...result.data });
+  });
+
+  // ── DELETE /:id/team-shares/:teamId DR-042 就地移除共享 ──
+  router.delete('/:id/team-shares/:teamId', requireWrite, requirePermission('relations:write'), async (req, res) => {
+    const actor = actorOf(req);
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    if (!reason) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.reason 必填（审计留痕）' });
+    const result = await svc.unshareRelationFromTeam(actor, req.params.id, req.params.teamId, reason, req.ip);
+    if (!result.ok) {
+      const statusMap: Record<string, number> = {
+        UNAUTHORIZED: 401, NOT_FOUND: 404, VALIDATION_FAILED: 400, FORBIDDEN: 403, INTERNAL_ERROR: 500,
+      };
+      return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
+    }
     return res.json({ ok: true, ...result.data });
   });
 
