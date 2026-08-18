@@ -15,6 +15,7 @@ import ContactList from './ui/ContactList';
 import DetailPanel from './ui/DetailPanel';
 import OrgChart from './ui/OrgChart';
 import CustomSelect from './ui/CustomSelect';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import {
   SIDE_PANEL_SPOTLIGHT_DARK_COLOR,
   SIDE_PANEL_SPOTLIGHT_DARK_SIZE,
@@ -383,6 +384,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const [shipToRows, setShipToRows] = useState<ShipToRow[]>([{ id: 'shipto-0', contactName: '', city: '', postcode: '', phone: '', address: '', note: '' }]);
   const [otherContactRows, setOtherContactRows] = useState<OtherContactRow[]>([{ id: 'oc-0', type: '', value: '' }]);
   const [formSelectValues, setFormSelectValues] = useState<Record<string, string>>({});
+  const [birthdayDraft, setBirthdayDraft] = useState<string>('');
   const [resolvedCoords, setResolvedCoords] = useState<ResolvedCoordinates | null>(null);
   const relationCategoryScrollRef = useRef<HTMLDivElement | null>(null);
   const relationListScrollRef = useRef<HTMLDivElement | null>(null);
@@ -509,6 +511,11 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
       document.removeEventListener('keydown', handleEscape);
     };
   }, [showAddModal]);
+
+  useEffect(() => {
+    if (!showAddModal) return;
+    setBirthdayDraft(editingItem?.birthday || '');
+  }, [editingItem?.id, showAddModal]);
 
   useEffect(() => {
     if (!showAddModal) return;
@@ -2002,7 +2009,13 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>生日</label>
-                          <input name="birthday" type="date" defaultValue={editingItem?.birthday} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          <input type="hidden" name="birthday" value={birthdayDraft} />
+                          <CapsuleDateInput
+                            value={birthdayDraft}
+                            onChange={setBirthdayDraft}
+                            isDarkMode={isDarkMode}
+                            className="mt-1 w-full"
+                          />
                         </div>
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>语言偏好</label>

@@ -96,7 +96,8 @@ BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-
                               # 白名单仅限表格行内操作，spec §3.1）
 BASELINE_FILTERBAR_H=0        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
                               # 2026-08-18 W1 组2 收编 3→0：FinanceManager:1935 / FinanceCreditPanel:367 / FinancePaymentRequestsPanel:422 均删 h-auto min-h-11）
-BASELINE_NATIVE_CONTROLS=148  # M4: 原生 <select（无 bds-select 类）113 + type="date" 35 = 148
+BASELINE_NATIVE_CONTROLS=147  # M4: 原生 <select（无 bds-select 类）113 + type="date" 34 = 147
+                              # 2026-08-18 W2 遗留清零：RelationsManager 联系人生日 type=date → CapsuleDateInput（+hidden 兼容 FormData），date 35→34
                               # 2026-08-18 W1 组1+组2 收编 261→205→203：订单/财务/定价/关务/报表域 M4 清零
                               # 2026-08-18 W2 组3+组4 收编 203→148：采购/库存/BOM/生产（-9）+ 关系/CRM/供应商/季节/风险/营销（-46）
                               # 粗口径对账：全仓 `<select` 213 + `type="date"` 108 = 321（产品负责人点名⑥）；

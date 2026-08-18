@@ -1488,8 +1488,11 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_FORM_FIELD_CLASS).not.toContain('rgba(74,144,226');
     expect(formSource).toContain('relationFormFieldClass');
     expect(formSource).toContain('rounded-full border outline-none font-light');
-    expect(formSource).toContain('type="date"');
-    expect(formSource).toContain('type="date" defaultValue={editingItem?.birthday} className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}');
+    // 2026-08-18 W2 遗留清零：生日字段原生 type="date" → CapsuleDateInput（BDS 化，hidden 兼容 FormData）
+    expect(formSource).not.toContain('name="birthday" type="date"');
+    expect(formSource).toContain('<CapsuleDateInput');
+    expect(formSource).toContain('name="birthday" value={birthdayDraft}');
+    expect(formSource).toContain('onChange={setBirthdayDraft}');
     expect(formSource).not.toContain('focus:ring-blue-100');
   });
 
