@@ -603,7 +603,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       </p>
                     </div>
                     <button onClick={() => setShowNewUser(!showNewUser)} className={actionButtonCls}>
-                      <UserPlus size={14} strokeWidth={1.4} />
+                      <UserPlus size={14} strokeWidth={1.5} />
                       {showNewUser ? '取消' : '新建用户'}
                     </button>
                   </div>
@@ -657,7 +657,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           </p>
                         </div>
                         <button type="button" onClick={cancelUserEdit} className={actionButtonCls}>
-                          <X size={13} strokeWidth={1.4} />
+                          <X size={14} strokeWidth={1.5} />
                           返回列表
                         </button>
                       </div>
@@ -718,10 +718,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div className="md:col-span-2 xl:col-span-3">
                           <label className={labelCls}>密码</label>
                           <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <div className={`${inputCls} flex min-w-[220px] flex-1 items-center`}>已加密保存，不能查看原密码</div>
+                            <div className={`${inputCls} flex min-w-56 flex-1 items-center`}>已加密保存，不能查看原密码</div>
                             <button onClick={() => resetPassword(editingUser.id, editingUser.displayName)}
                               disabled={actionBusyId === editingUser.id}
-                              className={`${actionButtonCls} disabled:opacity-50`}><KeyRound size={12} />重置密码</button>
+                              className={`${actionButtonCls} disabled:opacity-50`}><KeyRound size={14} />重置密码</button>
                           </div>
                         </div>
                       </div>
@@ -757,7 +757,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             disabled={actionBusyId === editingUser.id || !userDraft.displayName.trim() || !userDraft.email.trim() || !userDraft.role.trim()}
                             className={brandActionCls}
                           >
-                            <Check size={12} />{actionBusyId === editingUser.id ? '保存中' : '保存账号'}
+                            <Check size={14} />{actionBusyId === editingUser.id ? '保存中' : '保存账号'}
                           </button>
                           <button
                             onClick={() => disableAccount(editingUser.id, editingUser.displayName)}
@@ -771,7 +771,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             disabled={actionBusyId === editingUser.id}
                             className={quietDangerActionCls}
                           >
-                            <Trash2 size={12} />抹除个人数据
+                            <Trash2 size={14} />抹除个人数据
                           </button>
                         </div>
                       </div>
@@ -823,14 +823,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                 disabled={actionBusyId === u.id}
                                 className={brandActionCls}
                               >
-                                <Check size={12} />{actionBusyId === u.id ? '处理中' : '批准'}
+                                <Check size={14} />{actionBusyId === u.id ? '处理中' : '批准'}
                               </button>
                               <button
                                 onClick={() => rejectPendingUser(u.id)}
                                 disabled={actionBusyId === u.id}
                                 className={dangerActionCls}
                               >
-                                <X size={12} />驳回
+                                <X size={14} />驳回
                               </button>
                             </div>
                           );
@@ -887,7 +887,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                     <div className={`min-w-0 truncate text-sm font-light text-[var(--text-primary)]`}>{u.displayName}</div>
                                     {privilegedRole && (
                                       <Crown
-                                        size={13}
+                                        size={14}
                                         strokeWidth={1.5}
                                         className={`${brandTextCls} shrink-0`}
                                         aria-label={privilegedRole === 'owner' ? 'Owner account' : 'Admin account'}
@@ -915,7 +915,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   disabled={actionBusyId === u.id}
                                   className={`${actionButtonCls} disabled:opacity-50`}
                                 >
-                                  <Pencil size={12} />编辑
+                                  <Pencil size={14} />编辑
                                 </button>
                               </td>
                             </tr>
@@ -968,7 +968,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                         ? 'bg-[var(--os-vnext-brand-blue)]/8 border-[var(--os-vnext-brand-blue)]/20 text-[var(--text-primary)]'
                                         : 'bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                                     }`}>
-                                    {on && <Check size={10} className="inline mr-1" />}
+                                    {on && <Check size={14} className="inline mr-1" />}
                                     {formatPermissionLabel(p.scope)}
                                   </button>
                                 );
@@ -989,7 +989,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                   loadTab('roles');
                                 } catch (e: any) { setLoadError(e.message || '更新权限失败'); }
                               }} className={brandActionCls}>
-                                <Check size={12} />保存权限
+                                <Check size={14} />保存权限
                               </button>
                             </div>
                           </div>
