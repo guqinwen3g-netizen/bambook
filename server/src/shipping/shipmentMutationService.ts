@@ -200,8 +200,9 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
     const result = await withTx(prisma, tx, async (t: any) => {
       const now = BigInt(Date.now());
       const shipmentStatus = input.status ?? 'Booked';
+      // Shipment.id 无数据库默认值，必须显式生成（route/agent 统一走此生成逻辑）
       const shipmentId = input?.id
-        || (generateIdIfMissing ? `SHP__${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` : undefined);
+        || `SHP__${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       // PRD 5.6：服务端自动生成运单号（SH-YYYY-NNNN），传入时优先使用传入值
       const shipmentNumber = input.shipmentNumber || await nextBusinessNumber(t, 'SH');
       const data: any = { ...input, shipmentNumber, status: shipmentStatus, createdAt: now, updatedAt: now };
@@ -231,9 +232,10 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
 
         // C4：建单首装——关联订单且订单有明细行时自动带出装运行
         // （同事务，映射口径与 pull-from-order 端点共用 mapOrderLinesToShipmentLineInputs）
+        // 注意：createShipment 直建 Shipped 状态时，运单尚未持久化完成，需跳过状态检查
         const orderLines = await t.orderLine.findMany({ where: { orderId: sh.orderId }, orderBy: { lineNumber: 'asc' } });
         if (orderLines.length > 0) {
-          await replaceShipmentLinesTx(t, sh.id, mapOrderLinesToShipmentLineInputs(orderLines), actorId, ip);
+          await replaceShipmentLinesTx(t, sh.id, mapOrderLinesToShipmentLineInputs(orderLines), actorId, ip, { skipStatusCheck: true });
         }
       }
 

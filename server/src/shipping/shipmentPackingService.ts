@@ -183,8 +183,11 @@ export async function replaceShipmentLinesTx(
   lines: ShipmentLineInput[],
   actorId: string,
   ip?: string | null,
+  options?: { skipStatusCheck?: boolean },
 ): Promise<any[]> {
-  await loadEditableShipment(t, shipmentId);
+  if (!options?.skipStatusCheck) {
+    await loadEditableShipment(t, shipmentId);
+  }
 
   // 校验
   lines.forEach((l, i) => {
