@@ -91,6 +91,17 @@ const TABS: { id: TabId; label: string; icon: typeof Users }[] = [
 | workflow | `WorkflowPanel` | 工作流审批流配置与处理 |
 | audit-logs | `/api/v1/admin/audit-logs` | AuditLog 多维查询（actor/action/target/operationType/fieldPath） |
 
+### 4.3 已裁决新增 Tab（2026-08-18，待实施）
+
+> 来源：《账户与系统配置》§1A 配置分层模型裁决——平台配置一律迁 AdminPanel（本页导航 `adminOnly: true` 守卫在位），Settings 仅保留个人偏好与本机连接。
+
+| 新 Tab | label | 内容 | 数据源 | 权限 |
+| --- | --- | --- | --- | --- |
+| `company-profile` | 公司档案 | exporterProfile 全字段表单（公司抬头+银行信息，自 Settings company Tab 迁入）+ SystemConfigHistory 变更历史展示 | `GET/PUT /api/v1/config/company.exporterProfile`（**新建 systemConfigRoute**，真源 `SystemConfig global::company.exporterProfile`） | GET 全登录可读（单据生成链路依赖）；PUT 仅 `SUPER_ADMIN`/`ADMIN` |
+| `platform-rules` | 平台规则 | ① MOQ 阈值（`CompiledMoqThresholdsPanel` 提级重写为普通组件，清 FR-004 遗留）② 自动化联动（`AutomationRulesSection` 自 Settings 整迁）③ 对外 API 策略与密钥管理（自 Settings api Tab 策略部分迁入）④ 未来承接：A1 审批超时策略表（《审批与human-in-the-loop》§16.2）、平台脱敏规则 | MoqThresholdConfig / automationConfig / SystemConfig | 读：admin；写：`SUPER_ADMIN`/`ADMIN`（MOQ 沿用 `settings:moq:write` scope） |
+
+铁律：两个新 Tab 的所有写操作走服务端 API + 审计，**禁止**写 localStorage 作为真源；AdminPanel 既有的 `adminOnly` 导航守卫与渲染权限（`users:read`）对本两 Tab 同样生效，细分写权限在各 API 路由层 enforce。
+
 ---
 
 ## §5 角色与权限
@@ -532,3 +543,4 @@ admin 在 audit-logs Tab 设置过滤条件
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
 | v1.0 | 2026-08-15 | 初始版本：7 Tab + 8 角色 + 25 权限 + RBAC + 审计 + 审批 + 邮件通知 |
+| v1.1 | 2026-08-18 | §4.3 已裁决新增 Tab（公司档案 + 平台规则）：来源《账户与系统配置》§1A 三层配置模型裁决——平台配置（公司抬头/MOQ/自动化/API 策略/脱敏）一律迁 AdminPanel；明确新建 systemConfigRoute（GET/PUT `company.exporterProfile`）与数据源映射；细读 admin-only 守卫继承 |
