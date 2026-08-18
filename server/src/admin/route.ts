@@ -40,6 +40,16 @@ async function generateUserAccountId(prisma: PrismaClient, email: string, displa
   return `user_${slug}_${Date.now().toString(36)}`;
 }
 
+/**
+ * 角色解析：id 优先（DR-041 容器角色如 role-sales），name 兜底（中文角色名/旧枚举名）。
+ * 前端角色选择器以 Role.id 为值下发；兼容历史调用方按 name 传参。
+ */
+async function resolveRoleByNameOrId(prisma: PrismaClient, nameOrId: string) {
+  const byId = await (prisma.role.findUnique?.({ where: { id: nameOrId } }) ?? Promise.resolve(null)).catch(() => null);
+  if (byId) return byId;
+  return prisma.role.findFirst({ where: { name: nameOrId } });
+}
+
 export function createAdminRouter(options: AdminRouterOptions) {
   const router = Router();
   const auth = createAuthService();
@@ -77,6 +87,7 @@ export function createAdminRouter(options: AdminRouterOptions) {
       avatarUrl: (u as any).avatarUrl || null,
       status: u.status,
       roles: u.roles.map(ur => ur.role.name),
+      roleIds: u.roles.map(ur => ur.roleId),
       departmentId: u.primaryDeptId,
       department: u.primaryDepartment?.name || null,
       metadata: u.metadata,
@@ -125,12 +136,17 @@ export function createAdminRouter(options: AdminRouterOptions) {
       });
     const requestedRoles = Array.isArray(roles) ? roles : (typeof roles === 'string' && roles ? [roles] : []);
     if (requestedRoles.length > 0) {
-      await options.prisma.userRole.deleteMany({ where: { userId: user.id } });
-      for (const roleName of requestedRoles) {
-        const role = await options.prisma.role.findFirst({ where: { name: roleName } });
-        if (role) {
-          await options.prisma.userRole.create({ data: { id: `ur_${user.id}_${role.id}`, userId: user.id, roleId: role.id, departmentId: departmentId || null } });
+      const resolvedRoles = [];
+      for (const roleNameOrId of requestedRoles) {
+        const role = await resolveRoleByNameOrId(options.prisma, roleNameOrId);
+        if (!role) {
+          return res.status(400).json({ ok: false, error: 'INVALID_ROLE', message: `角色不存在：${roleNameOrId}` });
         }
+        resolvedRoles.push(role);
+      }
+      await options.prisma.userRole.deleteMany({ where: { userId: user.id } });
+      for (const role of resolvedRoles) {
+        await options.prisma.userRole.create({ data: { id: `ur_${user.id}_${role.id}`, userId: user.id, roleId: role.id, departmentId: departmentId || null } });
       }
     }
     const actor = (req as any).actor;
@@ -264,7 +280,7 @@ export function createAdminRouter(options: AdminRouterOptions) {
     const requestedRole = (target.metadata as any)?.requestedRole as string | undefined;
     const finalRoles: string[] = Array.isArray(roles) && roles.length
       ? roles
-      : (requestedRole ? [requestedRole] : ['viewer']);
+      : (requestedRole ? [requestedRole] : ['role-sales']);
 
     const finalDeptId = departmentId || target.primaryDeptId || null;
     await options.prisma.userAccount.update({
@@ -275,19 +291,24 @@ export function createAdminRouter(options: AdminRouterOptions) {
       },
     });
 
-    await options.prisma.userRole.deleteMany({ where: { userId: id } });
-    for (const roleName of finalRoles) {
-      const role = await options.prisma.role.findFirst({ where: { name: roleName } });
-      if (role) {
-        await options.prisma.userRole.create({
-          data: {
-            id: `ur_${id}_${role.id}_${Date.now()}`,
-            userId: id,
-            roleId: role.id,
-            departmentId: finalDeptId,
-          },
-        });
+    const resolvedApproveRoles = [];
+    for (const roleNameOrId of finalRoles) {
+      const role = await resolveRoleByNameOrId(options.prisma, roleNameOrId);
+      if (!role) {
+        return res.status(400).json({ ok: false, error: 'INVALID_ROLE', message: `角色不存在：${roleNameOrId}` });
       }
+      resolvedApproveRoles.push(role);
+    }
+    await options.prisma.userRole.deleteMany({ where: { userId: id } });
+    for (const role of resolvedApproveRoles) {
+      await options.prisma.userRole.create({
+        data: {
+          id: `ur_${id}_${role.id}_${Date.now()}`,
+          userId: id,
+          roleId: role.id,
+          departmentId: finalDeptId,
+        },
+      });
     }
 
     let department: { id: string; name: string } | null = null;
@@ -377,11 +398,12 @@ export function createAdminRouter(options: AdminRouterOptions) {
     const { roles, departmentId } = req.body || {};
     await options.prisma.userRole.deleteMany({ where: { userId: id } });
     if (Array.isArray(roles)) {
-      for (const roleName of roles) {
-        const role = await options.prisma.role.findFirst({ where: { name: roleName } });
-        if (role) {
-          await options.prisma.userRole.create({ data: { id: `ur_${id}_${role.id}_${Date.now()}`, userId: id, roleId: role.id, departmentId: departmentId || null } });
+      for (const roleNameOrId of roles) {
+        const role = await resolveRoleByNameOrId(options.prisma, roleNameOrId);
+        if (!role) {
+          return res.status(400).json({ ok: false, error: 'INVALID_ROLE', message: `角色不存在：${roleNameOrId}` });
         }
+        await options.prisma.userRole.create({ data: { id: `ur_${id}_${role.id}_${Date.now()}`, userId: id, roleId: role.id, departmentId: departmentId || null } });
       }
     }
     const actor = (req as any).actor;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { hasRole } from '../services/authService';
 import { getApiBaseUrl } from '../services/apiBase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,6 +23,16 @@ const ROLE_LABELS: Record<typeof AVAILABLE_ROLES[number], string> = {
   admin: '管理员',
   owner: '所有者',
 };
+/**
+ * DR-041 宽泛角色容器（Role 表 id 以 role- 前缀 seed），用户分配角色的唯一选项来源。
+ * 旧枚举角色（viewer/owner 等）仅作为 JWT 聚合映射的内部依赖，不再出现在分配选项中。
+ * 顺序即展示顺序：一线 → 主管 → 职能 → 管理层。
+ */
+const ROLE_CONTAINER_ORDER = [
+  'role-sales', 'role-sales-manager', 'role-finance', 'role-finance-manager',
+  'role-qc', 'role-logistics', 'role-admin', 'role-super-admin',
+] as const;
+const DEFAULT_ASSIGN_ROLE = 'role-sales';
 const PERMISSION_LABELS: Record<string, string> = {
   '*': '全部权限',
   'users:read': '查看用户',
@@ -78,7 +88,7 @@ const EMPTY_USER_EDIT_DRAFT = {
   email: '',
   departmentId: '',
   status: 'active',
-  role: 'viewer',
+  role: DEFAULT_ASSIGN_ROLE,
 };
 
 const KNOWLEDGE_SCOPES = ['company', 'department', 'team', 'private'] as const;
@@ -195,6 +205,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const [auditFilter, setAuditFilter] = useState({ targetType: '', targetId: '', action: '', actorId: '', createdFrom: '', createdTo: '' });
   const [auditFilterError, setAuditFilterError] = useState('');
   const [roles, setRoles] = useState<any[]>(() => readAdminPanelCache().roles?.roles || []);
+  // 用户角色分配选项：仅 DR-041 容器角色（真源 /api/admin/roles，按 ROLE_CONTAINER_ORDER 排序）
+  const assignableRoles = useMemo(() => {
+    const byId = new Map(roles.filter(r => ROLE_CONTAINER_ORDER.includes(r.id)).map(r => [r.id, r]));
+    return ROLE_CONTAINER_ORDER.map(id => byId.get(id)).filter(Boolean) as any[];
+  }, [roles]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
@@ -224,7 +239,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
 
   // New user form
   const [showNewUser, setShowNewUser] = useState(false);
-  const [newUser, setNewUser] = useState({ displayName: '', email: '', password: '', roles: 'viewer' as string, departmentId: '' });
+  const [newUser, setNewUser] = useState({ displayName: '', email: '', password: '', roles: DEFAULT_ASSIGN_ROLE as string, departmentId: '' });
 
   const adminGlassClass = ADMIN_PANEL_GLASS_CLASS;
   const userCardClass = ADMIN_USER_CARD_CLASS;
@@ -265,6 +280,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     if (!res.ok) throw new Error(data.message || data.error || `Failed to fetch ${path} (HTTP ${res.status})`);
     return data;
   };
+
+  // 角色分配选项独立于 roles tab 加载：用户审批/编辑表单在任何 tab 都可能渲染
+  useEffect(() => {
+    if (assignableRoles.length > 0) return;
+    let cancelled = false;
+    fetchAdmin('roles')
+      .then(d => { if (!cancelled) setRoles(d.roles || []); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // task_mr1ncdp9: audit-logs 带筛选 query string（只发非空字段，消费后端 contract）
   const fetchAuditLogs = async (filter?: typeof auditFilter) => {
@@ -377,7 +403,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   const approvePendingUser = async (userId: string) => {
-    const role = (pendingRoles[userId] || 'viewer').trim() || 'viewer';
+    const role = (pendingRoles[userId] || DEFAULT_ASSIGN_ROLE).trim() || DEFAULT_ASSIGN_ROLE;
     setActionBusyId(userId);
     setLoadError('');
     try {
@@ -424,7 +450,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   const startUserEdit = (u: any) => {
-    const primaryRole = Array.isArray(u.roles) && u.roles[0] ? u.roles[0] : 'viewer';
+    // 优先用 roleId（DR-041 容器 id，与角色选择器值域一致）；旧数据无 roleIds 时回退角色名
+    const primaryRole = (Array.isArray(u.roleIds) && u.roleIds[0])
+      || (Array.isArray(u.roles) && u.roles[0])
+      || DEFAULT_ASSIGN_ROLE;
     setEditingUserId(u.id);
     setUserDraft({
       displayName: u.displayName || '',
@@ -621,12 +650,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         </p>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div><label className={labelCls}>姓名</label><input value={newUser.displayName} onChange={e => setNewUser({...newUser, displayName: e.target.value})} className={inputCls + ' mt-1'} placeholder="张三" /></div>
-                        <div><label className={labelCls}>邮箱</label><input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className={inputCls + ' mt-1'} placeholder="zhangsan@company.com" /></div>
+                        <div><label className={labelCls}>姓名</label><input value={newUser.displayName} onChange={e => setNewUser({...newUser, displayName: e.target.value})} className={inputCls + ' mt-1'} placeholder="员工姓名" /></div>
+                        <div><label className={labelCls}>邮箱</label><input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className={inputCls + ' mt-1'} placeholder="name@company.com" /></div>
                         <div><label className={labelCls}>密码</label><input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className={inputCls + ' mt-1'} placeholder="至少6位" /></div>
                         <div><label className={labelCls}>角色</label>
                           <select value={newUser.roles} onChange={e => setNewUser({...newUser, roles: e.target.value})} className={inputCls + ' mt-1'}>
-                            {AVAILABLE_ROLES.map(role => <option key={role} value={role}>{formatRoleLabel(role)}</option>)}
+                            {assignableRoles.length > 0
+                              ? assignableRoles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)
+                              : <option value={DEFAULT_ASSIGN_ROLE}>业务员</option>}
                           </select>
                         </div>
                         <div><label className={labelCls}>部门ID</label><input value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})} className={inputCls + ' mt-1'} placeholder="company" /></div>
@@ -638,7 +669,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         try {
                           await postAdmin('users', { ...newUser, id: createAdminGeneratedUserId(newUser.email, newUser.displayName) });
                           setShowNewUser(false);
-                          setNewUser({ displayName: '', email: '', password: '', roles: 'viewer', departmentId: '' });
+                          setNewUser({ displayName: '', email: '', password: '', roles: DEFAULT_ASSIGN_ROLE, departmentId: '' });
                           await loadTab('users');
                         } catch(e: any) {
                           // fail closed：创建失败显示在页面错误区，禁止 alert 弹窗
@@ -740,9 +771,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                               disabled={actionBusyId === editingUser.id}
                               className={inputCls + ' mt-1 disabled:opacity-50'}
                             >
-                              {AVAILABLE_ROLES.map(role => (
-                                <option key={role} value={role}>{formatRoleLabel(role)}</option>
-                              ))}
+                              {assignableRoles.length > 0 ? assignableRoles.map(role => (
+                                <option key={role.id} value={role.id}>{role.name}</option>
+                              )) : (
+                                <option value={userDraft.role}>{userDraft.role}</option>
+                              )}
                             </select>
                           </div>
                         </div>
@@ -815,12 +848,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                                 </div>
                               </div>
                               <select
-                                value={pendingRoles[u.id] || 'viewer'}
+                                value={pendingRoles[u.id] || DEFAULT_ASSIGN_ROLE}
                                 onChange={e => setPendingRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
                                 className={`h-9 rounded-control border px-3 text-[11px] font-light outline-none ${ADMIN_USER_FIELD_CLASS}`}
                                 disabled={actionBusyId === u.id}
                               >
-                                {AVAILABLE_ROLES.map(role => <option key={role} value={role}>{formatRoleLabel(role)}</option>)}
+                                {assignableRoles.length > 0 ? assignableRoles.map(role => (
+                                  <option key={role.id} value={role.id}>{role.name}</option>
+                                )) : (
+                                  <option value={DEFAULT_ASSIGN_ROLE}>业务员</option>
+                                )}
                               </select>
                               <button
                                 onClick={() => approvePendingUser(u.id)}
