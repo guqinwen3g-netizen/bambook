@@ -3,7 +3,7 @@ import { SystemConfig, MODELS, type WallpaperOption } from '../types';
 import { apiService } from '../services/apiService';
 import { knowledgeApiService } from '../services/knowledgeApiService';
 import { storageService, type DeviceStorageReport } from '../services/storageService';
-import { getAuthState, changePassword, logout, hasPermission, updateMyProfile } from '../services/authService';
+import { getAuthState, changePassword, logout, hasPermission, updateMyProfile, login } from '../services/authService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layout, BrainCircuit, Volume2,
@@ -413,6 +413,9 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const [confirmPw, setConfirmPw] = useState('');
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pwLoading, setPwLoading] = useState(false);
+  // DEV 验收专用：演示账号一键切换（生产构建零渲染）
+  const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
+  const [switchMsg, setSwitchMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [storageReport, setStorageReport] = useState<DeviceStorageReport | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
   const [storageMsg, setStorageMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -542,6 +545,21 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  // DEV 验收专用：一键切换演示账号（登录新账号 → 全局状态刷新 → 各页面按新权限重挂载）
+  const handleQuickSwitch = async (email: string) => {
+    if (switchingAccount) return;
+    setSwitchingAccount(email);
+    setSwitchMsg(null);
+    try {
+      await login(email, 'Bambook@2026');
+      setSwitchMsg({ ok: true, text: '已切换' });
+    } catch (e: any) {
+      setSwitchMsg({ ok: false, text: e.message || '切换失败' });
+    } finally {
+      setSwitchingAccount(null);
+    }
   };
 
   const handleAvatarFile = async (file?: File | null) => {
@@ -1354,6 +1372,54 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           </div>
                         </button>
                       </div>
+
+                      {/* DEV 验收专用：演示账号一键切换面板（import.meta.env.DEV 守卫，生产构建零渲染） */}
+                      {import.meta.env.DEV && (
+                        <div className={`p-4 rounded-control border ${optionIdleCls}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-light">演示账号快速切换</div>
+                              <div className={`mt-1 text-[11px] ${weakTextCls}`}>验收专用 · 仅开发模式可见</div>
+                            </div>
+                            {switchMsg && (
+                              <span className={`text-[11px] ${switchMsg.ok ? 'text-[var(--status-success)]' : 'text-[var(--status-danger)]'}`}>
+                                {switchMsg.text}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-3 grid grid-cols-3 gap-2">
+                            {[
+                              { email: 'boss@bambook.local', name: '沈国强 · 超管' },
+                              { email: 'gm@bambook.local', name: '林志远 · 管理员' },
+                              { email: 'sales.manager@bambook.local', name: '陈雅雯 · 销售主管' },
+                              { email: 'sales.a@bambook.local', name: '苏晓芸 · 业务员' },
+                              { email: 'sales.b@bambook.local', name: '周子墨 · 业务员' },
+                              { email: 'finance.manager@bambook.local', name: '赵美玲 · 财务主管' },
+                              { email: 'finance@bambook.local', name: '钱志明 · 财务' },
+                              { email: 'qc@bambook.local', name: '吴建国 · QC' },
+                              { email: 'logistics@bambook.local', name: '郑海涛 · 后勤' },
+                            ].map((acct) => {
+                              const isCurrent = user?.email === acct.email;
+                              const isBusy = switchingAccount === acct.email;
+                              return (
+                                <button
+                                  key={acct.email}
+                                  type="button"
+                                  disabled={isCurrent || !!switchingAccount}
+                                  onClick={() => handleQuickSwitch(acct.email)}
+                                  className={`px-3 py-2 rounded-control border text-[11px] font-light transition-all ${
+                                    isCurrent
+                                      ? 'border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
+                                      : 'border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]'
+                                  } disabled:opacity-50`}
+                                >
+                                  {isBusy ? '切换中…' : isCurrent ? `${acct.name}（当前）` : acct.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       <button
                         type="button"

@@ -64,7 +64,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               className={inputCls}
-              placeholder="张三 / you@company.com"
+              placeholder="请输入姓名或邮箱"
               inputMode="text"
               autoComplete="username"
               autoCapitalize="none"
@@ -75,14 +75,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
 
           <div>
             <label className="block text-[11px] font-light mb-1.5 text-[var(--text-tertiary)]">
-              Password
+              密码
             </label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               className={inputCls}
-              placeholder="Enter password"
+              placeholder="请输入密码"
               autoComplete="current-password"
             />
           </div>
@@ -98,7 +98,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
             disabled={isLoading || !email || !password}
             className="bds-btn bds-btn-primary w-full"
           >
-            {isLoading ? 'Signing in...' : 'Sign in'}
+            {isLoading ? '登录中…' : '登录'}
           </button>
         </form>
 
@@ -113,7 +113,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoRegister, isDarkMode }) => {
         )}
 
         <p className="mt-3 text-center text-[10px] text-[var(--text-tertiary)]">
-          Cookie-based persistent login. 7-day session.
+          登录会话保持 7 天，期间无需重复验证。
         </p>
       </div>
     </div>
