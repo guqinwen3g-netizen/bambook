@@ -224,6 +224,9 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
   const [form, setForm] = useState({ type: 'Call' as string, content: '', followUpAt: todayStr(), nextFollowUpAt: '', nextFollowUpTopic: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // DR-042 §6.2/§8.3：访问档位（department=全权 / team-followup=可跟进 / team-read=只读）+ 共享 chips
+  const [accessMode, setAccessMode] = useState<string>('department');
+  const [teamShares, setTeamShares] = useState<Array<{ teamId: string; teamName: string; permission: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,8 +234,14 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
     apiService.listFollowUps(relationId, { includeCompleted: true })
       .then(rows => { if (!cancelled) setItems(rows); })
       .catch(() => { if (!cancelled) setItems([]); });
+    // DR-042：档位解析失败按最严格档（none）——写门禁 fail-closed
+    apiService.getRelationTeamShares(relationId)
+      .then(d => { if (!cancelled) { setAccessMode(d.accessMode); setTeamShares(d.teamShares); } })
+      .catch(() => { if (!cancelled) setAccessMode('none'); });
     return () => { cancelled = true; };
   }, [relationId]);
+
+  const canAddFollowUp = accessMode === 'department' || accessMode === 'team-followup';
 
   const handleAdd = async () => {
     const content = form.content.trim();
@@ -266,6 +275,18 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
 
   return (
     <CrmSection title="跟进管理" icon={<Calendar size={14} />} isDarkMode={isDarkMode}>
+      {/* DR-042 §8.3：共享 chips（该客户被共享给的小组）+ 档位提示 */}
+      {teamShares.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-light text-[var(--text-tertiary)]">共享至</span>
+          {teamShares.map(s => (
+            <span key={s.teamId} className="rounded-full px-2 py-0.5 text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-secondary)]"
+              title={s.permission === 'read+followup' ? '组员可查看并添加跟进' : '组员仅可查看'}>
+              {s.teamName} · {s.permission === 'read+followup' ? '可跟进' : '只读'}
+            </span>
+          ))}
+        </div>
+      )}
       <div className={`text-sm text-[var(--text-tertiary)]`}>
         {items === null ? (
           <p className={mutedTextCls(isDarkMode)}>加载中…</p>
@@ -279,9 +300,11 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
                   <span className={chip('info', isDarkMode)}>{FOLLOW_UP_TYPE_LABELS[fu.type] ?? fu.type}</span>
                   <span className={`shrink-0 text-[var(--text-tertiary)]`}>{fu.followUpAt}</span>
                   {fu.contact?.name && <span className="text-[var(--text-tertiary)]">· {fu.contact.name}</span>}
-                  <button type="button" onClick={() => handleDelete(fu.id)} disabled={busy} className={rowDeleteCls(isDarkMode)} title="删除跟进记录">
-                    <Trash2 size={14} />
-                  </button>
+                  {accessMode === 'department' && (
+                    <button type="button" onClick={() => handleDelete(fu.id)} disabled={busy} className={rowDeleteCls(isDarkMode)} title="删除跟进记录">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
                 <p className={`break-all ml-0.5 text-[var(--text-primary)]`}>{fu.content}</p>
                 {fu.nextFollowUpAt && (
@@ -294,23 +317,31 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
             ))}
           </ul>
         )}
-        {/* 内联添加表单（类型 + 跟进日期 + 内容 + 可选下次跟进） */}
-        <div className="mt-2 space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <select className="bds-select sm shrink-0 w-auto" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-              {FOLLOW_UP_TYPES.map(t => <option key={t} value={t}>{FOLLOW_UP_TYPE_LABELS[t]}</option>)}
-            </select>
-            <CapsuleDateInput value={form.followUpAt} onChange={v => setForm(p => ({ ...p, followUpAt: v }))} className="bds-input sm shrink-0" />
-            <input value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="跟进内容*" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
-            <button type="button" onClick={handleAdd} disabled={busy || !form.content.trim()} className={addBtnCls(isDarkMode)} title="添加跟进记录">
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            </button>
+        {/* DR-042 §6.2：内联添加表单仅 department / team-followup 档渲染（T-20 read 档不渲染输入框） */}
+        {canAddFollowUp ? (
+          <div className="mt-2 space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <select className="bds-select sm shrink-0 w-auto" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+                {FOLLOW_UP_TYPES.map(t => <option key={t} value={t}>{FOLLOW_UP_TYPE_LABELS[t]}</option>)}
+              </select>
+              <CapsuleDateInput value={form.followUpAt} onChange={v => setForm(p => ({ ...p, followUpAt: v }))} className="bds-input sm shrink-0" />
+              <input value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="跟进内容*" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
+              <button type="button" onClick={handleAdd} disabled={busy || !form.content.trim()} className={addBtnCls(isDarkMode)} title="添加跟进记录">
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CapsuleDateInput value={form.nextFollowUpAt} onChange={v => setForm(p => ({ ...p, nextFollowUpAt: v }))} className="bds-input sm shrink-0" />
+              <input value={form.nextFollowUpTopic} onChange={e => setForm(p => ({ ...p, nextFollowUpTopic: e.target.value }))} placeholder="下次跟进主题(可选)" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <CapsuleDateInput value={form.nextFollowUpAt} onChange={v => setForm(p => ({ ...p, nextFollowUpAt: v }))} className="bds-input sm shrink-0" />
-            <input value={form.nextFollowUpTopic} onChange={e => setForm(p => ({ ...p, nextFollowUpTopic: e.target.value }))} placeholder="下次跟进主题(可选)" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
-          </div>
-        </div>
+        ) : (
+          accessMode !== 'department' && (
+            <p className={`mt-2 text-[11px] ${mutedTextCls(isDarkMode)}`}>
+              {accessMode === 'team-read' ? '组共享为只读档位，仅可查看跟进历史（DR-042 read 档）' : '无该客户的跟进权限'}
+            </p>
+          )
+        )}
         {error && <p className="text-xs text-os-adaptive-danger mt-1">{error}</p>}
       </div>
     </CrmSection>

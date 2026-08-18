@@ -49,6 +49,7 @@ import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
 import { createCrmService, ContactInput, CreditLimitInput, FollowUpInput, OpportunityInput, CustomerTierInput } from './crmService';
 import { createBrandLineService } from './brandLineService';
+import { createTeamShareService } from '../teams/teamShareService';
 
 export interface CrmRouterOptions {
   prisma: PrismaClient;
@@ -62,6 +63,46 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createCrmService(prisma);
   const brandLines = createBrandLineService(prisma);
+  const teamShareSvc = createTeamShareService(prisma);
+
+  /**
+   * DR-042 §6.2 跟进门禁（V1 路径——前端 apiService.listFollowUps/createFollowUp 实际消费的端点）：
+   * 归属部门（行级写权限）∨ 小组共享 read+followup 档。
+   * 同时补齐 PL-2B 既有缺口：V1 跟进端点此前只有认证没有行级 scope。
+   */
+  async function requireFollowUpWriteScope(req: Request, res: Response): Promise<boolean> {
+    const relationId = req.params.relationId;
+    const actor = extractActorFromRequest(req);
+    if (!actor?.userId) return true; // API-Key 调用走旧口径（moduleGuard 层把关）
+    try {
+      const access = await teamShareSvc.resolveRelationAccess(actor, relationId);
+      if (access === 'department' || access === 'team-followup') return true;
+      res.status(403).json({
+        error: 'GRANT_PERMISSION_BLOCKED',
+        message: access === 'team-read' ? '组共享为只读档位，不可添加跟进记录' : '无权限操作此客户的跟进记录',
+      });
+      return false;
+    } catch (e: any) {
+      logger.error('[CrmRoute] follow-up scope check failed（fail-closed）', { relationId, error: e?.message });
+      res.status(403).json({ error: 'FORBIDDEN', message: '权限校验失败，拒绝操作（fail-closed）' });
+      return false;
+    }
+  }
+
+  /** DR-042 §5.3 派生可见（读）：部门维 ∨ 小组维共享（跟进历史随客户可见，T-17） */
+  async function requireFollowUpReadScope(req: Request, res: Response): Promise<boolean> {
+    const relationId = req.params.relationId;
+    const actor = extractActorFromRequest(req);
+    if (!actor?.userId) return true; // API-Key 调用走旧口径
+    try {
+      const access = await teamShareSvc.resolveRelationAccess(actor, relationId);
+      if (access !== 'none') return true;
+      res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此客户的跟进记录' });
+      return false;
+    } catch {
+      return true; // 读路径 fail-open：scope 解析异常不阻断既有可见性（写路径才 fail-closed）
+    }
+  }
 
   const authenticate = (req: Request, res: Response): boolean => {
     if (!requireAuth) return true;
@@ -195,6 +236,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
 
   router.get('/:relationId/follow-ups', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
+    if (!(await requireFollowUpReadScope(req, res))) return; // DR-042 §5.3 派生可见
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
       const includeCompleted = req.query.includeCompleted === 'true';
@@ -207,6 +249,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
 
   router.post('/:relationId/follow-ups', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
+    if (!(await requireFollowUpWriteScope(req, res))) return; // DR-042 §6.2 跟进门禁（T-18/T-20）
     try {
       const fu = await service.createFollowUp(req.params.relationId, req.body as FollowUpInput, (req as any).actorId || 'api');
       notify('FollowUpRecord', 'create', [fu.id]);

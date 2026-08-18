@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireRole } from '../auth/middleware';
+import { requireRole, extractActorFromRequest } from '../auth/middleware';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { createHrService, HrError } from './hrService';
+import { createTeamShareService } from '../teams/teamShareService';
 
 type HRRouterOptions = {
   prisma: PrismaClient;
@@ -24,6 +25,7 @@ function deletionStamp(): bigint {
 export function createHRRouter(options: HRRouterOptions) {
   const router = Router();
   const { prisma } = options;
+  const teamShareSvc = createTeamShareService(prisma);
 
   const requireAuth = options.requireAuth ?? true;
   const apiKeys = options.apiKeys ?? new Set<string>();
@@ -300,6 +302,56 @@ export function createHRRouter(options: HRRouterOptions) {
       res.json({ ok: true, deleted: true });
     } catch (err: any) {
       res.status(500).json({ ok: false, error: 'HR_TEAM_DELETE_FAILED', message: err.message });
+    }
+  });
+
+  // ════════════════════════════════════════════
+  // DR-042 小组数据共享（设计真源：docs/design/03-业务规则/小组与业务数据共享.md §7）
+  // 说明：本路由挂 requireRole('owner','admin') 全局守卫，故此处端点为
+  // admin 口径（建组/解散/审计视图）；组长/主管的就地共享走
+  // /api/v2/relations/:id/team-shares（双重门禁在 teamShareService）。
+  // ════════════════════════════════════════════
+
+  // 解散组（事务化：批量 revoke 授权 → 软删组 → 审计；重复解散 409，T-04/T-05）
+  router.post('/teams/:id/dissolve', async (req: Request, res: Response) => {
+    const actor = extractActorFromRequest(req);
+    const result = await teamShareSvc.dissolveTeam(actor, req.params.id, req.ip);
+    if (!result.ok) {
+      const statusMap: Record<string, number> = {
+        UNAUTHORIZED: 401, TEAM_NOT_FOUND: 404, TEAM_DISSOLVED: 409, FORBIDDEN: 403,
+      };
+      return res.status(statusMap[result.error!.code] || 500).json({ ok: false, error: result.error!.code, message: result.error!.message });
+    }
+    return res.json({ ok: true, ...result.data });
+  });
+
+  // 组内授权列表（含已撤销，审计视图，分页）
+  router.get('/teams/:id/grants', async (req: Request, res: Response) => {
+    try {
+      const activeOnly = req.query.activeOnly === 'true';
+      const grants = await teamShareSvc.listTeamGrants(req.params.id, activeOnly);
+      res.json({ ok: true, grants });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: 'HR_TEAM_GRANTS_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  // 当前用户所在组（会话态；前端「我的小组」入口 + 徽章数据源）
+  router.get('/teams/mine', async (req: Request, res: Response) => {
+    try {
+      const actor = extractActorFromRequest(req);
+      if (!actor?.userId) return res.status(401).json({ ok: false, error: 'UNAUTHORIZED', message: '需登录' });
+      const memberships = await prisma.teamMember.findMany({
+        where: { userId: actor.userId, leftAt: null, team: { deletedAt: null } },
+        include: { team: true },
+      });
+      const teams = memberships
+        .map((m: any) => m.team)
+        .filter(Boolean)
+        .map((t: any) => ({ id: t.id, name: t.name, description: t.description, leaderId: t.leaderId, status: t.status }));
+      res.json({ ok: true, teams });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: 'HR_MY_TEAMS_FETCH_FAILED', message: err.message });
     }
   });
 

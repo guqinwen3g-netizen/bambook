@@ -86,7 +86,7 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
     return res.json({ ok: true, ...result.data });
   });
 
-  // ── GET /:id/team-shares DR-042 反查共享组（chips）──
+  // ── GET /:id/team-shares DR-042 反查共享组（chips + 当前用户访问档位）──
   router.get('/:id/team-shares', requirePermission('relations:read'), async (req, res) => {
     const actor = actorOf(req);
     const result = await svc.getRelationTeamShares(actor, req.params.id);
@@ -94,7 +94,13 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
       const statusMap: Record<string, number> = { NOT_FOUND: 404, INTERNAL_ERROR: 500 };
       return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
     }
-    return res.json({ ok: true, teamShares: result.data });
+    // accessMode 供前端渲染跟进输入框（§8.3）；解析失败按最严格档（fail-closed）
+    let accessMode = 'none';
+    try {
+      const { createTeamShareService } = await import('../teams/teamShareService');
+      accessMode = await createTeamShareService(opts.prisma).resolveRelationAccess(actor, req.params.id);
+    } catch { /* fail-closed: none */ }
+    return res.json({ ok: true, teamShares: result.data, accessMode });
   });
 
   // ── POST /:id/team-shares DR-042 详情页就地共享 ──

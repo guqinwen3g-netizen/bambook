@@ -1297,6 +1297,32 @@ export const apiService = {
     const data = await requestJson<{ followUps: FollowUpRecord[] }>(`/v1/crm/${encodeURIComponent(relationId)}/follow-ups${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
     return data.followUps ?? [];
   },
+
+  // ══════════════════════════════════════════════════════════════
+  // DR-042 小组数据共享（设计真源：docs/design/03-业务规则/小组与业务数据共享.md）
+  // ══════════════════════════════════════════════════════════════
+
+  /** 客户档案被共享给的小组（chips）+ 当前用户访问档位（department/team-followup/team-read/none） */
+  async getRelationTeamShares(relationId: string, endpoint?: string): Promise<{ teamShares: Array<{ grantId: string; teamId: string; teamName: string; permission: string; grantedBy: string; grantedAt: string }>; accessMode: string }> {
+    const data = await requestJson<{ teamShares: any[]; accessMode: string }>(`/v2/relations/${encodeURIComponent(relationId)}/team-shares`, { endpoint, method: 'GET' });
+    return { teamShares: data.teamShares ?? [], accessMode: data.accessMode ?? 'none' };
+  },
+
+  /** 详情页就地共享客户档案给小组（档位 read / read+followup） */
+  async shareRelationToTeams(relationId: string, teamIds: string[], permission: 'read' | 'read+followup' = 'read+followup', endpoint?: string): Promise<{ granted: number }> {
+    const data = await requestJson<{ ok: boolean; granted: number }>(`/v2/relations/${encodeURIComponent(relationId)}/team-shares`, {
+      endpoint, method: 'POST', body: JSON.stringify({ teamIds, permission }),
+    });
+    return data;
+  },
+
+  /** 就地移除共享（reason 审计留痕必填） */
+  async unshareRelationFromTeam(relationId: string, teamId: string, reason: string, endpoint?: string): Promise<{ revoked: boolean }> {
+    const data = await requestJson<{ ok: boolean; revoked: boolean }>(`/v2/relations/${encodeURIComponent(relationId)}/team-shares/${encodeURIComponent(teamId)}`, {
+      endpoint, method: 'DELETE', body: JSON.stringify({ reason }),
+    });
+    return data;
+  },
   async createFollowUp(relationId: string, input: FollowUpInput, endpoint?: string): Promise<FollowUpRecord> {
     const data = await requestJson<{ followUp: FollowUpRecord }>(`/v1/crm/${encodeURIComponent(relationId)}/follow-ups`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.followUp;
