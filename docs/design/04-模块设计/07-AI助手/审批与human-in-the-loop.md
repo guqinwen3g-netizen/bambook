@@ -549,16 +549,105 @@ agentLoop 每步执行后保存 checkpoint 到 `AgentCheckpoint` 表：
 
 ---
 
+## §16 审批生命周期增强（2026-08-18 A1 深化裁决，S-BE 排期实施）
+
+> **裁决来源**：2026-08-18 全局审计（后端 ≈85%）后 A1 审批域深化讨论，产品负责人六项裁决，统一消除 §17 全部六项缺口。
+> **核心架构转变**：审批等待从「进程内 Promise」升级为「DB 状态机 + EventBus 快路径」双层模型——DB 为持久真源，EventBus 仅为同进程低延迟通道。
+
+### 16.1 挂起状态机化（裁决 1：方案 B）
+
+**规范条文：**
+
+1. **先持久化后等待**：agentLoop 检测 `approvalRequired` 后、挂起等待**前**，将 `pendingApprovalId` + `blockedStep` + `blockedCallId` 写入 checkpoint（AgentCheckpoint schema 扩展三字段）——杜绝「等待中崩溃 → 孤儿 pending 单」窗口。
+2. **双层等待模型**：
+   - **快路径（同进程）**：现状 EventBus `resolved` 监听保留，审批人秒批秒回，UX 不变。
+   - **持久路径（跨进程）**：15 分钟交互超时到达 → **不再判 APPROVAL_FAILED**，转为 detached 等待：任务标记 `awaiting_approval`，SSE 回合友好结束（前端展示"审批待决，决议后自动继续"）；进程重启不丢失。
+3. **双路径唤醒**：resolve 路由完成状态翻转后 → ① EventBus emit（有进程内监听者时秒回）；② 无监听者（`listenerCount===0`）→ 触发内部 resume 调度，从 checkpoint 恢复 agentLoop。
+4. **resume 幂等**：恢复时先查 `pendingApprovalId` 对应 ApprovalRequest 现状——approved/modified → 带 resolution 重跑 blockedStep（skipApprovalCheck）；rejected/expired → 作为 observation 喂回 LLM；仍 pending → 重新进入等待（不重建审批单）。ApprovalRequest 创建前按 `conversationId + step + callId` 查重，已存在则复用不重发。
+5. **启动孤儿扫描**：服务启动时扫描「checkpoint 含 pendingApprovalId 且审批单仍 pending」的会话 → 保持等待标记；「审批单已决议但任务停摆」→ 立即调度 resume。该扫描与 §16.2 的 ApprovalLifecycleSweeper 合并为同一组件。
+
+### 16.2 超时口径统一（裁决 2：expired 终态 + 策略表）
+
+**规范条文：**
+
+1. **分层语义**：L0 交互层 = 15min 进程内等待 → detached（§16.1，零业务后果）；L1 业务层 = ApprovalRequest 生命周期策略（本条）。
+2. **新终态 `expired`**：状态机扩展为 `pending → approved / rejected / modified / expired`。"无人处理"（expired）与"被否决"（rejected）语义分离；expired **不触发** rejected 的业务联动（如报价回滚）；expired 后发起人可重新发起（原单不重开，终态不可逆原则不变）。
+3. **默认策略表（policyKey 驱动，禁止硬编码）**：
+
+| 节点 | 动作 |
+|---|---|
+| createdAt + 24h | 提醒审批人（站内通知） |
+| createdAt + 48h | 二次提醒 + 抄送发起人 |
+| createdAt + 72h | 置 `expired`（终态） |
+
+   各 actionType 可经审批策略配置覆盖默认值；MOQ「不自动升级」归并为策略行 `moq_exemption: { remind: 72h, escalate: never, expire: 72h }`——「不升级审批层级」与「超时过期」不再矛盾。价格审批规则.md §3 的「72h auto-reject」口径由本条收编为 `expired`（该文档同步修订为引用本条）。
+4. **执行器**：scheduler 域新增 `ApprovalLifecycleSweeper` 周期扫描 pending 单按策略执行提醒/过期；与 §16.1-5 启动扫描同组件。
+5. **expired 后 agent 侧语义**：detached 等待中审批单被置 expired → resume 时作为工具执行结果（observation）喂回 LLM，由 LLM 决定重新发起/换方案/放弃——与 rejected 现有处理范式一致，不硬终止任务。
+
+### 16.3 modified 决议断链修复（裁决 3：重生成 draft）
+
+**规范条文：**
+
+1. **重生成而非直传**：resolve 路由收到 modified 决议时，服务端以 `modifiedInput` 重新调用**同一 draft 生成函数**（与创建时同一入口）→ 生成新 ProcessDraft + 新 hash 替换 `payload.processDraft` → 同事务翻转状态为 modified → 唤醒重跑 commit。
+2. **安全链完整**：`approvalId + modifiedInput hash + newDraftHash` 三层绑定；`payload.resolution` 记录 before/after（原 input vs modifiedInput、原 draftHash vs newDraftHash）。
+3. **原子性与失败处理**：重生成 + 状态翻转同事务；重生成失败（modifiedInput 不合法 / 引用实体已变更）→ 409 退回审批人附原因，单保持 pending 不污染。
+4. **工程纪律**：draft 生成函数必须纯函数化（输入 → draft，可重入）；个别无法重生成的工具在工具注册声明 `supportsModified: false`，resolve 路由对这类工具 400 拒绝 modified（清单制，非特例补丁）。
+5. **与恢复路径共享入口**：modified 重跑与 §16.1 的 resume 重跑共用「带 resolution 重跑 blockedStep」入口，不另开路径。
+
+### 16.4 审批人触达（裁决 4：三触点站内通知）
+
+**规范条文：**
+
+1. **三触点统一走 notifications 域（NotificationCenter 站内）**：
+   - 触点① 审批单创建 → 通知 reviewerId（DR-007 服务端解析结果）；
+   - 触点② §16.2 Sweeper 24/48h 提醒 → 同通道；
+   - 触点③ 决议完成（approved/rejected/modified/expired）→ 通知发起人。
+2. **接入点**：`approvalCreateService.createBusinessApproval` 与 agent 审批创建点统一注入 notificationService，禁止各域自行拼通知。
+3. **邮件渠道缓行**：后续经通知偏好扩展，本期不做。
+
+### 16.5 委托/转交补齐（裁决 5：复用内核 + 销号）
+
+**规范条文：**
+
+1. agent 审批路由（`server/src/agent/route.ts`）补 `POST /agent/approvals/:id/delegate` 端点，**复用业务审批内核同一 delegate 服务函数**（approvalKernelRoute.ts:58 已落地），禁止另写一套。
+2. 委托沿用 DR7-B2 纪律：主动转派 + 审计（delegatedBy/At/Reason 三字段）+ 禁止自动改派。
+3. 前端审批气泡加转交入口。
+4. 本条落地后 §17 #3 销号。
+
+### 16.6 批量审批（裁决 6：带护栏实现）
+
+**规范条文：**
+
+1. **准入护栏**：仅同 `actionType` 且 risk ≠ critical 的 pending 单可批量 approve；modified / reject 不支持批量（批量否决误伤面大）。
+2. **逐单审计**：批量中每张单独立写决议记录 + `batchId` 关联（可审计、可追溯、可单条回查）；批量操作本身记一条 batch 审计。
+3. **失败隔离**：批量内单张失败（如已被决议）不阻断其余，结果逐单返回。
+
+### 16.7 验收矩阵
+
+| 验收编号 | 场景描述 | 前置条件 | 执行步骤 | 期望结果 | 失败路径 |
+|---------|---------|---------|---------|---------|---------|
+| A1-E1 | **崩溃恢复零丢失：** 审批挂起中服务重启，审批人重启后 approve → 任务自动 resume 完成 | 1. agent 任务触发 high-risk 工具挂起（checkpoint 已含 pendingApprovalId）；2. 服务重启 | 1. 审批人调 resolve approve；2. 观察任务 | 任务经跨进程唤醒 resume，带 resolution 重跑 blockedStep 完成 commit；全程无新 ApprovalRequest | 无 pendingApprovalId 持久化 → 重启后任务永久停摆；或 resume 重复建单（一单变两单） |
+| A1-E2 | **detached 等待转续：** 审批超过 15min 未决 → 转 detached；2h 后 approve → 自动继续 | 任务挂起，SSE 在线 | 1. 等待 15min；2. 2h 后审批人 approve | 15min 时 SSE 友好结束（状态 awaiting_approval，无 APPROVAL_FAILED 记录）；approve 后任务自动 resume | 超时即 APPROVAL_FAILED 写记录 continue（旧口径回退）→ LLM 误判审批失败乱决策 |
+| A1-E3 | **resume 幂等防重单：** 同 step 恢复时不重复创建 ApprovalRequest | checkpoint 含 pendingApprovalId（单仍 pending） | 触发 resume | 检测到既有 pending 单 → 重新挂等，ApprovalRequest 计数不变 | 每次 resume 新建一单 → 审批中心被重复单刷屏 |
+| A1-E4 | **超时过期 expire：** pending 单 72h 未决 → Sweeper 置 expired → agent 侧喂回 LLM | 1. 审批单 pending 72h（测试时钟注入）；2. 任务 detached 等待中 | 1. Sweeper 扫描执行；2. 观察任务 | 单置 expired（非 rejected）；24/48h 提醒通知已发；任务 resume 后 LLM 收到"审批已过期"observation 并决策 | expired 误触 rejected 联动（报价被错误回滚）；或硬终止任务用户需手工重发 |
+| A1-E5 | **modified 重生成闭环：** 审批人改参 modified → commit 执行的是新 draft | order.confirm 挂起（原 qty=100） | 审批人 modified qty=80 → resolve | payload.processDraft 为新 draft（qty=80）+ 新 hash；commit 落库 qty=80；审计含 before/after（100→80、hash 前后值） | 直传 modifiedInput 复用旧 draft → commit 落 qty=100（执行的并非批准的，一致性漏洞） |
+| A1-E6 | **modified 失败退回：** modifiedInput 不合法 → 409 单不污染 | 同上 | 审批人 modified qty=-5 | resolve 409 附原因，单保持 pending，payload 无变化 | 部分写入（状态翻转了但 draft 没换）→ 数据不一致 |
+| A1-E7 | **三触点通知：** 创建/提醒/决议三点通知到位 | 审批策略生效 | 1. 发起审批；2. 时钟推进 24h；3. 审批人 approve | ① reviewerId 收到待办通知；② 24h 收到提醒；③ 发起人收到决议通知 | 通知绑错角色（通知发起人而非审批人）；或 Sweeper 重复发提醒 |
+| A1-E8 | **委托转交：** agent 审批单 delegate 给上级 → 新审批人可决议 | 单 pending（reviewerId=主管） | 主管 delegate → 老板；老板 approve | 委托审计三字段落库；老板 resolve 成功；原主管不再可决议 | agent 路由 404（端点缺失）；或委托后两人都能批（双审批权） |
+| A1-E9 | **批量护栏：** 同 actionType 非 critical 批量 approve；混入 critical 被拒 | 3 单 pending（2 普通 + 1 critical） | 批量 approve 全选 | 护栏拦截 critical 单，提示剔除后可批量；2 普通单 approve + batchId 关联审计 | 批量含 critical 放行（红标业务被批量放水）；或批量内一单失败全部回滚（可用性差） |
+
+---
+
 ## §17 待补缺口
 
-| # | 缺口 | 优先级 | 落点 |
-|---|------|-------|------|
-| 1 | 跨进程审批恢复（AgentJob 队列消费 approvalEventBus） | P1 | §12 |
-| 2 | 审批超时自动拒绝（当前静默超时，无通知） | P2 | §4 |
-| 3 | 审批委托/转交（manager 转给 owner） | P2 | §3 |
-| 4 | 批量审批（一次审批多个同类操作） | P3 | §3 |
-| 5 | 审批通知（飞书/邮件推送 pending 审批） | P2 | §4 |
-| 6 | modified 流程的 ProcessDraft 重新生成（当前 modifiedInput 直接传，未重新 hash） | P1 | §6 |
+| # | 缺口 | 优先级 | 落点 | 状态 |
+|---|------|-------|------|------|
+| 1 | 跨进程审批恢复（AgentJob 队列消费 approvalEventBus） | P1 | §12 / §16.1 | ✅ 已裁决（2026-08-18 §16.1 方案 B 挂起状态机化，S-BE 排期实施） |
+| 2 | 审批超时自动拒绝（当前静默超时，无通知） | P2 | §4 / §16.2 | ✅ 已裁决（§16.2 expired 终态 + 24/48/72h 策略表） |
+| 3 | 审批委托/转交（manager 转给 owner） | P2 | §3 / §16.5 | ✅ 已裁决（§16.5 复用内核补 agent 端点，落地后销号） |
+| 4 | 批量审批（一次审批多个同类操作） | P3 | §3 / §16.6 | ✅ 已裁决（§16.6 带护栏实现） |
+| 5 | 审批通知（飞书/邮件推送 pending 审批） | P2 | §4 / §16.4 | ✅ 已裁决（§16.4 三触点站内通知；飞书/邮件渠道缓行） |
+| 6 | modified 流程的 ProcessDraft 重新生成（当前 modifiedInput 直接传，未重新 hash） | P1 | §6 / §16.3 | ✅ 已裁决（§16.3 重生成 draft + 重 hash） |
 
 ---
 
