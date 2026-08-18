@@ -282,7 +282,7 @@ describe('Dashboard HUD polish', () => {
         expect(DASHBOARD_GLOBE_STAGE_CLASS).toContain('gap-1 lg:gap-1.5');
         expect(DASHBOARD_GLOBE_STAGE_CLASS).toContain('pt-3');
         expect(DASHBOARD_GLOBE_STAGE_CLASS).not.toContain('-translate-y-6');
-        expect(DASHBOARD_GLOBE_BOTTOM_CLASS).toContain('h-[155px]');
+        expect(DASHBOARD_GLOBE_BOTTOM_CLASS).toContain('h-40');
         expect(DASHBOARD_GLOBE_BOTTOM_CLASS).not.toContain('-translate-y-6');
         expect(source).toContain("gridTemplateColumns: 'repeat(12, minmax(0, 1fr))'");
         expect(source).toContain("gridTemplateRows: 'minmax(0, 1fr) minmax(176px, clamp(176px, 23vh, 210px))'");

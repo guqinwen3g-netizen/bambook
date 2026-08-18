@@ -56,7 +56,7 @@ export const DASHBOARD_GLOBE_HUD_FRAME_CLASS = 'max-w-[1680px] w-full mx-auto px
 export const DASHBOARD_EXPANDED_HUD_FRAME_CLASS = 'max-w-[1130px] min-w-0 w-full mx-auto px-4';
 export const DASHBOARD_HUD_ROOT_CLASS = `dashboard-hud-root h-full min-h-0 flex flex-col justify-between ${DASHBOARD_GLOBE_HUD_FRAME_CLASS} ${DASHBOARD_HUD_TOP_INSET_CLASS} ${DASHBOARD_HUD_BOTTOM_INSET_CLASS} gap-1`;
 export const DASHBOARD_GLOBE_STAGE_CLASS = 'dashboard-spatial-stage flex-1 w-full flex flex-row gap-1 lg:gap-1.5 items-end pt-3';
-export const DASHBOARD_GLOBE_BOTTOM_CLASS = 'dashboard-spatial-bottom w-full flex flex-row gap-1 lg:gap-1.5 items-end h-[155px]';
+export const DASHBOARD_GLOBE_BOTTOM_CLASS = 'dashboard-spatial-bottom w-full flex flex-row gap-1 lg:gap-1.5 items-end h-40';
 export const DASHBOARD_EXPANDED_MAX_WIDTH_PX = 1130;
 export const DASHBOARD_EXPANDED_MIN_WIDTH_PX = 0;
 export const DASHBOARD_EXPANDED_METRIC_MIN_WIDTH_PX = 0;
@@ -88,7 +88,7 @@ const DashboardProgressRing = ({ value, displayValue }: { value: number; display
     const dashOffset = circumference * (1 - normalized / 100);
 
     return (
-        <div className="relative h-[76px] w-[76px] shrink-0">
+        <div className="relative h-20 w-20 shrink-0">
             <svg viewBox="0 0 76 76" className="h-full w-full -rotate-90">
                 <circle
                     cx="38"
@@ -247,7 +247,7 @@ const RenderTacticalBar = (props: any) => {
                 x2={x + width}
                 y2={y}
                 stroke={auraColor}
-                strokeWidth={3}
+                strokeWidth={2}
                 strokeOpacity={0.3}
             />
 
@@ -258,7 +258,7 @@ const RenderTacticalBar = (props: any) => {
                 x2={x + width}
                 y2={y}
                 stroke={coreColor}
-                strokeWidth={1}
+                strokeWidth={1.25}
                 strokeOpacity={0.9}
             />
 
@@ -750,7 +750,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
         ? { gridTemplateRows: 'minmax(0, 0.48fr) minmax(0, 1fr)' }
         : { gridTemplateRows: 'minmax(0, 0.48fr) minmax(0, 0.52fr)' };
     const dashboardCenterClass = useExpandedDashboardLayout
-        ? 'dashboard-spatial-center flex-1 min-w-0 h-full min-h-[300px]'
+        ? 'dashboard-spatial-center flex-1 min-w-0 h-full min-h-[18.75rem]'
         : 'dashboard-spatial-center col-start-5 col-span-4 row-start-1 row-span-2 min-w-0 h-full min-h-0';
     const dashboardLeftClass = useExpandedDashboardLayout
         ? 'dashboard-spatial-left col-span-12 grid gap-1.5 min-h-0 min-w-0'
@@ -817,8 +817,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                     <span className="ml-2.5 align-middle text-[12px] font-light tracking-[0.14em] text-os-adaptive-subtitle">工作台</span>
                                 </h1>
                                 {!isMobileSpatial && (
-                                    <label className={`pointer-events-auto flex h-14 w-[300px] max-w-[30vw] items-center gap-3 rounded-card-lg border px-5 ${dashboardHeaderPillClass} text-os-adaptive-subtitle`}>
-                                        <Search size={18} strokeWidth={1.35} />
+                                    <label className={`pointer-events-auto flex h-14 w-[18.75rem] max-w-[30vw] items-center gap-3 rounded-card-lg border px-5 ${dashboardHeaderPillClass} text-os-adaptive-subtitle`}>
+                                        <Search size={18} strokeWidth={1.5} />
                                         <input
                                             aria-label="Search Bambook Hub"
                                             className="min-w-0 flex-1 bg-transparent text-[14px] font-normal text-os-adaptive-primary outline-none placeholder:text-os-adaptive-subtitle"
@@ -858,7 +858,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             adaptive
                                         />
                                         <span className="text-[13px] font-normal">Bambook Team</span>
-                                        <ChevronDown size={15} strokeWidth={1.4} className="text-os-adaptive-subtitle" />
+                                        <ChevronDown size={16} strokeWidth={1.5} className="text-os-adaptive-subtitle" />
                                     </button>
                                 </div>
                             )}
@@ -900,7 +900,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                                     {cognitionView === 'nodes' ? 'Active Nodes' : 'High Priority'}
                                                 </div>
-                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--accent)]" />
+                                                <div className="mt-3 h-1 w-14 rounded-full bg-[var(--accent)]" />
                                             </motion.div>
                                         </AnimatePresence>
                                         <DashboardProgressRing value={memoryPercent} displayValue={cognitionView === 'nodes' ? insightsCount : highInsightCount} />
@@ -928,7 +928,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                         <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                             {productionView === 'threads' ? 'Active Lines' : productionView === 'factories' ? 'Production Bases' : 'Live Orders'}
                                         </div>
-                                        <div className="h-[3px] w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg-strong)]">
+                                        <div className="h-1 w-full rounded-full mt-3 overflow-hidden bg-[var(--recessed-bg-strong)]">
                                             <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${outputPercent}%` }} />
                                         </div>
                                         </div>
@@ -940,7 +940,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="primary" className="mt-2 text-[24px] font-light leading-none tracking-tight text-os-adaptive-primary tabular-nums">
                                                     ${(totalValue / 1000).toFixed(1)}k
                                                 </div>
-                                                <div className="h-[3px] w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg-strong)]">
+                                                <div className="h-1 w-full rounded-full mt-4 overflow-hidden bg-[var(--recessed-bg-strong)]">
                                                     <div className="h-full rounded-full transition-all duration-1000 bg-[var(--accent)]" style={{ width: `${Math.min(100, Math.max(18, Math.round(totalValue / 1000)))}%` }} />
                                                 </div>
                                             </div>
@@ -964,7 +964,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                                 <div data-ui-lab-wallpaper-contrast="muted" className={dashboardMetricCaptionClass}>
                                                     {criticalView === 'production' ? 'Line Blocks' : criticalView === 'logistics' ? 'Delay Risks' : 'Unread Inbox'}
                                                 </div>
-                                                <div className="mt-3 h-[3px] w-14 rounded-full bg-[var(--accent)]" />
+                                                <div className="mt-3 h-1 w-14 rounded-full bg-[var(--accent)]" />
                                             </motion.div>
                                         </AnimatePresence>
                                         <DashboardProgressRing value={risksPercent} displayValue={criticalView === 'production' ? alertCount : criticalView === 'logistics' ? liveOrders.filter(o => o.status === 'Pending').length : unreadEmailCount} />
@@ -1054,7 +1054,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             className={`p-1.5 rounded-full transition-all duration-300 ${DASHBOARD_REFRESH_ICON_DARK_CLASS}`}
                                             title="Manual Sync"
                                         >
-                                            <RefreshCw size={12} strokeWidth={1} className={isBriefingLoading ? "animate-spin" : ""} />
+                                            <RefreshCw size={14} strokeWidth={1.25} className={isBriefingLoading ? "animate-spin" : ""} />
                                         </button>
 	                                    </div>
 	                                </CompiledDashboardCard>
@@ -1124,7 +1124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
 
                                                     {trendValue !== 0 && (
                                                         <div data-ui-lab-wallpaper-contrast={trendValue >= 0 ? 'brand' : undefined} className={`flex items-center gap-1 text-[13px] font-normal font-mono tracking-tighter mb-1.5 ${trendValue >= 0 ? DASHBOARD_PIPELINE_TREND_POSITIVE_CLASS : DASHBOARD_PIPELINE_TREND_NEGATIVE_CLASS}`}>
-                                                            {trendValue >= 0 ? <TrendingUp size={10} strokeWidth={1.5} /> : <TrendingDown size={10} strokeWidth={1.5} />}
+                                                            {trendValue >= 0 ? <TrendingUp size={14} strokeWidth={1.5} /> : <TrendingDown size={14} strokeWidth={1.5} />}
                                                             <span>{trendValue >= 0 ? '+' : ''}{trendValue.toFixed(1)}%</span>
                                                         </div>
                                                     )}
@@ -1177,7 +1177,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, emails, insights, onNavig
                                             >
                                                 Fabric
                                             </button>
-                                            <div className="w-[1px] h-2 bg-accent/20" />
+                                            <div className="w-px h-2 bg-accent/20" />
                                             <button
                                                 onClick={() => setActiveVelocity('garment')}
                                                 data-ui-lab-wallpaper-contrast={activeVelocity === 'garment' ? 'brand' : 'muted'}
