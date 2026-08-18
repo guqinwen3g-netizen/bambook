@@ -530,6 +530,23 @@ agentLoop 每步执行后保存 checkpoint 到 `AgentCheckpoint` 表：
 | DR013-C4 | **审计完整性：** EXC 批准后必须写入 ≥6 条事件 AuditLog（申请、提交、审批拒绝、再申请、Z 拒绝、BOSS 兜底），每条包含申请人、批准人、时间、理由、越过规则、原状态、后续结果 | 1. DR013-B3 完整链（张 Rej → Z Rej → BOSS Approve）；2. 查询 AuditLog | 1. 筛选 entity=Dr013ExceptionRequest / entityId=EXC-003；2. 核对字段 | 1. AuditLog 至少 6 条对应每一步；2. 每条含 operatorId（谁操作）+ action（CREATE/ SUBMIT/ APPROVE/ REJECT/ BOSS_BYPASS）+ payload 包含被越门禁、理由、风险、责任人、补救、BOSS兜底≥30字理由、bypassedApprovalIds=2 张被拒审批 ID；3. 任何审计字段缺失 → fail-closed（审批被拒绝落地直到审计写成功） | EXC 批准成功但 AuditLog 因 DB 故障只写了 1 条 → 批准动作必须和写 AuditLog 同事务（PostgreSQL 事务原子；若审计写失败批准就回滚：DR-013 第 4 条"必须记录；未获批准保持原门禁"一致性必须） |
 | DR013-C5 | **角色容器审批权来源：** 与 DR7-A6 一致——审批权来自 scope，不是来自「例外页面可见」或容器标签 | 1. 系统管理员 Z 拥有 approvals:dept_fallback scope；2. 删除 Z 的 approvals:dr013_exception_cross_dept（受控例外跨部门兜底 scope）；3. Z 尝试审批某跨部门 DR-013 例外（=面料部归属，Z 非面料部 head 但原跨团队兜底） | 1. 删除 Z 对应 scope；2. Z 审批 EXC | 1. 删除后→403 SCOPE_DENIED：Z 即使被标签为"系统管理员/总领导"也无法审批；2. 证明 DR-013 审批权=scopes 细粒度来源（approvals:dr013_exception_approve + approvals:dept_fallback 组合），不是容器标签粗粒度 | Z 仍可审批 → 与 DR7-A6 一样的身份型漏洞（违背权限来自 scope，而非身份标签的原则） |
 
+### 15.4 DR-013 例外核销时机统一口径（2026-08-17 产品负责人裁决，S-BE W6 队列实施）
+
+**规范条文（核销唯一出口 = 业务动作事务）：**
+
+1. **门禁判定层永远不核销**：`assertFabricShipmentGate`（samples 域）与 `evaluateShipmentReleaseGate`（shipping 域）只做「判定 + 例外查询」，不调用 `consumeException`；samples 域无业务写入口 → 天然无核销点，两域同一口径。
+2. **核销时机（shipping 域）**：`createShipment` / `updateShipment` 目标状态 Shipped 写库成功后、事务提交前，**同事务**对本次放行依赖的每张例外 `usedCount+1`（合票 M 张例外核销 M 张，例外 ID 由门禁 outcome `via='exception'` 摘要带出，零新增查询）；核销失败（并发已被核销/刚过期）→ 出运事务整体回滚（fail-closed，例外与业务写入同生死，绝不出现"出运成功但例外未核销"的重复可用窗口）。
+3. **生效语义（裁决）**：`validUntil` 为主生效约束——**同订单窗口期内可多票出运复用同一例外**（分批出运无需逐票重申请）；`maxUses` 为上限保护（申请时按预计批次设定，耗尽即 CONSUMED）；**每次进入 Shipped（含回退后再次进入）均核销一次**——每次进 Shipped 都是独立动作时点。
+4. **TOCTOU 自洽**：门禁评估→事务提交之间例外失效 → `consumeException` 返 409（ALREADY_CONSUMED/EXPIRED）→ 事务回滚 → 调用方重试时门禁重新评估自然得到 GATE_BLOCKED；无需加锁。
+5. **Agent 直写路径**：`exceptionChecker=null`（无例外通道）→ 无例外可核销，登记说明即可。
+6. **改造面**：`consumeException` 支持注入 tx（当前自开 `$transaction`，改为"传入 tx 则直接用、否则自开"）；`shipmentMutationService` 两处在 Shipped 写入后收集核销；测试 4 类（核销成功 / 并发已核销回滚 / 合票多例外 / 出运失败回滚不烧例外）。
+
+| 验收编号 | 场景描述 | 前置条件 | 执行步骤 | 期望结果 | 失败路径 |
+|---------|---------|---------|---------|---------|---------|
+| DR013-C6 | **核销与出运同事务：** 例外放行的出运单 Shipped 写库成功 → 例外 usedCount+1；出运写库失败回滚 → 例外不被"烧" | 1. EXC-001 生效中（usedCount=0/maxUses=3/validUntil 未过）；2. 订单 S/S 未确认（原门禁不通过） | 1. 创建出运单直建 Shipped（门禁经例外放行）；2. 模拟出运写库失败（约束冲突）重放场景 | 1. 成功路径：出运单落库 + EXC usedCount=1 + 审计 dr013_exception_consumed 与出运审计同一事务可查；2. 失败路径：出运回滚 + EXC usedCount 仍=0（例外不烧） | 核销与出运分离两事务 → 出运失败但例外已核销，用户业务没办成例外没了（违反"审计写入与状态变更同事务"铁律） |
+| DR013-C7 | **窗口期内复用 + maxUses 上限保护：** 同订单分批出运，validUntil 内第二票无需新例外；maxUses 耗尽 → 阻断 | 1. EXC-002 生效中（maxUses=2/validUntil=T+7）；2. 同订单第一票已 Shipped（usedCount=1） | 1. 第二票出运（validUntil 内）；2. 第三票出运（usedCount 将达 3 > maxUses=2） | 1. 第二票：例外放行 + usedCount=2（窗口期复用成立）；2. 第三票：EXCEPTION_ALREADY_CONSUMED → GATE_BLOCKED，提示重新申请 | maxUses=1 硬编码导致第二票被误杀（分批出运业务断裂）；或 maxUses 失效无限复用（一次性名存实亡） |
+| DR013-C8 | **回退再进 Shipped 再核销：** 出运单 Shipped → 回退 Booked → 再 Shipped，第二次进入仍核销 | 1. EXC-003 生效中（usedCount=1/maxUses=3）；2. 出运单已由例外放行 Shipped 一次 | 1. 状态回退 Booked；2. 再次 Shipped | 1. 第二次进 Shipped：门禁重评（原门禁仍不通过 → 查例外仍生效）→ 放行 + usedCount=2；2. 审计含两条 dr013_exception_consumed（各带 consumedAt） | 同单号跳过二次核销 → 状态修正成为免费通道（每次进 Shipped 都是独立风险事件，必须独立计次） |
+
 ---
 
 ## §17 待补缺口
