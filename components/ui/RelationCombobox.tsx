@@ -168,7 +168,7 @@ const RelationCombobox: React.FC<RelationComboboxProps> = ({
               }}
               className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 border-t border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]`}
             >
-              <Plus size={12} />
+              <Plus size={14} />
               <span>创建新档案 "{query.trim()}"</span>
             </button>
           )}

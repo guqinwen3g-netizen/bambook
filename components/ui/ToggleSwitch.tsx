@@ -30,7 +30,7 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, disabled
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${trackCls} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
     >
       <span
-        className={`absolute top-0.5 h-[14px] w-[14px] rounded-full transition-transform ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'} bg-[var(--bg-card)]`}
+        className={`absolute top-0.5 h-3.5 w-3.5 rounded-full transition-transform ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'} bg-[var(--bg-card)]`}
       />
     </button>
   );

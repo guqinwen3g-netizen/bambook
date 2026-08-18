@@ -66,20 +66,20 @@ export const FolderTabCard: React.FC<FolderTabCardProps> = ({
             {/* 2. TAB CONTENT AREA */}
             <div className="relative z-10 w-full h-full">
                 {/* Top Tab Title */}
-                <div className="absolute top-0 left-0 w-[140px] h-[58px] flex items-center px-8">
+                <div className="absolute top-0 left-0 w-36 h-14 flex items-center px-8">
                     <span className={`text-[13px] font-light tracking-tight text-[var(--text-primary)]`}>
                         {title}
                     </span>
                 </div>
 
                 {/* Main Body (Shifted down to clear the shoulder) */}
-                <div className="pt-[58px] px-8 pb-8">
+                <div className="pt-14 px-8 pb-8">
                     {children}
                 </div>
             </div>
 
             {/* 3. OPTICAL INNER GLOW (Subtle rim light at top left) */}
-            <div className="absolute top-[2px] left-[15px] w-[80px] h-[1px] bg-gradient-to-r from-transparent via-[var(--border-c-strong)] to-transparent pointer-events-none" />
+            <div className="absolute top-[2px] left-[15px] w-20 h-px bg-gradient-to-r from-transparent via-[var(--border-c-strong)] to-transparent pointer-events-none" />
         </div>
     );
 };

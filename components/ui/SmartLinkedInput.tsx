@@ -132,10 +132,10 @@ const SmartLinkedInput: React.FC<SmartLinkedInputProps> = ({
 
       {entityLabel && (
         <div className={`mt-1 flex items-center gap-1 text-[9px] text-[var(--text-secondary)]`}>
-          <Link2 size={10} />
+          <Link2 size={14} />
           <span>{entityLabel}: {linked?.title}</span>
           <button type="button" onClick={() => setLinked(null)} className="ml-1 opacity-70 hover:opacity-100">
-            <X size={10} />
+            <X size={14} />
           </button>
         </div>
       )}

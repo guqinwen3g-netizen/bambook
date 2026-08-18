@@ -124,7 +124,7 @@ export default function CustomerSearchInput({
   const fieldClass = BAMBOOK_OS.controls.recessedField.base;
   const menu = BAMBOOK_OS.controls.overlayMenu;
   const menuSurfaceClass = `${menu.surfaceBase} ${menu.surface}`;
-  const optionIdleClass = `${menu.itemBase} h-auto min-h-[56px] py-3 flex items-start gap-3 ${menu.item}`;
+  const optionIdleClass = `${menu.itemBase} h-auto min-h-14 py-3 flex items-start gap-3 ${menu.item}`;
   const optionSelectedClass = menu.itemSelected;
   const iconShellClass = BAMBOOK_OS.controls.actionControl.base;
   const compactActionClass = BAMBOOK_OS.controls.actionControl.base;
@@ -174,7 +174,7 @@ export default function CustomerSearchInput({
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
             className={`absolute top-full left-0 right-0 mt-2 overflow-hidden ${menuSurfaceClass}`}
           >
-            <div className="max-h-[280px] overflow-y-auto py-1">
+            <div className="max-h-72 overflow-y-auto py-1">
               {filteredCustomers.map((customer, idx) => (
                 <button
                   key={customer.value}
@@ -191,7 +191,7 @@ export default function CustomerSearchInput({
                     </div>
                     {customer.description && (
                       <div className={`text-xs mt-0.5 truncate text-[var(--text-tertiary)]`}>
-                        <MapPin size={10} className="inline mr-1" />
+                        <MapPin size={14} className="inline mr-1" />
                         {customer.description}
                       </div>
                     )}

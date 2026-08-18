@@ -20,6 +20,7 @@ import {
   Plus, Trash2, Loader2, Star, Phone, Mail,
 } from 'lucide-react';
 import { BAMBOOK_OS } from '../bambookOsTokens';
+import CapsuleDateInput from '../CapsuleDateInput';
 import { CompiledSurfacePanel } from '../primitives/compiledSurfacePrimitives';
 import { statusSemanticClass, StatusSemantic } from '../../rdlBusinessStatusTokens';
 import { apiService } from '../../../services/apiService';
@@ -67,7 +68,7 @@ const CrmSection: React.FC<{
 // ────────────────────────────────────────────────────────────────
 
 const inputCls = (isDarkMode: boolean) =>
-  `px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`;
+  `bds-input sm`;
 
 const addBtnCls = (isDarkMode: boolean) =>
   `shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]`;
@@ -174,8 +175,8 @@ export const CrmContactsSection: React.FC<{ relationId: string; isDarkMode: bool
                 {c.status === 'Left' && <span className={chip('neutral', isDarkMode)}>已离职</span>}
                 {(c.mobile || c.email) && (
                   <span className={`hidden sm:inline-flex items-center gap-1 text-[var(--text-tertiary)]`}>
-                    {c.mobile && <><Phone size={10} />{c.mobile}</>}
-                    {!c.mobile && c.email && <><Mail size={10} />{c.email}</>}
+                    {c.mobile && <><Phone size={14} />{c.mobile}</>}
+                    {!c.mobile && c.email && <><Mail size={14} />{c.email}</>}
                   </span>
                 )}
                 {!c.isPrimary && c.status !== 'Left' && (
@@ -186,7 +187,7 @@ export const CrmContactsSection: React.FC<{ relationId: string; isDarkMode: bool
                   </button>
                 )}
                 <button type="button" onClick={() => handleDelete(c.id)} disabled={busy} className={c.isPrimary ? rowDeleteCls(isDarkMode) : `self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`} title="删除联系人">
-                  <Trash2 size={12} />
+                  <Trash2 size={14} />
                 </button>
               </li>
             ))}
@@ -205,7 +206,7 @@ export const CrmContactsSection: React.FC<{ relationId: string; isDarkMode: bool
             <input type="checkbox" checked={form.isDecisionMaker} onChange={e => setForm(p => ({ ...p, isDecisionMaker: e.target.checked }))} /> 决策
           </label>
           <button type="button" onClick={handleAdd} disabled={busy || !form.name.trim()} className={addBtnCls(isDarkMode)} title="添加联系人">
-            {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           </button>
         </div>
         {error && <p className="text-xs text-os-adaptive-danger mt-1">{error}</p>}
@@ -279,7 +280,7 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
                   <span className={`shrink-0 text-[var(--text-tertiary)]`}>{fu.followUpAt}</span>
                   {fu.contact?.name && <span className="text-[var(--text-tertiary)]">· {fu.contact.name}</span>}
                   <button type="button" onClick={() => handleDelete(fu.id)} disabled={busy} className={rowDeleteCls(isDarkMode)} title="删除跟进记录">
-                    <Trash2 size={12} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 <p className={`break-all ml-0.5 text-[var(--text-primary)]`}>{fu.content}</p>
@@ -296,17 +297,17 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
         {/* 内联添加表单（类型 + 跟进日期 + 内容 + 可选下次跟进） */}
         <div className="mt-2 space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`}>
+            <select className="bds-select sm shrink-0 w-auto" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
               {FOLLOW_UP_TYPES.map(t => <option key={t} value={t}>{FOLLOW_UP_TYPE_LABELS[t]}</option>)}
             </select>
-            <input type="date" value={form.followUpAt} onChange={e => setForm(p => ({ ...p, followUpAt: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`} />
+            <CapsuleDateInput value={form.followUpAt} onChange={v => setForm(p => ({ ...p, followUpAt: v }))} className="bds-input sm shrink-0" />
             <input value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="跟进内容*" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
             <button type="button" onClick={handleAdd} disabled={busy || !form.content.trim()} className={addBtnCls(isDarkMode)} title="添加跟进记录">
-              {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             </button>
           </div>
           <div className="flex items-center gap-1.5">
-            <input type="date" value={form.nextFollowUpAt} onChange={e => setForm(p => ({ ...p, nextFollowUpAt: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`} title="下次跟进日期(可选)" />
+            <CapsuleDateInput value={form.nextFollowUpAt} onChange={v => setForm(p => ({ ...p, nextFollowUpAt: v }))} className="bds-input sm shrink-0" />
             <input value={form.nextFollowUpTopic} onChange={e => setForm(p => ({ ...p, nextFollowUpTopic: e.target.value }))} placeholder="下次跟进主题(可选)" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
           </div>
         </div>
@@ -408,7 +409,7 @@ export const CrmOpportunitiesSection: React.FC<{ relationId: string; isDarkMode:
                   <span className={`break-all text-[var(--text-primary)]`}>{o.title}</span>
                   <span className={chip(STAGE_SEMANTIC[o.stage], isDarkMode)}>{STAGE_LABELS[o.stage]}</span>
                   <button type="button" onClick={() => handleDelete(o.id)} disabled={busy} className={rowDeleteCls(isDarkMode)} title="删除商机">
-                    <Trash2 size={12} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 <div className={`flex items-center gap-2 ml-0.5 text-[10px] text-[var(--text-tertiary)]`}>
@@ -442,15 +443,15 @@ export const CrmOpportunitiesSection: React.FC<{ relationId: string; isDarkMode:
           <div className="flex items-center gap-1.5">
             <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="商机标题*" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
             <input value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="金额*" inputMode="decimal" className={`w-24 ${inputCls(isDarkMode)}`} />
-            <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`}>
+            <select className="bds-select sm shrink-0 w-auto" value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}>
               {['CNY', 'USD', 'EUR', 'JPY', 'HKD'].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <button type="button" onClick={handleAdd} disabled={busy || !form.title.trim() || !form.amount.trim()} className={addBtnCls(isDarkMode)} title="创建商机">
-              {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             </button>
           </div>
           <div className="flex items-center gap-1.5">
-            <input type="date" value={form.expectedCloseDate} onChange={e => setForm(p => ({ ...p, expectedCloseDate: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`} title="预计成交日期(可选)" />
+            <CapsuleDateInput value={form.expectedCloseDate} onChange={v => setForm(p => ({ ...p, expectedCloseDate: v }))} className="bds-input sm shrink-0" />
             <input value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} placeholder="商机来源(可选，如 展会/转介绍)" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
           </div>
         </div>
@@ -573,16 +574,16 @@ export const CrmCreditLimitSection: React.FC<{ relationId: string; isDarkMode: b
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center gap-1.5">
               <input value={form.totalLimit} onChange={e => setForm(p => ({ ...p, totalLimit: e.target.value }))} placeholder="总额度*" inputMode="decimal" className={`w-28 ${inputCls(isDarkMode)}`} />
-              <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`}>
+              <select className="bds-select sm shrink-0 w-auto" value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}>
                 {['CNY', 'USD', 'EUR', 'JPY', 'HKD'].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <input type="date" value={form.validFrom} onChange={e => setForm(p => ({ ...p, validFrom: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`} title="生效日期" />
+              <CapsuleDateInput value={form.validFrom} onChange={v => setForm(p => ({ ...p, validFrom: v }))} className="bds-input sm shrink-0" />
               <button type="button" onClick={handleSet} disabled={busy || !form.totalLimit.trim()} className={addBtnCls(isDarkMode)} title="设置信用额度">
-                {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               </button>
             </div>
             <div className="flex items-center gap-1.5">
-              <input type="date" value={form.validTo} onChange={e => setForm(p => ({ ...p, validTo: e.target.value }))} className={`shrink-0 ${inputCls(isDarkMode)}`} title="失效日期(可选，空为长期)" />
+              <CapsuleDateInput value={form.validTo} onChange={v => setForm(p => ({ ...p, validTo: v }))} className="bds-input sm shrink-0" />
               <input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="备注(可选)" className={`flex-1 min-w-0 ${inputCls(isDarkMode)}`} />
             </div>
             {active && <p className={`text-[10px] text-[var(--text-tertiary)]`}>新额度生效后，当前额度将自动封闭为历史</p>}
@@ -669,16 +670,16 @@ export const CrmCustomerTierSection: React.FC<{ relationId: string; isDarkMode: 
         {showForm && (
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <select value={form.level} onChange={e => setForm(p => ({ ...p, level: e.target.value as CustomerTierLevel }))} className={`${inputCls(isDarkMode)}`}>
+              <select className="bds-select sm w-auto" value={form.level} onChange={e => setForm(p => ({ ...p, level: e.target.value as CustomerTierLevel }))}>
                 {TIER_LEVELS.map(l => <option key={l} value={l}>{TIER_LABELS[l]}</option>)}
               </select>
               <input value={form.discountRate} onChange={e => setForm(p => ({ ...p, discountRate: e.target.value }))} placeholder="折扣率%" inputMode="decimal" className={`w-20 ${inputCls(isDarkMode)}`} />
               <input value={form.paymentTermsDays} onChange={e => setForm(p => ({ ...p, paymentTermsDays: e.target.value }))} placeholder="账期天" inputMode="numeric" className={`w-20 ${inputCls(isDarkMode)}`} />
-              <select value={form.creditPriority} onChange={e => setForm(p => ({ ...p, creditPriority: e.target.value }))} className={`${inputCls(isDarkMode)}`}>
+              <select className="bds-select sm w-auto" value={form.creditPriority} onChange={e => setForm(p => ({ ...p, creditPriority: e.target.value }))}>
                 {['High', 'Normal', 'Low'].map(c => <option key={c} value={c}>{CREDIT_PRIORITY_LABELS[c]}</option>)}
               </select>
               <button type="button" onClick={handleAssign} disabled={busy} className={addBtnCls(isDarkMode)} title="评定分层">
-                {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               </button>
             </div>
             <input value={form.criteria} onChange={e => setForm(p => ({ ...p, criteria: e.target.value }))} placeholder="评定依据(可选，如 年采购额 > 100万)" className={`w-full ${inputCls(isDarkMode)}`} />
