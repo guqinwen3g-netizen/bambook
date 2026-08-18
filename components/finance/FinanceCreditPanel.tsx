@@ -156,7 +156,7 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
     if (!customerId) {
       return (
         <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondary)}>
-          <ShieldCheck size={28} strokeWidth={1} className="mb-3 opacity-45" />
+          <ShieldCheck size={24} strokeWidth={1.25} className="mb-3 opacity-45" />
           <div className="text-sm font-light">请选择客户查看信用额度</div>
         </div>
       );
@@ -164,7 +164,7 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
     if (loading) {
       return (
         <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondary)}>
-          <Loader2 size={20} strokeWidth={1.2} className="mb-3 animate-spin opacity-45" />
+          <Loader2 size={20} strokeWidth={1.25} className="mb-3 animate-spin opacity-45" />
           <div className="text-sm font-light">加载中…</div>
         </div>
       );
@@ -177,7 +177,7 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
     if (!status.hasCreditLimit) {
       return (
         <div className="bds-empty">
-          <div className="glyph"><ShieldCheck size={24} strokeWidth={1} /></div>
+          <div className="glyph"><ShieldCheck size={24} strokeWidth={1.25} /></div>
           <div className="title">该客户未设置信用额度</div>
           {status.maxOverdueDays > 0 && (
             <div className={cx('mt-2 text-[11px] font-light', textSecondary)}>当前最大逾期 {status.maxOverdueDays} 天</div>
@@ -268,13 +268,13 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
             <div className="mt-3 flex justify-end gap-2">
               {canFreeze && status.status === 'Active' && (
                 <button type="button" onClick={() => openAction('freeze')} className="bds-btn bds-btn-secondary">
-                  <Ban size={10} strokeWidth={1.3} />
+                  <Ban size={16} strokeWidth={1.75} />
                   冻结额度
                 </button>
               )}
               {canThaw && isFrozen && (
                 <button type="button" onClick={() => openAction('thaw')} className="bds-btn bds-btn-secondary">
-                  <RotateCcw size={10} strokeWidth={1.3} />
+                  <RotateCcw size={16} strokeWidth={1.75} />
                   手动解冻
                 </button>
               )}
@@ -364,11 +364,11 @@ export function FinanceCreditPanel({ isDarkMode: _isDarkMode, endpoint, relation
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
       {/* 工具栏：客户选择 */}
-      <div className="bds-filterbar h-auto min-h-11 flex-wrap gap-x-2 gap-y-2">
+      <div className="bds-filterbar">
         <select
           value={customerId}
           onChange={e => selectCustomer(e.target.value)}
-          className="bds-select min-w-[260px]"
+          className="bds-select min-w-64"
         >
           <option value="">选择客户档案…</option>
           {customerOptions.map(r => (

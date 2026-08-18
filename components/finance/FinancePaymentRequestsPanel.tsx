@@ -17,6 +17,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BadgeCheck, Ban, ClipboardList, Loader2, Plus, Search } from 'lucide-react';
 import { getAuthState, hasPermission } from '../../services/authService';
 import { approvalKernelService } from '../../services/approvalKernelService';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 import {
   paymentRequestService,
   PAYMENT_REQUEST_STATUSES,
@@ -279,7 +280,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
     if (!selectedId) {
       return (
         <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondary)}>
-          <ClipboardList size={28} strokeWidth={1} className="mb-3 opacity-45" />
+          <ClipboardList size={24} strokeWidth={1.25} className="mb-3 opacity-45" />
           <div className="text-sm font-light">请选择付款申请</div>
         </div>
       );
@@ -287,7 +288,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
     if (detailLoading) {
       return (
         <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondary)}>
-          <Loader2 size={20} strokeWidth={1.2} className="mb-3 animate-spin opacity-45" />
+          <Loader2 size={20} strokeWidth={1.25} className="mb-3 animate-spin opacity-45" />
           <div className="text-sm font-light">加载中…</div>
         </div>
       );
@@ -324,7 +325,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
               <span className="bds-badge sm neutral mt-0.5">{PAYMENT_REQUEST_STATUS_LABELS[detail.status] || detail.status}</span>
               {canCancel && (
                 <button type="button" disabled={actionBusy !== null} onClick={handleCancel} className="bds-btn bds-btn-secondary">
-                  {actionBusy === 'cancel' ? <Loader2 size={10} className="animate-spin" /> : <Ban size={10} strokeWidth={1.3} />}
+                  {actionBusy === 'cancel' ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} strokeWidth={1.75} />}
                   作废
                 </button>
               )}
@@ -389,11 +390,11 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                 />
                 <div className="mt-2 flex justify-end gap-2">
                   <button type="button" disabled={actionBusy !== null} onClick={() => handleDecide('rejected')} className="bds-btn bds-btn-secondary">
-                    {actionBusy === 'rejected' ? <Loader2 size={10} className="animate-spin" /> : <Ban size={10} strokeWidth={1.3} />}
+                    {actionBusy === 'rejected' ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} strokeWidth={1.75} />}
                     驳回
                   </button>
                   <button type="button" disabled={actionBusy !== null} onClick={() => handleDecide('approved')} className="bds-btn bds-btn-primary">
-                    {actionBusy === 'approved' ? <Loader2 size={10} className="animate-spin" /> : <BadgeCheck size={10} strokeWidth={1.3} />}
+                    {actionBusy === 'approved' ? <Loader2 size={16} className="animate-spin" /> : <BadgeCheck size={16} strokeWidth={1.75} />}
                     通过
                   </button>
                 </div>
@@ -419,8 +420,8 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
       {/* 工具栏：搜索 + 状态/分类过滤 + 新建入口（按权限显隐） */}
-      <div className="bds-filterbar h-auto min-h-11 flex-wrap gap-x-2 gap-y-2">
-        <div className="relative min-w-[220px] flex-[1_1_260px]">
+      <div className="bds-filterbar">
+        <div className="relative min-w-56 flex-[1_1_260px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
           <input
             type="text"
@@ -453,7 +454,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
             className="bds-btn bds-btn-primary ml-auto"
             onClick={() => { setForm(EMPTY_FORM); setCreateError(null); setShowCreate(true); }}
           >
-            <Plus size={14} strokeWidth={1.4} />
+            <Plus size={14} strokeWidth={1.5} />
             发起付款申请
           </button>
         )}
@@ -473,14 +474,14 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
             {loading ? (
               <div className="bds-empty">
-                <div className="glyph"><Loader2 size={24} strokeWidth={1} className="animate-spin" /></div>
+                <div className="glyph"><Loader2 size={24} strokeWidth={1.25} className="animate-spin" /></div>
                 <div className="title">加载中…</div>
               </div>
             ) : filtered.length > 0 ? (
               filtered.map(renderRow)
             ) : (
               <div className="bds-empty">
-                <div className="glyph"><ClipboardList size={24} strokeWidth={1} /></div>
+                <div className="glyph"><ClipboardList size={24} strokeWidth={1.25} /></div>
                 <div className="title">暂无匹配付款申请</div>
               </div>
             )}
@@ -541,7 +542,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>预期付款日</label>
-                  <input type="date" value={form.expectedPaymentDate} onChange={e => setForm(f => ({ ...f, expectedPaymentDate: e.target.value }))} className="bds-input sm" />
+                  <CapsuleDateInput value={form.expectedPaymentDate} onChange={v => setForm(f => ({ ...f, expectedPaymentDate: v }))} isDarkMode={_isDarkMode} className="bds-input sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

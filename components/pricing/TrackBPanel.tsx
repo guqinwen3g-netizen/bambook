@@ -211,7 +211,7 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
         </Field>
         <Field label="佣金（无 / E5 / E10 / 规则快照）">
           <select
-            className={inputClass}
+            className="bds-select"
             value={commissionRuleId ?? (commissionRate === '5' ? 'E5' : commissionRate === '10' ? 'E10' : '')}
             onChange={(e) => handleCommissionSelect(e.target.value)}
           >

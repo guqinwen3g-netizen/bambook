@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 import { View } from '../types';
@@ -347,7 +348,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
             onClick={fetchAll}
             className="h-8 px-4 rounded-full border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)] text-xs font-light flex items-center gap-1.5 transition-colors"
           >
-            <RefreshCw size={13} /><span>刷新</span>
+            <RefreshCw size={16} strokeWidth={1.75} /><span>刷新</span>
           </button>
         }
       />
@@ -373,7 +374,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
                 }}
                 className="bds-btn bds-btn-primary sm shrink-0"
               >
-                <ExternalLink size={13} />打开报表
+                <ExternalLink size={16} strokeWidth={1.75} />打开报表
               </button>
             </div>
           )}
@@ -384,7 +385,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
               const Icon = t.icon;
               return (
                 <button key={t.id} onClick={() => setActiveTab(t.id)} className={tabBtnCls(activeTab === t.id)}>
-                  <Icon size={12} /><span>{t.label}</span>
+                  <Icon size={16} strokeWidth={1.75} /><span>{t.label}</span>
                   {t.id === 'saved' && definitions.length > 0 && (
                     <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'saved' ? 'bg-[var(--hover-darken)]' : 'bg-[var(--recessed-bg-strong)]'}`}>{definitions.length}</span>
                   )}
@@ -397,7 +398,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
           {error && (
             <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 text-xs ${statusSemanticClass('danger', isDarkMode)}`}>
               <span className="flex-1">{error}</span>
-              <button onClick={() => setError(null)} className="shrink-0 opacity-60 hover:opacity-100"><X size={13} /></button>
+              <button onClick={() => setError(null)} className="shrink-0 opacity-60 hover:opacity-100"><X size={16} strokeWidth={1.75} /></button>
             </div>
           )}
 
@@ -596,7 +597,7 @@ function DesignerPanel(props: DesignerPanelProps) {
             <select
               value={designer.datasetKey}
               onChange={e => setDesigner(prev => ({ ...prev, datasetKey: e.target.value, dimensions: [], metrics: [], filters: [] }))}
-              className={fieldClass}
+              className="bds-select"
               disabled={Boolean(designer.editingId)}
             >
               {datasets.map(d => <option key={d.key} value={d.key}>{d.label}{d.description ? ` · ${d.description}` : ''}</option>)}
@@ -620,7 +621,7 @@ function DesignerPanel(props: DesignerPanelProps) {
             <select
               value={designer.schedule}
               onChange={e => setDesigner(prev => ({ ...prev, schedule: e.target.value as DesignerState['schedule'] }))}
-              className={fieldClass}
+              className="bds-select"
             >
               <option value="">仅手动运行</option>
               <option value="daily">每日</option>
@@ -651,24 +652,25 @@ function DesignerPanel(props: DesignerPanelProps) {
           <div className="flex items-center justify-between mb-2">
             <div className={`text-xs ${textSecondary}`}>聚合指标 *</div>
             <button onClick={addMetric} className="text-[11px] inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-              <Plus size={12} />添加指标
+              <Plus size={16} strokeWidth={1.75} />添加指标
             </button>
           </div>
           <div className="space-y-2">
             {designer.metrics.map((m, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <select
+                  className="bds-select flex-1"
                   value={m.field}
                   onChange={e => setDesigner(prev => ({
                     ...prev,
                     metrics: prev.metrics.map((x, i) => (i === idx ? { ...x, field: e.target.value } : x)),
                   }))}
-                  className={`${fieldClass} flex-1`}
                 >
                   {dataset.metrics.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
                   {m.agg === 'count' && <option value="*">行数 (*)</option>}
                 </select>
                 <select
+                  className="bds-select w-28"
                   value={m.agg}
                   onChange={e => {
                     const agg = e.target.value as ReportMetricAgg;
@@ -682,7 +684,6 @@ function DesignerPanel(props: DesignerPanelProps) {
                       }),
                     }));
                   }}
-                  className={`${fieldClass} w-28`}
                 >
                   {(Object.keys(AGG_LABELS) as ReportMetricAgg[]).map(a => <option key={a} value={a}>{AGG_LABELS[a]}</option>)}
                 </select>
@@ -690,7 +691,7 @@ function DesignerPanel(props: DesignerPanelProps) {
                   onClick={() => setDesigner(prev => ({ ...prev, metrics: prev.metrics.filter((_, i) => i !== idx) }))}
                   className="p-1.5 rounded-control hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                 >
-                  <X size={13} />
+                  <X size={14} strokeWidth={1.75} />
                 </button>
               </div>
             ))}
@@ -707,7 +708,7 @@ function DesignerPanel(props: DesignerPanelProps) {
           <div className="flex items-center justify-between mb-2">
             <div className={`text-xs ${textSecondary}`}>过滤条件（可选，≤12 个）</div>
             <button onClick={addFilter} className="text-[11px] inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-              <Plus size={12} />添加条件
+              <Plus size={16} strokeWidth={1.75} />添加条件
             </button>
           </div>
           <div className="space-y-2">
@@ -717,6 +718,7 @@ function DesignerPanel(props: DesignerPanelProps) {
               return (
                 <div key={idx} className="flex items-center gap-2">
                   <select
+                    className="bds-select flex-1"
                     value={f.field}
                     onChange={e => {
                       const next = dataset.filterFields.find(ff => ff.key === e.target.value);
@@ -725,35 +727,44 @@ function DesignerPanel(props: DesignerPanelProps) {
                         filters: prev.filters.map((x, i) => (i === idx && next ? { field: next.key, op: opsForField(next)[0], value: '' } : x)),
                       }));
                     }}
-                    className={`${fieldClass} flex-1`}
                   >
                     {dataset.filterFields.map(ff => <option key={ff.key} value={ff.key}>{ff.label}</option>)}
                   </select>
                   <select
+                    className="bds-select w-32"
                     value={f.op}
                     onChange={e => setDesigner(prev => ({
                       ...prev,
                       filters: prev.filters.map((x, i) => (i === idx ? { ...x, op: e.target.value as ReportFilterOp } : x)),
                     }))}
-                    className={`${fieldClass} w-32`}
                   >
                     {ops.map(op => <option key={op} value={op}>{OP_LABELS[op]}</option>)}
                   </select>
                   {spec?.type === 'enum' && spec.enumValues && f.op !== 'in' ? (
                     <select
+                      className="bds-select flex-1"
                       value={f.value}
                       onChange={e => setDesigner(prev => ({
                         ...prev,
                         filters: prev.filters.map((x, i) => (i === idx ? { ...x, value: e.target.value } : x)),
                       }))}
-                      className={`${fieldClass} flex-1`}
                     >
                       <option value="">请选择</option>
                       {spec.enumValues.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
+                  ) : spec?.type === 'date' ? (
+                    <CapsuleDateInput
+                      value={f.value}
+                      onChange={v => setDesigner(prev => ({
+                        ...prev,
+                        filters: prev.filters.map((x, i) => (i === idx ? { ...x, value: v } : x)),
+                      }))}
+                      isDarkMode={isDarkMode}
+                      className="bds-input flex-1"
+                    />
                   ) : (
                     <input
-                      type={spec?.type === 'date' ? 'date' : spec?.type === 'number' ? 'number' : 'text'}
+                      type={spec?.type === 'number' ? 'number' : 'text'}
                       value={f.value}
                       onChange={e => setDesigner(prev => ({
                         ...prev,
@@ -767,7 +778,7 @@ function DesignerPanel(props: DesignerPanelProps) {
                     onClick={() => setDesigner(prev => ({ ...prev, filters: prev.filters.filter((_, i) => i !== idx) }))}
                     className="p-1.5 rounded-control hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                   >
-                    <X size={13} />
+                    <X size={14} strokeWidth={1.75} />
                   </button>
                 </div>
               );
@@ -787,7 +798,7 @@ function DesignerPanel(props: DesignerPanelProps) {
             disabled={previewLoading || designer.metrics.length === 0}
             className="bds-btn bds-btn-primary sm"
           >
-            {previewLoading ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+            {previewLoading ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} strokeWidth={1.75} />}
             预览
           </button>
           <button
@@ -795,7 +806,7 @@ function DesignerPanel(props: DesignerPanelProps) {
             disabled={saving || designer.metrics.length === 0 || !designer.name.trim()}
             className="h-9 px-4 rounded-full border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)] disabled:opacity-50 text-xs font-light flex items-center gap-1.5 transition-colors"
           >
-            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} strokeWidth={1.75} />}
             {designer.editingId ? '保存修改' : '保存为报表'}
           </button>
           {designer.editingId && (
@@ -845,7 +856,7 @@ function DesignerPanel(props: DesignerPanelProps) {
                           title="下钻查看组成员实体"
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]"
                         >
-                          <CornerDownRight size={11} />明细
+                          <CornerDownRight size={14} strokeWidth={1.75} />明细
                         </button>
                       </td>
                     )}
@@ -885,13 +896,13 @@ function SavedPanel(props: SavedPanelProps) {
   if (definitions.length === 0) {
     return (
       <div className={`flex flex-col items-center justify-center py-16 gap-3 ${textSecondary}`}>
-        <BarChart3 size={28} className="opacity-40" />
+        <BarChart3 size={24} strokeWidth={1.25} className="opacity-40" />
         <p className="text-sm">暂无保存的报表</p>
         <button
           onClick={onNewReport}
           className="bds-btn bds-btn-primary sm"
         >
-          <Plus size={13} />去设计器创建
+          <Plus size={16} strokeWidth={1.75} />去设计器创建
         </button>
       </div>
     );
@@ -928,14 +939,14 @@ function SavedPanel(props: SavedPanelProps) {
                   title="立即运行"
                   className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)] disabled:opacity-40"
                 >
-                  {actionLoading === `run_${def.id}` ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                  {actionLoading === `run_${def.id}` ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} strokeWidth={1.75} />}
                 </button>
                 <button
                   onClick={() => onEdit(def)}
                   title="编辑"
                   className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                 >
-                  <Pencil size={14} />
+                  <Pencil size={14} strokeWidth={1.75} />
                 </button>
                 <button
                   onClick={() => onToggleEnabled(def)}
@@ -951,7 +962,7 @@ function SavedPanel(props: SavedPanelProps) {
                   title="删除"
                   className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--danger-text)]"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={14} strokeWidth={1.75} />
                 </button>
               </div>
             </div>
@@ -1007,9 +1018,9 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
       {/* 工具栏 */}
       <div className="flex items-center gap-2">
         <select
+          className="bds-select max-w-56"
           value={filterDefId}
           onChange={e => { setFilterDefId(e.target.value); onRefresh(e.target.value); }}
-          className={`${fieldClass} max-w-[220px] py-1.5`}
         >
           <option value="">全部报表</option>
           {definitions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -1018,13 +1029,13 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
           onClick={() => onRefresh(filterDefId)}
           className="h-8 px-3 rounded-control text-xs font-light flex items-center gap-1.5 transition-colors border border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]"
         >
-          <RefreshCw size={12} />刷新
+          <RefreshCw size={14} strokeWidth={1.75} />刷新
         </button>
       </div>
 
       {visibleRuns.length === 0 ? (
         <div className={`flex flex-col items-center justify-center py-16 gap-2 ${textSecondary}`}>
-          <Play size={24} className="opacity-40" />
+          <Play size={24} strokeWidth={1.25} className="opacity-40" />
           <p className="text-sm">暂无运行记录 — 在「我的报表」触发或等待定时调度</p>
         </div>
       ) : (
@@ -1051,7 +1062,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                     <tr className="border-t border-[var(--border-c-subtle)]">
                       <td className="px-3 py-2">
                         <button onClick={() => handleToggleExpand(run)} className={`${textSecondary} hover:opacity-80`}>
-                          {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                          {expanded ? <ChevronDown size={14} strokeWidth={1.75} /> : <ChevronRight size={14} strokeWidth={1.75} />}
                         </button>
                       </td>
                       <td className="px-3 py-2 text-[var(--text-primary)]">{run.definitionName}</td>
@@ -1072,7 +1083,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                             title="导出 CSV"
                             className="inline-flex p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]"
                           >
-                            <Download size={13} />
+                            <Download size={14} strokeWidth={1.75} />
                           </a>
                         )}
                       </td>
@@ -1082,7 +1093,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                         <td colSpan={8} className="px-4 py-3">
                           {detailLoading ? (
                             <div className={`flex items-center gap-2 py-3 text-xs ${textSecondary}`}>
-                              <Loader2 size={12} className="animate-spin" />加载结果快照…
+                              <Loader2 size={14} className="animate-spin" />加载结果快照…
                             </div>
                           ) : detail?.status === 'Failed' ? (
                             <div className={`p-2 rounded-inset text-xs ${statusSemanticClass('danger', isDarkMode)}`}>
@@ -1126,7 +1137,7 @@ function RunsPanel({ isDarkMode, runs, definitions, cardClass, fieldClass, textS
                                                 title="下钻查看组成员实体（实时）"
                                                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]"
                                               >
-                                                <CornerDownRight size={11} />明细
+                                                <CornerDownRight size={14} strokeWidth={1.75} />明细
                                               </button>
                                             </td>
                                           )}
@@ -1212,7 +1223,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
               下钻明细 · {dataset.label}
             </div>
             <button onClick={onClose} className="p-1.5 rounded-control transition-colors hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]">
-              <X size={15} />
+              <X size={16} strokeWidth={1.75} />
             </button>
           </div>
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
@@ -1239,7 +1250,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-4">
           {loading ? (
             <div className={`flex items-center justify-center gap-2 py-16 text-sm ${textSecondary}`}>
-              <Loader2 size={15} className="animate-spin" />查询组成员…
+              <Loader2 size={16} className="animate-spin" />查询组成员…
             </div>
           ) : error ? (
             <div className={`p-3 rounded-inset border text-xs ${statusSemanticClass('danger', isDarkMode)}`}>
@@ -1298,7 +1309,7 @@ function DrillDrawer({ isDarkMode, dataset, input, group, onClose, onNavigate }:
                         onClick={() => { onNavigate(navTarget.view, navTarget.tab); onClose(); }}
                         className="bds-btn bds-btn-primary sm ml-auto"
                       >
-                        <ExternalLink size={11} />打开所在模块
+                        <ExternalLink size={14} strokeWidth={1.75} />打开所在模块
                       </button>
                     )}
                   </div>

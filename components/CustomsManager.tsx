@@ -61,6 +61,7 @@ import {
 } from '../types';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
@@ -289,13 +290,13 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   const taxRefundStatusInfo = (s: TaxRefundStatus) => TAX_REFUND_STATUSES.find(d => d.id === s) || TAX_REFUND_STATUSES[0];
 
   const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; count?: number }> = [
-    { id: 'declarations', label: '报关单', icon: <FileCheck size={12} />, count: declarations.length },
-    { id: 'hsCodes', label: 'HS 编码库', icon: <BookOpen size={12} />, count: hsCodes.length },
-    { id: 'lettersOfCredit', label: '信用证', icon: <CreditCard size={12} />, count: lettersOfCredit.length },
-    { id: 'taxRefunds', label: '出口退税', icon: <Receipt size={12} />, count: taxRefunds.length },
-    { id: 'tradeDocuments', label: '贸易单据', icon: <FileText size={12} /> },
-    { id: 'docGenerator', label: '出运制单', icon: <Layers size={12} /> },
-    { id: 'docTemplates', label: '单据模板', icon: <LayoutTemplate size={12} /> },
+    { id: 'declarations', label: '报关单', icon: <FileCheck size={16} strokeWidth={1.75} />, count: declarations.length },
+    { id: 'hsCodes', label: 'HS 编码库', icon: <BookOpen size={16} strokeWidth={1.75} />, count: hsCodes.length },
+    { id: 'lettersOfCredit', label: '信用证', icon: <CreditCard size={16} strokeWidth={1.75} />, count: lettersOfCredit.length },
+    { id: 'taxRefunds', label: '出口退税', icon: <Receipt size={16} strokeWidth={1.75} />, count: taxRefunds.length },
+    { id: 'tradeDocuments', label: '贸易单据', icon: <FileText size={16} strokeWidth={1.75} /> },
+    { id: 'docGenerator', label: '出运制单', icon: <Layers size={16} strokeWidth={1.75} /> },
+    { id: 'docTemplates', label: '单据模板', icon: <LayoutTemplate size={16} strokeWidth={1.75} /> },
   ];
 
   // ── 状态转换 ──
@@ -427,7 +428,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
               onClick={() => setShowForm(true)}
               className="bds-btn bds-btn-primary"
             >
-              <Plus size={14} /><span>新增</span>
+              <Plus size={14} strokeWidth={1.75} /><span>新增</span>
             </button>
           )
         }
@@ -451,8 +452,8 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
           {/* 工具栏（制单工具 tab 为本地面板，无列表工具栏） */}
           {!TOOL_TAB_IDS.has(activeTab) && (
           <div className="flex items-center bds-filterbar mb-4 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-[320px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+            <div className="relative flex-1 min-w-50 max-w-80">
+              <Search size={14} strokeWidth={1.75} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
               <input
                 type="text"
                 value={searchQuery}
@@ -474,17 +475,17 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
               onClick={() => { if (activeTab === 'declarations') fetchDeclarations(); if (activeTab === 'hsCodes') fetchHsCodes(); if (activeTab === 'lettersOfCredit') fetchLettersOfCredit(); if (activeTab === 'taxRefunds') fetchTaxRefunds(); }}
               className="bds-btn bds-btn-secondary"
             >
-              <RefreshCw size={12} />刷新
+              <RefreshCw size={14} strokeWidth={1.75} />刷新
             </button>
           </div>
           )}
 
           {error && (
             <div className="bds-alert danger mb-3">
-              <AlertCircle size={16} />
+              <AlertCircle size={16} strokeWidth={1.75} />
               <span>{error}</span>
               <button onClick={() => setError(null)} className="ml-auto p-0.5" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>
-                <X size={14} />
+                <X size={14} strokeWidth={1.75} />
               </button>
             </div>
           )}
@@ -500,7 +501,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
                   {declarations.length === 0 ? (
                     <div className="bds-empty">
-                      <div className="glyph"><FileCheck size={24} /></div>
+                      <div className="glyph"><FileCheck size={24} strokeWidth={1.25} /></div>
                       <div className="title">暂无报关单数据</div>
                     </div>
                   ) : (
@@ -513,7 +514,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             className="flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]"
                             onClick={() => setExpandedId(isExpanded ? null : decl.id)}
                           >
-                            {isExpanded ? <ChevronDown size={14} style={{ color: 'var(--text-quaternary)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-quaternary)' }} />}
+                            {isExpanded ? <ChevronDown size={14} strokeWidth={1.75} style={{ color: 'var(--text-quaternary)' }} /> : <ChevronRight size={14} strokeWidth={1.75} style={{ color: 'var(--text-quaternary)' }} />}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-light truncate bds-mono">{decl.declarationNumber}</span>
@@ -579,7 +580,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 )}
                                 {(decl.status === 'Draft' || decl.status === 'Cancelled') && (
                                   <button onClick={() => handleDelete('declarations', decl.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger">
-                                    <Trash2 size={11} />删除
+                                    <Trash2 size={14} strokeWidth={1.75} />删除
                                   </button>
                                 )}
                               </div>
@@ -604,7 +605,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
                   {hsCodes.length === 0 ? (
                     <div className="bds-empty">
-                      <div className="glyph"><BookOpen size={24} /></div>
+                      <div className="glyph"><BookOpen size={24} strokeWidth={1.25} /></div>
                       <div className="title">暂无 HS 编码数据</div>
                     </div>
                   ) : (
@@ -626,7 +627,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                           {hsCodes.map(hc => (
                             <tr key={hc.id}>
                               <td className="bds-mono">{hc.code}</td>
-                              <td className="max-w-[200px] truncate">{hc.description}</td>
+                              <td className="max-w-50 truncate">{hc.description}</td>
                               <td>{HS_CATEGORIES.find(c => c.id === hc.category)?.label || hc.category}</td>
                               <td className="num bds-tnum">{hc.exportTaxRebateRate ? `${formatNum(hc.exportTaxRebateRate, 4)}%` : '—'}</td>
                               <td className="num bds-tnum">{hc.importTariffRate ? `${formatNum(hc.importTariffRate, 4)}%` : '—'}</td>
@@ -639,7 +640,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                               <td className="num">
                                 {hc.isActive && (
                                   <button onClick={() => handleDelete('hsCodes', hc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger bds-btn-icon" title="停用">
-                                    <Trash2 size={12} />
+                                    <Trash2 size={14} strokeWidth={1.75} />
                                   </button>
                                 )}
                               </td>
@@ -657,7 +658,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
                   {lettersOfCredit.length === 0 ? (
                     <div className="bds-empty">
-                      <div className="glyph"><CreditCard size={24} /></div>
+                      <div className="glyph"><CreditCard size={24} strokeWidth={1.25} /></div>
                       <div className="title">暂无信用证数据</div>
                     </div>
                   ) : (
@@ -701,16 +702,16 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             {lc.status === 'Accepted' && <button onClick={() => handleTransitionLc(lc.id, 'Settled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">结算</button>}
                             {(lc.status === 'Issued' || lc.status === 'Presented' || lc.status === 'Accepted') && <button onClick={() => handleTransitionLc(lc.id, 'Cancelled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>}
                             <button onClick={() => handleToggleLcTimeline(lc.id)} className="bds-btn bds-btn-secondary">
-                              <History size={11} />{lcTimelineId === lc.id ? '收起时间轴' : '节点时间轴'}
+                              <History size={14} strokeWidth={1.75} />{lcTimelineId === lc.id ? '收起时间轴' : '节点时间轴'}
                             </button>
-                            {(lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => handleDelete('lettersOfCredit', lc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={11} />删除</button>}
+                            {(lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => handleDelete('lettersOfCredit', lc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
                           </div>
                           {/* F1：节点时间轴（LcEvent 开证→交单→承兑/不符点→结清/过期/作废） */}
                           {lcTimelineId === lc.id && (
                             <div className="mt-3 pt-3" style={{ borderTop: 'var(--border-subtle)' }}>
                               {lcEventsLoading ? (
                                 <div className="flex items-center gap-2 py-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                  <Loader2 size={12} className="animate-spin" />加载节点时间轴…
+                                  <Loader2 size={14} className="animate-spin" />加载节点时间轴…
                                 </div>
                               ) : lcEvents.length === 0 ? (
                                 <div className="py-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>暂无节点记录</div>
@@ -763,7 +764,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
                   {taxRefunds.length === 0 ? (
                     <div className="bds-empty">
-                      <div className="glyph"><Receipt size={24} /></div>
+                      <div className="glyph"><Receipt size={24} strokeWidth={1.25} /></div>
                       <div className="title">暂无退税数据</div>
                     </div>
                   ) : (
@@ -811,9 +812,9 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             )}
                             {tr.status === 'Approved' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Refunded')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">确认到账</button>}
                             {tr.status === 'Rejected' && <button onClick={() => handleTransitionTaxRefund(tr.id, 'Draft')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">退回草稿</button>}
-                            {(tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => handleDelete('taxRefunds', tr.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={11} />删除</button>}
+                            {(tr.status === 'Draft' || tr.status === 'Cancelled') && <button onClick={() => handleDelete('taxRefunds', tr.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
                             <button onClick={() => handleToggleTrVat(tr.id)} className="bds-btn bds-btn-secondary">
-                              <Receipt size={11} />{trVatId === tr.id ? '收起专票勾稽' : '专票勾稽'}
+                              <Receipt size={14} strokeWidth={1.75} />{trVatId === tr.id ? '收起专票勾稽' : '专票勾稽'}
                             </button>
                           </div>
                           {/* C6：进项专票勾稽（退税申报单 ↔ VAT 专票，税额勾稽核对） */}
@@ -821,7 +822,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             <div className="mt-3 pt-3" style={{ borderTop: 'var(--border-subtle)' }}>
                               {trVatLoading ? (
                                 <div className="flex items-center gap-2 py-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                  <Loader2 size={12} className="animate-spin" />加载进项专票…
+                                  <Loader2 size={14} className="animate-spin" />加载进项专票…
                                 </div>
                               ) : trVatInvoices.length === 0 ? (
                                 <div className="py-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -874,7 +875,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
               {activeTab === 'tradeDocuments' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <div className="bds-card p-8 flex flex-col items-center text-center">
-                    <FileText size={28} style={{ color: 'var(--text-quaternary)' }} />
+                    <FileText size={24} strokeWidth={1.25} style={{ color: 'var(--text-quaternary)' }} />
                     <div className="text-sm font-light mt-3">贸易单据台账已收口至「单据中心」</div>
                     <div className="text-xs mt-1.5 max-w-md" style={{ color: 'var(--text-tertiary)' }}>
                       登记/编辑/状态流转、版本留痕、单据预览打印、运单批量生成与订单打包，统一在单据中心完成。
@@ -911,6 +912,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       {showForm && (
         <CreateFormModal
           activeTab={activeTab}
+          isDarkMode={isDarkMode}
           onClose={() => { setShowForm(false); setFormError(null); }}
           onSuccess={async () => {
             setShowForm(false);
@@ -930,11 +932,12 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
 
 interface CreateFormModalProps {
   activeTab: TabId;
+  isDarkMode: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, onClose, onSuccess }) => {
+const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode, onClose, onSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -1003,12 +1006,12 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, onClose, o
             {activeTab === 'lettersOfCredit' && '新增信用证'}
             {activeTab === 'taxRefunds' && '新增出口退税'}
           </h2>
-          <button onClick={onClose} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}><X size={16} /></button>
+          <button onClick={onClose} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}><X size={16} strokeWidth={1.75} /></button>
         </div>
 
         {error && (
           <div className="bds-alert danger mb-3">
-            <AlertCircle size={14} />
+            <AlertCircle size={14} strokeWidth={1.75} />
             <span>{error}</span>
           </div>
         )}
@@ -1017,9 +1020,9 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, onClose, o
         {activeTab === 'declarations' && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关单号 *</label><input className="bds-input sm" value={declForm.declarationNumber} onChange={e => setDeclForm({ ...declForm, declarationNumber: e.target.value })} placeholder="CD-20260807-001" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关类型 *</label><select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={declForm.type} onChange={e => setDeclForm({ ...declForm, type: e.target.value as CustomsType })}>{CUSTOMS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>申报日期</label><input type="date" className="bds-input sm" value={declForm.declarationDate || ''} onChange={e => setDeclForm({ ...declForm, declarationDate: e.target.value })} /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={declForm.tradeTerms || ''} onChange={e => setDeclForm({ ...declForm, tradeTerms: e.target.value })}><option value="">—</option>{TRADE_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关类型 *</label><select className="bds-select sm" value={declForm.type} onChange={e => setDeclForm({ ...declForm, type: e.target.value as CustomsType })}>{CUSTOMS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>申报日期</label><CapsuleDateInput value={declForm.declarationDate || ''} onChange={v => setDeclForm({ ...declForm, declarationDate: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><select className="bds-select sm" value={declForm.tradeTerms || ''} onChange={e => setDeclForm({ ...declForm, tradeTerms: e.target.value })}><option value="">—</option>{TRADE_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>申报口岸</label><input className="bds-input sm" value={declForm.declarationPort || ''} onChange={e => setDeclForm({ ...declForm, declarationPort: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>报关行</label><input className="bds-input sm" value={declForm.agent || ''} onChange={e => setDeclForm({ ...declForm, agent: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>发货人</label><input className="bds-input sm" value={declForm.consignor || ''} onChange={e => setDeclForm({ ...declForm, consignor: e.target.value })} /></div>
@@ -1038,7 +1041,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, onClose, o
         {activeTab === 'hsCodes' && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>HS 编码 *</label><input className="bds-input sm" value={hsForm.code} onChange={e => setHsForm({ ...hsForm, code: e.target.value })} placeholder="5208.52.00.00" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类别 *</label><select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={hsForm.category} onChange={e => setHsForm({ ...hsForm, category: e.target.value as HsCodeCategory })}>{HS_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类别 *</label><select className="bds-select sm" value={hsForm.category} onChange={e => setHsForm({ ...hsForm, category: e.target.value as HsCodeCategory })}>{HS_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
             <div className="col-span-2"><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>商品描述 *</label><input className="bds-input sm" value={hsForm.description} onChange={e => setHsForm({ ...hsForm, description: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>出口退税率(%)</label><input type="number" step="0.01" className="bds-input sm" value={hsForm.exportTaxRebateRate ?? ''} onChange={e => setHsForm({ ...hsForm, exportTaxRebateRate: Number(e.target.value) || undefined })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>进口关税率(%)</label><input type="number" step="0.01" className="bds-input sm" value={hsForm.importTariffRate ?? ''} onChange={e => setHsForm({ ...hsForm, importTariffRate: Number(e.target.value) || undefined })} /></div>
@@ -1054,18 +1057,18 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, onClose, o
         {activeTab === 'lettersOfCredit' && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>信用证号 *</label><input className="bds-input sm" value={lcForm.lcNumber} onChange={e => setLcForm({ ...lcForm, lcNumber: e.target.value })} placeholder="LC-20260807-001" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类型 *</label><select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={lcForm.type} onChange={e => setLcForm({ ...lcForm, type: e.target.value as LetterOfCreditType })}>{LC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类型 *</label><select className="bds-select sm" value={lcForm.type} onChange={e => setLcForm({ ...lcForm, type: e.target.value as LetterOfCreditType })}>{LC_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>金额 *</label><input type="number" className="bds-input sm" value={lcForm.amount || ''} onChange={e => setLcForm({ ...lcForm, amount: Number(e.target.value) || 0 })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>币种</label><input className="bds-input sm" value={lcForm.currency || ''} onChange={e => setLcForm({ ...lcForm, currency: e.target.value })} /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>开证日期</label><input type="date" className="bds-input sm" value={lcForm.issueDate || ''} onChange={e => setLcForm({ ...lcForm, issueDate: e.target.value })} /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>有效期</label><input type="date" className="bds-input sm" value={lcForm.expiryDate || ''} onChange={e => setLcForm({ ...lcForm, expiryDate: e.target.value })} /></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>开证日期</label><CapsuleDateInput value={lcForm.issueDate || ''} onChange={v => setLcForm({ ...lcForm, issueDate: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>有效期</label><CapsuleDateInput value={lcForm.expiryDate || ''} onChange={v => setLcForm({ ...lcForm, expiryDate: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>开证行</label><input className="bds-input sm" value={lcForm.issueBank || ''} onChange={e => setLcForm({ ...lcForm, issueBank: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>通知行</label><input className="bds-input sm" value={lcForm.advisingBank || ''} onChange={e => setLcForm({ ...lcForm, advisingBank: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>申请人(进口方)</label><input className="bds-input sm" value={lcForm.applicant || ''} onChange={e => setLcForm({ ...lcForm, applicant: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>受益人(出口方)</label><input className="bds-input sm" value={lcForm.beneficiary || ''} onChange={e => setLcForm({ ...lcForm, beneficiary: e.target.value })} /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>最迟装运期</label><input type="date" className="bds-input sm" value={lcForm.shipmentDeadline || ''} onChange={e => setLcForm({ ...lcForm, shipmentDeadline: e.target.value })} /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>交单期限</label><input type="date" className="bds-input sm" value={lcForm.presentationDeadline || ''} onChange={e => setLcForm({ ...lcForm, presentationDeadline: e.target.value })} /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={lcForm.tradeTerms || ''} onChange={e => setLcForm({ ...lcForm, tradeTerms: e.target.value })}><option value="">—</option>{TRADE_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>最迟装运期</label><CapsuleDateInput value={lcForm.shipmentDeadline || ''} onChange={v => setLcForm({ ...lcForm, shipmentDeadline: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>交单期限</label><CapsuleDateInput value={lcForm.presentationDeadline || ''} onChange={v => setLcForm({ ...lcForm, presentationDeadline: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>贸易条款</label><select className="bds-select sm" value={lcForm.tradeTerms || ''} onChange={e => setLcForm({ ...lcForm, tradeTerms: e.target.value })}><option value="">—</option>{TRADE_TERMS.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>装运港</label><input className="bds-input sm" value={lcForm.portOfLoading || ''} onChange={e => setLcForm({ ...lcForm, portOfLoading: e.target.value })} /></div>
             <div className="col-span-2"><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>特殊条款</label><textarea className="bds-input bds-textarea" rows={2} value={lcForm.specialConditions || ''} onChange={e => setLcForm({ ...lcForm, specialConditions: e.target.value })} /></div>
           </div>
@@ -1075,7 +1078,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, onClose, o
         {activeTab === 'taxRefunds' && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>退税编号 *</label><input className="bds-input sm" value={trForm.refundNumber} onChange={e => setTrForm({ ...trForm, refundNumber: e.target.value })} placeholder="TR-20260807-001" /></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>出口日期</label><input type="date" className="bds-input sm" value={trForm.exportDate || ''} onChange={e => setTrForm({ ...trForm, exportDate: e.target.value })} /></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>出口日期</label><CapsuleDateInput value={trForm.exportDate || ''} onChange={v => setTrForm({ ...trForm, exportDate: v })} isDarkMode={isDarkMode} className="bds-input sm" /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>FOB 金额</label><input type="number" className="bds-input sm" value={trForm.exportAmountFob ?? ''} onChange={e => setTrForm({ ...trForm, exportAmountFob: Number(e.target.value) || undefined })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>FOB 币种</label><input className="bds-input sm" value={trForm.exportAmountFobCurrency || ''} onChange={e => setTrForm({ ...trForm, exportAmountFobCurrency: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>折人民币</label><input type="number" className="bds-input sm" value={trForm.exportAmountCny ?? ''} onChange={e => setTrForm({ ...trForm, exportAmountCny: Number(e.target.value) || undefined })} /></div>
@@ -1089,7 +1092,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, onClose, o
         <div className="flex items-center justify-end gap-2 mt-4 pt-4" style={{ borderTop: 'var(--border-subtle)' }}>
           <button onClick={onClose} className="bds-btn bds-btn-secondary">取消</button>
           <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
-            {submitting && <Loader2 size={12} className="animate-spin" />}
+            {submitting && <Loader2 size={14} className="animate-spin" />}
             创建
           </button>
         </div>

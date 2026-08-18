@@ -254,7 +254,7 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
               <input className={inputClass} value={cmtCostCny} onChange={(e) => { setCmtCostCny(e.target.value); resetResult(); }} inputMode="decimal" />
             </Field>
             <Field label="工艺复杂度">
-              <select className={inputClass} value={complexity} onChange={(e) => { setComplexity(e.target.value as typeof complexity); resetResult(); }}>
+              <select className="bds-select" value={complexity} onChange={(e) => { setComplexity(e.target.value as typeof complexity); resetResult(); }}>
                 <option value="simple">简单 ×0.85</option>
                 <option value="standard">标准 ×1.0</option>
                 <option value="complex">复杂 ×1.3</option>
@@ -282,7 +282,7 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
               <input className={inputClass} value={weavingCostCny} onChange={(e) => { setWeavingCostCny(e.target.value); resetResult(); }} inputMode="decimal" />
             </Field>
             <Field label="织法">
-              <select className={inputClass} value={weaveType} onChange={(e) => { setWeaveType(e.target.value as typeof weaveType); resetResult(); }}>
+              <select className="bds-select" value={weaveType} onChange={(e) => { setWeaveType(e.target.value as typeof weaveType); resetResult(); }}>
                 <option value="plain">平纹 ×1.0</option>
                 <option value="twill">斜纹 ×1.15</option>
                 <option value="jacquard">提花 ×1.4</option>

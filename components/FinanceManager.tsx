@@ -30,6 +30,7 @@ import type {
 } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -259,7 +260,7 @@ type KpiCard = {
 };
 
 const KpiCard: React.FC<{ card: KpiCard }> = ({ card }) => (
-  <div className="bds-card flex min-h-[112px] flex-col justify-between">
+  <div className="bds-card flex flex-col justify-between">
     <div className="text-[10px] font-light tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>{card.label}</div>
     <div className="bds-tnum mt-2 text-lg font-light" style={{ color: 'var(--text-primary)' }}>{card.primary}</div>
     <div className="mt-1 text-[11px] font-light" style={{ color: 'var(--text-tertiary)' }}>{card.secondary}</div>
@@ -1360,10 +1361,10 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     <div className="bds-empty">
       <div className="glyph">
         {activeTab === 'invoices'
-          ? <FileText size={24} strokeWidth={1} />
+          ? <FileText size={24} strokeWidth={1.25} />
           : activeTab === 'vatInvoices'
-            ? <Receipt size={24} strokeWidth={1} />
-            : <CreditCard size={24} strokeWidth={1} />}
+            ? <Receipt size={24} strokeWidth={1.25} />
+            : <CreditCard size={24} strokeWidth={1.25} />}
       </div>
       <div className="title">
         {vatLoading && activeTab === 'vatInvoices'
@@ -1383,7 +1384,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     if (!vat) {
       return (
         <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondaryClass)}>
-          <Receipt size={28} strokeWidth={1} className="mb-3 opacity-45" />
+          <Receipt size={24} strokeWidth={1.25} className="mb-3 opacity-45" />
           <div className="text-sm font-light">请选择增值税发票</div>
         </div>
       );
@@ -1437,37 +1438,37 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </span>
               {canEdit && (
                 <button type="button" onClick={() => openEditVat(vat)} className="bds-btn bds-btn-secondary">
-                  <Pencil size={10} strokeWidth={1.3} />
+                  <Pencil size={16} strokeWidth={1.75} />
                   编辑
                 </button>
               )}
               {canVerify && (
                 <button type="button" onClick={() => openVatTransition(vat, 'Verified')} className="bds-btn bds-btn-secondary">
-                  <BadgeCheck size={10} strokeWidth={1.3} />
+                  <BadgeCheck size={16} strokeWidth={1.75} />
                   认证
                 </button>
               )}
               {canDeclare && (
                 <button type="button" onClick={() => openVatTransition(vat, 'Declared')} className="bds-btn bds-btn-secondary">
-                  <Landmark size={10} strokeWidth={1.3} />
+                  <Landmark size={16} strokeWidth={1.75} />
                   申报退税
                 </button>
               )}
               {canRedFlush && (
                 <button type="button" onClick={() => openVatTransition(vat, 'RedFlushed')} className="bds-btn bds-btn-secondary">
-                  <RotateCcw size={10} strokeWidth={1.3} />
+                  <RotateCcw size={16} strokeWidth={1.75} />
                   红冲
                 </button>
               )}
               {canCancel && (
                 <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatCancel(vat)} className="bds-btn bds-btn-secondary">
-                  {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Ban size={10} strokeWidth={1.3} />}
+                  {vatMutatingId === vat.id ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} strokeWidth={1.75} />}
                   作废
                 </button>
               )}
               {canDelete && (
                 <button type="button" disabled={vatMutatingId === vat.id} onClick={() => handleVatDelete(vat)} className="bds-btn bds-btn-secondary">
-                  {vatMutatingId === vat.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
+                  {vatMutatingId === vat.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} strokeWidth={1.75} />}
                   删除
                 </button>
               )}
@@ -1516,8 +1517,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       return (
         <div className={cx('flex h-full flex-col items-center justify-center px-6 text-center', textSecondaryClass)}>
           {activeTab === 'invoices'
-            ? <FileText size={28} strokeWidth={1} className="mb-3 opacity-45" />
-            : <CreditCard size={28} strokeWidth={1} className="mb-3 opacity-45" />}
+            ? <FileText size={24} strokeWidth={1.25} className="mb-3 opacity-45" />
+            : <CreditCard size={24} strokeWidth={1.25} className="mb-3 opacity-45" />}
           <div className="text-sm font-light">
             {activeTab === 'invoices' ? '请选择发票' : '请选择凭证'}
           </div>
@@ -1593,7 +1594,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   onClick={() => openEditInvoice(invoice)}
                   className="bds-btn bds-btn-secondary"
                 >
-                  <Pencil size={10} strokeWidth={1.3} />
+                  <Pencil size={16} strokeWidth={1.75} />
                   编辑
                 </button>
               )}
@@ -1605,7 +1606,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   onClick={() => handleConvertToReceivable(invoice.id, invoice.invoiceNumber)}
                   className="bds-btn bds-btn-secondary"
                 >
-                  {convertingPiId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} strokeWidth={1.3} />}
+                  {convertingPiId === invoice.id ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} strokeWidth={1.75} />}
                   转为应收
                 </button>
               )}
@@ -1630,7 +1631,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   }}
                   className="bds-btn bds-btn-secondary"
                 >
-                  {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
+                  {voidDeletingId === invoice.id ? <Loader2 size={16} className="animate-spin" /> : <AlertCircle size={16} strokeWidth={1.75} />}
                   作废
                 </button>
               )}
@@ -1655,7 +1656,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   }}
                   className="bds-btn bds-btn-secondary"
                 >
-                  {voidDeletingId === invoice.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
+                  {voidDeletingId === invoice.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} strokeWidth={1.75} />}
                   删除
                 </button>
               )}
@@ -1666,7 +1667,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   onClick={() => openEditVoucher(voucher)}
                   className="bds-btn bds-btn-secondary"
                 >
-                  <Pencil size={10} strokeWidth={1.3} />
+                  <Pencil size={16} strokeWidth={1.75} />
                   编辑
                 </button>
               )}
@@ -1677,7 +1678,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   onClick={() => openSettlementModal(voucher)}
                   className="bds-btn bds-btn-secondary"
                 >
-                  <Landmark size={10} strokeWidth={1.3} />
+                  <Landmark size={16} strokeWidth={1.75} />
                   结汇
                 </button>
               )}
@@ -1688,7 +1689,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   onClick={() => openRemittanceModal(voucher)}
                   className="bds-btn bds-btn-secondary"
                 >
-                  <Send size={10} strokeWidth={1.3} />
+                  <Send size={16} strokeWidth={1.75} />
                   付汇
                 </button>
               )}
@@ -1712,7 +1713,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   }}
                   className="bds-btn bds-btn-secondary"
                 >
-                  {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <AlertCircle size={10} strokeWidth={1.3} />}
+                  {voidDeletingId === voucher.id ? <Loader2 size={16} className="animate-spin" /> : <AlertCircle size={16} strokeWidth={1.75} />}
                   作废
                 </button>
               )}
@@ -1737,7 +1738,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   }}
                   className="bds-btn bds-btn-secondary"
                 >
-                  {voidDeletingId === voucher.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.3} />}
+                  {voidDeletingId === voucher.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} strokeWidth={1.75} />}
                   删除
                 </button>
               )}
@@ -1777,7 +1778,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   onClick={openCreateAlloc}
                   className="bds-btn bds-btn-secondary"
                 >
-                  <Link2 size={10} strokeWidth={1.3} />
+                  <Link2 size={16} strokeWidth={1.75} />
                   添加核销
                 </button>
               </div>
@@ -1800,11 +1801,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       <div className="flex shrink-0 items-center gap-1">
                         <button type="button" onClick={() => { setEditingAllocId(alloc.id); setAllocForm({ targetId: isInvoiceContext ? alloc.voucherId : alloc.invoiceId, appliedAmount: String(alloc.appliedAmount), appliedDate: alloc.appliedDate }); setAllocError(null); setShowAllocModal(true); }}
                           className="bds-btn bds-btn-ghost bds-btn-icon">
-                          <Pencil size={11} strokeWidth={1.3} />
+                          <Pencil size={14} strokeWidth={1.75} />
                         </button>
                         <button type="button" onClick={() => handleDeleteAlloc(alloc.id)}
                           className="bds-btn bds-btn-ghost bds-btn-icon">
-                          <Trash2 size={11} strokeWidth={1.3} />
+                          <Trash2 size={14} strokeWidth={1.75} />
                         </button>
                       </div>
                     </div>
@@ -1850,7 +1851,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 className="bds-btn bds-btn-primary"
                 onClick={() => { setEditingVoucher(null); setVoucherForm({ voucherNumber: '', type: 'Receipt', voucherCategory: 'normal', amount: '', currency: 'USD', paymentDate: '', paymentMethod: 'TT', customerName: '', customerRelationId: '' }); setVoucherError(null); setShowCreateVoucher(true); }}
               >
-                <Plus size={14} strokeWidth={1.4} />
+                <Plus size={16} strokeWidth={1.75} />
                 新建凭证
               </button>
             )}
@@ -1861,7 +1862,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 onClick={openCreateInvoice}
                 className="bds-btn bds-btn-primary"
               >
-                <Plus size={14} strokeWidth={1.4} />
+                <Plus size={16} strokeWidth={1.75} />
                 新建发票
               </button>
             )}
@@ -1872,7 +1873,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 onClick={openCreateVat}
                 className="bds-btn bds-btn-primary"
               >
-                <Plus size={14} strokeWidth={1.4} />
+                <Plus size={16} strokeWidth={1.75} />
                 新建增值税票
               </button>
             )}
@@ -1932,8 +1933,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           {!isSelfContainedTab && (
           <>
           {/* Shared toolbar (chips adapt per tab) */}
-          <div className="bds-filterbar h-auto min-h-11 flex-wrap gap-x-2 gap-y-2">
-              <div className="relative min-w-[220px] flex-[1_1_260px]">
+          <div className="bds-filterbar">
+              <div className="relative min-w-0 flex-[1_1_260px]">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                 <input
                   type="text"
@@ -2013,8 +2014,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '' }))}
-                    className={formSelectClass}>
+                  <select className="bds-select" value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '' }))}>
                     <option value="Receipt">收款</option>
                     <option value="Disbursement">付款</option>
                   </select>
@@ -2027,8 +2027,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证分类</label>
-                <select value={voucherForm.voucherCategory} onChange={e => setVoucherForm(f => ({ ...f, voucherCategory: e.target.value as VoucherCategory }))}
-                  className={formSelectClass}>
+                <select className="bds-select" value={voucherForm.voucherCategory} onChange={e => setVoucherForm(f => ({ ...f, voucherCategory: e.target.value as VoucherCategory }))}>
                   {VOUCHER_CATEGORIES.map(c => (
                     <option key={c} value={c}>{VOUCHER_CATEGORY_LABELS[c]}</option>
                   ))}
@@ -2042,20 +2041,18 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付款方式</label>
-                  <select value={voucherForm.paymentMethod} onChange={e => setVoucherForm(f => ({ ...f, paymentMethod: e.target.value }))}
-                    className={formSelectClass}>
+                  <select className="bds-select" value={voucherForm.paymentMethod} onChange={e => setVoucherForm(f => ({ ...f, paymentMethod: e.target.value }))}>
                     <option value="TT">TT</option><option value="LC">LC</option><option value="Cash">Cash</option><option value="Other">Other</option>
                   </select>
                 </div>
               </div>
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象档案</label>
-                <select value={voucherForm.customerRelationId} onChange={e => {
+                <select className="bds-select" value={voucherForm.customerRelationId} onChange={e => {
                     const rid = e.target.value;
                     const rel = relationOptions.find(r => r.id === rid);
                     setVoucherForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
-                  }}
-                  className={formSelectClass}>
+                  }}>
                   <option value="">手动输入（不关联档案）</option>
                   {relationOptionsFor(voucherForm.type === 'Receipt' ? 'Customer' : 'Supplier').map(r => (
                     <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
@@ -2098,8 +2095,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value as 'Receivable' | 'Payable', customerRelationId: '' }))}
-                    className={formSelectClass}>
+                  <select className="bds-select" value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value as 'Receivable' | 'Payable', customerRelationId: '' }))}>
                     <option value="Receivable">应收</option>
                     <option value="Payable">应付</option>
                   </select>
@@ -2118,12 +2114,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商档案' : '客户档案'}</label>
-                  <select value={invoiceForm.customerRelationId} onChange={e => {
+                  <select className="bds-select" value={invoiceForm.customerRelationId} onChange={e => {
                       const rid = e.target.value;
                       const rel = relationOptions.find(r => r.id === rid);
                       setInvoiceForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
-                    }}
-                    className={formSelectClass}>
+                    }}>
                     <option value="">手动输入（不关联档案）</option>
                     {relationOptionsFor(invoiceForm.type === 'Receivable' ? 'Customer' : 'Supplier').map(r => (
                       <option key={r.id} value={r.id}>{relationDisplayName(r)}</option>
@@ -2141,13 +2136,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>发票日期</label>
-                  <input type="date" value={invoiceForm.issueDate} onChange={e => setInvoiceForm(f => ({ ...f, issueDate: e.target.value }))}
-                    className={formInputClass} />
+                  <CapsuleDateInput value={invoiceForm.issueDate} onChange={v => setInvoiceForm(f => ({ ...f, issueDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>到期日</label>
-                  <input type="date" value={invoiceForm.dueDate} onChange={e => setInvoiceForm(f => ({ ...f, dueDate: e.target.value }))}
-                    className={formInputClass} />
+                  <CapsuleDateInput value={invoiceForm.dueDate} onChange={v => setInvoiceForm(f => ({ ...f, dueDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -2210,8 +2203,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>核销日期</label>
-                  <input type="date" value={allocForm.appliedDate} onChange={e => setAllocForm(f => ({ ...f, appliedDate: e.target.value }))}
-                    className={formInputClass} />
+                  <CapsuleDateInput value={allocForm.appliedDate} onChange={v => setAllocForm(f => ({ ...f, appliedDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                 </div>
               </div>
               {allocError && <div className="bds-alert danger">{allocError}</div>}
@@ -2283,7 +2275,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         title="删除结汇水单（回滚未结汇余额）"
                         className="bds-btn bds-btn-ghost bds-btn-icon"
                       >
-                        {settlementDeletingId === s.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
+                        {settlementDeletingId === s.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={14} strokeWidth={1.75} />}
                       </button>
                     </div>
                   ))}
@@ -2298,8 +2290,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇日期 *</label>
-                        <input type="date" value={settlementForm.settleDate} onChange={e => setSettlementForm(f => ({ ...f, settleDate: e.target.value }))}
-                          className={formInputClass} />
+                        <CapsuleDateInput value={settlementForm.settleDate} onChange={v => setSettlementForm(f => ({ ...f, settleDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                       </div>
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>结汇外币金额（{settlementVoucher.currency}）*</label>
@@ -2430,8 +2421,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>开票日期 *</label>
-                  <input type="date" value={vatForm.issueDate} onChange={e => setVatForm(f => ({ ...f, issueDate: e.target.value }))}
-                    className={formInputClass} />
+                  <CapsuleDateInput value={vatForm.issueDate} onChange={v => setVatForm(f => ({ ...f, issueDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
@@ -2500,8 +2490,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>勾选认证日期</label>
-                    <input type="date" value={vatTransitionForm.verifiedDate} onChange={e => setVatTransitionForm(f => ({ ...f, verifiedDate: e.target.value }))}
-                      className={formInputClass} />
+                    <CapsuleDateInput value={vatTransitionForm.verifiedDate} onChange={v => setVatTransitionForm(f => ({ ...f, verifiedDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                   </div>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>抵扣所属期（YYYY-MM）</label>
@@ -2514,9 +2503,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {vatTransitionAction === 'Declared' && (
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 *</label>
-                  <select value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
-                    disabled={vatRefundOptionsLoading}
-                    className={formSelectClass}>
+                  <select className="bds-select" value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
+                    disabled={vatRefundOptionsLoading}>
                     <option value="">{vatRefundOptionsLoading ? '加载退税申报单…' : '请选择退税申报单'}</option>
                     {vatRefundOptions.map(r => (
                       <option key={r.id} value={r.id}>
@@ -2541,8 +2529,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   </div>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>红冲日期</label>
-                    <input type="date" value={vatTransitionForm.redFlushDate} onChange={e => setVatTransitionForm(f => ({ ...f, redFlushDate: e.target.value }))}
-                      className={formInputClass} />
+                    <CapsuleDateInput value={vatTransitionForm.redFlushDate} onChange={v => setVatTransitionForm(f => ({ ...f, redFlushDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                   </div>
                 </>
               )}
@@ -2615,7 +2602,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         title="删除付汇水单（回滚未付汇余额）"
                         className="bds-btn bds-btn-ghost bds-btn-icon"
                       >
-                        {remittanceDeletingId === r.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} strokeWidth={1.3} />}
+                        {remittanceDeletingId === r.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={14} strokeWidth={1.75} />}
                       </button>
                     </div>
                   ))}
@@ -2630,8 +2617,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇日期 *</label>
-                        <input type="date" value={remittanceForm.remitDate} onChange={e => setRemittanceForm(f => ({ ...f, remitDate: e.target.value }))}
-                          className={formInputClass} />
+                        <CapsuleDateInput value={remittanceForm.remitDate} onChange={v => setRemittanceForm(f => ({ ...f, remitDate: v }))} isDarkMode={isDarkMode} className={formInputClass} />
                       </div>
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇外币金额（{remittanceVoucher.currency}）*</label>

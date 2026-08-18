@@ -57,6 +57,7 @@ import {
   Relation,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
@@ -1050,11 +1051,11 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
           </div>
           <div>
             <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>起始日期</label>
-            <input type="date" className={inputClass} value={from} onChange={(e) => setFrom(e.target.value)} max={todayLocal()} />
+            <CapsuleDateInput className={inputClass} value={from} onChange={setFrom} />
           </div>
           <div>
             <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>截止日期</label>
-            <input type="date" className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} max={todayLocal()} />
+            <CapsuleDateInput className={inputClass} value={to} onChange={setTo} />
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <button onClick={() => { load(); loadTrend(); }} className="bds-btn bds-btn-secondary">
@@ -1255,14 +1256,14 @@ function MaterialPriceForm({
           <input className={inputClass} value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="M / PC / KG" />
         </Field>
         <Field label="币种">
-          <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             <option value="CNY">CNY</option>
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
           </select>
         </Field>
         <Field label="价格日期">
-          <input type="date" className={inputClass} value={priceDate} onChange={(e) => setPriceDate(e.target.value)} max={todayLocal()} />
+          <CapsuleDateInput className={inputClass} value={priceDate} onChange={setPriceDate} />
         </Field>
         <Field label="供应商（可选）">
           <input className={inputClass} value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="供应商名称" />

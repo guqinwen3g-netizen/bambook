@@ -1109,41 +1109,41 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           )}
           {tab === 'statement' && (
             <>
-              <select value={customerId} onChange={e => setCustomerId(e.target.value)} className={cx(inputCls, 'min-w-[160px]')} aria-label="选择客户">
+              <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="bds-select sm min-w-40" aria-label="选择客户">
                 {relations.length === 0 && <option value="">加载客户...</option>}
                 {relations.map(r => <option key={r.id} value={r.id}>{r.chineseName || r.name}</option>)}
               </select>
-              <input type="date" value={stmtFrom} onChange={e => setStmtFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
+              <CapsuleDateInput value={stmtFrom} onChange={setStmtFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
-              <input type="date" value={stmtTo} onChange={e => setStmtTo(e.target.value)} className={inputCls} aria-label="结束日期" />
+              <CapsuleDateInput value={stmtTo} onChange={setStmtTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
               <RdlPill type="button" active tone="accent" onClick={loadStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
             </>
           )}
           {tab === 'supplier-statement' && (
             <>
-              <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className={cx(inputCls, 'min-w-[160px]')} aria-label="选择供应商">
+              <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="bds-select sm min-w-40" aria-label="选择供应商">
                 {supplierRelations.length === 0 && <option value="">加载供应商...</option>}
                 {supplierRelations.map(r => <option key={r.id} value={r.id}>{r.chineseName || r.name}</option>)}
               </select>
-              <input type="date" value={supFrom} onChange={e => setSupFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
+              <CapsuleDateInput value={supFrom} onChange={setSupFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
-              <input type="date" value={supTo} onChange={e => setSupTo(e.target.value)} className={inputCls} aria-label="结束日期" />
+              <CapsuleDateInput value={supTo} onChange={setSupTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
               <RdlPill type="button" active tone="accent" onClick={loadSupplierStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
             </>
           )}
           {tab === 'fx' && (
             <>
-              <input type="date" value={fxFrom} onChange={e => setFxFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
+              <CapsuleDateInput value={fxFrom} onChange={setFxFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
-              <input type="date" value={fxTo} onChange={e => setFxTo(e.target.value)} className={inputCls} aria-label="结束日期" />
+              <CapsuleDateInput value={fxTo} onChange={setFxTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
               <RdlPill type="button" active tone="accent" onClick={loadFx} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
             </>
           )}
           {tab === 'fx-ledger' && (
             <>
-              <input type="date" value={ledgerFrom} onChange={e => setLedgerFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
+              <CapsuleDateInput value={ledgerFrom} onChange={setLedgerFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
-              <input type="date" value={ledgerTo} onChange={e => setLedgerTo(e.target.value)} className={inputCls} aria-label="结束日期" />
+              <CapsuleDateInput value={ledgerTo} onChange={setLedgerTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
               <RdlPill type="button" active tone="accent" onClick={loadLedger} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
             </>
           )}
@@ -1153,7 +1153,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 value={conFrom}
                 onChange={setConFrom}
                 isDarkMode={isDarkMode}
-                className={cx(inputCls, 'w-[132px]')}
+                className={cx(inputCls, 'w-32')}
                 placeholder="开始日期"
               />
               <span className={cx('text-[10px]', textFaint)}>至</span>
@@ -1161,7 +1161,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 value={conTo}
                 onChange={setConTo}
                 isDarkMode={isDarkMode}
-                className={cx(inputCls, 'w-[132px]')}
+                className={cx(inputCls, 'w-32')}
                 placeholder="结束日期"
               />
               {(conFrom || conTo) && (
@@ -1177,7 +1177,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <select
                 value={transferStatus}
                 onChange={e => setTransferStatus(e.target.value as InternalTransferStatus | '')}
-                className={cx(inputCls, 'min-w-[140px]')}
+                className="bds-select sm min-w-36"
                 aria-label="状态筛选"
               >
                 <option value="">全部状态</option>
@@ -1187,7 +1187,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               </select>
               <RdlPill type="button" active tone="accent" onClick={loadTransfers} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
               <RdlPill type="button" tone="accent" onClick={openCreateTransfer} className="min-h-8 px-3 text-[11px]">
-                <span className="inline-flex items-center gap-1"><Plus size={12} strokeWidth={1.5} />新建申请</span>
+                <span className="inline-flex items-center gap-1"><Plus size={14} strokeWidth={1.5} />新建申请</span>
               </RdlPill>
             </>
           )}
@@ -1197,11 +1197,11 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
       {/* 内容区 */}
       {loading ? (
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 size={18} strokeWidth={1.4} className={cx('animate-spin', textFaint)} />
+          <Loader2 size={18} strokeWidth={1.5} className={cx('animate-spin', textFaint)} />
         </div>
       ) : error ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2">
-          <AlertCircle size={18} strokeWidth={1.2} className="text-[var(--danger-text)] opacity-70" />
+          <AlertCircle size={18} strokeWidth={1.5} className="text-[var(--danger-text)] opacity-70" />
           <div className={cx('text-xs font-light', textSecondary)}>{error}</div>
         </div>
       ) : (
@@ -1234,7 +1234,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                 aria-label="关闭"
                 className={cx('rounded-control p-1 transition-colors hover:bg-[var(--recessed-bg-hover)] disabled:opacity-40', textFaint)}
               >
-                <X size={14} strokeWidth={1.4} />
+                <X size={14} strokeWidth={1.5} />
               </button>
             </div>
 
@@ -1323,7 +1323,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   </div>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交期 *</label>
-                    <input type="date" value={createForm.dueDate} onChange={e => setCreateForm(f => ({ ...f, dueDate: e.target.value }))} className="bds-input sm" />
+                    <CapsuleDateInput value={createForm.dueDate} onChange={v => setCreateForm(f => ({ ...f, dueDate: v }))} isDarkMode={isDarkMode} className="bds-input sm" />
                   </div>
                   <div>
                     <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>备注</label>
@@ -1350,10 +1350,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                     </div>
                     <div>
                       <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>确认交期（缺省=申请交期）</label>
-                      <input
-                        type="date"
+                      <CapsuleDateInput
                         value={confirmForm.confirmedDueDate}
-                        onChange={e => setConfirmForm(f => ({ ...f, confirmedDueDate: e.target.value }))}
+                        onChange={v => setConfirmForm(f => ({ ...f, confirmedDueDate: v }))}
+                        isDarkMode={isDarkMode}
                         className="bds-input sm"
                       />
                     </div>
@@ -1396,7 +1396,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                     </div>
                     <div>
                       <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>交付日期 *</label>
-                      <input type="date" value={deliveryForm.deliveryDate} onChange={e => setDeliveryForm(f => ({ ...f, deliveryDate: e.target.value }))} className="bds-input sm" />
+                      <CapsuleDateInput value={deliveryForm.deliveryDate} onChange={v => setDeliveryForm(f => ({ ...f, deliveryDate: v }))} isDarkMode={isDarkMode} className="bds-input sm" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -1406,7 +1406,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                     </div>
                     <div>
                       <label className={cx('mb-1 block text-[11px] font-light', textSecondary)}>到货日期</label>
-                      <input type="date" value={deliveryForm.receivedDate} onChange={e => setDeliveryForm(f => ({ ...f, receivedDate: e.target.value }))} className="bds-input sm" />
+                      <CapsuleDateInput value={deliveryForm.receivedDate} onChange={v => setDeliveryForm(f => ({ ...f, receivedDate: v }))} isDarkMode={isDarkMode} className="bds-input sm" />
                     </div>
                   </div>
                   <div className={cx('text-[10px] font-light', textFaint)}>
