@@ -132,7 +132,7 @@ export const OrderContextSection: React.FC<OrderContextSectionProps> = ({
           {stages.map((stage) => (
             <div key={stage.key} className="flex items-start gap-3">
               {/* 阶段标签列 */}
-              <div className={`flex w-[76px] shrink-0 items-center gap-1.5 pt-1.5 text-xs ${stage.count > 0 ? `font-normal ${spec.stageLabelActive}` : `font-light ${faintCls}`}`}>
+              <div className={`flex w-20 shrink-0 items-center gap-1.5 pt-1.5 text-xs ${stage.count > 0 ? `font-normal ${spec.stageLabelActive}` : `font-light ${faintCls}`}`}>
                 {stage.icon}
                 <span>{stage.label}</span>
               </div>
@@ -161,7 +161,7 @@ export const OrderContextSection: React.FC<OrderContextSectionProps> = ({
                             {statusLabel(item.status)}
                           </span>
                         )}
-                        {clickable && <ChevronRight size={12} strokeWidth={1.5} className={`shrink-0 ${faintCls}`} />}
+                        {clickable && <ChevronRight size={14} strokeWidth={1.5} className={`shrink-0 ${faintCls}`} />}
                       </button>
                     );
                   })
@@ -248,7 +248,7 @@ function buildStages(ctx: OrderContext): StageDef[] {
 
   return [
     {
-      key: 'quotation', label: '报价', icon: <FileText size={13} />, view: View.Quotations,
+      key: 'quotation', label: '报价', icon: <FileText size={14} />, view: View.Quotations,
       count: ctx.quotation.length,
       items: ctx.quotation.map((q) => ({
         id: q.id, primary: q.quotationNumber,
@@ -257,7 +257,7 @@ function buildStages(ctx: OrderContext): StageDef[] {
       })),
     },
     {
-      key: 'development', label: '开发', icon: <FlaskConical size={13} />, view: View.Development,
+      key: 'development', label: '开发', icon: <FlaskConical size={14} />, view: View.Development,
       count: ctx.developmentCase.length,
       items: ctx.developmentCase.map((c) => ({
         id: c.id, primary: c.code,
@@ -271,7 +271,7 @@ function buildStages(ctx: OrderContext): StageDef[] {
       })),
     },
     {
-      key: 'bom', label: 'BOM', icon: <ClipboardList size={13} />, view: View.BOM,
+      key: 'bom', label: 'BOM', icon: <ClipboardList size={14} />, view: View.BOM,
       count: ctx.bom.length,
       items: ctx.bom.map((b) => ({
         id: b.id, primary: b.bomNumber,
@@ -280,7 +280,7 @@ function buildStages(ctx: OrderContext): StageDef[] {
       })),
     },
     {
-      key: 'procurement', label: '采购', icon: <ShoppingCart size={13} />, view: View.Procurement,
+      key: 'procurement', label: '采购', icon: <ShoppingCart size={14} />, view: View.Procurement,
       count: ctx.procurement.length,
       items: ctx.procurement.map((p) => ({
         id: p.id, primary: p.poNumber,
@@ -289,12 +289,12 @@ function buildStages(ctx: OrderContext): StageDef[] {
       })),
     },
     {
-      key: 'production', label: '生产', icon: <Factory size={13} />,
+      key: 'production', label: '生产', icon: <Factory size={14} />,
       count: productionItems.length,
       items: productionItems,
     },
     {
-      key: 'outsourcing', label: '外协', icon: <Scissors size={13} />, view: View.MES,
+      key: 'outsourcing', label: '外协', icon: <Scissors size={14} />, view: View.MES,
       count: ctx.outsourcing.length,
       items: ctx.outsourcing.map((o) => ({
         id: o.id, primary: o.orderNumber,
@@ -308,12 +308,12 @@ function buildStages(ctx: OrderContext): StageDef[] {
       })),
     },
     {
-      key: 'shipment', label: '出运', icon: <Ship size={13} />, view: View.Shipments,
+      key: 'shipment', label: '出运', icon: <Ship size={14} />, view: View.Shipments,
       count: shipmentItems.length,
       items: shipmentItems,
     },
     {
-      key: 'finance', label: '财务', icon: <Receipt size={13} />, view: View.Invoices,
+      key: 'finance', label: '财务', icon: <Receipt size={14} />, view: View.Invoices,
       count: financeItems.length,
       items: financeItems,
     },

@@ -180,7 +180,7 @@ const SizeBreakdownEditor: React.FC<SizeBreakdownEditorProps> = ({
           onClick={() => addEntry()}
           className={`ml-1 ${spec.addBtn}`}
         >
-          <Plus size={11} strokeWidth={1.5} />
+          <Plus size={14} strokeWidth={1.5} />
           自定义
         </button>
       </div>

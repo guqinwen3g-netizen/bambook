@@ -12,6 +12,7 @@ import React from 'react';
 import { Scissors, Layers, CheckCircle2, Package, ArrowRight } from 'lucide-react';
 import type { ProductionStep } from '../../types';
 import { createOrderUiSpec } from './orderUiSpec';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface ProductionStepsEditorProps {
   value: ProductionStep[] | null | undefined;
@@ -29,11 +30,11 @@ const STEP_LABELS: Record<ProductionStep['step'], string> = {
 };
 
 const STEP_ICONS: Record<ProductionStep['step'], React.ReactNode> = {
-  cutting: <Scissors size={12} />,
-  sewing: <Layers size={12} />,
-  qc: <CheckCircle2 size={12} />,
-  packing: <Package size={12} />,
-  shipping: <ArrowRight size={12} />,
+  cutting: <Scissors size={14} />,
+  sewing: <Layers size={14} />,
+  qc: <CheckCircle2 size={14} />,
+  packing: <Package size={14} />,
+  shipping: <ArrowRight size={14} />,
 };
 
 const STEP_ORDER: ProductionStep['step'][] = ['cutting', 'sewing', 'qc', 'packing', 'shipping'];
@@ -82,7 +83,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
 
           return (
             <React.Fragment key={step.step}>
-              <div className="flex min-w-[56px] flex-col items-center gap-1.5">
+              <div className="flex min-w-14 flex-col items-center gap-1.5">
                 <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-all ${btnCls}`}>
                   {STEP_ICONS[step.step]}
                 </div>
@@ -94,7 +95,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
                 )}
               </div>
               {idx < sorted.length - 1 && (
-                <div className={`h-px min-w-[8px] flex-1 ${connectorCls}`} />
+                <div className={`h-px min-w-2 flex-1 ${connectorCls}`} />
               )}
             </React.Fragment>
           );
@@ -124,7 +125,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
     onChange?.(next);
   };
 
-  const dateInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} w-[88px]`;
+  const dateInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} w-28 shrink-0`;
 
   return (
     <div className="space-y-3">
@@ -143,7 +144,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
 
           return (
             <React.Fragment key={step.step}>
-              <div className="flex min-w-[64px] flex-col items-center gap-1.5">
+              <div className="flex min-w-16 flex-col items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => cycleStatus(step.step)}
@@ -160,7 +161,7 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
                 </span>
               </div>
               {idx < steps.length - 1 && (
-                <div className={`h-px min-w-[8px] flex-1 ${connectorCls}`} />
+                <div className={`h-px min-w-2 flex-1 ${connectorCls}`} />
               )}
             </React.Fragment>
           );
@@ -174,10 +175,10 @@ const ProductionStepsEditor: React.FC<ProductionStepsEditorProps> = ({
             <span className={`text-[10px] font-light ${spec.listRowSecondary}`}>
               {STEP_LABELS[step.step]}
             </span>
-            <input
-              type="date"
+            <CapsuleDateInput
               value={step.date ?? ''}
-              onChange={(e) => updateDate(step.step, e.target.value)}
+              onChange={(v) => updateDate(step.step, v)}
+              isDarkMode={isDarkMode}
               className={dateInputCls}
             />
           </div>

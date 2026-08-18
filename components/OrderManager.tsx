@@ -129,7 +129,7 @@ interface OrderManagerProps {
 
 const ORDER_TABLE_GRID_CLASS = 'grid-cols-[22%_15%_27%_13%_13%_10%]';
 const ORDER_TABLE_WIDTH_CLASS = 'w-full min-w-0';
-const ORDER_TABLE_ROW_CLASS = 'min-h-[72px]';
+const ORDER_TABLE_ROW_CLASS = 'min-h-16';
 const ORDER_TABLE_COLUMN_WIDTH_CLASSES = [
   'w-[22%]',
   'w-[15%]',
@@ -215,10 +215,10 @@ const ORDER_STATUS_FILTER_OPTIONS = [
 const BORDER_SUBTLE_CLASS = 'border-[var(--border-c-subtle)]';
 
 /** 履约状态步骤条按钮四态（BDS 按钮变体；current/done 带 disabled 属性时需 !opacity-100 抵消 bds-btn:disabled 透明度） */
-const STEP_BTN_CURRENT = 'bds-btn bds-btn-primary !min-w-[96px] !opacity-100';
-const STEP_BTN_DONE = 'bds-btn bds-btn-outline !min-w-[96px] !opacity-100';
-const STEP_BTN_ACTIONABLE = 'bds-btn bds-btn-outline !min-w-[96px]';
-const STEP_BTN_DISABLED = 'bds-btn bds-btn-ghost !min-w-[96px]';
+const STEP_BTN_CURRENT = 'bds-btn bds-btn-primary !min-w-24 !opacity-100';
+const STEP_BTN_DONE = 'bds-btn bds-btn-outline !min-w-24 !opacity-100';
+const STEP_BTN_ACTIONABLE = 'bds-btn bds-btn-outline !min-w-24';
+const STEP_BTN_DISABLED = 'bds-btn bds-btn-ghost !min-w-24';
 
 /** 覆盖层顶/底遮挡渐变（页面画布 token 驱动，主题透明） */
 const OVERLAY_TOP_MASK_STYLE: React.CSSProperties = {
@@ -960,7 +960,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   onClick={() => onViewModeChange('globe')}
                   className={`bds-toggle${effectiveViewMode === 'globe' ? ' active' : ''}`}
                 >
-                  <Globe size={15} strokeWidth={1.5} />
+                  <Globe size={16} strokeWidth={1.5} />
                 </button>
               )}
               <button
@@ -969,7 +969,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 onClick={() => onViewModeChange('list')}
                 className={`bds-toggle${effectiveViewMode === 'list' ? ' active' : ''}`}
               >
-                <List size={15} strokeWidth={1.5} />
+                <List size={16} strokeWidth={1.5} />
               </button>
             </div>
             {!isMobile && (
@@ -978,7 +978,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 onClick={() => { onSelectOrder(null); setShowImportWizard(true); }}
                 className="bds-btn bds-btn-secondary"
               >
-                <Upload size={15} strokeWidth={1.5} /> 导入
+                <Upload size={16} strokeWidth={1.5} /> 导入
               </button>
             )}
             <button
@@ -986,7 +986,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               onClick={() => { onSelectOrder(null); setNewOrder({ ...getDefaultNewOrder(), type: currentDbType || 'Fabric' }); setShowAddModal(true); }}
               className="bds-btn bds-btn-primary"
             >
-              <Plus size={15} strokeWidth={1.5} /> {!isMobile && '录入订单'}
+              <Plus size={16} strokeWidth={1.5} /> {!isMobile && '录入订单'}
             </button>
             {selectedOrder?.id && (
               <button
@@ -994,7 +994,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 onClick={() => setShowTracePanel(true)}
                 className="bds-btn bds-btn-secondary"
               >
-                <GitBranch size={15} strokeWidth={1.5} /> {!isMobile && '溯源'}
+                <GitBranch size={16} strokeWidth={1.5} /> {!isMobile && '溯源'}
               </button>
             )}
           </>
@@ -1030,8 +1030,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       {!desktopFullscreenOpen && (
         <div className="shrink-0 px-7 pt-2 pb-4 pointer-events-auto">
           <div className="bds-filterbar flex-wrap gap-y-2">
-            <div className="relative hidden md:block min-w-[160px] flex-[1_1_180px] max-w-[240px]">
-              <Search size={13} strokeWidth={1.5} className={`absolute left-3 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
+            <div className="relative hidden md:block min-w-40 flex-[1_1_180px] max-w-60">
+              <Search size={14} strokeWidth={1.5} className={`absolute left-3 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
               <input
                 type="text"
                 value={orderSearchTerm}
@@ -1114,7 +1114,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         onClick={(e) => { e.stopPropagation(); setShowOptionsSheet(order); }}
                         className={`absolute top-4 right-4 p-2 rounded-full z-10 transition-colors ${TXT_FAINT} hover:bg-[var(--hover-darken)]`}
                       >
-                        <MoreHorizontal size={20} strokeWidth={1} />
+                        <MoreHorizontal size={20} strokeWidth={1.25} />
                       </button>
 
                       {/* Card Header: Order ID & Status */}
@@ -1142,7 +1142,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         <div>
                           <div className={`text-[10px] font-light mb-1 ${TXT_FAINT}`}>FACTORY</div>
                           <div className={`text-sm font-light flex items-center gap-1.5 ${TXT_SECONDARY}`}>
-                            <Building2 size={12} /> {order.millName}
+                            <Building2 size={14} /> {order.millName}
                           </div>
                         </div>
                         <div className="text-right">
@@ -1211,7 +1211,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   <div className={`${ORDER_TABLE_WIDTH_CLASS} flex min-h-0 flex-1 flex-col text-left text-xs`}>
                     {lineItems.length === 0 ? (
                       <div className="bds-empty" style={{ minHeight: 360 }}>
-                        <div className="glyph"><Package size={22} strokeWidth={1} /></div>
+                        <div className="glyph"><Package size={24} strokeWidth={1.25} /></div>
                         {capsuleActive ? (
                           <>
                             <div className="title">暂无 Capsule 订单</div>
@@ -1296,7 +1296,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               <span className="truncate">{ORDER_STATUS_LABELS[item.status] ?? item.status}</span>
                             </span>
                             <p className={listRowActionHintCls}>
-                              查看详情 <ArrowRight size={10} strokeWidth={1.5} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                              查看详情 <ArrowRight size={14} strokeWidth={1.5} className="transition-transform duration-200 group-hover:translate-x-0.5" />
                             </p>
                           </div>
                         </CompiledMotionInteractiveCard>
@@ -1310,7 +1310,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               )}
               {isMobile && filteredOrders.length === 0 && (
                 <div className={`p-20 text-center flex flex-col items-center justify-center gap-4 ${TXT_MUTED}`}>
-                  <Package size={60} strokeWidth={1} className={TXT_FAINT} />
+                  <Package size={24} strokeWidth={1.25} className={TXT_FAINT} />
                   {capsuleActive ? (
                     <p className="text-sm font-light tracking-wide">暂无 Capsule 订单</p>
                   ) : (
@@ -1382,7 +1382,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                   onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); setIsEditing(false); setEditForm(null); }}
                   className="bds-btn bds-btn-ghost bds-btn-icon"
                 >
-                  <X size={17} strokeWidth={1.5} />
+                  <X size={16} strokeWidth={1.5} />
                 </button>
               </div>
             </div>
@@ -1568,7 +1568,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                                     title={isActionable ? `推进到「${ORDER_STATUS_LABELS[step]}」` : ORDER_STATUS_LABELS[step]}
                                     className={isCurrent ? STEP_BTN_CURRENT : isDone ? STEP_BTN_DONE : isActionable ? STEP_BTN_ACTIONABLE : STEP_BTN_DISABLED}
                                   >
-                                    {isDone && <CheckCircle2 size={12} strokeWidth={2} className="text-[var(--accent)]" />}
+                                    {isDone && <CheckCircle2 size={14} strokeWidth={2} className="text-[var(--accent)]" />}
                                     {ORDER_STATUS_LABELS[step]}
                                   </button>
                                 </React.Fragment>
@@ -1581,10 +1581,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                               disabled={isEditing || (!isAlert && !allowed.includes('Alert'))}
                               onClick={() => !isAlert && handleStatusTransition('Alert')}
                               title={isAlert ? '异常中：点击左侧步骤恢复到对应阶段' : '标记为异常'}
-                              className={`${isAlert ? 'bds-btn !min-w-[96px]' : 'bds-btn bds-btn-outline !min-w-[96px]'} ${isEditing ? 'cursor-not-allowed opacity-40' : ''}`}
+                              className={`${isAlert ? 'bds-btn !min-w-24' : 'bds-btn bds-btn-outline !min-w-24'} ${isEditing ? 'cursor-not-allowed opacity-40' : ''}`}
                               style={isAlert ? STEP_BTN_ALERT_STYLE : undefined}
                             >
-                              <AlertTriangle size={11} strokeWidth={1.5} />
+                              <AlertTriangle size={14} strokeWidth={1.5} />
                               {ORDER_STATUS_LABELS.Alert}
                             </button>
                           </div>
@@ -1739,7 +1739,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     onChange={(event) => setEditLineForm((prev) => ({ ...(prev ?? selectedLineItem), [key]: ['quantity', 'unitPrice', 'netValue'].includes(key) ? Number(event.target.value) : event.target.value }))}
                   />
                 ) : (
-                  <div className={`min-h-[24px] truncate rounded-inset px-2.5 py-1 ${isEmpty ? FIELD_SLOT_EMPTY_CLASS : FIELD_SLOT_FILLED_CLASS}`}>
+                  <div className={`min-h-6 truncate rounded-inset px-2.5 py-1 ${isEmpty ? FIELD_SLOT_EMPTY_CLASS : FIELD_SLOT_FILLED_CLASS}`}>
                     <span className={isEmpty ? FIELD_READONLY_EMPTY_CLASS : FIELD_READONLY_VALUE_CLASS}>{isEmpty ? '—' : String(value)}</span>
                   </div>
                 )}
@@ -1801,7 +1801,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               />
               <div className="pointer-events-auto relative flex items-center gap-2">
                 <button onClick={() => setShowDeleteConfirm(true)} className="bds-btn bds-btn-ghost bds-btn-icon" title="归档此单">
-                  <Trash2 size={17} strokeWidth={1.5} />
+                  <Trash2 size={16} strokeWidth={1.5} />
                 </button>
               </div>
             </div>
@@ -1947,7 +1947,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     onClick={() => { setShowAddModal(false); resetNewOrder(); }}
                     className="bds-btn bds-btn-ghost bds-btn-icon"
                   >
-                    <X size={17} strokeWidth={1.5} />
+                    <X size={16} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -2007,7 +2007,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           <div className="bds-modal overflow-hidden animate-in zoom-in duration-300">
             <div className="text-center space-y-6">
               <div className={`w-20 h-20 rounded-field flex items-center justify-center mx-auto mb-2 border ${BORDER_SUBTLE_CLASS} bg-[var(--recessed-bg)]`}>
-                <AlertTriangle size={32} strokeWidth={1} className="text-[var(--warning)]" />
+                <AlertTriangle size={24} strokeWidth={1.5} className="text-[var(--warning)]" />
               </div>
               <div className="space-y-2">
                 <h3 className={`text-xl font-light ${TXT_TITLE}`}>确认归档生产任务？</h3>
@@ -2018,13 +2018,13 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               <div className="flex flex-col items-center gap-3 pt-4">
                 <button
                   onClick={handleDeleteOrder}
-                  className="bds-btn bds-btn-danger min-w-[120px] px-6"
+                  className="bds-btn bds-btn-danger min-w-32 px-6"
                 >
                   确认归档
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="bds-btn bds-btn-ghost min-w-[120px] px-6"
+                  className="bds-btn bds-btn-ghost min-w-32 px-6"
                 >
                   取消
                 </button>
@@ -2047,7 +2047,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           >
             <div className={`flex items-center justify-between border-b px-4 py-3 ${BORDER_SUBTLE_CLASS}`}>
               <div className="flex items-center gap-2">
-                <GitBranch size={15} className={TXT_SECONDARY} />
+                <GitBranch size={16} className={TXT_SECONDARY} />
                 <span className={`text-sm font-light ${TXT_TITLE}`}>订单履约链溯源</span>
                 <span className={`text-[10px] font-light tracking-[0.14em] ${TXT_FAINT}`}>Order Fulfillment</span>
               </div>
@@ -2056,7 +2056,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 onClick={() => setShowTracePanel(false)}
                 className="bds-btn bds-btn-ghost bds-btn-icon"
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
             <TraceabilityPanel

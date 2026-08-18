@@ -516,9 +516,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
       </label>
       {field.type === 'select' ? (
         <select
+          className="bds-select"
           value={formDraft[field.name]}
           onChange={(e) => setFormDraft(prev => ({ ...prev, [field.name]: e.target.value }))}
-          className="bds-select"
         >
           {!field.required && (
             <option value="">— 不指定 —</option>
@@ -572,13 +572,13 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
             <div className="bds-alert danger shrink-0">
               <span className="flex-1 min-w-0 break-words">{errorMessage}</span>
               <button type="button" onClick={() => setErrorMessage('')} aria-label="关闭错误提示" className="mt-px shrink-0 hover:opacity-70">
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
           )}
           <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">
-            <div className="relative min-w-[188px] flex-[1_1_220px] max-w-xs">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
+            <div className="relative min-w-48 flex-[1_1_220px] max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
               <input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
@@ -709,7 +709,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                 })}
                 {filteredShipments.length === 0 && (
                   <div className="bds-empty">
-                    <div className="glyph"><Truck size={24} strokeWidth={1} /></div>
+                    <div className="glyph"><Truck size={24} strokeWidth={1.5} /></div>
                     <div className="title">暂无匹配运单</div>
                   </div>
                 )}
@@ -743,7 +743,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                             onClick={() => openEditModal(selectedShipment)}
                             className="bds-btn bds-btn-secondary"
                           >
-                            <Pencil size={11} />
+                            <Pencil size={14} />
                             编辑
                           </button>
                           <button
@@ -751,7 +751,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                             onClick={() => handleDelete(selectedShipment)} disabled={deletingId !== null}
                             className="bds-btn bds-btn-danger"
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={14} />
                             删除
                           </button>
                         </div>
@@ -788,7 +788,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                               rel="noreferrer noopener"
                               className="bds-btn bds-btn-secondary shrink-0"
                             >
-                              <ExternalLink size={10} />
+                              <ExternalLink size={14} />
                               承运商查询
                             </a>
                           )}
@@ -798,7 +798,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                       <div className="mt-3 pt-3" style={{ borderTop: 'var(--border-subtle)' }}>
                         {eventsLoading ? (
                           <div className={cx('flex items-center gap-2 py-1 text-[10px]', textSecondaryClass)}>
-                            <Loader2 size={11} className="animate-spin" />加载节点时间轴…
+                            <Loader2 size={14} className="animate-spin" />加载节点时间轴…
                           </div>
                         ) : shipmentEvents.length === 0 ? (
                           <div className={cx('py-1 text-[10px]', textSecondaryClass)}>暂无节点记录</div>
@@ -844,7 +844,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                 title="从关联订单重新带出装运行（覆盖现有行）"
                                 className="bds-btn bds-btn-secondary"
                               >
-                                {pullingLines ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                                {pullingLines ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                                 从订单带出
                               </button>
                             )}
@@ -854,7 +854,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                 onClick={() => setShowPackingEditor(true)}
                                 className="bds-btn bds-btn-secondary"
                               >
-                                <Package size={10} />
+                                <Package size={14} />
                                 编辑装箱
                               </button>
                             )}
@@ -862,7 +862,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         </div>
                         {packingLoading ? (
                           <div className={cx('mt-2 flex items-center gap-2 py-1 text-[10px]', textSecondaryClass)}>
-                            <Loader2 size={11} className="animate-spin" />加载装箱明细…
+                            <Loader2 size={14} className="animate-spin" />加载装箱明细…
                           </div>
                         ) : packingLines.length === 0 && packingCartons.length === 0 ? (
                           <div className={cx('mt-2 py-1 text-[10px]', textSecondaryClass)}>
@@ -899,7 +899,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                                       <div key={carton.id} className="rounded-inset px-2 py-1 bds-inset">
                                         <div className="flex items-baseline justify-between gap-2">
                                           <span className={cx('inline-flex min-w-0 items-center gap-1 text-[11px]', textPrimaryClass)}>
-                                            <Box size={10} className="shrink-0 opacity-60" />
+                                            <Box size={14} className="shrink-0 opacity-60" />
                                             <span className="truncate">C/NO {carton.cartonNo}</span>
                                           </span>
                                           <span className={cx('shrink-0 text-[10px] bds-tnum', textSecondaryClass)}>
@@ -939,7 +939,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                 </>
               ) : (
                 <div className="bds-empty" style={{ height: '100%', justifyContent: 'center' }}>
-                  <div className="glyph"><Truck size={24} strokeWidth={1} /></div>
+                  <div className="glyph"><Truck size={24} strokeWidth={1.5} /></div>
                   <div className="title">请选择运单</div>
                 </div>
               )}
@@ -960,9 +960,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
               leading={(
                 <div className="flex h-full items-center gap-1.5 min-w-0">
                   <button type="button" onClick={closeFormModal} aria-label="返回货运管理" className="bds-btn bds-btn-secondary bds-btn-icon">
-                    <ChevronLeft size={18} strokeWidth={1.4} />
+                    <ChevronLeft size={18} strokeWidth={1.5} />
                   </button>
-                  <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+                  <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
                     {editingShipment ? '编辑运单' : '新建运单'}
                   </h3>
                 </div>
@@ -1258,9 +1258,9 @@ function PackingEditorModal({
           leading={(
             <div className="flex h-full min-w-0 items-center gap-1.5">
               <button type="button" onClick={onClose} disabled={saving} aria-label="返回运单详情" className="bds-btn bds-btn-secondary bds-btn-icon">
-                <ChevronLeft size={18} strokeWidth={1.4} />
+                <ChevronLeft size={18} strokeWidth={1.5} />
               </button>
-              <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
+              <h3 className="flex h-9 max-w-64 items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
                 装箱明细 · {shipment.shipmentNumber}
               </h3>
             </div>
@@ -1306,7 +1306,7 @@ function PackingEditorModal({
                     <div className="flex items-center justify-between gap-2">
                       <span className={cx('text-[10px] font-light tracking-wide', textSecondary)}>行 {idx + 1}</span>
                       <button type="button" onClick={() => setLines(prev => prev.filter(l => l.key !== line.key))} className="inline-flex h-6 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]">
-                        <X size={10} strokeWidth={1.4} />移除
+                        <X size={14} strokeWidth={1.5} />移除
                       </button>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -1327,7 +1327,7 @@ function PackingEditorModal({
                   onClick={() => setLines(prev => [...prev, { key: nextDraftKey('PL'), productCode: '', productName: '', quantity: '', unit: '', cartons: '', grossWeight: '', netWeight: '', volume: '', hsCode: '' }])}
                   className="bds-btn bds-btn-secondary"
                 >
-                  <Plus size={11} strokeWidth={1.4} />添加装运行
+                  <Plus size={14} strokeWidth={1.5} />添加装运行
                 </button>
               </div>
             ) : (
@@ -1342,7 +1342,7 @@ function PackingEditorModal({
                     <div className="flex items-center justify-between gap-2">
                       <span className={cx('text-[10px] font-light tracking-wide', textSecondary)}>箱 {idx + 1}</span>
                       <button type="button" onClick={() => setCartons(prev => prev.filter(c => c.key !== carton.key))} className="inline-flex h-6 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]">
-                        <X size={10} strokeWidth={1.4} />移除
+                        <X size={14} strokeWidth={1.5} />移除
                       </button>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -1360,9 +1360,9 @@ function PackingEditorModal({
                       {carton.items.map(item => (
                         <div key={item.key} className="flex items-center gap-2">
                           <select
+                            className="bds-select flex-1"
                             value={item.lineKey}
                             onChange={e => updateCarton(carton.key, { items: carton.items.map(i => i.key === item.key ? { ...i, lineKey: e.target.value } : i) })}
-                            className="bds-select flex-1"
                             style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
                           >
                             {lines.map(l => (
@@ -1383,7 +1383,7 @@ function PackingEditorModal({
                             className="bds-btn bds-btn-ghost bds-btn-icon shrink-0"
                             aria-label="移除分配"
                           >
-                            <X size={10} strokeWidth={1.4} />
+                            <X size={14} strokeWidth={1.5} />
                           </button>
                         </div>
                       ))}
@@ -1393,7 +1393,7 @@ function PackingEditorModal({
                           onClick={() => updateCarton(carton.key, { items: [...carton.items, { key: nextDraftKey('PCI'), lineKey: lines[0].key, quantity: '' }] })}
                           className="inline-flex h-7 items-center gap-1 rounded-control border border-[var(--border-c-subtle)] px-2 text-[10px] font-light text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-darken)]"
                         >
-                          <Plus size={10} strokeWidth={1.4} />添加分配
+                          <Plus size={14} strokeWidth={1.5} />添加分配
                         </button>
                       )}
                     </div>
@@ -1404,7 +1404,7 @@ function PackingEditorModal({
                   onClick={() => setCartons(prev => [...prev, { key: nextDraftKey('PC'), cartonNo: String(prev.length + 1), description: '', length: '', width: '', height: '', grossWeight: '', netWeight: '', volume: '', items: [] }])}
                   className="bds-btn bds-btn-secondary"
                 >
-                  <Plus size={11} strokeWidth={1.4} />添加箱
+                  <Plus size={14} strokeWidth={1.5} />添加箱
                 </button>
               </div>
             )}

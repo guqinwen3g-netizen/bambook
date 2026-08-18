@@ -1,5 +1,4 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
 import type { Order, Relation, RelationCategory } from '../../types';
 import type { FieldMeta, RoleFkTarget } from '../../lib/orderSchema';
 import { currencySymbol, resolveCurrency } from '../../lib/orderSchema';
@@ -10,6 +9,7 @@ import SmartLinkedInput from '../ui/SmartLinkedInput';
 import RelationCombobox from './RelationCombobox';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import CustomSelect from '../ui/CustomSelect';
 import { formatYmd } from '../../lib/dateFormat';
 import { statusSemanticClass } from '../rdlBusinessStatusTokens';
 import { createOrderUiSpec } from './orderUiSpec';
@@ -146,7 +146,7 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
-        <div className={`min-h-[24px] rounded-inset px-2.5 py-1 ${slotCls} ${field.type === 'longText' ? 'whitespace-pre-wrap' : 'truncate'}`}>
+        <div className={`min-h-6 rounded-inset px-2.5 py-1 ${slotCls} ${field.type === 'longText' ? 'whitespace-pre-wrap' : 'truncate'}`}>
           <span className={isEmpty ? emptyTextCls : valueTextCls}>{isEmpty ? emptyText : display}</span>
         </div>
         {/* 查阅模式不渲染 hintEl：录入辅助说明是编辑语境元信息，档案态保持纯净（来源信息由 SourcePill 承载） */}
@@ -216,24 +216,16 @@ const OrderFieldInput: React.FC<OrderFieldInputProps> = ({
     return (
       <div className={layout === 'stacked' ? 'space-y-1.5' : 'flex items-center gap-2'}>
         {labelEl}
-        <div className="relative">
-          <select
-            className={`${inputCls} appearance-none pr-10 ${disabled ? '' : 'cursor-pointer'}`}
-            disabled={disabled}
-            value={(value as string | undefined) ?? ''}
-            onChange={(e) => onChange({ [field.key]: e.target.value || undefined } as Partial<Order>)}
-          >
-            <option value="">— 请选择 —</option>
-            {field.enumOptions.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
-          <ChevronDown
-            size={14}
-            strokeWidth={1.5}
-            className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 ${orderSpec.fieldAsterisk}`}
-          />
-        </div>
+        <CustomSelect
+          options={field.enumOptions.map((opt) => ({ value: opt, label: opt }))}
+          value={(value as string | undefined) ?? ''}
+          onChange={(v) => onChange({ [field.key]: v || undefined } as Partial<Order>)}
+          placeholder="— 请选择 —"
+          isDarkMode={isDarkMode}
+          disabled={disabled}
+          surface="field"
+          className="w-full"
+        />
         {hintEl}
       </div>
     );

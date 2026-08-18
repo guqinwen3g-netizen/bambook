@@ -9,9 +9,10 @@
  */
 
 import React from 'react';
-import { Plus, X, ChevronDown } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import type { BomItem } from '../../types';
 import { createOrderUiSpec } from './orderUiSpec';
+import CustomSelect from '../ui/CustomSelect';
 
 interface BomItemsEditorProps {
   value: BomItem[] | null | undefined;
@@ -113,20 +114,14 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
       {items.map((item, idx) => (
         <div key={idx} className="flex items-center gap-1.5">
           {/* 类型 select */}
-          <div className="relative shrink-0">
-            <select
-              value={item.type}
-              onChange={(e) => updateItem(idx, { type: e.target.value as BomItem['type'] })}
-              className={`${inputCls} w-16 cursor-pointer appearance-none pr-7`}
-            >
-              {BOM_TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 ${spec.chevronColor}`} />
-          </div>
+          <CustomSelect
+            options={BOM_TYPE_OPTIONS}
+            value={item.type}
+            onChange={(v) => updateItem(idx, { type: v as BomItem['type'] })}
+            size="compact"
+            isDarkMode={isDarkMode}
+            className="w-16 shrink-0"
+          />
 
           {/* 名称 input */}
           <input
@@ -158,18 +153,14 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
           />
 
           {/* 单位 select */}
-          <div className="relative shrink-0">
-            <select
-              value={item.unit}
-              onChange={(e) => updateItem(idx, { unit: e.target.value })}
-              className={`${inputCls} w-16 cursor-pointer appearance-none pr-7`}
-            >
-              {BOM_UNITS.map((u) => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-            <ChevronDown size={12} strokeWidth={1.5} className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 ${spec.chevronColor}`} />
-          </div>
+          <CustomSelect
+            options={BOM_UNITS.map((u) => ({ value: u, label: u }))}
+            value={item.unit}
+            onChange={(v) => updateItem(idx, { unit: v })}
+            size="compact"
+            isDarkMode={isDarkMode}
+            className="w-16 shrink-0"
+          />
 
           {/* 删除按钮 */}
           <button
@@ -189,7 +180,7 @@ const BomItemsEditor: React.FC<BomItemsEditorProps> = ({
         onClick={addItem}
         className={spec.addBtn}
       >
-        <Plus size={12} strokeWidth={1.5} />
+        <Plus size={14} strokeWidth={1.5} />
         添加物料
       </button>
     </div>

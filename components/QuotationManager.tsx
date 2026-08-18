@@ -704,7 +704,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>报价明细</h3>
                       <button onClick={addFormLine} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
-                        <Plus size={12} /> 添加行
+                        <Plus size={14} /> 添加行
                       </button>
                     </div>
                     <div className="space-y-2">
@@ -714,7 +714,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                             <span className="bds-mono text-xs" style={{ color: 'var(--text-quaternary)' }}>行 {formLines.indexOf(line) + 1}</span>
                             {formLines.length > 1 && (
                               <button onClick={() => removeFormLine(line.key)} className="p-1 rounded-control transition-colors" style={{ color: 'var(--text-quaternary)' }}>
-                                <Trash2 size={12} />
+                                <Trash2 size={14} />
                               </button>
                             )}
                           </div>
@@ -722,7 +722,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                             <div className="relative">
                               <input type="text" value={line.fabricCode} onChange={(e) => updateFormLine(line.key, 'fabricCode', e.target.value)} onBlur={() => setTimeout(() => setFabricSuggestions(prev => ({ ...prev, [line.key]: [] })), 150)} placeholder="面料编码（搜索档案）" className="bds-input sm" />
                               {fabricSearching[line.key] && (
-                                <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+                                <Loader2 size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                               )}
                               {/* F4：档案面料搜索建议下拉（BDS 浮层族） */}
                               {(fabricSuggestions[line.key]?.length ?? 0) > 0 && (
@@ -772,7 +772,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                 )}
                                 {deviation !== null && customerRef && (
                                   <span className="inline-flex items-center gap-1" style={{ color: 'var(--warning-text)' }}>
-                                    <AlertTriangle size={11} />
+                                    <AlertTriangle size={14} />
                                     偏离最近售价 {deviation > 0 ? '+' : ''}{Math.round(deviation * 100)}%（&gt;15%，将触发审批）
                                   </span>
                                 )}
@@ -811,8 +811,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                     评估结论：并入优于「单层搜索+独立 segment 行」两行之案——单行收敛上边距，
                     与 OrderManager/ShipmentManager 范式一致） */}
                 <div className="bds-filterbar mb-4 flex-wrap gap-y-2">
-                  <div className="relative min-w-[160px] flex-[1_1_200px] max-w-xs">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
+                  <div className="relative min-w-40 flex-[1_1_200px] max-w-xs">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
                     <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索报价号/客户..." className="bds-input pl-9" />
                   </div>
                   <div className="min-w-0 flex-[1_1_auto] overflow-x-auto no-scrollbar">
@@ -849,7 +849,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                         className="flex items-center gap-1 shrink-0 hover:underline"
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit' }}
                       >
-                        查看订单 <ArrowRight size={12} />
+                        查看订单 <ArrowRight size={14} />
                       </button>
                     )}
                   </div>
@@ -895,20 +895,20 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                               {/* 双轨偏差徽标（PRD 8.6 历史快照；warn=已触发审批，block=未审批禁止发送） */}
                               {qt.priceDeviationLevel === 'warn' && (
                                 <span className="bds-badge sm warning">
-                                  <AlertTriangle size={10} />
+                                  <AlertTriangle size={14} />
                                   偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}% · 已触发审批
                                 </span>
                               )}
                               {qt.priceDeviationLevel === 'block' && (
                                 <span className="bds-badge sm danger">
-                                  <AlertCircle size={10} />
+                                  <AlertCircle size={14} />
                                   偏差 {(qt.priceDeviationPercent ?? 0) > 0 ? '+' : ''}{qt.priceDeviationPercent}% · 需审批后发送
                                 </span>
                               )}
                               {/* Sent 超 7 天未回复 → 琥珀提醒（sentAt 为首次发送时间） */}
                               {sentDaysPending(qt) != null && (
                                 <span className="bds-badge sm warning">
-                                  <AlertTriangle size={10} />
+                                  <AlertTriangle size={14} />
                                   已发送 {sentDaysPending(qt)} 天 · 待客户回复
                                 </span>
                               )}
@@ -1002,22 +1002,22 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         onClick={() => { setPricingQuoteId(qt.id); setPricingResult(null); }}
                                         className="bds-btn bds-btn-secondary"
                                       >
-                                        <Calculator size={12} />
+                                        <Calculator size={14} />
                                         <span>应用定价</span>
                                       </button>
                                       <button onClick={() => handleAction(qt.id, 'send')} disabled={actionLoading === `${qt.id}_send`} className="bds-btn bds-btn-secondary">
-                                        {actionLoading === `${qt.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                        {actionLoading === `${qt.id}_send` ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                                         <span>发送报价</span>
                                       </button>
                                       {/* 双轨红标门禁提示（PRD 8.6）：偏差 >30% 需审批通过后服务端才放行发送 */}
                                       {qt.priceDeviationLevel === 'block' && (
                                         <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--danger-text)' }}>
-                                          <AlertCircle size={10} />
+                                          <AlertCircle size={14} />
                                           偏差超 30%，需审批通过后发送
                                         </span>
                                       )}
                                       <button onClick={() => handleAction(qt.id, 'delete')} disabled={actionLoading === `${qt.id}_delete`} className="bds-btn bds-btn-danger">
-                                        {actionLoading === `${qt.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                        {actionLoading === `${qt.id}_delete` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                         <span>删除</span>
                                       </button>
                                     </>
@@ -1025,11 +1025,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   {qt.status === 'Sent' && (
                                     <>
                                       <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className="bds-btn bds-btn-secondary">
-                                        {actionLoading === `${qt.id}_accept` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                        {actionLoading === `${qt.id}_accept` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                         <span>接受</span>
                                       </button>
                                       <button onClick={() => handleAction(qt.id, 'reject')} disabled={actionLoading === `${qt.id}_reject`} className="bds-btn bds-btn-danger">
-                                        {actionLoading === `${qt.id}_reject` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                                        {actionLoading === `${qt.id}_reject` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                                         <span>拒绝</span>
                                       </button>
                                     </>
@@ -1042,7 +1042,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                           disabled={actionLoading === `${qt.id}_convert`}
                                           className="bds-btn bds-btn-secondary"
                                         >
-                                          {actionLoading === `${qt.id}_convert` ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
+                                          {actionLoading === `${qt.id}_convert` ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
                                           <span>转为订单</span>
                                         </button>
                                       )}
@@ -1052,7 +1052,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                           disabled={actionLoading === `${qt.id}_generatePi`}
                                           className="bds-btn bds-btn-secondary"
                                         >
-                                          {actionLoading === `${qt.id}_generatePi` ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                                          {actionLoading === `${qt.id}_generatePi` ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                                           <span>生成 PI</span>
                                         </button>
                                       )}
@@ -1060,12 +1060,12 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                         onClick={() => setTraceQuoteId(qt.id)}
                                         className="bds-btn bds-btn-secondary"
                                       >
-                                        <GitBranch size={12} />
+                                        <GitBranch size={14} />
                                         <span>溯源</span>
                                       </button>
                                       {qt.status === 'Accepted' && qt.convertedOrderId && (
                                         <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-                                          <CheckCircle2 size={12} />
+                                          <CheckCircle2 size={14} />
                                           <span>已转订单</span>
                                           {onOpenOrder ? (
                                             <button
@@ -1074,7 +1074,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                               className="flex items-center gap-0.5 hover:underline"
                                               style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'var(--accent-text)' }}
                                             >
-                                              {qt.convertedOrderId} <ArrowRight size={10} />
+                                              {qt.convertedOrderId} <ArrowRight size={14} />
                                             </button>
                                           ) : (
                                             <span>{qt.convertedOrderId}</span>
@@ -1083,7 +1083,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                       )}
                                       {(qt.status === 'Rejected' || qt.status === 'Expired') && (
                                         <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-quaternary)' }}>
-                                          <Clock size={12} />
+                                          <Clock size={14} />
                                           <span>{STATUS_LABELS[qt.status as QuotationStatus]} — 终态</span>
                                         </div>
                                       )}
@@ -1095,7 +1095,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                     onClick={() => printHtmlDocument({ title: `Quotation ${qt.quotationNumber}`, htmlBody: buildQuotationPrintHtml(qt) })}
                                     className="bds-btn bds-btn-ghost"
                                   >
-                                    <Printer size={12} />
+                                    <Printer size={14} />
                                     <span>打印报价单</span>
                                   </button>
                                 </div>
@@ -1181,7 +1181,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 disabled={applyingPricing}
                 className="bds-btn bds-btn-secondary"
               >
-                {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                {applyingPricing ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
                 <span>查询校验</span>
               </button>
               <button
@@ -1189,7 +1189,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 disabled={applyingPricing || !pricingTrackB}
                 className="bds-btn bds-btn-primary"
               >
-                {applyingPricing ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
+                {applyingPricing ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
                 <span>{applyingPricing ? '计算中...' : '应用定价'}</span>
               </button>
             </div>
@@ -1205,7 +1205,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
             <div className="sh-head" style={{ alignItems: 'center' }}>
               <div className="sh-main">
                 <div className="sh-title flex items-center gap-2">
-                  <GitBranch size={15} style={{ color: 'var(--text-tertiary)' }} />
+                  <GitBranch size={16} style={{ color: 'var(--text-tertiary)' }} />
                   报价到发货链溯源
                 </div>
                 <div className="sh-sub">Quote to Ship</div>
@@ -1216,7 +1216,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                 className="bds-btn bds-btn-ghost"
                 style={{ padding: '0 var(--space-2)' }}
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
             <div className="sh-body" style={{ padding: 0 }}>

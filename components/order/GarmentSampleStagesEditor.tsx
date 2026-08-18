@@ -14,6 +14,7 @@ import React from 'react';
 import { Shirt, Camera, Ruler, ClipboardCheck } from 'lucide-react';
 import type { GarmentSampleStage } from '../../types';
 import { createOrderUiSpec } from './orderUiSpec';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface GarmentSampleStagesEditorProps {
   value: GarmentSampleStage[] | null | undefined;
@@ -37,10 +38,10 @@ const STAGE_LABELS_ZH: Record<GarmentSampleStage['stage'], string> = {
 };
 
 const STAGE_ICONS: Record<GarmentSampleStage['stage'], React.ReactNode> = {
-  proto: <Shirt size={12} />,
-  photo: <Camera size={12} />,
-  sizeSet: <Ruler size={12} />,
-  pp: <ClipboardCheck size={12} />,
+  proto: <Shirt size={14} />,
+  photo: <Camera size={14} />,
+  sizeSet: <Ruler size={14} />,
+  pp: <ClipboardCheck size={14} />,
 };
 
 const STAGE_ORDER: GarmentSampleStage['stage'][] = ['proto', 'photo', 'sizeSet', 'pp'];
@@ -109,7 +110,7 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
 
           return (
             <React.Fragment key={stage.stage}>
-              <div className="flex min-w-[68px] flex-col items-center gap-1.5">
+              <div className="flex min-w-16 flex-col items-center gap-1.5">
                 <div className={`flex h-8 w-8 items-center justify-center rounded-control border transition-all ${btnCls}`}>
                   {STAGE_ICONS[stage.stage]}
                 </div>
@@ -127,7 +128,7 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
                 )}
               </div>
               {idx < sorted.length - 1 && (
-                <div className={`h-px min-w-[8px] flex-1 ${connectorCls}`} />
+                <div className={`h-px min-w-2 flex-1 ${connectorCls}`} />
               )}
             </React.Fragment>
           );
@@ -161,7 +162,7 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
     onChange?.(next);
   };
 
-  const dateInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} w-[92px] shrink-0`;
+  const dateInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} w-28 shrink-0`;
   const textInputCls = `${spec.subFieldInput} ${spec.subFieldFocus} flex-1 min-w-0`;
 
   return (
@@ -175,7 +176,7 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
 
           return (
             <React.Fragment key={stage.stage}>
-              <div className="flex min-w-[72px] flex-col items-center gap-1.5">
+              <div className="flex min-w-16 flex-col items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => cycleStatus(stage.stage)}
@@ -192,7 +193,7 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
                 </span>
               </div>
               {idx < stages.length - 1 && (
-                <div className={`h-px min-w-[8px] flex-1 ${connectorCls}`} />
+                <div className={`h-px min-w-2 flex-1 ${connectorCls}`} />
               )}
             </React.Fragment>
           );
@@ -209,23 +210,21 @@ const GarmentSampleStagesEditor: React.FC<GarmentSampleStagesEditorProps> = ({
             </span>
 
             {/* 寄出日期 */}
-            <input
-              type="date"
+            <CapsuleDateInput
               value={stage.sentDate ?? ''}
-              onChange={(e) => updateField(stage.stage, 'sentDate', e.target.value)}
+              onChange={(v) => updateField(stage.stage, 'sentDate', v)}
+              isDarkMode={isDarkMode}
               placeholder="寄出"
-              className={`${dateInputCls} shrink-0`}
-              title="寄出日期"
+              className={dateInputCls}
             />
 
             {/* 确认日期 */}
-            <input
-              type="date"
+            <CapsuleDateInput
               value={stage.confirmedDate ?? ''}
-              onChange={(e) => updateField(stage.stage, 'confirmedDate', e.target.value)}
+              onChange={(v) => updateField(stage.stage, 'confirmedDate', v)}
+              isDarkMode={isDarkMode}
               placeholder="确认"
-              className={`${dateInputCls} shrink-0`}
-              title="确认日期"
+              className={dateInputCls}
             />
 
             {/* 意见 */}

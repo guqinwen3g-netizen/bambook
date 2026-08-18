@@ -31,6 +31,8 @@ import {
 import { statusSemanticClass } from '../rdlBusinessStatusTokens';
 import { formatYmd } from '../../lib/dateFormat';
 import SidePanelContainer from '../ui/SidePanelContainer';
+import CustomSelect from '../ui/CustomSelect';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 import OrderSectionHeader from './OrderSectionHeader';
 import RelationCombobox from './RelationCombobox';
 import { createOrderUiSpec } from './orderUiSpec';
@@ -489,7 +491,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
               className="bds-btn bds-btn-outline sm ml-auto shrink-0"
               title="门禁阻断（GATE_BLOCKED）：按 DR-013 发起受控例外申请，审批中心自动预填本订单上下文"
             >
-              <ShieldPlus size={13} strokeWidth={1.5} />
+              <ShieldPlus size={14} strokeWidth={1.5} />
               申请受控例外
             </button>
           )}
@@ -521,7 +523,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                 className="bds-btn bds-btn-outline sm shrink-0 self-center"
                 title="正常路径为变更申请审批链；确需绕过变更控制时，按 DR-013 发起受控例外申请（审批中心自动预填本订单上下文）"
               >
-                <ShieldPlus size={13} strokeWidth={1.5} />
+                <ShieldPlus size={14} strokeWidth={1.5} />
                 申请受控例外
               </button>
             </div>
@@ -549,15 +551,13 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
           <div className={`mt-3 ${spec.gridEdit}`}>
             <div className="space-y-1.5">
               <span className={`ml-1 ${spec.subGroupMeta}`}>变更类型</span>
-              <select
-                className={spec.field}
+              <CustomSelect
+                options={ORDER_CHANGE_TYPES.map((t) => ({ value: t, label: ORDER_CHANGE_TYPE_LABELS[t] }))}
                 value={changeType}
-                onChange={(e) => { setForm((p) => ({ ...p, changeType: e.target.value as OrderChangeType })); setMoqResult(null); setMoqError(null); }}
-              >
-                {ORDER_CHANGE_TYPES.map((t) => (
-                  <option key={t} value={t}>{ORDER_CHANGE_TYPE_LABELS[t]}</option>
-                ))}
-              </select>
+                onChange={(v) => { setForm((p) => ({ ...p, changeType: v as OrderChangeType })); setMoqResult(null); setMoqError(null); }}
+                isDarkMode={dark}
+                surface="field"
+              />
             </div>
 
             {changeType === 'quantity' && (
@@ -587,11 +587,11 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
             {changeType === 'delivery' && (
               <div className="space-y-1.5">
                 <span className={`ml-1 ${spec.subGroupMeta}`}>变更后交期（当前 {formatYmd(order.dueDate || order.clientDate) || '—'}）</span>
-                <input
-                  type="date"
-                  className={spec.field}
+                <CapsuleDateInput
                   value={form.afterDeliveryDate ?? ''}
-                  onChange={(e) => setForm((p) => ({ ...p, afterDeliveryDate: e.target.value }))}
+                  onChange={(v) => setForm((p) => ({ ...p, afterDeliveryDate: v }))}
+                  isDarkMode={dark}
+                  className={spec.field}
                 />
               </div>
             )}
@@ -647,11 +647,11 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                 </div>
                 <div className="space-y-1.5">
                   <span className={`ml-1 ${spec.subGroupMeta}`}>预计恢复日期</span>
-                  <input
-                    type="date"
-                    className={spec.field}
+                  <CapsuleDateInput
                     value={form.expectedResumeDate ?? ''}
-                    onChange={(e) => setForm((p) => ({ ...p, expectedResumeDate: e.target.value }))}
+                    onChange={(v) => setForm((p) => ({ ...p, expectedResumeDate: v }))}
+                    isDarkMode={dark}
+                    className={spec.field}
                   />
                 </div>
               </>
@@ -720,7 +720,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                       className="bds-btn bds-btn-outline sm shrink-0 self-center"
                       title="MOQ fail-closed 阻断：正常路径为 MOQ 豁免审批链；确需例外放行时，按 DR-013 发起受控例外申请（审批中心自动预填本订单上下文）"
                     >
-                      <ShieldPlus size={13} strokeWidth={1.5} />
+                      <ShieldPlus size={14} strokeWidth={1.5} />
                       申请 MOQ 豁免例外
                     </button>
                   )}
@@ -740,7 +740,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                   className="bds-btn bds-btn-outline sm ml-auto shrink-0"
                   title="门禁阻断（GATE_BLOCKED）：按 DR-013 发起受控例外申请，审批中心自动预填本订单上下文"
                 >
-                  <ShieldPlus size={13} strokeWidth={1.5} />
+                  <ShieldPlus size={14} strokeWidth={1.5} />
                   申请受控例外
                 </button>
               )}
@@ -819,7 +819,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                     onClick={() => toggleExpand(cr)}
                     className={`inline-flex items-center gap-1 text-[11px] font-light ${spec.textMuted} hover:text-link`}
                   >
-                    {expanded ? <ChevronDown size={12} strokeWidth={1.5} /> : <ChevronRight size={12} strokeWidth={1.5} />}
+                    {expanded ? <ChevronDown size={14} strokeWidth={1.5} /> : <ChevronRight size={14} strokeWidth={1.5} />}
                     审批进度
                   </button>
                   {cr.status === 'Pending' && (
@@ -830,7 +830,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                       className="bds-btn bds-btn-ghost sm"
                       title="申请人撤回（仅待审批状态可撤回）"
                     >
-                      {busy ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} strokeWidth={1.5} />}
+                      {busy ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} strokeWidth={1.5} />}
                       撤回
                     </button>
                   )}
@@ -842,7 +842,7 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                       className="bds-btn bds-btn-outline sm"
                       title="审批通过后生效（幂等）"
                     >
-                      {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} strokeWidth={1.5} />}
+                      {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} strokeWidth={1.5} />}
                       生效
                     </button>
                   )}
@@ -853,12 +853,12 @@ export const OrderChangeRequestsSection: React.FC<OrderChangeRequestsSectionProp
                   <div className={`mt-3 border-t pt-3 ${spec.borderSubtle}`}>
                     {detailLoading && !detail && (
                       <div className={`flex items-center gap-2 ${spec.emptyText}`}>
-                        <Loader2 size={13} className="animate-spin" /> 加载审批进度…
+                        <Loader2 size={14} className="animate-spin" /> 加载审批进度…
                       </div>
                     )}
                     {detailError && !detail && (
                       <div className={spec.bannerDanger}>
-                        <AlertCircle size={13} />
+                        <AlertCircle size={14} />
                         <span>{detailError}</span>
                       </div>
                     )}

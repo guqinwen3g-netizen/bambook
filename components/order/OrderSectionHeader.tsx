@@ -38,7 +38,7 @@ const OrderSectionHeader: React.FC<OrderSectionHeaderProps> = ({
   return (
     <div className={wrapClassName ?? spec.headerWrap}>
       <div className="flex items-center gap-2.5 min-w-0">
-        {Icon && <Icon size={15} strokeWidth={1.5} className={`shrink-0 ${spec.headerIcon}`} />}
+        {Icon && <Icon size={16} strokeWidth={1.5} className={`shrink-0 ${spec.headerIcon}`} />}
         <div className="min-w-0">
           <p className={spec.kicker}>{kicker}</p>
           <h3 className={`${spec.sectionTitle} truncate`}>{title}</h3>
