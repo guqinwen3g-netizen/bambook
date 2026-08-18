@@ -2221,14 +2221,14 @@ const Assistant: React.FC<AssistantProps> = ({
                         setActiveAgentId('default');
                         startNewConversation();
                       }}
-                      className={`-mt-[10px] w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-full border flex items-center justify-center gap-1.5 text-xs font-light transition-all no-drag ${actionControlClass}`}
+                      className={`-mt-2.5 w-[calc(100%-4px)] mx-auto h-8 shrink-0 rounded-full border flex items-center justify-center gap-1.5 text-xs font-light transition-all no-drag ${actionControlClass}`}
                       title="新建对话"
                     >
-                      <Plus size={13} strokeWidth={1.5} className="shrink-0" />
+                      <Plus size={14} strokeWidth={1.5} className="shrink-0" />
                       <span>新建对话</span>
                     </button>
 
-                    <div className="-mt-[8px] flex flex-col min-h-0 shrink-0 space-y-1.5 no-drag">
+                    <div className="-mt-2 flex flex-col min-h-0 shrink-0 space-y-1.5 no-drag">
                       <div className={`px-2 text-[10px] uppercase ${BAMBOOK_OS.typography.tracking.overline} font-light ${labelTextClass}`}>Agent 功能</div>
                       <div className="relative min-h-0">
                         <ScrollEdgeFades scrollRef={agentScrollRef} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
@@ -2247,7 +2247,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                     : `hover:bg-[var(--hover-darken)] text-[var(--text-secondary)]`
                                 }`}
                               >
-                                <Icon size={14} strokeWidth={1.35} className={`shrink-0 ${
+                                <Icon size={14} strokeWidth={1.5} className={`shrink-0 ${
                                   isActive
                                     ? 'text-[var(--text-primary)]'
                                     : 'text-[var(--text-tertiary)]'
@@ -2317,7 +2317,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                         className={`h-8 w-8 rounded-control border flex items-center justify-center ${actionControlClass}`}
                                         title="取消"
                                       >
-                                        <X size={12} strokeWidth={1.4} />
+                                        <X size={14} strokeWidth={1.5} />
                                       </button>
                                       <button
                                         type="button"
@@ -2326,7 +2326,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                         className={`h-8 w-8 rounded-control border flex items-center justify-center disabled:opacity-40 ${actionControlClass}`}
                                         title="保存名称"
                                       >
-                                        <Check size={12} strokeWidth={1.4} />
+                                        <Check size={14} strokeWidth={1.5} />
                                       </button>
                                     </div>
                                   </div>
@@ -2350,7 +2350,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                          className={`p-0.5 transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]`}
                                          title="重命名"
                                        >
-                                         <Pencil size={11} strokeWidth={1.4} />
+                                         <Pencil size={14} strokeWidth={1.5} />
                                        </button>
                                        <button
                                          type="button"
@@ -2359,7 +2359,7 @@ const Assistant: React.FC<AssistantProps> = ({
                                          className={`p-0.5 transition-colors disabled:opacity-40 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
                                          title="删除"
                                        >
-                                         <Trash2 size={11} strokeWidth={1.4} />
+                                         <Trash2 size={14} strokeWidth={1.5} />
                                        </button>
                                      </div>
                                      {isActive && (
@@ -2385,7 +2385,7 @@ const Assistant: React.FC<AssistantProps> = ({
                       className={`w-full flex items-center gap-2 rounded-inset px-2.5 py-1.5 text-left transition-colors no-drag hover:bg-[var(--recessed-bg-hover)] text-[var(--text-tertiary)]`}
                       title="设置"
                     >
-                      <Settings size={14} strokeWidth={1.4} className="shrink-0" />
+                      <Settings size={14} strokeWidth={1.5} className="shrink-0" />
                       <span className="text-[11px] font-light">设置</span>
                     </button>
                   </div>
@@ -2395,11 +2395,11 @@ const Assistant: React.FC<AssistantProps> = ({
           {/* Resize Handler / Splitter between Dialogue and Workspace */}
           {isWorkspaceOpen && (
             <div
-              className="order-3 w-[5px] shrink-0 h-full cursor-col-resize transition-all relative group z-[50] no-drag"
+              className="order-3 w-1.5 shrink-0 h-full cursor-col-resize transition-all relative group z-[50] no-drag"
               onMouseDown={handleResizeStart}
             >
               {/* Inner visual separator line */}
-              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] group-hover:w-[2px] group-active:w-[2px] transition-all bg-[var(--recessed-bg-strong)] group-hover:bg-[var(--os-vnext-brand-blue-strong)]`} />
+              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-px group-hover:w-0.5 group-active:w-0.5 transition-all bg-[var(--recessed-bg-strong)] group-hover:bg-[var(--os-vnext-brand-blue-strong)]`} />
             </div>
           )}
 
@@ -2422,7 +2422,7 @@ const Assistant: React.FC<AssistantProps> = ({
                       title="后退"
                       aria-label="后退"
                     >
-                      <ArrowLeft size={15} strokeWidth={1.25} />
+                      <ArrowLeft size={16} strokeWidth={1.25} />
                     </button>
                     <button
                       type="button"
@@ -2431,7 +2431,7 @@ const Assistant: React.FC<AssistantProps> = ({
                       title="前进"
                       aria-label="前进"
                     >
-                      <ArrowRight size={15} strokeWidth={1.25} />
+                      <ArrowRight size={16} strokeWidth={1.25} />
                     </button>
                     <button
                       type="button"
@@ -2464,7 +2464,7 @@ const Assistant: React.FC<AssistantProps> = ({
                     title="收起工作区"
                     aria-label="收起工作区"
                   >
-                    <X size={15} strokeWidth={1.25} />
+                    <X size={16} strokeWidth={1.25} />
                   </button>
                 </div>
                 {workspaceItems.length > 0 && (
@@ -2501,7 +2501,7 @@ const Assistant: React.FC<AssistantProps> = ({
                             aria-label={`关闭 ${item.title}`}
                             title="关闭"
                           >
-                            <X size={10} strokeWidth={1.4} />
+                            <X size={14} strokeWidth={1.5} />
                           </button>
                         </div>
                       );
@@ -2523,7 +2523,7 @@ const Assistant: React.FC<AssistantProps> = ({
                             aria-label={activeWorkspaceItem.title}
                           >
                             <div className={`flex h-full flex-col items-center justify-center gap-3 text-xs ${quietTextClass}`}>
-                              <Paperclip size={28} strokeWidth={1.2} />
+                              <Paperclip size={24} strokeWidth={1.25} />
                               <span>{activeWorkspaceItem.title}</span>
                             </div>
                           </object>
@@ -2728,7 +2728,7 @@ const Assistant: React.FC<AssistantProps> = ({
                           </div>
                         ) : (
                           <div className={`flex h-full flex-col items-center justify-center gap-3 text-xs ${quietTextClass}`}>
-                            <Paperclip size={28} strokeWidth={1.2} />
+                            <Paperclip size={24} strokeWidth={1.25} />
                             <span>{activeWorkspaceItem.title}</span>
                           </div>
                         )}
@@ -2880,7 +2880,7 @@ const Assistant: React.FC<AssistantProps> = ({
           </div>
 
           {/* Center Column: Dialogue */}
-          <div className={`order-2 flex flex-col transition-all duration-300 ease-in-out overflow-hidden flex-1 min-w-[320px] sm:min-w-[400px] bg-[var(--recessed-bg-strong)]`}>
+          <div className={`order-2 flex flex-col transition-all duration-300 ease-in-out overflow-hidden flex-1 min-w-[20rem] sm:min-w-[25rem] bg-[var(--recessed-bg-strong)]`}>
           <div
             className={`min-h-12 shrink-0 border-b px-4 py-1.5 flex items-center justify-between gap-2 ${panelDividerClass} ${isAgentFullscreen && !isHistoryOpen ? 'pl-16' : ''}`}
             style={isAgentFullscreen ? { WebkitAppRegion: 'drag' } as React.CSSProperties : { WebkitAppRegion: 'no-drag' } as React.CSSProperties}
@@ -2892,7 +2892,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 title={isHistoryOpen ? "收起历史" : "展开历史"}
                 aria-label={isHistoryOpen ? "收起历史" : "展开历史"}
               >
-                {isHistoryOpen ? <PanelLeftClose size={15} strokeWidth={1.25} /> : <PanelLeftOpen size={15} strokeWidth={1.25} />}
+                {isHistoryOpen ? <PanelLeftClose size={16} strokeWidth={1.25} /> : <PanelLeftOpen size={16} strokeWidth={1.25} />}
               </button>
             </div>
             <div className="flex shrink-0 items-center gap-1.5 no-drag">
@@ -2903,7 +2903,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 title={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
                 aria-label={isWorkspaceOpen ? "收起工作区" : "展开工作区"}
               >
-                {isWorkspaceOpen ? <PanelRightClose size={15} strokeWidth={1.25} /> : <PanelRightOpen size={15} strokeWidth={1.25} />}
+                {isWorkspaceOpen ? <PanelRightClose size={16} strokeWidth={1.25} /> : <PanelRightOpen size={16} strokeWidth={1.25} />}
               </button>
               <button
                 type="button"
@@ -2912,7 +2912,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 title={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
                 aria-label={isTTSEnabled ? '关闭自动朗读' : '开启自动朗读'}
               >
-                {isTTSEnabled ? <Volume2 size={14} strokeWidth={1.35} /> : <VolumeX size={14} strokeWidth={1.35} />}
+                {isTTSEnabled ? <Volume2 size={14} strokeWidth={1.5} /> : <VolumeX size={14} strokeWidth={1.5} />}
               </button>
               <button
                 type="button"
@@ -2921,7 +2921,7 @@ const Assistant: React.FC<AssistantProps> = ({
                 aria-label={isAgentFullscreen ? "退出全屏 Agent" : "全屏 Agent"}
                 className={`h-8 w-8 shrink-0 rounded-compact border flex items-center justify-center transition-all ${actionControlClass}`}
               >
-                {isAgentFullscreen ? <Minimize2 size={15} strokeWidth={1.25} /> : <Maximize2 size={15} strokeWidth={1.25} />}
+                {isAgentFullscreen ? <Minimize2 size={16} strokeWidth={1.25} /> : <Maximize2 size={16} strokeWidth={1.25} />}
               </button>
             </div>
           </div>
@@ -2946,7 +2946,7 @@ const Assistant: React.FC<AssistantProps> = ({
                       {activeAttachment.mimeType.startsWith('image/') ? (
                         <img src={activeAttachment.previewUrl} alt={activeAttachment.name} className="h-full w-full object-cover" />
                       ) : (
-                        <Paperclip size={17} />
+                        <Paperclip size={16} />
                       )}
                     </div>
                     <div className="min-w-0">
@@ -2963,9 +2963,9 @@ const Assistant: React.FC<AssistantProps> = ({
                   : (AGENTS.find(a => a.id === activeAgentId) || AGENTS[0]);
                 const AgentIcon = currentAgent.icon;
                 return (
-                  <div className="flex min-h-[320px] flex-col items-center justify-center text-center px-4">
+                  <div className="flex min-h-80 flex-col items-center justify-center text-center px-4">
                     <div className="mb-4 text-os-adaptive-brand">
-                      <AgentIcon size={32} strokeWidth={1.2} />
+                      <AgentIcon size={24} strokeWidth={1.25} />
                     </div>
                     <div className={`text-sm font-light ${bodyTextClass}`}>{currentAgent.name}</div>
                     <div className={`mt-1 text-xs font-light ${quietTextClass}`}>{currentAgent.desc}</div>
@@ -3072,7 +3072,7 @@ const Assistant: React.FC<AssistantProps> = ({
                         }}
                         className={`absolute right-0 top-0 rounded-bl-xl p-0.5 bg-[var(--invert-bg)] text-[var(--invert-text)]`}
                       >
-                        <Plus size={11} className="rotate-45" />
+                        <Plus size={14} className="rotate-45" />
                       </button>
                     </div>
                   ))}
@@ -3126,12 +3126,12 @@ const Assistant: React.FC<AssistantProps> = ({
                   title={isVoiceRecording ? '停止语音输入' : '本地语音输入'}
                   aria-label={isVoiceRecording ? '停止语音输入' : '本地语音输入'}
                 >
-                  <Mic size={16} strokeWidth={1.3} />
+                  <Mic size={16} strokeWidth={1.25} />
                 </button>
                 <div className="min-w-0 flex-1" />
                 <div className={`relative h-8 rounded-field border ${fieldClass}`}>
                   <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2">
-                    <Cpu size={13} className="text-[var(--text-tertiary)]" />
+                    <Cpu size={14} className="text-[var(--text-tertiary)]" />
                   </div>
                   <select
                     value={selectedModel}
@@ -3141,7 +3141,7 @@ const Assistant: React.FC<AssistantProps> = ({
                     <option value={MODELS.ARK_CODE}>Ark Code</option>
                   </select>
                   <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
-                    <ChevronDown size={10} className="text-[var(--text-tertiary)]" />
+                    <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
                   </div>
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileSelect} />
