@@ -179,5 +179,7 @@ export async function writeFieldAuditDiff(params: {
 }
 
 export function actorIdFromRequest(req: any): string {
-  return req?.actor?.userId || req?.actor?.id || 'api';
+  // 'system' 哨兵与 seed 系统账号对齐（AuditLog.actorId 外键要求 UserAccount 行存在；
+  // 历史哨兵 'api' 无对应账号 → API-Key 审计写 FK 违约，已统一收敛为 'system'）
+  return req?.actor?.userId || req?.actor?.id || 'system';
 }

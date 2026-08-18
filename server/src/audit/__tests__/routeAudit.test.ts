@@ -44,10 +44,10 @@ describe('task_mqxxxu1g: writeRouteAuditLog（fail closed，支持事务内调�
 });
 
 describe('task_mqxxxu1g: actorIdFromRequest', () => {
-  it('三级回退 userId → id → api', () => {
+  it('三级回退 userId → id → system（哨兵与 seed 系统账号对齐，满足 AuditLog.actorId 外键）', () => {
     expect(actorIdFromRequest({ actor: { userId: 'u1' } })).toBe('u1');
     expect(actorIdFromRequest({ actor: { id: 'u2' } })).toBe('u2');
-    expect(actorIdFromRequest({})).toBe('api');
+    expect(actorIdFromRequest({})).toBe('system');
   });
 });
 

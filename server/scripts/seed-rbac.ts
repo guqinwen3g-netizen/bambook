@@ -25,6 +25,7 @@
  *   BAMBOOK_SEED_SUPER_ADMIN  — =1 时创建默认 SuperAdmin 账号（admin@bambook.local / bambook2026）
  */
 import path from 'path';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -264,6 +265,27 @@ async function seedDefaultSuperAdmin() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 5.5 系统哨兵账号（id='system'）
+//     审计链完整性兜底：AuditLog.actorId 对 UserAccount 有外键约束，
+//     无 JWT 上下文的系统/API-Key 调用统一落 'system' 哨兵（routeAudit.actorIdFromRequest /
+//     crmRoute.actorOf 同口径）。该账号 status='disabled' 不可登录，仅作为审计 FK 锚点。
+// ══════════════════════════════════════════════════════════════════════════════
+async function seedSystemSentinelAccount() {
+  await prisma.userAccount.upsert({
+    where: { id: 'system' },
+    update: { displayName: '系统服务', status: 'disabled' },
+    create: {
+      id: 'system',
+      displayName: '系统服务',
+      email: null,
+      passwordHash: await bcrypt.hash(crypto.randomUUID(), 12), // 随机口令，永不可登录
+      status: 'disabled',
+    },
+  });
+  console.log('[5.5/6] 系统哨兵账号：id=system（disabled，审计 FK 锚点）已就位');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // 6. 校验：生成一行摘要统计，确认 seed 结果非空
 // ══════════════════════════════════════════════════════════════════════════════
 async function verifySeed() {
@@ -295,6 +317,7 @@ async function main() {
   await seedPermissions();
   await seedRolePermissions();
   await seedDefaultSuperAdmin();
+  await seedSystemSentinelAccount();
   await verifySeed();
 
   console.log('══════════════════════ 完成 ══════════════════════\n');

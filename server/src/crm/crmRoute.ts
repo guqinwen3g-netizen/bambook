@@ -118,8 +118,10 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     if (onDataChange) onDataChange({ entity, action, ids });
   };
 
-  // P3b 新端点统一从 JWT 提取操作者（旧端点 req.actorId 依赖全局挂载，不在本次扩散修改）
-  const actorOf = (req: Request): string => extractActorFromRequest(req)?.userId || 'api';
+  // 统一从 JWT 提取操作者；无 JWT（API-Key/系统调用）落 'system' 哨兵
+  // （seed 保证 UserAccount 存在 id='system' 系统账号，满足 AuditLog.actorId 外键；
+  //   历史上这里与旧端点曾落 'api'，但 'api' 账号不存在 → 审计写 FK 违约，已统一收敛为 'system'）
+  const actorOf = (req: Request): string => extractActorFromRequest(req)?.userId || 'system';
 
   // ══════════════════════════════════════════════════════════════
   // 1. 联系人 Contact
@@ -139,7 +141,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.post('/:relationId/contacts', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      const contact = await service.createContact(req.params.relationId, req.body as ContactInput, (req as any).actorId || 'api');
+      const contact = await service.createContact(req.params.relationId, req.body as ContactInput, actorOf(req));
       notify('Contact', 'create', [contact.id]);
       res.status(201).json({ contact });
     } catch (e: any) {
@@ -162,7 +164,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.put('/contacts/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      const contact = await service.updateContact(req.params.id, req.body as Partial<ContactInput>, (req as any).actorId || 'api');
+      const contact = await service.updateContact(req.params.id, req.body as Partial<ContactInput>, actorOf(req));
       notify('Contact', 'update', [contact.id]);
       res.json({ contact });
     } catch (e: any) {
@@ -174,7 +176,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.delete('/contacts/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      await service.deleteContact(req.params.id, (req as any).actorId || 'api');
+      await service.deleteContact(req.params.id, actorOf(req));
       notify('Contact', 'delete', [req.params.id]);
       res.json({ ok: true });
     } catch (e: any) {
@@ -209,7 +211,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.post('/:relationId/credit-limit', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      const cl = await service.setCreditLimit(req.params.relationId, req.body as CreditLimitInput, (req as any).actorId || 'api');
+      const cl = await service.setCreditLimit(req.params.relationId, req.body as CreditLimitInput, actorOf(req));
       notify('CreditLimit', 'create', [cl.id]);
       res.status(201).json({ creditLimit: cl });
     } catch (e: any) {
@@ -222,7 +224,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { status } = req.body as { status: string };
-      const cl = await service.updateCreditLimitStatus(req.params.id, status, (req as any).actorId || 'api');
+      const cl = await service.updateCreditLimitStatus(req.params.id, status, actorOf(req));
       notify('CreditLimit', 'update', [cl.id]);
       res.json({ creditLimit: cl });
     } catch (e: any) {
@@ -251,7 +253,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     if (!authenticate(req, res)) return;
     if (!(await requireFollowUpWriteScope(req, res))) return; // DR-042 §6.2 跟进门禁（T-18/T-20）
     try {
-      const fu = await service.createFollowUp(req.params.relationId, req.body as FollowUpInput, (req as any).actorId || 'api');
+      const fu = await service.createFollowUp(req.params.relationId, req.body as FollowUpInput, actorOf(req));
       notify('FollowUpRecord', 'create', [fu.id]);
       res.status(201).json({ followUp: fu });
     } catch (e: any) {
@@ -274,7 +276,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.put('/follow-ups/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      const fu = await service.updateFollowUp(req.params.id, req.body as Partial<FollowUpInput>, (req as any).actorId || 'api');
+      const fu = await service.updateFollowUp(req.params.id, req.body as Partial<FollowUpInput>, actorOf(req));
       notify('FollowUpRecord', 'update', [fu.id]);
       res.json({ followUp: fu });
     } catch (e: any) {
@@ -285,7 +287,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.delete('/follow-ups/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      await service.deleteFollowUp(req.params.id, (req as any).actorId || 'api');
+      await service.deleteFollowUp(req.params.id, actorOf(req));
       notify('FollowUpRecord', 'delete', [req.params.id]);
       res.json({ ok: true });
     } catch (e: any) {
@@ -326,7 +328,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.post('/:relationId/opportunities', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      const opp = await service.createOpportunity(req.params.relationId, req.body as OpportunityInput, (req as any).actorId || 'api');
+      const opp = await service.createOpportunity(req.params.relationId, req.body as OpportunityInput, actorOf(req));
       notify('Opportunity', 'create', [opp.id]);
       res.status(201).json({ opportunity: opp });
     } catch (e: any) {
@@ -362,7 +364,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.put('/opportunities/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      const opp = await service.updateOpportunity(req.params.id, req.body as Partial<OpportunityInput>, (req as any).actorId || 'api');
+      const opp = await service.updateOpportunity(req.params.id, req.body as Partial<OpportunityInput>, actorOf(req));
       notify('Opportunity', 'update', [opp.id]);
       res.json({ opportunity: opp });
     } catch (e: any) {
@@ -374,7 +376,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { toStage } = req.body as { toStage: string };
-      const opp = await service.transitionOpportunityStage(req.params.id, toStage, (req as any).actorId || 'api');
+      const opp = await service.transitionOpportunityStage(req.params.id, toStage, actorOf(req));
       notify('Opportunity', 'transition', [opp.id]);
       res.json({ opportunity: opp });
     } catch (e: any) {
@@ -386,7 +388,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.delete('/opportunities/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      await service.deleteOpportunity(req.params.id, (req as any).actorId || 'api');
+      await service.deleteOpportunity(req.params.id, actorOf(req));
       notify('Opportunity', 'delete', [req.params.id]);
       res.json({ ok: true });
     } catch (e: any) {
@@ -421,7 +423,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.post('/:relationId/customer-tier', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      const tier = await service.assignCustomerTier(req.params.relationId, req.body as CustomerTierInput, (req as any).actorId || 'api');
+      const tier = await service.assignCustomerTier(req.params.relationId, req.body as CustomerTierInput, actorOf(req));
       notify('CustomerTier', 'create', [tier.id]);
       res.status(201).json({ customerTier: tier });
     } catch (e: any) {
@@ -433,7 +435,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
   router.delete('/customer-tier/:id', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
-      await service.deleteCustomerTier(req.params.id, (req as any).actorId || 'api');
+      await service.deleteCustomerTier(req.params.id, actorOf(req));
       notify('CustomerTier', 'delete', [req.params.id]);
       res.json({ ok: true });
     } catch (e: any) {
