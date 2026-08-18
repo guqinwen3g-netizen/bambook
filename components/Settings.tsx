@@ -6,13 +6,12 @@ import { storageService, type DeviceStorageReport } from '../services/storageSer
 import { getAuthState, changePassword, logout, hasPermission, updateMyProfile } from '../services/authService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Layout, BrainCircuit, Volume2, Shield,
+  Layout, BrainCircuit, Volume2,
   Monitor, Moon, Sun, DatabaseZap,
-  Bot, Cable, Server, Cpu, Globe, User, ArrowRight, LogOut,
+  Bot, Server, Cpu, Globe, User, ArrowRight, LogOut,
   HardDrive, RefreshCw, Trash2, Pencil, RotateCw, Image, Upload,
-  Sparkles, Ruler, Workflow, Building2
+  Sparkles, KeyRound
 } from 'lucide-react';
-import { AutomationRulesSection } from './AutomationRulesSection';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import { requestOsAdaptiveContrastRefresh } from './ui/osAdaptiveContrast';
@@ -30,7 +29,6 @@ import {
   CompiledSplitNavPanel,
   CompiledSplitWorkspace,
 } from './ui/primitives/compiledPrimitives';
-import { CompiledMoqThresholdsPanel } from './ui/osCompiler/compiledMoqThresholdsPanel';
 
 const ENABLE_WALLPAPER_SWITCHING = false;
 
@@ -42,7 +40,7 @@ export interface SettingsProps {
   isDarkMode?: boolean;
 }
 
-type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'api' | 'moq' | 'account' | 'automation' | 'security' | 'company';
+type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'account';
 type AvatarCropDraft = {
   src: string;
   fileName: string;
@@ -298,13 +296,8 @@ export const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: type
   { id: 'appearance', label: '外观', hint: '主题与显示', icon: Layout },
   { id: 'ai', label: 'AI 对话', hint: '模型与温度', icon: BrainCircuit },
   { id: 'voice', label: '朗读', hint: '自动播报语速', icon: Volume2 },
-  { id: 'sync', label: '同步', hint: '云端与知识库', icon: Globe },
-  { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive },
-  { id: 'moq', label: 'MOQ 阈值', hint: 'MOQ Thresholds', icon: Ruler },
-  { id: 'api', label: 'API', hint: '对外接口密钥', icon: Cable },
-  { id: 'automation', label: '自动化', hint: '业务流程联动规则', icon: Workflow },
-  { id: 'security', label: '安全', hint: '隐私与重置', icon: Shield },
-  { id: 'company', label: '公司抬头', hint: '出口方与银行信息', icon: Building2 }
+  { id: 'sync', label: '连接', hint: '云端与知识库连接', icon: Globe },
+  { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive }
 ];
 
 type CompiledSettingsPageBlueprint = {
@@ -1057,6 +1050,49 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
 
                   <div className={card + ' p-5 space-y-4'}>
                     <div className="flex items-center gap-2">
+                      <KeyRound size={18} strokeWidth={1.5} className={brandIconCls} />
+                      <span className={`text-sm font-light ${primaryTextCls}`}>本客户端凭据</span>
+                    </div>
+                    <p className={`text-xs ${weakTextCls}`}>
+                      本客户端连接后端 <code className="font-mono">/api/v1/*</code> 时使用的认证方式与密钥。
+                      生产环境请使用强密钥；对外访问策略由管理员在「管理后台 → 平台规则」维护。
+                    </p>
+                    <div>
+                      <div className={labelCls + ' mb-2'}>认证模式</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { id: 'auto' as const, name: '自动' },
+                          { id: 'required' as const, name: '必验' },
+                          { id: 'none' as const, name: '开放' }
+                        ]).map(authMode => (
+                          <button
+                            key={authMode.id}
+                            type="button"
+                            onClick={() => handleUpdate('sdkAuthMode', authMode.id)}
+                            className={`h-9 rounded-control text-xs font-light border transition-all ${localConfig.sdkAuthMode === authMode.id ? optionActiveCls : optionIdleCls}`}
+                          >
+                            {authMode.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {(localConfig.sdkAuthMode === 'auto' || localConfig.sdkAuthMode === 'required') && (
+                      <div>
+                        <label className={labelCls}>API Key</label>
+                        <input
+                          type="password"
+                          value={localConfig.sdkApiKey || ''}
+                          onChange={e => handleUpdate('sdkApiKey', e.target.value)}
+                          className={inputCls + ' mt-1 font-mono text-xs'}
+                          placeholder="与后端校验一致"
+                          autoComplete="off"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={card + ' p-5 space-y-4'}>
+                    <div className="flex items-center gap-2">
                       <DatabaseZap size={18} strokeWidth={1.5} className={brandIconCls} />
                       <span className={`text-sm font-light ${primaryTextCls}`}>知识库 API</span>
                     </div>
@@ -1117,62 +1153,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       </div>
                     ))}
                     {testLogs.length === 0 && <span className="opacity-40">尚无日志</span>}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'api' && (
-                <div className="space-y-6">
-                  <div className={card + ' p-5 space-y-4'}>
-                    <div className="flex items-center gap-2">
-                      <Bot size={18} strokeWidth={1.5} className={brandIconCls} />
-                      <span className={`text-sm font-light ${primaryTextCls}`}>Bambook API</span>
-                    </div>
-                    <p className={`text-xs ${weakTextCls}`}>
-                      后端 <code className="font-mono">/api/v1/*</code> 的访问策略（订单、关系、产品、导入等）。开发环境可使用默认 Key；生产环境请改为强密钥并限制网络。
-                    </p>
-
-                    <div>
-                      <div className={labelCls + ' mb-2'}>认证模式</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {([
-                          { id: 'auto' as const, name: '自动' },
-                          { id: 'required' as const, name: '必验' },
-                          { id: 'none' as const, name: '开放' }
-                        ]).map(mode => (
-                          <button
-                            key={mode.id}
-                            type="button"
-                            onClick={() => handleUpdate('sdkAuthMode', mode.id)}
-                            className={`h-9 rounded-control text-xs font-light border transition-all ${localConfig.sdkAuthMode === mode.id ? optionActiveCls : optionIdleCls}`}
-                          >
-                            {mode.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {(localConfig.sdkAuthMode === 'auto' || localConfig.sdkAuthMode === 'required') && (
-                      <div>
-                        <label className={labelCls}>API Key</label>
-                        <input
-                          type="password"
-                          value={localConfig.sdkApiKey || ''}
-                          onChange={e => handleUpdate('sdkApiKey', e.target.value)}
-                          className={inputCls + ' mt-1 font-mono text-xs'}
-                          placeholder="与后端校验一致"
-                          autoComplete="off"
-                        />
-                      </div>
-                    )}
-
-                      <div className={`text-[11px] font-mono space-y-1 pt-2 ${brandIconCls}`}>
-                      <div>GET  /api/v1/orders</div>
-                      <div>POST /api/v1/orders/import</div>
-                      <div>POST /api/v1/import/order</div>
-                      <div>GET  /api/v1/relations</div>
-                      <div>GET  /api/v1/products</div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -1267,10 +1247,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     )}
                   </div>
                 </div>
-              )}
-
-              {activeTab === 'moq' && (
-                <CompiledMoqThresholdsPanel />
               )}
 
               {activeTab === 'account' && (
@@ -1458,120 +1434,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {activeTab === 'automation' && (
-                <AutomationRulesSection isDarkMode={isDarkMode} />
-              )}
-
-              {activeTab === 'security' && (
-                <div className="space-y-8">
-                  <div className={card + ' p-5'}>
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <div className={`text-sm font-light ${primaryTextCls}`}>敏感信息脱敏（预留）</div>
-                        <p className={`text-xs mt-1 ${weakTextCls}`}>
-                          开关已保存；业务界面脱敏规则将在后续版本按模块接入。
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={localConfig.dataMasking}
-                        onClick={() => handleUpdate('dataMasking', !localConfig.dataMasking)}
-                        className={switchControlCls(Boolean(localConfig.dataMasking))}
-                      >
-                        <span className={switchSliderCls(Boolean(localConfig.dataMasking))} />
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-              )}
-
-              {activeTab === 'company' && (
-                <div className="space-y-6">
-                  <div className={`${card} p-5`}>
-                    <div className={`text-sm font-light ${primaryTextCls} mb-1`}>出口方/公司抬头</div>
-                    <p className={`text-xs ${weakTextCls} mb-4`}>
-                      用于 Commercial Invoice / Packing List / Contract / 报价单等外贸单据的抬头信息。修改后立即生效。
-                    </p>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <label className="flex flex-col gap-1.5">
-                        <span className={`text-xs font-light ${weakTextCls}`}>公司英文名（单据抬头）</span>
-                        <input
-                          className={inputCls}
-                          value={localConfig.exporterProfile?.nameEn ?? ''}
-                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, nameEn: e.target.value })}
-                          placeholder="JIANGSU PANDA CLOTHING CO.,LTD."
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className={`text-xs font-light ${weakTextCls}`}>受益人名（银行/保险单据）</span>
-                        <input
-                          className={inputCls}
-                          value={localConfig.exporterProfile?.beneficiary ?? ''}
-                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, beneficiary: e.target.value })}
-                          placeholder="JIANGSU PANDA CLOTHING CO.,LTD."
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5 sm:col-span-2">
-                        <span className={`text-xs font-light ${weakTextCls}`}>公司英文地址（多行用换行）</span>
-                        <textarea
-                          className={`${inputCls} min-h-[60px] resize-y`}
-                          value={localConfig.exporterProfile?.addressEn ?? ''}
-                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, addressEn: e.target.value })}
-                          placeholder="ROOM A1028 WUYUE PLAZA,&#10;ZHANGJIAGANG CITY, 215600 PR&#10;CHINA"
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className={`${card} p-5`}>
-                    <div className={`text-sm font-light ${primaryTextCls} mb-1`}>银行信息</div>
-                    <p className={`text-xs ${weakTextCls} mb-4`}>
-                      CI 付款条款引用的银行信息。
-                    </p>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <label className="flex flex-col gap-1.5">
-                        <span className={`text-xs font-light ${weakTextCls}`}>银行名称</span>
-                        <input
-                          className={inputCls}
-                          value={localConfig.exporterProfile?.bankName ?? ''}
-                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, bankName: e.target.value })}
-                          placeholder="BANK OF CHINA ZHANGJIAGANG SUB-BRANCH"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className={`text-xs font-light ${weakTextCls}`}>SWIFT Code</span>
-                        <input
-                          className={inputCls}
-                          value={localConfig.exporterProfile?.swiftCode ?? ''}
-                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, swiftCode: e.target.value })}
-                          placeholder="BKCHCNBJ95L"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5 sm:col-span-2">
-                        <span className={`text-xs font-light ${weakTextCls}`}>银行地址</span>
-                        <input
-                          className={inputCls}
-                          value={localConfig.exporterProfile?.bankAddress ?? ''}
-                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, bankAddress: e.target.value })}
-                          placeholder="111 MIDDLE RENMIN ROAD, ZHANGJIAGANG CITY, SUZHOU, JIANGSU PROV., P.R.CHINA."
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className={`text-xs font-light ${weakTextCls}`}>USD 账号</span>
-                        <input
-                          className={inputCls}
-                          value={localConfig.exporterProfile?.usdAccountNumber ?? ''}
-                          onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, usdAccountNumber: e.target.value })}
-                          placeholder="467668133096"
-                        />
-                      </label>
-                    </div>
-                  </div>
                 </div>
               )}
 

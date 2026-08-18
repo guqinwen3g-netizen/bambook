@@ -1,5 +1,5 @@
 /**
- * AutomationRulesSection — 自动化规则配置区段
+ * AutomationRulesSection — 自动化规则配置区段（AdminPanel「平台规则」Tab）
  *
  * 功能：
  *   1. 拉取后端 /api/v1/automation/rules 列表
@@ -7,8 +7,8 @@
  *   3. 乐观更新（toggle 即刻反映 UI，失败回滚）
  *   4. 加载骨架 / 错误重试 / 空态
  *
- * 设计：flat 无阴影、大圆角（rounded-control/card）、半透明膜色（backdrop-blur）
- * 与 Settings.tsx 其余 tab 共用 BAMBOOK_OS 设计 token，保证视觉一致。
+ * 2026-08-18 §1A 裁决：平台配置一律迁 AdminPanel（本组件自 Settings 整迁）。
+ * 设计：flat 无阴影、大圆角（rounded-control/card）、半透明膜色（backdrop-blur），BAMBOOK_OS token。
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -35,11 +35,7 @@ const EVENT_META: Record<string, EventMeta> = {
 
 const getEventMeta = (eventType: string): EventMeta => EVENT_META[eventType] || { label: eventType, Icon: Zap };
 
-interface AutomationRulesSectionProps {
-  isDarkMode: boolean;
-}
-
-export function AutomationRulesSection({ isDarkMode }: AutomationRulesSectionProps) {
+export function AutomationRulesSection() {
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

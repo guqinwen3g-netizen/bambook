@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Ruler, ShieldCheck, History, CircleAlert, CircleCheck } from 'lucide-react';
-import { BAMBOOK_OS } from '../bambookOsTokens';
-import { hasPermission } from '../../../services/authService';
+import { BAMBOOK_OS } from '../ui/bambookOsTokens';
+import { hasPermission } from '../../services/authService';
 import {
   moqService,
   type MoqConfigHistoryItem,
   type MoqFallbackValues,
   type MoqThresholdConfigItem,
   type MoqValidateLineVerdict,
-} from '../../../services/moqService';
+} from '../../services/moqService';
 
 /**
- * CompiledMoqThresholdsPanel — Settings「MOQ 阈值 / MOQ Thresholds」板块。
+ * MoqThresholdsPanel — AdminPanel「平台规则」Tab 的 MOQ 阈值板块。
+ *
+ * 2026-08-18 §1A 裁决：平台配置一律迁 AdminPanel（服务端真源 + RBAC），
+ * 本组件自 Settings 的 compiledMoqThresholdsPanel 提级重写为普通组件（清 FR-004 compiled 遗留）。
  *
  * 契约（server/src/moq/moqRoute.ts，fail-closed）：
  *   GET  /api/v1/moq/config   — 当前生效配置（登录可读；无 active → fallback 兜底常量）
@@ -56,7 +59,7 @@ const severityLabel = (v: MoqValidateLineVerdict): string => {
   return '缺口 ≤50%';
 };
 
-export const CompiledMoqThresholdsPanel: React.FC = () => {
+export const MoqThresholdsPanel: React.FC = () => {
   const canWrite = hasPermission('settings:moq:write');
 
   const [loadState, setLoadState] = useState<LoadState>('loading');
@@ -88,7 +91,8 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
   const actionControlCls = `h-9 rounded-full border text-xs ${BAMBOOK_OS.typography.weight.ui} transition-all ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const primaryTextCls = 'text-[var(--text-primary)]';
   const secondaryTextCls = BAMBOOK_OS.tone.text.quiet;
-  const weakTextCls = 'text-[var(--text-tertiary)]';
+  const weakTextCls = 'var(--text-tertiary)';
+  const weakTextClsClass = 'text-[var(--text-tertiary)]';
   const sectionDividerCls = BAMBOOK_OS.tone.divider.section;
   const iconWellCls = `flex h-9 w-9 shrink-0 items-center justify-center rounded-field border ${BAMBOOK_OS.tone.surface.quietIcon} border-[var(--border-c-subtle)] ${BAMBOOK_OS.tone.text.brandEmphasis}`;
 
@@ -202,14 +206,14 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6" data-os-compiler-section="moq-thresholds">
+    <div className="space-y-6">
       {/* 板块标题（中英双语） */}
-      <div className="px-7 pt-5 pb-4">
+      <div>
         <h3 className={`text-sm font-light ${primaryTextCls}`}>
           MOQ 阈值
-          <span className={`ml-2 text-xs ${weakTextCls}`}>MOQ Thresholds</span>
+          <span className={`ml-2 text-xs ${weakTextClsClass}`}>MOQ Thresholds</span>
         </h3>
-        <p className={`mt-1 text-xs leading-relaxed ${weakTextCls}`}>
+        <p className={`mt-1 text-xs leading-relaxed ${weakTextClsClass}`}>
           最小起订量全局治理：面料（米）/ 成衣（件）/ Capsule 豁免档（件）。调整后仅作用于新单据，不追溯已确认单据；每次变更强制留痕。
         </p>
       </div>
@@ -219,7 +223,7 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
         <div className="flex items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-2">
             <div className={iconWellCls}>
-              <Ruler size={17} strokeWidth={1.5} />
+              <Ruler size={16} strokeWidth={1.5} />
             </div>
             <span className={`text-sm font-light ${primaryTextCls}`}>当前生效配置</span>
           </div>
@@ -229,13 +233,13 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
             disabled={loadState === 'loading'}
             className={`px-3 inline-flex items-center gap-2 ${actionControlCls} disabled:opacity-50`}
           >
-            <RefreshCw size={14} strokeWidth={1.6} className={loadState === 'loading' ? 'animate-spin' : ''} />
+            <RefreshCw size={14} strokeWidth={1.75} className={loadState === 'loading' ? 'animate-spin' : ''} />
             刷新
           </button>
         </div>
 
         {loadState === 'loading' && (
-          <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextCls}`}>
+          <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextClsClass}`}>
             正在读取 MOQ 配置...
           </div>
         )}
@@ -243,7 +247,7 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
         {loadState === 'error' && (
           <div className="rounded-control border px-4 py-3 text-xs bg-[var(--danger-tint)] text-[var(--danger-text)] border-transparent">
             <div className="flex items-center gap-2">
-              <CircleAlert size={14} strokeWidth={1.6} />
+              <CircleAlert size={14} strokeWidth={1.75} />
               <span>{loadError}</span>
               <button
                 type="button"
@@ -261,7 +265,7 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
             {fallbackMessage && (
               <div className="mb-4 rounded-control border px-4 py-3 text-xs bg-[var(--warning-tint)] text-[var(--warning-text)] border-transparent">
                 <div className="flex items-center gap-2">
-                  <CircleAlert size={14} strokeWidth={1.6} />
+                  <CircleAlert size={14} strokeWidth={1.75} />
                   <span>{fallbackMessage}</span>
                 </div>
               </div>
@@ -276,7 +280,7 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
                   <div className={labelCls}>{tile.label}</div>
                   <div className={`mt-1 text-sm font-light ${primaryTextCls}`}>
                     <span className="font-mono">{formatQty(tile.value)}</span>
-                    <span className={`ml-1 text-[11px] ${weakTextCls}`}>{tile.unit}</span>
+                    <span className={`ml-1 text-[11px] ${weakTextClsClass}`}>{tile.unit}</span>
                   </div>
                 </div>
               ))}
@@ -304,11 +308,11 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
         <div className={card + ' p-5 space-y-4'}>
           <div className="flex items-center gap-2">
             <div className={iconWellCls}>
-              <ShieldCheck size={17} strokeWidth={1.5} />
+              <ShieldCheck size={16} strokeWidth={1.5} />
             </div>
             <div className="min-w-0">
               <div className={`text-sm font-light ${primaryTextCls}`}>调整阈值</div>
-              <p className={`mt-0.5 text-[11px] ${weakTextCls}`}>
+              <p className={`mt-0.5 text-[11px] ${weakTextClsClass}`}>
                 仅系统管理员可调；变更原因不少于 {CHANGE_REASON_MIN} 字，保存即写入 append-only 历史。
               </p>
             </div>
@@ -387,14 +391,14 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
               {saving ? '保存中...' : '保存变更'}
             </button>
             {valuesValid && !valuesChanged && (
-              <span className={`text-[11px] ${weakTextCls}`}>阈值与当前生效值一致，无需变更。</span>
+              <span className={`text-[11px] ${weakTextClsClass}`}>阈值与当前生效值一致，无需变更。</span>
             )}
           </div>
 
           {dryRunError && (
             <div className="rounded-control border px-4 py-3 text-xs bg-[var(--danger-tint)] text-[var(--danger-text)] border-transparent">
               <div className="flex items-center gap-2">
-                <CircleAlert size={14} strokeWidth={1.6} />
+                <CircleAlert size={14} strokeWidth={1.75} />
                 <span>{dryRunError}</span>
               </div>
             </div>
@@ -402,16 +406,16 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
 
           {dryRunResults && (
             <div className={`rounded-control border p-4 space-y-2 ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
-              <div className={`text-[11px] ${weakTextCls}`}>
+              <div className={`text-[11px] ${weakTextClsClass}`}>
                 dry-run 不写库、不建审批单：以现行阈值为基准数量，用拟变更阈值口径评估三条业务线。
               </div>
               {dryRunResults.map(({ probe, verdict }) => (
                 <div key={probe.key} className="flex items-center gap-3 text-xs">
                   {verdict.compliant
-                    ? <CircleCheck size={14} strokeWidth={1.6} className="text-[var(--success-text)] shrink-0" />
-                    : <CircleAlert size={14} strokeWidth={1.6} className="text-[var(--danger-text)] shrink-0" />}
+                    ? <CircleCheck size={14} strokeWidth={1.75} className="text-[var(--success-text)] shrink-0" />
+                    : <CircleAlert size={14} strokeWidth={1.75} className="text-[var(--danger-text)] shrink-0" />}
                   <span className={secondaryTextCls}>{probe.label}</span>
-                  <span className={`font-mono ${weakTextCls}`}>
+                  <span className={`font-mono ${weakTextClsClass}`}>
                     {formatQty(verdict.quantity)} {probe.unit} → 新阈值 {formatQty(verdict.effectiveMoq)} {probe.unit}
                   </span>
                   <span className={`ml-auto ${verdict.compliant ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'}`}>
@@ -433,7 +437,7 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
       )}
 
       {!canWrite && loadState === 'ready' && (
-        <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextCls}`}>
+        <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextClsClass}`}>
           当前账号无 settings:moq:write 权限，阈值仅系统管理员可调整；如需变更请联系管理员。
         </div>
       )}
@@ -442,7 +446,7 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
       <div className={card + ' p-5'}>
         <div className="flex items-center gap-2 mb-4">
           <div className={iconWellCls}>
-            <History size={17} strokeWidth={1.5} />
+            <History size={16} strokeWidth={1.5} />
           </div>
           <span className={`text-sm font-light ${primaryTextCls}`}>变更历史</span>
         </div>
@@ -450,7 +454,7 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
         {historyError && (
           <div className="rounded-control border px-4 py-3 text-xs bg-[var(--danger-tint)] text-[var(--danger-text)] border-transparent">
             <div className="flex items-center gap-2">
-              <CircleAlert size={14} strokeWidth={1.6} />
+              <CircleAlert size={14} strokeWidth={1.75} />
               <span>{historyError}</span>
               <button
                 type="button"
@@ -464,13 +468,13 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
         )}
 
         {!historyError && history === null && (
-          <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextCls}`}>
+          <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextClsClass}`}>
             正在读取变更历史...
           </div>
         )}
 
         {!historyError && history !== null && history.length === 0 && (
-          <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextCls}`}>
+          <div className={`rounded-control border p-4 text-xs ${BAMBOOK_OS.tone.surface.linkedPanel} ${weakTextClsClass}`}>
             暂无变更记录。
           </div>
         )}
@@ -480,20 +484,20 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
             {history.map(item => (
               <div key={item.id} className={`rounded-control border p-4 ${BAMBOOK_OS.tone.surface.linkedPanel}`}>
                 <div className="flex items-center justify-between gap-3">
-                  <span className={`font-mono text-[11px] ${weakTextCls}`}>{formatDateTime(item.changedAt)}</span>
+                  <span className={`font-mono text-[11px] ${weakTextClsClass}`}>{formatDateTime(item.changedAt)}</span>
                   <span className={`font-mono text-[11px] ${secondaryTextCls}`}>{item.changedBy}</span>
                 </div>
                 <div className={`mt-2 grid grid-cols-3 gap-3 text-[11px] ${secondaryTextCls}`}>
                   <div>
-                    <span className={weakTextCls}>面料（米） </span>
+                    <span className={weakTextClsClass}>面料（米） </span>
                     <span className="font-mono">{formatQty(item.beforeFabricDefaultMoq)} → {formatQty(item.afterFabricDefaultMoq)}</span>
                   </div>
                   <div>
-                    <span className={weakTextCls}>成衣（件） </span>
+                    <span className={weakTextClsClass}>成衣（件） </span>
                     <span className="font-mono">{formatQty(item.beforeGarmentDefaultMoq)} → {formatQty(item.afterGarmentDefaultMoq)}</span>
                   </div>
                   <div>
-                    <span className={weakTextCls}>Capsule（件） </span>
+                    <span className={weakTextClsClass}>Capsule（件） </span>
                     <span className="font-mono">{formatQty(item.beforeCapsuleMoq)} → {formatQty(item.afterCapsuleMoq)}</span>
                   </div>
                 </div>
@@ -506,3 +510,5 @@ export const CompiledMoqThresholdsPanel: React.FC = () => {
     </div>
   );
 };
+
+export default MoqThresholdsPanel;

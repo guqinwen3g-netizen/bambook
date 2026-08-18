@@ -7,9 +7,9 @@
 
 import { Router, Request, Response } from 'express';
 import { listAutomationRules, setRuleEnabled } from './automationConfig';
-import { actorIdFromRequest } from '../audit/routeAudit';
-import { writeRouteAuditLog } from '../audit/routeAudit';
+import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
+import { requirePermission } from '../auth/permissionGuard';
 
 export function createAutomationRouter(prisma: any): Router {
   const router = Router();
@@ -25,8 +25,8 @@ export function createAutomationRouter(prisma: any): Router {
     }
   });
 
-  // PATCH /api/v1/automation/rules/:id — 更新规则启用状态
-  router.patch('/rules/:id', async (req: Request, res: Response) => {
+  // PATCH /api/v1/automation/rules/:id — 更新规则启用状态（W7 设置域裁决：owner/admin 守卫）
+  router.patch('/rules/:id', requirePermission('settings:automation:write'), async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const { enabled } = req.body;

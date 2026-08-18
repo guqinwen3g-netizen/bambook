@@ -230,6 +230,7 @@ export const PERMISSION_SCOPES = {
   'order:internal_trade:write': '内部交易（内部面料结算价 DR-006）写入',
   'qc:fabric_chain:write': 'QC 面料链（DR-029）业务登记写入',
   'qc:garment_chain:write': 'QC 成衣链业务登记写入',
+  'settings:automation:write': '自动化规则配置写入（后台管理）',
 } as const satisfies Record<string, string>;
 
 export type PermissionScope = keyof typeof PERMISSION_SCOPES;
@@ -609,6 +610,7 @@ const ADMIN_BASE: RolePermissionMatrix = {
   'order:internal_trade:write': true,
   'qc:fabric_chain:write': true,
   'qc:garment_chain:write': true,
+  'settings:automation:write': true,
 };
 
 const QC_BASE: RolePermissionMatrix = {
