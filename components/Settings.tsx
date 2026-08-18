@@ -503,10 +503,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const selectedWallpaperCls = 'border-[var(--os-vnext-brand-blue)] shadow-none';
   const idleWallpaperCls = 'border-[var(--border-c-subtle)] hover:border-[var(--border-c-default)]';
   const rangeCls = 'bambook-settings-range w-full appearance-none cursor-pointer';
-  const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
-    ? BAMBOOK_OS.controls.selectedSurface.base
-    : 'border-transparent bg-[var(--recessed-bg-strong)] shadow-none'}`;
-  const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-[var(--bg-card)] shadow-none`;
+  const switchCls = (checked: boolean) => `bds-switch ${checked ? 'on' : ''}`;
 
   const modelId = localConfig.chatModelId || MODELS.FAST;
   const canOpenAgentPetWindow = Boolean(window.bambookAgent?.openPetWindow);
@@ -757,9 +754,9 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           onClick={() => handleUpdate('themeMode', mode)}
                           className={`p-4 rounded-control border flex flex-col items-center gap-2 transition-all ${localConfig.themeMode === mode ? optionActiveCls : optionIdleCls}`}
                         >
-                          {mode === 'light' && <Sun size={22} strokeWidth={1.2} />}
-                          {mode === 'dark' && <Moon size={22} strokeWidth={1.2} />}
-                          {mode === 'system' && <Monitor size={22} strokeWidth={1.2} />}
+                          {mode === 'light' && <Sun size={24} strokeWidth={1.75} />}
+                          {mode === 'dark' && <Moon size={24} strokeWidth={1.75} />}
+                          {mode === 'system' && <Monitor size={24} strokeWidth={1.75} />}
                           <span className="text-xs font-light">{mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '跟随系统'}</span>
                         </button>
                       ))}
@@ -771,7 +768,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-start gap-3">
                           <div className={`mt-0.5 ${iconWellCls}`}>
-                            <Globe size={18} strokeWidth={1.3} />
+                            <Globe size={18} strokeWidth={1.5} />
                           </div>
                           <div className="min-w-0">
                             <div className={`text-sm font-light ${primaryTextCls}`}>生产地球组件</div>
@@ -785,9 +782,8 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           role="switch"
                           aria-checked={isProductionGlobeEnabled}
                           onClick={() => handleUpdate('enableProductionGlobe', !isProductionGlobeEnabled)}
-                          className={switchControlCls(isProductionGlobeEnabled)}
+                          className={switchCls(isProductionGlobeEnabled)}
                         >
-                          <span className={switchSliderCls(isProductionGlobeEnabled)} />
                         </button>
                       </div>
                     </div>
@@ -795,7 +791,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-start gap-3">
                           <div className={`mt-0.5 ${iconWellCls}`}>
-                            <Sparkles size={18} strokeWidth={1.3} />
+                            <Sparkles size={18} strokeWidth={1.5} />
                           </div>
                           <div className="min-w-0">
                             <div className={`text-sm font-light ${primaryTextCls}`}>界面光效</div>
@@ -809,9 +805,8 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           role="switch"
                           aria-checked={isLightEffectsEnabled}
                           onClick={() => handleUpdate('enableLightEffects', !isLightEffectsEnabled)}
-                          className={switchControlCls(isLightEffectsEnabled)}
+                          className={switchCls(isLightEffectsEnabled)}
                         >
-                          <span className={switchSliderCls(isLightEffectsEnabled)} />
                         </button>
                       </div>
                     </div>
@@ -928,7 +923,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-start gap-3">
                         <div className={iconWellCls}>
-                          <Bot size={17} strokeWidth={1.6} />
+                          <Bot size={18} strokeWidth={1.75} />
                         </div>
                         <div className="min-w-0">
                           <div className={`text-sm font-light ${primaryTextCls}`}>Agent 宠物浮窗</div>
@@ -943,7 +938,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         disabled={!canOpenAgentPetWindow}
                         onClick={openAgentPetWindow}
                       >
-                        <Bot size={14} strokeWidth={1.7} />
+                        <Bot size={14} strokeWidth={1.5} />
                         {canOpenAgentPetWindow ? '打开浮窗' : '仅桌面端可用'}
                       </button>
                     </div>
@@ -1193,7 +1188,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         disabled={storageLoading}
                         className={`px-3 inline-flex items-center gap-2 ${actionControlCls} disabled:opacity-50`}
                       >
-                        <RefreshCw size={14} strokeWidth={1.6} className={storageLoading ? 'animate-spin' : ''} />
+                        <RefreshCw size={14} strokeWidth={1.5} className={storageLoading ? 'animate-spin' : ''} />
                         刷新
                       </button>
                     </div>
@@ -1293,7 +1288,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                                 className={`absolute -bottom-1 -right-1 z-20 flex h-8 w-7 cursor-pointer items-center justify-center rounded-full border opacity-0 shadow-none transition-all duration-200 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 ${avatarLoading ? 'pointer-events-none opacity-60' : 'hover:scale-105'} border-transparent bg-[var(--recessed-bg)] text-[var(--os-vnext-brand-blue-strong)]`}
                                 aria-label="编辑头像"
                               >
-                                <Pencil size={13} strokeWidth={1.6} />
+                                <Pencil size={14} strokeWidth={1.5} />
                                 <input
                                   type="file"
                                   accept="image/*"
@@ -1480,9 +1475,8 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         role="switch"
                         aria-checked={localConfig.dataMasking}
                         onClick={() => handleUpdate('dataMasking', !localConfig.dataMasking)}
-                        className={switchControlCls(Boolean(localConfig.dataMasking))}
+                        className={switchCls(Boolean(localConfig.dataMasking))}
                       >
-                        <span className={switchSliderCls(Boolean(localConfig.dataMasking))} />
                       </button>
                     </div>
                   </div>
@@ -1519,7 +1513,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       <label className="flex flex-col gap-1.5 sm:col-span-2">
                         <span className={`text-xs font-light ${weakTextCls}`}>公司英文地址（多行用换行）</span>
                         <textarea
-                          className={`${inputCls} min-h-[60px] resize-y`}
+                          className={`${inputCls} min-h-16 resize-y`}
                           value={localConfig.exporterProfile?.addressEn ?? ''}
                           onChange={e => handleUpdate('exporterProfile', { ...localConfig.exporterProfile, addressEn: e.target.value })}
                           placeholder="ROOM A1028 WUYUE PLAZA,&#10;ZHANGJIAGANG CITY, 215600 PR&#10;CHINA"
@@ -1592,7 +1586,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className={`${card} relative w-full max-w-[420px] p-5`}
+              className={`${card} relative w-full max-w-md p-5`}
             >
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>

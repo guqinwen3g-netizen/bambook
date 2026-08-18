@@ -72,17 +72,17 @@ describe('Settings permission visibility', () => {
     expect(BAMBOOK_OS.layout.panelShadowViewportClass).toBe('bambook-panel-shadow-viewport');
   });
 
-  it('renders boolean settings as iOS-style switches instead of segmented pills', () => {
-    expect(source).toContain('const switchControlCls = (checked: boolean) => `group relative inline-flex h-8 w-[58px]');
-    expect(source).toContain('BAMBOOK_OS.controls.selectedSurface.base');
+  it('renders boolean settings as BDS switches instead of segmented pills', () => {
+    expect(source).toContain('const switchCls = (checked: boolean) => `bds-switch');
+    expect(source).toContain("${checked ? 'on' : ''}");
     expect(source).not.toContain('border-[#7DB7FF]/20 bg-[rgba(74,144,226,0.30)]');
     expect(source).not.toContain('border-[#126DCC]/18 bg-[rgba(74,144,226,0.24)]');
     expect(source).not.toContain('inset_0_0_0_1px_rgba(255,255,255,0.018)');
     expect(source).not.toContain('inset_0_0_0_1px_rgba(255,255,255,0.08)');
-    expect(source).toContain("const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full");
-    expect(source).toContain("${checked ? 'translate-x-[18px]' : 'translate-x-0'}");
-    expect(source).toContain('className={switchControlCls(isProductionGlobeEnabled)}');
-    expect(source).toContain('className={switchControlCls(Boolean(localConfig.dataMasking))}');
+    expect(source).not.toContain('const switchSliderCls');
+    expect(source).not.toContain('const switchControlCls');
+    expect(source).toContain('className={switchCls(isProductionGlobeEnabled)}');
+    expect(source).toContain('className={switchCls(Boolean(localConfig.dataMasking))}');
     expect(source).not.toContain('const switchStatesCls');
     expect(source).not.toContain('const switchStateCls');
     expect(source).not.toContain('const switchStatesCls = \'absolute inset-0 z-10 grid grid-cols-2 items-center\'');
@@ -153,7 +153,7 @@ describe('Settings permission visibility', () => {
     expect(source).toContain('avatarUrl={user?.avatarUrl}');
     expect(source).toContain('group-hover/avatar:opacity-100');
     expect(source).toContain('aria-label="编辑头像"');
-    expect(source).toContain('<Pencil size={13}');
+    expect(source).toContain('<Pencil size={14}');
     expect(source).toContain('aria-label="头像裁切框"');
     expect(source).toContain('onPointerMove={handleAvatarCropPointerMove}');
     expect(source).toContain('value={avatarCrop.scale}');
