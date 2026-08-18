@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, AlertCircle, TrendingUp, TrendingDown, Users, UserCheck, Scale, BellRing, Clock, FlaskConical, BarChart3 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import type { BusinessCockpit } from '../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -93,7 +94,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const grid = 'grid w-full min-w-0 grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(0,0.7fr))]';
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<UserCheck size={13} strokeWidth={1.4} />, '销售业绩排行', 'SALES LEADERBOARD')}
+        {sectionTitle(<UserCheck size={14} strokeWidth={1.5} />, '销售业绩排行', 'SALES LEADERBOARD')}
         <div className={cx(grid, 'px-4 pb-1.5 pt-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
           <div>业务员</div>
           <div className="text-right">币种</div>
@@ -128,7 +129,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (!data) return null;
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<Users size={13} strokeWidth={1.4} />, '客户贡献度', 'CUSTOMER SHARE')}
+        {sectionTitle(<Users size={14} strokeWidth={1.5} />, '客户贡献度', 'CUSTOMER SHARE')}
         <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {data.customerContribution.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>该期间无订单</div>
@@ -172,7 +173,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const grid = 'grid w-full min-w-0 grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_repeat(6,minmax(0,0.62fr))]';
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<Scale size={13} strokeWidth={1.4} />, '订单毛利表', 'ORDER MARGIN')}
+        {sectionTitle(<Scale size={14} strokeWidth={1.5} />, '订单毛利表', 'ORDER MARGIN')}
         <div className={cx(grid, 'px-4 pb-1.5 pt-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
           <div>订单 / 客户</div>
           <div>产品</div>
@@ -254,7 +255,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     );
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<BellRing size={13} strokeWidth={1.4} />, '应收应付预警', 'AR/AP OVERDUE')}
+        {sectionTitle(<BellRing size={14} strokeWidth={1.5} />, '应收应付预警', 'AR/AP OVERDUE')}
         <div className="flex min-h-0 divide-x divide-transparent">
           {oneSide('应收逾期 TOP5', data.arApAlerts.receivable)}
           {oneSide('应付逾期 TOP5', data.arApAlerts.payable)}
@@ -280,7 +281,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     };
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<BarChart3 size={13} strokeWidth={1.4} />, '订单状态分布', 'ORDER STATUS')}
+        {sectionTitle(<BarChart3 size={14} strokeWidth={1.5} />, '订单状态分布', 'ORDER STATUS')}
         <div className="min-h-0 space-y-1.5 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {buckets.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>该期间无订单</div>
@@ -317,7 +318,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const alerts = data.deliveryAlerts;
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<Clock size={13} strokeWidth={1.4} />, '交付预警', 'DELIVERY ALERTS')}
+        {sectionTitle(<Clock size={14} strokeWidth={1.5} />, '交付预警', 'DELIVERY ALERTS')}
         <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {alerts.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>7 天内无交付预警</div>
@@ -347,7 +348,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     const alerts = data.sampleProgressAlerts;
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<FlaskConical size={13} strokeWidth={1.4} />, '样品进度预警', 'SAMPLE PROGRESS')}
+        {sectionTitle(<FlaskConical size={14} strokeWidth={1.5} />, '样品进度预警', 'SAMPLE PROGRESS')}
         <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {alerts.length === 0 && (
             <div className={cx('py-5 text-center font-light', textFaint)}>无逾期样衣案件</div>
@@ -379,7 +380,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     if (points.length === 0) {
       return (
         <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-          {sectionTitle(<TrendingUp size={13} strokeWidth={1.4} />, '汇率走势', 'FX TREND')}
+          {sectionTitle(<TrendingUp size={14} strokeWidth={1.5} />, '汇率走势', 'FX TREND')}
           <div className={cx('py-5 text-center text-xs font-light', textFaint)}>暂无汇率数据</div>
         </div>
       );
@@ -392,7 +393,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
     }
     return (
       <div className="bds-card flex min-h-0 flex-col" style={{ padding: 0 }}>
-        {sectionTitle(<TrendingUp size={13} strokeWidth={1.4} />, '汇率走势', 'FX TREND')}
+        {sectionTitle(<TrendingUp size={14} strokeWidth={1.5} />, '汇率走势', 'FX TREND')}
         <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain px-3 py-2 text-xs">
           {[...byCurrency.entries()].map(([currency, pts]) => {
             const rates = pts.map(p => p.rate);
@@ -445,7 +446,7 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
       <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
         <div className="bds-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
           <div className={cx('flex items-center gap-1.5 text-[10px] font-light tracking-[0.14em]', textSecondary)}>
-            {fxGain ? <TrendingUp size={11} strokeWidth={1.4} /> : <TrendingDown size={11} strokeWidth={1.4} />}
+            {fxGain ? <TrendingUp size={14} strokeWidth={1.5} /> : <TrendingDown size={14} strokeWidth={1.5} />}
             汇兑净{fxGain ? '收益' : '损失'} · {data.fxSummary.baseCurrency}
           </div>
           <div className={cx('bds-tnum mt-1.5 text-lg font-light', fxGain ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]')}>
@@ -487,14 +488,14 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
         isDarkMode={isDarkMode}
       />
       <main className="min-h-0 flex-1 px-7 pb-5">
-        <div className="flex h-full min-h-0 flex-col gap-2.5">
+        <div className="flex h-full min-h-0 flex-col gap-3">
           {/* 工具条：区间 + 查询 */}
           <div className="flex min-h-0 shrink-0 items-center gap-2">
             <div className="bds-filterbar">
               <span className={cx('px-2 text-[10px] font-light tracking-[0.14em]', textSecondary)}>统计区间</span>
-              <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={inputCls} aria-label="开始日期" />
+              <CapsuleDateInput value={from} onChange={setFrom} isDarkMode={isDarkMode} className={inputCls} placeholder="开始日期" />
               <span className={cx('text-[10px]', textFaint)}>至</span>
-              <input type="date" value={to} onChange={e => setTo(e.target.value)} className={inputCls} aria-label="结束日期" />
+              <CapsuleDateInput value={to} onChange={setTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
               <button type="button" onClick={load} className="bds-btn bds-btn-secondary">查询</button>
             </div>
             {data && (
@@ -506,24 +507,24 @@ export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
 
           {loading ? (
             <div className="flex flex-1 items-center justify-center">
-              <Loader2 size={18} strokeWidth={1.4} className={cx('animate-spin', textFaint)} />
+              <Loader2 size={18} strokeWidth={1.75} className={cx('animate-spin', textFaint)} />
             </div>
           ) : error ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2">
-              <AlertCircle size={18} strokeWidth={1.2} className="text-[var(--danger-text)]" />
+              <AlertCircle size={18} strokeWidth={1.25} className="text-[var(--danger-text)]" />
               <div className={cx('text-xs font-light', textSecondary)}>{error}</div>
             </div>
           ) : (
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 overflow-y-auto overscroll-contain xl:grid-cols-2">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overscroll-contain xl:grid-cols-2">
               <div className="col-span-full">{renderKpis()}</div>
-              <div className="min-h-[200px]">{renderSalesLeaderboard()}</div>
-              <div className="min-h-[200px]">{renderCustomerContribution()}</div>
-              <div className="col-span-full min-h-[260px]">{renderOrderMargins()}</div>
-              <div className="min-h-[180px]">{renderOrderStatus()}</div>
-              <div className="min-h-[180px]">{renderFxTrend()}</div>
-              <div className="min-h-[180px]">{renderDeliveryAlerts()}</div>
-              <div className="min-h-[180px]">{renderSampleAlerts()}</div>
-              <div className="col-span-full min-h-[200px]">{renderArApAlerts()}</div>
+              <div className="bds-well">{renderSalesLeaderboard()}</div>
+              <div className="bds-well">{renderCustomerContribution()}</div>
+              <div className="col-span-full bds-well--lg">{renderOrderMargins()}</div>
+              <div className="bds-well--sm">{renderOrderStatus()}</div>
+              <div className="bds-well--sm">{renderFxTrend()}</div>
+              <div className="bds-well--sm">{renderDeliveryAlerts()}</div>
+              <div className="bds-well--sm">{renderSampleAlerts()}</div>
+              <div className="col-span-full bds-well">{renderArApAlerts()}</div>
             </div>
           )}
         </div>
