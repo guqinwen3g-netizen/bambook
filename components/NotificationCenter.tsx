@@ -544,7 +544,7 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
           {/* bds-ok: 通知抽屉面板宽度 420px，功能性固定面板宽，无刻度对应 */}
           <div
             ref={drawerRef}
-            className={`fixed right-0 top-0 z-[90] flex h-full w-[420px] flex-col overflow-hidden rounded-l-panel border-l backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+            className={`fixed right-0 top-0 z-[90] flex h-full w-[26.25rem] flex-col overflow-hidden rounded-l-panel border-l backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
               bg-[var(--bg-card)] border-[var(--border-c-default)] text-[var(--text-primary)]
             `}
             style={{
