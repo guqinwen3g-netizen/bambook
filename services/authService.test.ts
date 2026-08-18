@@ -111,7 +111,7 @@ describe('authService checkAuth', () => {
     });
   });
 
-  it('keeps the cached user in dev when a session refresh returns unauthorized', async () => {
+  it('drops the cached user in dev when a session refresh returns 401 (session definitively dead)', async () => {
     localStorage.setItem('bambook_auth_token', 'token-1');
     localStorage.setItem('bambook_auth_user', JSON.stringify({
       id: 'u1',
@@ -132,11 +132,10 @@ describe('authService checkAuth', () => {
 
     await expect(checkAuth()).resolves.toMatchObject({
       isLoading: false,
-      isAuthenticated: true,
-      user: { displayName: 'Cached User' },
+      isAuthenticated: false,
+      user: null,
     });
-    expect(getAuthState().isAuthenticated).toBe(true);
-    expect(localStorage.getItem('bambook_auth_user')).toContain('Cached User');
+    expect(getAuthState().isAuthenticated).toBe(false);
   });
 
   it('logs in against the default cloud API when no endpoint is stored', async () => {

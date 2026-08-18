@@ -105,8 +105,11 @@ function getStoredAuthToken(): string {
 }
 
 function keepCachedAuthOnRefreshFailure(status?: number): boolean {
+  if (!status) return true; // 无状态=网络/离线故障：任何环境都宽容保留缓存
+  // 401=服务端明确判定会话失效：任何环境都必须登出（DEV 保留缓存会导致
+  // “界面显示已登录、JWT 接口却处处 401”的假登录状态）
+  if (status === 401) return false;
   if (import.meta.env.DEV) return true;
-  if (!status) return true;
   return status >= 500 || status === 408 || status === 429;
 }
 
