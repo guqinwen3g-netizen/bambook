@@ -274,7 +274,7 @@ export const PRODUCT_TITLE_ACTION_BUTTON_CLASS = COMPILED_MODULE_TITLE_ACTION_BU
 export const PRODUCT_TITLE_BUTTON_CLASS = BAMBOOK_OS.controls.actionControl.base;
 export const PRODUCT_CATEGORY_CARD_GRID_CLASS = COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS;
 export const PRODUCT_CARD_GRID_CLASS = COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS;
-export const PRODUCT_CARD_CLASS = 'p-6 h-[220px] rounded-card-lg';
+export const PRODUCT_CARD_CLASS = 'p-6 h-56 rounded-card-lg';
 export const PRODUCT_CARD_SURFACE_CLASS = 'bds-surface';
 export const PRODUCT_CARD_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight.cardDarkColor;
 export const PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.cardLightColor;
@@ -282,7 +282,7 @@ export const PRODUCT_CARD_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.spotlight.panelDarkSi
 export const PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE = BAMBOOK_OS.spotlight.panelLightSize;
 export const PRODUCT_CARD_LAYOUT_TRANSITION = BAMBOOK_OS.motion.layoutTransition;
 export const PRODUCT_SUB_INDEX_PANEL_CLASS = `${OS_MATERIAL.framePanel} rounded-card border overflow-hidden`;
-export const PRODUCT_SUB_INDEX_ROW_CLASS = 'h-[72px] border-b last:border-b-0';
+export const PRODUCT_SUB_INDEX_ROW_CLASS = 'min-h-[4.5rem] border-b last:border-b-0';
 export const PRODUCT_EDGE_FADE_TOP_HEIGHT = 56;
 export const PRODUCT_EDGE_FADE_TOP_START = 0;
 export const PRODUCT_EDGE_FADE_BOTTOM_HEIGHT = 72;
@@ -327,7 +327,7 @@ export const compileProductsPage = (): CompiledProductsPageBlueprint => ({
   },
   form: {
     mapMaterialRole: 'raisedCard',
-    scrollViewportClassName: `bambook-product-form-scroll-viewport min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`,
+    scrollViewportClassName: `bambook-product-form-scroll-viewport min-w-0 -mt-[7rem] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`,
     edgeFade: {
       topHeight: 57,
       topFadeStartOffset: 58,
@@ -534,7 +534,7 @@ const CertificationCheckboxes: React.FC<{
           <label key={opt.id} className="flex items-center gap-1.5 cursor-pointer">
             <div className={boxCls(checked.has(opt.id))} onClick={() => toggle(opt.id)}>
               {checked.has(opt.id) && (
-                <svg className="w-3 h-3 text-white mx-auto mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <svg className="w-3 h-3 text-white mx-auto mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               )}
@@ -2022,7 +2022,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       header: '名称',
       widthClass: 'w-[16%]',
       render: (product: ProductAsset) => (
-        <div className="px-4 py-3 min-w-[180px]">
+        <div className="px-4 py-3 min-w-44">
           <div className={`font-light text-[var(--text-primary)]`}>{product.name}</div>
           <div className={`text-[var(--text-tertiary)] mt-1`}>{product.status}</div>
         </div>
@@ -2044,13 +2044,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       id: 'millOrg',
       header: selectedMain === 'Garment' ? '工厂' : '供应商',
       widthClass: 'w-[12%]',
-      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-[140px]">{productSupplierText(product)}</div>,
+      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-36">{productSupplierText(product)}</div>,
     },
     {
       id: 'clientCode',
       header: selectedMain === 'Garment' ? '客户' : selectedMain === 'Trimmings' ? '客户/品牌' : 'Client Code',
       widthClass: 'w-[12%]',
-      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-[140px]">{productCustomerText(product)}</div>,
+      render: (product: ProductAsset) => <div className="px-4 py-3 min-w-36">{productCustomerText(product)}</div>,
     },
     {
       id: 'factoryPrice',
@@ -2079,9 +2079,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       header: '补全',
       widthClass: 'w-[11%]',
       render: (product: ProductAsset) => (
-        <div className="px-4 py-3 min-w-[140px]">
+        <div className="px-4 py-3 min-w-36">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-light ${productStatusChipClass(productCompleteness(product).complete)}`}>
-            {productCompleteness(product).complete ? <CheckCircle2 size={12} strokeWidth={1.5} /> : <AlertTriangle size={12} strokeWidth={1.5} />}
+            {productCompleteness(product).complete ? <CheckCircle2 size={14} strokeWidth={1.5} /> : <AlertTriangle size={14} strokeWidth={1.5} />}
             {productCompleteness(product).complete ? '完整' : `缺 ${productCompleteness(product).missing.length} 项`}
           </span>
           {!productCompleteness(product).complete && (
@@ -2130,7 +2130,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           surface="toolbar"
           triggerVariant="inline"
           menuPortal
-          className="relative z-20 w-[148px] shrink-0"
+          className="relative z-20 w-36 shrink-0"
         />
         </div>
       </CompiledInteractiveCard>
@@ -2159,7 +2159,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
         />
       </div>
 
-      <div className="w-[170px] shrink-0">
+      <div className="w-44 shrink-0">
         <CompiledSelectControl
           value={productSortValue}
           onChange={(value) => {
@@ -2183,9 +2183,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           aria-label={listDisplayMode === 'grid' ? '切换到表格视图' : '切换到格子视图'}
         >
           {listDisplayMode === 'grid' ? (
-            <List size={13} strokeWidth={1.5} />
+            <List size={14} strokeWidth={1.5} />
           ) : (
-            <LayoutGrid size={13} strokeWidth={1.5} />
+            <LayoutGrid size={14} strokeWidth={1.5} />
           )}
         </button>
       </div>
@@ -2726,14 +2726,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center"
                 aria-label="返回上一级"
               >
-                <ChevronLeft size={18} strokeWidth={1} />
+                <ChevronLeft size={18} strokeWidth={1.5} />
               </button>
               </CompiledInteractiveCard>
             )}
             {selectedMain && (
               <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
                 <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
-                  <ChevronRight size={18} strokeWidth={1.4} />
+                  <ChevronRight size={18} strokeWidth={1.5} />
                 </span>
                 <button
                   type="button"
@@ -2750,7 +2750,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 {(navLevel === 'list' || navLevel === 'detail') && selectedSubId && (
                   <>
                     <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
-                      <ChevronRight size={18} strokeWidth={1.4} />
+                      <ChevronRight size={18} strokeWidth={1.5} />
                     </span>
                     {navLevel === 'detail' ? (
                       <button
@@ -2804,7 +2804,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   data-ui-lab-wallpaper-contrast="primary"
                   className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2 disabled:opacity-55"
                 >
-                  <RefreshCw size={14} strokeWidth={1} className={pdmlRawSyncing ? 'animate-spin' : ''} /> 同步庞大
+                  <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawSyncing ? 'animate-spin' : ''} /> 同步庞大
                 </button>
               </CompiledInteractiveCard>
               <CompiledInteractiveCard
@@ -2820,7 +2820,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   data-ui-lab-wallpaper-contrast="primary"
                   className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2 disabled:opacity-55"
                 >
-                  <RefreshCw size={14} strokeWidth={1} className={pdmlRawMapping ? 'animate-spin' : ''} /> 映射入档案
+                  <RefreshCw size={14} strokeWidth={1.5} className={pdmlRawMapping ? 'animate-spin' : ''} /> 映射入档案
                 </button>
               </CompiledInteractiveCard>
             </>
@@ -2834,7 +2834,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               className={`${PRODUCT_TITLE_ACTION_BUTTON_CLASS} ${productActionButtonClass}`}
             >
               <button onClick={() => setShowAddProdModal(true)} data-ui-lab-wallpaper-contrast="primary" className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center gap-2">
-                <Plus size={14} strokeWidth={1} /> 录入档案
+                <Plus size={14} strokeWidth={1.5} /> 录入档案
               </button>
             </CompiledInteractiveCard>
           )}
@@ -2870,11 +2870,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 idleSpotlightOpacity={0}
                 liquidSpotlight
                 liquidSpotlightTone="light"
-                className={`group relative isolate overflow-hidden ${isMobile ? 'p-4 h-[190px] rounded-inset' : 'p-6 h-[220px] rounded-card-lg'} flex flex-col items-start text-left transition-colors duration-200 ${productCardClass}`}
+                className={`group relative isolate overflow-hidden ${isMobile ? 'p-4 h-[190px] rounded-inset' : 'p-6 h-56 rounded-card-lg'} flex flex-col items-start text-left transition-colors duration-200 ${productCardClass}`}
                 data-glass-edge-mask
               >
                 <div className={`relative z-10 -ml-1 -mt-1 ${isMobile ? 'mb-3 flex h-9 w-9' : 'mb-4 flex h-10 w-10'} items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
-                  <cat.icon size={24} strokeWidth={1} />
+                  <cat.icon size={24} strokeWidth={1.5} />
                 </div>
 
                 <h3 className={`relative z-10 ${isMobile ? 'text-sm' : 'text-base'} font-light tracking-tight text-[var(--text-primary)]`}>
@@ -2886,7 +2886,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
                 <div className={`relative z-10 mt-auto flex items-center gap-2 pt-4 border-t w-full border-[var(--border-c-subtle)]`}>
                   <span className={`text-[9px] font-light tracking-wide flex items-center gap-1.5 text-[var(--text-tertiary)]`}>
-                    <Library size={12} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue-strong)]" />
+                    <Library size={14} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue-strong)]" />
                     {products.filter(p => p.mainCategory === cat.id && !p.deletedAt).length} SKU 档案
                   </span>
                 </div>
@@ -2918,8 +2918,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
             )}
           >
                 {categoryGroups.length === 0 && (
-                  <div className={`flex min-h-[360px] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
-                    <Archive size={34} strokeWidth={1} className={'text-[var(--text-tertiary)]'} />
+                  <div className={`flex min-h-[22.5rem] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
+                    <Archive size={24} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
                     <div className={`mt-4 text-sm font-light text-[var(--text-primary)]`}>当前分类暂无索引</div>
                     <div className="mt-2 max-w-sm text-xs font-light leading-relaxed">
                       这个主类目还没有子分类或可分组档案。请前往数字档案模块设置管理分类，或返回选择有数据的类目。
@@ -2959,12 +2959,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     className={`group relative isolate cursor-pointer overflow-hidden ${PRODUCT_SUB_INDEX_ROW_CLASS} px-4 py-0 text-left transition-[background,box-shadow,color,transform] duration-200 border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
                     data-glass-edge-mask
                   >
-                    <div className="relative z-10 grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] md:gap-5">
+                    <div className="relative z-10 grid min-h-[4.5rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[minmax(0,1.35fr)_120px_minmax(180px,0.9fr)_108px] md:gap-5">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className={`flex h-8 w-8 shrink-0 items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
                           {group.id === UNCATEGORIZED_CATEGORY_ID
-                            ? <Archive size={20} strokeWidth={1} />
-                            : <LayoutGrid size={20} strokeWidth={1} />
+                            ? <Archive size={20} strokeWidth={1.5} />
+                            : <LayoutGrid size={20} strokeWidth={1.5} />
                           }
                         </div>
                         <div className="min-w-0">
@@ -3000,7 +3000,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`编辑${group.name}`}
                             >
-                              <Edit2 size={13} strokeWidth={1.4} />
+                              <Edit2 size={14} strokeWidth={1.5} />
                             </button>
                             <button
                               type="button"
@@ -3011,11 +3011,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               className={`flex h-8 w-8 items-center justify-center rounded-control transition-all ${productActionButtonClass} ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                               aria-label={`删除${group.name}`}
                             >
-                              <Trash2 size={13} strokeWidth={1.4} />
+                              <Trash2 size={14} strokeWidth={1.5} />
                             </button>
                           </>
                         )}
-                        <ChevronRight size={16} strokeWidth={1.4} className="text-[var(--text-tertiary)]" />
+                        <ChevronRight size={16} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
                       </div>
                     </div>
                   </CompiledMotionInteractiveCard>
@@ -3138,12 +3138,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       idleSpotlightOpacity={0}
                       liquidSpotlight
                       liquidSpotlightTone="light"
-                      className={`group relative isolate overflow-hidden p-6 h-[220px] rounded-card-lg text-left transition-colors duration-200 ${productCardClass}`}
+                      className={`group relative isolate overflow-hidden p-6 h-56 rounded-card-lg text-left transition-colors duration-200 ${productCardClass}`}
                       data-glass-edge-mask
                     >
                       <div className="relative z-10 flex justify-between items-start mb-3">
                         <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
-                          <Library size={22} strokeWidth={1} />
+                          <Library size={24} strokeWidth={1.5} />
                         </div>
                         <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(productCompleteness(product).complete)}`}>
                           {productCompleteness(product).complete ? '完整' : `待补 ${productCompleteness(product).missing.length}`}
@@ -3159,11 +3159,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
                       <div className="relative z-10 mt-3 space-y-1.5 flex-1 min-h-0">
                         <div className={`flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)]`}>
-	                          <Tag size={12} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
+	                          <Tag size={14} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
 	                          <span className="truncate">{productCategoryText(product)}</span>
                         </div>
                         <div className={`flex items-center gap-2 text-xs font-light text-[var(--text-tertiary)]`}>
-                          <Box size={12} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
+                          <Box size={14} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
 	                          <span className="truncate">{productSupplierText(product)}</span>
                         </div>
                       </div>
@@ -3180,8 +3180,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   ))}
                 </AnimatePresence>
                 {currentProducts.length === 0 && (
-                  <div className={`col-span-full flex min-h-[360px] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
-                    <Archive size={34} strokeWidth={1} className={'text-[var(--text-tertiary)]'} />
+                  <div className={`col-span-full flex min-h-[22.5rem] flex-col items-center justify-center px-6 text-center ${productMutedTextClass}`}>
+                    <Archive size={24} strokeWidth={1.5} className={'text-[var(--text-tertiary)]'} />
                     <div className={`mt-4 text-sm font-light text-[var(--text-primary)]`}>当前视图下暂无档案</div>
                     <div className="mt-2 max-w-sm text-xs font-light leading-relaxed">
                       可以调整筛选、切换分类方式，或点击右上角录入档案。
@@ -3198,7 +3198,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 edgeFade={blueprint.edgeFade}
                 header={(
                   <div className="shrink-0 overflow-hidden">
-                    <div className={`flex w-full min-w-[1000px] text-left text-xs ${productTableHeaderClass} text-[var(--text-tertiary)]`}>
+                    <div className={`flex w-full min-w-[62.5rem] text-left text-xs ${productTableHeaderClass} text-[var(--text-tertiary)]`}>
                       {productTableColumns.map(column => (
                         <div key={column.id} className={`${column.widthClass} px-4 py-3 ${BAMBOOK_OS.typography.weight.tableHeader} tracking-wide whitespace-nowrap ${productTableCellBorderClass}`}>{column.header}</div>
                       ))}
@@ -3210,7 +3210,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   <div className={`p-12 text-center text-sm ${productMutedTextClass}`}>当前视图下暂无档案</div>
                 )}
               >
-                    <div className={`flex flex-col min-w-[1000px] text-left text-xs divide-y divide-[var(--border-c-subtle)]`}>
+                    <div className={`flex flex-col min-w-[62.5rem] text-left text-xs divide-y divide-[var(--border-c-subtle)]`}>
                       {currentProducts.map((product, idx) => (
                         <CompiledMotionInteractiveCard
                           as="div"
@@ -3241,7 +3241,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 className={`p-2 rounded-full ${BAMBOOK_OS.controls.table.editAction}`}
                                 aria-label="编辑档案"
                               >
-                                <Edit2 size={13} />
+                                <Edit2 size={14} />
                               </button>
                               <button
                                 type="button"
@@ -3249,7 +3249,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                 className={`p-2 rounded-full ${BAMBOOK_OS.controls.table.editAction}`}
                                 aria-label="归档档案"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </div>
@@ -3298,7 +3298,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     />
                     {sideSearchTerm && (
                       <button onClick={() => setSideSearchTerm('')} className={`absolute right-8 top-0 z-10 grid h-9 w-7 place-items-center p-0 leading-none transition-colors ${'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}>
-                        <X size={12} strokeWidth={1.5} className="block" />
+                        <X size={14} strokeWidth={1.5} className="block" />
                       </button>
                     )}
                     <button
@@ -3306,7 +3306,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       title={sideSortOption === 'recent' ? '按名称排序' : '按近期更新排序'}
                       className={`absolute right-1 top-1/2 z-10 grid h-8 w-7 -translate-y-1/2 place-items-center rounded-full p-0 leading-none transition-colors ${'text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]'}`}
                     >
-                      {sideSortOption === 'recent' ? <Clock size={13} className="block" /> : <ArrowDownAZ size={13} className="block" />}
+                      {sideSortOption === 'recent' ? <Clock size={14} className="block" /> : <ArrowDownAZ size={14} className="block" />}
                     </button>
                   </div>
                 </div>
@@ -3356,7 +3356,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                           aria-label={`${p.name} 产品头像`}
                         >
                           <div className="grid h-full w-full place-items-center rounded-full">
-                            <ProductAvatarIcon size={14} strokeWidth={1.45} className="block" />
+                            <ProductAvatarIcon size={14} strokeWidth={1.5} className="block" />
                           </div>
                           <div className={`pointer-events-none absolute inset-0 rounded-full ring-1 ring-[var(--border-c-subtle)]`} />
                           <div className={`pointer-events-none absolute inset-0 rounded-full ${BAMBOOK_OS.material.panelSurface} opacity-55 mix-blend-soft-light`} />
@@ -3392,7 +3392,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     <ChevronLeft size={18} strokeWidth={1.5} />
                   </button>
                   <div className="flex-1 min-w-0 flex items-center gap-3">
-                    <Library size={22} strokeWidth={1.5} className={BAMBOOK_OS.tone.text.brandEmphasis} />
+                    <Library size={24} strokeWidth={1.5} className={BAMBOOK_OS.tone.text.brandEmphasis} />
                     <h2 className={`text-lg font-light truncate ${'text-[var(--text-primary)]'}`}>
                       {selectedProduct.name}
                     </h2>
@@ -3410,7 +3410,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     onClick={() => { setEditingProd(selectedProduct); setSelectedProduct(null); }}
                     className={`h-8 px-4 rounded-full border text-xs font-light flex items-center justify-center transition-colors ${BAMBOOK_OS.controls.actionControl.bordered}`}
                   >
-                    <Edit2 size={13} className="mr-1.5" /> 编辑
+                    <Edit2 size={14} className="mr-1.5" /> 编辑
                   </button>
                 </div>
               </div>
@@ -3437,8 +3437,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     if (displayImages.length === 0) {
                       return (
                         <div className="w-full flex gap-3 pb-4">
-                          <div className={`w-[320px] h-[320px] sm:w-[360px] sm:h-[360px] rounded-card border border-dashed flex flex-col items-center justify-center gap-4 border-[var(--border-c-subtle)] text-[var(--text-tertiary)] bg-[var(--recessed-bg)]`}>
-                            <ImageIcon size={48} strokeWidth={1} />
+                          <div className={`w-[20rem] h-[20rem] sm:w-[22.5rem] sm:h-[22.5rem] rounded-card border border-dashed flex flex-col items-center justify-center gap-4 border-[var(--border-c-subtle)] text-[var(--text-tertiary)] bg-[var(--recessed-bg)]`}>
+                            <ImageIcon size={24} strokeWidth={1.5} />
                             <div className="text-sm font-light tracking-wide">暂无产品图片</div>
                           </div>
                         </div>
@@ -3449,7 +3449,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         {displayImages.map((img, idx) => {
                           const src = getProductImageSrc(img);
                           return (
-                            <div key={img.id} className={`shrink-0 snap-start ${idx === 0 ? 'w-[320px] h-[320px] sm:w-[360px] sm:h-[360px]' : 'w-[200px] h-[200px] mt-auto'} rounded-card overflow-hidden border shadow-none border-[var(--border-c-subtle)] ${OS_MATERIAL.insetSurface}`}>
+                            <div key={img.id} className={`shrink-0 snap-start ${idx === 0 ? 'w-[20rem] h-[20rem] sm:w-[22.5rem] sm:h-[22.5rem]' : 'w-[12.5rem] h-[12.5rem] mt-auto'} rounded-card overflow-hidden border shadow-none border-[var(--border-c-subtle)] ${OS_MATERIAL.insetSurface}`}>
                               {src && <img src={src} className="w-full h-full object-cover transition-transform hover:scale-105 duration-300" alt={img.fileName || 'Product Image'} />}
                             </div>
                           );
@@ -3885,7 +3885,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         className="relative z-10 h-full w-full rounded-[inherit] flex items-center justify-center"
                         aria-label="返回数字档案"
                       >
-                        <ChevronLeft size={18} strokeWidth={1.4} />
+                        <ChevronLeft size={18} strokeWidth={1.5} />
                       </button>
                     </CompiledInteractiveCard>
                     <div className={`h-9 flex items-center gap-1.5 min-w-0 text-[11px] font-light tracking-wide text-[var(--text-tertiary)]`}>
@@ -3895,7 +3895,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         </span>
                       </button>
                       <span data-ui-lab-wallpaper-contrast="secondary" className={PRODUCT_TITLE_SEPARATOR_CLASS}>
-                        <ChevronRight size={18} strokeWidth={1.4} />
+                        <ChevronRight size={18} strokeWidth={1.5} />
                       </span>
                       <h3 data-ui-lab-wallpaper-contrast="primary" className={`${PRODUCT_TITLE_PAGE_LABEL_CLASS} text-[var(--text-primary)]`}>{editingProd ? '修正档案' : '录入档案'}</h3>
                     </div>
@@ -3907,7 +3907,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         onClick={() => setDeleteProdId(editingProd.id)}
                         className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border text-[var(--text-secondary)] border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
                       >
-                        <Trash2 size={13} strokeWidth={1.5} /> 归档
+                        <Trash2 size={14} strokeWidth={1.5} /> 归档
                       </button>
                     )}
                     <CompiledInteractiveCard
@@ -3997,7 +3997,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                           />
                         </div>
                         <div className={`rounded-inset border p-4 flex items-center ${productFormNestedRowClass}`}>
-                          <div className="w-[116px] h-[116px] rounded-inset bds-inset border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="bds-thumb bds-thumb--xl rounded-inset bds-inset border border-[var(--border-c-subtle)] flex items-center justify-center overflow-hidden shrink-0">
                             {skuQrDataUrl ? (
                               <img src={skuQrDataUrl} alt={`${skuForQr} QR Code`} className="w-full h-full object-contain" />
                             ) : (
@@ -4200,7 +4200,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                   className={`h-9 rounded-full flex items-center justify-center transition-all ${productFormQuietActionClass}`}
                                   aria-label="删除成分行"
                                 >
-                                  <X size={15} />
+                                  <X size={16} />
                                 </button>
                               </div>
                             ))}
@@ -4245,7 +4245,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           <div className={`bg-[var(--recessed-bg-strong)] border border-[var(--border-c-subtle)] rounded-floating w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300`}>
             <div className="p-10 text-center space-y-6">
               <div className={`w-20 h-20 rounded-control flex items-center justify-center mx-auto mb-2 border bg-[var(--recessed-bg)] text-[var(--text-secondary)] border-[var(--border-c-subtle)]`}>
-                <AlertTriangle size={32} strokeWidth={1} />
+                <AlertTriangle size={24} strokeWidth={1.5} />
               </div>
               <div className="space-y-2">
                 <h3 className={`text-lg font-light text-[var(--text-primary)]`}>{deleteSubId ? '确认移除分类？' : '确认归档产品？'}</h3>
@@ -4513,10 +4513,10 @@ export const ProductModuleSettingsWorkspace = ({
   const selectedButtonClass = `${BAMBOOK_OS.controls.selectedSurface.base} text-[var(--text-primary)]`;
   const tertiaryRowClass = `rounded-inset border p-3 ${RELATIONS_FORM_NESTED_ROW_CLASS}`;
   const tinyActionClass = `h-8 rounded-full border px-3 text-[11px] font-light transition border-[var(--border-c-default)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)]`;
-  const switchControlClass = (checked: boolean) => `group relative inline-flex h-8 w-[58px] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
+  const switchControlClass = (checked: boolean) => `group relative inline-flex h-8 w-[3.625rem] shrink-0 items-center rounded-full border p-[3px] transition-[background,border-color,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked
     ? BAMBOOK_OS.controls.selectedSurface.base
     : 'border-[var(--border-c-default)] bg-[var(--recessed-bg)] shadow-none'}`;
-  const switchSliderClass = (checked: boolean) => `h-[26px] w-[34px] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-white shadow-none`;
+  const switchSliderClass = (checked: boolean) => `h-[1.625rem] w-[2.125rem] rounded-full transition-transform duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${checked ? 'translate-x-[18px]' : 'translate-x-0'} bg-white shadow-none`;
 
   const categoriesForMain = useMemo(() => {
     const query = categoryQuery.trim().toLowerCase();
@@ -4747,7 +4747,7 @@ export const ProductModuleSettingsWorkspace = ({
           titleClassName={primaryTextClass}
         >
           <div className="mb-3 flex h-9 items-center gap-2">
-            <Search size={15} strokeWidth={1.4} className={secondaryTextClass} />
+            <Search size={16} strokeWidth={1.5} className={secondaryTextClass} />
             <input value={categoryQuery} onChange={event => setCategoryQuery(event.target.value)} placeholder="搜索分类" className={`${inputClass} h-8 flex-1`} />
           </div>
           <div className="grid gap-2">
@@ -4762,7 +4762,7 @@ export const ProductModuleSettingsWorkspace = ({
                 <div className="flex items-center gap-2">
                   <button type="button" className={tinyActionClass} onClick={() => editCategory(category)}>编辑</button>
                   <button type="button" className={`${tinyActionClass} flex items-center`} onClick={() => deleteCategory(category)} aria-label={`删除 ${category.name}`}>
-                    <Trash2 size={13} strokeWidth={1.5} />
+                    <Trash2 size={14} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -4832,7 +4832,7 @@ export const ProductModuleSettingsWorkspace = ({
                   onClick={() => patchModuleSettings({ compositionTerms: moduleSettings.compositionTerms.filter(item => item.id !== term.id) })}
                   aria-label={`删除 ${term.abbreviation}`}
                 >
-                  <Trash2 size={13} strokeWidth={1.5} />
+                  <Trash2 size={14} strokeWidth={1.5} />
                 </button>
               </div>
             </div>
@@ -4866,7 +4866,7 @@ export const ProductModuleSettingsWorkspace = ({
         </div>
         <label className="mt-4 block space-y-2">
           <span className={labelClass}>默认排序</span>
-          <select value={moduleSettings.defaultSortValue} onChange={event => patchModuleSettings({ defaultSortValue: event.target.value })} className={inputClass}>
+          <select className="bds-select" value={moduleSettings.defaultSortValue} onChange={event => patchModuleSettings({ defaultSortValue: event.target.value })}>
             {PRODUCT_MODULE_SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
@@ -4927,7 +4927,7 @@ export const ProductModuleSettingsWorkspace = ({
               className="relative z-10 flex h-full w-full items-center justify-center rounded-[inherit] text-inherit"
               onClick={onBack}
             >
-              <ChevronLeft size={18} strokeWidth={1.4} />
+              <ChevronLeft size={18} strokeWidth={1.5} />
             </button>
           </CompiledInteractiveCard>
           <div className={`${BAMBOOK_OS.controls.title.breadcrumb} text-[var(--text-tertiary)]`}>
@@ -4941,7 +4941,7 @@ export const ProductModuleSettingsWorkspace = ({
               </span>
             </button>
             <span data-ui-lab-wallpaper-contrast="secondary" className={BAMBOOK_OS.controls.title.separator}>
-              <ChevronRight size={18} strokeWidth={1.4} />
+              <ChevronRight size={18} strokeWidth={1.5} />
             </span>
             <h2 data-ui-lab-wallpaper-contrast="primary" className={`${BAMBOOK_OS.controls.title.pageLabel} text-[var(--text-primary)]`}>
               配置
@@ -4980,7 +4980,7 @@ export const ProductModuleSettingsWorkspace = ({
               >
                 <span className="flex items-start gap-3">
                   <span className={`${BAMBOOK_OS.controls.navigationRow.icon} ${selected ? 'text-current' : ('text-[var(--text-tertiary)]')}`}>
-                    <Icon size={19} strokeWidth={1.35} />
+                    <Icon size={20} strokeWidth={1.5} />
                   </span>
                   <span className="min-w-0">
                     <span className={BAMBOOK_OS.controls.navigationRow.title}>{section.title}</span>
@@ -5010,7 +5010,7 @@ export const ProductModuleSettingsWorkspace = ({
                   </div>
                   {statusText && (
                     <span className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-light ${'border-[var(--border-c-default)] text-[var(--text-tertiary)]'}`}>
-                      <CheckCircle2 size={13} strokeWidth={1.5} />
+                      <CheckCircle2 size={14} strokeWidth={1.5} />
                       {statusText}
                     </span>
                   )}
