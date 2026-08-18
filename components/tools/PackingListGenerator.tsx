@@ -359,9 +359,9 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
               <div>
                 <label className={labelClass}>收货方（客户）</label>
                 <select
+                  className="bds-select"
                   value={selectedRelationId}
                   onChange={(e) => setSelectedRelationId(e.target.value)}
-                  className="bds-select"
                 >
                   <option value="">选择客户...</option>
                   {relationOptions.map(r => (
@@ -422,7 +422,7 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
               <h3 className={sectionTitleClass.replace('mb-3', '')}>装箱明细</h3>
               <button
                 onClick={addLine}
-                className={`text-xs px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
+                className="bds-btn bds-btn-ghost"
               >
                 <Plus size={14} /> 添加行
               </button>
@@ -492,9 +492,9 @@ const PackingListGenerator: React.FC<PackingListGeneratorProps> = ({
                       className={`${fieldClass} py-1.5 text-xs`}
                     />
                     <select
+                      className="bds-select sm"
                       value={line.unit}
                       onChange={(e) => updateLine(line.id, 'unit', e.target.value)}
-                      className="bds-select sm"
                     >
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>

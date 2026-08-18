@@ -453,9 +453,9 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
               <div>
                 <label className={labelClass}>{contractType === 'sales' ? '卖方 Seller' : '供货方 Supplier'}</label>
                 <select
+                  className="bds-select"
                   value={sellerId}
                   onChange={(e) => setSellerId(e.target.value)}
-                  className="bds-select"
                 >
                   <option value="">选择卖方...</option>
                   {relationOptions.map(r => (
@@ -466,9 +466,9 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
               <div>
                 <label className={labelClass}>{contractType === 'sales' ? '买方 Buyer' : '采购方 Purchaser'}</label>
                 <select
+                  className="bds-select"
                   value={buyerId}
                   onChange={(e) => setBuyerId(e.target.value)}
-                  className="bds-select"
                 >
                   <option value="">选择买方...</option>
                   {relationOptions.map(r => (
@@ -514,7 +514,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
               <h3 className={sectionTitleClass.replace('mb-3', '')}>商品明细</h3>
               <button
                 onClick={addLine}
-                className={`text-xs px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 text-[var(--os-vnext-brand-blue)] hover:bg-[var(--recessed-bg-hover)]`}
+                className="bds-btn bds-btn-ghost"
               >
                 <Plus size={14} /> 添加行
               </button>
@@ -562,9 +562,9 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
                       className={`${fieldClass} py-1.5 text-xs`}
                     />
                     <select
+                      className="bds-select sm"
                       value={line.unit}
                       onChange={(e) => updateLine(line.id, 'unit', e.target.value)}
-                      className="bds-select sm"
                     >
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
@@ -582,7 +582,7 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             </div>
             <div className={`mt-3 pt-3 border-t flex items-center justify-end gap-4 text-xs border-[var(--border-c-default)] text-[var(--text-tertiary)]`}>
               <span>币种:
-                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bds-select sm ml-1 w-auto">
+                <select className="bds-select sm ml-1 w-auto" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                   {['USD', 'CNY', 'EUR'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </span>
@@ -599,13 +599,13 @@ const ContractGenerator: React.FC<ContractGeneratorProps> = ({
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>付款方式 Payment Terms</label>
-                <select value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className="bds-select">
+                <select className="bds-select" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)}>
                   {PAYMENT_TERMS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label className={labelClass}>交货条款 Delivery Terms</label>
-                <select value={deliveryTerms} onChange={(e) => setDeliveryTerms(e.target.value)} className="bds-select">
+                <select className="bds-select" value={deliveryTerms} onChange={(e) => setDeliveryTerms(e.target.value)}>
                   {DELIVERY_TERMS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>

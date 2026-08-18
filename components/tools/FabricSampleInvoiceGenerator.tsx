@@ -1046,9 +1046,9 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <div className={`mb-3 rounded-inset border p-3 ${'border-[var(--border-c-default)] bg-[var(--recessed-bg)]'}`}>
                 <label className={labelClass(isDarkMode)}>当前云端档案</label>
                 <select
+                  className="bds-select"
                   value={selectedProfileId}
                   onChange={event => handleSelectProfile(event.target.value)}
-                  className="bds-select"
                 >
                   {profiles.map(profile => (
                     <option key={profile.id} value={profile.id}>{profile.name}</option>
@@ -1402,11 +1402,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleSaveInvoice}
                 disabled={!previewHtml}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light transition-all duration-300 ${
-                  previewHtml
-                    ? 'bg-[var(--recessed-bg)] text-[var(--text-primary)] hover:bg-[var(--active-darken)]'
-                    : 'opacity-50 cursor-not-allowed'
-                }`}
+                className="bds-btn bds-btn-secondary"
               >
                 <Save size={16} />
                 保存
@@ -1414,11 +1410,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleDownloadHtml}
                 disabled={!previewHtml}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light transition-all duration-300 ${
-                  previewHtml
-                    ? 'bg-[var(--recessed-bg)] text-[var(--text-primary)] hover:bg-[var(--active-darken)]'
-                    : 'opacity-50 cursor-not-allowed'
-                }`}
+                className="bds-btn bds-btn-secondary"
               >
                 <Download size={16} />
                 HTML
@@ -1426,11 +1418,7 @@ const FabricSampleInvoiceGenerator: React.FC<FabricSampleInvoiceGeneratorProps> 
               <button
                 onClick={handleSavePdf}
                 disabled={!previewHtml}
-                className={`col-span-3 sm:col-span-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-light transition-all duration-300 ${
-                  previewHtml
-                    ? 'bg-[var(--recessed-bg)] text-[var(--text-primary)] hover:bg-[var(--active-darken)]'
-                    : 'opacity-50 cursor-not-allowed'
-                }`}
+                className="bds-btn bds-btn-secondary col-span-3 sm:col-span-1"
               >
                 <Printer size={16} />
                 PDF

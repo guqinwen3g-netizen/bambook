@@ -415,9 +415,9 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     目的港 *
                   </label>
                   <select
+                    className="bds-select"
                     value={options.destinationPort}
                     onChange={(e) => setOptions({ ...options, destinationPort: e.target.value })}
-                    className="bds-select"
                   >
                     <option value="">选择目的港...</option>
                     {DESTINATION_PORTS.map(port => (
@@ -445,9 +445,9 @@ const ShippingNoticeGenerator: React.FC<ShippingNoticeGeneratorProps> = ({
                     付款方式
                   </label>
                   <select
+                    className="bds-select"
                     value={options.paymentTerms}
                     onChange={(e) => setOptions({ ...options, paymentTerms: e.target.value })}
-                    className="bds-select"
                   >
                     <option value="">选择付款方式...</option>
                     {PAYMENT_TERMS_OPTIONS.map(term => (
