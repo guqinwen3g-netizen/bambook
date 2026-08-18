@@ -32,6 +32,7 @@ import { EmailList } from './email/EmailList';
 import { EmailEditor } from './email/EmailEditor';
 import SignatureManager from './email/SignatureManager';
 import { cleanHtmlSnippet } from '../utils/emailUtils';
+import { PageHeader } from './ui/PageHeader';
 
 
 interface EmailProps {
@@ -1359,10 +1360,17 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   };
 
   return (
-    <div
-      data-email-workspace="full-bleed"
-      className="w-full h-full min-w-0 flex bg-transparent overflow-hidden text-[var(--text-primary)]"
-    >
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
+      <PageHeader
+        title="邮件中心"
+        subtitle="Mail / Signature / Templates"
+        contextLabel="Email Workspace"
+        isDarkMode={isDarkMode}
+      />
+      <div
+        data-email-workspace="full-bleed"
+        className="w-full flex-1 min-h-0 min-w-0 flex relative bg-transparent overflow-hidden text-[var(--text-primary)]"
+      >
 
       {/* 1. Workspace rail: sectioned, not a contained app panel. */}
       <aside
@@ -1896,7 +1904,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 />
               </div>
               {outboxError && (
-                <div className="mb-2 text-xs text-red-400">{outboxError}</div>
+                <div className="mb-2 text-xs text-[var(--danger-text)]">{outboxError}</div>
               )}
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setIsReplying(false)} className="bds-btn bds-btn-secondary">Discard</button>
@@ -2082,7 +2090,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   Discard
                 </button>
                 {outboxError && (
-                  <div className="flex-1 text-xs text-red-400 px-2">{outboxError}</div>
+                  <div className="flex-1 text-xs px-2 text-[var(--danger-text)]">{outboxError}</div>
                 )}
                 <button
                   type="button"
@@ -2166,6 +2174,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           </div>
         )
       }
+      </div>
     </div >
   );
 };

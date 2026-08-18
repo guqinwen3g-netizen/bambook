@@ -13,6 +13,7 @@ import { X, Plus, Loader2, PenLine, Trash2, Star, AlertCircle } from 'lucide-rea
 import { apiService } from '../../services/apiService';
 import { EmailSignature, EmailSignatureInput, SignatureLanguage } from '../../types';
 import { RdlSurface, RdlPill } from '../ui/RDLPrimitives';
+import { ErrorBanner } from '../ui/primitives/layoutPrimitives';
 
 interface Props {
   isOpen: boolean;
@@ -117,25 +118,29 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
     <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[90] flex items-center justify-center p-6 animate-in fade-in duration-300">
       <RdlSurface tone="panel" className="w-full max-w-2xl overflow-hidden flex flex-col h-[70vh] animate-in zoom-in duration-300">
         {/* 头部 */}
-        <div className="px-8 py-5 flex items-center justify-between backdrop-blur-md bg-[var(--recessed-bg)]">
-          <h3 className="text-lg font-light flex items-center gap-3 text-[var(--text-primary)]">
-            <RdlSurface tone="inset" className="w-10 h-10 flex items-center justify-center text-[var(--os-vnext-brand-blue-strong)]">
-              <PenLine size={18} strokeWidth={1} />
-            </RdlSurface>
-            邮件签名管理
-          </h3>
-          <div className="flex items-center gap-2">
+        <div className="bds-pagehead shrink-0 backdrop-blur-md bg-[var(--recessed-bg)]">
+          <div className="ph-main">
+            <h3 className="ph-title flex items-center gap-3 text-[var(--text-primary)]">
+              <RdlSurface tone="inset" className="w-10 h-10 flex items-center justify-center text-[var(--os-vnext-brand-blue-strong)]">
+                <PenLine size={18} strokeWidth={1.75} />
+              </RdlSurface>
+              邮件签名管理
+              <span className="en">Signature Manager</span>
+            </h3>
+          </div>
+          <div className="ph-side">
             {draft === null && (
               <RdlPill onClick={() => { setDraft(emptyDraft()); setError(null); }} className="min-h-8 px-3 text-xs">
-                <Plus size={14} strokeWidth={1} className="text-[var(--accent-text)]" /> 新建签名
+                <Plus size={14} strokeWidth={1.75} className="text-[var(--accent-text)]" /> 新建签名
               </RdlPill>
             )}
             <button
               type="button"
               onClick={onClose}
-              className="h-9 w-9 rounded-full flex items-center justify-center transition-colors text-[var(--text-tertiary)] hover:bg-[var(--active-darken)] hover:text-[var(--text-primary)]"
+              aria-label="关闭"
+              className="bds-btn bds-btn-ghost bds-btn-icon"
             >
-              <X size={20} strokeWidth={1} />
+              <X size={20} strokeWidth={2} />
             </button>
           </div>
         </div>
@@ -143,9 +148,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
         {/* 内容 */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-5 space-y-3">
           {error && (
-            <div className={`p-3 rounded-inset border flex items-center gap-2 text-xs border-danger/20 bg-[var(--danger-tint)] text-[var(--danger-text)]`}>
-              <AlertCircle size={14} /> {error}
-            </div>
+            <ErrorBanner icon={<AlertCircle size={14} strokeWidth={1.75} />}>{error}</ErrorBanner>
           )}
 
           {draft !== null ? (
@@ -158,7 +161,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                 </div>
                 <div className="w-36">
                   <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>语言</label>
-                  <select value={draft.language} onChange={e => setDraft({ ...draft, language: e.target.value as SignatureLanguage })} className={fieldClass}>
+                  <select className="bds-select" value={draft.language} onChange={e => setDraft({ ...draft, language: e.target.value as SignatureLanguage })}>
                     {LANGUAGES.map(l => <option key={l} value={l}>{LANGUAGE_LABELS[l]}</option>)}
                   </select>
                 </div>
@@ -210,7 +213,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                       <span className="text-sm font-light truncate text-[var(--text-primary)]">{sig.name}</span>
                       {sig.isDefault && (
                         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-bds-sm text-[10px] bg-[var(--warning-tint)] text-[var(--warning-text)]`}>
-                          <Star size={10} /> 默认
+                          <Star size={14} /> 默认
                         </span>
                       )}
                       {!sig.isActive && (
@@ -236,7 +239,7 @@ const SignatureManager: React.FC<Props> = ({ isOpen, onClose, isDarkMode }) => {
                     className={`shrink-0 h-7 w-7 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 text-[var(--text-tertiary)] hover:bg-[var(--danger-tint)] hover:text-danger`}
                     title="删除签名"
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={14} />
                   </button>
                 </li>
               ))}
