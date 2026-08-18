@@ -129,10 +129,10 @@ describe('QA [EmailManager]: failure 显示错误不污染', () => {
     expect(body).toContain('setOutboxError');
   });
   it('compose modal 内渲染 outboxError（失败可见）', () => {
-    expect(EMAIL_MGR_SRC).toContain('flex-1 text-xs text-red-400 px-2');
+    expect(EMAIL_MGR_SRC).toContain('flex-1 text-xs px-2 text-[var(--danger-text)]');
   });
   it('reply editor 内渲染 outboxError（失败可见）', () => {
-    expect(EMAIL_MGR_SRC).toContain('mb-2 text-xs text-red-400');
+    expect(EMAIL_MGR_SRC).toContain('mb-2 text-xs text-[var(--danger-text)]');
   });
 });
 

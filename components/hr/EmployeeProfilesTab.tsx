@@ -206,13 +206,13 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
       {/* 工具栏 */}
       <div className="flex items-center gap-2 px-1">
         <input
-          className={`${t.inputCls} max-w-56`}
+          className="bds-select max-w-56"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && load()}
           placeholder="搜索姓名 / 工号 / 邮箱"
         />
-        <select className={`${t.inputCls} max-w-36`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select className="bds-select max-w-36" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">全部状态</option>
           {EMPLOYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -286,7 +286,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
               {!selected && (
                 <div>
                   <div className={t.labelCls + ' mb-1'}>选择员工（未建档）</div>
-                  <select className={t.inputCls} value={profileForm.userId}
+                  <select className="bds-select" value={profileForm.userId}
                     onChange={e => setProfileForm(f => ({ ...f, userId: e.target.value }))}>
                     <option value="">请选择</option>
                     {unprofiled.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
@@ -297,7 +297,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className={t.labelCls + ' mb-1'}>职位</div>
-                  <select className={t.inputCls} value={profileForm.positionId}
+                  <select className="bds-select" value={profileForm.positionId}
                     onChange={e => setProfileForm(f => ({ ...f, positionId: e.target.value }))}>
                     <option value="">未指定</option>
                     {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -305,7 +305,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>合同类型</div>
-                  <select className={t.inputCls} value={profileForm.contractType}
+                  <select className="bds-select" value={profileForm.contractType}
                     onChange={e => setProfileForm(f => ({ ...f, contractType: e.target.value }))}>
                     <option value="">未指定</option>
                     {CONTRACT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -381,7 +381,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className={t.labelCls + ' mb-1'}>异动类型</div>
-                      <select className={t.inputCls} value={eventForm.type}
+                      <select className="bds-select" value={eventForm.type}
                         onChange={e => setEventForm(f => ({ ...f, type: e.target.value as EmploymentEventType }))}>
                         {EMPLOYMENT_EVENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
@@ -396,7 +396,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className={t.labelCls + ' mb-1'}>调入部门</div>
-                        <select className={t.inputCls} value={eventForm.toDeptId}
+                        <select className="bds-select" value={eventForm.toDeptId}
                           onChange={e => setEventForm(f => ({ ...f, toDeptId: e.target.value }))}>
                           <option value="">不变更</option>
                           {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -404,7 +404,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                       </div>
                       <div>
                         <div className={t.labelCls + ' mb-1'}>新任职位</div>
-                        <select className={t.inputCls} value={eventForm.toPositionId}
+                        <select className="bds-select" value={eventForm.toPositionId}
                           onChange={e => setEventForm(f => ({ ...f, toPositionId: e.target.value }))}>
                           <option value="">不变更</option>
                           {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}

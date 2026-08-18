@@ -131,7 +131,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                         >
                             {/* Avatar or Unread Dot */}
                             <div className="relative shrink-0 mt-0.5">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-light shadow-none ${avatarColor}`}>
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[var(--on-accent)] text-sm font-light shadow-none ${avatarColor}`}>
                                     {initials}
                                 </div>
                                 {!email.isRead && (
@@ -173,18 +173,18 @@ export const EmailList: React.FC<EmailListProps> = ({
                                     )}
                                     {signalLabel && (
                                         <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-light leading-4 ${SIGNAL_CHIP_CLASS}`}>
-                                            <AlertTriangle size={10} strokeWidth={1.5} />
+                                            <AlertTriangle size={14} strokeWidth={1.75} />
                                             {signalLabel}
                                         </span>
                                     )}
                                     {email.attachments && email.attachments.length > 0 && (
-                                        <Paperclip size={12} strokeWidth={1} className="text-[var(--text-tertiary)]" />
+                                        <Paperclip size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)]" />
                                     )}
                                     {email.isStarred && (
-                                        <Flag size={12} strokeWidth={1} className="text-[var(--text-tertiary)] fill-slate-500" />
+                                        <Flag size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)] fill-slate-500" />
                                     )}
                                     {email.isImportant && (
-                                        <Star size={12} strokeWidth={1} className="text-[var(--text-tertiary)] fill-slate-400" />
+                                        <Star size={14} strokeWidth={1.75} className="text-[var(--text-tertiary)] fill-slate-400" />
                                     )}
                                 </div>
                             </div>

@@ -83,7 +83,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
             {/* 看板简介 */}
             <div className="flex items-start gap-3 px-1">
-              <Sparkles size={18} strokeWidth={1.2} className={`mt-0.5 shrink-0 text-[var(--text-tertiary)]`} />
+              <Sparkles size={18} strokeWidth={1.25} className={`mt-0.5 shrink-0 text-[var(--text-tertiary)]`} />
               <div className="min-w-0">
                 <h2 className={`text-base font-light text-[var(--text-primary)]`}>企业知识智能问答</h2>
                 <p className={`mt-1 text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]`}>
@@ -119,7 +119,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                   disabled={qaBusy || !qaQuestion.trim()}
                   className={`px-5 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                 >
-                  {qaBusy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} strokeWidth={1.2} />}
+                  {qaBusy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1.25} />}
                   {qaBusy ? '检索回答中…' : '提问'}
                 </button>
               </div>
@@ -144,9 +144,9 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                     ) : (
                       <>
                         <select
+                          className="bds-select max-w-40"
                           value={qaArchiveCategory}
                           onChange={(e) => setQaArchiveCategory(e.target.value)}
-                          className={`px-3 py-2 border rounded-control outline-none text-[11px] font-light appearance-none ${BAMBOOK_OS.controls.recessedField.base}`}
                         >
                           {QA_ARCHIVE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
@@ -155,7 +155,7 @@ const DataCenter: React.FC<DataCenterProps> = ({ isDarkMode = false }) => {
                           disabled={qaArchiving}
                           className={`px-4 py-2 rounded-full flex items-center gap-2 text-[11px] font-light tracking-wide transition-all border disabled:opacity-50 ${BAMBOOK_OS.controls.actionControl.base}`}
                         >
-                          {qaArchiving ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} strokeWidth={1.2} />}
+                          {qaArchiving ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} strokeWidth={1.25} />}
                           归档此问答
                         </button>
                       </>

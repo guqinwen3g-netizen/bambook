@@ -315,7 +315,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <div className={t.labelCls + ' mb-1'}>员工（未评定）*</div>
-                      <select className={t.inputCls} value={reviewForm.userId}
+                      <select className="bds-select" value={reviewForm.userId}
                         onChange={e => setReviewForm(f => ({ ...f, userId: e.target.value }))}>
                         <option value="">请选择</option>
                         {unreviewed.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
@@ -392,7 +392,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
                         </div>
                         <div>
                           <div className={t.labelCls + ' mb-1'}>评级 *</div>
-                          <select className={t.inputCls} value={confirmForm.grade}
+                          <select className="bds-select" value={confirmForm.grade}
                             onChange={e => setConfirmForm(f => ({ ...f, grade: e.target.value as ReviewGrade }))}>
                             {REVIEW_GRADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>

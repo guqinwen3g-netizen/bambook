@@ -221,7 +221,7 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
                         activeSpotlightOpacity={1}
                         className={`
                           group relative isolate overflow-hidden flex flex-col items-start text-left
-                          p-6 h-[220px] rounded-card-lg transition-all duration-200 select-none
+                          p-6 h-full rounded-card-lg transition-all duration-200 select-none
                           cursor-pointer hover:-translate-y-1
                           ${cardClass}
                         `}
