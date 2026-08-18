@@ -200,7 +200,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center gap-2 px-1">
-        <select className={`${t.inputCls} max-w-36`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select className="bds-select max-w-36" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">全部状态</option>
           {COURSE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -231,7 +231,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>类型</div>
-              <select className={t.inputCls} value={courseForm.type}
+              <select className="bds-select" value={courseForm.type}
                 onChange={e => setCourseForm(f => ({ ...f, type: e.target.value as 'Internal' | 'External' }))}>
                 <option value="Internal">内部培训</option>
                 <option value="External">外部培训</option>
@@ -324,7 +324,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
 
               {(selectedCourse.status === 'Planned' || selectedCourse.status === 'Ongoing') && (
                 <div className="flex items-center gap-2 border-b border-[var(--border-c-default)] px-4 py-3">
-                  <select className={`${t.inputCls} max-w-56`} value={enrollUserId} onChange={e => setEnrollUserId(e.target.value)}>
+                  <select className="bds-select max-w-56" value={enrollUserId} onChange={e => setEnrollUserId(e.target.value)}>
                     <option value="">选择员工报名</option>
                     {unenrolled.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
                   </select>
@@ -364,7 +364,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
                       <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] items-end gap-2 border-b border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-4 py-3">
                         <div>
                           <div className={t.labelCls + ' mb-1'}>状态</div>
-                          <select className={t.inputCls} value={enrollmentForm.status}
+                          <select className="bds-select" value={enrollmentForm.status}
                             onChange={ev => setEnrollmentForm(f => ({ ...f, status: ev.target.value as EnrollmentStatus }))}>
                             {ENROLLMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>

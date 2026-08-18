@@ -854,7 +854,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   // ── Detail toolbar (context-aware actions) ──
   const renderDetailToolbar = () => (
     <div className={`shrink-0 px-5 py-2 flex items-center gap-2 border-b ${borderSoftClass}`}>
-      <div className="bds-search flex-1 min-w-[160px]">
+      <div className="bds-search flex-1 min-w-40">
         <Search className="bds-search-icon" />
         <input
           className="bds-input sm"
@@ -1180,7 +1180,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         <div>
                           <div className={labelCls}>所属部门</div>
                           <select
-                            className={selectCls}
+                            className="bds-select"
                             value={teamForm.departmentId}
                             onChange={e => setTeamForm(f => ({ ...f, departmentId: e.target.value }))}
                           >
@@ -1201,7 +1201,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       <div>
                         <div className={labelCls}>团队负责人</div>
                         <select
-                          className={selectCls}
+                          className="bds-select"
                           value={teamForm.leaderId}
                           onChange={e => setTeamForm(f => ({ ...f, leaderId: e.target.value }))}
                         >
@@ -1253,7 +1253,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-3 gap-3">
                         <div>
                           <div className={labelCls}>所属团队</div>
-                          <select className={selectCls} value={projectForm.teamId}
+                          <select className="bds-select" value={projectForm.teamId}
                             onChange={e => setProjectForm(f => ({ ...f, teamId: e.target.value }))}>
                             <option value="">无</option>
                             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -1261,7 +1261,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         </div>
                         <div>
                           <div className={labelCls}>优先级</div>
-                          <select className={selectCls} value={projectForm.priority}
+                          <select className="bds-select" value={projectForm.priority}
                             onChange={e => setProjectForm(f => ({ ...f, priority: e.target.value }))}>
                             {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
@@ -1313,7 +1313,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <div className={labelCls}>指派给</div>
-                          <select className={selectCls} value={assignmentForm.userId}
+                          <select className="bds-select" value={assignmentForm.userId}
                             onChange={e => setAssignmentForm(f => ({ ...f, userId: e.target.value }))}>
                             <option value="">选择人员</option>
                             {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
@@ -1321,7 +1321,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         </div>
                         <div>
                           <div className={labelCls}>关联项目</div>
-                          <select className={selectCls} value={assignmentForm.projectId}
+                          <select className="bds-select" value={assignmentForm.projectId}
                             onChange={e => setAssignmentForm(f => ({ ...f, projectId: e.target.value }))}>
                             <option value="">无</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -1331,7 +1331,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <div className={labelCls}>优先级</div>
-                          <select className={selectCls} value={assignmentForm.priority}
+                          <select className="bds-select" value={assignmentForm.priority}
                             onChange={e => setAssignmentForm(f => ({ ...f, priority: e.target.value }))}>
                             {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                           </select>
