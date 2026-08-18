@@ -89,6 +89,7 @@ import { createHRRouter } from './hr/route';
 import { initializeNotificationBindings } from './notifications/eventBindings';
 import { createNotificationsRouter } from './notifications/route';
 import { createAutomationRouter } from './config/automationRoute';
+import { createSystemConfigRouter } from './config/systemConfigRoute';
 import { registerAllLinkages } from './events/linkages';
 import { startScheduler } from './scheduler';
 import { createWorkflowRouter } from './workflow/workflowRoute';
@@ -937,6 +938,16 @@ app.use(
     (req, res, next) => {
         sdkAuth(req, res, () => {
             createAutomationRouter(prisma)(req, res, next);
+        });
+    },
+);
+
+// ── 系统配置 API（W7 设置域：company.exporterProfile 服务端化，唯一写入口）──
+app.use(
+    '/api/v1/config',
+    (req, res, next) => {
+        sdkAuth(req, res, () => {
+            createSystemConfigRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth })(req, res, next);
         });
     },
 );

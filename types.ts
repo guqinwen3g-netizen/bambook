@@ -99,23 +99,9 @@ export interface SystemConfig {
   ttsProvider?: 'Browser' | 'Volcengine-TTS' | 'OpenAI-TTS';
   voiceSpeed?: number;
 
-  // Privacy & Security
-  dataMasking?: boolean;
-
-  // SDK API - AI 助理集成
+  // SDK API - AI 助理集成（本客户端连后端凭据，归宿 Settings「同步/连接」Tab）
   sdkApiKey?: string;
   sdkAuthMode?: 'auto' | 'required' | 'none';
-
-  // Company Export Profile — 出口方/公司抬头信息（用于 CI/PL/CO/BL 等外贸单据）
-  exporterProfile?: {
-    nameEn: string;
-    addressEn: string;
-    beneficiary: string;
-    bankName: string;
-    swiftCode: string;
-    bankAddress: string;
-    usdAccountNumber: string;
-  };
 }
 
 export interface BusinessProfile<TPayload = Record<string, unknown>, TAssets = Record<string, unknown>> {

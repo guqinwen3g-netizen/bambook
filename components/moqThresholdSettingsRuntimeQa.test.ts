@@ -8,14 +8,14 @@ import { moqService } from '../services/moqService';
  *   GET /config · PUT /config · GET /history · POST /validate（dry-run）
  *
  * Part 1: moqService 运行时契约（mock fetch，对齐 fxSettlementService.test.ts 模式）
- * Part 2: 设置台 UI 源码契约（compiledMoqThresholdsPanel / compiledSettingsTemplates 接线）
+ * Part 2: AdminPanel 平台规则 Tab 源码契约（MoqThresholdsPanel 接线）
  * Part 3: 设计纪律（无 hex / rounded-[Npx] / box-shadow / 过重字重）
  */
 
 const fs = require('fs');
 const path = require('path');
-const PANEL_SRC = fs.readFileSync(path.resolve(__dirname, 'ui/osCompiler/compiledMoqThresholdsPanel.tsx'), 'utf-8');
-const SETTINGS_SRC = fs.readFileSync(path.resolve(__dirname, 'Settings.tsx'), 'utf-8');
+const PANEL_SRC = fs.readFileSync(path.resolve(__dirname, 'admin/MoqThresholdsPanel.tsx'), 'utf-8');
+const ADMIN_PANEL_SRC = fs.readFileSync(path.resolve(__dirname, 'AdminPanel.tsx'), 'utf-8');
 const SERVICE_SRC = fs.readFileSync(path.resolve(__dirname, '../services/moqService.ts'), 'utf-8');
 
 const ENDPOINT = 'https://test.example.com';
@@ -209,16 +209,14 @@ describe('runtime QA [moqService 源码]: 端点与方法齐备', () => {
   });
 });
 
-describe('runtime QA [Settings 接线]: MOQ tab 注册', () => {
-  it("TabId 含 'moq' 且 SETTINGS_TABS 注册中英双语标签", () => {
-    expect(SETTINGS_SRC).toMatch(/'moq'/);
-    expect(SETTINGS_SRC).toMatch(/label: 'MOQ 阈值'/);
-    expect(SETTINGS_SRC).toMatch(/hint: 'MOQ Thresholds'/);
+describe('runtime QA [AdminPanel 接线]: 平台规则 Tab 注册', () => {
+  it('TabId 含 platform-rules 且 TABS 注册中英双语标签', () => {
+    expect(ADMIN_PANEL_SRC).toMatch(/'platform-rules'/);
+    expect(ADMIN_PANEL_SRC).toMatch(/label: '平台规则'/);
   });
-  it('activeTab === moq 渲染 CompiledMoqThresholdsPanel', () => {
-    expect(SETTINGS_SRC).toContain("import { CompiledMoqThresholdsPanel } from './ui/osCompiler/compiledMoqThresholdsPanel'");
-    expect(SETTINGS_SRC).toMatch(/activeTab === 'moq' && \(/);
-    expect(SETTINGS_SRC).toContain('<CompiledMoqThresholdsPanel />');
+  it('activeTab === platform-rules 渲染 PlatformRulesSection', () => {
+    expect(ADMIN_PANEL_SRC).toContain('PlatformRulesSection');
+    expect(ADMIN_PANEL_SRC).toMatch(/activeTab === 'platform-rules'/);
   });
 });
 
@@ -234,7 +232,7 @@ describe('runtime QA [面板]: 权限门 + 三态 + dry-run', () => {
   });
   it('保存前 dry-run：validateDryRun 带拟变更 snapshot + capsuleExemption 探针', () => {
     expect(PANEL_SRC).toContain('moqService.validateDryRun');
-    expect(PANEL_SRC).toContain('capsuleExemption: probe.key === \'capsule\'');
+    expect(PANEL_SRC).toContain("capsuleExemption: probe.key === 'capsule'");
     expect(PANEL_SRC).toMatch(/snapshot = \{\s*fabricDefaultMoq: parsed\.fabric/);
   });
   it('保存成功后 reload config + history（不伪造本地状态）', () => {

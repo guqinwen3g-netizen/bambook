@@ -82,7 +82,6 @@ describe('Settings permission visibility', () => {
     expect(source).toContain("const switchSliderCls = (checked: boolean) => `h-[26px] w-[34px] rounded-full");
     expect(source).toContain("${checked ? 'translate-x-[18px]' : 'translate-x-0'}");
     expect(source).toContain('className={switchControlCls(isProductionGlobeEnabled)}');
-    expect(source).toContain('className={switchControlCls(Boolean(localConfig.dataMasking))}');
     expect(source).not.toContain('const switchStatesCls');
     expect(source).not.toContain('const switchStateCls');
     expect(source).not.toContain('const switchStatesCls = \'absolute inset-0 z-10 grid grid-cols-2 items-center\'');

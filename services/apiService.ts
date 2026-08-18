@@ -374,6 +374,49 @@ export const sendEmail = async (data: any) => {
   return postData(`${getDynamicApiBaseUrl()}/email/send`, data);
 };
 
+// ── 平台配置：公司档案（W7 设置域 §1A 裁决）类型契约：对齐 server/src/config/systemConfigRoute.ts ──
+export interface CompanyExporterProfileValue {
+  /** 公司英文名（单据抬头，必填） */
+  nameEn: string;
+  beneficiary?: string;
+  addressEn?: string;
+  bankName?: string;
+  swiftCode?: string;
+  bankAddress?: string;
+  usdAccountNumber?: string;
+}
+
+export interface CompanyExporterProfileResponse {
+  ok: boolean;
+  key: string;
+  value: CompanyExporterProfileValue;
+  version: number;
+  /** true = 服务端未配置，返回代码默认值（未落库） */
+  isDefault: boolean;
+  updatedAt?: number;
+  updatedBy?: string | null;
+}
+
+export interface CompanyExporterProfileUpdateResponse {
+  ok: boolean;
+  key: string;
+  value: CompanyExporterProfileValue;
+  version: number;
+  updatedAt: number;
+}
+
+export interface CompanyExporterProfileHistoryItem {
+  id: string;
+  configId: string;
+  versionFrom: number;
+  versionTo: number;
+  valueFrom: CompanyExporterProfileValue | null;
+  valueTo: CompanyExporterProfileValue | null;
+  actorId: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
 export const apiService = {
   getStoredConfig: (): SystemConfig => {
     const saved = localStorage.getItem('panda_system_config');
@@ -404,8 +447,6 @@ export const apiService = {
       // Voice
       ttsProvider: 'Volcengine-TTS',
       voiceSpeed: 1.0,
-      // Security
-      dataMasking: true,
       // SDK API Defaults
       sdkApiKey: '',
       sdkAuthMode: 'auto'
@@ -2911,6 +2952,34 @@ export const apiService = {
       body: JSON.stringify({ status, decisionNote }),
     });
     return data.item;
+  },
+
+  // ── 平台配置：公司档案（W7 设置域 §1A 裁决；真源服务端 SystemConfig global::company.exporterProfile）──
+  async getCompanyExporterProfile(endpoint?: string): Promise<CompanyExporterProfileResponse> {
+    return requestJson<CompanyExporterProfileResponse>('/v1/config/company.exporterProfile', { endpoint, method: 'GET' });
+  },
+
+  async updateCompanyExporterProfile(
+    payload: { value: CompanyExporterProfileValue; reason?: string },
+    endpoint?: string,
+  ): Promise<CompanyExporterProfileUpdateResponse> {
+    return requestJson<CompanyExporterProfileUpdateResponse>('/v1/config/company.exporterProfile', {
+      endpoint,
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async listCompanyExporterProfileHistory(
+    params: { limit?: number } = {},
+    endpoint?: string,
+  ): Promise<CompanyExporterProfileHistoryItem[]> {
+    const query = params.limit ? `?limit=${encodeURIComponent(String(params.limit))}` : '';
+    const data = await requestJson<{ items: CompanyExporterProfileHistoryItem[] }>(
+      `/v1/config/company.exporterProfile/history${query}`,
+      { endpoint, method: 'GET' },
+    );
+    return Array.isArray(data.items) ? data.items : [];
   },
 
   // ── 自动化规则 ──

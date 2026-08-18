@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { hasRole } from '../services/authService';
 import { getApiBaseUrl } from '../services/apiBase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown, Workflow } from 'lucide-react';
+import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown, Workflow, Ruler } from 'lucide-react';
 import { WorkflowPanel } from './WorkflowPanel';
+import { CompanyProfileSection } from './admin/CompanyProfileSection';
+import { PlatformRulesSection } from './admin/PlatformRulesSection';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
@@ -89,7 +91,7 @@ const formatPermissionLabel = (scope: string) => PERMISSION_LABELS[scope] || sco
 const formatAccessLabel = (access: string) => ACCESS_LABELS[access] || access;
 const formatRiskModeLabel = (mode: string) => RISK_MODE_LABELS[mode] || mode;
 
-type TabId = 'users' | 'roles' | 'knowledge-acl' | 'tool-perms' | 'approvals' | 'workflow' | 'audit-logs';
+type TabId = 'users' | 'roles' | 'knowledge-acl' | 'tool-perms' | 'approvals' | 'workflow' | 'audit-logs' | 'company-profile' | 'platform-rules';
 type AdminTabCache = Partial<Record<TabId, any>>;
 
 const ADMIN_PANEL_SESSION_CACHE_KEY = 'bambook_admin_panel_session_cache_v1';
@@ -97,6 +99,8 @@ const ADMIN_PANEL_SESSION_CACHE_KEY = 'bambook_admin_panel_session_cache_v1';
 const TABS: { id: TabId; label: string; icon: typeof Users }[] = [
   { id: 'users', label: '用户管理', icon: Users },
   { id: 'roles', label: '角色与权限', icon: Shield },
+  { id: 'company-profile', label: '公司档案', icon: Building2 },
+  { id: 'platform-rules', label: '平台规则', icon: Ruler },
   { id: 'knowledge-acl', label: '知识库权限', icon: BookOpen },
   { id: 'tool-perms', label: '工具权限', icon: Wrench },
   { id: 'approvals', label: '学习与审批', icon: CheckSquare },
@@ -1062,6 +1066,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
 
               {activeTab === 'workflow' && (
                 <WorkflowPanel isDarkMode={isDarkMode} />
+              )}
+
+              {activeTab === 'company-profile' && (
+                <CompanyProfileSection />
+              )}
+
+              {activeTab === 'platform-rules' && (
+                <PlatformRulesSection />
               )}
 
               {activeTab === 'audit-logs' && (

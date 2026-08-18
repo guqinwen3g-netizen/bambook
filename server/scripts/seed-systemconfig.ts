@@ -10,6 +10,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import type { ConfigGroup, ValueType } from '../src/config/systemConfigService';
+import { DEFAULT_EXPORTER_PROFILE } from '../src/config/systemConfigRoute';
 
 const prisma = new PrismaClient();
 
@@ -44,6 +45,12 @@ const SEEDS: SeedItem[] = [
   { key: 'company.logoUrl',           group: 'company',  valueType: 'string', label: 'Logo 图片 URL',
     value: '',
     meta: { placeholder: 'https://.../logo.png 或 /assets/logo.png' } },
+  // W7 设置域：exporterProfile 服务端化（§1A 裁决：唯一真源 = SystemConfig global::company.exporterProfile）
+  // 默认值真源 = 前端 components/tools/exportDocs/exporterProfile.ts 的 EXPORTER_PROFILE 常量
+  // （服务端副本见 server/src/config/systemConfigRoute.ts DEFAULT_EXPORTER_PROFILE，两侧修改必须同步）
+  { key: 'company.exporterProfile',   group: 'company',  valueType: 'json',   label: '出口方档案（单据抬头/收款账户）',
+    value: DEFAULT_EXPORTER_PROFILE,
+    description: 'CI/PL/Contract 等外贸单据卖方抬头与收款银行信息；写入口唯一 = PUT /api/v1/config/company.exporterProfile（仅 SUPER_ADMIN/ADMIN）' },
 
   // ─────────── finance（7项）───────────
   { key: 'finance.defaultCurrency',   group: 'finance',  valueType: 'string', label: '默认记账币种',
@@ -115,9 +122,9 @@ const SEEDS: SeedItem[] = [
     value: 60 * 8, meta: { min: 5, max: 60 * 24 * 7 } },
 ];
 
-async function seedOne(item: SeedItem): Promise<{ key: string; status: 'created' | 'skipped' }> {
+async function seedOne(item: SeedItem, db: PrismaClient = prisma): Promise<{ key: string; status: 'created' | 'skipped' }> {
   const id = `global::${item.key}`;
-  const existing = await prisma.systemConfig.findUnique({ where: { id }, select: { id: true } });
+  const existing = await db.systemConfig.findUnique({ where: { id }, select: { id: true } });
   if (existing) return { key: item.key, status: 'skipped' };
   // 注意：这里直接 prisma 创建；systemConfigService.set 是给运行时用的，seed 里避免循环依赖
   let storedValue: unknown = item.value;
@@ -149,7 +156,7 @@ async function seedOne(item: SeedItem): Promise<{ key: string; status: 'created'
       storedValue = `${iv.toString('hex')}.${ct.toString('hex')}.${tag.toString('hex')}`;
     }
   }
-  await prisma.systemConfig.create({
+  await db.systemConfig.create({
     data: {
       id,
       scope: 'global',
@@ -170,13 +177,17 @@ async function seedOne(item: SeedItem): Promise<{ key: string; status: 'created'
   return { key: item.key, status: 'created' };
 }
 
-async function main() {
+/**
+ * 幂等 seed 入口（可注入 db，测试/复用；缺省用模块级 prisma）。
+ * 与 seed-moq-thresholds.ts 范式一致：函数导出 + require.main 守卫，重复执行安全。
+ */
+export async function seedSystemConfigs(db: PrismaClient = prisma): Promise<{ created: number; skipped: number }> {
   console.log(`[seed-systemconfig] Start. 配置项=${SEEDS.length}`);
   let created = 0;
   let skipped = 0;
   for (const item of SEEDS) {
     try {
-      const r = await seedOne(item);
+      const r = await seedOne(item, db);
       if (r.status === 'created') {
         console.log(`  + create ${r.key.padEnd(42)} [${item.group}] (${item.valueType}${item.encrypted ? ' +encrypted' : ''}) — ${item.label}`);
         created++;
@@ -191,11 +202,14 @@ async function main() {
   }
   console.log(`[seed-systemconfig] Done. created=${created}, skipped=${skipped}`);
   console.log('[seed-systemconfig] 敏感项加密密钥来源：process.env.SYSTEM_CONFIG_ENCRYPTION_KEY（64 hex chars）。生产环境必须显式设置。');
+  return { created, skipped };
 }
 
-main()
-  .catch((err) => {
-    console.error('[seed-systemconfig] FAILED:', err?.message ?? err);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  seedSystemConfigs()
+    .catch((err) => {
+      console.error('[seed-systemconfig] FAILED:', err?.message ?? err);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
