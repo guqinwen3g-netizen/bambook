@@ -18,6 +18,7 @@ import {
     ShieldCheck
 } from 'lucide-react';
 import { BAMBOOK_OS } from './bambookOsTokens';
+import CapsuleDateInput from './CapsuleDateInput';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
 import AuditHistorySection from '../AuditHistorySection';
@@ -318,7 +319,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                     className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
                                     title="删除品牌线"
                                 >
-                                    <Trash2 size={12} />
+                                    <Trash2 size={14} />
                                 </button>
                             </li>
                         ))}
@@ -345,7 +346,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]`}
                         title="添加品牌线"
                     >
-                        {brandLineBusy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                        {brandLineBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                     </button>
                 </div>
             </div>
@@ -376,7 +377,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                     className={`ml-auto self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
                                     title="删除沟通日志"
                                 >
-                                    <Trash2 size={12} />
+                                    <Trash2 size={14} />
                                 </button>
                             </li>
                         ))}
@@ -385,19 +386,18 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                 {/* 内联添加表单（类型 + 日期 + 摘要） */}
                 <div className="flex items-center gap-1.5 mt-2">
                     <select
+                        className="bds-select sm shrink-0 w-auto"
                         value={commLogForm.type}
                         onChange={e => setCommLogForm(prev => ({ ...prev, type: e.target.value as CommunicationType }))}
-                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)]`}
                     >
                         {COMM_TYPES.map(t => (
                             <option key={t} value={t}>{COMM_TYPE_LABELS[t]}</option>
                         ))}
                     </select>
-                    <input
-                        type="date"
+                    <CapsuleDateInput
                         value={commLogForm.occurredAt}
-                        onChange={e => setCommLogForm(prev => ({ ...prev, occurredAt: e.target.value }))}
-                        className={`shrink-0 px-1.5 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)]`}
+                        onChange={v => setCommLogForm(prev => ({ ...prev, occurredAt: v }))}
+                        className="bds-input sm shrink-0"
                     />
                     <input
                         value={commLogForm.summary}
@@ -412,7 +412,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]`}
                         title="添加沟通日志"
                     >
-                        {commLogBusy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                        {commLogBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                     </button>
                 </div>
             </div>
@@ -460,9 +460,9 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                 <div className="flex items-center gap-4">
                     {/* 图标 */}
                     {isOrg ? (
-                        <Building2 size={22} strokeWidth={1.5} className={`shrink-0 ${brandTextClass}`} />
+                        <Building2 size={24} strokeWidth={1.5} className={`shrink-0 ${brandTextClass}`} />
                     ) : (
-                        <User size={22} strokeWidth={1.5} className={`shrink-0 ${brandTextClass}`} />
+                        <User size={24} strokeWidth={1.5} className={`shrink-0 ${brandTextClass}`} />
                     )}
 
                     {/* 基本信息 */}
@@ -483,7 +483,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             ) : (
                                 <>
                                     <span className={`flex items-center gap-1 text-xs font-light text-[var(--text-secondary)]`}>
-                                        <Briefcase size={12} /> {data.role || '未设置职位'}
+                                        <Briefcase size={14} /> {data.role || '未设置职位'}
                                     </span>
                                     {data.department && (
                                         <span className={`text-xs text-[var(--text-tertiary)]`}>

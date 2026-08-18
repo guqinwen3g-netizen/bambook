@@ -141,7 +141,7 @@ const UserCombobox: React.FC<UserComboboxProps> = ({
         <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-card border bg-[var(--recessed-bg)] border-[var(--border-c-default)]">
           {candidates.length === 0 && (
             <div className="px-3 py-3 text-[11px] flex items-center gap-2 text-[var(--text-tertiary)]">
-              <Search size={12} />
+              <Search size={14} />
               <span>无匹配用户</span>
             </div>
           )}

@@ -127,7 +127,7 @@ export const ExchangeScreen: React.FC<ExchangeScreenProps> = ({ data, isDarkMode
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-0.5 mt-0.5" style={{ color: accentColor }}>
-                                                {isUp ? <TrendingUp size={12} strokeWidth={1.2} /> : <TrendingDown size={12} strokeWidth={1.2} />}
+                                                {isUp ? <TrendingUp size={14} strokeWidth={1.25} /> : <TrendingDown size={14} strokeWidth={1.25} />}
                                                 <span className="text-[12px] font-mono font-light">{isUp ? '+' : ''}{item.change.toFixed(2)}%</span>
                                             </div>
                                         </div>

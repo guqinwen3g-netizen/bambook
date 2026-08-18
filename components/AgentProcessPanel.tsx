@@ -29,21 +29,21 @@ interface AgentProcessPanelProps {
 const iconFor = (kind: AgentEventIconKind): React.ReactElement => {
   switch (kind) {
     case 'complete':
-      return <CheckCircle2 size={13} className="text-[var(--text-tertiary)]" />;
+      return <CheckCircle2 size={14} className="text-[var(--text-tertiary)]" />;
     case 'blocked':
-      return <AlertCircle size={13} className="text-[var(--text-tertiary)]" />;
+      return <AlertCircle size={14} className="text-[var(--text-tertiary)]" />;
     case 'tool':
-      return <Wrench size={13} className="text-[var(--os-vnext-brand-blue)]" />;
+      return <Wrench size={14} className="text-[var(--os-vnext-brand-blue)]" />;
     case 'cognitive':
-      return <Activity size={13} className="text-[var(--text-tertiary)]" />;
+      return <Activity size={14} className="text-[var(--text-tertiary)]" />;
     case 'identity':
-      return <Settings size={13} className="text-[var(--text-tertiary)]" />;
+      return <Settings size={14} className="text-[var(--text-tertiary)]" />;
     case 'final':
-      return <Cpu size={13} className="text-[var(--text-tertiary)]" />;
+      return <Cpu size={14} className="text-[var(--text-tertiary)]" />;
     case 'running':
-      return <CircleDashed size={13} className="text-[var(--text-tertiary)] animate-spin" />;
+      return <CircleDashed size={14} className="text-[var(--text-tertiary)] animate-spin" />;
     default:
-      return <CircleDashed size={13} className="text-[var(--text-tertiary)]" />;
+      return <CircleDashed size={14} className="text-[var(--text-tertiary)]" />;
   }
 };
 
@@ -118,7 +118,7 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
     return (
       <div className="mb-3">
         <div className={`mb-2 flex items-center gap-2 text-[12px] ${quietTextClass}`}>
-          <Activity size={13} className="text-[var(--os-vnext-brand-blue)] animate-pulse" />
+          <Activity size={14} className="text-[var(--os-vnext-brand-blue)] animate-pulse" />
           <span>工作过程</span>
         </div>
         <div className={`space-y-3 border-l pl-3 border-[var(--border-c-default)]`}>
@@ -138,7 +138,7 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
         className={`flex items-center justify-between w-full px-3 py-2.5 text-left ${hoverBgClass} transition-colors`}
       >
         <div className="flex items-center gap-2">
-          {isRunning && <Activity size={13} className="text-[var(--os-vnext-brand-blue)] animate-pulse" />}
+          {isRunning && <Activity size={14} className="text-[var(--os-vnext-brand-blue)] animate-pulse" />}
           <span className={`text-[12px] ${isRunning ? bodyTextClass : quietTextClass}`}>
             {isRunning ? '工作过程' : `查看工作过程（${stepCount}步）`}
           </span>
@@ -148,7 +148,7 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
           transition={{ duration: 0.2 }}
           className={quietTextClass}
         >
-          <ChevronDown size={13} />
+          <ChevronDown size={14} />
         </motion.div>
       </button>
 
@@ -168,7 +168,7 @@ export const AgentProcessPanel: React.FC<AgentProcessPanelProps> = ({
                   {isRunning && (
                     <div className="flex items-start gap-2.5 opacity-60">
                       <div className="mt-[3px] shrink-0">
-                        <CircleDashed size={13} className="text-[var(--text-tertiary)] animate-spin" />
+                        <CircleDashed size={14} className="text-[var(--text-tertiary)] animate-spin" />
                       </div>
                       <div className={`text-[12px] leading-relaxed ${quietTextClass}`}>
                         执行中...

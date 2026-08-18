@@ -93,7 +93,7 @@ export const AgentMarkdownBlock: React.FC<AgentBlockComponentProps<AgentMarkdown
       {showCursor && (
         <span
           aria-hidden
-          className={`agent-md-cursor ${isTyping ? 'is-typing' : ''} inline-block align-text-bottom ml-[1px] h-[1.05em] w-[2px] -mb-[1px] bg-[var(--invert-bg)]`}
+          className={`agent-md-cursor ${isTyping ? 'is-typing' : ''} inline-block align-text-bottom ml-px h-[1.05em] w-0.5 -mb-px bg-[var(--invert-bg)]`}
           style={{ verticalAlign: '-0.12em' }}
         />
       )}

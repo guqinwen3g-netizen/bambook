@@ -214,7 +214,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               type="button"
               onClick={goBack}
               disabled={step === 1 || isParsing}
-              className="bds-btn bds-btn-ghost min-w-[96px]"
+              className="bds-btn bds-btn-ghost"
             >
               <ChevronLeft size={14} strokeWidth={1.5} /> 上一步
             </button>
@@ -222,7 +222,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
               <button
                 type="button"
                 onClick={onClose}
-                className="bds-btn bds-btn-ghost min-w-[80px]"
+                className="bds-btn bds-btn-ghost"
               >
                 关闭
               </button>
@@ -230,7 +230,7 @@ const ImportWizard: React.FC<Props> = ({ isOpen, onClose, onConfirm, isDarkMode,
                 type="button"
                 onClick={goNext}
                 disabled={!canNext}
-                className={`bds-btn bds-btn-primary min-w-[96px]`}
+                className="bds-btn bds-btn-primary"
               >
                 {isParsing && <Loader2 size={14} className="animate-spin" />}
                 {nextLabel}
@@ -256,9 +256,9 @@ const StepDot: React.FC<{
     <div
       className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-light transition-all ${
         current
-          ? 'bg-[var(--os-vnext-brand-blue)] text-white shadow-none'
+          ? 'bg-[var(--accent)] text-[var(--on-accent)] shadow-none'
           : active
-            ? 'bg-[var(--os-vnext-brand-blue)]/60 text-white shadow-none'
+            ? 'bg-[var(--accent)]/60 text-[var(--on-accent)] shadow-none'
             : `${BAMBOOK_OS.controls.actionControl.base} text-[var(--text-tertiary)]`
       }`}
     >

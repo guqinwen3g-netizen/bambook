@@ -242,7 +242,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
 
   return (
     <div className="flex items-start gap-2.5 py-1">
-      <span className="mt-[2px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+      <span className="mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center">
         {statusIcon(block.lifecycleStatus, isDarkMode)}
       </span>
       <div className="min-w-0 flex-1">
@@ -278,7 +278,7 @@ const ToolAnnotation: React.FC<ToolAnnotationProps> = ({ block, isDarkMode, onRe
               })();
               const truncated = text.length > 500 ? text.slice(0, 500) + '...' : text;
               return (
-                <pre className={`mt-1.5 max-h-[160px] overflow-auto whitespace-pre-wrap break-all text-[11px] leading-[1.45] font-mono ${quietText}`}>{truncated}</pre>
+                <pre className={`mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-[1.45] font-mono ${quietText}`}>{truncated}</pre>
               );
             })()}
             {canOpen && (
@@ -316,7 +316,7 @@ const EvidenceAnnotation: React.FC<EvidenceAnnotationProps> = ({ block, isDarkMo
 
   return (
     <div className="flex items-start gap-2.5 py-1">
-      <span className="mt-[2px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+      <span className="mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center">
         <FileText size={14} className="text-[var(--os-vnext-brand-blue-strong)]" />
       </span>
       <div className="min-w-0 flex-1">
@@ -480,7 +480,7 @@ const ApprovalAnnotation: React.FC<ApprovalAnnotationProps> = ({ block, isDarkMo
 
   return (
     <div className={`flex items-start gap-2.5 py-2 px-3 rounded-inset border ${isPending ? 'bg-[var(--recessed-bg)] border-[var(--border-c-subtle)]' : ''} ${!isPending ? borderCls : ''}`}>
-      <span className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+      <span className="mt-[1px] flex h-4 w-4 shrink-0 items-center justify-center">
         <ShieldCheck size={14} className="text-[var(--text-secondary)]" />
       </span>
       <div className="min-w-0 flex-1">

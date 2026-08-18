@@ -336,7 +336,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                   <button
                     type="button"
                     onClick={downloadTemplate}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-light text-[var(--os-vnext-brand-blue)] hover:bg-[var(--os-vnext-brand-blue)]/10 transition-colors flex-shrink-0"
+                    className="bds-btn bds-btn-ghost flex-shrink-0"
                   >
                     <Download size={14} />
                     下载模板
@@ -496,7 +496,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
               type="button"
               onClick={() => setStep(s => (s - 1) as Step)}
               disabled={step === 1 || busy}
-              className="bds-btn bds-btn-ghost min-w-[96px]"
+              className="bds-btn bds-btn-ghost"
             >
               <ChevronLeft size={14} strokeWidth={1.5} /> 上一步
             </button>
@@ -505,7 +505,7 @@ const QuotationImportWizard: React.FC<Props> = ({ isOpen, onClose, onImported, i
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className="bds-btn bds-btn-ghost min-w-[80px]"
+                className="bds-btn bds-btn-ghost"
               >
                 关闭
               </button>
@@ -546,9 +546,9 @@ const StepDot: React.FC<{
     <div
       className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-light transition-all ${
         current
-          ? 'bg-[var(--os-vnext-brand-blue)] text-white shadow-none'
+          ? 'bg-[var(--accent)] text-[var(--on-accent)] shadow-none'
             : active
-              ? 'bg-[var(--os-vnext-brand-blue)]/60 text-white shadow-none'
+              ? 'bg-[var(--accent)]/60 text-[var(--on-accent)] shadow-none'
               : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)]'
       }`}
     >

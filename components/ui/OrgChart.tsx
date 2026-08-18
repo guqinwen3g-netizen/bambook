@@ -141,7 +141,7 @@ const OrgNodeCard: React.FC<{
                 animate={{ opacity: isDragging ? 0.45 : 1, scale: isDropTarget ? 1.04 : 1 }}
                 className={`
           relative group cursor-pointer
-          w-[200px]
+          w-52
         `}
                 data-org-node-card
                 draggable
@@ -231,7 +231,7 @@ const OrgNodeCard: React.FC<{
             `}
                     aria-label={`编辑${contact.name}`}
                 >
-                    <Edit2 size={12} />
+                    <Edit2 size={14} />
                 </button>
 
                 {/* 直接下属数量标签 */}
@@ -449,7 +449,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8">
                 <div className={`w-20 h-20 rounded-card flex items-center justify-center mb-5 ${quietIconSurfaceClass}`}>
-                    <Users size={40} strokeWidth={1} className="text-[var(--text-tertiary)]" />
+                    <Users size={24} strokeWidth={1.25} className="text-[var(--text-tertiary)]" />
                 </div>
                 <h3 className="text-base font-light mb-2 text-[var(--text-primary)]">
                     暂无组织架构
@@ -495,7 +495,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                         className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="缩小组织架构"
                     >
-                        <ZoomOut size={14} strokeWidth={1.6} />
+                        <ZoomOut size={14} strokeWidth={1.5} />
                     </button>
                     <button
                         type="button"
@@ -507,7 +507,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                         aria-label="重置组织架构缩放"
                     >
                         <span className="inline-flex items-center gap-1">
-                            <RotateCcw size={11} strokeWidth={1.6} />
+                            <RotateCcw size={14} strokeWidth={1.5} />
                             {zoomPercent}%
                         </span>
                     </button>
@@ -517,7 +517,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                         className={`h-8 w-7 rounded-compact flex items-center justify-center transition-all ${BAMBOOK_OS.controls.listRow.hover} ${ORG_CHART_PRESS_CLASS} text-[var(--text-tertiary)]`}
                         aria-label="放大组织架构"
                     >
-                        <ZoomIn size={14} strokeWidth={1.6} />
+                        <ZoomIn size={14} strokeWidth={1.5} />
                     </button>
                 </div>
             </div>
@@ -534,15 +534,15 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     架构视图：
                 </span>
                 <div className="flex items-center gap-1.5">
-                    <Building2 size={12} className={brandTextClass} />
+                    <Building2 size={14} className={brandTextClass} />
                     <span className={`text-xs font-light text-[var(--text-tertiary)]`}>组织</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <User size={12} className={brandTextClass} />
+                    <User size={14} className={brandTextClass} />
                     <span className={`text-xs font-light text-[var(--text-tertiary)]`}>人员</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <ChevronDown size={12} className="text-[var(--text-tertiary)]" />
+                    <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
                     <span className={`text-xs font-light text-[var(--text-tertiary)]`}>下级关系</span>
                 </div>
                 <span className="text-[11px] ml-auto font-light text-[var(--text-tertiary)]">
@@ -573,7 +573,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
                     }}
                     data-org-node-card
                     className={`
-          w-[200px] p-3.5 rounded-inset mb-2
+          w-52 p-3.5 rounded-inset mb-2
           ${ORG_CHART_NODE_CLASS} ${dropTargetId === '__organization__' ? BAMBOOK_OS.controls.selectedSurface.base : ''}
         `}
                 >
