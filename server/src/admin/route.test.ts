@@ -47,6 +47,12 @@ describe('admin user status management', () => {
       userAccount: {
         findMany: vi.fn().mockResolvedValue([disabledUser, erasedUser]),
       },
+      department: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'dept-sales', name: '销售部' },
+          { id: 'dept-finance', name: '财务部' },
+        ]),
+      },
     };
 
     const res = await request(makeApp(prisma))
@@ -59,6 +65,34 @@ describe('admin user status management', () => {
     }));
     expect(res.body.users).toHaveLength(1);
     expect(res.body.users[0]).toMatchObject({ id: 'user-disabled', status: 'disabled' });
+    // 部门选项随用户列表下发，前端表单下拉数据源
+    expect(res.body.departments).toEqual([
+      { id: 'dept-sales', name: '销售部' },
+      { id: 'dept-finance', name: '财务部' },
+    ]);
+  });
+
+  it('rejects user writes referencing a non-existent department', async () => {
+    const prisma = {
+      userAccount: {
+        update: vi.fn().mockResolvedValue({}),
+      },
+      department: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+      auditLog: {
+        create: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const res = await request(makeApp(prisma))
+      .patch('/admin/users/user-1')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ departmentId: 'dept-nope' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ ok: false, error: 'INVALID_DEPARTMENT' });
+    expect(prisma.userAccount.update).not.toHaveBeenCalled();
   });
 
   it('reactivates a disabled existing account instead of failing duplicate creation', async () => {

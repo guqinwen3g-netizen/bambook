@@ -216,6 +216,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userDraft, setUserDraft] = useState(EMPTY_USER_EDIT_DRAFT);
+  // 用户表单部门选项（真源 /api/admin/users 响应 departments；与 kbDepartments 同构但独立缓存于 users tab）
+  const [userDepartments, setUserDepartments] = useState<any[]>(() => readAdminPanelCache().users?.departments || []);
 
   // Knowledge ACL state
   const [knowledgeAcls, setKnowledgeAcls] = useState<any[]>(() => readAdminPanelCache()['knowledge-acl']?.acls || []);
@@ -326,7 +328,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   const applyAdminTabPayload = (tab: TabId, data: any) => {
-    if (tab === 'users') setUsers(data.users || []);
+    if (tab === 'users') {
+      setUsers(data.users || []);
+      if (data.departments) setUserDepartments(data.departments);
+    }
     if (tab === 'roles') {
       setRoles(data.roles || []);
       if (data.permissions) setAllPermissions(data.permissions || []);
@@ -660,7 +665,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                               : <option value={DEFAULT_ASSIGN_ROLE}>业务员</option>}
                           </select>
                         </div>
-                        <div><label className={labelCls}>部门ID</label><input value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})} className={inputCls + ' mt-1'} placeholder="company" /></div>
+                        <div><label className={labelCls}>部门</label>
+                          <select className="bds-select mt-1" value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})}>
+                            <option value="">未分配</option>
+                            {userDepartments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                        </div>
                       </div>
                       <button disabled={actionBusyId !== null} onClick={async () => {
                         if (actionBusyId) return;
@@ -722,13 +732,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           />
                         </div>
                         <div>
-                          <label className={labelCls}>部门 ID</label>
-                          <input
+                          <label className={labelCls}>部门</label>
+                          <select
+                            className="bds-select mt-1"
                             value={userDraft.departmentId}
                             onChange={e => setUserDraft(prev => ({ ...prev, departmentId: e.target.value }))}
-                            className={inputCls + ' mt-1'}
-                            placeholder="未分配"
-                          />
+                          >
+                            <option value="">未分配</option>
+                            {userDepartments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
                         </div>
                         <div>
                           <label className={labelCls}>账号状态</label>

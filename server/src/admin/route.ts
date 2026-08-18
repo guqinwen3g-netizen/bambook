@@ -50,6 +50,17 @@ async function resolveRoleByNameOrId(prisma: PrismaClient, nameOrId: string) {
   return prisma.role.findFirst({ where: { name: nameOrId } });
 }
 
+/**
+ * 部门存在性校验：primaryDeptId 是真实外键（UserAccount.primaryDeptId → Department.id），
+ * 且 DR-007 审批人解析与 userRole 部门作用域 RBAC 均依赖部门可达。
+ * 部门填错会导致审批人兜底与部门隔离静默失效，因此在所有写路径 fail-closed。
+ */
+async function departmentExists(prisma: PrismaClient, departmentId: string | null | undefined): Promise<boolean> {
+  if (!departmentId) return true; // 未分配是合法状态
+  const dept = await prisma.department.findUnique({ where: { id: departmentId } });
+  return Boolean(dept && dept.status === 'active');
+}
+
 export function createAdminRouter(options: AdminRouterOptions) {
   const router = Router();
   const auth = createAuthService();
@@ -80,7 +91,14 @@ export function createAdminRouter(options: AdminRouterOptions) {
       const metadata = (u.metadata || {}) as any;
       return !metadata.erased && metadata.deletionMode !== 'erase-personal-data';
     });
-    res.json({ ok: true, users: users.map(u => ({
+    // 部门选项随用户列表下发（与 knowledge-acl 返回 departments 同一模式），
+    // 前端用户表单的部门字段用下拉选择，杜绝手填原始 ID。
+    const departments = await options.prisma.department.findMany({
+      where: { status: 'active' },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    });
+    res.json({ ok: true, departments, users: users.map(u => ({
       id: u.id,
       displayName: u.displayName,
       email: u.email,
@@ -105,6 +123,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
     }
     if (password.length < 6) {
       return res.status(400).json({ ok: false, error: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters.' });
+    }
+    if (!(await departmentExists(options.prisma, departmentId))) {
+      return res.status(400).json({ ok: false, error: 'INVALID_DEPARTMENT', message: `部门不存在或已停用：${departmentId}` });
     }
     const existing = await options.prisma.userAccount.findFirst({ where: { email } });
     if (existing && existing.status !== 'disabled' && existing.deletedAt === null) {
@@ -159,6 +180,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
   router.patch('/users/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { displayName, email, status, departmentId } = req.body || {};
+    if (departmentId !== undefined && !(await departmentExists(options.prisma, departmentId))) {
+      return res.status(400).json({ ok: false, error: 'INVALID_DEPARTMENT', message: `部门不存在或已停用：${departmentId}` });
+    }
     const data: any = {};
     if (displayName !== undefined) data.displayName = displayName;
     if (email !== undefined) data.email = email;
@@ -283,6 +307,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
       : (requestedRole ? [requestedRole] : ['role-sales']);
 
     const finalDeptId = departmentId || target.primaryDeptId || null;
+    if (!(await departmentExists(options.prisma, finalDeptId))) {
+      return res.status(400).json({ ok: false, error: 'INVALID_DEPARTMENT', message: `部门不存在或已停用：${finalDeptId}` });
+    }
     await options.prisma.userAccount.update({
       where: { id },
       data: {
