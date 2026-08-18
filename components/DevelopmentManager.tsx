@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { ChevronLeft, FileText, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import {
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
@@ -327,7 +328,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               disabled={isRefreshing}
               className="bds-btn bds-btn-secondary"
             >
-              <RefreshCw size={13} className={cx(isRefreshing && 'animate-spin')} />
+              <RefreshCw size={14} className={cx(isRefreshing && 'animate-spin')} />
               刷新
             </button>
             <button
@@ -345,8 +346,8 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       <main className={cx('flex-1 min-h-0 flex flex-col px-7 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', isFormModalOpen && 'hidden')}>
         <div className="flex h-full min-h-0 flex-col gap-3">
           <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">
-            <div className="relative min-w-[188px] flex-[1_1_220px] max-w-xs">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
+            <div className="relative min-w-48 flex-[1_1_220px] max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
               <input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
@@ -356,7 +357,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
             </div>
             <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
             <select
-              className="bds-select w-[140px] shrink-0"
+              className="bds-select w-36 shrink-0"
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value as DevelopmentTypeId)}
             >
@@ -367,7 +368,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               ))}
             </select>
             <select
-              className="bds-select w-[120px] shrink-0"
+              className="bds-select w-30 shrink-0"
               value={selectedStage}
               onChange={(e) => setSelectedStage(e.target.value as DevelopmentStageId)}
             >
@@ -447,7 +448,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 })}
                 {filteredCases.length === 0 && (
                   <div className="bds-empty">
-                    <div className="glyph"><PackageCheck size={24} strokeWidth={1} /></div>
+                    <div className="glyph"><PackageCheck size={24} strokeWidth={1.5} /></div>
                     <div className="title">暂无匹配开发单</div>
                   </div>
                 )}
@@ -490,7 +491,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                               title="跳转到报价管理并预填本开发案客户/产品"
                               className="bds-btn bds-btn-secondary"
                             >
-                              <FileText size={11} />
+                              <FileText size={14} />
                               发起报价
                             </button>
                           )}
@@ -499,7 +500,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             onClick={openEditModal}
                             className="bds-btn bds-btn-secondary"
                           >
-                            <Pencil size={11} />
+                            <Pencil size={14} />
                             编辑
                           </button>
                           <button
@@ -507,7 +508,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             onClick={handleDelete}
                             className="bds-btn bds-btn-danger"
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={14} />
                             删除
                           </button>
                         </div>
@@ -567,7 +568,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </>
               ) : (
                 <div className="bds-empty h-full justify-center">
-                  <div className="glyph"><PackageCheck size={24} strokeWidth={1} /></div>
+                  <div className="glyph"><PackageCheck size={24} strokeWidth={1.5} /></div>
                   <div className="title">请选择开发单</div>
                 </div>
               )}
@@ -588,7 +589,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               leading={(
                 <div className="flex h-full items-center gap-1.5 min-w-0">
                   <button type="button" onClick={closeFormModal} aria-label="返回开发管理" className="bds-btn bds-btn-secondary bds-btn-icon">
-                    <ChevronLeft size={18} strokeWidth={1.4} />
+                    <ChevronLeft size={18} strokeWidth={1.5} />
                   </button>
                   <h3 className="flex h-9 max-w-[260px] items-center truncate text-[11px] font-light leading-none tracking-wide text-[var(--text-secondary)]">
                     {editingCase ? '编辑开发单' : '新建开发单'}
@@ -655,7 +656,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </CompiledFormMapPanel>
               </aside>
 
-              <div ref={formScrollRef} className="min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] bambook-panel-shadow-viewport">
+              <div ref={formScrollRef} className="min-w-0 -mt-[7rem] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] bambook-panel-shadow-viewport">
               <CompiledFormSectionPanel
                 id="dev-basic"
                 title="基本信息"
@@ -684,9 +685,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">类型</label>
                   <select
+                    className="bds-select"
                     value={form.type}
                     onChange={(e) => updateField('type', e.target.value as DevType)}
-                    className="bds-select"
                   >
                     {DEV_TYPE_OPTIONS.map(t => (
                       <option key={t.id} value={t.id}>{t.label}</option>
@@ -696,9 +697,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">阶段</label>
                   <select
+                    className="bds-select"
                     value={form.stage}
                     onChange={(e) => updateField('stage', e.target.value as DevStage)}
-                    className="bds-select"
                   >
                     {DEV_STAGE_OPTIONS.map(s => (
                       <option key={s.id} value={s.id}>{s.label}</option>
@@ -772,9 +773,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">样品类型</label>
                   <select
+                    className="bds-select"
                     value={form.sampleType}
                     onChange={(e) => updateField('sampleType', e.target.value as SampleType | '')}
-                    className="bds-select"
                   >
                     <option value="">不指定</option>
                     {SAMPLE_TYPE_OPTIONS.map(t => (
@@ -785,9 +786,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">样衣分档</label>
                   <select
+                    className="bds-select"
                     value={form.sampleCategory}
                     onChange={(e) => updateField('sampleCategory', e.target.value as 'normal' | '5a')}
-                    className="bds-select"
                   >
                     <option value="normal">普通样衣</option>
                     <option value="5a">5A 重点样衣</option>
@@ -795,12 +796,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 </div>
                 <div>
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">目标日期</label>
-                  <input
-                    type="date"
-                    value={form.targetDate}
-                    onChange={(e) => updateField('targetDate', e.target.value)}
-                    className="bds-input"
-                  />
+                  <CapsuleDateInput className="bds-input" value={form.targetDate} onChange={(value) => updateField('targetDate', value)} />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">下一动作</label>
@@ -817,7 +813,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     value={form.notes}
                     onChange={(e) => updateField('notes', e.target.value)}
                     placeholder="备注信息"
-                    className="bds-input bds-textarea resize-none min-h-[96px]"
+                    className="bds-input bds-textarea resize-none min-h-24"
                   />
                 </div>
               </CompiledFormSectionPanel>
