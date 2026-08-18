@@ -60,6 +60,7 @@ import {
 } from '../types';
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
@@ -379,7 +380,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
 
       {/* 客户选择器 + 搜索 */}
       <div className="px-7 pt-3 pb-3 flex items-center gap-3 flex-wrap">
-        <div className="bds-filterbar flex-1 min-w-[240px]">
+        <div className="bds-filterbar flex-1 min-w-60">
           <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
           <input
             type="text"
@@ -1149,7 +1150,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputClass = "bds-input";
-const selectClass = "bds-select";
 const textareaClass = "bds-input bds-textarea";
 
 function OpportunityForm({
@@ -1199,14 +1199,14 @@ function OpportunityForm({
           <input type="number" className={inputClass} value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
       </div>
       {!opportunity && (
         <Field label="初始阶段">
-          <select className={selectClass} value={stage} onChange={(e) => setStage(e.target.value as OpportunityStage)}>
+          <select className="bds-select" value={stage} onChange={(e) => setStage(e.target.value as OpportunityStage)}>
             {OPPORTUNITY_STAGES.filter((s) => s.id !== 'ClosedWon' && s.id !== 'ClosedLost').map((s) => (
               <option key={s.id} value={s.id}>{s.label}</option>
             ))}
@@ -1215,7 +1215,7 @@ function OpportunityForm({
       )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="预计成交日期">
-          <input type="date" className={inputClass} value={expectedCloseDate} onChange={(e) => setExpectedCloseDate(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={expectedCloseDate} onChange={setExpectedCloseDate} />
         </Field>
         <Field label="商机来源">
           <input className={inputClass} value={source} onChange={(e) => setSource(e.target.value)} placeholder="展会/转介绍/主动开发" />
@@ -1283,12 +1283,12 @@ function FollowUpForm({
     <ModalShell title={followUp ? '编辑跟进' : '新建跟进'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="跟进类型">
-          <select className={selectClass} value={type} onChange={(e) => setType(e.target.value)}>
+          <select className="bds-select" value={type} onChange={(e) => setType(e.target.value)}>
             {FOLLOWUP_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
         </Field>
         <Field label="跟进日期">
-          <input type="date" className={inputClass} value={followUpAt} onChange={(e) => setFollowUpAt(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={followUpAt} onChange={setFollowUpAt} />
         </Field>
       </div>
       <Field label="跟进内容 *">
@@ -1296,13 +1296,13 @@ function FollowUpForm({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="关联联系人">
-          <select className={selectClass} value={contactId} onChange={(e) => setContactId(e.target.value)}>
+          <select className="bds-select" value={contactId} onChange={(e) => setContactId(e.target.value)}>
             <option value="">不关联</option>
             {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </Field>
         <Field label="关联商机">
-          <select className={selectClass} value={opportunityId} onChange={(e) => setOpportunityId(e.target.value)}>
+          <select className="bds-select" value={opportunityId} onChange={(e) => setOpportunityId(e.target.value)}>
             <option value="">不关联</option>
             {opportunities.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
           </select>
@@ -1310,7 +1310,7 @@ function FollowUpForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="下次跟进日期">
-          <input type="date" className={inputClass} value={nextFollowUpAt} onChange={(e) => setNextFollowUpAt(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={nextFollowUpAt} onChange={setNextFollowUpAt} />
         </Field>
         <Field label="下次跟进主题">
           <input className={inputClass} value={nextFollowUpTopic} onChange={(e) => setNextFollowUpTopic(e.target.value)} />
@@ -1366,17 +1366,17 @@ function CreditLimitForm({
           <input type="number" className={inputClass} value={totalLimit} onChange={(e) => setTotalLimit(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="生效日期 *">
-          <input type="date" className={inputClass} value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={validFrom} onChange={setValidFrom} />
         </Field>
         <Field label="失效日期">
-          <input type="date" className={inputClass} value={validTo} onChange={(e) => setValidTo(e.target.value)} placeholder="留空=长期" />
+          <CapsuleDateInput className="bds-input" value={validTo} onChange={setValidTo} />
         </Field>
       </div>
       <Field label="审批人">
@@ -1427,7 +1427,7 @@ function CustomerTierForm({
   return (
     <ModalShell title="评定客户分层" onClose={onClose}>
       <Field label="分层等级">
-        <select className={selectClass} value={level} onChange={(e) => setLevel(e.target.value as CustomerTierLevel)}>
+        <select className="bds-select" value={level} onChange={(e) => setLevel(e.target.value as CustomerTierLevel)}>
           {TIER_LEVELS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
       </Field>
@@ -1441,19 +1441,19 @@ function CustomerTierForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="信用优先级">
-          <select className={selectClass} value={creditPriority} onChange={(e) => setCreditPriority(e.target.value)}>
+          <select className="bds-select" value={creditPriority} onChange={(e) => setCreditPriority(e.target.value)}>
             <option value="High">高</option>
             <option value="Normal">常规</option>
             <option value="Low">低</option>
           </select>
         </Field>
         <Field label="评定日期 *">
-          <input type="date" className={inputClass} value={evaluatedAt} onChange={(e) => setEvaluatedAt(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={evaluatedAt} onChange={setEvaluatedAt} />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="有效期至">
-          <input type="date" className={inputClass} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} placeholder="留空=长期" />
+          <CapsuleDateInput className="bds-input" value={validUntil} onChange={setValidUntil} />
         </Field>
         <Field label="评定人">
           <input className={inputClass} value={evaluatedBy} onChange={(e) => setEvaluatedBy(e.target.value)} />
