@@ -241,20 +241,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                   <React.Fragment key={section.group}>
                     <div
                       data-sidebar-nav-group-label={section.group}
-                      className={`select-none pl-[19px] pr-4 text-xs font-light tracking-wider text-os-adaptive-subtitle opacity-60 ${sectionIndex === 0 ? '' : 'pt-3'}`}
+                      className={`select-none pl-5 pr-4 text-xs font-light tracking-wider text-os-adaptive-subtitle opacity-60 ${sectionIndex === 0 ? '' : 'pt-3'}`}
                     >
                       {section.label}
                     </div>
                     {section.items.map((item) => {
                       const isActive = currentView === item.id;
-                      // bds-ok: Sidebar 导航行高 54px，待总控原语化（.bds-nav-row）后迁移
+                      // W-PG-P7 收编：导航行高 54px → h-14（L2/L3 刻度化）
                       return (
                         <button
                           key={item.id}
                           onClick={() => triggerViewChange(item.id)}
                           data-sidebar-nav-item
                           data-sidebar-nav-active={isActive ? 'true' : 'false'}
-                          className={`w-full h-[54px] group relative flex items-center overflow-visible pl-[19px] pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
+                          className={`w-full h-14 group relative flex items-center overflow-visible pl-5 pr-4 py-0 rounded-control transition-[color,transform] duration-[320ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
                             ${isActive
                               ? 'text-[var(--text-primary)]'
                               : `${SIDEBAR_IDLE_TEXT_CLASS} ${SIDEBAR_HOVER_CLASS}`}
@@ -270,7 +270,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, isCollapse
                             />
                           )}
 
-                          <div className="relative z-10 flex items-center gap-[15px] pointer-events-none">
+                          <div className="relative z-10 flex items-center gap-4 pointer-events-none">
                             <item.icon
                               size={20}
                               strokeWidth={1.25}

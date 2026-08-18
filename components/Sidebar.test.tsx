@@ -189,7 +189,7 @@ describe('Sidebar reveal material system', () => {
     expect(navSource).toContain('data-sidebar-nav-label');
     expect(navSource).toContain('data-sidebar-nav-scroll');
     expect(navSource).toContain('bambook-sidebar-nav-scroll-viewport');
-    expect(navSource).toContain('h-[54px]');
+    expect(navSource).toContain('h-14');
     expect(navSource).toContain('py-0');
     expect(navSource).not.toContain('py-2.5');
     expect(navSource).toContain('pt-14');
