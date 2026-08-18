@@ -509,7 +509,7 @@ const AgentPetWindow: React.FC = () => {
 
       {isAssistantRunning && !menuPosition && (
         <div className="bambook-agent-pet-task-popup no-drag" style={{ left: popupX, top: popupTop }}>
-          <Loader2 size={13} className="animate-spin" />
+          <Loader2 size={14} className="animate-spin" />
           <span>{activity.detail || activity.label || 'Agent 正在运行任务...'}</span>
         </div>
       )}
@@ -539,19 +539,19 @@ const AgentPetWindow: React.FC = () => {
           }}
         >
           <button type="button" onClick={openAssistant}>
-            <Bot size={13} />
+            <Bot size={14} />
             <span>打开 AI 助手</span>
           </button>
           <button type="button" onClick={switchPreviewState}>
-            <Sparkles size={13} />
+            <Sparkles size={14} />
             <span>状态切换: {PET_PREVIEW_LABELS[nextPreviewState]}</span>
           </button>
           <button type="button" onClick={toggleAgentRunning} data-active={isAssistantRunning ? 'true' : undefined}>
-            <Activity size={13} />
+            <Activity size={14} />
             <span>Agent Running: {runningActionLabel}</span>
           </button>
           <button type="button" onClick={hidePetWindow}>
-            <X size={13} />
+            <X size={14} />
             <span>隐藏浮窗</span>
           </button>
         </div>

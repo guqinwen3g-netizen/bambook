@@ -49,7 +49,7 @@ export const AgentLiveStatusBar: React.FC<AgentLiveStatusBarProps> = ({
 
   return (
     <div className="mb-2 flex items-center gap-2 text-[12px]">
-      <Icon size={12} className={`${iconColor} ${isLoading ? 'animate-pulse' : ''}`} />
+      <Icon size={14} className={`${iconColor} ${isLoading ? 'animate-pulse' : ''}`} />
       <span className={textClass}>{text}</span>
     </div>
   );
