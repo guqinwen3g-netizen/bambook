@@ -43,6 +43,7 @@ import {
 } from '../types';
 import { primeFinanceInvoiceCreate } from './FinanceManager';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
@@ -471,7 +472,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'inline-flex' }}
                           title="取消订单关联"
                         >
-                          <X size={10} />
+                          <X size={14} />
                         </button>
                       </span>
                     )}
@@ -498,11 +499,11 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                       </div>
                       <div>
                         <label className={labelCls}>下单日期 *</label>
-                        <input type="date" value={form.orderDate} onChange={(e) => setForm({ ...form, orderDate: e.target.value })} className="bds-input" />
+                        <CapsuleDateInput value={form.orderDate} onChange={(v) => setForm({ ...form, orderDate: v })} className="bds-input" />
                       </div>
                       <div>
                         <label className={labelCls}>预计交货日期</label>
-                        <input type="date" value={form.expectedDeliveryDate} onChange={(e) => setForm({ ...form, expectedDeliveryDate: e.target.value })} className="bds-input" />
+                        <CapsuleDateInput value={form.expectedDeliveryDate} onChange={(v) => setForm({ ...form, expectedDeliveryDate: v })} className="bds-input" />
                       </div>
                       <div>
                         <label className={labelCls}>供应商</label>
@@ -540,7 +541,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>采购明细</h3>
                       <button onClick={addFormLine} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
-                        <Plus size={12} /> 添加行
+                        <Plus size={14} /> 添加行
                       </button>
                     </div>
                     <div className="space-y-2">
@@ -550,7 +551,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                             <span className="bds-mono text-xs" style={{ color: 'var(--text-quaternary)' }}>行 {formLines.indexOf(line) + 1}</span>
                             {formLines.length > 1 && (
                               <button onClick={() => removeFormLine(line.key)} className="p-1 rounded-control transition-colors" style={{ color: 'var(--text-quaternary)' }}>
-                                <Trash2 size={12} />
+                                <Trash2 size={14} />
                               </button>
                             )}
                           </div>
@@ -783,7 +784,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                           <h4 className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>登记来料检验</h4>
                                           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
                                             <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className="bds-input sm" />
-                                            <input type="date" value={receiptForm.receivedDate} onChange={(e) => setReceiptForm({ ...receiptForm, receivedDate: e.target.value })} className="bds-input sm" />
+                                            <CapsuleDateInput value={receiptForm.receivedDate} onChange={(v) => setReceiptForm({ ...receiptForm, receivedDate: v })} className="bds-input sm" />
                                             <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className="bds-input sm" />
                                             <input type="text" value={receiptForm.warehouseName} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseName: e.target.value })} placeholder="入库仓库" className="bds-input sm" />
                                             <input type="number" value={receiptForm.totalReceived} onChange={(e) => setReceiptForm({ ...receiptForm, totalReceived: e.target.value })} placeholder="收货数量 *" className="bds-input sm" />
@@ -799,7 +800,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                               取消
                                             </button>
                                             <button onClick={() => handleCreateReceipt(po.id)} disabled={actionLoading === `receipt_${po.id}`} className="bds-btn bds-btn-primary">
-                                              {actionLoading === `receipt_${po.id}` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                              {actionLoading === `receipt_${po.id}` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                               <span>登记</span>
                                             </button>
                                           </div>
@@ -813,11 +814,11 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     {po.status === 'Draft' && (
                                       <>
                                         <button onClick={() => handleAction(po.id, 'send')} disabled={actionLoading === `${po.id}_send`} className="bds-btn bds-btn-secondary">
-                                          {actionLoading === `${po.id}_send` ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                          {actionLoading === `${po.id}_send` ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                                           <span>发送采购单</span>
                                         </button>
                                         <button onClick={() => handleAction(po.id, 'delete')} disabled={actionLoading === `${po.id}_delete`} className="bds-btn bds-btn-danger">
-                                          {actionLoading === `${po.id}_delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                          {actionLoading === `${po.id}_delete` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                           <span>删除</span>
                                         </button>
                                       </>
@@ -825,11 +826,11 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     {po.status === 'Sent' && (
                                       <>
                                         <button onClick={() => handleAction(po.id, 'confirm')} disabled={actionLoading === `${po.id}_confirm`} className="bds-btn bds-btn-secondary">
-                                          {actionLoading === `${po.id}_confirm` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                          {actionLoading === `${po.id}_confirm` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                           <span>确认采购单</span>
                                         </button>
                                         <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className="bds-btn bds-btn-danger">
-                                          {actionLoading === `${po.id}_cancel` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                                          {actionLoading === `${po.id}_cancel` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                                           <span>取消</span>
                                         </button>
                                       </>
@@ -840,12 +841,12 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                           onClick={() => { setShowReceiptForm(showReceiptForm === po.id ? null : po.id); setReceiptError(null); }}
                                           className="bds-btn bds-btn-secondary"
                                         >
-                                          <Package size={12} />
+                                          <Package size={14} />
                                           <span>{showReceiptForm === po.id ? '收起' : '登记来料'}</span>
                                         </button>
                                         {po.status !== 'Received' && po.status !== 'Closed' && (
                                           <button onClick={() => handleAction(po.id, 'cancel')} disabled={actionLoading === `${po.id}_cancel`} className="bds-btn bds-btn-danger">
-                                            {actionLoading === `${po.id}_cancel` ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                                            {actionLoading === `${po.id}_cancel` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                                             <span>取消</span>
                                           </button>
                                         )}
@@ -853,7 +854,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     )}
                                     {po.status === 'Received' && (
                                       <button onClick={() => handleAction(po.id, 'close')} disabled={actionLoading === `${po.id}_close`} className="bds-btn bds-btn-secondary">
-                                        {actionLoading === `${po.id}_close` ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                        {actionLoading === `${po.id}_close` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                         <span>关闭采购单</span>
                                       </button>
                                     )}
@@ -872,19 +873,19 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         }}
                                         className="bds-btn bds-btn-secondary"
                                       >
-                                        <FileText size={12} />
+                                        <FileText size={14} />
                                         <span>生成应付发票</span>
                                       </button>
                                     )}
                                     {po.status === 'Closed' && (
                                       <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-                                        <CheckCircle2 size={12} />
+                                        <CheckCircle2 size={14} />
                                         <span>已关闭 — 终态</span>
                                       </div>
                                     )}
                                     {po.status === 'Cancelled' && (
                                       <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-quaternary)' }}>
-                                        <Clock size={12} />
+                                        <Clock size={14} />
                                         <span>已取消 — 终态</span>
                                       </div>
                                     )}
