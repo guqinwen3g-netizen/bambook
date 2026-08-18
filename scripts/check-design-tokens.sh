@@ -70,14 +70,16 @@ BASELINE_RAW_MASK=3            # 批B：自造遮罩 bg-black/N → var(--mask-b
 BASELINE_BARE_ROUNDED=4        # 批D：裸 rounded（非 BDS 刻度，Tailwind 默认 4px）→ rounded-bds-sm/rounded-control/rounded-field/rounded-bds-xs
                                # 2026-08-17 批D 收编 43→5；余量 5 处均为注释文本（StepUpload/Dashboard/compiledSurfacePrimitives×2/compiledDashboardTemplates），非 className
                                # 2026-08-18 Phase 0 架构收口删除 compiled 模板后 5→4
-BASELINE_HANDWRITTEN_BTN=9    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
+BASELINE_HANDWRITTEN_BTN=8    # 批E：手写主按钮（rounded-full + bg-[var(--os-vnext-brand-blue)] 组合，双序合计）→ bds-btn bds-btn-primary
+                               # 2026-08-18 W4 组8 ImportWizard 收编 9→8
                                # 2026-08-18 W1 组2 ReportCenter 收编 10→9（W0 已收至 9，基线随 W1 一并纠正）
                                # 2026-08-17 批E 收编 35→22（13 处按钮：DocumentCenter×4 / ReportCenter×4 / ImportWizard / Register / QuotationImportWizard / compiledProductsTemplates×2）；
                                # 2026-08-17 W4-Dashboard余量 收编 22→17：compiledDashboardTemplates×5 装饰性 accent 填充
                                # （装饰下划杠×2 / 进度条 fill×2 / 指示圆点×1）bg-[var(--os-vnext-brand-blue)] → bg-[var(--accent)] 主题自适应；
                                # 余量 16 处均非按钮：进度条/圆点/头像/徽章等装饰性 accent 填充（Dashboard×5 / ProductsManager×2 / compiledProductsTemplates×3 / AdminPanel / RelationsManager / ImageUploader / QuotationImportWizard 链接 / DesignTuner 开发工具）+ FabricSampleInvoiceGenerator 1（测试锁定业务语义豁免）
                                # 2026-08-18 Phase 0 架构收口删除 compiled 模板（compiledProductsTemplates 等 7 文件）后 17→10
-BASELINE_TEXT_WHITE=28         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
+BASELINE_TEXT_WHITE=11         # 批E 伴随项：accent 填充上 text-white 直用 → var(--on-accent)（警告级，不计 errors）
+                               # 2026-08-18 W4 组8 手写主按钮组件化后 28→11（ImportWizard/ContractGenerator/PackingListGenerator text-white → text-[var(--on-accent)]）
                                # 2026-08-17 批E 伴随收编 48→34（13 处手写主按钮改 bds-btn-primary 后文字色由组件类 --on-accent 承载）；
                                # 批G-8d Sidebar active 文字 text-deep-alt dark:text-white → text-[var(--text-primary)]，34→33；
                                # W-PG-P2 Relations 主刀：删除确认弹窗 accent 按钮 text-white → text-[var(--on-accent)]；
@@ -96,7 +98,9 @@ BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-
                               # 白名单仅限表格行内操作，spec §3.1）
 BASELINE_FILTERBAR_H=0        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
                               # 2026-08-18 W1 组2 收编 3→0：FinanceManager:1935 / FinanceCreditPanel:367 / FinancePaymentRequestsPanel:422 均删 h-auto min-h-11）
-BASELINE_NATIVE_CONTROLS=102  # M4: 原生 <select（无 bds-select 类）74 + type="date" 28 = 102
+BASELINE_NATIVE_CONTROLS=77   # M4: 原生 <select（无 bds-select 类）57 + type="date" 20 = 77
+                              # 2026-08-18 P2-W4 组7+组8 收编 102→77：CockpitManager 2 date（-2）+
+                              # crmRelationSections/DetailPanel/import 等 select→bds-select + date→CapsuleDateInput（-23）
                               # 2026-08-18 W2 遗留清零：RelationsManager 联系人生日 type=date → CapsuleDateInput（+hidden 兼容 FormData），date 35→34
                               # 2026-08-18 W1 组1+组2 收编 261→205→203：订单/财务/定价/关务/报表域 M4 清零
                               # 2026-08-18 W2 组3+组4 收编 203→148：采购/库存/BOM/生产（-9）+ 关系/CRM/供应商/季节/风险/营销（-46）
@@ -414,22 +418,22 @@ layout_guard() {
 l2_a=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-(?!0\b|1\b|2\b|3\b|4\b|5\b|6\b|7\b|8\b|10\b|12\b|16\b)[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 l2_b=$(rg -o -P -e '-(p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|space-x|space-y)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 l2_count=$((l2_a + l2_b))
-layout_guard "L2 间距刻度越界" 9 "$l2_count" "间距只取刻度 4/8/12/16/20/24/28/32/40/48/64（--space-*），禁 p-9/p-11/px-[15px]"
+layout_guard "L2 间距刻度越界" 6 "$l2_count" "间距只取刻度 4/8/12/16/20/24/28/32/40/48/64（--space-*），禁 p-9/p-11/px-[15px]"
 
 # L3 容器与长宽比：硬编码 h/min-h/w/min-w px 尺寸 → bds-well/bds-thumb/尺寸族
 # 豁免：模态 max-h-[85vh/88vh]、Agent 滚动区 max-h-[Npx]、图片预览 max-h-[90vh]（均为 max-h，本正则不含）
 l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-layout_guard "L3 硬编码尺寸" 118 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
+layout_guard "L3 硬编码尺寸" 59 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
 
 # L5 表格密度：行高 40-99px 硬编码 → .bds-table 密度修饰符（compact 40 / standard 48 / cozy 56）
 l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-layout_guard "L5 表格行高硬编码" 5 "$l5_count" "行高走 .bds-table 密度修饰符，禁行内 h-[Npx]"
+layout_guard "L5 表格行高硬编码" 1 "$l5_count" "行高走 .bds-table 密度修饰符，禁行内 h-[Npx]"
 
 # L6 icon 尺寸体系：size 非刻度（∉{14,16,18,20,24}）+ strokeWidth 自由数值（∉ --icon-w-* 档）
 l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9]+' | rg -v '^(14|16|18|20|24)$' | wc -l | tr -d ' ')
 l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
-layout_guard "L6 icon size 非刻度" 172 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
-layout_guard "L6 icon strokeWidth 自由数值" 54 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
+layout_guard "L6 icon size 非刻度" 72 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
+layout_guard "L6 icon strokeWidth 自由数值" 14 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
 
 # L7 错误态：raw 错误色 → .bds-error-banner（--danger-tint/--danger-text）
 l7_count=$(rg -o 'text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
