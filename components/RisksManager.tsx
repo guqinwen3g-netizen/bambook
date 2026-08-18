@@ -52,6 +52,7 @@ import {
   DefectTrendItem,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 
 // ==================== 常量 ====================
 
@@ -633,7 +634,7 @@ function FxPanel() {
             <input type="number" min={0} step="0.0001" className="bds-input" value={rateValue} onChange={(e) => setRateValue(e.target.value)} placeholder="如 7.1234" />
           </Field>
           <Field label="生效日期">
-            <input type="date" className="bds-input" value={rateDate} onChange={(e) => setRateDate(e.target.value)} />
+            <CapsuleDateInput className="bds-input" value={rateDate} onChange={setRateDate} />
           </Field>
           <Field label="备注">
             <input className="bds-input" value={rateNote} onChange={(e) => setRateNote(e.target.value)} placeholder="可选" />
