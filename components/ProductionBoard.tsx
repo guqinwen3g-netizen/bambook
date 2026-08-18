@@ -110,7 +110,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
   const toggleCls = (active: boolean) =>
     `h-7 px-3 rounded-full text-[11px] font-light inline-flex items-center gap-1 transition-colors ${
       active
-        ? 'bg-[var(--os-vnext-brand-blue)] text-white'
+        ? 'bg-[var(--accent-tint)] text-[var(--accent-text)]'
         : 'bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)]'
     }`;
 
@@ -125,7 +125,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
     const label = d < 0 ? `逾期 ${-d} 天` : d === 0 ? '今日到期' : `剩 ${d} 天`;
     return (
       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-compact text-[10px] font-light ${cls}`}>
-        <CalendarClock size={10} />{label}
+        <CalendarClock size={14} />{label}
       </span>
     );
   };
@@ -143,7 +143,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
             className="h-7 w-7 inline-flex items-center justify-center rounded-full transition-colors text-[var(--text-tertiary)] hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]"
             title="刷新"
           >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         )}
       />
@@ -151,7 +151,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
       {/* 工具行 */}
       <div className="shrink-0 px-7 pb-3 flex items-center gap-2.5">
         <div className="flex items-center gap-1.5 h-7 px-2.5 rounded-control border w-64 bg-[var(--recessed-bg)] border-[var(--border-c-default)]">
-          <Search size={12} className={textSecondary} />
+          <Search size={14} className={textSecondary} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -160,10 +160,10 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
           />
         </div>
         <button className={toggleCls(overdueOnly)} onClick={() => setOverdueOnly(v => !v)}>
-          <CalendarClock size={11} />仅看逾期
+          <CalendarClock size={14} />仅看逾期
         </button>
         <button className={toggleCls(blockedOnly)} onClick={() => setBlockedOnly(v => !v)}>
-          <AlertTriangle size={11} />仅看阻塞
+          <AlertTriangle size={14} />仅看阻塞
         </button>
         <span className={`ml-auto text-[11px] font-light ${textSecondary}`}>在手 {filtered.length} 单</span>
       </div>
@@ -214,7 +214,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                               <span className="text-xs font-normal truncate">{o.poNumber || o.id}</span>
                               {item.blockedCount > 0 && (
                                 <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-compact ${statusSemanticClass('danger', isDarkMode)} text-[10px] font-light shrink-0`}>
-                                  <AlertTriangle size={10} />阻塞
+                                  <AlertTriangle size={14} />阻塞
                                 </span>
                               )}
                             </div>

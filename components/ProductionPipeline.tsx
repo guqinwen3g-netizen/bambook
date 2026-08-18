@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight, ChevronDown } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ToggleSwitch from './ui/ToggleSwitch';
 import CapsuleDateInput from './ui/CapsuleDateInput';
@@ -203,7 +203,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
 
       {error && (
         <div className={cx('mb-3', spec.bannerDanger)}>
-          <AlertCircle size={12} /> {error}
+          <AlertCircle size={14} /> {error}
         </div>
       )}
 
@@ -249,7 +249,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                       advancing === stage.stageKey && 'opacity-50',
                     )}
                   >
-                    {advancing === stage.stageKey ? <Loader2 size={12} className="animate-spin" /> : <ChevronRight size={12} />}
+                    {advancing === stage.stageKey ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} />}
                     推进
                   </button>
                 )}
@@ -321,7 +321,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   ppStage.signedByProduction ? signedChipCls : spec.btnGhost,
                 )}
               >
-                {ppStage.signedByProduction ? <CheckCircle2 size={12} /> : <Circle size={12} />}
+                {ppStage.signedByProduction ? <CheckCircle2 size={14} /> : <Circle size={14} />}
                 生产部 {ppStage.signedByProduction ? '已签' : '签字'}
               </button>
               <button
@@ -336,7 +336,7 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
                   ppStage.signedByBusiness ? signedChipCls : spec.btnGhost,
                 )}
               >
-                {ppStage.signedByBusiness ? <CheckCircle2 size={12} /> : <Circle size={12} />}
+                {ppStage.signedByBusiness ? <CheckCircle2 size={14} /> : <Circle size={14} />}
                 业务部 {ppStage.signedByBusiness ? '已签' : '签字'}
               </button>
             </div>
@@ -431,23 +431,16 @@ export const ProductionPipeline: React.FC<ProductionPipelineProps> = ({ orderId,
             </div>
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>验货结论</label>
-              <div className="relative">
-                <select
-                  value={inspection?.result ?? ''}
-                  onChange={e => handleInspectionSave('result', e.target.value || null)}
-                  className={`${fieldCls} appearance-none pr-10 cursor-pointer`}
-                >
-                  <option value="">未判定</option>
-                  <option value="pass">合格 Pass</option>
-                  <option value="conditional">有条件合格 Conditional</option>
-                  <option value="fail">不合格 Fail</option>
-                </select>
-                <ChevronDown
-                  size={14}
-                  strokeWidth={1.5}
-                  className={cx('pointer-events-none absolute right-4 top-1/2 -translate-y-1/2', spec.chevronColor)}
-                />
-              </div>
+              <select
+                className="bds-select"
+                value={inspection?.result ?? ''}
+                onChange={e => handleInspectionSave('result', e.target.value || null)}
+              >
+                <option value="">未判定</option>
+                <option value="pass">合格 Pass</option>
+                <option value="conditional">有条件合格 Conditional</option>
+                <option value="fail">不合格 Fail</option>
+              </select>
             </div>
             <div>
               <label className={cx('mb-1 block text-[10px]', textSecondary)}>批量 / 抽样数</label>

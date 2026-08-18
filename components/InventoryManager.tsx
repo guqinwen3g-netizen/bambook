@@ -47,6 +47,7 @@ import {
   StockMovementType,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 
@@ -63,12 +64,12 @@ const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
 
 // BDS v2.1：semantic 与 bds-badge 语义变体同名（neutral/info/success/danger/warning），直接映射
 const MOVEMENT_TYPES: Array<{ id: StockMovementType; label: string; icon: React.ReactNode; semantic: StatusSemantic }> = [
-  { id: 'Inbound', label: '入库', icon: <ArrowDownToLine size={12} />, semantic: 'success' },
-  { id: 'Outbound', label: '出库', icon: <ArrowUpFromLine size={12} />, semantic: 'warning' },
-  { id: 'Transfer', label: '调拨', icon: <ArrowLeftRight size={12} />, semantic: 'info' },
-  { id: 'Adjustment', label: '盘点', icon: <ClipboardCheck size={12} />, semantic: 'neutral' },
-  { id: 'Lock', label: '锁定', icon: <Lock size={12} />, semantic: 'warning' },
-  { id: 'Unlock', label: '解锁', icon: <Unlock size={12} />, semantic: 'success' },
+  { id: 'Inbound', label: '入库', icon: <ArrowDownToLine size={14} />, semantic: 'success' },
+  { id: 'Outbound', label: '出库', icon: <ArrowUpFromLine size={14} />, semantic: 'warning' },
+  { id: 'Transfer', label: '调拨', icon: <ArrowLeftRight size={14} />, semantic: 'info' },
+  { id: 'Adjustment', label: '盘点', icon: <ClipboardCheck size={14} />, semantic: 'neutral' },
+  { id: 'Lock', label: '锁定', icon: <Lock size={14} />, semantic: 'warning' },
+  { id: 'Unlock', label: '解锁', icon: <Unlock size={14} />, semantic: 'success' },
 ];
 
 interface InventoryManagerProps {
@@ -280,13 +281,13 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
           {/* 顶部 Tab 切换 */}
           <div className="bds-segment mb-4">
             <button onClick={() => setActiveTab('items')} className={`seg ${activeTab === 'items' ? 'active' : ''}`}>
-              <Boxes size={12} className="inline mr-1" />库存物料
+              <Boxes size={14} className="inline mr-1" />库存物料
             </button>
             <button onClick={() => setActiveTab('warehouses')} className={`seg ${activeTab === 'warehouses' ? 'active' : ''}`}>
-              <WarehouseIcon size={12} className="inline mr-1" />仓库
+              <WarehouseIcon size={14} className="inline mr-1" />仓库
             </button>
             <button onClick={() => setActiveTab('alerts')} className={`seg ${activeTab === 'alerts' ? 'active' : ''}`}>
-              <AlertTriangle size={12} className="inline mr-1" />预警
+              <AlertTriangle size={14} className="inline mr-1" />预警
               {lowStockItems.length > 0 && (
                 <span className="bds-badge sm danger ml-1">{lowStockItems.length}</span>
               )}
@@ -308,7 +309,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               {/* 工具栏 */}
               <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <div className="bds-filterbar flex-wrap">
+                <div className="bds-filterbar">
                   <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ fontSize: 'var(--text-xs)', maxWidth: 160 }}>
                     <option value="">全部仓库</option>
                     {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -440,7 +441,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                                             {MOVEMENT_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                                           </select>
                                           <input type="number" value={movementForm.quantity || ''} onChange={(e) => setMovementForm({ ...movementForm, quantity: parseFloat(e.target.value) || 0 })} placeholder="数量 *" className="bds-input sm" />
-                                          <input type="date" value={movementForm.movementDate} onChange={(e) => setMovementForm({ ...movementForm, movementDate: e.target.value })} className="bds-input sm" />
+                                          <CapsuleDateInput value={movementForm.movementDate || ''} onChange={(v) => setMovementForm({ ...movementForm, movementDate: v })} className="bds-input sm" />
                                           <input type="text" value={movementForm.reason || ''} onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })} placeholder="原因" className="bds-input sm" />
                                           {movementForm.type === 'Transfer' && (
                                             <select value={movementForm.targetWarehouseId || ''} onChange={(e) => setMovementForm({ ...movementForm, targetWarehouseId: e.target.value })} className="bds-select xl:col-span-2" style={selectSmStyle}>
@@ -456,7 +457,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                                         <div className="flex items-center justify-end gap-2">
                                           <button onClick={() => { setMovementTargetId(null); setMovementError(null); }} className="bds-btn bds-btn-ghost">取消</button>
                                           <button onClick={handleCreateMovement} disabled={actionLoading === `movement_${item.id}`} className="bds-btn bds-btn-primary">
-                                            {actionLoading === `movement_${item.id}` ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                                            {actionLoading === `movement_${item.id}` ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                                             <span>执行变动</span>
                                           </button>
                                         </div>
@@ -468,7 +469,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                                 {/* 操作按钮 */}
                                 <div className="flex items-center gap-2 pt-2 flex-wrap">
                                   <button onClick={() => { setMovementTargetId(movementTargetId === item.id ? null : item.id); setMovementError(null); setMovementForm({ ...movementForm, type: 'Inbound', quantity: 0 }); }} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
-                                    <ArrowDownToLine size={12} /><span>{movementTargetId === item.id ? '收起' : '库存变动'}</span>
+                                    <ArrowDownToLine size={14} /><span>{movementTargetId === item.id ? '收起' : '库存变动'}</span>
                                   </button>
                                 </div>
                               </div>

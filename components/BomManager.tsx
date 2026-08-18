@@ -239,7 +239,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
               </button>
             ))}
           </div>
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <div className="relative min-w-0 flex-[1_1_180px] max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
             <input
               type="text"
@@ -251,7 +251,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
             />
           </div>
           <button onClick={loadBOMs} className="bds-btn bds-btn-ghost">
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             <span>刷新</span>
           </button>
         </div>
@@ -333,7 +333,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                           <div className="text-right">
                             <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>利润率</div>
                             <div className="bds-tnum text-sm flex items-center gap-0.5" style={{ color: profitPositive ? 'var(--success-text)' : 'var(--danger-text)' }}>
-                              {profitPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                              {profitPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                               {bom.profitMargin != null ? `${bom.profitMargin.toFixed(1)}%` : '—'}
                             </div>
                           </div>
@@ -475,7 +475,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                     disabled={actionLoading === `confirm_${bom.id}`}
                                     className="bds-btn bds-btn-secondary"
                                   >
-                                    {actionLoading === `confirm_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                                    {actionLoading === `confirm_${bom.id}` ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                                     <span>确认 BOM</span>
                                   </button>
                                   <button
@@ -483,7 +483,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                     disabled={actionLoading === `recalc_${bom.id}`}
                                     className="bds-btn bds-btn-ghost"
                                   >
-                                    {actionLoading === `recalc_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Calculator size={13} />}
+                                    {actionLoading === `recalc_${bom.id}` ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
                                     <span>重新计算</span>
                                   </button>
                                   <button
@@ -491,7 +491,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                     disabled={actionLoading === `delete_${bom.id}`}
                                     className="bds-btn bds-btn-danger"
                                   >
-                                    {actionLoading === `delete_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                                    {actionLoading === `delete_${bom.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                     <span>删除</span>
                                   </button>
                                 </>
@@ -502,7 +502,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                                   disabled={actionLoading === `archive_${bom.id}`}
                                   className="bds-btn bds-btn-ghost"
                                 >
-                                  {actionLoading === `archive_${bom.id}` ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />}
+                                  {actionLoading === `archive_${bom.id}` ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />}
                                   <span>归档</span>
                                 </button>
                               )}
@@ -688,7 +688,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
           </div>
           <div>
             <label className={labelCls}>币种</label>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+            <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
               <option value="CNY">CNY 人民币</option>
               <option value="USD">USD 美元</option>
               <option value="EUR">EUR 欧元</option>
@@ -705,7 +705,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
           <div className="flex items-center justify-between mb-2">
             <label className={labelCls}>物料明细</label>
             <button onClick={handleAddLine} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
-              <Plus size={12} /> 添加行
+              <Plus size={14} /> 添加行
             </button>
           </div>
           <div className="space-y-2">
@@ -714,7 +714,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-2">
                     <label className={labelCls}>类型</label>
-                    <select value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select className="bds-select" value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                       {MATERIAL_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                     </select>
                   </div>
@@ -732,7 +732,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>单位</label>
-                    <select value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select className="bds-select" value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
@@ -746,7 +746,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <button onClick={() => handleRemoveLine(index)} className="bds-btn bds-btn-danger bds-btn-icon">
-                      <Trash2 size={12} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -760,7 +760,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
           <div className="flex items-center justify-between mb-2">
             <label className={labelCls}>成本估算项（人工/费用，可选）</label>
             <button onClick={handleAddCost} className="bds-btn bds-btn-ghost" style={{ color: 'var(--accent-text)' }}>
-              <Plus size={12} /> 添加成本项
+              <Plus size={14} /> 添加成本项
             </button>
           </div>
           {costEstimates.length > 0 && (
@@ -769,7 +769,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-3">
                     <label className={labelCls}>类型</label>
-                    <select value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select className="bds-select" value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
                       {COST_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                   </div>
@@ -783,7 +783,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <button onClick={() => handleRemoveCost(index)} className="bds-btn bds-btn-danger bds-btn-icon">
-                      <Trash2 size={12} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
