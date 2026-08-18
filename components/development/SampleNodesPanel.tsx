@@ -35,6 +35,7 @@ import {
 } from '../../services/sampleService';
 import type { SampleNode, SampleNodeLevel, SampleNodeStatus } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -132,7 +133,7 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
   if (loading) {
     return (
       <div className={cx('flex items-center gap-2 py-4 text-[11px] font-light', textFaint)}>
-        <Loader2 size={13} strokeWidth={1.4} className="animate-spin" /> 加载样衣节点…
+        <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> 加载样衣节点…
       </div>
     );
   }
@@ -170,24 +171,24 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                   {node.status === 'pending' && (
                     <button type="button" disabled={!!acting} onClick={() => act(node, 'start')}
                       className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
-                      <Scissors size={10} strokeWidth={1.4} /> 开始打样
+                      <Scissors size={14} strokeWidth={1.5} /> 开始打样
                     </button>
                   )}
                   {node.status === 'revising' && (
                     <button type="button" disabled={!!acting} onClick={() => act(node, 'start')}
                       className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
-                      <RotateCcw size={10} strokeWidth={1.4} /> 重新打样
+                      <RotateCcw size={14} strokeWidth={1.5} /> 重新打样
                     </button>
                   )}
                   {node.status === 'making' && (
                     <>
                       <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'send', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
-                        <Send size={10} strokeWidth={1.4} /> 寄出
+                        <Send size={14} strokeWidth={1.5} /> 寄出
                       </button>
                       <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'revise', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
-                        <RotateCcw size={10} strokeWidth={1.4} /> 需修改
+                        <RotateCcw size={14} strokeWidth={1.5} /> 需修改
                       </button>
                     </>
                   )}
@@ -196,15 +197,15 @@ export function SampleNodesPanel({ caseId, isDarkMode, caseType }: SampleNodesPa
                       <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'approve', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors',
                           'border-success/30 text-[var(--success-text)] hover:bg-[var(--success-tint)]')}>
-                        <CheckCircle2 size={10} strokeWidth={1.4} /> 批准
+                        <CheckCircle2 size={14} strokeWidth={1.5} /> 批准
                       </button>
                       <button type="button" disabled={!!acting} onClick={() => setDialog({ kind: 'revise', node })}
                         className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}>
-                        <RotateCcw size={10} strokeWidth={1.4} /> 需修改
+                        <RotateCcw size={14} strokeWidth={1.5} /> 需修改
                       </button>
                     </>
                   )}
-                  {approved && <PackageCheck size={13} strokeWidth={1.2} className="text-[var(--success-text)] opacity-80" />}
+                  {approved && <PackageCheck size={14} strokeWidth={1.25} className="text-[var(--success-text)] opacity-80" />}
                 </div>
               </div>
             </div>
@@ -271,7 +272,7 @@ function DialogFormButtons({ busy, onCancel, submitLabel }: { busy: boolean; onC
   return (
     <div className="flex items-center gap-1.5 pt-1">
       <button type="submit" disabled={busy} className={cx(dialogBtnCls, 'border-success/30 text-[var(--success-text)] hover:bg-[var(--success-tint)]')}>
-        {busy ? <Loader2 size={10} strokeWidth={1.4} className="animate-spin" /> : <CheckCircle2 size={10} strokeWidth={1.4} />}
+        {busy ? <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> : <CheckCircle2 size={14} strokeWidth={1.5} />}
         {submitLabel}
       </button>
       <button type="button" disabled={busy} onClick={onCancel} className={cx(dialogBtnCls, 'border-[var(--border-c-default)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]')}>
@@ -441,14 +442,14 @@ function GarmentSampleGateSection({ caseId }: { caseId: string }) {
           onClick={() => setForm({ kind: 'create' })}
           className={cx('inline-flex h-7 items-center gap-1 rounded-control border px-2 text-[10px] font-light transition-colors', actionBtnCls)}
         >
-          <Plus size={10} strokeWidth={1.4} /> 新建轮次
+          <Plus size={14} strokeWidth={1.5} /> 新建轮次
         </button>
       </div>
       {error && <div className="mt-2 text-[11px] font-light text-[var(--danger-text)]">{error}</div>}
 
       {loading ? (
         <div className={cx('flex items-center gap-2 py-4 text-[11px] font-light', textFaint)}>
-          <Loader2 size={13} strokeWidth={1.4} className="animate-spin" /> 加载样品轮次…
+          <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> 加载样品轮次…
         </div>
       ) : (
         <div className="mt-2 space-y-2">
@@ -540,7 +541,7 @@ function RoundCard(props: RoundCardProps) {
                 : 'border-[var(--border-c-default)] text-[var(--text-quaternary)]',
           )}
         >
-          <ShieldCheck size={10} strokeWidth={1.4} /> {QC_GATE_LABEL[round.qcStatus]}
+          <ShieldCheck size={14} strokeWidth={1.5} /> {QC_GATE_LABEL[round.qcStatus]}
         </span>
         <span
           className={cx(
@@ -552,14 +553,14 @@ function RoundCard(props: RoundCardProps) {
                 : 'border-[var(--border-c-default)] text-[var(--text-quaternary)]',
           )}
         >
-          <UserCheck size={10} strokeWidth={1.4} /> {CUSTOMER_GATE_LABEL[round.customerStatus]}
+          <UserCheck size={14} strokeWidth={1.5} /> {CUSTOMER_GATE_LABEL[round.customerStatus]}
         </span>
       </div>
 
       {/* 快递信息（DR-039）+ 随附单据（样品发票/运费凭证） */}
       {round.shipment && (
         <div className={cx('mt-1.5 flex items-center gap-1 text-[10px] font-light', textSecondary)}>
-          <Truck size={10} strokeWidth={1.4} className="shrink-0" />
+          <Truck size={14} strokeWidth={1.5} className="shrink-0" />
           <span className="truncate">
             寄出 {round.shipment.sentDate} · {round.shipment.courier} · {round.shipment.trackingNumber} · 收件 {round.shipment.recipientName}
             {Array.isArray(round.shipment.documents) && round.shipment.documents.length > 0
@@ -585,19 +586,19 @@ function RoundCard(props: RoundCardProps) {
         {(round.status === 'in_progress' || round.status === 'qc_passed') && (
           <button type="button" disabled={acting} onClick={() => setForm({ kind: 'qc', roundId: round.id })}
             className={cx(btn, actionBtnCls)}>
-            <ShieldCheck size={10} strokeWidth={1.4} /> 提交内部门禁
+            <ShieldCheck size={14} strokeWidth={1.5} /> 提交内部门禁
           </button>
         )}
         {round.status === 'qc_passed' && (
           <button type="button" disabled={acting} onClick={() => setForm({ kind: 'ship', roundId: round.id })}
             className={cx(btn, actionBtnCls)}>
-            <Send size={10} strokeWidth={1.4} /> 提交客户
+            <Send size={14} strokeWidth={1.5} /> 提交客户
           </button>
         )}
         {round.status === 'submitted' && (
           <button type="button" disabled={acting} onClick={() => setForm({ kind: 'confirm', roundId: round.id })}
             className={cx(btn, actionBtnCls)}>
-            <UserCheck size={10} strokeWidth={1.4} /> 登记客户确认
+            <UserCheck size={14} strokeWidth={1.5} /> 登记客户确认
           </button>
         )}
         {round.status === 'confirmed' && (
@@ -610,7 +611,7 @@ function RoundCard(props: RoundCardProps) {
             }}
             className={cx(btn, 'border-success/30 text-[var(--success-text)] hover:bg-[var(--success-tint)]')}
           >
-            <Archive size={10} strokeWidth={1.4} /> 封存归档
+            <Archive size={14} strokeWidth={1.5} /> 封存归档
           </button>
         )}
       </div>
@@ -657,7 +658,7 @@ function FormButtons({ busy, onCancel, submitLabel }: { busy: boolean; onCancel:
   return (
     <div className="flex items-center gap-1 pt-0.5">
       <button type="submit" disabled={busy} className={cx(formBtnCls, submitBtnCls)}>
-        {busy ? <Loader2 size={10} strokeWidth={1.4} className="animate-spin" /> : <CheckCircle2 size={10} strokeWidth={1.4} />}
+        {busy ? <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> : <CheckCircle2 size={14} strokeWidth={1.5} />}
         {submitLabel}
       </button>
       <button type="button" disabled={busy} onClick={onCancel} className={cx(formBtnCls, cancelBtnCls)}>
@@ -716,7 +717,7 @@ function QcGateForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
       }}
     >
       <div className="grid grid-cols-2 gap-1.5">
-        <select className={selectCls} value={result} onChange={(e) => setResult(e.target.value as 'passed' | 'failed')}>
+        <select className="bds-select sm" value={result} onChange={(e) => setResult(e.target.value as 'passed' | 'failed')}>
           <option value="passed">QC 评审通过</option>
           <option value="failed">QC 评审不通过</option>
         </select>
@@ -762,7 +763,7 @@ function ShipForm({ busy, inputCls, onCancel, onSubmit }: {
         <input className={inputCls} placeholder="收件方 *" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
         <input className={inputCls} placeholder="收件联系方式（可留空）" value={recipientContact} onChange={(e) => setRecipientContact(e.target.value)} />
       </div>
-      <input type="date" className={inputCls} value={sentDate} onChange={(e) => setSentDate(e.target.value)} />
+      <CapsuleDateInput className={inputCls} value={sentDate} onChange={setSentDate} />
       <FormButtons busy={busy} onCancel={onCancel} submitLabel="提交客户" />
     </form>
   );
@@ -796,14 +797,14 @@ function ConfirmForm({ busy, inputCls, selectCls, onCancel, onSubmit }: {
       }}
     >
       <div className="grid grid-cols-2 gap-1.5">
-        <select className={selectCls} value={result} onChange={(e) => setResult(e.target.value as typeof result)}>
+        <select className="bds-select sm" value={result} onChange={(e) => setResult(e.target.value as typeof result)}>
           <option value="approved">客户确认通过</option>
           <option value="rejected">客户拒绝</option>
           <option value="needs_revision">客户要求修改</option>
         </select>
         <input className={inputCls} placeholder="确认渠道 *（email/电话/微信…）" value={channel} onChange={(e) => setChannel(e.target.value)} />
       </div>
-      <input type="date" className={inputCls} value={confirmationDate} onChange={(e) => setConfirmationDate(e.target.value)} />
+      <CapsuleDateInput className={inputCls} value={confirmationDate} onChange={setConfirmationDate} />
       <input className={inputCls} placeholder="客户意见（可留空）" value={note} onChange={(e) => setNote(e.target.value)} />
       <input className={inputCls} placeholder="修改项（逗号分隔，可留空）" value={modifications} onChange={(e) => setModifications(e.target.value)} />
       <FormButtons busy={busy} onCancel={onCancel} submitLabel="登记客户确认" />

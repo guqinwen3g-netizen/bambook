@@ -108,7 +108,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('if (!fullscreenProductFormOpen) return;');
     expect(productsSource).toContain('document.body.style.overflow = \'hidden\';');
     expect(productsSource).toContain('document.body.style.overflow = prev;');
-    expect(productsSource).toContain('scrollViewportClassName: `bambook-product-form-scroll-viewport min-w-0 -mt-[112px] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`');
+    expect(productsSource).toContain('scrollViewportClassName: `bambook-product-form-scroll-viewport min-w-0 -mt-[7rem] h-[calc(100%+7rem)] overflow-y-auto overscroll-contain space-y-6 pt-24 pb-[176px] ${BAMBOOK_OS.layout.panelShadowViewportClass}`');
     expect(productsSource).toContain("source: 'CompiledProductsPage.productForm.surfaceMasks'");
     expect(indexCss).toContain('.bambook-relation-form-scroll-viewport,\n.bambook-product-form-scroll-viewport');
     expect(indexCss).toContain('.bambook-product-form-scroll-viewport {\n        overflow-x: clip;');
@@ -123,7 +123,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain(OS_MATERIAL.raisedCard);
     expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain('bambook-panel-glass');
     expect(PRODUCT_SUB_INDEX_PANEL_CLASS).toContain(OS_MATERIAL.framePanel);
-    expect(PRODUCT_SUB_INDEX_ROW_CLASS).toContain('h-[72px]');
+    expect(PRODUCT_SUB_INDEX_ROW_CLASS).toContain('min-h-[4.5rem]');
     expect(PRODUCT_SUB_INDEX_ROW_CLASS).not.toContain('min-h-[72px]');
     expect(PRODUCT_CARD_LAYOUT_TRANSITION).toBe(BAMBOOK_OS.motion.layoutTransition);
     expect(PRODUCT_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
@@ -263,7 +263,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('data-os-compiler-role="product-detail-body-scroll"');
     expect(productsSource).toContain('source="CompiledProductsPage.product-detail-panel"');
     expect(productsSource).toContain('const getDisplayImages = (product: ProductAsset) =>');
-    expect(productsSource).toContain('<ImageIcon size={48} strokeWidth={1} />');
+    expect(productsSource).toContain('<ImageIcon size={24} strokeWidth={1.5} />');
     expect(productsSource).toContain('selectedProduct.fabricProfile?.colorDescription');
     expect(productsSource).toContain('ref={productDetailBodyScrollRef}');
     expect(productsSource).toContain('contentClassName="relative z-10 flex min-h-0 flex-1 flex-col"');
