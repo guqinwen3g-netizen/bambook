@@ -134,11 +134,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           />
           {/* 抽屉 */}
           <motion.div
-            initial={{ x: -224, opacity: 0.8 }}
+            initial={{ x: -288, opacity: 0.8 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -224, opacity: 0.8 }}
+            exit={{ x: -288, opacity: 0.8 }}
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            className={`fixed left-0 top-0 bottom-0 z-[101] w-[280px] ${bodyBg} border-r ${surfaceClass} shadow-none flex flex-col`}
+            className={`fixed left-0 top-0 bottom-0 z-[101] w-72 ${bodyBg} border-r ${surfaceClass} shadow-none flex flex-col`}
           >
             {/* 头部 */}
             <div className={`shrink-0 flex items-center justify-between px-4 h-12 border-b ${surfaceClass}`}>

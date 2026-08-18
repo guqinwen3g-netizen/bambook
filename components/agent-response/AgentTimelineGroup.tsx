@@ -65,7 +65,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
     const b = entry.block;
     return (
       <li onMouseEnter={onEnter} onMouseLeave={onLeave} className={`group relative flex items-start gap-2 px-3 py-1.5 ${hoverBg}`}>
-        <span className="relative z-10 mt-[3px] flex h-[14px] w-[14px] items-center justify-center">
+        <span className="relative z-10 mt-[3px] flex h-3.5 w-3.5 items-center justify-center">
           <ToolStatusIcon status={b.lifecycleStatus} isDarkMode={isDarkMode} />
         </span>
         <div className="min-w-0 flex-1">
@@ -94,7 +94,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
             })();
             const truncated = text.length > 360 ? text.slice(0, 360) + '…' : text;
             return (
-              <pre className={`mt-1 max-h-[140px] max-w-full overflow-auto whitespace-pre-wrap break-all rounded-compact px-2 py-1 text-[10.5px] leading-[1.45] bg-[var(--hover-darken)] text-[var(--text-secondary)]`}>
+              <pre className={`mt-1 max-h-36 max-w-full overflow-auto whitespace-pre-wrap break-all rounded-compact px-2 py-1 text-[10.5px] leading-[1.45] bg-[var(--hover-darken)] text-[var(--text-secondary)]`}>
                 {truncated}
               </pre>
             );
@@ -109,7 +109,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({ entry, isHover, onEnter, onLe
   const anchorsByRef = new Map<string, AgentReferenceAnchor>((ev.anchors ?? []).map(a => [a.refId, a]));
   return (
     <li onMouseEnter={onEnter} onMouseLeave={onLeave} className={`group relative flex items-start gap-2 px-3 py-1.5 ${hoverBg}`}>
-      <span className="relative z-10 mt-[3px] flex h-[14px] w-[14px] items-center justify-center">
+      <span className="relative z-10 mt-[3px] flex h-3.5 w-3.5 items-center justify-center">
         <FileText size={14} className={`shrink-0 ${quietTextClass}`} />
       </span>
       <div className="min-w-0 flex-1">
