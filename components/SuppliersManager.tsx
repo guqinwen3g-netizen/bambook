@@ -53,6 +53,7 @@ import {
   FactoryPriceLevel,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
@@ -583,9 +584,9 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                 ))}
               </div>
               <select
+                className="bds-select ml-auto"
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="bds-select ml-auto"
                 style={{ width: 'auto', height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
               >
                 {SORT_OPTIONS.map((opt) => (
@@ -1223,7 +1224,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputClass = 'bds-input';
-const selectClass = 'bds-select';
 const textareaClass = 'bds-input bds-textarea';
 
 // ─── 档案表单（新建 / 编辑） ───
@@ -1300,7 +1300,7 @@ function ProfileForm({
     <ModalShell title={profile ? '编辑工厂档案' : '新建工厂档案'} onClose={onClose}>
       {!profile && (
         <Field label="供应商（category=Supplier 的组织）*">
-          <select className={selectClass} value={relationId} onChange={(e) => setRelationId(e.target.value)}>
+          <select className="bds-select" value={relationId} onChange={(e) => setRelationId(e.target.value)}>
             <option value="">选择供应商...</option>
             {relations.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
@@ -1318,7 +1318,7 @@ function ProfileForm({
           <input type="number" className={inputClass} value={monthlyCapacity} onChange={(e) => setMonthlyCapacity(e.target.value)} />
         </Field>
         <Field label="产能单位">
-          <select className={selectClass} value={capacityUnit} onChange={(e) => setCapacityUnit(e.target.value)}>
+          <select className="bds-select" value={capacityUnit} onChange={(e) => setCapacityUnit(e.target.value)}>
             {CAPACITY_UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
           </select>
         </Field>
@@ -1328,7 +1328,7 @@ function ProfileForm({
           <input type="number" className={inputClass} value={workerCount} onChange={(e) => setWorkerCount(e.target.value)} />
         </Field>
         <Field label="价位水平">
-          <select className={selectClass} value={priceLevel} onChange={(e) => setPriceLevel(e.target.value as FactoryPriceLevel | '')}>
+          <select className="bds-select" value={priceLevel} onChange={(e) => setPriceLevel(e.target.value as FactoryPriceLevel | '')}>
             <option value="">未设置</option>
             {PRICE_LEVELS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
@@ -1341,7 +1341,7 @@ function ProfileForm({
         <input className={inputClass} value={equipmentList} onChange={(e) => setEquipmentList(e.target.value)} placeholder="平车 50 台, 拷边机 10 台" />
       </Field>
       <Field label="首次合作日期">
-        <input type="date" className={inputClass} value={firstOrderAt} onChange={(e) => setFirstOrderAt(e.target.value)} />
+        <CapsuleDateInput className="bds-input" value={firstOrderAt} onChange={setFirstOrderAt} />
       </Field>
       <div className="grid grid-cols-3 gap-3">
         <Field label="开户行">
@@ -1398,7 +1398,7 @@ function EvaluationForm({
   return (
     <ModalShell title="手动追加评分" onClose={onClose}>
       <Field label="评分类型 *">
-        <select className={selectClass} value={kind} onChange={(e) => setKind(e.target.value as FactoryEvaluationKind)}>
+        <select className="bds-select" value={kind} onChange={(e) => setKind(e.target.value as FactoryEvaluationKind)}>
           <option value="inspection">验货质量</option>
           <option value="delivery">交期达成</option>
         </select>
@@ -1408,7 +1408,7 @@ function EvaluationForm({
           <input type="number" min={0} max={100} className={inputClass} value={score} onChange={(e) => setScore(e.target.value)} />
         </Field>
         <Field label="评定日期 *">
-          <input type="date" className={inputClass} value={evaluatedAt} onChange={(e) => setEvaluatedAt(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={evaluatedAt} onChange={setEvaluatedAt} />
         </Field>
       </div>
       <Field label="备注">
@@ -1467,7 +1467,7 @@ function CertificationForm({
     <ModalShell title={certification ? '编辑认证' : '新增认证'} onClose={onClose}>
       <Field label="认证类型 *">
         <select
-          className={selectClass}
+          className="bds-select"
           value={CERT_TYPES.includes(type) ? type : '其他'}
           onChange={(e) => {
             const v = e.target.value;
@@ -1488,10 +1488,10 @@ function CertificationForm({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="签发日期">
-          <input type="date" className={inputClass} value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={issuedAt} onChange={setIssuedAt} />
         </Field>
         <Field label="有效期至">
-          <input type="date" className={inputClass} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} disabled={longTerm} />
+          <CapsuleDateInput className="bds-input" value={validUntil} onChange={setValidUntil} disabled={longTerm} />
         </Field>
       </div>
       <label className="bds-check mb-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -1556,7 +1556,7 @@ function CapacityForm({
         </Field>
       </div>
       <Field label="单位">
-        <select className={selectClass} value={unit} onChange={(e) => setUnit(e.target.value)}>
+        <select className="bds-select" value={unit} onChange={(e) => setUnit(e.target.value)}>
           {CAPACITY_UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
         </select>
       </Field>

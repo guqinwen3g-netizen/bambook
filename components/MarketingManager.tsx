@@ -545,7 +545,7 @@ function LookbookItemsEditor({
       {/* 添加产品 */}
       <div className="flex items-center gap-2 mb-4">
         <select
-          className={selectClass}
+          className="bds-select"
           value={pickId}
           onChange={(e) => setPickId(e.target.value)}
           disabled={productsLoading}
@@ -596,7 +596,7 @@ function LookbookItemsEditor({
                 </span>
                 <span className="col-span-1">
                   <select
-                    className={selectClass}
+                    className="bds-select"
                     style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
                     value={d.currency ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { currency: e.target.value || null })}
@@ -735,7 +735,7 @@ function FabricRecommendPanel() {
             <input className={inputClass} value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} placeholder="如 8" inputMode="decimal" />
           </Field>
           <Field label="预算币种">
-            <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
               <option value="USD">USD</option>
               <option value="CNY">CNY</option>
               <option value="EUR">EUR</option>

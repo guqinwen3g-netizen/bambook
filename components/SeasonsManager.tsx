@@ -54,6 +54,7 @@ import {
   TradeShowLeadStatus,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ==================== 常量 ====================
@@ -1503,8 +1504,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputClass = "bds-input";
-const selectClass = "bds-select";
-const textareaClass = "bds-input bds-textarea";
 
 // ─── 季度表单（新建 / 编辑） ───
 
@@ -1588,15 +1587,15 @@ function SeasonForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="开始日期 *">
-          <input type="date" className={inputClass} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={startDate} onChange={setStartDate} />
         </Field>
         <Field label="结束日期 *">
-          <input type="date" className={inputClass} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={endDate} onChange={setEndDate} />
         </Field>
       </div>
       {season && (
         <Field label="状态">
-          <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value as SeasonStatus)}>
+          <select className="bds-select" value={status} onChange={(e) => setStatus(e.target.value as SeasonStatus)}>
             {(Object.keys(SEASON_STATUS_LABELS) as SeasonStatus[]).map((s) => (
               <option key={s} value={s}>{SEASON_STATUS_LABELS[s]}</option>
             ))}
@@ -1637,17 +1636,15 @@ function SeasonForm({
                   onChange={(e) => updateCalendarRow(idx, { label: e.target.value })}
                   placeholder="节点名称"
                 />
-                <input
-                  type="date"
-                  className={inputClass}
+                <CapsuleDateInput
+                  className="bds-input"
                   value={row.startDate}
-                  onChange={(e) => updateCalendarRow(idx, { startDate: e.target.value })}
+                  onChange={(next) => updateCalendarRow(idx, { startDate: next })}
                 />
-                <input
-                  type="date"
-                  className={inputClass}
+                <CapsuleDateInput
+                  className="bds-input"
                   value={row.endDate}
-                  onChange={(e) => updateCalendarRow(idx, { endDate: e.target.value })}
+                  onChange={(next) => updateCalendarRow(idx, { endDate: next })}
                 />
                 <button
                   onClick={() => setCalendar((rows) => rows.filter((_, i) => i !== idx))}
@@ -1737,7 +1734,7 @@ function TrendTagForm({
       <div className="grid grid-cols-2 gap-3">
         <Field label="所属季度">
           <select
-            className={inputClass}
+            className="bds-select"
             value={seasonId}
             onChange={(e) => { setSeasonId(e.target.value); setTradeShowId(''); }}
           >
@@ -1748,7 +1745,7 @@ function TrendTagForm({
           </select>
         </Field>
         <Field label="类型 *">
-          <select className={selectClass} value={type} onChange={(e) => setType(e.target.value as TrendTagType)}>
+          <select className="bds-select" value={type} onChange={(e) => setType(e.target.value as TrendTagType)}>
             {(Object.keys(TREND_TYPE_LABELS) as TrendTagType[]).map((t) => (
               <option key={t} value={t}>{TREND_TYPE_LABELS[t]}</option>
             ))}
@@ -1766,7 +1763,7 @@ function TrendTagForm({
           <input className={inputClass} value={source} onChange={(e) => setSource(e.target.value)} placeholder="如：WGSN / 行业报告" />
         </Field>
         <Field label="来源展会">
-          <select className={selectClass} value={tradeShowId} onChange={(e) => setTradeShowId(e.target.value)}>
+          <select className="bds-select" value={tradeShowId} onChange={(e) => setTradeShowId(e.target.value)}>
             <option value="">无</option>
             {selectableShows.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
@@ -1837,7 +1834,7 @@ function TradeShowForm({
     <ModalShell title={show ? '编辑展会' : '新建展会'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="所属季度">
-          <select className={selectClass} value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
+          <select className="bds-select" value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
             <option value="">不关联季度</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>{s.code} {s.name}</option>
@@ -1850,10 +1847,10 @@ function TradeShowForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="开始日期 *">
-          <input type="date" className={inputClass} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={startDate} onChange={setStartDate} />
         </Field>
         <Field label="结束日期">
-          <input type="date" className={inputClass} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={endDate} onChange={setEndDate} />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1872,14 +1869,14 @@ function TradeShowForm({
           <input type="number" min={0} className={inputClass} value={cost} onChange={(e) => setCost(e.target.value)} />
         </Field>
         <Field label="币种">
-          <select className={selectClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
       </div>
       {show && (
         <Field label="状态">
-          <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value as TradeShowStatus)}>
+          <select className="bds-select" value={status} onChange={(e) => setStatus(e.target.value as TradeShowStatus)}>
             {(Object.keys(SHOW_STATUS_LABELS) as TradeShowStatus[]).map((s) => (
               <option key={s} value={s}>{SHOW_STATUS_LABELS[s]}</option>
             ))}
@@ -1968,11 +1965,11 @@ function LeadForm({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="下次跟进日期">
-          <input type="date" className={inputClass} value={nextFollowUpAt} onChange={(e) => setNextFollowUpAt(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={nextFollowUpAt} onChange={setNextFollowUpAt} />
         </Field>
         {lead && (
           <Field label="状态">
-            <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value as TradeShowLeadStatus)}>
+            <select className="bds-select" value={status} onChange={(e) => setStatus(e.target.value as TradeShowLeadStatus)}>
               {(Object.keys(LEAD_STATUS_LABELS) as TradeShowLeadStatus[]).map((s) => (
                 <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
               ))}
@@ -2048,7 +2045,7 @@ function ConvertLeadForm({
             <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-tertiary)' }} />
           </div>
         ) : (
-          <select className={selectClass} value={relationId} onChange={(e) => setRelationId(e.target.value)}>
+          <select className="bds-select" value={relationId} onChange={(e) => setRelationId(e.target.value)}>
             <option value="">选择客户...</option>
             {relations.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
