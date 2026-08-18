@@ -70,6 +70,7 @@ import {
   UserAccountOption,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 
 // ==================== 常量 ====================
 
@@ -424,9 +425,9 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
       <div className="shrink-0 bds-filterbar flex-wrap">
         <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>QC 人员</span>
         <select
+          className="bds-select"
           value={qcUserFilter}
           onChange={(e) => setQcUserFilter(e.target.value)}
-          className="bds-select"
           style={{ width: 'auto', fontSize: 'var(--text-xs)' }}
         >
           <option value="">全部</option>
@@ -501,7 +502,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
                           </span>
                           {a.location?.name && (
                             <span className="flex items-center gap-0.5 truncate">
-                              <MapPin size={12} className="shrink-0" />
+                              <MapPin size={14} className="shrink-0" />
                               {a.location.name}
                             </span>
                           )}
@@ -693,7 +694,7 @@ function AssignmentForm({
                 className="bds-input sm pl-9"
               />
               {ordersLoading && (
-                <Loader2 size={12} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
+                <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
               )}
             </div>
             {filteredOrders.length > 0 && (
@@ -756,7 +757,7 @@ function AssignmentForm({
           </select>
         </Field>
         <Field label="要求完成日期">
-          <input type="date" className="bds-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <CapsuleDateInput className="bds-input" value={dueDate} onChange={setDueDate} />
         </Field>
       </div>
       <Field label="备注">
@@ -1470,7 +1471,7 @@ function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() 
                 className="bds-input sm pl-9"
               />
               {ordersLoading && (
-                <Loader2 size={12} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
+                <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
               )}
             </div>
             {filteredOrders.length > 0 && (
@@ -1494,7 +1495,7 @@ function SampleChainsPanel({ registerNewAction }: { registerNewAction: (fn: (() 
               <div className="mt-1.5 flex items-center gap-2">
                 <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>订单列表加载失败</span>
                 <button onClick={loadOrders} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="重试">
-                  <RefreshCw size={13} />
+                  <RefreshCw size={14} />
                 </button>
               </div>
             )}
@@ -1624,7 +1625,7 @@ function GarmentChainView({ order }: { order: Order }) {
         {/* DR-008 内部门禁状态 */}
         <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <ShieldCheck size={16} style={{ color: 'var(--text-secondary)' }} />
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>内部门禁 Gate</span>
             <span className="text-[11px] ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
               {CHAIN_FLOW_HINTS.garment}
@@ -1663,7 +1664,7 @@ function GarmentChainView({ order }: { order: Order }) {
               <span className="bds-badge sm danger shrink-0">查询失败</span>
               <span className="text-[11px] truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>{gateError}</span>
               <button onClick={loadGate} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="重试">
-                <RefreshCw size={13} />
+                <RefreshCw size={14} />
               </button>
             </div>
           ) : gate ? (
@@ -1700,7 +1701,7 @@ function GarmentChainView({ order }: { order: Order }) {
         {/* 评审表单 */}
         <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <ClipboardCheck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <ClipboardCheck size={16} style={{ color: 'var(--text-secondary)' }} />
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
               提交评审 — 第 {Number.isInteger(roundNum) && roundNum >= 1 ? roundNum : '—'} 轮 {GARMENT_SAMPLE_LEVEL_LABELS[sampleLevel]}
             </span>
@@ -1718,12 +1719,7 @@ function GarmentChainView({ order }: { order: Order }) {
               </select>
             </Field>
             <Field label="检验日期">
-              <input
-                type="date"
-                className="bds-input"
-                value={inspectionDate}
-                onChange={(e) => setInspectionDate(e.target.value)}
-              />
+              <CapsuleDateInput className="bds-input" value={inspectionDate} onChange={setInspectionDate} />
             </Field>
           </div>
           <Field label="QC 评审意见 *">
@@ -1906,7 +1902,7 @@ function FabricChainView({ order }: { order: Order }) {
       <div className="flex flex-col min-h-0 gap-4 overflow-y-auto">
         <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <Truck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <Truck size={16} style={{ color: 'var(--text-secondary)' }} />
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>评审对象 Sample</span>
             <span className="text-[11px] ml-auto truncate" style={{ color: 'var(--text-tertiary)' }}>
               {CHAIN_FLOW_HINTS.fabric}
@@ -1934,7 +1930,7 @@ function FabricChainView({ order }: { order: Order }) {
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] truncate flex-1" style={{ color: 'var(--text-tertiary)' }}>样品列表加载失败</span>
                   <button onClick={loadSampleOptions} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="重试">
-                    <RefreshCw size={13} />
+                    <RefreshCw size={14} />
                   </button>
                 </div>
               ) : (
@@ -1956,7 +1952,7 @@ function FabricChainView({ order }: { order: Order }) {
 
         <div className="bds-card shrink-0" style={{ padding: 'var(--space-4)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <ClipboardCheck size={15} style={{ color: 'var(--text-secondary)' }} />
+            <ClipboardCheck size={16} style={{ color: 'var(--text-secondary)' }} />
             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>提交评审 Review</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1972,12 +1968,7 @@ function FabricChainView({ order }: { order: Order }) {
               </select>
             </Field>
             <Field label="检验日期">
-              <input
-                type="date"
-                className="bds-input"
-                value={inspectionDate}
-                onChange={(e) => setInspectionDate(e.target.value)}
-              />
+              <CapsuleDateInput className="bds-input" value={inspectionDate} onChange={setInspectionDate} />
             </Field>
           </div>
           <Field label="QC 专业意见 *">
@@ -2098,7 +2089,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
         <span className="text-xs" style={{ color: 'var(--text-primary)' }}>链评审报告 Reports</span>
         <span className="text-[11px] ml-auto" style={{ color: 'var(--text-tertiary)' }}>{reports.length} 条</span>
         <button onClick={load} className="bds-btn bds-btn-ghost bds-btn-icon shrink-0" title="刷新">
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
@@ -2111,7 +2102,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
             <span className="bds-badge sm danger">加载失败</span>
             <div className="mt-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{error}</div>
             <button onClick={load} className="bds-btn bds-btn-ghost mt-2">
-              <RefreshCw size={13} />
+              <RefreshCw size={14} />
               <span>重试</span>
             </button>
           </div>
@@ -2179,7 +2170,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
                       className="bds-btn bds-btn-ghost ml-auto"
                       style={{ padding: '0 var(--space-2)' }}
                     >
-                      {signingKey === `${r.id}:qc` ? <Loader2 size={13} className="animate-spin" /> : <PenLine size={13} />}
+                      {signingKey === `${r.id}:qc` ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />}
                       <span>QC 签署</span>
                     </button>
                   )}
@@ -2190,7 +2181,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
                       className={`bds-btn bds-btn-ghost ${qcSigned ? 'ml-auto' : ''}`}
                       style={{ padding: '0 var(--space-2)' }}
                     >
-                      {signingKey === `${r.id}:business` ? <Loader2 size={13} className="animate-spin" /> : <PenLine size={13} />}
+                      {signingKey === `${r.id}:business` ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />}
                       <span>业务签署</span>
                     </button>
                   )}
