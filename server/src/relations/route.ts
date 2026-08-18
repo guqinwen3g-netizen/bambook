@@ -19,69 +19,6 @@ export interface RelationsRouterOptions {
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
 }
 
-const PEERLESS_RELATION = {
-  id: 'REL-PEERLESS-CLOTHING',
-  name: 'Peerless Clothing',
-  category: 'Customer',
-  type: 'Customer',
-  isOrganization: true,
-  parentId: null,
-  reportsToId: null,
-  role: null,
-  department: null,
-  tags: ['customer', 'sample-invoice', 'canada', 'peerless-canada'],
-  contactInfo: '',
-  rating: 4,
-  lastInteraction: BigInt(Date.now()),
-  preferences: 'Peerless Canada belongs to Peerless Clothing. Sample invoice bill-to customer. Source: Panda sample invoice reference.',
-  deletedAt: null,
-  website: null,
-  chineseName: null,
-  englishName: 'Peerless Clothing',
-  creditLevel: null,
-  summary: 'Peerless Canada belongs to Peerless Clothing. Sample invoice bill-to customer.',
-  primaryContactName: null,
-  primaryContactEmail: null,
-  primaryContactPhone: null,
-  backupContacts: [],
-  shipToAddresses: [{
-    contactName: 'Peerless Clothing',
-    city: 'Montreal',
-    address: '8888 PIE IX Boulevard\nMONTREAL QC CA H1Z 4J5',
-  }],
-  financialNotes: null,
-  paymentTerms: 'AS PER AGREEMENT',
-  paymentPreference: null,
-  currency: 'USD',
-  taxId: null,
-  creditLimit: null,
-  officialAddress: '8888 PIE IX Boulevard\nMONTREAL QC CA H1Z 4J5',
-  factoryAddresses: [],
-  warehouseAddress: null,
-  billingAddress: '8888 PIE IX Boulevard\nMONTREAL QC CA H1Z 4J5',
-  shippingAddress: '8888 PIE IX Boulevard\nMONTREAL QC CA H1Z 4J5',
-  coordinatesLat: null,
-  coordinatesLng: null,
-  phone: null,
-  mobile: null,
-  wechat: null,
-  whatsapp: null,
-  email: null,
-  otherContacts: [],
-  birthday: null,
-  language: null,
-  timezone: null,
-  personalNote: null,
-};
-
-const PEERLESS_ALIASES = new Set([
-  'rel-peerless-clothing',
-  'rel-peerless-clothing-canada',
-  'peerless clothing',
-  'peerless clothing canada',
-  'peerless canada',
-]);
-
 export function createRelationsRouter(opts: RelationsRouterOptions): Router {
   const router = Router();
 
@@ -96,7 +33,6 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
 
   router.get('/', async (_req, res) => {
     try {
-      await ensureDefaultRelations(opts.prisma);
       const rows = await (opts.prisma as any).relation.findMany({
         where: { deletedAt: null },
         orderBy: [
@@ -202,65 +138,6 @@ export function createRelationsRouter(opts: RelationsRouterOptions): Router {
   });
 
   return router;
-}
-
-export async function ensureDefaultRelations(prisma: PrismaClient): Promise<void> {
-  const relation = (prisma as any).relation;
-  const existing = await relation.findMany();
-  const peerlessRows = existing.filter((item: any) =>
-    PEERLESS_ALIASES.has(String(item.id || '').trim().toLowerCase()) ||
-    PEERLESS_ALIASES.has(String(item.name || '').trim().toLowerCase())
-  );
-
-  const activePeerlessRows = peerlessRows.filter((item: any) => !item.deletedAt);
-
-  if (activePeerlessRows.length === 0 && peerlessRows.length > 0) {
-    return;
-  }
-
-  const base = activePeerlessRows.find((item: any) => String(item.name || '').trim().toLowerCase() === 'peerless clothing') || activePeerlessRows[0];
-  const merged = base
-    ? {
-        ...PEERLESS_RELATION,
-        ...base,
-        id: PEERLESS_RELATION.id,
-        name: PEERLESS_RELATION.name,
-        isOrganization: true,
-        category: base.category || PEERLESS_RELATION.category,
-        type: base.type || PEERLESS_RELATION.type,
-        contactInfo: base.contactInfo || PEERLESS_RELATION.contactInfo,
-        rating: Number(base.rating || PEERLESS_RELATION.rating),
-        lastInteraction: BigInt(Number(base.lastInteraction || Date.now())),
-        preferences: base.preferences || PEERLESS_RELATION.preferences,
-        tags: Array.from(new Set([...(base.tags || []), ...PEERLESS_RELATION.tags])),
-        officialAddress: base.officialAddress || PEERLESS_RELATION.officialAddress,
-        billingAddress: base.billingAddress || PEERLESS_RELATION.billingAddress,
-        shippingAddress: base.shippingAddress || PEERLESS_RELATION.shippingAddress,
-        paymentTerms: base.paymentTerms || PEERLESS_RELATION.paymentTerms,
-        currency: base.currency || PEERLESS_RELATION.currency,
-      }
-    : PEERLESS_RELATION;
-
-  await relation.upsert({
-    where: { id: PEERLESS_RELATION.id },
-    update: merged,
-    create: { ...merged, deletedAt: null },
-  });
-
-  const duplicateIds = peerlessRows
-    .map((item: any) => item.id)
-    .filter((id: string) => id && id !== PEERLESS_RELATION.id);
-
-  if (duplicateIds.length > 0) {
-    await relation.updateMany({
-      where: { parentId: { in: duplicateIds } },
-      data: { parentId: PEERLESS_RELATION.id },
-    });
-    await relation.updateMany({
-      where: { id: { in: duplicateIds } },
-      data: { deletedAt: BigInt(Date.now()) },
-    });
-  }
 }
 
 function toDbPayload(input: any): Record<string, unknown> {

@@ -526,48 +526,6 @@ async function checkServerHealth(host: string, port: number): Promise<{ ok: bool
     });
 }
 
-type LocalRelation = Record<string, unknown> & {
-    id: string;
-    name: string;
-    deletedAt?: number | null;
-};
-
-const PEERLESS_RELATION: LocalRelation = {
-    id: 'REL-PEERLESS-CLOTHING',
-    name: 'Peerless Clothing',
-    category: 'Customer',
-    type: 'Customer',
-    isOrganization: true,
-    parentId: undefined,
-    reportsToId: undefined,
-    role: undefined,
-    department: undefined,
-    tags: ['customer', 'sample-invoice', 'canada', 'peerless-canada'],
-    contactInfo: '',
-    rating: 4,
-    lastInteraction: Date.now(),
-    preferences: 'Peerless Canada belongs to Peerless Clothing. Sample invoice bill-to customer. Source: Panda sample invoice reference.',
-    website: undefined,
-    paymentTerms: 'AS PER AGREEMENT',
-    paymentPreference: undefined,
-    currency: 'USD',
-    taxId: undefined,
-    creditLimit: undefined,
-    officialAddress: '8888 PIE IX Boulevard\nMONTREAL QC CA H1Z 4J5',
-    factoryAddresses: [],
-    warehouseAddress: undefined,
-    billingAddress: '8888 PIE IX Boulevard\nMONTREAL QC CA H1Z 4J5',
-    shippingAddress: '8888 PIE IX Boulevard\nMONTREAL QC CA H1Z 4J5',
-};
-
-const PEERLESS_ALIASES = new Set([
-    'rel-peerless-clothing',
-    'rel-peerless-clothing-canada',
-    'peerless clothing',
-    'peerless clothing canada',
-    'peerless canada',
-]);
-
 // ── Window-control IPC handlers ─────────────────────────────────────────
 // The frameless window has no native title bar. The renderer (see
 // components/WindowControls.tsx) draws / triggers buttons via these

@@ -22,7 +22,7 @@ import {
   PERMISSION_SCOPES,
   getDefaultScopeListForRole,
   type SystemRoleId,
-} from '../../lib/rolePermissionMatrix';
+} from '../src/_shared/rolePermissionMatrix';
 
 // ─── 环境加载（.env.local 高优先级）──────────────────────────────────────────
 const SERVER_ROOT = path.resolve(__dirname, '..');
