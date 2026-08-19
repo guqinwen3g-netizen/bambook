@@ -11,6 +11,8 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
 import SidePanelContainer from './ui/SidePanelContainer';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 
 const AVAILABLE_ROLES = ['viewer', 'merchandiser', 'sales', 'finance', 'manager', 'agent_operator', 'admin', 'owner'] as const;
 const ROLE_LABELS: Record<typeof AVAILABLE_ROLES[number], string> = {
@@ -463,7 +465,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   const rejectPendingUser = async (userId: string) => {
-    if (!window.confirm('确认驳回该注册申请？')) return;
+    if (!(await bdsConfirm({ title: '确认驳回', body: '确认驳回该注册申请？' }))) return;
     setActionBusyId(userId);
     setLoadError('');
     try {
@@ -477,7 +479,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   const disableAccount = async (userId: string, displayName: string) => {
-    if (!window.confirm(`确认停用账号「${displayName || userId}」？该账号将无法登录，但用户档案、角色和业务历史会保留。`)) return;
+    if (!(await bdsConfirm({ title: '确认停用账号', body: `确认停用账号「${displayName || userId}」？该账号将无法登录，但用户档案、角色和业务历史会保留。` }))) return;
     setActionBusyId(userId);
     setLoadError('');
     try {
@@ -536,7 +538,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   const erasePersonalData = async (userId: string, displayName: string) => {
-    if (!window.confirm(`确认抹除「${displayName || userId}」的个人数据？这会删除个人会话、消息、记忆和工具运行记录，并匿名化账号；业务数据不会删除。`)) return;
+    if (!(await bdsConfirm({ title: '确认抹除', body: `确认抹除「${displayName || userId}」的个人数据？这会删除个人会话、消息、记忆和工具运行记录，并匿名化账号；业务数据不会删除。`, danger: true }))) return;
     setActionBusyId(userId);
     setLoadError('');
     try {
@@ -558,14 +560,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   };
 
   const resetPassword = async (userId: string, displayName: string) => {
-    if (!window.confirm(`确认为「${displayName || userId}」重置密码？系统将生成随机临时密码，仅展示一次。`)) return;
+    if (!(await bdsConfirm({ title: '确认重置密码', body: `确认为「${displayName || userId}」重置密码？系统将生成随机临时密码，仅展示一次。` }))) return;
     const newPassword = generateTempPassword();
     setActionBusyId(userId);
     setLoadError('');
     try {
       await postAdmin(`users/${userId}/reset-password`, { newPassword });
-      // 一次性展示：新密码仅在此刻可见，不落盘、不回显在页面状态中
-      alert(`密码已重置。请立即复制并安全传达给用户（仅展示一次）：\n\n${newPassword}`);
+      // 一次性展示：新密码仅在此刻可见，不落盘、不回显在页面状态中；
+      // 用驻留弹窗而非 toast——toast 3.2s 自动消失，临时密码来不及复制
+      await bdsConfirm({ title: '密码已重置', body: `临时密码：${newPassword}（仅显示一次，请立即保存）`, confirmText: '我已保存' });
     } catch (e: any) {
       setLoadError(e.message || '重置密码失败');
     } finally {
@@ -1050,7 +1053,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             <X size={14} strokeWidth={1.5} />返回列表
                           </button>
                           <button type="button" onClick={async () => {
-                            if (!window.confirm(`确认解散「${detailTeam.name}」？全部共享授权将立即失效，组员将失去共享数据可见性（DR-042 §9.2）。`)) return;
+                            if (!(await bdsConfirm({ title: '确认解散', body: `确认解散「${detailTeam.name}」？全部共享授权将立即失效，组员将失去共享数据可见性（DR-042 §9.2）。`, danger: true }))) return;
                             setActionBusyId(`dissolve-${detailTeam.id}`);
                             setLoadError('');
                             try {
@@ -1573,7 +1576,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             }} className={subtleButtonCls}>编辑</button>
                             <button disabled={actionBusyId !== null} onClick={async () => {
                               if (actionBusyId) return;
-                              if (!window.confirm('确认删除此访问控制规则？')) return;
+                              if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此访问控制规则？', danger: true }))) return;
                               setActionBusyId(`acl:${acl.id}`);
                               try { await postAdmin(`knowledge-acl/${acl.id}`, {}, 'DELETE'); await loadTab('knowledge-acl'); } catch (e: any) { setLoadError(e.message); }
                               finally { setActionBusyId(null); }

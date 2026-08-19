@@ -71,6 +71,8 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ==================== 常量 ====================
 
@@ -358,7 +360,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
       await apiService.startQcAssignment(a.id);
       await loadWorkbench();
     } catch (e: any) {
-      alert(`开始任务失败：${e?.message || e}`);
+      bdsToast.danger(`开始任务失败：${e?.message || e}`);
     } finally {
       setUpdatingId(null);
     }
@@ -372,7 +374,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
       setCompletingAssignment(null);
       await loadWorkbench();
     } catch (e: any) {
-      alert(`完成任务失败：${e?.message || e}`);
+      bdsToast.danger(`完成任务失败：${e?.message || e}`);
     } finally {
       setUpdatingId(null);
     }
@@ -380,13 +382,13 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
 
   const handleCancel = async (a: QCAssignment) => {
     const label = a.order?.poNumber || a.orderId;
-    if (!confirm(`确认取消订单「${label}」的${INSPECTION_TYPE_LABELS[a.inspectionType] || ''}验货任务？`)) return;
+    if (!(await bdsConfirm({ title: '确认取消', body: `确认取消订单「${label}」的${INSPECTION_TYPE_LABELS[a.inspectionType] || ''}验货任务？` }))) return;
     setUpdatingId(a.id);
     try {
       await apiService.cancelQcAssignment(a.id);
       await loadWorkbench();
     } catch (e: any) {
-      alert(`取消任务失败：${e?.message || e}`);
+      bdsToast.danger(`取消任务失败：${e?.message || e}`);
     } finally {
       setUpdatingId(null);
     }
@@ -394,12 +396,12 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
 
   const handleDelete = async (a: QCAssignment) => {
     const label = a.order?.poNumber || a.orderId;
-    if (!confirm(`确认删除订单「${label}」的验货任务？该操作不可恢复。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除订单「${label}」的验货任务？该操作不可恢复。`, danger: true }))) return;
     try {
       await apiService.deleteQcAssignment(a.id);
       await loadWorkbench();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -409,7 +411,7 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
       setShowForm(false);
       await loadWorkbench();
     } catch (e: any) {
-      alert(`新建验货任务失败：${e?.message || e}`);
+      bdsToast.danger(`新建验货任务失败：${e?.message || e}`);
     }
   };
 
@@ -648,11 +650,11 @@ function AssignmentForm({
 
   const handleSubmit = () => {
     if (!selectedOrder) {
-      alert('请搜索并选择订单');
+      bdsToast.warning('请搜索并选择订单');
       return;
     }
     if (!qcUserId.trim()) {
-      alert('请选择执行 QC');
+      bdsToast.warning('请选择执行 QC');
       return;
     }
     onSave({
@@ -860,18 +862,18 @@ function LocationsPanel({ registerNewAction }: { registerNewAction: (fn: (() => 
       setEditingLocation(null);
       await loadLocations();
     } catch (e: any) {
-      alert(`保存驻地失败：${e?.message || e}`);
+      bdsToast.danger(`保存驻地失败：${e?.message || e}`);
     }
   };
 
   const handleDelete = async (location: QCLocation) => {
-    if (!confirm(`确认删除驻地「${location.name}」？`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除驻地「${location.name}」？`, danger: true }))) return;
     try {
       await apiService.deleteQcLocation(location.id);
       await loadLocations();
     } catch (e: any) {
       // 后端拒绝（如仍有验货任务引用）时直接展示后端错误消息
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -982,11 +984,11 @@ function LocationForm({
 
   const handleSubmit = () => {
     if (!location && !code.trim()) {
-      alert('驻地代码必填');
+      bdsToast.warning('驻地代码必填');
       return;
     }
     if (!name.trim()) {
-      alert('驻地名称必填');
+      bdsToast.warning('驻地名称必填');
       return;
     }
     onSave({
@@ -1089,7 +1091,7 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
       setEditingLine(null);
       await loadLines();
     } catch (e: any) {
-      alert(`保存业务线失败：${e?.message || e}`);
+      bdsToast.danger(`保存业务线失败：${e?.message || e}`);
     }
   };
 
@@ -1099,20 +1101,20 @@ function BusinessLinesPanel({ registerNewAction }: { registerNewAction: (fn: (()
       await apiService.updateBusinessLine(line.id, { isActive: !line.isActive });
       await loadLines();
     } catch (e: any) {
-      alert(`更新业务线状态失败：${e?.message || e}`);
+      bdsToast.danger(`更新业务线状态失败：${e?.message || e}`);
     } finally {
       setTogglingId(null);
     }
   };
 
   const handleDelete = async (line: BusinessLine) => {
-    if (!confirm(`确认删除业务线「${line.code} ${line.name}」？`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除业务线「${line.code} ${line.name}」？`, danger: true }))) return;
     try {
       await apiService.deleteBusinessLine(line.id);
       await loadLines();
     } catch (e: any) {
       // 后端拒绝（如仍有订单引用）时直接展示后端错误消息
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -1246,19 +1248,19 @@ function BusinessLineForm({
 
   const handleSubmit = () => {
     if (!line && !code.trim()) {
-      alert('业务线代码必填');
+      bdsToast.warning('业务线代码必填');
       return;
     }
     if (!name.trim()) {
-      alert('业务线名称必填');
+      bdsToast.warning('业务线名称必填');
       return;
     }
     if (moqValue && !(Number(moqValue) >= 0)) {
-      alert('MOQ 需为不小于 0 的数字');
+      bdsToast.warning('MOQ 需为不小于 0 的数字');
       return;
     }
     if (productionCycleDays && !(Number(productionCycleDays) >= 0)) {
-      alert('生产周期需为不小于 0 的天数');
+      bdsToast.warning('生产周期需为不小于 0 的天数');
       return;
     }
     const base = {
@@ -1575,15 +1577,15 @@ function GarmentChainView({ order }: { order: Order }) {
 
   const handleSubmit = async () => {
     if (!Number.isInteger(roundNum) || roundNum < 1) {
-      alert('轮次必须是 >=1 的整数');
+      bdsToast.warning('轮次必须是 >=1 的整数');
       return;
     }
     if (!opinion.trim()) {
-      alert('请填写 QC 文本评审意见（DR-029：评审结论不得压缩为机械二值）');
+      bdsToast.warning('请填写 QC 文本评审意见（DR-029：评审结论不得压缩为机械二值）');
       return;
     }
     if (directReject && !rejectReason.trim()) {
-      alert('直接打回工厂重做必须填写打回原因（QC-29-A4，须对业务员与工厂可追溯）');
+      bdsToast.warning('直接打回工厂重做必须填写打回原因（QC-29-A4，须对业务员与工厂可追溯）');
       return;
     }
     setSubmitting(true);
@@ -1612,7 +1614,7 @@ function GarmentChainView({ order }: { order: Order }) {
       setReportsReloadKey((k) => k + 1);
       await loadGate();
     } catch (e: any) {
-      alert(`提交服装链评审失败：${e?.message || e}`);
+      bdsToast.danger(`提交服装链评审失败：${e?.message || e}`);
     } finally {
       setSubmitting(false);
     }
@@ -1850,15 +1852,15 @@ function FabricChainView({ order }: { order: Order }) {
 
   const handleSubmit = async () => {
     if (!sampleId) {
-      alert('请选择要评审的样品记录（面料链 QC 评审必须关联具体样品）');
+      bdsToast.warning('请选择要评审的样品记录（面料链 QC 评审必须关联具体样品）');
       return;
     }
     if (!opinion.trim()) {
-      alert('请填写 QC 专业意见（对工厂的技术调整说明）');
+      bdsToast.warning('请填写 QC 专业意见（对工厂的技术调整说明）');
       return;
     }
     if (conclusion !== 'pass' && !adjRequirement.trim()) {
-      alert('评审结论非通过时必须填写对工厂的技术调整要求（DR-029 面料链）');
+      bdsToast.warning('评审结论非通过时必须填写对工厂的技术调整要求（DR-029 面料链）');
       return;
     }
     setSubmitting(true);
@@ -1890,7 +1892,7 @@ function FabricChainView({ order }: { order: Order }) {
       setAdjFollowUpBy('');
       setReportsReloadKey((k) => k + 1);
     } catch (e: any) {
-      alert(`提交面料链评审失败：${e?.message || e}`);
+      bdsToast.danger(`提交面料链评审失败：${e?.message || e}`);
     } finally {
       setSubmitting(false);
     }
@@ -2076,7 +2078,7 @@ function ChainReportsList({ orderId, chain, reloadKey }: { orderId: string; chai
       await qcService.signReport(reportId, role);
       await load();
     } catch (e: any) {
-      alert(`签署失败：${e?.message || e}`);
+      bdsToast.danger(`签署失败：${e?.message || e}`);
     } finally {
       setSigningKey(null);
     }

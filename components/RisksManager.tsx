@@ -53,6 +53,8 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ==================== 常量 ====================
 
@@ -301,7 +303,7 @@ function AlertsPanel() {
       await apiService.updateRiskAlertStatus(item.id, status);
       await refreshAll();
     } catch (e: any) {
-      alert(`更新预警状态失败：${e?.message || e}`);
+      bdsToast.danger(`更新预警状态失败：${e?.message || e}`);
     } finally {
       setUpdatingId(null);
     }
@@ -527,7 +529,7 @@ function FxPanel() {
   const handleAddRate = async () => {
     const value = Number(rateValue);
     if (!rateCurrency.trim() || !rateValue || !(value > 0)) {
-      alert('请填写币种与大于 0 的汇率');
+      bdsToast.warning('请填写币种与大于 0 的汇率');
       return;
     }
     setSavingRate(true);
@@ -542,7 +544,7 @@ function FxPanel() {
       setRateNote('');
       await refreshAll();
     } catch (e: any) {
-      alert(`录入汇率失败：${e?.message || e}`);
+      bdsToast.danger(`录入汇率失败：${e?.message || e}`);
     } finally {
       setSavingRate(false);
     }
@@ -550,11 +552,11 @@ function FxPanel() {
 
   const handleLock = async () => {
     if (!lockOrderId.trim()) {
-      alert('请填写订单号');
+      bdsToast.warning('请填写订单号');
       return;
     }
     if (lockRate && !(Number(lockRate) > 0)) {
-      alert('锁定汇率需大于 0，或留空取最新汇率');
+      bdsToast.warning('锁定汇率需大于 0，或留空取最新汇率');
       return;
     }
     setSavingLock(true);
@@ -570,19 +572,19 @@ function FxPanel() {
       setLockNote('');
       await loadLocks();
     } catch (e: any) {
-      alert(`新建汇率锁定失败：${e?.message || e}`);
+      bdsToast.danger(`新建汇率锁定失败：${e?.message || e}`);
     } finally {
       setSavingLock(false);
     }
   };
 
   const handleDeleteLock = async (lock: FxRateLock) => {
-    if (!confirm(`确认删除订单「${lock.orderId}」的 ${lock.currency} 汇率锁定？`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除订单「${lock.orderId}」的 ${lock.currency} 汇率锁定？`, danger: true }))) return;
     try {
       await apiService.deleteFxLock(lock.id);
       await loadLocks();
     } catch (e: any) {
-      alert(`删除锁定失败：${e?.message || e}`);
+      bdsToast.danger(`删除锁定失败：${e?.message || e}`);
     }
   };
 
@@ -828,7 +830,7 @@ function CreditPanel() {
 
   const handleEvaluate = async () => {
     if (!evaluateRelationId) {
-      alert('请选择要评估的客户');
+      bdsToast.warning('请选择要评估的客户');
       return;
     }
     setEvaluating(true);
@@ -837,14 +839,14 @@ function CreditPanel() {
       setEvaluateRelationId('');
       await loadRatings();
     } catch (e: any) {
-      alert(`信用评估失败：${e?.message || e}`);
+      bdsToast.danger(`信用评估失败：${e?.message || e}`);
     } finally {
       setEvaluating(false);
     }
   };
 
   const handleScan = async () => {
-    if (!confirm('确认运行信用扫描？系统将评估所有客户账期，自动冻结超期客户并生成坏账预警（需管理角色权限）。')) return;
+    if (!(await bdsConfirm({ title: '确认运行信用扫描', body: '确认运行信用扫描？系统将评估所有客户账期，自动冻结超期客户并生成坏账预警（需管理角色权限）。' }))) return;
     setScanning(true);
     setScanResult(null);
     try {
@@ -852,7 +854,7 @@ function CreditPanel() {
       setScanResult(result);
       await loadRatings();
     } catch (e: any) {
-      alert(`信用扫描失败：${e?.message || e}`);
+      bdsToast.danger(`信用扫描失败：${e?.message || e}`);
     } finally {
       setScanning(false);
     }
@@ -998,7 +1000,7 @@ function CompliancePanel() {
 
   const handleRunHs = async () => {
     if (!hsDeclarationId.trim()) {
-      alert('请填写报关单 ID');
+      bdsToast.warning('请填写报关单 ID');
       return;
     }
     setRunningHs(true);
@@ -1007,7 +1009,7 @@ function CompliancePanel() {
       setHsDeclarationId('');
       await loadChecks();
     } catch (e: any) {
-      alert(`HS Code 检查失败：${e?.message || e}`);
+      bdsToast.danger(`HS Code 检查失败：${e?.message || e}`);
     } finally {
       setRunningHs(false);
     }
@@ -1015,7 +1017,7 @@ function CompliancePanel() {
 
   const handleRunEc = async () => {
     if (!ecDeclarationId.trim()) {
-      alert('请填写报关单 ID');
+      bdsToast.warning('请填写报关单 ID');
       return;
     }
     setRunningEc(true);
@@ -1024,7 +1026,7 @@ function CompliancePanel() {
       setEcDeclarationId('');
       await loadChecks();
     } catch (e: any) {
-      alert(`出口管制检查失败：${e?.message || e}`);
+      bdsToast.danger(`出口管制检查失败：${e?.message || e}`);
     } finally {
       setRunningEc(false);
     }
@@ -1032,7 +1034,7 @@ function CompliancePanel() {
 
   const handleAddManual = async () => {
     if (!manualTargetId.trim() || !manualSummary.trim()) {
-      alert('检查对象 ID 与结论摘要必填');
+      bdsToast.warning('检查对象 ID 与结论摘要必填');
       return;
     }
     setSavingManual(true);
@@ -1049,7 +1051,7 @@ function CompliancePanel() {
       setManualResult('pass');
       await loadChecks();
     } catch (e: any) {
-      alert(`登记合规检查失败：${e?.message || e}`);
+      bdsToast.danger(`登记合规检查失败：${e?.message || e}`);
     } finally {
       setSavingManual(false);
     }
@@ -1219,14 +1221,14 @@ function QualityPanel() {
   }, [loadTrends]);
 
   const handleScan = async () => {
-    if (!confirm('确认运行重复质量问题扫描？系统将对反复出现的疵点生成质量预警。')) return;
+    if (!(await bdsConfirm({ title: '确认运行质量扫描', body: '确认运行重复质量问题扫描？系统将对反复出现的疵点生成质量预警。' }))) return;
     setScanning(true);
     setScanResult(null);
     try {
       const result = await apiService.runQualityRepeatScan();
       setScanResult(result.alerted);
     } catch (e: any) {
-      alert(`重复问题扫描失败：${e?.message || e}`);
+      bdsToast.danger(`重复问题扫描失败：${e?.message || e}`);
     } finally {
       setScanning(false);
     }

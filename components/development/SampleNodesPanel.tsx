@@ -36,6 +36,7 @@ import {
 import type { SampleNode, SampleNodeLevel, SampleNodeStatus } from '../../types';
 import BottomSheet from '../ui/BottomSheet';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import { bdsConfirm } from '../ui/BdsDialog';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -605,8 +606,8 @@ function RoundCard(props: RoundCardProps) {
           <button
             type="button"
             disabled={acting}
-            onClick={() => {
-              if (!window.confirm(`封存 ${round.version}（第 ${round.round} 轮）为产前样生产基准？\n封存后不可变，任何改动须开新轮重新走 QC→客户确认→封存链（DR-008）。`)) return;
+            onClick={async () => {
+              if (!(await bdsConfirm({ title: '确认封存', body: `封存 ${round.version}（第 ${round.round} 轮）为产前样生产基准？\n封存后不可变，任何改动须开新轮重新走 QC→客户确认→封存链（DR-008）。` }))) return;
               void run(() => sampleService.sealGarmentRound(round.id));
             }}
             className={cx(btn, 'border-success/30 text-[var(--success-text)] hover:bg-[var(--success-tint)]')}

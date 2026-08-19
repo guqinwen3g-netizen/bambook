@@ -41,6 +41,7 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { bdsConfirm } from './ui/BdsDialog';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
@@ -194,7 +195,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定删除此 BOM？（仅 Draft 状态可删除）')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确定删除此 BOM？（仅 Draft 状态可删除）', danger: true }))) return;
     setActionLoading(`delete_${id}`);
     try {
       await apiService.deleteBOM(id);

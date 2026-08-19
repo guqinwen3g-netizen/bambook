@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
+import { bdsToast } from './ui/bdsToast';
 import { requestOsAdaptiveContrastRefresh } from './ui/osAdaptiveContrast';
 import UserAvatar from './ui/UserAvatar';
 import { resolvePublicAssetUrl } from '../utils/publicAssets';
@@ -913,7 +914,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                                 if (sample) setWallpaperAccentSample(dataUrl, sample);
                                 handleUpdate('backgroundImage', dataUrl);
                               } catch (err: any) {
-                                alert(err.message || '读取并压缩壁纸失败');
+                                bdsToast.danger(err.message || '读取并压缩壁纸失败');
                               }
                             }
                             e.currentTarget.value = '';

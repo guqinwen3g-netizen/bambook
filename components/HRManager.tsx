@@ -14,6 +14,7 @@ import AttendanceLeaveTab from './hr/AttendanceLeaveTab';
 import PayrollTab from './hr/PayrollTab';
 import PerformanceTab from './hr/PerformanceTab';
 import TrainingTab from './hr/TrainingTab';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ── C3 HR 视图（org = 既有组织架构视图）──
 type HRView = 'org' | 'employees' | 'attendance' | 'payroll' | 'performance' | 'training';
@@ -385,7 +386,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
   const deleteTeam = async (id: string) => {
     if (actionBusy) return;
-    if (!window.confirm('确认删除该团队？此操作不可撤销。')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该团队？此操作不可撤销。', danger: true }))) return;
     setActionBusy(true);
     try {
       await apiService.hrSend(`teams/${id}`, {}, 'DELETE');
@@ -418,7 +419,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
   const deleteProject = async (id: string) => {
     if (actionBusy) return;
-    if (!window.confirm('确认删除该项目？此操作不可撤销。')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该项目？此操作不可撤销。', danger: true }))) return;
     setActionBusy(true);
     try {
       await apiService.hrSend(`projects/${id}`, {}, 'DELETE');
@@ -451,7 +452,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
   const deleteAssignment = async (id: string) => {
     if (actionBusy) return;
-    if (!window.confirm('确认删除该工作分配？此操作不可撤销。')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该工作分配？此操作不可撤销。', danger: true }))) return;
     setActionBusy(true);
     try {
       await apiService.hrSend(`assignments/${id}`, {}, 'DELETE');

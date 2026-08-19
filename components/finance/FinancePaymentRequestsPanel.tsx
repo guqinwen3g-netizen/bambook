@@ -18,6 +18,7 @@ import { BadgeCheck, Ban, ClipboardList, Loader2, Plus, Search } from 'lucide-re
 import { getAuthState, hasPermission } from '../../services/authService';
 import { approvalKernelService } from '../../services/approvalKernelService';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import { bdsConfirm } from '../ui/BdsDialog';
 import {
   paymentRequestService,
   PAYMENT_REQUEST_STATUSES,
@@ -227,7 +228,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
   // ── 申请人作废 ──
   const handleCancel = async () => {
     if (!detail || actionBusy) return;
-    if (!window.confirm(`作废付款申请 ${detail.requestNumber}？\n关联审批单将一并撤回，不可恢复。`)) return;
+    if (!(await bdsConfirm({ title: '确认作废', body: `作废付款申请 ${detail.requestNumber}？\n关联审批单将一并撤回，不可恢复。`, danger: true }))) return;
     setActionBusy('cancel');
     setActionError(null);
     try {

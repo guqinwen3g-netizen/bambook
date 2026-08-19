@@ -36,10 +36,10 @@ let nextId = 1;
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 
 const VARIANT_ICO: Record<BdsToastVariant, React.ReactNode> = {
-  success: <Check size={11} strokeWidth={2.5} />,
-  danger: <AlertCircle size={11} strokeWidth={2.5} />,
-  info: <Info size={11} strokeWidth={2.5} />,
-  warning: <AlertTriangle size={11} strokeWidth={2.5} />,
+  success: <Check size={14} strokeWidth={1.75} />,
+  danger: <AlertCircle size={14} strokeWidth={1.75} />,
+  info: <Info size={14} strokeWidth={1.75} />,
+  warning: <AlertTriangle size={14} strokeWidth={1.75} />,
 };
 
 function ensureRoot(): void {

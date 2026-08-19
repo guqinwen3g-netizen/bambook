@@ -377,6 +377,18 @@ else
   echo "  ✅ M4: 原生控件维持基线（${pg_native_total} 处 = select ${pg_native_select} + date ${pg_native_date}，逐页清零对象）"
 fi
 
+# M6: 原生 alert/confirm 调用点（批次 3b 收敛 ~211 处 → 0；仅注释/字符串豁免）
+# 口径：排除 test 文件与注释行（行首 * 或 //）；components + pwa 双域
+pg_alert_count=$(rg -n "(window\.)?(alert|confirm)\(" --glob '*.tsx' --glob '*.ts' --glob '!*.test.*' components pwa 2>/dev/null | grep -vE ':[0-9]+:\s*(\*|//|/\*)' | wc -l | tr -d ' ')
+if [ "$pg_alert_count" -gt 0 ]; then
+  echo "  ❌ M6: 原生 alert/confirm 调用点（${pg_alert_count} 处）"
+  echo "     alert → bdsToast.success/danger/warning/info；confirm → bdsConfirm（批次 3b 已清零，禁新增）"
+  rg -n "(window\.)?(alert|confirm)\(" --glob '*.tsx' --glob '*.ts' --glob '!*.test.*' components pwa 2>/dev/null | grep -vE ':[0-9]+:\s*(\*|//|/\*)' | head -10
+  pg_errors=$((pg_errors + 1))
+else
+  echo "  ✅ M6: 原生 alert/confirm 调用点 = 0（批次 3b 收敛锁定）"
+fi
+
 # M5: bds-btn-dark 计数（行尾 `// bds-dark-ok: <原因>` 白名单豁免；toggle active 禁实心黑，spec §3.2）
 pg_btn_dark=$(rg -n 'bds-btn-dark' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -vF 'bds-dark-ok' | rg -o 'bds-btn-dark' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$pg_btn_dark" -gt "$BASELINE_BDS_BTN_DARK" ]; then

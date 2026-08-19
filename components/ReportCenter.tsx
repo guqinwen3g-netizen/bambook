@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsConfirm } from './ui/BdsDialog';
 import { statusSemanticClass, StatusSemantic } from './rdlBusinessStatusTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 import { View } from '../types';
@@ -284,7 +285,7 @@ export default function ReportCenter({ isDarkMode = false, onNavigate }: ReportC
   }, []);
 
   const handleDeleteDefinition = useCallback(async (def: ReportDefinition) => {
-    if (!window.confirm(`确认删除报表「${def.name}」？历史运行记录将保留。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除报表「${def.name}」？历史运行记录将保留。`, danger: true }))) return;
     setActionLoading(`del_${def.id}`);
     try {
       await reportService.deleteDefinition(def.id);

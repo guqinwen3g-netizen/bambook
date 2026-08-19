@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Calculator, Loader2, RefreshCw, Search } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import { CommissionRule, TrackBResult } from '../../types';
+import { bdsToast } from '../ui/bdsToast';
 
 const inputClass = "w-full bg-surface-primary text-text-primary text-sm rounded-control px-3 py-2 border border-border-subtle outline-none focus:border-border-action";
 const actionButtonClass = "flex items-center gap-1 px-2.5 py-1 text-xs rounded-control bg-surface-elevated text-text-secondary hover:text-text-primary hover:ring-1 hover:ring-border-action transition-all disabled:opacity-50";
@@ -125,7 +126,7 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
   const handleLookupRate = async () => {
     const code = hsCode.trim();
     if (!code) {
-      alert('请输入 HS Code');
+      bdsToast.warning('请输入 HS Code');
       return;
     }
     setLookupHint(null);
@@ -148,16 +149,16 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
       const rates = await apiService.getLatestFxRates();
       const usd = rates.find((r) => r.currency === 'USD');
       if (usd) setExchangeRate(String(usd.rate));
-      else alert('未找到 USD 最新汇率');
+      else bdsToast.danger('未找到 USD 最新汇率');
     } catch (e) {
       console.error('[TrackBPanel] getLatestFxRates failed', e);
-      alert('获取最新汇率失败');
+      bdsToast.danger('获取最新汇率失败');
     }
   };
 
   const handlePreview = async () => {
     if (!validInput) {
-      alert('请完整填写采购成本 / 退税率 / 汇率 / 利润率');
+      bdsToast.warning('请完整填写采购成本 / 退税率 / 汇率 / 利润率');
       return;
     }
     setPreviewing(true);
@@ -172,7 +173,7 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
       setPreview(result);
     } catch (e) {
       console.error('[TrackBPanel] previewTrackB failed', e);
-      alert(`试算失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`试算失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPreviewing(false);
     }

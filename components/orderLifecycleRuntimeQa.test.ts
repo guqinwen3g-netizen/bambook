@@ -236,8 +236,8 @@ describe('runtime QA [OrderManager UI]: 软删路径', () => {
   it('成功消费后端返回的 order（tombstone 含 deletedAt）更新本地（不本地移除）', () => {
     expect(ORDER_MGR_SRC).toMatch(/tombstone/);
   });
-  it('失败显示用户可见反馈（window.alert）', () => {
-    expect(ORDER_MGR_SRC).toMatch(/window\.alert.*订单删除失败/);
+  it('失败显示用户可见反馈（bdsToast.danger）', () => {
+    expect(ORDER_MGR_SRC).toMatch(/bdsToast\.danger\(`订单删除失败/);
   });
   it('失败不从本地列表移除', () => {
     expect(ORDER_MGR_SRC).toMatch(/订单未从列表移除/);

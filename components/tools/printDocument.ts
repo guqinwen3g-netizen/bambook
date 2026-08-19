@@ -4,6 +4,8 @@
  * 适用于装箱单、合同等文档生成场景
  */
 
+import { bdsToast } from '../ui/bdsToast';
+
 const BASE_PRINT_STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -187,7 +189,7 @@ export interface PrintDocumentOptions {
 export function printHtmlDocument({ title, htmlBody, extraStyles = '' }: PrintDocumentOptions): void {
   const win = window.open('', '_blank', 'width=900,height=700');
   if (!win) {
-    alert('无法打开打印窗口，请检查浏览器弹窗拦截设置。');
+    bdsToast.danger('无法打开打印窗口，请检查浏览器弹窗拦截设置。');
     return;
   }
   win.document.write(`<!DOCTYPE html>

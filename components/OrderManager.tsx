@@ -24,6 +24,7 @@ import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks';
 import { ProductionPipeline } from './ProductionPipeline';
 import { ProductionAlerts } from './ProductionAlerts';
 import { PageHeader } from './ui/PageHeader';
+import { bdsToast } from './ui/bdsToast';
 import CustomSelect from './ui/CustomSelect';
 import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
 import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
@@ -320,8 +321,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         setStatusTimeline(timeline);
       } catch { /* 时间线刷新失败非关键：状态已可见更新，保持静默 */ }
     } catch (e: any) {
-      // IA 残留收口：推进失败必须用户可见（191.6 登记体验债），沿用本模块 window.alert 反馈惯例
-      window.alert(`状态推进失败：${e?.message ?? e}\n\n订单状态未变更，请稍后重试。`);
+      // IA 残留收口：推进失败必须用户可见（191.6 登记体验债），走 bdsToast 反馈
+      bdsToast.danger(`状态推进失败：${e?.message ?? e}\n\n订单状态未变更，请稍后重试。`);
     }
   }, [selectedOrder?.id, orders, setOrders, onSelectOrder]);
 
@@ -744,7 +745,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         } catch (lineErr: any) {
           // eslint-disable-next-line no-console
           console.error('[detail-save] line persist failed:', lineErr);
-          window.alert(`行项目字段保存失败：${lineErr?.message ?? lineErr}\n\n订单级字段将继续保存。`);
+          bdsToast.danger(`行项目字段保存失败：${lineErr?.message ?? lineErr}\n\n订单级字段将继续保存。`);
         }
       }
 
@@ -760,7 +761,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     } catch (e: any) {
       // eslint-disable-next-line no-console
       console.error('[detail-save] persist failed:', e);
-      window.alert(`订单详情保存到服务器失败：${e?.message ?? e}\n\n本地更改保留，但下一次同步可能丢失。`);
+      bdsToast.danger(`订单详情保存到服务器失败：${e?.message ?? e}\n\n本地更改保留，但下一次同步可能丢失。`);
     }
 
     // 受控字段被拦截 → 预填变更申请并滚动到「变更申请」区块（引导而非静默失败）
@@ -803,7 +804,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       onSelectOrder(null);
       setShowDeleteConfirm(false);
     } catch (e: any) {
-      window.alert(`订单删除失败：${e?.message ?? e}\n\n订单未从列表移除，请稍后重试。`);
+      bdsToast.danger(`订单删除失败：${e?.message ?? e}\n\n订单未从列表移除，请稍后重试。`);
       setShowDeleteConfirm(false);
     }
   };
@@ -831,7 +832,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       }
     }
     if (missing.length > 0) {
-      window.alert(`必填项缺失，无法创建订单：\n\n· ${missing.join('\n· ')}`);
+      bdsToast.warning(`必填项缺失，无法创建订单：\n\n· ${missing.join('\n· ')}`);
       return;
     }
 
@@ -872,7 +873,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     } catch (e: any) {
       // eslint-disable-next-line no-console
       console.error('[manual-line-create] failed:', e);
-      window.alert(`面料项目未能保存到服务器：${e?.message ?? e}`);
+      bdsToast.danger(`面料项目未能保存到服务器：${e?.message ?? e}`);
     }
   };
 
@@ -919,7 +920,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   );
 
   // 业务线标记（成衣订单：大货 ⇄ Capsule）——走 businessLines 专用端点（注册表存在/启用校验 + 审计），
-  // 成功后同步本地列表与选中订单；失败沿用本模块 window.alert 反馈惯例。
+  // 成功后同步本地列表与选中订单；失败走 bdsToast 反馈。
   const [businessLineSaving, setBusinessLineSaving] = useState(false);
   const handleSetBusinessLine = async (code: 'garment' | 'capsule') => {
     if (!selectedOrder || businessLineSaving) return;
@@ -931,7 +932,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       setOrders(orders.map(o => (o.id === selectedOrder.id ? { ...o, businessLine: code } : o)));
       onSelectOrder({ ...selectedOrder, businessLine: code });
     } catch (e: any) {
-      window.alert(`业务线标记失败：${e?.message ?? e}\n请稍后重试。`);
+      bdsToast.danger(`业务线标记失败：${e?.message ?? e}\n请稍后重试。`);
     } finally {
       setBusinessLineSaving(false);
     }
@@ -1010,14 +1011,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             const merged = mergeSavedOrders(orders, resp.orders);
             // Use setOrders without `modified` so the cloud-sync loop treats this as a bulk replace.
             setOrders(merged);
-            window.alert(
+            bdsToast.success(
               `已入库：新增 ${resp.created} 张，更新 ${resp.updated} 张。` +
               `\n订单列表已刷新。`,
             );
             setShowImportWizard(false);
           } catch (e: any) {
             console.error('[ImportWizard] save failed:', e);
-            window.alert(`入库失败：${e?.message ?? e}\n订单未保存，请稍后重试。`);
+            bdsToast.danger(`入库失败：${e?.message ?? e}\n订单未保存，请稍后重试。`);
           }
         }}
         isDarkMode={isDarkMode}
@@ -1847,7 +1848,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           const nextOrders = orders.map(o => o.id === updated.id ? updated : o);
                           setOrders(nextOrders, updated);
                         } catch (e: any) {
-                          alert(e?.message || '状态变更失败');
+                          bdsToast.danger(e?.message || '状态变更失败');
                         }
                         setShowOptionsSheet(null);
                       }

@@ -23,6 +23,8 @@ import { View } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { SampleNodesPanel } from './development/SampleNodesPanel';
 import { primeQuotationCreateFromDevCase } from './QuotationManager';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 
 interface DevelopmentManagerProps {
   isDarkMode: boolean;
@@ -247,12 +249,12 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
     if (!form.code.trim() || !form.name.trim()) return;
     const parsedRound = parseInt(form.currentRound, 10);
     if (form.currentRound && (!Number.isFinite(parsedRound) || parsedRound < 0)) {
-      alert('当前轮次必须是有效的非负整数');
+      bdsToast.warning('当前轮次必须是有效的非负整数');
       return;
     }
     if (form.targetDate) {
       const d = new Date(form.targetDate);
-      if (isNaN(d.getTime())) { alert('交样日期格式无效'); return; }
+      if (isNaN(d.getTime())) { bdsToast.warning('交样日期格式无效'); return; }
     }
     const input: DevelopmentCaseCreateInput = {
       code: form.code.trim(),
@@ -275,14 +277,14 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
 
   const handleDelete = useCallback(async () => {
     if (!selectedCase) return;
-    if (!window.confirm(`确认删除开发单「${selectedCase.name}」(${selectedCase.code})？\n此操作不可撤销。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除开发单「${selectedCase.name}」(${selectedCase.code})？\n此操作不可撤销。`, danger: true }))) return;
     const deletedId = selectedCase.id;
     try {
       await developmentService.deleteDevelopmentCase(deletedId);
       setCases(prev => prev.filter(c => c.id !== deletedId));
       setSelectedCaseId(null);
     } catch (err: any) {
-      window.alert(`删除失败：${err?.message || err}`);
+      bdsToast.danger(`删除失败：${err?.message || err}`);
     }
   }, [selectedCase, setCases]);
 
@@ -537,13 +539,13 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                         type="button"
                         onClick={async () => {
                           if (!selectedCase) return;
-                          if (!window.confirm(`将 ${selectedCase.code} 转为大货订单？\n系统会自动沿用客户/供应商/产品。`)) return;
+                          if (!(await bdsConfirm({ title: '转为大货订单', body: `将 ${selectedCase.code} 转为大货订单？\n系统会自动沿用客户/供应商/产品。` }))) return;
                           try {
                             const res = await developmentService.convertToOrder(selectedCase.id, { autoCreate: true });
                             await handleRefresh();
-                            window.alert(`已转为订单 ${res.order?.poNumber ?? '(未返回PO)'}。`);
+                            bdsToast.success(`已转为订单 ${res.order?.poNumber ?? '(未返回PO)'}。`);
                           } catch (err: any) {
-                            window.alert(`转订单失败：${err.message || err}`);
+                            bdsToast.danger(`转订单失败：${err.message || err}`);
                           }
                         }}
                         className="bds-btn bds-btn-primary w-full mt-3"

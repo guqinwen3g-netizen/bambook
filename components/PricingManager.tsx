@@ -58,6 +58,8 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
@@ -301,7 +303,7 @@ function CalculatorPanel() {
 
   const handleSave = async () => {
     if (!trackBInputs) {
-      alert('请完整填写采购成本 / 退税率 / 汇率 / 利润率');
+      bdsToast.warning('请完整填写采购成本 / 退税率 / 汇率 / 利润率');
       return;
     }
     setSaving(true);
@@ -321,7 +323,7 @@ function CalculatorPanel() {
       await loadRecords();
     } catch (e) {
       console.error('[PricingManager] createPricingCalculation failed', e);
-      alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSaving(false);
     }
@@ -334,21 +336,21 @@ function CalculatorPanel() {
       await loadRecords();
     } catch (e) {
       console.error('[PricingManager] updatePricingCalculation failed', e);
-      alert(`状态更新失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`状态更新失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确认删除该定价记录？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该定价记录？', danger: true }))) return;
     setUpdatingId(id);
     try {
       await apiService.deletePricingCalculation(id);
       await loadRecords();
     } catch (e) {
       console.error('[PricingManager] deletePricingCalculation failed', e);
-      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
@@ -496,7 +498,7 @@ function ProfitSheetsPanel() {
 
   const handleGenerate = async () => {
     if (!selectedOrder) {
-      alert('请搜索并选择订单');
+      bdsToast.warning('请搜索并选择订单');
       return;
     }
     setGenerating(true);
@@ -506,7 +508,7 @@ function ProfitSheetsPanel() {
       await loadSheets();
     } catch (e) {
       console.error('[PricingManager] generateProfitSheet failed', e);
-      alert(`生成失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`生成失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setGenerating(false);
     }
@@ -522,14 +524,14 @@ function ProfitSheetsPanel() {
   };
 
   const handleDelete = async (orderId: string) => {
-    if (!confirm('确认删除该订单利润表？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该订单利润表？', danger: true }))) return;
     try {
       await apiService.deleteProfitSheet(orderId);
       if (current?.orderId === orderId) setCurrent(null);
       await loadSheets();
     } catch (e) {
       console.error('[PricingManager] deleteProfitSheet failed', e);
-      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -767,21 +769,21 @@ function TaxRatesPanel({ registerNewAction }: { registerNewAction?: (fn: (() => 
       await load();
     } catch (e) {
       console.error('[PricingManager] updateTaxRefundRate failed', e);
-      alert(`更新失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`更新失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确认删除该退税率？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该退税率？', danger: true }))) return;
     setUpdatingId(id);
     try {
       await apiService.deleteTaxRefundRate(id);
       await load();
     } catch (e) {
       console.error('[PricingManager] deleteTaxRefundRate failed', e);
-      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
@@ -885,7 +887,7 @@ function TaxRatesPanel({ registerNewAction }: { registerNewAction?: (fn: (() => 
                 await load();
               } catch (e) {
                 console.error('[PricingManager] saveTaxRefundRate failed', e);
-                alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+                bdsToast.danger(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
               }
             }}
             onClose={() => setShowForm(false)}
@@ -912,11 +914,11 @@ function TaxRateForm({
   const handleSubmit = () => {
     const r = parseNum(rate);
     if (!editing && !/^\d{2}(\d{2}){0,4}$/.test(hsCode.trim())) {
-      alert('HS Code 须为 2/4/6/8/10 位数字');
+      bdsToast.warning('HS Code 须为 2/4/6/8/10 位数字');
       return;
     }
     if (r === null || r < 0 || r > 100) {
-      alert('退税率须在 0-100 之间');
+      bdsToast.warning('退税率须在 0-100 之间');
       return;
     }
     onSave({
@@ -1021,7 +1023,7 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
   }, [trend]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确认删除该价格记录？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该价格记录？', danger: true }))) return;
     setUpdatingId(id);
     try {
       await apiService.deleteMaterialPrice(id);
@@ -1029,7 +1031,7 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
       await loadTrend();
     } catch (e) {
       console.error('[PricingManager] deleteMaterialPrice failed', e);
-      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
@@ -1166,7 +1168,7 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
                 await loadTrend();
               } catch (e) {
                 console.error('[PricingManager] saveMaterialPrice failed', e);
-                alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+                bdsToast.danger(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
               }
             }}
             onClose={() => setShowForm(false)}
@@ -1200,19 +1202,19 @@ function MaterialPriceForm({
   const handleSubmit = () => {
     const p = parseNum(price);
     if (!name.trim()) {
-      alert('请输入材料名称');
+      bdsToast.warning('请输入材料名称');
       return;
     }
     if (p === null || p <= 0) {
-      alert('请输入有效价格');
+      bdsToast.warning('请输入有效价格');
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(priceDate)) {
-      alert('价格日期格式须为 YYYY-MM-DD');
+      bdsToast.warning('价格日期格式须为 YYYY-MM-DD');
       return;
     }
     if (!unit.trim()) {
-      alert('请输入计价单位');
+      bdsToast.warning('请输入计价单位');
       return;
     }
     onSave({
@@ -1323,21 +1325,21 @@ function CommissionRulesPanel({ registerNewAction }: { registerNewAction?: (fn: 
       await load();
     } catch (e) {
       console.error('[PricingManager] updateCommissionRule failed', e);
-      alert(`更新失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`更新失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确认删除该佣金规则？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该佣金规则？', danger: true }))) return;
     setUpdatingId(id);
     try {
       await apiService.deleteCommissionRule(id);
       await load();
     } catch (e) {
       console.error('[PricingManager] deleteCommissionRule failed', e);
-      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
@@ -1432,7 +1434,7 @@ function CommissionRulesPanel({ registerNewAction }: { registerNewAction?: (fn: 
                 await load();
               } catch (e) {
                 console.error('[PricingManager] saveCommissionRule failed', e);
-                alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+                bdsToast.danger(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
               }
             }}
             onClose={() => setShowForm(false)}
@@ -1478,7 +1480,7 @@ function CommissionRuleForm({
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      alert('规则名称必填');
+      bdsToast.warning('规则名称必填');
       return;
     }
     onSave({

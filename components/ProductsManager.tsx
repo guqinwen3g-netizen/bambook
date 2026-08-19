@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
+import { bdsToast } from './ui/bdsToast';
 import { PageHeader } from './ui/PageHeader';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 import {
@@ -1589,11 +1590,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     if (invalidRows.length > 0) {
       const firstInvalid = invalidRows[0];
       const label = [firstInvalid.abbreviation, firstInvalid.chineseName, firstInvalid.englishName].filter(Boolean).join(' / ') || '空词条';
-      window.alert(`成分词条必须来自《成份符号.xls》。请检查：${label}`);
+      bdsToast.warning(`成分词条必须来自《成份符号.xls》。请检查：${label}`);
       return false;
     }
     if (compositionTotalIsComplete) return true;
-    window.alert(`成分比例需要合计 100%。${compositionValidationMessage}`);
+    bdsToast.warning(`成分比例需要合计 100%。${compositionValidationMessage}`);
     return false;
   };
 

@@ -4,6 +4,7 @@ import type { AgentFormBlock as AgentFormBlockModel } from '../../types';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { OS_MATERIAL } from '../ui/osMaterial';
 import type { AgentBlockComponentProps } from './AgentMarkdownBlock';
+import { bdsToast } from '../ui/bdsToast';
 
 export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockModel>> = ({ block, isDarkMode, onExecuteAction }) => {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -22,11 +23,11 @@ export const AgentFormBlock: React.FC<AgentBlockComponentProps<AgentFormBlockMod
   const handleSubmit = async () => {
     const missingRequired = block.fields.filter(f => f.required && !values[f.key]?.trim());
     if (missingRequired.length > 0) {
-      alert(`请填写必填项：${missingRequired.map(f => f.label).join('、')}`);
+      bdsToast.warning(`请填写必填项：${missingRequired.map(f => f.label).join('、')}`);
       return;
     }
     if (!onExecuteAction) {
-      alert('表单提交通道未就绪，请刷新页面后重试。');
+      bdsToast.danger('表单提交通道未就绪，请刷新页面后重试。');
       return;
     }
     setSubmitting(true);

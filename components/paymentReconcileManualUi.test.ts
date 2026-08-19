@@ -137,9 +137,9 @@ describe('allocation regression: edit/delete status 精确回写两侧', () => {
   });
 
   it('失败路径不本地伪成功（create/update/delete catch 抛错不修改本地）', () => {
-    // catch 块只 setAllocError/window.alert，不 setAllocations/setInvoices/setVouchers
+    // catch 块只 setAllocError/bdsToast.danger，不 setAllocations/setInvoices/setVouchers
     expect(src).toMatch(/setAllocError\(`核销失败/);
-    expect(src).toMatch(/window\.alert\(`撤销核销失败/);
+    expect(src).toMatch(/bdsToast\.danger\(`撤销核销失败/);
   });
 });
 

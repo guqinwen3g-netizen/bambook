@@ -54,6 +54,8 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
@@ -364,18 +366,18 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       setEditingProfile(null);
       await refreshAll();
     } catch (e: any) {
-      alert(`保存工厂档案失败：${e?.message || e}`);
+      bdsToast.danger(`保存工厂档案失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteProfile = async (profile: FactoryProfile) => {
-    if (!confirm(`确认删除工厂档案「${profile.relation?.name || profile.id}」？（软删除，可联系管理员恢复）`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除工厂档案「${profile.relation?.name || profile.id}」？（软删除，可联系管理员恢复）`, danger: true }))) return;
     try {
       await apiService.deleteFactoryProfile(profile.id);
       if (selectedId === profile.id) setSelectedId(null);
       await refreshAll();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -386,17 +388,17 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       setBlacklistTarget(null);
       await refreshAll();
     } catch (e: any) {
-      alert(`拉黑失败：${e?.message || e}`);
+      bdsToast.danger(`拉黑失败：${e?.message || e}`);
     }
   };
 
   const handleUnblacklist = async (profile: FactoryProfile) => {
-    if (!confirm(`确认解除「${profile.relation?.name || profile.id}」的拉黑？`)) return;
+    if (!(await bdsConfirm({ title: '确认解除拉黑', body: `确认解除「${profile.relation?.name || profile.id}」的拉黑？` }))) return;
     try {
       await apiService.unblacklistFactory(profile.id);
       await refreshAll();
     } catch (e: any) {
-      alert(`解除拉黑失败：${e?.message || e}`);
+      bdsToast.danger(`解除拉黑失败：${e?.message || e}`);
     }
   };
 
@@ -411,7 +413,7 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       setShowEvaluationForm(false);
       await loadDetail();
     } catch (e: any) {
-      alert(`追加评分失败：${e?.message || e}`);
+      bdsToast.danger(`追加评分失败：${e?.message || e}`);
     }
   };
 
@@ -431,17 +433,17 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       setEditingCert(null);
       await Promise.all([loadDetail(), loadExpiring()]);
     } catch (e: any) {
-      alert(`保存认证失败：${e?.message || e}`);
+      bdsToast.danger(`保存认证失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteCertification = async (cert: FactoryCertification) => {
-    if (!confirm(`确认删除认证「${cert.type}」？`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除认证「${cert.type}」？`, danger: true }))) return;
     try {
       await apiService.deleteFactoryCertification(cert.id);
       await Promise.all([loadDetail(), loadExpiring()]);
     } catch (e: any) {
-      alert(`删除认证失败：${e?.message || e}`);
+      bdsToast.danger(`删除认证失败：${e?.message || e}`);
     }
   };
 
@@ -457,18 +459,18 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
       setEditingCapacityMonth(null);
       await loadDetail();
     } catch (e: any) {
-      alert(`保存产能失败：${e?.message || e}`);
+      bdsToast.danger(`保存产能失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteCapacity = async (row: FactoryCapacity) => {
-    if (!confirm(`确认删除 ${row.month} 的产能计划？`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除 ${row.month} 的产能计划？`, danger: true }))) return;
     if (!selectedId) return;
     try {
       await apiService.deleteFactoryCapacity(selectedId, row.month);
       await loadDetail();
     } catch (e: any) {
-      alert(`删除产能失败：${e?.message || e}`);
+      bdsToast.danger(`删除产能失败：${e?.message || e}`);
     }
   };
 
@@ -1289,7 +1291,7 @@ function ProfileForm({
       onSave(payload, profile.id);
     } else {
       if (!relationId) {
-        alert('请选择供应商（Relation）');
+        bdsToast.warning('请选择供应商（Relation）');
         return;
       }
       onSave({ relationId, ...payload } as FactoryProfileInput);
@@ -1389,7 +1391,7 @@ function EvaluationForm({
   const handleSubmit = () => {
     const num = Number(score);
     if (score === '' || Number.isNaN(num) || num < 0 || num > 100) {
-      alert('评分必须是 0-100 的数字');
+      bdsToast.warning('评分必须是 0-100 的数字');
       return;
     }
     onSave({ kind, score: num, sourceType: 'manual', evaluatedAt, note: note || null });
@@ -1452,7 +1454,7 @@ function CertificationForm({
   const handleSubmit = () => {
     const finalType = type === '其他' ? customType.trim() : type;
     if (!finalType) {
-      alert('请填写认证类型');
+      bdsToast.warning('请填写认证类型');
       return;
     }
     onSave({
@@ -1535,11 +1537,11 @@ function CapacityForm({
   const handleSubmit = () => {
     const num = Number(capacity);
     if (!/^\d{4}-\d{2}$/.test(month)) {
-      alert('月份格式必须是 YYYY-MM');
+      bdsToast.warning('月份格式必须是 YYYY-MM');
       return;
     }
     if (capacity === '' || Number.isNaN(num) || num < 0) {
-      alert('产能必须是非负数字');
+      bdsToast.warning('产能必须是非负数字');
       return;
     }
     onSave(month, { capacity: num, unit: unit || null, note: note || null });
@@ -1593,7 +1595,7 @@ function BlacklistForm({
 
   const handleSubmit = () => {
     if (!reason.trim()) {
-      alert('拉黑原因必填');
+      bdsToast.warning('拉黑原因必填');
       return;
     }
     onSave(reason.trim());

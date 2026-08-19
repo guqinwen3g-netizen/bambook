@@ -33,6 +33,7 @@ import { EmailEditor } from './email/EmailEditor';
 import SignatureManager from './email/SignatureManager';
 import { cleanHtmlSnippet } from '../utils/emailUtils';
 import { PageHeader } from './ui/PageHeader';
+import { bdsConfirm } from './ui/BdsDialog';
 
 
 interface EmailProps {
@@ -1064,7 +1065,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to move this neural stream to the trash?')) return;
+    if (!(await bdsConfirm({ title: '移入垃圾箱', body: 'Are you sure you want to move this neural stream to the trash?', danger: true }))) return;
     const physicalBox = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox) ? 'INBOX' : currentBox;
 
     // 1. Optimistic UI Update
@@ -1106,7 +1107,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   };
 
   const handleSpam = async (id: string) => {
-    if (!confirm('Report this as spam?')) return;
+    if (!(await bdsConfirm({ title: '举报垃圾邮件', body: 'Report this as spam?' }))) return;
     const physicalBox = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox) ? 'INBOX' : currentBox;
 
     // 1. Optimistic UI Update

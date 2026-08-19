@@ -228,8 +228,8 @@ describe('runtime QA [FinanceManager UI]: 作废/软删入口', () => {
     expect(FINANCE_MGR_SRC).toMatch(/disabled=\{voidDeletingId === invoice\.id\}/);
     expect(FINANCE_MGR_SRC).toMatch(/Loader2.*animate-spin/);
   });
-  it('确认弹窗（window.confirm 防误操作）', () => {
-    expect(FINANCE_MGR_SRC).toMatch(/window\.confirm/);
+  it('确认弹窗（bdsConfirm 防误操作）', () => {
+    expect(FINANCE_MGR_SRC).toMatch(/bdsConfirm/);
   });
   it('voucher 详情补软删入口（消费 paymentVoucherService.deletePaymentVoucher）', () => {
     expect(FINANCE_MGR_SRC).toMatch(/paymentVoucherService\.deletePaymentVoucher/);

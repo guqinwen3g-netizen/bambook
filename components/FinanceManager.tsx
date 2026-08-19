@@ -31,6 +31,8 @@ import type {
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -488,14 +490,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       try {
         await loadSettlementSummary(settlementVoucher.id);
       } catch {
-        window.alert('结汇已登记，但摘要刷新失败，请关闭后重开查看最新数据。');
+        bdsToast.warning('结汇已登记，但摘要刷新失败，请关闭后重开查看最新数据。');
       }
     }
   };
 
   const handleDeleteSettlement = async (settlementId: string, settlementNumber: string) => {
     if (!settlementVoucher || settlementDeletingId) return;
-    if (!window.confirm(`删除结汇水单 ${settlementNumber}？\n删除后该凭证未结汇余额将回滚。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `删除结汇水单 ${settlementNumber}？\n删除后该凭证未结汇余额将回滚。`, danger: true }))) return;
     setSettlementDeletingId(settlementId);
     setSettlementError(null);
     let mutationOk = false;
@@ -511,7 +513,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       try {
         await loadSettlementSummary(settlementVoucher.id);
       } catch {
-        window.alert('已删除，但摘要刷新失败，请关闭后重开查看最新数据。');
+        bdsToast.warning('已删除，但摘要刷新失败，请关闭后重开查看最新数据。');
       }
     }
   };
@@ -589,14 +591,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       try {
         await loadRemittanceSummary(remittanceVoucher.id);
       } catch {
-        window.alert('付汇已登记，但摘要刷新失败，请关闭后重开查看最新数据。');
+        bdsToast.warning('付汇已登记，但摘要刷新失败，请关闭后重开查看最新数据。');
       }
     }
   };
 
   const handleDeleteRemittance = async (remittanceId: string, remittanceNumber: string) => {
     if (!remittanceVoucher || remittanceDeletingId) return;
-    if (!window.confirm(`删除付汇水单 ${remittanceNumber}？\n删除后该凭证未付汇余额将回滚。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `删除付汇水单 ${remittanceNumber}？\n删除后该凭证未付汇余额将回滚。`, danger: true }))) return;
     setRemittanceDeletingId(remittanceId);
     setRemittanceError(null);
     let mutationOk = false;
@@ -612,7 +614,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       try {
         await loadRemittanceSummary(remittanceVoucher.id);
       } catch {
-        window.alert('已删除，但摘要刷新失败，请关闭后重开查看最新数据。');
+        bdsToast.warning('已删除，但摘要刷新失败，请关闭后重开查看最新数据。');
       }
     }
   };
@@ -677,7 +679,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const [convertingPiId, setConvertingPiId] = useState<string | null>(null);
 
   const handleConvertToReceivable = async (invoiceId: string, invoiceNumber: string) => {
-    if (!window.confirm(`将形式发票 ${invoiceNumber} 转换为正式应收发票？\n转换后将生成新的应收发票，原 PI 将标记为已作废。`)) return;
+    if (!(await bdsConfirm({ title: '确认转换', body: `将形式发票 ${invoiceNumber} 转换为正式应收发票？\n转换后将生成新的应收发票，原 PI 将标记为已作废。`, danger: true }))) return;
     setConvertingPiId(invoiceId);
     setVoidDeleteError(null);
     try {
@@ -933,7 +935,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   const handleVatCancel = async (vat: VatInvoiceEntity) => {
     if (vatMutatingId) return;
-    if (!window.confirm(`作废增值税发票 ${vat.vatNumber}？\n作废后不可恢复，仅收票状态可作废。`)) return;
+    if (!(await bdsConfirm({ title: '确认作废', body: `作废增值税发票 ${vat.vatNumber}？\n作废后不可恢复，仅收票状态可作废。`, danger: true }))) return;
     setVatMutatingId(vat.id);
     setVatListError(null);
     try {
@@ -948,7 +950,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   const handleVatDelete = async (vat: VatInvoiceEntity) => {
     if (vatMutatingId) return;
-    if (!window.confirm(`删除增值税发票 ${vat.vatNumber}？\n已申报退税的发票不可删除（仅可红冲）。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `删除增值税发票 ${vat.vatNumber}？\n已申报退税的发票不可删除（仅可红冲）。`, danger: true }))) return;
     setVatMutatingId(vat.id);
     setVatListError(null);
     try {
@@ -1051,7 +1053,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         setAllocations(refreshed);
       } catch {
         // refresh 失败——状态已更新，只提示明细刷新失败，不说"核销失败"
-        window.alert('状态已更新，但明细列表刷新失败，请刷新页面查看最新数据。');
+        bdsToast.warning('状态已更新，但明细列表刷新失败，请刷新页面查看最新数据。');
       }
     }
   };
@@ -1060,7 +1062,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     if (!selectedItem?.id) return;
     // 删除前先定位真实 invoiceId/voucherId（不依赖 selectedItem）
     const parties = resolveAllocParties(allocId);
-    if (!window.confirm('确认撤销该核销记录？撤销后发票/凭证状态将反向重算。')) return;
+    if (!(await bdsConfirm({ title: '确认撤销', body: '确认撤销该核销记录？撤销后发票/凭证状态将反向重算。', danger: true }))) return;
     let mutationOk = false;
     try {
       const result = await allocationService.deleteAllocation(allocId);
@@ -1070,7 +1072,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       mutationOk = true;
     } catch (e: any) {
       // mutation 失败——真实未落库，显示失败反馈
-      window.alert(`撤销核销失败：${e?.message ?? e}`);
+      bdsToast.danger(`撤销核销失败：${e?.message ?? e}`);
     }
     // ✅ mutation 成功后 best-effort 刷新列表（独立 try/catch，失败不误导用户）
     if (mutationOk) {
@@ -1080,7 +1082,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         setAllocations(refreshed);
       } catch {
         // refresh 失败——状态已更新，只提示明细刷新失败
-        window.alert('状态已更新，但明细列表刷新失败，请刷新页面查看最新数据。');
+        bdsToast.warning('状态已更新，但明细列表刷新失败，请刷新页面查看最新数据。');
       }
     }
   };
@@ -1616,7 +1618,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   type="button"
                   disabled={voidDeletingId === invoice.id}
                   onClick={async () => {
-                    if (!window.confirm(`作废发票 ${invoice.invoiceNumber}？\n作废后状态变为 Cancelled，不可恢复。`)) return;
+                    if (!(await bdsConfirm({ title: '确认作废', body: `作废发票 ${invoice.invoiceNumber}？\n作废后状态变为 Cancelled，不可恢复。`, danger: true }))) return;
                     setVoidDeletingId(invoice.id);
                     setVoidDeleteError(null);
                     try {
@@ -1641,7 +1643,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   type="button"
                   disabled={voidDeletingId === invoice.id}
                   onClick={async () => {
-                    if (!window.confirm(`删除发票 ${invoice.invoiceNumber}？\n有核销记录的发票不可删除。`)) return;
+                    if (!(await bdsConfirm({ title: '确认删除', body: `删除发票 ${invoice.invoiceNumber}？\n有核销记录的发票不可删除。`, danger: true }))) return;
                     setVoidDeletingId(invoice.id);
                     setVoidDeleteError(null);
                     try {
@@ -1699,7 +1701,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   type="button"
                   disabled={voidDeletingId === voucher.id}
                   onClick={async () => {
-                    if (!window.confirm(`作废凭证 ${voucher.voucherNumber}?\n有核销记录的凭证不可作废。`)) return;
+                    if (!(await bdsConfirm({ title: '确认作废', body: `作废凭证 ${voucher.voucherNumber}?\n有核销记录的凭证不可作废。`, danger: true }))) return;
                     setVoidDeletingId(voucher.id);
                     setVoidDeleteError(null);
                     try {
@@ -1723,7 +1725,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   type="button"
                   disabled={voidDeletingId === voucher.id}
                   onClick={async () => {
-                    if (!window.confirm(`删除凭证 ${voucher.voucherNumber}？\n有核销记录的凭证不可删除。`)) return;
+                    if (!(await bdsConfirm({ title: '确认删除', body: `删除凭证 ${voucher.voucherNumber}？\n有核销记录的凭证不可删除。`, danger: true }))) return;
                     setVoidDeletingId(voucher.id);
                     setVoidDeleteError(null);
                     try {

@@ -55,6 +55,8 @@ import {
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 
 // ==================== 常量 ====================
@@ -325,18 +327,18 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
       setEditingSeason(null);
       await refreshAll();
     } catch (e: any) {
-      alert(`保存季度失败：${e?.message || e}`);
+      bdsToast.danger(`保存季度失败：${e?.message || e}`);
     }
   };
 
   const handleDelete = async (season: Season) => {
-    if (!confirm(`确认删除季度「${season.code} ${season.name}」？关联的趋势标签与展会将保留但失去季度归属。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除季度「${season.code} ${season.name}」？关联的趋势标签与展会将保留但失去季度归属。`, danger: true }))) return;
     try {
       await apiService.deleteSeason(season.id);
       if (selectedId === season.id) setSelectedId(null);
       await refreshAll();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -347,7 +349,7 @@ function SeasonsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => v
       const data = await apiService.generateSeasonReview(selectedId);
       setReview(data);
     } catch (e: any) {
-      alert(`生成季度回顾失败：${e?.message || e}`);
+      bdsToast.danger(`生成季度回顾失败：${e?.message || e}`);
     } finally {
       setGeneratingReview(false);
     }
@@ -702,18 +704,18 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
       setEditingTag(null);
       await loadTags();
     } catch (e: any) {
-      alert(`保存趋势标签失败：${e?.message || e}`);
+      bdsToast.danger(`保存趋势标签失败：${e?.message || e}`);
     }
   };
 
   const handleDelete = async (tag: TrendTag) => {
-    if (!confirm(`确认删除趋势标签「${tag.name}」？关联面料将一并解除。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除趋势标签「${tag.name}」？关联面料将一并解除。`, danger: true }))) return;
     try {
       await apiService.deleteTrendTag(tag.id);
       if (expandedId === tag.id) setExpandedId(null);
       await loadTags();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -722,7 +724,7 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
       await apiService.linkTrendFabric(tagId, { fabricId, note: note || null });
       await loadTags();
     } catch (e: any) {
-      alert(`关联面料失败：${e?.message || e}`);
+      bdsToast.danger(`关联面料失败：${e?.message || e}`);
     }
   };
 
@@ -731,7 +733,7 @@ function TrendsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => vo
       await apiService.unlinkTrendFabric(tagId, fabricId);
       await loadTags();
     } catch (e: any) {
-      alert(`移除关联面料失败：${e?.message || e}`);
+      bdsToast.danger(`移除关联面料失败：${e?.message || e}`);
     }
   };
 
@@ -1086,18 +1088,18 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
       setEditingShow(null);
       await refreshAll();
     } catch (e: any) {
-      alert(`保存展会失败：${e?.message || e}`);
+      bdsToast.danger(`保存展会失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteShow = async (show: TradeShow) => {
-    if (!confirm(`确认删除展会「${show.name}」？其下线索将一并删除。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除展会「${show.name}」？其下线索将一并删除。`, danger: true }))) return;
     try {
       await apiService.deleteTradeShow(show.id);
       if (selectedId === show.id) setSelectedId(null);
       await refreshAll();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -1114,7 +1116,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
       setEditingLead(null);
       await loadDetail();
     } catch (e: any) {
-      alert(`保存线索失败：${e?.message || e}`);
+      bdsToast.danger(`保存线索失败：${e?.message || e}`);
     }
   };
 
@@ -1123,17 +1125,17 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
       await apiService.updateTradeShowLead(lead.id, { status });
       await loadDetail();
     } catch (e: any) {
-      alert(`更新线索状态失败：${e?.message || e}`);
+      bdsToast.danger(`更新线索状态失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteLead = async (lead: TradeShowLead) => {
-    if (!confirm(`确认删除线索「${lead.customerName}」？`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确认删除线索「${lead.customerName}」？`, danger: true }))) return;
     try {
       await apiService.deleteTradeShowLead(lead.id);
       await loadDetail();
     } catch (e: any) {
-      alert(`删除线索失败：${e?.message || e}`);
+      bdsToast.danger(`删除线索失败：${e?.message || e}`);
     }
   };
 
@@ -1144,7 +1146,7 @@ function ShowsPanel({ registerNewAction }: { registerNewAction?: (fn: (() => voi
       setConvertingLead(null);
       await loadDetail();
     } catch (e: any) {
-      alert(`线索转化失败：${e?.message || e}`);
+      bdsToast.danger(`线索转化失败：${e?.message || e}`);
     }
   };
 
@@ -1530,11 +1532,11 @@ function SeasonForm({
 
   const handleSubmit = () => {
     if (!season && !/^[A-Za-z]{2}\d{2}$/.test(code.trim())) {
-      alert('季度代码格式如 SS26 / AW26（两位字母 + 两位数字）');
+      bdsToast.warning('季度代码格式如 SS26 / AW26（两位字母 + 两位数字）');
       return;
     }
     if (!name.trim() || !startDate || !endDate) {
-      alert('季度名称与起止日期必填');
+      bdsToast.warning('季度名称与起止日期必填');
       return;
     }
     const cleanCalendar = calendar
@@ -1716,7 +1718,7 @@ function TrendTagForm({
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      alert('标签名称必填');
+      bdsToast.warning('标签名称必填');
       return;
     }
     onSave({
@@ -1813,7 +1815,7 @@ function TradeShowForm({
 
   const handleSubmit = () => {
     if (!name.trim() || !startDate) {
-      alert('展会名称与开始日期必填');
+      bdsToast.warning('展会名称与开始日期必填');
       return;
     }
     onSave({
@@ -1924,7 +1926,7 @@ function LeadForm({
 
   const handleSubmit = () => {
     if (!customerName.trim()) {
-      alert('客户姓名必填');
+      bdsToast.warning('客户姓名必填');
       return;
     }
     onSave({
@@ -2028,7 +2030,7 @@ function ConvertLeadForm({
 
   const handleSubmit = () => {
     if (!relationId) {
-      alert('请选择要转化到的客户（Relation）');
+      bdsToast.warning('请选择要转化到的客户（Relation）');
       return;
     }
     onSave(relationId);

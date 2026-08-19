@@ -20,6 +20,7 @@ import {
   TrackASource,
 } from '../../types';
 import { statusSemanticClass, StatusSemantic } from '../rdlBusinessStatusTokens';
+import { bdsToast } from '../ui/bdsToast';
 
 const TRACKA_SOURCE_LABELS: Record<TrackASource, string> = {
   price_history: '价格历史',
@@ -114,10 +115,10 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
       const rates = await apiService.getLatestFxRates();
       const usd = rates.find((r) => r.currency === 'USD');
       if (usd) setExchangeRate(String(usd.rate));
-      else alert('未找到 USD 最新汇率');
+      else bdsToast.danger('未找到 USD 最新汇率');
     } catch (e) {
       console.error('[TrackAPanel] getLatestFxRates failed', e);
-      alert('获取最新汇率失败');
+      bdsToast.danger('获取最新汇率失败');
     }
   };
 
@@ -177,7 +178,7 @@ export function TrackAPanel({ onMedianUsdChange, onInputsChange }: TrackAPanelPr
       setEditedLines(null); // 新估算以服务端拆解为基线
     } catch (e) {
       console.error('[TrackAPanel] previewTrackA failed', e);
-      alert(`估算失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`估算失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPreviewing(false);
     }

@@ -40,6 +40,8 @@ import {
   ProductAsset,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 
 // ==================== 常量 ====================
 
@@ -255,21 +257,21 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
       await load();
     } catch (e) {
       console.error('[MarketingManager] transitionLookbook failed', e);
-      alert(`操作失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`操作失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确认删除该画册？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该画册？', danger: true }))) return;
     setUpdatingId(id);
     try {
       await apiService.deleteLookbook(id);
       await load();
     } catch (e) {
       console.error('[MarketingManager] deleteLookbook failed', e);
-      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setUpdatingId(null);
     }
@@ -407,7 +409,7 @@ function LookbooksPanel({ registerNewAction }: { registerNewAction?: (fn: (() =>
                 await load();
               } catch (e) {
                 console.error('[MarketingManager] saveLookbook failed', e);
-                alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+                bdsToast.danger(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
               }
             }}
             onClose={() => setShowForm(false)}
@@ -442,7 +444,7 @@ function LookbookForm({
 
   const handleSubmit = () => {
     if (!title.trim()) {
-      alert('画册标题必填');
+      bdsToast.warning('画册标题必填');
       return;
     }
     onSave({ title: title.trim(), description: description.trim() || null });
@@ -534,7 +536,7 @@ function LookbookItemsEditor({
       onSaved();
     } catch (e) {
       console.error('[MarketingManager] setLookbookItems failed', e);
-      alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSaving(false);
     }
@@ -698,14 +700,14 @@ function FabricRecommendPanel() {
       await loadHistory();
     } catch (e) {
       console.error('[MarketingManager] recommendFabrics failed', e);
-      alert(`推荐失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`推荐失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setRunning(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确认删除该推荐记录？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该推荐记录？', danger: true }))) return;
     setDeletingId(id);
     try {
       await apiService.deleteFabricRecommendation(id);
@@ -713,7 +715,7 @@ function FabricRecommendPanel() {
       await loadHistory();
     } catch (e) {
       console.error('[MarketingManager] deleteFabricRecommendation failed', e);
-      alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      bdsToast.danger(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setDeletingId(null);
     }

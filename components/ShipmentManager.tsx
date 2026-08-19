@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
+import { bdsConfirm } from './ui/BdsDialog';
 import {
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
@@ -476,7 +477,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
 
   const handleDelete = async (shipment: ShipmentType) => {
     if (deletingId) return;
-    if (!window.confirm(`确定要删除运单 ${shipment.shipmentNumber} 吗？此操作不可撤销。`)) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: `确定要删除运单 ${shipment.shipmentNumber} 吗？此操作不可撤销。`, danger: true }))) return;
     setDeletingId(shipment.id);
     setErrorMessage('');
     try {

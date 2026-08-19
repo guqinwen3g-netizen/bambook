@@ -20,6 +20,7 @@ import { AgentMessageCard } from './AgentMessageCard';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
+import { bdsToast } from './ui/bdsToast';
 import { CompiledInteractiveCard } from './ui/primitives/compiledPrimitives';
 import { localSttService } from '../services/localSttService';
 import BambookLowercaseWordmark from './BambookLowercaseWordmark';
@@ -803,7 +804,7 @@ const Assistant: React.FC<AssistantProps> = ({
     } catch (error: any) {
       console.error("[Antigravity Debug] resolveAgentApproval 报错:", error);
       if (typeof window !== 'undefined') {
-        window.alert(`【Antigravity 错误捕捉】审批落库失败：${error?.message || '未知错误'}`);
+        bdsToast.danger(`【Antigravity 错误捕捉】审批落库失败：${error?.message || '未知错误'}`);
       }
       // 回滚
       applyApprovalPatch('pending');
@@ -871,7 +872,7 @@ const Assistant: React.FC<AssistantProps> = ({
       console.error('[Bambook Form] submitAgentForm 报错:', error);
       applyFormPatch('pending');
       if (typeof window !== 'undefined') {
-        window.alert(`表单提交失败：${error?.message || '未知错误'}`);
+        bdsToast.danger(`表单提交失败：${error?.message || '未知错误'}`);
       }
     }
   };

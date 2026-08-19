@@ -61,6 +61,8 @@ import {
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { bdsToast } from './ui/bdsToast';
+import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
@@ -257,7 +259,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       setEditingOpportunity(null);
       await loadCrmData();
     } catch (e: any) {
-      alert(`保存商机失败：${e?.message || e}`);
+      bdsToast.danger(`保存商机失败：${e?.message || e}`);
     }
   };
 
@@ -266,17 +268,17 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       await apiService.transitionOpportunity(id, toStage);
       await loadCrmData();
     } catch (e: any) {
-      alert(`阶段流转失败：${e?.message || e}`);
+      bdsToast.danger(`阶段流转失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteOpportunity = async (id: string) => {
-    if (!confirm('确认删除此商机？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此商机？', danger: true }))) return;
     try {
       await apiService.deleteOpportunity(id);
       await loadCrmData();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -296,17 +298,17 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       setEditingFollowUp(null);
       await loadCrmData();
     } catch (e: any) {
-      alert(`保存跟进失败：${e?.message || e}`);
+      bdsToast.danger(`保存跟进失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteFollowUp = async (id: string) => {
-    if (!confirm('确认删除此跟进记录？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此跟进记录？', danger: true }))) return;
     try {
       await apiService.deleteFollowUp(id);
       await loadCrmData();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -331,7 +333,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       setShowCreditForm(false);
       await loadCrmData();
     } catch (e: any) {
-      alert(`设置信用额度失败：${e?.message || e}`);
+      bdsToast.danger(`设置信用额度失败：${e?.message || e}`);
     }
   };
 
@@ -340,7 +342,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       await apiService.updateCreditLimitStatus(id, status);
       await loadCrmData();
     } catch (e: any) {
-      alert(`更新状态失败：${e?.message || e}`);
+      bdsToast.danger(`更新状态失败：${e?.message || e}`);
     }
   };
 
@@ -355,17 +357,17 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
       setShowTierForm(false);
       await loadCrmData();
     } catch (e: any) {
-      alert(`评定分层失败：${e?.message || e}`);
+      bdsToast.danger(`评定分层失败：${e?.message || e}`);
     }
   };
 
   const handleDeleteTier = async (id: string) => {
-    if (!confirm('确认删除此分层记录？')) return;
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此分层记录？', danger: true }))) return;
     try {
       await apiService.deleteCustomerTier(id);
       await loadCrmData();
     } catch (e: any) {
-      alert(`删除失败：${e?.message || e}`);
+      bdsToast.danger(`删除失败：${e?.message || e}`);
     }
   };
 
@@ -1173,7 +1175,7 @@ function OpportunityForm({
 
   const handleSubmit = () => {
     if (!title.trim() || !amount) {
-      alert('请填写商机标题和金额');
+      bdsToast.warning('请填写商机标题和金额');
       return;
     }
     onSave({
@@ -1263,7 +1265,7 @@ function FollowUpForm({
 
   const handleSubmit = () => {
     if (!content.trim()) {
-      alert('请填写跟进内容');
+      bdsToast.warning('请填写跟进内容');
       return;
     }
     onSave({
@@ -1346,7 +1348,7 @@ function CreditLimitForm({
 
   const handleSubmit = () => {
     if (!totalLimit) {
-      alert('请填写信用额度');
+      bdsToast.warning('请填写信用额度');
       return;
     }
     onSave({
