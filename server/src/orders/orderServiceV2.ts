@@ -30,6 +30,28 @@ import { createMoqValidationService, isCapsuleEligible } from '../moq/moqValidat
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
 
+/**
+ * Order 模型可选业务字段白名单（创建/更新共用）。
+ * 根因修复：此前 createOrder 全量透传客户端字段，任何 Prisma 不认识的字段
+ * （如 unitPrice）都会导致 order.create 抛 Unknown argument → 500。
+ */
+const ORDER_OPTIONAL_FIELDS = [
+  'customer', 'product', 'type', 'quantity', 'dueDate', 'quoteAmount',
+  'currency', 'paymentTerms', 'deliveryTerms', 'customerRelationId',
+  'businessLine', 'ownerId', 'departmentId', 'salesPerson', 'merchandiser',
+  'supervisor', 'productionBatch', 'productionDate', 'clientDate',
+  'specialInstructions', 'poNumber', 'season', 'contactPerson', 'contactPhone',
+  'shipToName', 'shipToAddress1', 'shipToAddress2', 'shipToCountry', 'shipToPhone',
+  'deliverTo', 'salesContractNumber', 'finalContractNumber',
+  'capsuleExemption', 'capsuleExemptionBy', 'capsuleExemptionAt',
+  'salesPrice', 'contractAmount', 'salesCurrency', 'purchaseCurrency',
+  'millName', 'millRelationId', 'millContact', 'millPhone', 'millAddress',
+  'consigneeName', 'consigneeAddress', 'consigneeContact', 'consigneeRelationId',
+  'billToName', 'billToAddress', 'billToContact', 'billToRelationId',
+  'salesPersonRelationId', 'merchandiserRelationId', 'supervisorRelationId',
+  'customerCode',
+] as const;
+
 // ────────────────────────────────────────────────────────────────────
 // 类型
 // ────────────────────────────────────────────────────────────────────
@@ -361,9 +383,11 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         moqSnapshot,
         ...capsuleFields,
       };
-      // 透传额外的可选字段（moqSnapshot/capsuleExemption* 已在上方显式赋值，客户端注入不会覆盖）
-      for (const [k, v] of Object.entries(withDefaults)) {
-        if (!payload[k] && v != null) payload[k] = v;
+      // 透传白名单内的可选字段（ORDER_OPTIONAL_FIELDS；非法字段（如 unitPrice）不再透传，
+      // moqSnapshot/capsuleExemption* 已在上方显式赋值，客户端注入不会覆盖）
+      for (const k of ORDER_OPTIONAL_FIELDS) {
+        const v = (withDefaults as Record<string, unknown>)[k];
+        if (payload[k] === undefined && v != null) payload[k] = v;
       }
 
       const order = await (prisma as any).order.create({ data: payload, include: { lines: true } });
@@ -463,20 +487,10 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         input.capsuleExemptionAt = new Date();
       }
 
-      // 构建 update payload（只更新传入的字段；moqSnapshot 为 writeOnce，绝不在更新路径出现）
+      // 构建 update payload（只更新白名单内传入的字段；moqSnapshot 为 writeOnce，绝不在更新路径出现）
       const payload: Record<string, unknown> = {};
-      const updatableFields = [
-        'customer', 'product', 'type', 'quantity', 'dueDate', 'quoteAmount',
-        'currency', 'paymentTerms', 'deliveryTerms', 'customerRelationId',
-        'businessLine', 'ownerId', 'departmentId', 'salesPerson', 'merchandiser',
-        'supervisor', 'productionBatch', 'productionDate', 'clientDate',
-        'specialInstructions', 'poNumber', 'season', 'contactPerson', 'contactPhone',
-        'shipToName', 'shipToAddress1', 'shipToAddress2', 'shipToCountry', 'shipToPhone',
-        'deliverTo', 'salesContractNumber', 'finalContractNumber',
-        'capsuleExemption', 'capsuleExemptionBy', 'capsuleExemptionAt',
-      ];
-      for (const f of updatableFields) {
-        if (input[f] !== undefined) payload[f] = input[f];
+      for (const f of ORDER_OPTIONAL_FIELDS) {
+        if ((input as Record<string, unknown>)[f] !== undefined) payload[f] = (input as Record<string, unknown>)[f];
       }
       payload.updatedAt = BigInt(Date.now());
 
@@ -570,15 +584,15 @@ export function createOrderServiceV2(prisma: PrismaClient) {
           where: { id },
           data: { status: newStatus, updatedAt: BigInt(Date.now()) },
         });
-        // 写状态流转记录
+        // 写状态流转记录（schema 字段为 note/operator——此前误用 reason/actorId 导致 100% 500）
         await tx.orderStatusTransition.create({
           data: {
             id: `OST-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             orderId: id,
             fromStatus: currentStatus,
             toStatus: newStatus,
-            reason: reason || null,
-            actorId: actor.userId,
+            note: reason || null,
+            operator: actor.userId,
             createdAt: BigInt(Date.now()),
           },
         });
