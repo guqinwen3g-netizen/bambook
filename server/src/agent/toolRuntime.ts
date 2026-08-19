@@ -4,6 +4,7 @@ import { registerTool, dispatchFromRegistry, getRegisteredToolCount } from './to
 import { registerNewDomainQueryTools } from './newDomainQueryTools';
 import { DEFAULT_AGENT_TOOLS } from './defaults';
 import { createPolicyService } from './policy';
+import { createMemoryService } from './memory';
 import { AiEmit } from '../ai/runtime';
 import { emitAgentWorkEvent } from './events';
 import { getToolManifestSafety } from './mcp/manifest';
@@ -1748,6 +1749,62 @@ export async function executeAgentTool(input: {
       // P0-B: ProcessDraft 在审批前已生成（draftPhase 在 approvalPhase 之前）
       processDraft: processDraftForApproval,
     };
+  }
+
+  // ── memory 工具（actor 感知分发）──
+  // 注册表 handler 签名 (prisma, input) 无 actor 上下文；记忆读写强依赖 actor
+  // （memoryScopes 守卫 + personal scope 归属），故在此统一分发并走 recordAgentToolRun 审计。
+  if (definition.id === 'memory.recall' || definition.id === 'memory.write') {
+    const memoryStartedAt = new Date();
+    try {
+      const memoryService = createMemoryService(input.prisma);
+      let memoryOutput: Record<string, unknown>;
+      if (definition.id === 'memory.recall') {
+        const memories = await memoryService.recall({
+          actor: input.actor,
+          scope: input.toolInput.scope ? String(input.toolInput.scope) : undefined,
+          query: input.toolInput.query ? String(input.toolInput.query) : undefined,
+          limit: input.toolInput.limit != null ? Number(input.toolInput.limit) : undefined,
+        });
+        memoryOutput = { ok: true, memories };
+      } else {
+        const record = await memoryService.remember({
+          actor: input.actor,
+          scope: String(input.toolInput.scope || `personal:${input.actor.userId}`),
+          memoryType: String(input.toolInput.memoryType || 'fact'),
+          content: String(input.toolInput.content || ''),
+          summary: input.toolInput.summary ? String(input.toolInput.summary) : undefined,
+          sourceType: 'agent_tool',
+          sourceId: input.sessionId ?? undefined,
+        });
+        memoryOutput = { ok: true, memory: { id: record.id, scope: record.scope, memoryType: record.memoryType } };
+      }
+      await recordAgentToolRun(input.prisma, {
+        actor: input.actor,
+        definition,
+        status: 'success',
+        toolInput: input.toolInput,
+        output: memoryOutput,
+        startedAt: memoryStartedAt,
+        sessionId: input.sessionId,
+        actorUserId: input.actorUserId,
+        requestSource: input.requestSource,
+      });
+      return memoryOutput;
+    } catch (error: any) {
+      await recordAgentToolRun(input.prisma, {
+        actor: input.actor,
+        definition,
+        status: 'failed',
+        toolInput: input.toolInput,
+        error: String(error?.message || error),
+        startedAt: memoryStartedAt,
+        sessionId: input.sessionId,
+        actorUserId: input.actorUserId,
+        requestSource: input.requestSource,
+      });
+      throw error;
+    }
   }
 
   const startedAt = new Date();

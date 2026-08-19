@@ -8,6 +8,7 @@ import { createAgentLoop } from '../agent/agentLoop';
 import { ToolDescriptor } from '../agent/agentLoopTypes';
 import { createCheckpointConversationId, PrismaCheckpointManager } from '../agent/checkpoint';
 import { executeAgentTool } from '../agent/toolRuntime';
+import { createMemoryService } from '../agent/memory';
 import { createTtsAnnotationStripper, stripTtsAnnotationsForDisplay } from './ttsTextNormalizer';
 
 type RunnerOptions = {
@@ -139,6 +140,12 @@ const DEFAULT_VISION_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3';
  *   - 既能用 filters 又能用 query 时，**优先 filters**——它是结构化精确匹配，全句 query 等同于全文检索失败。
  */
 export const AGENT_LOOP_TOOL_DESCRIPTORS: ToolDescriptor[] = [
+  { id: 'memory.recall', name: 'Recall Memories', scope: 'memory', risk: 'low',
+    description: '检索当前用户的跨会话记忆（偏好/惯例/业务规则）。用户问"我之前说过什么/记住的规则"或需要个性化上下文时调用。',
+    inputHint: '{ scope?: string, query?: string, limit?: number }' },
+  { id: 'memory.write', name: 'Write Memory', scope: 'memory', risk: 'low',
+    description: '把用户明确要求记住的信息（偏好/惯例/规则）写入跨会话记忆。仅当用户明确说"记住这个"或语义等价时调用；scope 只能写当前用户可访问范围。',
+    inputHint: '{ scope: string /* personal:{userId} 默认 */, memoryType: string /* preference|process|rule|fact */, content: string, summary?: string }' },
   { id: 'products.query', name: 'Query Product Assets', scope: 'products', risk: 'low',
     description: '按条件检索数字档案候选或返回统计；不唯一时只返回候选不要猜测。query 用于实体名/SKU 等短字面匹配，维度筛选走 filters。',
     inputHint: '{ query?: string /* 短实体文本，例如 SKU/品名；不要塞整句话 */, mainCategory?: string, filters?: { certifications?: string[], composition?: string, supplier?: string }, sort?: { field: string, direction: "asc"|"desc" }, limit?: number, offset?: number }' },
@@ -372,6 +379,17 @@ export function createMacMiniChatRunner(options: RunnerOptions) {
       }).catch(err => { throw err; }),
       availableTools: AGENT_LOOP_TOOL_DESCRIPTORS,
       checkpointManager,
+      // 跨会话记忆注入：run 开始时 recall 该用户可访问 scope 的最近记忆进系统提示词
+      //（memoryLoader 异常不阻断对话，降级为无记忆上下文）
+      memoryLoader: async memoryActor => {
+        const memoryService = createMemoryService(options.prisma);
+        const records = await memoryService.recall({ actor: memoryActor, limit: 20 });
+        return records.map(record => ({
+          scope: record.scope,
+          memoryType: record.memoryType,
+          content: record.content,
+        }));
+      },
     });
     // 真流式正文：拦截 answer_delta 实时推 block_patch
     let streamingBlockId: string | null = null;

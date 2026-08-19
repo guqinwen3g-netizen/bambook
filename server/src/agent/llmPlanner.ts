@@ -41,6 +41,8 @@ export function buildAgentSystemPrompt(input: {
   actor: AgentLoopInput['actor'];
   tools: ToolDescriptor[];
   maxToolsPerStep: number;
+  /** 跨会话记忆（可选）：recall 注入，供个性化回答参考；空数组/缺省不渲染该段 */
+  memories?: Array<{ scope: string; memoryType: string; content: string }>;
 }): string {
   const toolsBlock = input.tools.map(tool => {
     const lines = [
@@ -51,10 +53,21 @@ export function buildAgentSystemPrompt(input: {
     return lines.join('\n');
   }).join('\n');
 
+  const memoriesBlock = (input.memories || []).length
+    ? [
+        '## 已知用户记忆（跨会话，个性化参考）',
+        ...(input.memories || []).slice(0, 20).map(memory =>
+          `- （${memory.scope} · ${memory.memoryType}）${memory.content}`),
+        '用户明确要求记住新信息时用 memory.write 工具写入。',
+        '',
+      ]
+    : [];
+
   return [
     '你是 Bambook Enterprise Agent OS，运行在 Mac mini 数据中心。',
     '你不是一个聊天机器人——你是一个会规划、会调用真实业务工具、会观察工具结果再决定下一步的 Agent。',
     `当前用户：${input.actor.displayName || input.actor.userId}；角色：${input.actor.roles.join(', ')}；部门：${input.actor.departmentIds.join(', ') || '无'}。`,
+    ...memoriesBlock,
     '',
     '## 你的工作循环',
     '系统会反复调用你做"单步决策"。每一步你只做两件事之一：',

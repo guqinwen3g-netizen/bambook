@@ -32,6 +32,31 @@ type ManifestSeed = {
 
 const MANIFEST_SEEDS: ManifestSeed[] = [
   {
+    id: 'memory.recall',
+    name: 'Recall Memories',
+    domain: 'memory',
+    description: '检索当前用户的跨会话记忆（偏好/惯例/业务规则）。用户问"我之前说过什么/记住的规则"或需要个性化上下文时调用。',
+    inputHint: '{ scope?: string, query?: string, limit?: number }',
+    example: {
+      user: '我之前让你记住了哪些偏好？',
+      input: { query: '' },
+    },
+  },
+  {
+    id: 'memory.write',
+    name: 'Write Memory',
+    domain: 'memory',
+    description: '把用户明确要求记住的信息（偏好/惯例/规则）写入跨会话记忆。仅当用户明确说"记住这个"或语义等价时调用；scope 只能写当前用户可访问范围。',
+    inputHint: '{ scope: string /* personal:{userId} 默认 */, memoryType: string /* preference|process|rule|fact */, content: string, summary?: string }',
+    example: {
+      user: '记住：给 Aurora 的报价单一律用 USD。',
+      input: { scope: 'personal:kevin', memoryType: 'rule', content: '给 Aurora 的报价单一律用 USD' },
+    },
+    // 个人范围笔记写入（用户在会话中已明确确认"记住这个"），低摩擦设计不走审批；
+    // 越权 scope 由 memory 服务 memoryScopes 守卫拒绝
+    safety: { approval: 'never', sideEffects: true },
+  },
+  {
     id: 'products.query',
     name: 'Query Product Assets',
     domain: 'products',

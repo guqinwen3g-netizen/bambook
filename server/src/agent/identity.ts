@@ -4,57 +4,57 @@ const ROLE_SCOPES: Record<AgentRole, { permissions: string[]; knowledge: string[
   owner: {
     permissions: ['admin', 'knowledge:manage', 'tool:approve', 'memory:company:write'],
     knowledge: ['company', 'owner', 'admin', 'products'],
-    tools: ['admin', 'finance', 'orders', 'relations', 'products', 'knowledge', 'automation'],
+    tools: ['admin', 'finance', 'orders', 'relations', 'products', 'knowledge', 'automation', 'memory'],
   },
   admin: {
     permissions: ['admin', 'knowledge:manage', 'tool:approve'],
     knowledge: ['company', 'admin', 'products'],
-    tools: ['admin', 'finance', 'orders', 'relations', 'products', 'knowledge', 'automation'],
+    tools: ['admin', 'finance', 'orders', 'relations', 'products', 'knowledge', 'automation', 'memory'],
   },
   manager: {
     permissions: ['team:read', 'tool:approve'],
     knowledge: ['company', 'department', 'products'],
-    tools: ['orders', 'relations', 'products', 'knowledge', 'automation'],
+    tools: ['orders', 'relations', 'products', 'knowledge', 'automation', 'memory'],
   },
   merchandiser: {
     permissions: ['orders:read', 'orders:draft'],
     knowledge: ['company', 'orders', 'suppliers', 'products'],
-    tools: ['orders', 'relations', 'products'],
+    tools: ['orders', 'relations', 'products', 'memory'],
   },
   finance: {
     permissions: ['finance:read', 'invoice:draft'],
     knowledge: ['company', 'finance', 'products'],
-    tools: ['finance', 'orders', 'products'],
+    tools: ['finance', 'orders', 'products', 'memory'],
   },
   sales: {
     permissions: ['sales:read', 'customer:draft'],
     knowledge: ['company', 'sales', 'customers', 'products'],
-    tools: ['orders', 'relations', 'products'],
+    tools: ['orders', 'relations', 'products', 'memory'],
   },
   viewer: {
     permissions: ['read'],
     knowledge: ['company', 'products'],
-    tools: ['read', 'products'],
+    tools: ['read', 'products', 'memory'],
   },
   agent_operator: {
     permissions: ['automation:run'],
     knowledge: ['company', 'products'],
-    tools: ['automation', 'read', 'products'],
+    tools: ['automation', 'read', 'products', 'memory'],
   },
   logistics: {
     permissions: ['read', 'shipping:read', 'shipping:write'],
     knowledge: ['company', 'products', 'shipping'],
-    tools: ['read', 'products', 'shipping'],
+    tools: ['read', 'products', 'shipping', 'memory'],
   },
   production_manager: {
     permissions: ['production:read', 'production:write', 'production:sign'],
     knowledge: ['company', 'products', 'production'],
-    tools: ['production', 'orders', 'products'],
+    tools: ['production', 'orders', 'products', 'memory'],
   },
   factory: {
     permissions: ['production:read', 'production:write'],
     knowledge: ['company', 'products', 'production'],
-    tools: ['production', 'products'],
+    tools: ['production', 'products', 'memory'],
   },
 };
 

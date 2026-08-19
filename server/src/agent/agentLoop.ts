@@ -39,6 +39,8 @@ export function createAgentLoop(deps: {
   availableTools: ToolDescriptor[];
   /** 可选：checkpoint 管理器，启用断点续传。不传则无 checkpoint 能力（向后兼容）。 */
   checkpointManager?: CheckpointManager;
+  /** 可选：跨会话记忆装载器——run 开始时 recall 注入系统提示词。异常降级为空（不阻断对话）。 */
+  memoryLoader?: (actor: AgentLoopInput['actor']) => Promise<Array<{ scope: string; memoryType: string; content: string }>>;
 }) {
   const toolWhitelist = new Set(deps.availableTools.map(t => t.id));
 
@@ -72,6 +74,9 @@ export function createAgentLoop(deps: {
       actor: input.actor,
       tools: deps.availableTools,
       maxToolsPerStep: config.maxToolsPerStep,
+      memories: deps.memoryLoader
+        ? await deps.memoryLoader(input.actor).catch(() => [])
+        : [],
     });
 
     const emit = input.emit;

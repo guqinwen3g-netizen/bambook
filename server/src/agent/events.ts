@@ -396,6 +396,8 @@ function humanizeKey(key: string) {
 // ── 人性化标签：把机械的 toolId 和 "total/count=0" 翻译成自然语言 ──
 
 const TOOL_LABEL_MAP: Record<string, string> = {
+  'memory.recall': '检索跨会话记忆',
+  'memory.write': '写入跨会话记忆',
   'relations.query': '检索客户/供应商档案',
   'relations.get': '读取档案详情',
   'relations.expand': '展开档案上下文',

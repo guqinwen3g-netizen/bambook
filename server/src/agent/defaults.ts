@@ -97,6 +97,24 @@ export const DEFAULT_AGENT_ROLES: DefaultRoleDefinition[] = [
 
 export const DEFAULT_AGENT_TOOLS: DefaultToolDefinition[] = [
   {
+    id: 'memory.recall',
+    name: 'Recall Memories',
+    scope: 'memory',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'merchandiser', 'finance', 'sales', 'viewer', 'agent_operator'],
+    description: '检索当前用户的跨会话记忆（偏好/惯例/业务规则）。用户问"我之前说过什么/记住的规则"或需要个性化上下文时调用。',
+    inputHint: '{ scope?: string /* personal:{userId} | role:{role} | department:{id} | company；缺省搜全部可访问 scope */, query?: string /* 内容子串 */, limit?: number }',
+  },
+  {
+    id: 'memory.write',
+    name: 'Write Memory',
+    scope: 'memory',
+    risk: 'low',
+    allowedRoles: ['owner', 'admin', 'manager', 'merchandiser', 'finance', 'sales', 'viewer', 'agent_operator'],
+    description: '把用户明确要求记住的信息（偏好/惯例/规则）写入跨会话记忆。仅当用户明确说"记住这个"或语义等价时调用；scope 只能写当前用户可访问范围。',
+    inputHint: '{ scope: string /* personal:{userId}（默认）| role:{role} | department:{id} | company */, memoryType: string /* preference | process | rule | fact */, content: string, summary?: string }',
+  },
+  {
     id: 'products.count',
     name: 'Count Product Assets',
     scope: 'products',
