@@ -212,6 +212,8 @@ export function createHRRouter(options: HRRouterOptions) {
           department: t.department?.name || null,
           status: t.status,
           memberCount: t.members.filter(m => !m.leftAt).length,
+          // 成员明细（含在组成员与已退出标记）——组详情的成员区/添加人过滤依赖此数组
+          members: t.members.map(m => ({ id: m.id, userId: m.userId, role: m.role, leftAt: m.leftAt })),
           createdAt: t.createdAt,
           updatedAt: t.updatedAt,
         })),
@@ -416,6 +418,11 @@ export function createHRRouter(options: HRRouterOptions) {
       const { userId, role } = req.body || {};
       if (!userId) {
         return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'userId is required.' });
+      }
+      // 幂等防重：已在组（leftAt 为空）时直接返回既有成员行，重复点击不产生重复记录
+      const existing = await prisma.teamMember.findFirst({ where: { teamId: id, userId, leftAt: null } });
+      if (existing) {
+        return res.json({ ok: true, member: existing, alreadyMember: true });
       }
       const member = await prisma.teamMember.create({
         data: {
