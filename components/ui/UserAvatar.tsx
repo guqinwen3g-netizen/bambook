@@ -32,23 +32,15 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
     ? 'bg-[var(--os-adaptive-primary)]/[0.12] text-[var(--os-adaptive-primary)]'
     : 'bg-[var(--os-vnext-brand-blue)]/10 text-[var(--os-vnext-brand-blue-strong)]';
 
-  // 极度克制的融合处方：不加任何光环 / halo，只用阴影 + 边缘羽化把"贴纸感"去掉。
-  //   1) 阴影：极淡的中性阴影，仅一点点"落座感"，绝不形成可见的光圈。
-  //   2) 边缘羽化：4% 区间，肉眼只感到"不刀切"，看不出"晕"。
-  //   3) inset 1px：0.18 alpha 白描边，几乎不可见（批G-7 暗色分支收编后单值自适应）。
-  const haloShadowClass =
-    'shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08)]';
-
-  const ringOverlay =
-    'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]';
-
+  // 批 J（rimless 纪律）：静态阴影 haloShadowClass + inset ringOverlay 已移除——
+  // BDS 无阴影规范无豁免条款（评审报告 M3）。仅保留 4% 边缘羽化 mask（非阴影，材质裁切）。
   return (
     <div
-      className={`relative shrink-0 rounded-full ${haloShadowClass} ${sizeClassName} ${className}`}
+      className={`relative shrink-0 rounded-full ${sizeClassName} ${className}`}
       aria-label={name || email || '用户头像'}
     >
       <div
-        className={`relative h-full w-full overflow-hidden rounded-full ${fallbackClass} ${ringOverlay}`}
+        className={`relative h-full w-full overflow-hidden rounded-full ${fallbackClass}`}
         style={{
           // 边缘 1px 羽化：96%~100% 半径处 alpha 由 1 渐到 0。极窄，肉眼只感"不刀切"。
           WebkitMaskImage: 'radial-gradient(circle at 50% 50%, #000 96%, transparent 100%)',

@@ -29,7 +29,6 @@ import Dashboard from '../../components/Dashboard';
 import Assistant from '../../components/Assistant';
 import KnowledgeBase from '../../components/KnowledgeBase';
 import OrderManager, { savedRowToOrder } from '../../components/OrderManager';
-import GarmentOrders from '../../components/GarmentOrders';
 import EmailManager from '../../components/EmailManager';
 import Settings from '../../components/Settings';
 import RelationsManager from '../../components/RelationsManager';
@@ -789,9 +788,6 @@ const MobileWebApp: React.FC = () => {
                   />
                 )
                 : <div className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>订单正在读取数据中心...</div>
-            )}
-            {currentView === View.Orders && orderType === 'garment' && (
-              <GarmentOrders isDarkMode={isDarkMode} onOrderTypeChange={setOrderType} currentType={orderType} />
             )}
             {currentView === View.Emails && <EmailManager emails={emails} setEmails={handleUpdateEmails} knowledge={knowledge} orders={orders} onAddKnowledge={(item) => handleUpdateKnowledge([item, ...knowledge], item)} isDarkMode={isDarkMode} />}
             {currentView === View.Settings && (

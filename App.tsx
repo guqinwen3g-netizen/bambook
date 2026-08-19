@@ -142,7 +142,6 @@ import Assistant, { assistantRuntimeStore, type AssistantRuntimeSnapshot } from 
 import DataCenter from './components/DataCenter';
 import OrderManager, { savedRowToOrder } from './components/OrderManager';
 import CommandPalette from './components/CommandPalette';
-import GarmentOrders from './components/GarmentOrders';
 import EmailManager from './components/EmailManager';
 import Settings, { WALLPAPER_PRESETS } from './components/Settings';
 import RelationsManager from './components/RelationsManager';

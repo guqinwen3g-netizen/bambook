@@ -61,7 +61,8 @@ BASELINE_IS_DARK_TERNARY=219   # isDarkMode ? 三元（历史收拢 2439→366�
 # ── BDS 高分收编基线（2026-08-17 W0 建立，只减不增）──
 # 依据 docs/design/10-评审与决策/2026-08-17-前端设计地毯式评审报告.md 批 A-J 移交清单建立。
 # 口径：出现次数（rg -o），豁免集与上文 EXCLUDE_GLOBS 一致。
-BASELINE_RAW_SEMANTIC=19       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
+BASELINE_RAW_SEMANTIC=16       # 批A：raw 语义色 → BDS 语义 token（--success-text/--warning-text/--danger-text/--accent-text）
+                               # 2026-08-19 批次 3c 批 I 收敛 19→16：GarmentOrders.tsx 死代码删除（含 bg-amber-500 暖色残留）
                                # 2026-08-17 批A 收编 131→33；批H 收编 TraceabilityPanel 14（33→19，接入 §4.5 雾化分类色板 mask-*）
                                # 余量：FabricSampleInvoiceGenerator 8（豁免清单·测试锁定业务语义）/ App.tsx 5（W5 解锁）/ pwa 3（移动端冻结）/ GarmentOrders 3（批I 死代码移交 W5）
 BASELINE_RAW_MASK=3            # 批B：自造遮罩 bg-black/N → var(--mask-bg)（tokens.css 唯一遮罩入口）
@@ -423,7 +424,8 @@ layout_guard "L2 间距刻度越界" 6 "$l2_count" "间距只取刻度 4/8/12/16
 # L3 容器与长宽比：硬编码 h/min-h/w/min-w px 尺寸 → bds-well/bds-thumb/尺寸族
 # 豁免：模态 max-h-[85vh/88vh]、Agent 滚动区 max-h-[Npx]、图片预览 max-h-[90vh]（均为 max-h，本正则不含）
 l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
-layout_guard "L3 硬编码尺寸" 59 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
+# 2026-08-19 批次 3c 批 I 收敛 59→57：GarmentOrders.tsx 死代码删除（含 2 处 h-[Npx]）
+layout_guard "L3 硬编码尺寸" 57 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
 
 # L5 表格密度：行高 40-99px 硬编码 → .bds-table 密度修饰符（compact 40 / standard 48 / cozy 56）
 l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
@@ -432,7 +434,8 @@ layout_guard "L5 表格行高硬编码" 1 "$l5_count" "行高走 .bds-table 密�
 # L6 icon 尺寸体系：size 非刻度（∉{14,16,18,20,24}）+ strokeWidth 自由数值（∉ --icon-w-* 档）
 l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9]+' | rg -v '^(14|16|18|20|24)$' | wc -l | tr -d ' ')
 l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
-layout_guard "L6 icon size 非刻度" 72 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
+# 2026-08-19 批次 3c 批 I 收敛 72→65：GarmentOrders.tsx 死代码删除（含 7 处非刻度 size）
+layout_guard "L6 icon size 非刻度" 65 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
 layout_guard "L6 icon strokeWidth 自由数值" 14 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
 
 # L7 错误态：raw 错误色 → .bds-error-banner（--danger-tint/--danger-text）

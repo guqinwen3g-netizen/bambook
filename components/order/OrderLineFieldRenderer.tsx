@@ -6,7 +6,7 @@
  *   - text      → OrderFieldInput（传入模拟 order 对象，读取 line 的值）
  *   - json*     → 对应的专用 Editor
  *
- * lineScope: 'first' 策略：取 order.lines[0] 的值（与 GarmentOrders.tsx 历史行为一致）。
+ * lineScope: 'first' 策略：取 order.lines[0] 的值（沿用历史 GarmentOrders 行为口径）。
  */
 
 import React from 'react';

@@ -361,7 +361,7 @@ export const BAMBOOK_MODULES: readonly BambookModuleDefinition[] = [
     permissions: getViewPermissionDefinition(View.Orders),
     compiler: compiler('orders', 'provisional'),
     runtime: desktopRuntime,
-    entry: { current: 'components/OrderManager.tsx / components/GarmentOrders.tsx' },
+    entry: { current: 'components/OrderManager.tsx' },
     subViews: [
       { id: 'fabric-orders', label: '面料订单', localStateKey: 'orderType' },
       { id: 'garment-orders', label: '成衣订单', localStateKey: 'orderType' },
