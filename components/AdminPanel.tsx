@@ -13,6 +13,7 @@ import UserAvatar from './ui/UserAvatar';
 import SidePanelContainer from './ui/SidePanelContainer';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
+import { buildDepartmentOptions } from '../lib/departmentTree';
 
 const AVAILABLE_ROLES = ['viewer', 'merchandiser', 'sales', 'finance', 'manager', 'agent_operator', 'admin', 'owner'] as const;
 const ROLE_LABELS: Record<typeof AVAILABLE_ROLES[number], string> = {
@@ -707,7 +708,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div><label className={labelCls}>部门</label>
                           <select className="bds-select mt-1" value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})}>
                             <option value="">未分配</option>
-                            {userDepartments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {buildDepartmentOptions(userDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
                           </select>
                         </div>
                       </div>
@@ -778,7 +779,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             onChange={e => setUserDraft(prev => ({ ...prev, departmentId: e.target.value }))}
                           >
                             <option value="">未分配</option>
-                            {userDepartments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {buildDepartmentOptions(userDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
                           </select>
                         </div>
                         <div>
@@ -1240,7 +1241,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             <label className={labelCls}>关联部门（可选）</label>
                             <select className="bds-select mt-1" value={newTeam.departmentId} onChange={e => setNewTeam({ ...newTeam, departmentId: e.target.value })}>
                               <option value="">跨部门（不关联）</option>
-                              {userDepartments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                              {buildDepartmentOptions(userDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
                             </select>
                           </div>
                           <div className="md:col-span-3"><label className={labelCls}>描述</label><input value={newTeam.description} onChange={e => setNewTeam({ ...newTeam, description: e.target.value })} className={inputCls + ' mt-1'} placeholder="小组的业务定位（可选）" /></div>
@@ -1513,7 +1514,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           <label className={labelCls}>部门（可选）</label>
                           <select value={aclForm.departmentId} onChange={e => setAclForm({ ...aclForm, departmentId: e.target.value })} className="bds-select mt-1">
                             <option value="">不限部门</option>
-                            {kbDepartments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {buildDepartmentOptions(kbDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
                           </select>
                         </div>
                         <div>

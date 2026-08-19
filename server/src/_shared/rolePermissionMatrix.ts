@@ -44,12 +44,12 @@ export type SystemRoleId = (typeof SYSTEM_ROLE_IDS)[keyof typeof SYSTEM_ROLE_IDS
 export const SYSTEM_ROLE_META: Record<SystemRoleId, { name: string; description: string; rank: number }> = {
   [SYSTEM_ROLE_IDS.SALES]: {
     name: '业务员',
-    description: '销售部一线跟单/报价/开发；仅本人及同部门数据',
+    description: '业务部一线跟单/报价/开发；仅本人及同部门数据',
     rank: 1,
   },
   [SYSTEM_ROLE_IDS.SALES_MANAGER]: {
     name: '销售主管',
-    description: '销售部小团队负责人；本团队变更审批权',
+    description: '业务部小团队负责人；本团队变更审批权',
     rank: 2,
   },
   [SYSTEM_ROLE_IDS.FINANCE]: {

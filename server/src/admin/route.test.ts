@@ -49,8 +49,8 @@ describe('admin user status management', () => {
       },
       department: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'dept-sales', name: '销售部' },
-          { id: 'dept-finance', name: '财务部' },
+          { id: 'dept-sales', name: '业务部', parentId: 'dept-company' },
+          { id: 'dept-finance', name: '财务部', parentId: 'dept-company' },
         ]),
       },
     };
@@ -65,10 +65,10 @@ describe('admin user status management', () => {
     }));
     expect(res.body.users).toHaveLength(1);
     expect(res.body.users[0]).toMatchObject({ id: 'user-disabled', status: 'disabled' });
-    // 部门选项随用户列表下发，前端表单下拉数据源
+    // 部门选项随用户列表下发，前端表单下拉数据源（parentId 供树序+层级缩进渲染）
     expect(res.body.departments).toEqual([
-      { id: 'dept-sales', name: '销售部' },
-      { id: 'dept-finance', name: '财务部' },
+      { id: 'dept-sales', name: '业务部', parentId: 'dept-company' },
+      { id: 'dept-finance', name: '财务部', parentId: 'dept-company' },
     ]);
   });
 

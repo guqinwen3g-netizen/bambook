@@ -93,10 +93,11 @@ export function createAdminRouter(options: AdminRouterOptions) {
     });
     // 部门选项随用户列表下发（与 knowledge-acl 返回 departments 同一模式），
     // 前端用户表单的部门字段用下拉选择，杜绝手填原始 ID。
+    // parentId 一并下发：前端下拉按树序展开 + 层级缩进渲染（根/支线可辨）。
     const departments = await options.prisma.department.findMany({
       where: { status: 'active' },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, parentId: true },
     });
     res.json({ ok: true, departments, users: users.map(u => ({
       id: u.id,
@@ -529,7 +530,7 @@ export function createAdminRouter(options: AdminRouterOptions) {
       }),
       options.prisma.knowledgeDocument.findMany({ where: { deletedAt: null }, select: { id: true, title: true } }),
       options.prisma.role.findMany({ select: { id: true, name: true } }),
-      options.prisma.department.findMany({ where: { status: 'active' }, select: { id: true, name: true } }),
+      options.prisma.department.findMany({ where: { status: 'active' }, select: { id: true, name: true, parentId: true } }),
     ]);
     res.json({
       ok: true,

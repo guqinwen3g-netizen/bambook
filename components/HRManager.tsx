@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
+import { buildDepartmentOptions } from '../lib/departmentTree';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import EmployeeProfilesTab from './hr/EmployeeProfilesTab';
@@ -1187,7 +1188,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                             onChange={e => setTeamForm(f => ({ ...f, departmentId: e.target.value }))}
                           >
                             <option value="">无</option>
-                            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {buildDepartmentOptions(departments).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
                           </select>
                         </div>
                       </div>

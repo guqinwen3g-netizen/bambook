@@ -14,6 +14,7 @@ import {
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import { buildDepartmentOptions } from '../../lib/departmentTree';
 
 interface DeptOption { id: string; name: string; }
 interface PositionOption { id: string; title: string; }
@@ -400,7 +401,7 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                         <select className="bds-select" value={eventForm.toDeptId}
                           onChange={e => setEventForm(f => ({ ...f, toDeptId: e.target.value }))}>
                           <option value="">不变更</option>
-                          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          {buildDepartmentOptions(departments).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
                         </select>
                       </div>
                       <div>
