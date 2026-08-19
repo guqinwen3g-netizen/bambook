@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { hasRole } from '../services/authService';
 import { getApiBaseUrl } from '../services/apiBase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown, Workflow, Ruler, RefreshCw } from 'lucide-react';
+import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown, Workflow, Ruler } from 'lucide-react';
 import { WorkflowPanel } from './WorkflowPanel';
 import { CompanyProfileSection } from './admin/CompanyProfileSection';
 import { PlatformRulesSection } from './admin/PlatformRulesSection';
@@ -104,7 +104,7 @@ const formatPermissionLabel = (scope: string) => PERMISSION_LABELS[scope] || sco
 const formatAccessLabel = (access: string) => ACCESS_LABELS[access] || access;
 const formatRiskModeLabel = (mode: string) => RISK_MODE_LABELS[mode] || mode;
 
-type TabId = 'users' | 'roles' | 'teams' | 'knowledge-acl' | 'tool-perms' | 'approvals' | 'workflow' | 'audit-logs' | 'company-profile' | 'platform-rules';
+type TabId = 'users' | 'roles' | 'knowledge-acl' | 'tool-perms' | 'approvals' | 'workflow' | 'audit-logs' | 'company-profile' | 'platform-rules';
 type AdminTabCache = Partial<Record<TabId, any>>;
 
 const ADMIN_PANEL_SESSION_CACHE_KEY = 'bambook_admin_panel_session_cache_v1';
@@ -112,7 +112,6 @@ const ADMIN_PANEL_SESSION_CACHE_KEY = 'bambook_admin_panel_session_cache_v1';
 const TABS: { id: TabId; label: string; icon: typeof Users }[] = [
   { id: 'users', label: '用户管理', icon: Users },
   { id: 'roles', label: '角色与权限', icon: Shield },
-  { id: 'teams', label: '小组管理', icon: Users },
   { id: 'company-profile', label: '公司档案', icon: Building2 },
   { id: 'platform-rules', label: '平台规则', icon: Ruler },
   { id: 'knowledge-acl', label: '知识库权限', icon: BookOpen },
@@ -247,16 +246,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const [showNewUser, setShowNewUser] = useState(false);
   const [newUser, setNewUser] = useState({ displayName: '', email: '', password: '', roles: DEFAULT_ASSIGN_ROLE as string, departmentId: '' });
 
-  // DR-042 小组管理 state（数据真源 /api/hr/teams*）
-  const [teams, setTeams] = useState<any[]>(() => readAdminPanelCache().teams?.teams || []);
-  const [showNewTeam, setShowNewTeam] = useState(false);
-  const [newTeam, setNewTeam] = useState({ name: '', description: '', leaderId: '', departmentId: '' });
-  const [teamDetailId, setTeamDetailId] = useState<string | null>(null);
-  const [teamDetail, setTeamDetail] = useState<any | null>(null); // { team, grants, members }
-  const [teamMemberUserId, setTeamMemberUserId] = useState('');
-  const [teamGrantRelationId, setTeamGrantRelationId] = useState('');
-  const [teamGrantPermission, setTeamGrantPermission] = useState<'read' | 'read+followup'>('read+followup');
-
   const adminGlassClass = ADMIN_PANEL_GLASS_CLASS;
   const userCardClass = ADMIN_USER_CARD_CLASS;
   const card = `rounded-inset border transition-[background,border-color,box-shadow] duration-300 ${userCardClass}`;
@@ -341,28 +330,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     return data;
   };
 
-  // DR-042 hr 域 API（teams CRUD/dissolve/grants——admin JWT 口径）
-  const fetchHr = async (path: string) => {
-    const res = await fetch(`${apiBase}/hr/${path}`, { headers: adminHeaders(), credentials: authToken() ? 'omit' : 'include' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || data.error || `Failed to fetch hr/${path}`);
-    return data;
-  };
-  const postHr = async (path: string, body: any, method = 'POST') => {
-    const res = await fetch(`${apiBase}/hr/${path}`, {
-      method, headers: adminHeaders({ 'Content-Type': 'application/json' }), credentials: authToken() ? 'omit' : 'include', body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || data.error || 'Failed');
-    return data;
-  };
+  // DR-042 小组管理已按 v2.1 归位迁入 HRManager 人事管理（组织人事概念）；
+  // 本面板收敛为软件层治理（账号/角色/工具权限/平台规则），hr 域 API 通道随之移除。
 
   const applyAdminTabPayload = (tab: TabId, data: any) => {
     if (tab === 'users') {
       setUsers(data.users || []);
       if (data.departments) setUserDepartments(data.departments);
     }
-    if (tab === 'teams') setTeams(data.teams || []);
     if (tab === 'roles') {
       setRoles(data.roles || []);
       if (data.permissions) setAllPermissions(data.permissions || []);
@@ -404,14 +379,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
       if (tab === 'users') {
         const d = await fetchAdmin('users');
         applyAdminTabPayload(tab, d);
-        writeAdminPanelCache(tab, d);
-      }
-      if (tab === 'teams') {
-        // 组成员/组长选择器需要用户列表（不写 users tab 缓存，仅联动刷新 state）
-        const [d, u] = await Promise.all([fetchHr('teams'), fetchAdmin('users')]);
-        applyAdminTabPayload(tab, d);
-        if (u?.users) setUsers(u.users);
-        if (u?.departments) setUserDepartments(u.departments);
         writeAdminPanelCache(tab, d);
       }
       if (tab === 'approvals') {
@@ -632,7 +599,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
             const Icon = tab.icon;
             const on = activeTab === tab.id;
             return (
-              <button key={tab.id} type="button" onClick={() => { setActiveTab(tab.id); if (tab.id !== 'teams') { setTeamDetailId(null); setTeamDetail(null); } }}
+              <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                 data-os-vnext-active={on ? 'true' : 'false'}
                 className={`${navItemBaseClass} ${on ? navItemActiveClass : navItemIdleClass}`}>
                 <Icon size={14} strokeWidth={1.25} className="shrink-0 opacity-80" />
@@ -1021,277 +988,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                   </>
                   )}
                 </div>
-                );
-              })()}
-
-              {activeTab === 'teams' && (() => {
-                // DR-042 小组管理（设计真源：docs/design/03-业务规则/小组与业务数据共享.md §8.5）
-                const detailTeam = teams.find((t: any) => t.id === teamDetailId) || null;
-                const loadTeamDetailGrants = async (teamId: string) => {
-                  setActionBusyId(`team-grants-${teamId}`);
-                  try {
-                    const d = await fetchHr(`teams/${teamId}/grants`);
-                    setTeamDetail({ grants: d.grants || [] });
-                  } catch (e: any) { setLoadError(e.message || '授权列表加载失败'); }
-                  finally { setActionBusyId(null); }
-                };
-                if (teamDetailId && detailTeam) {
-                  // ── 组详情：成员管理 + 授权管理 + 解散 ──
-                  const grants = teamDetail?.grants || [];
-                  const activeGrants = grants.filter((g: any) => !g.revokedAt);
-                  const members = (detailTeam.members || []).filter((m: any) => !m.leftAt);
-                  return (
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-sm font-light text-[var(--text-primary)]">{detailTeam.name}</p>
-                          <p className={`mt-1 text-[11px] font-light text-[var(--text-tertiary)] truncate`}>
-                            {detailTeam.description || '无描述'} · 组长 {users.find((u: any) => u.id === detailTeam.leaderId)?.displayName || '空缺（T-06：组照常运作）'}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => { setTeamDetailId(null); setTeamDetail(null); }} className={actionButtonCls}>
-                            <X size={14} strokeWidth={1.5} />返回列表
-                          </button>
-                          <button type="button" onClick={async () => {
-                            if (!(await bdsConfirm({ title: '确认解散', body: `确认解散「${detailTeam.name}」？全部共享授权将立即失效，组员将失去共享数据可见性（DR-042 §9.2）。`, danger: true }))) return;
-                            setActionBusyId(`dissolve-${detailTeam.id}`);
-                            setLoadError('');
-                            try {
-                              await postHr(`teams/${detailTeam.id}/dissolve`, {});
-                              setTeamDetailId(null); setTeamDetail(null);
-                              await loadTab('teams');
-                            } catch (e: any) { setLoadError(e.message || '解散失败'); }
-                            finally { setActionBusyId(null); }
-                          }} disabled={actionBusyId === `dissolve-${detailTeam.id}`}
-                            className={`${dangerActionCls} disabled:opacity-50`}>
-                            <Trash2 size={14} />解散
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 成员管理 */}
-                      <div className={card + ' p-5 space-y-3'}>
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-light text-[var(--text-primary)]">成员（{members.length}）</h4>
-                          <span className={neutralChipCls}>跨部门协作单元 · 一人可进多组</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {members.map((m: any) => {
-                            const u = users.find((x: any) => x.id === m.userId);
-                            return (
-                              <span key={m.id || m.userId} className={`${brandChipCls} inline-flex items-center gap-1.5`}>
-                                {u?.displayName || m.userId}{m.role === 'leader' && ' · 组长'}
-                                <button type="button" onClick={async () => {
-                                  setActionBusyId(`rm-member-${m.userId}`);
-                                  setLoadError('');
-                                  try {
-                                    await postHr(`teams/${detailTeam.id}/members/${m.userId}`, {}, 'DELETE');
-                                    await loadTab('teams');
-                                  } catch (e: any) { setLoadError(e.message || '移除成员失败'); }
-                                  finally { setActionBusyId(null); }
-                                }} disabled={actionBusyId === `rm-member-${m.userId}`}
-                                  className="opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30" title="移除出组">
-                                  <X size={14} />
-                                </button>
-                              </span>
-                            );
-                          })}
-                          {members.length === 0 && <span className="text-[11px] font-light text-[var(--text-tertiary)]">暂无成员（B-04：空组授权无害空转）</span>}
-                        </div>
-                        <div className="flex gap-2 items-end">
-                          <div className="flex-1">
-                            <label className={labelCls}>添加成员</label>
-                            <select className="bds-select mt-1" value={teamMemberUserId} onChange={e => setTeamMemberUserId(e.target.value)}>
-                              <option value="">选择用户</option>
-                              {users.filter((u: any) => !members.some((m: any) => m.userId === u.id)).map((u: any) => (
-                                <option key={u.id} value={u.id}>{u.displayName} · {u.department || '未分配部门'}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <button type="button" disabled={!teamMemberUserId || actionBusyId === 'add-member'} onClick={async () => {
-                            setActionBusyId('add-member');
-                            setLoadError('');
-                            try {
-                              await postHr(`teams/${detailTeam.id}/members`, { userId: teamMemberUserId });
-                              setTeamMemberUserId('');
-                              await loadTab('teams');
-                            } catch (e: any) { setLoadError(e.message || '添加成员失败'); }
-                            finally { setActionBusyId(null); }
-                          }} className={primaryButtonCls + ' disabled:opacity-50'}>
-                            <UserPlus size={14} />加入
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 授权管理 */}
-                      <div className={card + ' p-5 space-y-3'}>
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-light text-[var(--text-primary)]">数据共享授权（生效 {activeGrants.length}）</h4>
-                          <button type="button" onClick={() => loadTeamDetailGrants(detailTeam.id)} disabled={actionBusyId === `team-grants-${detailTeam.id}`}
-                            className={subtleButtonCls + ' disabled:opacity-50'}>
-                            <RefreshCw size={14} />刷新
-                          </button>
-                        </div>
-                        <div className="flex gap-2 items-end">
-                          <div className="flex-1">
-                            <label className={labelCls}>共享客户（Relation ID）</label>
-                            <input value={teamGrantRelationId} onChange={e => setTeamGrantRelationId(e.target.value)}
-                              className={inputCls + ' mt-1'} placeholder="REL-xxxx（客户档案 ID）" />
-                          </div>
-                          <div>
-                            <label className={labelCls}>档位</label>
-                            <select className="bds-select mt-1" value={teamGrantPermission} onChange={e => setTeamGrantPermission(e.target.value as any)}>
-                              <option value="read+followup">可查看 + 可跟进</option>
-                              <option value="read">仅查看</option>
-                            </select>
-                          </div>
-                          <button type="button" disabled={!teamGrantRelationId.trim() || actionBusyId === 'add-grant'} onClick={async () => {
-                            setActionBusyId('add-grant');
-                            setLoadError('');
-                            try {
-                              const res = await fetch(`${apiBase}/v2/relations/${encodeURIComponent(teamGrantRelationId.trim())}/team-shares`, {
-                                method: 'POST',
-                                headers: adminHeaders({ 'Content-Type': 'application/json' }),
-                                credentials: authToken() ? 'omit' : 'include',
-                                body: JSON.stringify({ teamIds: [detailTeam.id], permission: teamGrantPermission }),
-                              });
-                              const data = await res.json().catch(() => ({}));
-                              if (!res.ok) throw new Error(data.message || data.error || '共享失败');
-                              setTeamGrantRelationId('');
-                              await loadTeamDetailGrants(detailTeam.id);
-                            } catch (e: any) { setLoadError(e.message || '共享失败（仅对实体有写权限者可共享，DR-042 §6.1）'); }
-                            finally { setActionBusyId(null); }
-                          }} className={primaryButtonCls + ' disabled:opacity-50'}>
-                            <Check size={14} />共享
-                          </button>
-                        </div>
-                        <div className="space-y-1.5">
-                          {grants.length === 0 && <span className="text-[11px] font-light text-[var(--text-tertiary)]">暂无授权记录</span>}
-                          {grants.map((g: any) => (
-                            <div key={g.id} className={`${inlineRowClass} rounded-compact px-3 py-2 flex items-center justify-between gap-3`}>
-                              <div className="min-w-0 flex items-center gap-2 text-[11px] font-light">
-                                <span className="font-mono text-[var(--text-secondary)] truncate">{g.entityType}:{g.entityId}</span>
-                                <span className={g.permission === 'read+followup' ? brandChipCls : neutralChipCls}>
-                                  {g.permission === 'read+followup' ? '可跟进' : '只读'}
-                                </span>
-                                {g.revokedAt
-                                  ? <span className={dangerChipCls}>已撤销 {formatAdminDate(g.revokedAt)}</span>
-                                  : <span className={neutralChipCls}>生效中</span>}
-                              </div>
-                              {!g.revokedAt && (
-                                <button type="button" onClick={async () => {
-                                  const reason = window.prompt('撤销原因（审计留痕必填）');
-                                  if (!reason?.trim()) return;
-                                  setActionBusyId(`revoke-${g.id}`);
-                                  setLoadError('');
-                                  try {
-                                    const res = await fetch(`${apiBase}/v2/relations/${encodeURIComponent(g.entityId)}/team-shares/${detailTeam.id}`, {
-                                      method: 'DELETE',
-                                      headers: adminHeaders({ 'Content-Type': 'application/json' }),
-                                      credentials: authToken() ? 'omit' : 'include',
-                                      body: JSON.stringify({ reason: reason.trim() }),
-                                    });
-                                    const data = await res.json().catch(() => ({}));
-                                    if (!res.ok) throw new Error(data.message || data.error || '撤销失败');
-                                    await loadTeamDetailGrants(detailTeam.id);
-                                  } catch (e: any) { setLoadError(e.message || '撤销失败'); }
-                                  finally { setActionBusyId(null); }
-                                }} disabled={actionBusyId === `revoke-${g.id}`}
-                                  className={quietDangerActionCls + ' disabled:opacity-50'}>
-                                  <X size={14} />撤销
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                // ── 组列表 + 建组表单 ──
-                return (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className={sectionTitleClass}>{teams.length} 个小组 · 跨部门业务协作单元</span>
-                      <button type="button" onClick={() => setShowNewTeam(!showNewTeam)} className={actionButtonCls}>
-                        {showNewTeam ? <X size={14} strokeWidth={1.5} /> : <UserPlus size={14} strokeWidth={1.5} />}
-                        {showNewTeam ? '取消' : '新建小组'}
-                      </button>
-                    </div>
-
-                    {showNewTeam && (
-                      <div className={card + ' p-5 space-y-4'}>
-                        <div>
-                          <h3 className="text-sm font-light text-[var(--text-primary)]">新建小组</h3>
-                          <p className={`mt-1 text-[11px] font-light text-[var(--text-tertiary)]`}>
-                            按品牌客户 / 市场 / 业务类型组建（DR-042 §2）；组建后可在组详情共享客户档案给组内协作。
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div><label className={labelCls}>组名</label><input value={newTeam.name} onChange={e => setNewTeam({ ...newTeam, name: e.target.value })} className={inputCls + ' mt-1'} placeholder="如：欧洲市场组" /></div>
-                          <div>
-                            <label className={labelCls}>组长（可空缺）</label>
-                            <select className="bds-select mt-1" value={newTeam.leaderId} onChange={e => setNewTeam({ ...newTeam, leaderId: e.target.value })}>
-                              <option value="">空缺（组照常运作，T-06）</option>
-                              {users.map((u: any) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className={labelCls}>关联部门（可选）</label>
-                            <select className="bds-select mt-1" value={newTeam.departmentId} onChange={e => setNewTeam({ ...newTeam, departmentId: e.target.value })}>
-                              <option value="">跨部门（不关联）</option>
-                              {buildDepartmentOptions(userDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
-                            </select>
-                          </div>
-                          <div className="md:col-span-3"><label className={labelCls}>描述</label><input value={newTeam.description} onChange={e => setNewTeam({ ...newTeam, description: e.target.value })} className={inputCls + ' mt-1'} placeholder="小组的业务定位（可选）" /></div>
-                        </div>
-                        <button type="button" disabled={!newTeam.name.trim() || actionBusyId === 'create-team'} onClick={async () => {
-                          setActionBusyId('create-team');
-                          setLoadError('');
-                          try {
-                            await postHr('teams', {
-                              name: newTeam.name.trim(),
-                              description: newTeam.description.trim() || null,
-                              leaderId: newTeam.leaderId || null,
-                              departmentId: newTeam.departmentId || null,
-                            });
-                            setShowNewTeam(false);
-                            setNewTeam({ name: '', description: '', leaderId: '', departmentId: '' });
-                            await loadTab('teams');
-                          } catch (e: any) { setLoadError(e.message || '建组失败'); }
-                          finally { setActionBusyId(null); }
-                        }} className={primaryButtonCls + ' disabled:opacity-50'}>
-                          {actionBusyId === 'create-team' ? '创建中…' : '创建小组'}
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      {teams.length === 0 && (
-                        <div className={card + ' p-8 text-center'}>
-                          <p className="text-xs font-light text-[var(--text-tertiary)]">暂无小组。小组是跨部门业务协作单元——组建后可将客户档案受控共享给组内成员。</p>
-                        </div>
-                      )}
-                      {teams.map((t: any) => (
-                        <div key={t.id} className={card + ' p-4 flex items-center justify-between gap-4'}>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-light text-[var(--text-primary)]">{t.name}</span>
-                              <span className={neutralChipCls}>{t.memberCount} 成员</span>
-                              {t.department && <span className={neutralChipCls}>{t.department}</span>}
-                              {!t.leaderId && <span className={dangerChipCls}>组长空缺</span>}
-                            </div>
-                            <p className={`mt-1 text-[11px] font-light text-[var(--text-tertiary)] truncate`}>{t.description || '无描述'}</p>
-                          </div>
-                          <button type="button" onClick={() => { setTeamDetailId(t.id); setTeamDetail(null); loadTeamDetailGrants(t.id); }}
-                            className={actionButtonCls}>
-                            <Pencil size={14} />管理
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 );
               })()}
 

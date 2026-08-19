@@ -35,6 +35,11 @@ import {
   canViewSensitive as fallbackCanViewSensitive,
 } from '../_shared/rolePermissionMatrix';
 
+// v2.1（DR-042 §5.1）：department 行级规则保留原部门维解析的模块白名单。
+// 人事编制域的部门维视野有独立业务意义（主管看本部门员工档案/考勤/编制），
+// 不随业务数据域「组为主、部门退出」的口径切换收敛。
+const DEPT_SCOPE_EXEMPT_MODULES = new Set(['hr']);
+
 // ───────────────────────────────────────────────────────────────────
 // 新 8 角色 ID → 旧 AgentRole 字符串（向后兼容映射，保持旧 HIGH_RISK_ROLES 判断有效）
 //   旧语义：owner=最高权限  admin=系统管理员  manager=业务审批/经理级  finance=财务
@@ -268,6 +273,14 @@ export function createPermissionService(opts: PermissionServiceOptions) {
 
     if (rule.kind === 'all') {
       return { rule }; // 无过滤 = 全可见
+    }
+
+    // v2.1（DR-042 §5.1 组为主）：业务数据模块的 department 规则统一按本人维解析——
+    // 协作维度由小组（TeamDataGrant ∪ 本人）承载，部门退出数据权限计算
+    // （保留目录展示 + DR-007 审批链用途）。人事编制域（hr）的部门维视野有独立
+    // 业务意义（主管看本部门员工档案/考勤），保留原 department 解析。
+    if (rule.kind === 'department' && !DEPT_SCOPE_EXEMPT_MODULES.has(moduleName)) {
+      return { rule: { kind: 'self' }, allowedUserIds: [actor.userId] };
     }
 
     if (rule.kind === 'self') {

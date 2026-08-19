@@ -547,7 +547,7 @@ describe('DR-042 buildScopeWhere 读/写 scope 分离', () => {
     }
   });
 
-  it('§8.3 详情：all 规则 → accessMode=department（全权）', async () => {
+  it('§8.3 详情：all 规则 → accessMode=owner（全权，v2.1 档位）', async () => {
     useAllRule();
     const prisma = makePrisma({
       teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
@@ -564,7 +564,7 @@ describe('DR-042 buildScopeWhere 读/写 scope 分离', () => {
     const r = await svc.getRelation(ACTOR, 'REL__1');
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.data.accessMode).toBe('department');
+      expect(r.data.accessMode).toBe('owner');
       expect(r.data.teamShares).toHaveLength(1);
     }
   });

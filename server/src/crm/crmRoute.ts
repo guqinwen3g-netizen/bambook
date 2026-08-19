@@ -67,7 +67,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
 
   /**
    * DR-042 §6.2 跟进门禁（V1 路径——前端 apiService.listFollowUps/createFollowUp 实际消费的端点）：
-   * 归属部门（行级写权限）∨ 小组共享 read+followup 档。
+   * 归属人（行级写权限，v2.1 本人维）∨ 小组共享 read+followup 档。
    * 同时补齐 PL-2B 既有缺口：V1 跟进端点此前只有认证没有行级 scope。
    */
   async function requireFollowUpWriteScope(req: Request, res: Response): Promise<boolean> {
@@ -76,7 +76,7 @@ export function createCrmRouter(options: CrmRouterOptions): Router {
     if (!actor?.userId) return true; // API-Key 调用走旧口径（moduleGuard 层把关）
     try {
       const access = await teamShareSvc.resolveRelationAccess(actor, relationId);
-      if (access === 'department' || access === 'team-followup') return true;
+      if (access === 'owner' || access === 'team-followup') return true;
       res.status(403).json({
         error: 'GRANT_PERMISSION_BLOCKED',
         message: access === 'team-read' ? '组共享为只读档位，不可添加跟进记录' : '无权限操作此客户的跟进记录',

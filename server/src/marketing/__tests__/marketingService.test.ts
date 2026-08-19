@@ -139,7 +139,7 @@ describe('QA-SEC-1 listCampaigns：scope OR 与 search OR 必须 AND 组合', ()
 
   beforeEach(() => vi.clearAllMocks());
 
-  it('dept 用户 + search → where 结构为 AND[scope, OR search]，顶层无裸 OR', async () => {
+  it('dept 用户 + search → where 结构为 AND[scope, OR search]，顶层无裸 OR（v2.1 本人维）', async () => {
     const { svc, marketingCampaign } = makeService({ campaigns: fixtures });
     await svc.listCampaigns(salesActor, { search: 'spring' });
 
@@ -148,13 +148,8 @@ describe('QA-SEC-1 listCampaigns：scope OR 与 search OR 必须 AND 组合', ()
     expect(where.OR).toBeUndefined(); // 顶层裸 OR 禁止（旧 bug：覆盖 scopeWhere.OR）
     expect(Array.isArray(where.AND)).toBe(true);
     expect(where.AND).toHaveLength(2);
-    // AND[0] = scopeWhere（dept 规则：ownerId in 同部门用户 OR departmentId in 部门）
-    expect(where.AND[0]).toEqual({
-      OR: [
-        { ownerId: { in: ['u_colleague', 'u_sales'] } },
-        { departmentId: { in: ['D1'] } },
-      ],
-    });
+    // AND[0] = scopeWhere（v2.1 组为主：department 规则收敛为本人维 ownerId=self）
+    expect(where.AND[0]).toEqual({ ownerId: 'u_sales' });
     // AND[1] = search OR（name/code/description 三字段）
     expect(where.AND[1].OR).toHaveLength(3);
     expect(where.AND[1].OR[0]).toEqual({ name: { contains: 'spring', mode: 'insensitive' } });
@@ -169,13 +164,14 @@ describe('QA-SEC-1 listCampaigns：scope OR 与 search OR 必须 AND 组合', ()
     expect(res.total).toBe(1);
   });
 
-  it('dept 用户无 search → scope OR 扁平挂载（不出现 AND）', async () => {
+  it('dept 用户无 search → scope 扁平挂载本人维（v2.1：ownerId=self，不出现 AND）', async () => {
     const { svc, marketingCampaign } = makeService({ campaigns: fixtures });
     const res = await svc.listCampaigns(salesActor, {});
 
     const where = marketingCampaign.findMany.mock.calls[0][0].where;
     expect(where.AND).toBeUndefined();
-    expect(where.OR).toBeDefined();
+    expect(where.OR).toBeUndefined();
+    expect(where.ownerId).toBe('u_sales'); // 本人维扁平挂载
     expect(res.items.map((i: any) => i.id)).toEqual(['C1']); // 仅 scope 内
   });
 

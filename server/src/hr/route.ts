@@ -282,27 +282,28 @@ export function createHRRouter(options: HRRouterOptions) {
     }
   });
 
+  // v2.1 P0（DR-042 §0/T-31）：删除组 = 解散组——统一走 dissolveTeam 事务
+  // （批量 revoke 全部授权 → 软删组 → 审计），消除「HR 界面删组留僵尸授权行」的分叉。
   router.delete('/teams/:id', async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      await prisma.team.update({
-        where: { id },
-        data: { deletedAt: deletionStamp() },
-      });
-      await writeRouteAuditLog({
-        prisma,
-        actorId: actorIdFromRequest(req),
-        source: 'route:hr:delete_team',
-        operation: 'delete_team',
-        targetType: 'Team',
-        targetId: id,
-        after: { deleted: true },
-        ip: req.ip || null,
-      });
-      res.json({ ok: true, deleted: true });
-    } catch (err: any) {
-      res.status(500).json({ ok: false, error: 'HR_TEAM_DELETE_FAILED', message: err.message });
+    const actor = extractActorFromRequest(req);
+    const result = await teamShareSvc.dissolveTeam(actor, req.params.id, req.ip);
+    if (!result.ok) {
+      const statusMap: Record<string, number> = {
+        UNAUTHORIZED: 401, TEAM_NOT_FOUND: 404, TEAM_DISSOLVED: 409, FORBIDDEN: 403,
+      };
+      return res.status(statusMap[result.error!.code] || 500).json({ ok: false, error: result.error!.code, message: result.error!.message });
     }
+    await writeRouteAuditLog({
+      prisma,
+      actorId: actorIdFromRequest(req),
+      source: 'route:hr:delete_team',
+      operation: 'delete_team',
+      targetType: 'Team',
+      targetId: req.params.id,
+      after: { deleted: true, ...result.data },
+      ip: req.ip || null,
+    });
+    return res.json({ ok: true, deleted: true, ...result.data });
   });
 
   // ════════════════════════════════════════════
@@ -333,6 +334,59 @@ export function createHRRouter(options: HRRouterOptions) {
       res.json({ ok: true, grants });
     } catch (err: any) {
       res.status(500).json({ ok: false, error: 'HR_TEAM_GRANTS_FETCH_FAILED', message: err.message });
+    }
+  });
+
+  // 组经营概况聚合（v2.1 §8.6 视角聚焦器的数据源）：组生效授权的 relation 集
+  // → 关联客户 + 派生订单 + 金额/状态统计。纯展示层聚合，不动任何权限接口。
+  router.get('/teams/:id/overview', async (req: Request, res: Response) => {
+    try {
+      const teamId = req.params.id;
+      const team = await prisma.team.findFirst({
+        where: { id: teamId, deletedAt: null },
+        select: { id: true, name: true, description: true, leaderId: true, departmentId: true },
+      });
+      if (!team) return res.status(404).json({ ok: false, error: 'TEAM_NOT_FOUND', message: '小组不存在或已解散' });
+
+      const grants = await teamShareSvc.listTeamGrants(teamId, true); // 仅生效授权
+      const relationIds = grants.filter(g => g.entityType === 'relation').map(g => g.entityId);
+      const relations = relationIds.length > 0
+        ? await prisma.relation.findMany({
+            where: { id: { in: relationIds }, deletedAt: null },
+            select: { id: true, name: true, stage: true, tier: true, ownerId: true },
+          })
+        : [];
+      const orders = relationIds.length > 0
+        ? await prisma.order.findMany({
+            where: { customerRelationId: { in: relationIds }, deletedAt: null },
+            select: { id: true, poNumber: true, status: true, quoteAmount: true, currency: true, customerRelationId: true },
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+          })
+        : [];
+
+      const byStatus: Record<string, { count: number; amount: number }> = {};
+      let totalAmount = 0;
+      for (const o of orders) {
+        const amt = Number(o.quoteAmount || 0);
+        totalAmount += amt;
+        const bucket = byStatus[o.status] || { count: 0, amount: 0 };
+        bucket.count += 1;
+        bucket.amount += amt;
+        byStatus[o.status] = bucket;
+      }
+      res.json({
+        ok: true,
+        overview: {
+          team,
+          activeGrants: grants.length,
+          relations,
+          orders,
+          orderStats: { total: orders.length, totalAmount, byStatus },
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: 'HR_TEAM_OVERVIEW_FAILED', message: err.message });
     }
   });
 

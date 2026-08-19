@@ -230,11 +230,11 @@ describe('dissolveTeam 解散', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('resolveRelationAccess 档位解析', () => {
-  it('部门维可见 → department（全权）', async () => {
+  it('写权限命中 → owner（全权，v2.1 档位）', async () => {
     const prisma = makePrisma(); // REL__1 归属 dept_1，actor 在 allowedUserIds
     const svc = createTeamShareService(prisma);
     const mode = await svc.resolveRelationAccess(MANAGER, 'REL__1');
-    expect(mode).toBe('department');
+    expect(mode).toBe('owner');
   });
 
   it('team-read：组共享 read 档', async () => {

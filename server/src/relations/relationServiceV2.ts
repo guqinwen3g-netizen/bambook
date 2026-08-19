@@ -7,11 +7,12 @@
  *   3. 数据字典校验（dataDictionaryService → stage/tier 合法性）
  *   4. 系统配置默认值（systemConfigService → 默认币种/付款条款）
  *
- * DR-042 小组数据共享接入（设计真源：docs/design/03-业务规则/小组与业务数据共享.md v2）：
- *   - 读 scope = 部门维（PL-2B）∪ 小组维（TeamDataGrant 生效授权）——§5.1
- *   - 写 scope = 仅部门维——§6.2「档案本体永远只归属部门可写」，读写分离是越权防线
+ * DR-042 小组数据共享接入（设计真源：docs/design/03-业务规则/小组与业务数据共享.md v2.1）：
+ *   - 读 scope = 本人维 ∪ 小组维（TeamDataGrant 生效授权）——§5.1 v2.1 组为主口径
+ *     （resolver 层已把 department 规则收敛为本人维，部门退出数据权限计算）
+ *   - 写 scope = 仅本人维——§6.2「档案本体永远只归属归属人可写」，读写分离是越权防线
  *   - 列表项携带 teamShares 徽章（用户所在组的共享来源，§8.2）
- *   - 详情携带 accessMode（department/team-followup/team-read，§6.2 档位）
+ *   - 详情携带 accessMode（owner/team-followup/team-read，§6.2 档位）
  *   - 详情页就地共享 API（shareRelationToTeams / unshareRelation / getRelationTeamShares）
  *
  * 并新增：销售漏斗聚合（按 stage 分组 count → 前端 Kanban/漏斗图渲染）
@@ -118,15 +119,17 @@ export function createRelationServiceV2(prisma: PrismaClient) {
   const configSvc = getSystemConfigService(prisma);
   const teamShareSvc = createTeamShareService(prisma);
 
-  // ── 行级权限 where 构造（部门维，读写共用基座）──
-  async function buildDeptScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
+  // ── 行级权限 where 构造（本人维基座，读写共用；v2.1 组为主口径）──
+  // resolver 层已把业务数据模块的 department 规则收敛为 self，此处实际只走
+  // all / self 两分支；department 分支保留仅防 resolver 口径回退（防御性）。
+  async function buildSelfScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
     if (!actor) return { ownerId: '__NOBODY__' }; // 未登录 → 看不到任何数据
     const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
     if (resolver.rule.kind === 'all') return {};
     if (resolver.rule.kind === 'self') {
       return { OR: [{ ownerId: actor.userId }, { salesRepIds: { has: actor.userId } }] };
     }
-    // department
+    // department（防御分支：仅当 hr 豁免口径被误用到 relations 时仍按部门维兜底）
     const deptIds = resolver.allowedDepartmentIds || [];
     const userIds = resolver.allowedUserIds || [];
     const orParts: any[] = [];
@@ -142,33 +145,33 @@ export function createRelationServiceV2(prisma: PrismaClient) {
   }
 
   /**
-   * 读 scope（DR-042 §5.1）：部门维（PL-2B）∪ 小组维（TeamDataGrant）。
+   * 读 scope（DR-042 §5.1 v2.1）：本人维 ∪ 小组维（TeamDataGrant）。
    * 用于 listRelations / getRelation / get360View / getSalesFunnel。
    */
   async function buildScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
     if (!actor) return { ownerId: '__NOBODY__' };
-    const deptWhere = await buildDeptScopeWhere(actor);
+    const selfWhere = await buildSelfScopeWhere(actor);
     // all → 无过滤（小组维对其透明，T-11）
-    if (Object.keys(deptWhere).length === 0) return {};
+    if (Object.keys(selfWhere).length === 0) return {};
     // 小组维：用户所在组的生效授权实体（§5.2 每请求解析 + 60s 缓存）
     const grantedIds = await teamShareSvc.getActiveGrantedRelationIds(actor.userId);
-    if (grantedIds.length === 0) return deptWhere;
-    // 部门维 OR 组合 + 小组维分支（并集，T-09）
-    const deptOr = deptWhere.OR as any[] | undefined;
-    const orParts: any[] = deptOr ? [...deptOr] : [];
+    if (grantedIds.length === 0) return selfWhere;
+    // 本人维 OR 组合 + 小组维分支（并集，T-09）
+    const selfOr = selfWhere.OR as any[] | undefined;
+    const orParts: any[] = selfOr ? [...selfOr] : [];
     orParts.push({ id: { in: grantedIds } });
-    // deptWhere 可能是 OR 组合 / ownerId 单值兜底形态（self 无部门时）
-    if (!deptOr && (deptWhere as any).ownerId) orParts.push({ ownerId: (deptWhere as any).ownerId });
+    // selfWhere 可能是 OR 组合 / ownerId 单值兜底形态（未登录时）
+    if (!selfOr && (selfWhere as any).ownerId) orParts.push({ ownerId: (selfWhere as any).ownerId });
     return { OR: orParts };
   }
 
   /**
-   * 写 scope（DR-042 §6.2）：仅部门维——组共享不开放档案本体写。
+   * 写 scope（DR-042 §6.2）：仅本人维——组共享不开放档案本体写。
    * 用于 updateRelation / deleteRelation / changeStage / batchChangeStage。
    * 读写的分离是防越权核心：组员经小组维可见 ≠ 可改（T-19/T-21）。
    */
   async function buildWriteScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
-    return buildDeptScopeWhere(actor);
+    return buildSelfScopeWhere(actor);
   }
 
   // ── 字典校验 ──
@@ -633,7 +636,7 @@ export function createRelationServiceV2(prisma: PrismaClient) {
         ok: true,
         data: {
           relation: serializeRow(rel),
-          accessMode,       // DR-042：department / team-followup / team-read
+          accessMode,       // DR-042 v2.1：owner / team-followup / team-read
           teamShares,       // DR-042：详情页共享 chips
           contacts: (rel.contacts || []).map(serializeRow),
           creditLimit: rel.creditLimits?.[0] ? serializeRow(rel.creditLimits[0]) : null,

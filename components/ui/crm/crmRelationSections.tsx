@@ -224,8 +224,8 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
   const [form, setForm] = useState({ type: 'Call' as string, content: '', followUpAt: todayStr(), nextFollowUpAt: '', nextFollowUpTopic: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // DR-042 §6.2/§8.3：访问档位（department=全权 / team-followup=可跟进 / team-read=只读）+ 共享 chips
-  const [accessMode, setAccessMode] = useState<string>('department');
+  // DR-042 §6.2/§8.3：访问档位（v2.1：owner=归属人全权 / team-followup=可跟进 / team-read=只读）+ 共享 chips
+  const [accessMode, setAccessMode] = useState<string>('owner');
   const [teamShares, setTeamShares] = useState<Array<{ teamId: string; teamName: string; permission: string }>>([]);
 
   useEffect(() => {
@@ -241,7 +241,7 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
     return () => { cancelled = true; };
   }, [relationId]);
 
-  const canAddFollowUp = accessMode === 'department' || accessMode === 'team-followup';
+  const canAddFollowUp = accessMode === 'owner' || accessMode === 'team-followup';
 
   const handleAdd = async () => {
     const content = form.content.trim();
@@ -317,7 +317,7 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
             ))}
           </ul>
         )}
-        {/* DR-042 §6.2：内联添加表单仅 department / team-followup 档渲染（T-20 read 档不渲染输入框） */}
+        {/* DR-042 §6.2：内联添加表单仅 owner / team-followup 档渲染（T-20 read 档不渲染输入框） */}
         {canAddFollowUp ? (
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center gap-1.5">

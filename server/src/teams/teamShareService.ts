@@ -29,8 +29,8 @@ export type GrantEntityType = (typeof GRANT_ENTITY_TYPES)[number];
 export const GRANT_PERMISSIONS = ['read', 'read+followup'] as const;
 export type GrantPermission = (typeof GRANT_PERMISSIONS)[number];
 
-/** 访问档位：department=归属部门（全权）> team-followup > team-read > none */
-export type RelationAccessMode = 'department' | 'team-followup' | 'team-read' | 'none';
+/** 访问档位（v2.1）：owner=归属人/全权 > team-followup > team-read > none */
+export type RelationAccessMode = 'owner' | 'team-followup' | 'team-read' | 'none';
 
 export type TeamShareErrorCode =
   | 'UNAUTHORIZED'
@@ -474,7 +474,7 @@ export function createTeamShareService(prisma: PrismaClient) {
     relationId: string,
   ): Promise<RelationAccessMode> {
     if (!actor) return 'none';
-    if (await hasRelationWriteAccess(actor, relationId)) return 'department';
+    if (await hasRelationWriteAccess(actor, relationId)) return 'owner';
     const { grantedRelationIds } = await getUserTeams(actor.userId);
     if (!grantedRelationIds.includes(relationId)) return 'none';
     const grant = await prisma.teamDataGrant.findFirst({

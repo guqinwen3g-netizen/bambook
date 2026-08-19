@@ -16,13 +16,15 @@ import AttendanceLeaveTab from './hr/AttendanceLeaveTab';
 import PayrollTab from './hr/PayrollTab';
 import PerformanceTab from './hr/PerformanceTab';
 import TrainingTab from './hr/TrainingTab';
+import TeamManagementTab from './hr/TeamManagementTab';
 import { bdsConfirm } from './ui/BdsDialog';
 
 // ── C3 HR 视图（org = 既有组织架构视图）──
-type HRView = 'org' | 'employees' | 'attendance' | 'payroll' | 'performance' | 'training';
+type HRView = 'org' | 'teams' | 'employees' | 'attendance' | 'payroll' | 'performance' | 'training';
 
 const HR_VIEWS: Array<{ id: HRView; label: string }> = [
   { id: 'org', label: '组织架构' },
+  { id: 'teams', label: '小组管理' },
   { id: 'employees', label: '员工档案' },
   { id: 'attendance', label: '考勤请假' },
   { id: 'payroll', label: '薪资工资' },
@@ -206,11 +208,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   const [treeSearchTerm, setTreeSearchTerm] = useState('');
   const [detailSearchTerm, setDetailSearchTerm] = useState('');
 
-  // Forms
-  const [showTeamForm, setShowTeamForm] = useState(false);
-  const [teamForm, setTeamForm] = useState({ name: '', description: '', leaderId: '', departmentId: '' });
-  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
-
+  // Forms（v2.1：团队表单移除——组生命周期统一走「小组管理」tab）
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [projectForm, setProjectForm] = useState({ name: '', code: '', description: '', teamId: '', priority: 'normal', startDate: '', endDate: '' });
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -299,28 +297,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   }, [loadAll]);
 
   // ── Form open/close helpers ──
-  const openTeamForm = useCallback((team?: TeamInfo) => {
-    setShowProjectForm(false);
-    setShowAssignmentForm(false);
-    if (team) {
-      setTeamForm({ name: team.name, description: team.description || '', leaderId: team.leaderId || '', departmentId: team.departmentId || '' });
-      setEditingTeamId(team.id);
-    } else {
-      const presetDeptId = selectedNode.type === 'dept' ? selectedNode.id : '';
-      setTeamForm({ name: '', description: '', leaderId: '', departmentId: presetDeptId });
-      setEditingTeamId(null);
-    }
-    setShowTeamForm(true);
-  }, [selectedNode]);
-
-  const closeTeamForm = () => {
-    setTeamForm({ name: '', description: '', leaderId: '', departmentId: '' });
-    setEditingTeamId(null);
-    setShowTeamForm(false);
-  };
-
+  // v2.1（DR-042 §8.5）：组生命周期（建/编/删/成员/授权/解散）统一走「小组管理」tab，
+  // 组织架构视图只读目录化——此处仅保留项目/任务表单。
   const openProjectForm = useCallback((project?: ProjectInfo) => {
-    setShowTeamForm(false);
     setShowAssignmentForm(false);
     if (project) {
       setProjectForm({
@@ -344,7 +323,6 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
   };
 
   const openAssignmentForm = useCallback((assignment?: AssignmentInfo) => {
-    setShowTeamForm(false);
     setShowProjectForm(false);
     if (assignment) {
       setAssignmentForm({
@@ -367,38 +345,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
     setShowAssignmentForm(false);
   };
 
-  // ── Team handlers ──
-  const submitTeam = async () => {
-    if (!teamForm.name.trim() || actionBusy) return;
-    setActionBusy(true);
-    try {
-      if (editingTeamId) {
-        await apiService.hrSend(`teams/${editingTeamId}`, teamForm, 'PATCH');
-      } else {
-        await apiService.hrSend('teams', teamForm);
-      }
-      closeTeamForm();
-      await loadAll();
-    } catch (e: any) {
-      setLoadError(e?.message || '保存团队失败');
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
-  const deleteTeam = async (id: string) => {
-    if (actionBusy) return;
-    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除该团队？此操作不可撤销。', danger: true }))) return;
-    setActionBusy(true);
-    try {
-      await apiService.hrSend(`teams/${id}`, {}, 'DELETE');
-      await loadAll();
-    } catch (e: any) {
-      setLoadError(e?.message || '删除团队失败');
-    } finally {
-      setActionBusy(false);
-    }
-  };
+  // ── Team handlers（v2.1 移除：组生命周期统一走「小组管理」tab）──
 
   // ── Project handlers ──
   const submitProject = async () => {
@@ -695,14 +642,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
           <Users className="w-3 h-3 inline mr-1" />{team.memberCount} 成员
         </span>
-        <div className="flex gap-1">
-          <button onClick={() => openTeamForm(team)} className={subtleButtonCls}>
-            <Pencil className="w-3 h-3" /> 编辑
-          </button>
-          <button onClick={() => deleteTeam(team.id)} disabled={actionBusy} className={`${subtleButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
+        <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>
+          组维护走「小组管理」（v2.1 目录只读）
+        </span>
       </div>
     </div>
   );
@@ -868,16 +810,10 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
       </div>
       <div className="ml-auto flex items-center gap-1.5">
         {effectiveNode.type === 'dept' && (
-          <>
-            <button onClick={() => openTeamForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新团队</button>
-            <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
-          </>
+          <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
         )}
         {effectiveNode.type === 'team' && selectedTeam && (
-          <>
-            <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
-            <button onClick={() => openTeamForm(selectedTeam)} className={subtleButtonCls}><Pencil className="w-3 h-3" /> 编辑</button>
-          </>
+          <button onClick={() => openProjectForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新项目</button>
         )}
         {effectiveNode.type === 'project' && selectedProject && (
           <>
@@ -965,8 +901,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>下属团队</h3>
-              <button onClick={() => openTeamForm()} className={subtleButtonCls}><Plus className="w-3 h-3" /> 新建</button>
+              <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>下属小组</h3>
+              <span className={`text-[10px] font-light text-[var(--text-tertiary)]`}>组维护走「小组管理」</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {deptTeams.map(renderTeamCard)}
@@ -1066,9 +1002,6 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
         contextLabel="Organization & Teams"
         actions={activeView === 'org' ? (
           <RdlToolbar density="compact">
-            <RdlPill type="button" active tone="accent" onClick={() => openTeamForm()} className="min-h-8 px-4 text-[11px]">
-              <Plus className="w-3.5 h-3.5" /> 新建团队
-            </RdlPill>
             <RdlPill type="button" active tone="accent" onClick={() => openProjectForm()} className="min-h-8 px-4 text-[11px]">
               <Plus className="w-3.5 h-3.5" /> 新建项目
             </RdlPill>
@@ -1141,6 +1074,9 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
               </button>
 
               {visibleForest.depts.map(node => renderTreeNode(node, 0))}
+              {visibleForest.orphanTeams.length > 0 && (
+                <div className={`pt-2 pb-1 px-2 text-[10px] font-light text-[var(--text-tertiary)]`}>跨部门小组</div>
+              )}
               {visibleForest.orphanTeams.map(node => renderTreeNode(node, 0))}
               {visibleForest.orphanProjects.map(node => renderTreeNode(node, 0))}
 
@@ -1158,71 +1094,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
             {renderDetailHeader()}
             {renderDetailToolbar()}
 
-            {/* Inline form expansion */}
+            {/* Inline form expansion（v2.1：组生命周期统一走「小组管理」tab，此处仅项目/任务表单） */}
             <AnimatePresence>
-              {showTeamForm && (
-                <motion.div
-                  key="team-form"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden shrink-0"
-                >
-                  <div className="px-5 py-3">
-                    <div className="bds-card space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <div className={labelCls}>团队名称</div>
-                          <input
-                            className={inputCls}
-                            value={teamForm.name}
-                            onChange={e => setTeamForm(f => ({ ...f, name: e.target.value }))}
-                            placeholder="如：面料采购组"
-                          />
-                        </div>
-                        <div>
-                          <div className={labelCls}>所属部门</div>
-                          <select
-                            className="bds-select"
-                            value={teamForm.departmentId}
-                            onChange={e => setTeamForm(f => ({ ...f, departmentId: e.target.value }))}
-                          >
-                            <option value="">无</option>
-                            {buildDepartmentOptions(departments).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <div className={labelCls}>团队描述</div>
-                        <input
-                          className={inputCls}
-                          value={teamForm.description}
-                          onChange={e => setTeamForm(f => ({ ...f, description: e.target.value }))}
-                          placeholder="团队职责简介"
-                        />
-                      </div>
-                      <div>
-                        <div className={labelCls}>团队负责人</div>
-                        <select
-                          className="bds-select"
-                          value={teamForm.leaderId}
-                          onChange={e => setTeamForm(f => ({ ...f, leaderId: e.target.value }))}
-                        >
-                          <option value="">未指定</option>
-                          {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex justify-end gap-2 pt-1">
-                        <button onClick={closeTeamForm} className={actionButtonCls}>取消</button>
-                        <button onClick={submitTeam} disabled={actionBusy} className={`${primaryButtonCls} disabled:opacity-40 disabled:pointer-events-none`}>
-                          <Check className="w-3.5 h-3.5" /> {actionBusy ? '提交中…' : editingTeamId ? '保存' : '创建'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
               {showProjectForm && (
                 <motion.div
                   key="project-form"
@@ -1386,6 +1259,7 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
           {activeView === 'payroll' && <PayrollTab isDarkMode={isDarkMode} personnel={personnel} />}
           {activeView === 'performance' && <PerformanceTab isDarkMode={isDarkMode} personnel={personnel} />}
           {activeView === 'training' && <TrainingTab isDarkMode={isDarkMode} personnel={personnel} />}
+          {activeView === 'teams' && <TeamManagementTab isDarkMode={isDarkMode} personnel={personnel} departments={departments} />}
         </RdlSurface>
       </main>
       )}
