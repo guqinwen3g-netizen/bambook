@@ -1351,10 +1351,19 @@ export const apiService = {
   // DR-042 小组数据共享（设计真源：docs/design/03-业务规则/小组与业务数据共享.md）
   // ══════════════════════════════════════════════════════════════
 
-  /** 客户档案被共享给的小组（chips）+ 当前用户访问档位（department/team-followup/team-read/none） */
+  /** 客户档案被共享给的小组（chips）+ 当前用户访问档位（owner/team-followup/team-read/none） */
   async getRelationTeamShares(relationId: string, endpoint?: string): Promise<{ teamShares: Array<{ grantId: string; teamId: string; teamName: string; permission: string; grantedBy: string; grantedAt: string }>; accessMode: string }> {
     const data = await requestJson<{ teamShares: any[]; accessMode: string }>(`/v2/relations/${encodeURIComponent(relationId)}/team-shares`, { endpoint, method: 'GET' });
     return { teamShares: data.teamShares ?? [], accessMode: data.accessMode ?? 'none' };
+  },
+
+  /**
+   * 当前用户 scope 内可见的客户档案列表（v2 行级口径：本人 ∪ 小组共享 / all 全量）。
+   * 组管理的共享选择器数据源——列出可选客户，授权资格由服务端双重门禁把关。
+   */
+  async listRelationsV2(limit = 500, endpoint?: string): Promise<Array<{ id: string; name: string; code: string | null; stage: string | null }>> {
+    const data = await requestJson<{ ok: boolean; items: any[] }>(`/v2/relations?limit=${limit}`, { endpoint, method: 'GET' });
+    return (data.items ?? []).map((r: any) => ({ id: r.id, name: r.name, code: r.code ?? null, stage: r.stage ?? null }));
   },
 
   /** 详情页就地共享客户档案给小组（档位 read / read+followup） */

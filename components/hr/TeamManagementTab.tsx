@@ -75,6 +75,8 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
   const [memberUserId, setMemberUserId] = useState('');
   const [grantRelationId, setGrantRelationId] = useState('');
   const [grantPermission, setGrantPermission] = useState<'read' | 'read+followup'>('read+followup');
+  // 共享选择器数据源：当前用户 scope 内可见的客户档案（授权资格由服务端双重门禁把关）
+  const [relationOptions, setRelationOptions] = useState<Array<{ id: string; name: string; code: string | null; stage: string | null }>>([]);
 
   const loadTeams = useCallback(async () => {
     setLoading(true);
@@ -110,6 +112,16 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
       setOverview(d.overview || null);
     } catch {
       setOverview(null); // 概况加载失败不阻断组管理主流程
+    }
+  }, []);
+
+  // 共享选择器的客户列表（当前用户 scope 内；共享动作本身的资格由服务端双重门禁把关）
+  const loadRelationOptions = useCallback(async () => {
+    try {
+      const rows = await apiService.listRelationsV2();
+      setRelationOptions(rows);
+    } catch {
+      setRelationOptions([]); // 列表加载失败不阻断组管理主流程
     }
   }, []);
 
@@ -364,9 +376,17 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
           </div>
           <div className="flex gap-2 items-end">
             <div className="flex-1">
-              <label className={t.labelCls}>共享客户（Relation ID）</label>
-              <input value={grantRelationId} onChange={e => setGrantRelationId(e.target.value)}
-                className={t.inputCls + ' mt-1'} placeholder="REL-xxxx（客户档案 ID）" />
+              <label className={t.labelCls}>选择客户（我可见范围内）</label>
+              <select className="bds-select mt-1" value={grantRelationId} onChange={e => setGrantRelationId(e.target.value)}>
+                <option value="">{relationOptions.length === 0 ? '暂无可共享的客户' : '选择要共享的客户档案'}</option>
+                {relationOptions
+                  .filter(r => !activeGrants.some(g => g.entityId === r.id))
+                  .map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}{r.code ? `（${r.code}）` : ''}{r.stage ? ` · ${r.stage}` : ''}
+                    </option>
+                  ))}
+              </select>
             </div>
             <div>
               <label className={t.labelCls}>档位</label>
@@ -495,7 +515,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
               <button type="button" onClick={() => openEdit(team)} className={t.actionButtonCls}>
                 <Pencil size={14} />编辑
               </button>
-              <button type="button" onClick={() => { setDetailTeamId(team.id); setGrants([]); setOverview(null); loadGrants(team.id); loadOverview(team.id); }} className={t.actionButtonCls}>
+              <button type="button" onClick={() => { setDetailTeamId(team.id); setGrants([]); setOverview(null); loadGrants(team.id); loadOverview(team.id); loadRelationOptions(); }} className={t.actionButtonCls}>
                 <Users size={14} strokeWidth={1.5} />管理
               </button>
             </div>
