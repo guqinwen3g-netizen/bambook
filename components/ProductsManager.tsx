@@ -63,6 +63,7 @@ import {
   CompiledTableShell,
   useCompiledGlassSurfaceEdgeMasks,
 } from './ui/primitives/compiledPrimitives';
+import ScrollEdgeFades from './ui/ScrollEdgeFades';
 
 export interface ProductsManagerProps {
   products: ProductAsset[];
@@ -287,6 +288,8 @@ export const PRODUCT_SUB_INDEX_ROW_CLASS = 'min-h-[4.5rem] border-b last:border-
 export const PRODUCT_EDGE_FADE_TOP_HEIGHT = 56;
 export const PRODUCT_EDGE_FADE_TOP_START = 0;
 export const PRODUCT_EDGE_FADE_BOTTOM_HEIGHT = 72;
+// 卡片网格容器级淡出（ScrollEdgeFades 静止外壳方案）顶部起始偏移——与关系智库同口径
+export const PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET = 64;
 
 type CompiledProductsPageBlueprint = {
   template: 'CompiledProductsPage';
@@ -597,32 +600,20 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const skuInputRef = useRef<HTMLInputElement | null>(null);
   const mainCategoryScrollRef = useRef<HTMLDivElement | null>(null);
   const subIndexScrollRef = useRef<HTMLDivElement>(null);
+  // 静止遮罩外壳（与关系智库同套方案）：边缘淡出 mask 挂在外壳而非滚动容器自身——
+  // 滚动时遮罩层不逐帧重栅格化，避免与 main 圆角裁剪 + 侧栏 backdrop-filter
+  // 在左缘圆角区叠加产生阶梯残影（Chromium 合成路径差异）
+  const mainCategoryMaskRef = useRef<HTMLDivElement | null>(null);
+  const productGridMaskRef = useRef<HTMLDivElement | null>(null);
   const pdmlRawScrollRef = useRef<HTMLDivElement | null>(null);
   const productGridScrollRef = useRef<HTMLDivElement>(null);
   const productFormScrollRef = useRef<HTMLDivElement | null>(null);
   const productDetailSidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const productDetailBodyScrollRef = useRef<HTMLDivElement | null>(null);
 
-  useCompiledGlassSurfaceEdgeMasks({
-    scrollRef: productGridScrollRef,
-    enabled: navLevel === 'list' && listDisplayMode === 'grid' && !isPdmlRawView,
-    source: 'CompiledProductsPage.productGrid.surfaceMasks',
-    scopeSelector: null,
-    topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT,
-    bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
-    topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START,
-  });
-
-  useCompiledGlassSurfaceEdgeMasks({
-    scrollRef: mainCategoryScrollRef,
-    enabled: navLevel === 'main',
-    source: 'CompiledProductsPage.mainCategory.surfaceMasks',
-    scopeSelector: null,
-    topHeight: PRODUCT_EDGE_FADE_TOP_HEIGHT,
-    bottomHeight: PRODUCT_EDGE_FADE_BOTTOM_HEIGHT,
-    topFadeStartOffset: PRODUCT_EDGE_FADE_TOP_START,
-  });
-
+  // 分类/档案卡片网格的淡出已统一改由 ScrollEdgeFades 静止外壳承接（见视图容器处），
+  // 不再使用逐卡片 useCompiledGlassSurfaceEdgeMasks——毛玻璃卡片 + 逐卡片 mask 会触发
+  // Chrome 合成层快照缓存，导致边缘鬼影/漂移/闪烁/阶梯残影。
   useCompiledGlassSurfaceEdgeMasks({
     scrollRef: subIndexScrollRef,
     enabled: navLevel === 'sub',
@@ -2846,26 +2837,39 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       <div className={`${productContentCanvasClass} flex-1 flex flex-col min-h-0 overflow-visible ${hideUnderlyingProductPage ? 'hidden' : ''}`}>
         {navLevel === 'main' && (
           <div className="relative h-full overflow-hidden">
+          {/* ScrollEdgeFades 与关系智库同套方案：mask 挂在静止外壳（maskRef）而非滚动容器
+              自身——滚动时遮罩层不逐帧重栅格化，杜绝左缘圆角区与侧栏玻璃叠加的阶梯残影；
+              卡片不再使用 framer layout / whileHover 位移（毛玻璃卡片 + transform 在
+              Chrome 会合成层快照 → 高光冻结/鬼影），入场仅保留 opacity 淡入 */}
+          <ScrollEdgeFades
+            scrollRef={mainCategoryScrollRef}
+            maskRef={mainCategoryMaskRef}
+            isDarkMode={isDarkMode}
+            variant="subtle"
+            topHeight={32}
+            topFadeStartOffset={isMobile ? 0 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET}
+            bottomHeight={48}
+          />
+          <div
+            ref={mainCategoryMaskRef}
+            className={isMobile ? 'h-full' : 'absolute -top-16 inset-x-0 bottom-0'}
+          >
           <CompiledCollectionCardGrid
             profile="category"
             isMobile={isMobile}
-            overlapTitleBar={!isMobile}
+            viewportClassName="h-full w-full overflow-y-scroll"
             paddingClassName={isMobile ? 'px-3 pt-5 pb-28' : 'px-5 pt-[104px] pb-5'}
-            layout
             ref={mainCategoryScrollRef}
-            transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION }}
           >
             {mainCategories.map((cat, idx) => (
               <CompiledMotionInteractiveCard
                 as="button"
                 type="button"
-                layout
                 key={cat.id}
                 onClick={() => { setSelectedMain(cat.id); setNavLevel('sub'); }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -4, transition: { duration: 0.14, ease: [0.16, 1, 0.3, 1] } }}
-                transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION, delay: idx * 0.05 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.18, delay: idx * 0.04 }}
                 spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                 spotlightSize={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_SIZE : PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE}
                 idleSpotlightOpacity={0}
@@ -2894,6 +2898,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               </CompiledMotionInteractiveCard>
             ))}
           </CompiledCollectionCardGrid>
+          </div>
           </div>
         )}
 
@@ -2939,7 +2944,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     as="div"
                     role="button"
                     tabIndex={0}
-                    layout
                     key={`${classificationView}-${group.id}`}
                     onClick={() => { setSelectedSubId(group.id); setNavLevel('list'); }}
                     onKeyDown={(event) => {
@@ -2948,10 +2952,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       setSelectedSubId(group.id);
                       setNavLevel('list');
                     }}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ y: -1, transition: { duration: 0.14, ease: [0.16, 1, 0.3, 1] } }}
-                    transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION, delay: idx * 0.03 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.18, delay: idx * 0.03 }}
                     spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
                     spotlightSize={isDarkMode ? 360 : 280}
                     idleSpotlightOpacity={0}
@@ -3114,24 +3117,31 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               </div>
             ) : listDisplayMode === 'grid' ? (
               <div className="relative flex-1 min-h-0 overflow-visible">
+              {/* 与主分类网格同套方案：静止外壳承载 mask，卡片无 layout/hover 位移 */}
+              <ScrollEdgeFades
+                scrollRef={productGridScrollRef}
+                maskRef={productGridMaskRef}
+                isDarkMode={isDarkMode}
+                variant="subtle"
+                topHeight={32}
+                topFadeStartOffset={0}
+                bottomHeight={48}
+              />
+              <div ref={productGridMaskRef} className="h-full w-full">
               <CompiledCollectionCardGrid
                 profile="record"
                 paddingClassName="p-8"
-                layout
                 ref={productGridScrollRef}
-                transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION }}
               >
                 <AnimatePresence>
                   {currentProducts.map((product, idx) => (
                     <CompiledMotionInteractiveCard
                       as="button"
                       type="button"
-                      layout
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      whileHover={{ y: -4, transition: { duration: 0.14, ease: [0.16, 1, 0.3, 1] } }}
-                      transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION, delay: idx * 0.02 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.18, delay: idx * 0.02 }}
                       key={product.id}
                       onClick={() => { setSelectedProduct(product); setNavLevel('detail'); }}
                       spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
@@ -3191,6 +3201,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                 )}
               </CompiledCollectionCardGrid>
               </div>
+              </div>
             ) : (
               <CompiledTableShell
                 isDarkMode={isDarkMode}
@@ -3224,8 +3235,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                           liquidSpotlightTone="light"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          whileHover={{ y: -1, transition: { duration: 0.14, ease: [0.16, 1, 0.3, 1] } }}
-                          transition={{ layout: PRODUCT_CARD_LAYOUT_TRANSITION, delay: idx * 0.02 }}
+                          transition={{ duration: 0.18, delay: idx * 0.02 }}
                           className={`flex w-full relative isolate overflow-hidden cursor-pointer transition-[background,box-shadow,color,transform] duration-200 ${productTableRowHoverClass}`}
                           data-glass-edge-mask
                         >

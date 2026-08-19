@@ -5,6 +5,7 @@ import {
   PRODUCT_CARD_CLASS,
   PRODUCT_CARD_GRID_CLASS,
   PRODUCT_CARD_LAYOUT_TRANSITION,
+  PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET,
   PRODUCT_CARD_SPOTLIGHT_DARK_COLOR,
   PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR,
   PRODUCT_CARD_SURFACE_CLASS,
@@ -206,6 +207,7 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_EDGE_FADE_TOP_HEIGHT).toBe(56);
     expect(PRODUCT_EDGE_FADE_TOP_START).toBe(0);
     expect(PRODUCT_EDGE_FADE_BOTTOM_HEIGHT).toBe(72);
+    expect(PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET).toBe(64);
     expect(productsSource).toContain('CompiledEdgeFade');
     expect(productsSource).toContain('renderMode="content-mask"');
     expect(productsSource).toContain('BAMBOOK_OS.layout.panelShadowViewportClass');
@@ -214,15 +216,28 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).toContain('className="relative flex-1 min-h-0 overflow-visible"');
     expect(productsSource).toContain('scrollClassName={`${BAMBOOK_OS.layout.panelShadowViewportClass} bambook-full-bleed-row-viewport`}');
     expect(productsSource).not.toContain('<div ref={subIndexScrollRef} className="flex-1 min-h-0 overflow-y-scroll">');
-    expect(edgeMaskHookSource).toContain('scrollRef: productGridScrollRef');
-    expect(edgeMaskHookSource).toContain("enabled: navLevel === 'list' && listDisplayMode === 'grid' && !isPdmlRawView");
-    expect(edgeMaskHookSource).toContain('scrollRef: mainCategoryScrollRef');
-    expect(edgeMaskHookSource).toContain("enabled: navLevel === 'main'");
+    // 分类/档案卡片网格淡出已切换为 ScrollEdgeFades 静止外壳（与关系智库同套方案）——
+    // mask 挂在静止外壳（maskRef）而非滚动容器自身，滚动时遮罩不逐帧重栅格化，
+    // 避免与 main 圆角裁剪 + 侧栏 backdrop-filter 在左缘圆角区叠加产生阶梯残影；
+    // 仅保留 sub 索引行的逐行 mask hook（表格行非毛玻璃卡片，不在此问题域）
+    expect(edgeMaskHookSource).not.toContain('scrollRef: productGridScrollRef');
+    expect(edgeMaskHookSource).not.toContain('scrollRef: mainCategoryScrollRef');
     expect(edgeMaskHookSource).toContain('scrollRef: subIndexScrollRef');
     expect(edgeMaskHookSource).toContain("enabled: navLevel === 'sub'");
-    expect(mainViewSource).not.toContain('<ScrollEdgeFades');
+    expect(mainViewSource).toContain('<ScrollEdgeFades');
+    expect(mainViewSource).toContain('scrollRef={mainCategoryScrollRef}');
+    expect(mainViewSource).toContain('maskRef={mainCategoryMaskRef}');
+    expect(mainViewSource).toContain('ref={mainCategoryMaskRef}');
+    expect(mainViewSource).toContain('topFadeStartOffset={isMobile ? 0 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET}');
     expect(mainViewSource).toContain('ref={mainCategoryScrollRef}');
     expect(mainViewSource).toContain('data-glass-edge-mask');
+    expect(productsSource).toContain('scrollRef={productGridScrollRef}');
+    expect(productsSource).toContain('maskRef={productGridMaskRef}');
+    // 卡片/行全面禁用 framer layout 动画与 hover 位移——毛玻璃 + transform 会触发
+    // Chrome 合成层快照缓存，导致高光冻结/边缘鬼影（入场仅保留 opacity 淡入）
+    expect(productsSource).not.toMatch(/whileHover\s*=\s*\{/);
+    expect(productsSource).not.toMatch(/<CompiledMotionInteractiveCard[^>]*\slayout[\s=>]/);
+    expect(productsSource).not.toMatch(/<CompiledCollectionCardGrid[^>]*\slayout[\s=>]/);
   });
 
   it('renders explicit empty states for archive drill-down views instead of blank panels', () => {
