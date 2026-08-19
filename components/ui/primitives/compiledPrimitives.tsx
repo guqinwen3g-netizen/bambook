@@ -789,6 +789,8 @@ export type CompiledSplitMainPanelProps = {
   scrollViewportClassName?: string;
   edgeFadeVariant?: React.ComponentProps<typeof ScrollEdgeFades>['variant'];
   edgeFadeZIndex?: number;
+  /** flat=true 时跳过 framePanel 圆角磨砂外壳，直接渲染滚动视口（用于无导航的扁平页面，如账号设置） */
+  flat?: boolean;
 };
 
 export const CompiledSplitMainPanel = ({
@@ -801,28 +803,45 @@ export const CompiledSplitMainPanel = ({
   scrollViewportClassName,
   edgeFadeVariant = 'subtle',
   edgeFadeZIndex = 12,
-}: CompiledSplitMainPanelProps) => (
-  <SidePanelContainer
-    isDarkMode={isDarkMode}
-    spotlight
-    materialRole="framePanel"
-    shadowMode="none"
-    wrapperClassName={BAMBOOK_OS.layout.desktopSplitMainPanelClass}
-    className={className}
-    contentClassName={cx(BAMBOOK_OS.layout.desktopSplitMainContentClass, contentClassName)}
-    data-os-compiler-role="split-main-panel"
-    data-os-compiler-source={source}
-  >
-    {scrollRef ? (
-      <>
-        <CompiledEdgeFade scrollRef={scrollRef} isDarkMode={isDarkMode} variant={edgeFadeVariant} zIndex={edgeFadeZIndex} source="CompiledSplitMainPanel.edgeFade" />
-        <div ref={scrollRef} className={cx(BAMBOOK_OS.layout.desktopMainScrollViewportClass, BAMBOOK_OS.layout.panelShadowViewportClass, scrollViewportClassName)}>
-          {children}
-        </div>
-      </>
-    ) : children}
-  </SidePanelContainer>
-);
+  flat = false,
+}: CompiledSplitMainPanelProps) => {
+  const inner = scrollRef ? (
+    <>
+      <CompiledEdgeFade scrollRef={scrollRef} isDarkMode={isDarkMode} variant={edgeFadeVariant} zIndex={edgeFadeZIndex} source="CompiledSplitMainPanel.edgeFade" />
+      <div ref={scrollRef} className={cx(BAMBOOK_OS.layout.desktopMainScrollViewportClass, BAMBOOK_OS.layout.panelShadowViewportClass, scrollViewportClassName)}>
+        {children}
+      </div>
+    </>
+  ) : children;
+
+  if (flat) {
+    return (
+      <div
+        className={cx(BAMBOOK_OS.layout.desktopSplitMainPanelClass, 'flex flex-col', className)}
+        data-os-compiler-role="split-main-panel"
+        data-os-compiler-source={source}
+      >
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <SidePanelContainer
+      isDarkMode={isDarkMode}
+      spotlight
+      materialRole="framePanel"
+      shadowMode="none"
+      wrapperClassName={BAMBOOK_OS.layout.desktopSplitMainPanelClass}
+      className={className}
+      contentClassName={cx(BAMBOOK_OS.layout.desktopSplitMainContentClass, contentClassName)}
+      data-os-compiler-role="split-main-panel"
+      data-os-compiler-source={source}
+    >
+      {inner}
+    </SidePanelContainer>
+  );
+};
 
 export const CompiledFloatingAction = ({
   blueprint,

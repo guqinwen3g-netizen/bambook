@@ -741,6 +741,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
           isDarkMode={isDarkMode}
           source="SETTINGS_SPLIT_MAIN_PANEL"
           scrollRef={settingsScrollRef}
+          flat={mode === 'account'}
         >
             <AnimatePresence mode="wait">
               <motion.div
