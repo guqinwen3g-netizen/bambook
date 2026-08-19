@@ -84,6 +84,14 @@
 - reviewerId **服务端解析**：`approvalService.createRequest` 中兜底 `resolveReviewerByDepartment(requesterId)`，前端不传 reviewerId（兼容期前端传了会覆盖；后续移除选择框）
 - 单人单次：审批人 approve / reject 即可完结，无需多人会签
 
+**Confirmed 门禁阻断时自动发起豁免审批单**（✅ 2026-08-19 收口，orderServiceV2.ts）：
+- Order 状态推进至 Confirmed 时执行 `moqValidationService.validateCreate({..., autoCreateApproval: true, targetType: 'Order', targetId})`；低于 MOQ 且无 approved 豁免单 → 阻断同时**自动发起 MOQ 豁免审批单**（DR-007 单人单次），业务员无需另行寻找豁免入口
+- 阻断错误消息携带审批单状态提示：自动发起成功 → 「豁免审批单 {id} 已自动发起，审批通过后重试」；发起失败 → 「请联系管理员」（fail-closed：门禁校验异常同样阻断推进，不静默放行）
+
+**DR-007 单人单次防重（幂等）**（✅ 2026-08-19 收口，approvalCreateService.ts）：
+- 同 requester + actionType + targetId 已存在 status=pending 的审批单 → **幂等返回既有单**，不再重复创建；修复前每次门禁重试都会建新单，导致同一豁免诉求出现多张挂起单
+- 防重维度不含 targetType（actionType 已区分订单/报价豁免），approved/rejected 历史单不拦截新申请
+
 ---
 
 ## §4 UI 反馈规范
@@ -126,6 +134,7 @@
 | 5 | DR-007 解析审批人批准/驳回 | reviewerId 对 ApprovalRequest 做 approved/rejected → 解锁/驳回豁免申请 | 审批人权限校验（scope: `approvals:act:moq_exemption` 且当前用户 ID === reviewerId）→ 403 拒绝 | 审批人离职/权限被回收 → 管理员手动重新指派 reviewerId 或 申请人重提（不走自动 escalate） |
 | 6 | 重度缺口 >80% 二次确认 | 前端点击 Badge 申请 → 弹窗二次确认（「缺口比例极高，确认提交？」）→ 确认后与其他缺口走同一流程 | 用户取消二次确认 → 不发起审批 | 已发起审批单不因缺口比例变更而自动取消（订单变更后缺口变化场景由 §X MOQ 变更后重算联动处理） |
 | 7 | MOQ_effective 变更（产品档案 MOQ 事后修改） | **不追溯**（已确认订单/已发送报价按原 MOQ 快照执行），仅影响新创建的行 | 已 Confirmed 订单行被修改 MOQ → AuditLog 高风险标记 + 管理层通知 | 追溯策略误触发（把老订单按新 MOQ block）→ 由开关 `MOQ_GRAND_FATHER_ENABLED` 控制，默认 true 不追溯 |
+| 8 | Order 状态推进至 Confirmed（服务端门禁，✅ 已落地） | validateCreate 携带 `autoCreateApproval: true` → 低于 MOQ 且无 approved 豁免单时自动发起 MOQ 豁免审批单（DR-007 防重幂等），错误消息携带审批单提示 | Confirmed 推进被阻断（MOQ_VIOLATION），豁免审批通过后重试放行 | 门禁校验自身异常（DB/服务故障）→ fail-closed 同样阻断推进，不静默放行 |
 
 ---
 
