@@ -267,6 +267,76 @@ async function seedDefaultSuperAdmin() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 5.25 演示账号一键切换（DEV 验收专用）——唯一权威种子真源
+//     前端 components/Settings.tsx「演示账号快速切换」面板引用的 9 个账号。
+//     历史问题：该面板只有前端按钮、无任何后端种子，账号「丢失」后无法复现。
+//     本函数每次 seed 幂等 upsert（按稳定 id），确保演示账号永不丢失。
+//     密码统一 Bambook@2026（与前端 handleQuickSwitch 硬编码一致）。
+// ══════════════════════════════════════════════════════════════════════════════
+const DEMO_ACCOUNTS: Array<{
+  id: string;
+  email: string;
+  displayName: string;
+  roleId: string;
+  departmentId: string;
+}> = [
+  { id: 'usr_demo_boss', email: 'boss@bambook.local', displayName: '沈国强', roleId: SYSTEM_ROLE_IDS.SUPER_ADMIN, departmentId: 'dept-company' },
+  { id: 'usr_demo_gm', email: 'gm@bambook.local', displayName: '林志远', roleId: SYSTEM_ROLE_IDS.ADMIN, departmentId: 'dept-company' },
+  { id: 'usr_demo_sales_manager', email: 'sales.manager@bambook.local', displayName: '陈雅雯', roleId: SYSTEM_ROLE_IDS.SALES_MANAGER, departmentId: 'dept-sales' },
+  { id: 'usr_demo_sales_a', email: 'sales.a@bambook.local', displayName: '苏晓芸', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
+  { id: 'usr_demo_sales_b', email: 'sales.b@bambook.local', displayName: '周子墨', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
+  { id: 'usr_demo_finance_manager', email: 'finance.manager@bambook.local', displayName: '赵美玲', roleId: SYSTEM_ROLE_IDS.FINANCE_MANAGER, departmentId: 'dept-finance' },
+  { id: 'usr_demo_finance', email: 'finance@bambook.local', displayName: '钱志明', roleId: SYSTEM_ROLE_IDS.FINANCE, departmentId: 'dept-finance' },
+  { id: 'usr_demo_qc', email: 'qc@bambook.local', displayName: '吴建国', roleId: SYSTEM_ROLE_IDS.QC, departmentId: 'dept-qc' },
+  { id: 'usr_demo_logistics', email: 'logistics@bambook.local', displayName: '郑海涛', roleId: SYSTEM_ROLE_IDS.LOGISTICS, departmentId: 'dept-logistics' },
+];
+
+const DEMO_ACCOUNT_PASSWORD = 'Bambook@2026';
+
+async function seedDemoAccounts() {
+  const passwordHash = await bcrypt.hash(DEMO_ACCOUNT_PASSWORD, 12);
+  for (const acc of DEMO_ACCOUNTS) {
+    await prisma.$transaction(async (tx) => {
+      await tx.userAccount.upsert({
+        where: { id: acc.id },
+        update: {
+          displayName: acc.displayName,
+          email: acc.email,
+          passwordHash,
+          status: 'active',
+          primaryDeptId: acc.departmentId,
+        },
+        create: {
+          id: acc.id,
+          displayName: acc.displayName,
+          email: acc.email,
+          passwordHash,
+          status: 'active',
+          primaryDeptId: acc.departmentId,
+        },
+      });
+      await tx.userRole.upsert({
+        where: {
+          userId_roleId_departmentId: {
+            userId: acc.id,
+            roleId: acc.roleId,
+            departmentId: acc.departmentId,
+          },
+        },
+        update: {},
+        create: {
+          id: `ur_${acc.id}_${acc.roleId}`,
+          userId: acc.id,
+          roleId: acc.roleId,
+          departmentId: acc.departmentId,
+        },
+      });
+    });
+  }
+  console.log(`[5.25/6] 演示账号：已 upsert ${DEMO_ACCOUNTS.length} 个（密码 Bambook@2026，DEV 演示快速切换专用）`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // 5.5 系统哨兵账号（id='system'）
 //     审计链完整性兜底：AuditLog.actorId 对 UserAccount 有外键约束，
 //     无 JWT 上下文的系统/API-Key 调用统一落 'system' 哨兵（routeAudit.actorIdFromRequest /
@@ -319,6 +389,7 @@ async function main() {
   await seedPermissions();
   await seedRolePermissions();
   await seedDefaultSuperAdmin();
+  await seedDemoAccounts();
   await seedSystemSentinelAccount();
   await verifySeed();
 
