@@ -48,6 +48,26 @@ export interface QCAssignmentInput {
 
 export type QCAssignmentPatch = Partial<Pick<QCAssignmentInput, 'notes' | 'dueDate' | 'locationId' | 'qcUserId'>>;
 
+/**
+ * 大货验货报告录入（缺口修复：此前 InspectionReport 只能直插 DB，无 API 写入路径）。
+ * completeAssignment 携带 report 数据时自动创建大货报告：
+ *   - final → id 锚定 `INR__{orderId}`（出运门禁消费锚点，每单唯一）
+ *   - midline → id `INR__{orderId}__mid`（中期报告，与 final/样品链锚点不冲突）
+ */
+export interface BulkReportInput {
+  result: 'pass' | 'fail';
+  inspectionDate?: string; // YYYY-MM-DD
+  totalUnits?: number;
+  passedUnits?: number;
+  lotSize?: number;
+  sampleSize?: number;
+  aqlLevel?: string;
+  majorDefects?: number;
+  minorDefects?: number;
+  defectSummary?: string;
+  notes?: string;
+}
+
 export interface AssignmentListQuery {
   qcUserId?: string;
   status?: string;
@@ -299,7 +319,11 @@ export function createQcService(prisma: PrismaClient) {
     return updated;
   }
 
-  async function completeAssignment(id: string, input: { reportId?: string | null }, actorId: string): Promise<QCAssignment> {
+  async function completeAssignment(
+    id: string,
+    input: { reportId?: string | null; report?: BulkReportInput },
+    actorId: string,
+  ): Promise<QCAssignment> {
     const assignment = await getAssignmentOrThrow(id);
     if (assignment.status !== 'Assigned' && assignment.status !== 'InProgress') {
       throw new Error(`非法状态流转：当前状态 ${assignment.status} 不可完成`);
@@ -309,17 +333,61 @@ export function createQcService(prisma: PrismaClient) {
       if (!report) throw new Error('验货报告不存在');
       if (report.orderId !== assignment.orderId) throw new Error('报告与任务订单不匹配');
     }
+
+    // 缺口修复：携带 report 数据 → 自动创建大货验货报告（此前只能直插 DB）
+    let createdReportId: string | null = input.reportId ?? null;
+    if (input.report) {
+      const r = input.report;
+      if (!INSPECTION_TYPES.includes(assignment.inspectionType as any)) {
+        throw new Error(`任务验货类型 ${assignment.inspectionType} 不支持大货报告录入（允许 midline | final）`);
+      }
+      if (r.result !== 'pass' && r.result !== 'fail') {
+        throw new Error('report.result 必须为 pass 或 fail');
+      }
+      const reportId = assignment.inspectionType === 'final'
+        ? `INR__${assignment.orderId}` // 出运门禁锚点（checkShipmentEligibility / checkGarmentShipmentEligibility 消费）
+        : `INR__${assignment.orderId}__mid`;
+      const dup = await db.inspectionReport.findUnique({ where: { id: reportId } });
+      if (dup) {
+        throw new Error(`大货${assignment.inspectionType === 'final' ? '终期' : '中期'}验货报告已存在（${reportId}），如需修正请先处理既有报告`);
+      }
+      const ts = now();
+      await db.inspectionReport.create({
+        data: {
+          id: reportId,
+          orderId: assignment.orderId,
+          inspectionType: assignment.inspectionType,
+          result: r.result,
+          inspectionDate: r.inspectionDate ?? new Date(ts).toISOString().slice(0, 10),
+          inspectedBy: assignment.qcUserId,
+          totalUnits: r.totalUnits ?? null,
+          passedUnits: r.passedUnits ?? null,
+          lotSize: r.lotSize ?? null,
+          sampleSize: r.sampleSize ?? null,
+          aqlLevel: r.aqlLevel ?? null,
+          majorDefects: r.majorDefects ?? null,
+          minorDefects: r.minorDefects ?? null,
+          defectSummary: r.defectSummary ?? null,
+          notes: r.notes ?? null,
+          createdAt: BigInt(ts),
+          updatedAt: BigInt(ts),
+        },
+      });
+      createdReportId = reportId;
+      logger.info('[QcService] bulk inspection report created', { reportId, orderId: assignment.orderId, type: assignment.inspectionType, result: r.result });
+    }
+
     const ts = now();
     const updated = await db.qCAssignment.update({
       where: { id: assignment.id },
       data: {
         status: 'Completed',
         completedAt: BigInt(ts),
-        reportId: input.reportId ?? null,
+        reportId: createdReportId,
         updatedAt: BigInt(ts),
       },
     });
-    logger.info('[QcService] assignment completed', { id: assignment.id, reportId: input.reportId ?? null, actorId });
+    logger.info('[QcService] assignment completed', { id: assignment.id, reportId: createdReportId, actorId });
     return updated;
   }
 

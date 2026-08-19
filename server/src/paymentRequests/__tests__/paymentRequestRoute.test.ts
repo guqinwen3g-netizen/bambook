@@ -62,6 +62,7 @@ function makeApp(opts: { paymentRequest?: any } = {}) {
     paymentVoucher: { findUnique: vi.fn(async () => null) },
     approvalRequest: {
       create: vi.fn(async ({ data }: any) => ({ ...data })),
+      findFirst: vi.fn().mockResolvedValue(null),
       findUnique: vi.fn(async () => null),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },

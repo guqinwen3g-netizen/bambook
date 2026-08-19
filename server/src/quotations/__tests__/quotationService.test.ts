@@ -99,6 +99,7 @@ function makePrisma(opts: {
     approvalRequest: {
       findUnique: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data })),
+      findFirst: vi.fn().mockResolvedValue(null),
     },
     // DR-007 路由解析依赖（默认：requester 无部门 → FALLBACK_ADMIN 兜底命中 usr_admin）
     department: { findUnique: vi.fn().mockResolvedValue(null) },

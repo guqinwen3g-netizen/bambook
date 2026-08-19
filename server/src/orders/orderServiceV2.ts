@@ -543,6 +543,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       }
 
       // ── MOQ Confirmed 门禁（§4.3 fail-closed）：低于 MOQ 且无 approved 豁免审批单 → 阻断 ──
+      // 缺口修复：阻断同时自动发起 MOQ 豁免审批单（DR-007 单人单次，
+      // approvalCreateService 幂等防重），业务员无需另行找入口发起豁免
       if (newStatus === 'Confirmed') {
         try {
           const moqCheck = await moqValidationSvc.validateCreate({
@@ -552,7 +554,10 @@ export function createOrderServiceV2(prisma: PrismaClient) {
             customerRelationId: existing.customerRelationId ?? null,
             snapshot: existing.moqSnapshot ?? null,
             lines: [{ quantity: Number(existing.quantity) }],
-          }, { actor: { userId: actor.userId, roles: actor.roles, roleIds: actor.roleIds, permissions: actor.permissions } });
+          }, {
+            actor: { userId: actor.userId, roles: actor.roles, roleIds: actor.roleIds, permissions: actor.permissions },
+            autoCreateApproval: true, targetType: 'Order', targetId: id,
+          });
           if (!moqCheck.ok) {
             const approved = await (prisma as any).approvalRequest?.findFirst?.({
               where: {
@@ -563,11 +568,15 @@ export function createOrderServiceV2(prisma: PrismaClient) {
             });
             if (!approved) {
               const worst = moqCheck.lines[0];
+              const approvalHint = (moqCheck as any).approvalRequestId
+                ? `（豁免审批单 ${(moqCheck as any).approvalRequestId} 已自动发起，审批通过后重试）`
+                : '（豁免审批单发起失败，请联系管理员）';
               return {
                 ok: false,
                 error: {
                   code: 'MOQ_VIOLATION',
-                  message: `订单数量 ${Number(existing.quantity)} 低于 MOQ ${worst?.effectiveMoq}（缺口 ${worst?.gapPct}%，快照口径），须先完成 MOQ 豁免审批（DR-007 单人单次）`,
+                  message: `订单数量 ${Number(existing.quantity)} 低于 MOQ ${worst?.effectiveMoq}（缺口 ${worst?.gapPct}%，快照口径），须先完成 MOQ 豁免审批（DR-007 单人单次）${approvalHint}`,
+                  approvalRequestId: (moqCheck as any).approvalRequestId,
                 },
               };
             }

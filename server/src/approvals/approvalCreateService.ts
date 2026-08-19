@@ -68,6 +68,14 @@ export function createApprovalCreateService(opts: ApprovalCreateServiceOptions) 
       throw wrapCreateError(e);
     }
 
+    // 1.5 DR-007 单人单次防重：同 requester + actionType + targetId 已有 pending 单 → 幂等返回
+    //     （修复前每次门禁重试都会建新单，导致同一豁免诉求出现多张挂起单）
+    const existing = await prisma.approvalRequest.findFirst({
+      where: { requesterId, actionType, targetId, status: 'pending' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing) return existing;
+
     // 2. 创建审批单：三个 createOnce 字段来自解析结果，绝不使用前端传入值
     const id = `ar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const clientSupplied = Boolean(clientSuppliedReviewerId && String(clientSuppliedReviewerId).trim());

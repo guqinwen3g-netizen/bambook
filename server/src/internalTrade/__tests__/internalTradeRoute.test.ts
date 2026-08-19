@@ -92,6 +92,7 @@ function makeApp(opts: {
     orderLine: { updateMany: vi.fn(async () => ({ count: 1 })) },
     shipment: { findUnique: vi.fn(async ({ where }: any) => shipments.find((s) => s.id === where.id) ?? null) },
     approvalRequest: {
+      findFirst: vi.fn().mockResolvedValue(null),
       findUnique: vi.fn(async ({ where }: any) => approvals.find((a) => a.id === where.id) ?? null),
       updateMany: vi.fn(async () => ({ count: 1 })),
       create: vi.fn(async ({ data }: any) => ({ ...data, id: 'ar_1' })),

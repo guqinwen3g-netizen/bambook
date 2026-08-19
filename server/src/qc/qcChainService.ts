@@ -91,12 +91,17 @@ export function isFabricChainOrder(order: any): boolean {
   return String(order.type ?? '').toLowerCase() === 'fabric';
 }
 
-/** 服装订单判定：type='Garment'，或 businessLine ∈ {garment, capsule}（capsule 为 Garment 子类型） */
+/**
+ * 服装订单判定：businessLine ∈ {garment, capsule}（capsule 为 Garment 子类型），
+ * 或 type ∈ {garment, apparel}（apparel 为 order_type 字典合法值——此前仅认 garment，
+ * type-only 服装订单会被出运门禁误分派到 other 链绕过 Final QC，属门禁旁路，已收敛口径）
+ */
 export function isGarmentChainOrder(order: any): boolean {
   if (!order) return false;
   const line = String(order.businessLine ?? '').toLowerCase();
   if (line === 'garment' || line === 'capsule') return true;
-  return String(order.type ?? '').toLowerCase() === 'garment';
+  const t = String(order.type ?? '').toLowerCase();
+  return t === 'garment' || t === 'apparel';
 }
 
 /** 样品链 inspectionType 判定与解析（final/midline 大货报告不属于样品链） */

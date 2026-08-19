@@ -215,7 +215,11 @@ export function createQcRouter(options: QcRouterOptions): Router {
     try {
       const assignment = await service.completeAssignment(
         req.params.id,
-        { reportId: req.body?.reportId ?? null },
+        {
+          reportId: req.body?.reportId ?? null,
+          // 缺口修复：支持携带 report 数据自动创建大货验货报告（final 锚定 INR__{orderId} 出运门禁锚点）
+          report: req.body?.report ?? undefined,
+        },
         actorIdFromRequest(req),
       );
       notify('complete_assignment', [assignment.id]);

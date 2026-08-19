@@ -15,6 +15,8 @@ function makeDeps(opts: {
   resolution?: { reviewerId: string; route: string; departmentSnapshotId: string };
   routingError?: any;
   createError?: any;
+  /** DR-007 单人单次防重：已有 pending 单时 createBusinessApproval 幂等返回该单 */
+  existingPending?: { id: string; status: string } | null;
 } = {}) {
   const resolution = opts.resolution ?? {
     reviewerId: 'u_li',
@@ -29,12 +31,14 @@ function makeDeps(opts: {
   const approvalCreate = opts.createError
     ? vi.fn().mockRejectedValue(opts.createError)
     : vi.fn().mockImplementation(async ({ data }: any) => ({ ...data }));
+  // DR-007 单人单次防重：无 pending 单（默认 null → 走创建路径）
+  const approvalFindFirst = vi.fn().mockResolvedValue(opts.existingPending ?? null);
   const auditCreate = vi.fn().mockResolvedValue({ id: 'AL-1' });
   const prisma: any = {
-    approvalRequest: { create: approvalCreate },
+    approvalRequest: { create: approvalCreate, findFirst: approvalFindFirst },
     auditLog: { create: auditCreate },
   };
-  return { prisma, routingService, approvalCreate, auditCreate };
+  return { prisma, routingService, approvalCreate, approvalFindFirst, auditCreate };
 }
 
 const baseInput = {
@@ -129,5 +133,31 @@ describe('approvalCreateService: BASE-39-A2 快照来源', () => {
     const svc = createApprovalCreateService({ prisma, routingService: routingService as any });
     await svc.createBusinessApproval(baseInput);
     expect(approvalCreate.mock.calls[0][0].data.departmentSnapshotId).toBe('dept_garment');
+  });
+});
+
+describe('approvalCreateService: DR-007 单人单次防重', () => {
+  it('同 requester+actionType+targetId 已有 pending 单 → 幂等返回既有单，不再 create', async () => {
+    const existing = { id: 'ar_existing_1', status: 'pending', reviewerId: 'u_li' };
+    const { prisma, approvalCreate, approvalFindFirst, routingService } = makeDeps({ existingPending: existing });
+    const svc = createApprovalCreateService({ prisma, routingService: routingService as any });
+    const result = await svc.createBusinessApproval(baseInput);
+    expect(result).toMatchObject({ id: 'ar_existing_1', status: 'pending' });
+    expect(approvalFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          requesterId: 'u_sun', actionType: 'order:moq-exemption', targetId: 'SO_1', status: 'pending',
+        }),
+      }),
+    );
+    expect(approvalCreate).not.toHaveBeenCalled();
+  });
+
+  it('无 pending 单 → 正常走创建路径', async () => {
+    const { approvalCreate, approvalFindFirst, routingService, prisma } = makeDeps();
+    const svc = createApprovalCreateService({ prisma, routingService: routingService as any });
+    await svc.createBusinessApproval(baseInput);
+    expect(approvalFindFirst).toHaveBeenCalled();
+    expect(approvalCreate).toHaveBeenCalledTimes(1);
   });
 });

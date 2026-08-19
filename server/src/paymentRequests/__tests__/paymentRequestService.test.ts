@@ -64,6 +64,7 @@ function makePrisma(opts: { paymentRequest?: any; approvalStatus?: string } = {}
     },
     approvalRequest: {
       create: vi.fn(async ({ data }: any) => ({ ...data })),
+      findFirst: vi.fn().mockResolvedValue(null),
       findUnique: vi.fn(async () =>
         opts.approvalStatus ? { id: 'ar_1', status: opts.approvalStatus } : null),
       updateMany: vi.fn(async () => ({ count: 1 })),

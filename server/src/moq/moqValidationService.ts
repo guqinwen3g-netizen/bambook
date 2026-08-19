@@ -145,7 +145,9 @@ export interface MoqValidationServiceOptions {
 
 export function isCapsuleEligible(ctx: { type?: string | null; businessLine?: string | null }): boolean {
   if (isGarmentFamily(ctx.businessLine)) return true;
-  return (ctx.type ?? '').toLowerCase() === 'garment';
+  // type 口径与 order_type 字典对齐（apparel 为字典合法值；仅认 garment 时 Capsule 豁免误拒）
+  const t = (ctx.type ?? '').toLowerCase();
+  return t === 'garment' || t === 'apparel';
 }
 
 export function createMoqValidationService(opts: MoqValidationServiceOptions) {
@@ -155,7 +157,8 @@ export function createMoqValidationService(opts: MoqValidationServiceOptions) {
   function deriveBusinessLine(input: { type?: string | null; businessLine?: string | null }): string | null {
     if (input.businessLine) return input.businessLine;
     const t = (input.type ?? '').toLowerCase();
-    if (t === 'garment') return 'garment';
+    // type 口径与 order_type 字典对齐（apparel → garment 家族）
+    if (t === 'garment' || t === 'apparel') return 'garment';
     if (t === 'fabric') return 'fabric';
     return null;
   }
@@ -333,7 +336,8 @@ export function createMoqValidationService(opts: MoqValidationServiceOptions) {
 
     // 取数：优先 Order.moqSnapshot（同单生命周期口径一致，不重新拉配置）
     const resolution = await resolutionService.resolveEffectiveMoq({
-      businessLine: order.businessLine ?? (order.type?.toLowerCase() === 'garment' ? 'garment' : 'fabric'),
+      // type 口径与 order_type 字典对齐（apparel → garment 家族）
+      businessLine: order.businessLine ?? (['garment', 'apparel'].includes(String(order.type ?? '').toLowerCase()) ? 'garment' : 'fabric'),
       capsuleExemption: order.capsuleExemption === true,
       customerRelationId: order.customerRelationId ?? null,
       snapshot: order.moqSnapshot as Partial<MoqSnapshot> | null,

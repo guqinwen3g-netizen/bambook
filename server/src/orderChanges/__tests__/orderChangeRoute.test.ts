@@ -91,6 +91,7 @@ function makeApp(opts: {
       updateMany: approvalUpdateMany,
       findUnique: vi.fn(async () => null),
       create: approvalCreate,
+      findFirst: vi.fn().mockResolvedValue(null),
     },
     auditLog: { create: auditCreate },
     // DR-007 审批路由解析（approvalRoutingService 真实实例走这些 mock）

@@ -96,6 +96,7 @@ function makeApp(opts: {
     },
     approvalRequest: {
       create: calls.approvalCreate,
+      findFirst: vi.fn().mockResolvedValue(null),
       findUnique: vi.fn(async ({ where }: any) => (opts.approval && opts.approval.id === where.id ? opts.approval : null)),
       findMany: vi.fn(async () => []),
       update: calls.approvalUpdate,
