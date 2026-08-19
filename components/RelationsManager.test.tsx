@@ -721,9 +721,12 @@ describe('RelationsManager title system', () => {
     expect(listSource).toContain('maskRef={relationListMaskRef}');
     expect(source).toContain('scrollRef={relationTableScrollRef}');
     expect(listSource).not.toContain('{renderRelationListToolbar(toolbarInsetClass)}');
-    expect(sharedCardSource).toMatch(/<CompiledMotionInteractiveCard\s+as="button"\s+type="button"[\s\S]*?data-glass-edge-mask/);
-    expect(sharedCardSource).toContain('spotlightColor={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR}');
-    expect(sharedCardSource).toContain('liquidSpotlightTone="light"');
+    // 液态蓝光已移除（历史遗留体系，panel 级光斑在侧栏收起后整卡泛蓝）：
+    // 卡片改用 motion.button，hover 高光由 RELATIONS_CATEGORY_CARD_CLASS 墨洗承担
+    expect(sharedCardSource).toMatch(/<motion\.button\s+type="button"/);
+    expect(sharedCardSource).not.toContain('spotlightColor');
+    expect(sharedCardSource).not.toContain('liquidSpotlight');
+    expect(sharedCardSource).not.toContain('data-glass-edge-mask');
     expect(source).toContain('currentOrganizations.map((org, idx) => renderRelationCard({');
     expect(source).toContain("navLevel === 'organizations'");
     expect(source).toContain("renderRelationListToolbar('', false)");
@@ -1105,10 +1108,12 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS).not.toContain('rgba(255,255,255,0.85)');
     expect(categorySource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_CLASS');
     expect(categorySource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_POSITION_CLASS');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE');
+    // 液态蓝光已移除：蓝 tint 主光斑 + 蓝边缘光是历史遗留体系，panel 级光斑尺寸
+    // （460/520px）远超卡片，侧栏收起主面板加宽后整卡泛蓝——卡片不再挂任何 spotlight
+    expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR');
+    expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR');
+    expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE');
+    expect(sharedCardSource).not.toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE');
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_CLASS');
     expect(categorySource).toContain('relationCategoryGridClass');
     expect(categorySource).toContain('relationCategoryViewportClass');
@@ -1141,11 +1146,10 @@ describe('RelationsManager title system', () => {
     expect(categorySource).not.toContain('RELATIONS_CARD_LAYOUT_TRANSITION');
     expect(sharedCardSource).not.toMatch(/<CompiledMotionInteractiveCard[^>]*\slayout[\s=>]/);
     expect(sharedCardSource).not.toContain('whileHover');
-    expect(sharedCardSource).toContain('<CompiledMotionInteractiveCard');
-    expect(sharedCardSource).toContain('as="button"');
-    expect(sharedCardSource).toContain('idleSpotlightOpacity={0}');
-    expect(sharedCardSource).toContain('liquidSpotlight');
-    expect(sharedCardSource).toContain('liquidSpotlightTone="light"');
+    expect(sharedCardSource).toContain('<motion.button');
+    expect(sharedCardSource).not.toContain('idleSpotlightOpacity');
+    expect(sharedCardSource).not.toContain('liquidSpotlight');
+    expect(sharedCardSource).not.toContain('liquidSpotlightTone');
     expect(sharedCardSource).toContain("transition={{ duration: 0.18, delay: index * 0.04 }}");
     expect(categorySource).toContain('categories.map((cat, idx) => renderRelationCard({');
     expect(categorySource).toContain('cardKey: cat.id');
@@ -1227,8 +1231,6 @@ describe('RelationsManager title system', () => {
     expect(organizationGridSource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_DARK_CLASS');
     expect(organizationGridSource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_CLASS');
     expect(organizationGridSource).not.toContain('RELATIONS_CATEGORY_CARD_HIGHLIGHT_LIGHT_POSITION_CLASS');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR');
-    expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR');
     expect(organizationGridSource).toContain('${pageInsetExpandedClass}');
     expect(organizationGridSource).toContain('RELATIONS_CARD_GRID_CLASS');
     expect(organizationGridSource).toContain('<ScrollEdgeFades');
@@ -1241,11 +1243,6 @@ describe('RelationsManager title system', () => {
     // （仅禁 motion layout prop，不影响 BAMBOOK_OS.layout.* 等合法 layout token 引用）
     expect(organizationGridSource).not.toMatch(/<motion\.div[^>]*\slayout[\s=>]/);
     expect(organizationGridSource).not.toContain('RELATIONS_CARD_LAYOUT_TRANSITION');
-    expect(sharedCardSource).toContain('<CompiledMotionInteractiveCard');
-    expect(sharedCardSource).toContain('as="button"');
-    expect(sharedCardSource).toContain('idleSpotlightOpacity={0}');
-    expect(sharedCardSource).toContain('liquidSpotlight');
-    expect(sharedCardSource).toContain('liquidSpotlightTone="light"');
     expect(organizationGridSource).not.toContain('cardGridClass');
     expect(organizationGridSource).not.toContain('grid-cols-[repeat(auto-fit,minmax');
     expect(organizationGridSource).not.toContain('onMouseMove={handleRelationCardMouseMove}');
@@ -1261,7 +1258,7 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).not.toContain('pointer-events-none absolute inset-0 rounded-[inherit]');
     expect(sharedCardSource).not.toContain('inset-0 rounded-2xl');
     expect(sharedCardSource).not.toContain('inset-px rounded-[15px]');
-    expect(sharedCardSource).toContain('data-glass-edge-mask');
+    expect(sharedCardSource).not.toContain('data-glass-edge-mask');
     expect(sharedCardSource).toContain('group relative isolate overflow-hidden flex flex-col items-start text-left');
     expect(sharedCardSource).toContain('${relationCategoryCardClass} transition-colors duration-200');
     expect(sharedCardSource).toContain('-ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center');
@@ -1305,10 +1302,12 @@ describe('RelationsManager title system', () => {
     expect(tableSource).toContain('BAMBOOK_OS.layout.relationsTableHeaderCellClass');
     expect(tableSource).toContain('scrollClassName="overflow-x-auto overscroll-contain"');
     expect(tableSource).toContain('className={BAMBOOK_OS.layout.relationsTableBodyClass}');
-    expect(tableSource).toContain('<CompiledMotionInteractiveCard');
+    // 表格行液态蓝光同卡片一并移除（历史遗留体系）；data-glass-edge-mask 保留供
+    // table 模式 useGlassSurfaceEdgeMasks 逐行 mask 消费
+    expect(tableSource).toContain('<motion.div');
     expect(tableSource).toContain('data-glass-edge-mask');
-    expect(tableSource).toContain('spotlightColor={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR}');
-    expect(tableSource).toContain('liquidSpotlight');
+    expect(tableSource).not.toContain('spotlightColor');
+    expect(tableSource).not.toContain('liquidSpotlight');
     expect(tableSource).not.toContain('min-w-[1080px]');
     expect(tableSource).toContain('<colgroup>');
     expect(tableSource).toContain('BAMBOOK_OS.layout.relationsTableHeaders.map');

@@ -119,7 +119,8 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_CATEGORY_CARD_GRID_CLASS).toContain('repeat(auto-fill,316px)');
     expect(PRODUCT_CARD_GRID_CLASS).toContain('repeat(auto-fill,300px)');
     expect(PRODUCT_CARD_CLASS).toContain('rounded-card-lg');
-    expect(PRODUCT_CARD_SURFACE_CLASS).toBe('bds-surface');
+    expect(PRODUCT_CARD_CLASS).toContain('h-[220px]');
+    expect(PRODUCT_CARD_SURFACE_CLASS).toBe(`bds-surface ${BAMBOOK_OS.controls.listRow.hover}`);
     expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain('bambook-outer-panel');
     expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain(OS_MATERIAL.raisedCard);
     expect(PRODUCT_CARD_SURFACE_CLASS).not.toContain('bambook-panel-glass');
@@ -129,8 +130,9 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(PRODUCT_CARD_LAYOUT_TRANSITION).toBe(BAMBOOK_OS.motion.layoutTransition);
     expect(PRODUCT_CARD_SPOTLIGHT_DARK_COLOR).toBe(BAMBOOK_OS.spotlight.cardDarkColor);
     expect(PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR).toBe(BAMBOOK_OS.spotlight.cardLightColor);
-    expect(productsSource).toContain('<CompiledMotionInteractiveCard');
-    expect(productsSource).toContain('CompiledMotionInteractiveCard');
+    // 卡片已脱离 SpotlightCard 体系：分类/档案卡片改用 motion.button，不再挂液态蓝光
+    expect(productsSource).toContain('<CompiledInteractiveCard');
+    expect(productsSource).not.toContain('<CompiledMotionInteractiveCard');
     expect(productsSource).toContain('const productGlassPanelClass = `${OS_MATERIAL.framePanel} bambook-panel-glass bambook-outer-panel`;');
     expect(productsSource).toContain('const productFloatingPanelClass = `${OS_MATERIAL.floatingOverlay} bambook-panel-glass`;');
     expect(productsSource).not.toContain("isDarkMode ? 'bambook-blue-white-surface bg-white/[0.015]' : 'bambook-blue-white-surface bg-white/20'");
@@ -138,6 +140,39 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).not.toContain('rounded-[32px]');
     expect(PRODUCT_CARD_CLASS).not.toContain('backdrop-blur-[14px]');
     expect(productsSource).not.toContain('shadow-2xl backdrop-blur');
+  });
+
+  it('aligns archive card visual language with the relations category card design', () => {
+    // 卡片真源对齐关系智库 renderRelationCard：
+    // ① 图标灰阶（text-secondary → hover text-primary，strokeWidth 1），禁品牌蓝
+    // ② 表面 bds-surface + 侧栏同源 hover 墨洗（触碰灰光）
+    // ③ 尺寸 p-6 h-[220px] rounded-card-lg
+    // ④ footer 语言：border-t + text-[10px] + 右侧 ArrowRight（hover 平移）
+    const mainCardStart = productsSource.indexOf("navLevel === 'main' && (");
+    const mainCardSource = productsSource.slice(
+      mainCardStart,
+      productsSource.indexOf("navLevel === 'sub' && (", mainCardStart)
+    );
+    const recordCardStart = productsSource.indexOf('scrollRef={productGridScrollRef}');
+    const recordCardSource = productsSource.slice(
+      recordCardStart,
+      productsSource.indexOf('CompiledTableShell', recordCardStart)
+    );
+
+    expect(mainCardSource).toContain("'p-6 h-[220px] rounded-card-lg'");
+    expect(mainCardSource).toContain('text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]');
+    expect(mainCardSource).toContain('<cat.icon size={24} strokeWidth={1} />');
+    expect(mainCardSource).not.toContain('text-[var(--os-vnext-brand-blue)]');
+    expect(mainCardSource).not.toContain('text-[var(--os-vnext-brand-blue-strong)]');
+    expect(mainCardSource).toContain('<ArrowRight size={14} strokeWidth={1.5}');
+    expect(mainCardSource).toContain('group-hover:translate-x-1 text-[var(--text-quaternary)]');
+    expect(mainCardSource).toContain('text-[10px] font-light tracking-wide');
+
+    expect(recordCardSource).toContain('p-6 h-[220px] rounded-card-lg');
+    expect(recordCardSource).toContain('text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]');
+    expect(recordCardSource).toContain('<Library size={24} strokeWidth={1} />');
+    expect(recordCardSource).not.toContain('text-[var(--os-vnext-brand-blue)]');
+    expect(recordCardSource).toContain('text-[10px] font-light');
   });
 
   it('routes form fields, labels, inline panels, and tables through semantic tokens', () => {
@@ -230,7 +265,11 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(mainViewSource).toContain('ref={mainCategoryMaskRef}');
     expect(mainViewSource).toContain('topFadeStartOffset={isMobile ? 0 : PRODUCT_CARD_GRID_EDGE_FADE_TOP_OFFSET}');
     expect(mainViewSource).toContain('ref={mainCategoryScrollRef}');
-    expect(mainViewSource).toContain('data-glass-edge-mask');
+    // 分类卡片已脱离 SpotlightCard 体系（motion.button，无液态蓝光、无逐卡 mask 属性）
+    expect(mainViewSource).toContain('<motion.button');
+    expect(mainViewSource).not.toContain('spotlightColor');
+    expect(mainViewSource).not.toContain('liquidSpotlight');
+    expect(mainViewSource).not.toContain('data-glass-edge-mask');
     expect(productsSource).toContain('scrollRef={productGridScrollRef}');
     expect(productsSource).toContain('maskRef={productGridMaskRef}');
     // 卡片/行全面禁用 framer layout 动画与 hover 位移——毛玻璃 + transform 会触发

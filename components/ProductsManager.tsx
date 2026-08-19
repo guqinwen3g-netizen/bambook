@@ -17,7 +17,7 @@ import {
   Layers, Watch, Scissors, Gift, Box, Edit2, Trash2,
   DollarSign, FileText, Tag, Sparkles, Library,
   CheckCircle2, AlertTriangle, Archive, RefreshCw, Image as ImageIcon, Clock, ArrowDownAZ,
-  BookOpenText, Columns3, Database, SlidersHorizontal, Tags,
+  BookOpenText, Columns3, Database, SlidersHorizontal, Tags, ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -53,7 +53,6 @@ import {
   CompiledInteractiveCard,
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
-  CompiledMotionInteractiveCard,
   CompiledModuleTitleBar,
   CompiledSelectControl,
   CompiledSplitMainPanel,
@@ -276,8 +275,9 @@ export const PRODUCT_TITLE_ACTION_BUTTON_CLASS = COMPILED_MODULE_TITLE_ACTION_BU
 export const PRODUCT_TITLE_BUTTON_CLASS = BAMBOOK_OS.controls.actionControl.base;
 export const PRODUCT_CATEGORY_CARD_GRID_CLASS = COMPILED_COLLECTION_CATEGORY_CARD_GRID_CLASS;
 export const PRODUCT_CARD_GRID_CLASS = COMPILED_COLLECTION_RECORD_CARD_GRID_CLASS;
-export const PRODUCT_CARD_CLASS = 'p-6 h-56 rounded-card-lg';
-export const PRODUCT_CARD_SURFACE_CLASS = 'bds-surface';
+export const PRODUCT_CARD_CLASS = 'p-6 h-[220px] rounded-card-lg';
+// 卡片表面与关系智库卡片真源对齐：bds-surface + 侧栏同源 hover 墨洗（触碰灰光）
+export const PRODUCT_CARD_SURFACE_CLASS = `bds-surface ${SIDEBAR_HOVER_CLASS}`;
 export const PRODUCT_CARD_SPOTLIGHT_DARK_COLOR = BAMBOOK_OS.spotlight.cardDarkColor;
 export const PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR = BAMBOOK_OS.spotlight.cardLightColor;
 export const PRODUCT_CARD_SPOTLIGHT_DARK_SIZE = BAMBOOK_OS.spotlight.panelDarkSize;
@@ -2862,24 +2862,20 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
             ref={mainCategoryScrollRef}
           >
             {mainCategories.map((cat, idx) => (
-              <CompiledMotionInteractiveCard
-                as="button"
+              // 液态蓝光已移除（与关系智库卡片同源决策）：蓝 tint 主光斑 + 蓝边缘光为
+              // 历史遗留体系，panel 级光斑尺寸远超卡片，侧栏收起后整卡泛蓝；
+              // hover 由 productCardClass（bds-surface + 墨洗）承担。
+              <motion.button
                 type="button"
                 key={cat.id}
                 onClick={() => { setSelectedMain(cat.id); setNavLevel('sub'); }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.18, delay: idx * 0.04 }}
-                spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                spotlightSize={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_SIZE : PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE}
-                idleSpotlightOpacity={0}
-                liquidSpotlight
-                liquidSpotlightTone="light"
-                className={`group relative isolate overflow-hidden ${isMobile ? 'p-4 h-[190px] rounded-inset' : 'p-6 h-56 rounded-card-lg'} flex flex-col items-start text-left transition-colors duration-200 ${productCardClass}`}
-                data-glass-edge-mask
+                className={`group relative isolate overflow-hidden ${isMobile ? 'p-4 h-[190px] rounded-inset' : 'p-6 h-[220px] rounded-card-lg'} flex flex-col items-start text-left transition-colors duration-200 ${productCardClass}`}
               >
-                <div className={`relative z-10 -ml-1 -mt-1 ${isMobile ? 'mb-3 flex h-9 w-9' : 'mb-4 flex h-10 w-10'} items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
-                  <cat.icon size={24} strokeWidth={1.5} />
+                <div className={`relative z-10 -ml-1 -mt-1 ${isMobile ? 'mb-3 flex h-9 w-9' : 'mb-4 flex h-10 w-10'} items-center justify-center transition-colors duration-300 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]`}>
+                  <cat.icon size={24} strokeWidth={1} />
                 </div>
 
                 <h3 className={`relative z-10 ${isMobile ? 'text-sm' : 'text-base'} font-light tracking-tight text-[var(--text-primary)]`}>
@@ -2889,13 +2885,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   {cat.desc}
                 </p>
 
-                <div className={`relative z-10 mt-auto flex items-center gap-2 pt-4 border-t w-full border-[var(--border-c-subtle)]`}>
-                  <span className={`text-[9px] font-light tracking-wide flex items-center gap-1.5 text-[var(--text-tertiary)]`}>
-                    <Library size={14} strokeWidth={1.5} className="text-[var(--os-vnext-brand-blue-strong)]" />
+                <div className={`relative z-10 mt-auto pt-4 border-t w-full flex justify-between items-center border-[var(--border-c-subtle)]`}>
+                  <span className={`text-[10px] font-light tracking-wide flex items-center gap-1.5 text-[var(--text-tertiary)]`}>
+                    <Library size={14} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
                     {products.filter(p => p.mainCategory === cat.id && !p.deletedAt).length} SKU 档案
                   </span>
+                  <ArrowRight size={14} strokeWidth={1.5} className={`transition-transform duration-300 group-hover:translate-x-1 text-[var(--text-quaternary)]`} />
                 </div>
-              </CompiledMotionInteractiveCard>
+              </motion.button>
             ))}
           </CompiledCollectionCardGrid>
           </div>
@@ -2940,8 +2937,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                   ? Math.round((group.count / selectedMainProducts.length) * 100)
                   : 0;
                 return (
-                  <CompiledMotionInteractiveCard
-                    as="div"
+                  // 液态蓝光移除（历史遗留体系）；hover 由 hover:bg-[var(--hover-darken)] 墨洗承担。
+                  // data-glass-edge-mask 保留——sub 视图 useCompiledGlassSurfaceEdgeMasks 逐行 mask 消费该属性。
+                  <motion.div
                     role="button"
                     tabIndex={0}
                     key={`${classificationView}-${group.id}`}
@@ -2955,11 +2953,6 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.18, delay: idx * 0.03 }}
-                    spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                    spotlightSize={isDarkMode ? 360 : 280}
-                    idleSpotlightOpacity={0}
-                    liquidSpotlight
-                    liquidSpotlightTone="light"
                     className={`group relative isolate cursor-pointer overflow-hidden ${PRODUCT_SUB_INDEX_ROW_CLASS} px-4 py-0 text-left transition-[background,box-shadow,color,transform] duration-200 border-[var(--border-c-subtle)] hover:bg-[var(--hover-darken)]`}
                     data-glass-edge-mask
                   >
@@ -3022,7 +3015,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         <ChevronRight size={16} strokeWidth={1.5} className="text-[var(--text-tertiary)]" />
                       </div>
                     </div>
-                  </CompiledMotionInteractiveCard>
+                  </motion.div>
                 );
               })}
           </CompiledTableShell>
@@ -3135,8 +3128,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               >
                 <AnimatePresence>
                   {currentProducts.map((product, idx) => (
-                    <CompiledMotionInteractiveCard
-                      as="button"
+                    <motion.button
                       type="button"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -3144,17 +3136,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       transition={{ duration: 0.18, delay: idx * 0.02 }}
                       key={product.id}
                       onClick={() => { setSelectedProduct(product); setNavLevel('detail'); }}
-                      spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                      spotlightSize={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_SIZE : PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE}
-                      idleSpotlightOpacity={0}
-                      liquidSpotlight
-                      liquidSpotlightTone="light"
-                      className={`group relative isolate overflow-hidden p-6 h-56 rounded-card-lg text-left transition-colors duration-200 ${productCardClass}`}
-                      data-glass-edge-mask
+                      className={`group relative isolate overflow-hidden p-6 h-[220px] rounded-card-lg text-left transition-colors duration-200 ${productCardClass}`}
                     >
                       <div className="relative z-10 flex justify-between items-start mb-3">
-                        <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 text-[var(--os-vnext-brand-blue)] group-hover:text-[var(--text-primary)]`}>
-                          <Library size={24} strokeWidth={1.5} />
+                        <div className={`-ml-1 -mt-1 flex h-10 w-10 items-center justify-center transition-colors duration-300 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]`}>
+                          <Library size={24} strokeWidth={1} />
                         </div>
                         <span className={`px-2.5 py-1 rounded-full border text-[9px] font-light tracking-wide ${productStatusChipClass(productCompleteness(product).complete)}`}>
                           {productCompleteness(product).complete ? '完整' : `待补 ${productCompleteness(product).missing.length}`}
@@ -3180,14 +3166,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                       </div>
 
                       <div className={`relative z-10 mt-auto pt-3 border-t flex items-center justify-between gap-3 border-[var(--border-c-subtle)]`}>
-                        <span className={`min-w-0 truncate text-[9px] font-light ${productMutedTextClass}`}>
-	                          {productCustomerText(product)}
+                        <span className={`min-w-0 truncate text-[10px] font-light ${productMutedTextClass}`}>
+                          {productCustomerText(product)}
                         </span>
-                        <span className={`shrink-0 text-[9px] font-light text-[var(--text-tertiary)]`}>
-	                          {productFactoryPriceText(product)}
+                        <span className={`shrink-0 text-[10px] font-light text-[var(--text-tertiary)]`}>
+                          {productFactoryPriceText(product)}
                         </span>
                       </div>
-                    </CompiledMotionInteractiveCard>
+                    </motion.button>
                   ))}
                 </AnimatePresence>
                 {currentProducts.length === 0 && (
@@ -3224,20 +3210,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               >
                     <div className={`flex flex-col min-w-[62.5rem] text-left text-xs divide-y divide-[var(--border-c-subtle)]`}>
                       {currentProducts.map((product, idx) => (
-                        <CompiledMotionInteractiveCard
-                          as="div"
+                        // 液态蓝光同卡片一并移除（历史遗留体系）；hover 由 productTableRowHoverClass 墨洗承担
+                        <motion.div
                           key={product.id}
                           onClick={() => { setSelectedProduct(product); setNavLevel('detail'); }}
-                          spotlightColor={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_COLOR : PRODUCT_CARD_SPOTLIGHT_LIGHT_COLOR}
-                          spotlightSize={isDarkMode ? PRODUCT_CARD_SPOTLIGHT_DARK_SIZE : PRODUCT_CARD_SPOTLIGHT_LIGHT_SIZE}
-                          idleSpotlightOpacity={0}
-                          liquidSpotlight
-                          liquidSpotlightTone="light"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ duration: 0.18, delay: idx * 0.02 }}
                           className={`flex w-full relative isolate overflow-hidden cursor-pointer transition-[background,box-shadow,color,transform] duration-200 ${productTableRowHoverClass}`}
-                          data-glass-edge-mask
                         >
                           {productTableColumns.map(column => (
                             <div key={column.id} className={`${column.widthClass} relative z-10 flex flex-col justify-center`}>
@@ -3264,7 +3244,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                               </button>
                             </div>
                           </div>
-                        </CompiledMotionInteractiveCard>
+                        </motion.div>
                       ))}
                     </div>
               </CompiledTableShell>

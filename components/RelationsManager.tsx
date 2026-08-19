@@ -26,7 +26,7 @@ import { SpotlightCard } from './ui/SpotlightCard';
 import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
-import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
+import { CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
 import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { PageHeader } from './ui/PageHeader';
@@ -986,25 +986,21 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     footerLabel: React.ReactNode;
     onClick: () => void;
   }) => (
-    <CompiledMotionInteractiveCard
-      as="button"
+    // 液态 spotlight 已移除——蓝 tint 主光斑 + 蓝边缘光是历史遗留体系，且 panel 级
+    // 光斑尺寸（460/520px）远超卡片本身，侧栏收起主面板加宽后整卡泛蓝。
+    // BDS 正确的 hover 高光由 RELATIONS_CATEGORY_CARD_CLASS（bds-surface + 墨洗）承担。
+    <motion.button
       type="button"
       key={cardKey}
       onClick={onClick}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.18, delay: index * 0.04 }}
-      spotlightColor={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR}
-      spotlightSize={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE}
-      idleSpotlightOpacity={0}
-      liquidSpotlight
-      liquidSpotlightTone="light"
       className={`
         group relative isolate overflow-hidden flex flex-col items-start text-left
         ${relationCategoryCardClass} transition-colors duration-200
         ${RELATIONS_CATEGORY_CARD_CLASS}
       `}
-      data-glass-edge-mask
     >
       <div className={`
         relative z-10 -ml-1 -mt-1 ${relationCategoryIconClass} items-center justify-center
@@ -1027,7 +1023,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         </span>
         <ArrowRight size={14} strokeWidth={1.5} className={`transition-transform duration-300 group-hover:translate-x-1 text-[var(--text-quaternary)]`} />
       </div>
-    </CompiledMotionInteractiveCard>
+    </motion.button>
   );
 
   return (
@@ -1307,8 +1303,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
               >
                 <div className={BAMBOOK_OS.layout.relationsTableBodyClass}>
                     {currentOrganizations.map((org, idx) => (
-                      <CompiledMotionInteractiveCard
-                        as="div"
+                      // 液态蓝光同卡片一并移除（历史遗留体系）；hover 由 relationTableRowHoverClass 墨洗承担。
+                      // data-glass-edge-mask 保留——table 模式 useGlassSurfaceEdgeMasks 逐行 mask 消费该属性。
+                      <motion.div
                         role="button"
                         tabIndex={0}
                         key={org.id}
@@ -1321,11 +1318,6 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                           setNavLevel('detail');
                           setSearchTerm('');
                         }}
-                        spotlightColor={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR}
-                        spotlightSize={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE}
-                        idleSpotlightOpacity={0}
-                        liquidSpotlight
-                        liquidSpotlightTone="light"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.18, delay: idx * 0.03 }}
@@ -1363,7 +1355,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                             <Edit2 size={13} />
                           </button>
                         </div>
-                      </CompiledMotionInteractiveCard>
+                      </motion.div>
                     ))}
                   </div>
                 </CompiledTableShell>

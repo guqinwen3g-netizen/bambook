@@ -457,7 +457,9 @@ layout_guard "L2 间距刻度越界" 6 "$l2_count" "间距只取刻度 4/8/12/16
 # 豁免：模态 max-h-[85vh/88vh]、Agent 滚动区 max-h-[Npx]、图片预览 max-h-[90vh]（均为 max-h，本正则不含）
 l3_count=$(rg -o '(h|min-h|w|min-w)-\[[0-9]+px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 # 2026-08-19 批次 3c 批 I 收敛 59→57：GarmentOrders.tsx 死代码删除（含 2 处 h-[Npx]）
-layout_guard "L3 硬编码尺寸" 57 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
+# 2026-08-20 数字档案卡片对齐关系智库 220px 卡片规格（用户验收口径：两页卡片完全一致）：57→60
+#   新增 3 处 h-[220px]：PRODUCT_CARD_CLASS 常量 + 主分类卡 + 档案卡（RelationsManager 同规格 1 处原在基线内）
+layout_guard "L3 硬编码尺寸" 60 "$l3_count" "卡片/图表/缩略图统一 .bds-well/.bds-thumb/尺寸族，禁 h-[Npx]/w-[Npx] 手写"
 
 # L5 表格密度：行高 40-99px 硬编码 → .bds-table 密度修饰符（compact 40 / standard 48 / cozy 56）
 l5_count=$(rg -o 'h-\[[4-9][0-9]px\]' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
@@ -468,7 +470,8 @@ l6_size=$(rg -o --no-filename 'size=\{[0-9]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[
 l6_stroke=$(rg -o --no-filename 'strokeWidth=\{[0-9.]+\}' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | rg -o '[0-9.]+' | rg -v '^(1\.75|2|1\.5|1\.25)$' | wc -l | tr -d ' ')
 # 2026-08-19 批次 3c 批 I 收敛 72→65：GarmentOrders.tsx 死代码删除（含 7 处非刻度 size）
 layout_guard "L6 icon size 非刻度" 65 "$l6_size" "icon size 只取 14/16/18/20/24（--icon-xs/sm/md/lg/xl）"
-layout_guard "L6 icon strokeWidth 自由数值" 14 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
+# 2026-08-20 数字档案卡片图标对齐关系智库细线规格（strokeWidth={1}，用户验收口径）：14→16，新增 2 处
+layout_guard "L6 icon strokeWidth 自由数值" 16 "$l6_stroke" "strokeWidth 走 --icon-w-* 档：≤18px 默认 1.75 / ≥20px 默认 2 / 细 1.5 / 极细 1.25，禁自由数值"
 
 # L7 错误态：raw 错误色 → .bds-error-banner（--danger-tint/--danger-text）
 l7_count=$(rg -o 'text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
