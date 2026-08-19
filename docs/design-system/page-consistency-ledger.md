@@ -21,38 +21,40 @@
 
 ## §1 台账正文（30 行，按导航分组排序；★ = P2 首批四页）
 
+> **2026-08-19 批次 3 校准**：①渲染文件列——4 页 compiled 双路径已收敛删除，全部指向 moduleRegistry entry 实际渲染源；②表单控件列——批次 3a 后 M4 守卫全局 date=0、select 真实非合规=0（bds-select/CapsuleDateInput 全合规），历史 select×N/date×N 计数全部转 ✅；③弹窗列——批次 3b 全站 ~211 处 alert/confirm 迁移 bdsToast/bdsConfirm（M6 守卫锁定=0），历史 alert×N 全部转 ✅；④M1（EmailManager PageHeader）/M3（FinanceManager filterbar 撑高）均已修复。验收状态列仍全 ⬜，待 3d 逐页深浅双主题截图走查 + 产品负责人签字。
+
 | 页面 | 渲染文件 | 标题区 | 筛选区 | 操作区 | 表单控件 | 内容区 | dark:残留 | raw色残留 | 弹窗 | 问题记录 | 验收状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 全景看板 | components/ui/osCompiler/compiledDashboardTemplates.tsx | ⚠️ 无 PageHeader（定制全景头部，豁免与否待总控校准） | — | ✅ | ✅ | compiled 模板 | 0 | 0 | 0 | compiled 双路径；手写主按钮余量 5 处装饰性 accent 填充**已收编（W4 · d808a3b）**：bg-[var(--os-vnext-brand-blue)] → bg-[var(--accent)] 主题自适应（装饰下划杠×2/进度条 fill×2/指示圆点×1），手写主按钮基线 22→17；Dashboard.tsx 非渲染路径 5 处遗留（W5/逐页主刀） | ⬜ |
-| 经营驾驶舱 | components/CockpitManager.tsx | ✅ | 组合 bar×1 | ✅ | date×2 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
-| 报表中心 | components/ReportCenter.tsx | ✅ | ⚠️ 待走查 | ⚠️ 手写主按钮×4（批E 余量） | select×8 | ⚠️ 待走查 | 0 | 0 | alert×1 | — | ⬜ |
-| 关系智库 ★ | components/ui/osCompiler/compiledRelationsTemplates.tsx | ✅ | ✅ 已主刀（P2 · e5c77a5） | ✅ | ✅（date×1→CapsuleDateInput） | compiled 模板 | 0 | 0 | 0 | **点名④ 已修复**：搜索 icon 内置 leading icon（span 外挂 → left-3 top-1/2 + pl-9，spec §2.3）；toolbar 全条 h-9→h-10 对齐 34/40 刻度（bar 体 !h-10 覆盖共享 recipe）；font-normal→font-light；对齐开发/货运/财务管理基准范式。**遗留 W4 已销**：排序 CompiledSelectControl compact 触发器刻度专项（240ea81）——共享 CustomSelect compact h-9(36px) → h-[var(--h-input-sm)]=34px BDS 规格刻度，Relations/Products 全部 6 处消费点一次性受益（34px = 双上下文安全交集：40px 工具条内符合 filterbar 官方范式，36px 共享 recipe 工具条内 2px 差视觉连续）；default size（form 场景 h-9）遗留逐页主刀表单区 | ⬜ |
-| 客户关系管理 | components/CrmManager.tsx | ✅ | 组合 bar×1 | ✅ | select×10 + date×7 | ⚠️ 待走查 | 0 | 0 | alert×15 | — | ⬜ |
-| 供应商管理 | components/SuppliersManager.tsx | ✅ | ⚠️ 待走查 | ✅ | select×7 + date×4 | ⚠️ 待走查 | 0 | 0 | alert×19 | — | ⬜ |
-| 智能邮箱 | components/EmailManager.tsx | ❌ 缺 PageHeader（M1） | ⚠️ 待走查 | ✅ | ✅ | ⚠️ 待走查 | 0 | 2（豁免域） | alert×2 | M1：缺 PageHeader/bds-pagehead；颜色 token 属邮件模板豁免域，骨架不豁免；子组件 email/SignatureManager.tsx 同缺 PageHeader（M1 基线 3 之二） | ⬜ |
-| 季节性与趋势 | components/SeasonsManager.tsx | ✅ | 组合 bar×1 | ✅ | select×12 + date×7 | ⚠️ 待走查 | 0 | 0 | alert×23 | — | ⬜ |
-| 营销推广 | components/MarketingManager.tsx | ✅ | ⚠️ 待走查 | ✅ | select×3 | ⚠️ 待走查 | 0 | 0 | alert×9 | — | ⬜ |
-| 数字档案 | components/ui/osCompiler/compiledProductsTemplates.tsx | ✅ | — | ⚠️ 手写主按钮×2（批E 余量） | ✅ | compiled 模板 | 0 | 0 | alert×2 | compiled 双路径 | ⬜ |
-| 开发管理 | components/DevelopmentManager.tsx | ✅ | 组合 bar×1（基准范式页） | ✅ | select×4 + date×1 | ⚠️ 待走查 | 0 | 0 | alert×7 | **filterbar 选型基准实现之一**（spec 附录 A） | ⬜ |
-| 报价管理 ★ | components/QuotationManager.tsx | ✅ | ✅ 已主刀（P2 · 088cd10） | ✅ | ✅（select×3 前置修正 + date×2→CapsuleDateInput） | ⚠️ 待走查 | 0 | 0 | 0 | **点名③ 已修复**：状态 segment 并入搜索行单条 filterbar（评估结论：搜索+segment 共行 = 组合嵌套 bar 合法形态，spec §2.1 决策树第二支）；报价日期/有效期至迁 CapsuleDateInput；客户/行单位/币种 select className 前置（断言口径修正） | ⬜ |
-| 订单管理 ★ | components/OrderManager.tsx | ✅ | ✅ 已主刀（P2 · cd54d96） | ✅（M5 清零 4→0） | ✅（select×1 前置修正） | ⚠️ 待走查 | 0 | 0 | alert×10（W4 收敛） | **点名② 已修复**：类型 tab 并入 filterbar 单行（搜索+segment+状态 select+视图 toggle 共行），消除 PageHeader center 槽双行叠加（spec §1 center 槽禁令 + §2.2 单行）；**点名⑤ 已修复**：视图 toggle bds-btn-dark×4 → bds-toggle active 冷墨洗（accent-tint + accent-text，spec §3.2）。**bar 三区同槽追加修复（ac39d30）**：bar 包裹层 px-4 pt-2 → px-7 pt-2 pb-4（原 px-4 与 PageHeader --p-pagehead/表格区 px-7 内容栅格错位，左右各突出 12px 且底部零间距；对齐 DevelopmentManager gap-3 / QuotationManager mb-4 基准范式）；ProductionAlerts 预警横幅全宽出血同族修复（包 shrink-0 px-7 同槽）。遗留 W4：alert×10 随 W4 BdsDialog 收敛 | ⬜ |
+| 全景看板 | components/Dashboard.tsx | ⚠️ 无 PageHeader（定制全景头部，豁免与否待总控校准） | — | ✅ | ✅ | ⚠️ 待走查 | 0 | 0 | 0 | 2026-08-19 校准：compiledDashboardTemplates 双路径已删除，渲染源=Dashboard.tsx；装饰性 accent 填充已收编（W4 · d808a3b，手写主按钮基线 22→17）；Dashboard.tsx 本体 5 处手写主按钮余量现为**真实渲染路径**（原"非渲染路径遗留"口径作废），待 3d 走查判定 | ⬜ |
+| 经营驾驶舱 | components/CockpitManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（date×2→CapsuleDateInput，2026-08-18 P2-W4） | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
+| 报表中心 | components/ReportCenter.tsx | ✅ | ⚠️ 待走查 | ⚠️ 手写主按钮×4（批E 余量） | ✅（select×8 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×1→bdsConfirm，批次 3b） | — | ⬜ |
+| 关系智库 ★ | components/RelationsManager.tsx | ✅ | ✅ 已主刀（P2 · e5c77a5） | ✅ | ✅ | ⚠️ 待走查 | 0 | 0 | 0 | 2026-08-19 校准：compiledRelationsTemplates 双路径已删除，渲染源=RelationsManager.tsx。**点名④ 已修复**：搜索 icon 内置 leading icon（spec §2.3）；toolbar h-10 刻度对齐；font-light。排序 compact 触发器 34px 刻度专项已销（240ea81） | ⬜ |
+| 客户关系管理 | components/CrmManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（select×10 已 bds-select + date 已 CapsuleDateInput） | ⚠️ 待走查 | 0 | 0 | ✅（alert×15→bdsToast/bdsConfirm，批次 3b） | — | ⬜ |
+| 供应商管理 | components/SuppliersManager.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×7 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×19→bdsToast/bdsConfirm，批次 3b） | — | ⬜ |
+| 智能邮箱 | components/EmailManager.tsx | ✅（PageHeader 已补，M1 清零） | ⚠️ 待走查 | ✅ | ✅ | ⚠️ 待走查 | 0 | 2（豁免域） | ✅（confirm×2→bdsConfirm，批次 3b） | 颜色 token 属邮件模板豁免域，骨架不豁免；子组件 email/SignatureManager.tsx PageHeader 已补（M1 基线 3→0） | ⬜ |
+| 季节性与趋势 | components/SeasonsManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（select×12 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×23→bdsToast/bdsConfirm，批次 3b） | — | ⬜ |
+| 营销推广 | components/MarketingManager.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×3 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×9→bdsToast/bdsConfirm，批次 3b） | — | ⬜ |
+| 数字档案 | components/ProductsManager.tsx | ✅ | — | ⚠️ 手写主按钮×2（批E 余量） | ✅ | ⚠️ 待走查 | 0 | 0 | ✅（alert×2→bdsToast.warning，批次 3b） | 2026-08-19 校准：compiledProductsTemplates 双路径已删除，渲染源=ProductsManager.tsx | ⬜ |
+| 开发管理 | components/DevelopmentManager.tsx | ✅ | 组合 bar×1（基准范式页） | ✅ | ✅（select×6 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×7→bdsToast/bdsConfirm，批次 3b） | **filterbar 选型基准实现之一**（spec 附录 A） | ⬜ |
+| 报价管理 ★ | components/QuotationManager.tsx | ✅ | ✅ 已主刀（P2 · 088cd10） | ✅ | ✅（select×3 + date×2 已 BDS 化） | ⚠️ 待走查 | 0 | 0 | 0 | **点名③ 已修复**：状态 segment 并入搜索行单条 filterbar（spec §2.1 决策树第二支）；报价日期/有效期至迁 CapsuleDateInput | ⬜ |
+| 订单管理 ★ | components/OrderManager.tsx | ✅ | ✅ 已主刀（P2 · cd54d96） | ✅（M5 清零 4→0） | ✅（select 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×10→bdsToast/bdsConfirm，批次 3b） | **点名②⑤ 已修复**：类型 tab 并入 filterbar 单行；视图 toggle 冷墨洗。bar 三区同槽已修（ac39d30）。alert×10 已随批次 3b 收敛 | ⬜ |
 | 生产跟单 | components/ProductionBoard.tsx | ✅ | — | ✅ | ✅ | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
-| 采购管理 | components/ProcurementManager.tsx | ✅ | 组合 bar×1 | ✅ | select×4 + date×3 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
-| 库存管理 | components/InventoryManager.tsx | ✅ | 组合 bar×1 | ✅ | select×8 + date×1 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
-| BOM 成本核算 | components/BomManager.tsx | ✅ | 组合 bar×1 | ✅ | select×4 | ⚠️ 待走查 | 0 | 0 | alert×1 | — | ⬜ |
-| QC 工作台 | components/QcWorkbenchManager.tsx | ✅ | 组合 bar×1 | ✅ | select×1 + date×3 | ⚠️ 待走查 | 0 | 0 | alert×31 | 原生 alert 存量全站最高，W4 收敛重点页 | ⬜ |
-| 货运管理 | components/ShipmentManager.tsx | ✅ | 组合 bar×1（基准范式页） | ✅ | select×2 | ⚠️ 待走查 | 0 | 0 | alert×1 | **filterbar 选型基准实现之一**（spec 附录 A） | ⬜ |
-| 外贸与报关 | components/CustomsManager.tsx | ✅ | 组合 bar×1 | ✅ | select×1 + date×6 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
-| 单据中心 ★ | components/DocumentCenter.tsx | ✅ | ✅ 已主刀（P2 · 19ed21a） | ✅ | ✅（select×4 + date×2 全清零） | ⚠️ 待走查 | 0 | 0 | ✅（alert×3→BdsDialog） | **点名① 已修复**：操作区按钮统一 bds-btn 40px（h-7/h-8/h-9 三档混用清零，spec §3.1）；filterbar 落地 bds-filterbar 基准范式；alert×3 + 删除确认迁 BdsDialog；子组件 tools/DocumentTemplateManager.tsx 补 PageHeader（M1 基线 3→2）+ 类型筛选改 bds-toggle | ⬜ |
-| 财务管理（含发票管理 tab） | components/FinanceManager.tsx | ✅ | ❌ filterbar 撑高（M3 违例） | ✅ | select×11 + date×8（入口文件口径） | ⚠️ 待走查 | 0 | 0 | alert×17 | **M3**：`FinanceManager.tsx:1935` filterbar 手写 `h-auto min-h-11` 撑高；子面板 finance/FinanceCreditPanel.tsx:367、finance/FinancePaymentRequestsPanel.tsx:422 同型违例（M3 基线 3 全在本页子树）；发票管理别名入口并入本行 | ⬜ |
-| 定价与利润 | components/PricingManager.tsx | ✅ | ⚠️ 待走查 | ✅ | select×5 + date×3 | ⚠️ 待走查 | 0 | 0 | alert×27 | — | ⬜ |
-| 风险管理与合规 | components/RisksManager.tsx | ✅ | ⚠️ 待走查 | ✅ | select×3 + date×1 | ⚠️ 待走查 | 0 | 0 | alert×20 | — | ⬜ |
-| 数据中心 | components/DataCenter.tsx | ✅ | ⚠️ 待走查 | ✅ | select×1 | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
-| 人事管理 | components/HRManager.tsx | ✅ | ⚠️ 待走查 | ✅ | select×7 + date×3 | ⚠️ 待走查 | 0 | 0 | alert×3 | — | ⬜ |
+| 采购管理 | components/ProcurementManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（select×4 已 bds-select） | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
+| 库存管理 | components/InventoryManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（select×8 已 bds-select） | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
+| BOM 成本核算 | components/BomManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（select×4 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（confirm×1→bdsConfirm，批次 3b） | — | ⬜ |
+| QC 工作台 | components/QcWorkbenchManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（select×11 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×31→bdsToast/bdsConfirm，批次 3b） | 原生 alert 存量全站最高页，批次 3b 已清零 | ⬜ |
+| 货运管理 | components/ShipmentManager.tsx | ✅ | 组合 bar×1（基准范式页） | ✅ | ✅（select×2 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（confirm×1→bdsConfirm，批次 3b） | **filterbar 选型基准实现之一**（spec 附录 A） | ⬜ |
+| 外贸与报关 | components/CustomsManager.tsx | ✅ | 组合 bar×1 | ✅ | ✅（select×6 已 bds-select） | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
+| 单据中心 ★ | components/DocumentCenter.tsx | ✅ | ✅ 已主刀（P2 · 19ed21a） | ✅ | ✅（select×4 + date×2 全 BDS 化） | ⚠️ 待走查 | 0 | 0 | ✅（alert×3→BdsDialog，P2 主刀） | **点名① 已修复**：操作区按钮统一 bds-btn 40px；filterbar 基准范式；子组件 tools/DocumentTemplateManager.tsx 已补 PageHeader + 类型筛选 bds-toggle | ⬜ |
+| 财务管理（含发票管理 tab） | components/FinanceManager.tsx | ✅ | ✅（M3 filterbar 撑高已修，2026-08-18 W1 组2） | ✅ | ✅（select×11 已 bds-select + date×8 已 CapsuleDateInput） | ⚠️ 待走查 | 0 | 0 | ✅（alert×17→bdsToast/bdsConfirm，批次 3b） | M3 三处违例（主文件:1935 + FinanceCreditPanel:367 + FinancePaymentRequestsPanel:422）已清零；「已落库但刷新失败」warning 口径见批次 3b commit | ⬜ |
+| 定价与利润 | components/PricingManager.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×5 已 bds-select，变量类名已内联字面量，批次 3a） | ⚠️ 待走查 | 0 | 0 | ✅（alert×27→bdsToast/bdsConfirm，批次 3b） | — | ⬜ |
+| 风险管理与合规 | components/RisksManager.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×7 已 bds-select） | ⚠️ 待走查 | 0 | 0 | ✅（alert×20→bdsToast/bdsConfirm，批次 3b） | — | ⬜ |
+| 数据中心 | components/DataCenter.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×1 已 bds-select） | ⚠️ 待走查 | 0 | 0 | 0 | — | ⬜ |
+| 人事管理 | components/HRManager.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×7 已 bds-select + date×3→CapsuleDateInput，批次 3a） | ⚠️ 待走查 | 0 | 0 | ✅（confirm×3→bdsConfirm danger，批次 3b） | — | ⬜ |
 | 业务工具 | components/BusinessTools.tsx | ✅ | — | ✅ | ✅ | ⚠️ 待走查 | 0 | 0 | 0 | MES 入口页（工具集形态） | ⬜ |
-| 生产执行 MES | components/MesManager.tsx | ✅ | ⚠️ 待走查 | ✅ | date×5 | ⚠️ 待走查 | 0 | 0 | 0 | 可选模块（nav.primary=false，经业务工具页进入）；评审报告 30 页口径明示含 MesManager 六 tab | ⬜ |
-| 管理后台 | components/AdminPanel.tsx | ✅ | ⚠️ 待走查 | ✅ | select×13 | ⚠️ 待走查 | 0 | 0 | alert×6 | adminOnly；原生 select 存量全站最高（13），主刀重点 | ⬜ |
-| 设置 | components/ui/osCompiler/compiledSettingsTemplates.tsx | ✅ | — | ✅ | ✅ | compiled 模板 | 0 | 0 | 0 | compiled 双路径；nav.primary=false（经账号菜单进入）；含账号设置/系统设置子视图 | ⬜ |
+| 生产执行 MES | components/MesManager.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×12 已 bds-select + date×5→CapsuleDateInput，批次 3a） | ⚠️ 待走查 | 0 | 0 | 0 | 可选模块（nav.primary=false，经业务工具页进入）；评审报告 30 页口径明示含 MesManager 六 tab | ⬜ |
+| 管理后台 | components/AdminPanel.tsx | ✅ | ⚠️ 待走查 | ✅ | ✅（select×19 全 bds-select，批次 3a 收敛 13 处存量） | ⚠️ 待走查 | 0 | 0 | ✅（alert/confirm×7→bdsToast/bdsConfirm，批次 3b；密码重置改驻留弹窗保全临时密码复制） | adminOnly；原生 select 存量全站最高页，批次 3a 已清零 | ⬜ |
+| 设置 | components/Settings.tsx | ✅ | — | ✅ | ✅ | ⚠️ 待走查 | 0 | 0 | ✅（alert×1→bdsToast.danger，批次 3b） | 2026-08-19 校准：compiledSettingsTemplates 双路径已删除，渲染源=Settings.tsx；nav.primary=false（经账号菜单进入）；含账号设置/系统设置子视图 | ⬜ |
 
 ---
 
