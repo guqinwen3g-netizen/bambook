@@ -4073,11 +4073,22 @@ async function expandRelationWithDataCenterFallback(prisma: PrismaClient, input:
  * 通过权威 Python RAG（pgvector 向量检索）查询企业知识库。
  * 收口方向：Agent 的 knowledge.search 以向量检索为主，Prisma 子串为降级补充。
  * 未配置 BAMBOOK_RAG_API_KEY 或 RAG 不可达时优雅降级（返回 ok:false），不抛错。
+ *
+ * 2026-08-19 降级显式化（批次1-1d）：degraded 区分"服务不可用"（not_configured /
+ * unreachable / http_error）与"服务正常但零命中"（empty，非降级），由 searchKnowledge
+ * 向 LLM observation 输出 notice——回答质量劣化可预期、可提示，不再静默。
  */
-async function searchRagKnowledge(query: string, limit: number): Promise<{ ok: boolean; hits: Array<Record<string, unknown>> }> {
+type RagSearchOutcome = {
+  ok: boolean;
+  hits: Array<Record<string, unknown>>;
+  degraded: boolean;
+  degradedReason?: 'not_configured' | 'unreachable' | 'http_error' | 'empty';
+};
+
+async function searchRagKnowledge(query: string, limit: number): Promise<RagSearchOutcome> {
   const apiKey = process.env.BAMBOOK_RAG_API_KEY;
   const baseUrl = (process.env.BAMBOOK_RAG_BASE_URL || 'http://127.0.0.1:8091/bambook/kb').replace(/\/$/, '');
-  if (!apiKey) return { ok: false, hits: [] };
+  if (!apiKey) return { ok: false, hits: [], degraded: true, degradedReason: 'not_configured' };
   try {
     const res = await fetch(`${baseUrl}/v1/knowledge/search`, {
       method: 'POST',
@@ -4085,7 +4096,7 @@ async function searchRagKnowledge(query: string, limit: number): Promise<{ ok: b
       body: JSON.stringify({ query, top_k: Math.max(1, Math.min(limit, 20)) }),
       signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return { ok: false, hits: [] };
+    if (!res.ok) return { ok: false, hits: [], degraded: true, degradedReason: 'http_error' };
     const data = (await res.json()) as { results?: Array<any> };
     const results = Array.isArray(data.results) ? data.results : [];
     const hits = results.map((r) => {
@@ -4101,9 +4112,10 @@ async function searchRagKnowledge(query: string, limit: number): Promise<{ ok: b
         score: typeof r.score === 'number' ? Number(r.score.toFixed(3)) : undefined,
       };
     }).filter((h: any) => (h.content || '').length > 0);
-    return { ok: hits.length > 0, hits };
+    if (hits.length === 0) return { ok: false, hits: [], degraded: false, degradedReason: 'empty' };
+    return { ok: true, hits, degraded: false };
   } catch {
-    return { ok: false, hits: [] };
+    return { ok: false, hits: [], degraded: true, degradedReason: 'unreachable' };
   }
 }
 
@@ -4206,7 +4218,21 @@ async function searchKnowledge(prisma: PrismaClient, input: Record<string, unkno
     deduped.push(item);
     if (deduped.length >= limit) break;
   }
-  return { dataSource: rag.ok ? 'bambook-rag' : 'bambook-data-center', query, count: deduped.length, items: deduped };
+  // 降级显式化：语义检索不可用时向 LLM observation 输出 notice（回答可预期、可对用户提示），
+  // 服务正常但零命中（empty）不算降级
+  return {
+    dataSource: rag.ok ? 'bambook-rag' : 'bambook-data-center',
+    query,
+    count: deduped.length,
+    items: deduped,
+    ragDegraded: rag.degraded,
+    ...(rag.degraded
+      ? {
+          ragDegradedReason: rag.degradedReason,
+          notice: `语义检索（RAG 向量）不可用（${rag.degradedReason}），已降级为关键词子串匹配，同义/模糊表述可能无法命中；基于当前结果回答时应向用户说明检索方式受限`,
+        }
+      : {}),
+  };
 }
 
 async function searchBusinessEntities(prisma: PrismaClient, input: Record<string, unknown>) {

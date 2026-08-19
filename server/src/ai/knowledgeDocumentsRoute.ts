@@ -89,6 +89,11 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
     const token = crypto.randomBytes(24).toString('hex');
     const publicUrl = buildPublicDownloadUrl(req, docId, token);
 
+    // 云侧（火山知识库）推送为非致命增强通道：未配置/失败时本地索引照常落盘，
+    // volcSync 状态显式返回（不再因云侧未配置而 502 阻断上传）
+    let volcSync: 'synced' | 'skipped_not_configured' | 'failed' = 'failed';
+    let volcRequestId: string | undefined;
+    let volcResourceId: string | undefined;
     try {
       const volc = await addVolcKnowledgeDocument({
         collectionName,
@@ -99,48 +104,52 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
         url: publicUrl,
         meta: buildMeta(req.body),
       });
-
-      const index = readIndex(storageDir);
-      const previous = index[docId];
-      if (previous?.filePath && previous.filePath !== file.path && fs.existsSync(previous.filePath)) {
-        fs.unlink(previous.filePath, () => undefined);
+      if (volc.skipped === 'not_configured') {
+        volcSync = 'skipped_not_configured';
+      } else {
+        volcSync = 'synced';
+        volcRequestId = volc.response.request_id;
+        volcResourceId = volc.response.data?.resource_id;
       }
-
-      index[docId] = {
-        docId,
-        docName,
-        docType,
-        collectionName,
-        project,
-        filePath: file.path,
-        token,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        volcRequestId: volc.request_id,
-        volcResourceId: volc.data?.resource_id,
-        createdAt: new Date().toISOString(),
-      };
-      writeIndex(storageDir, index);
-
-      return res.json({
-        ok: true,
-        docId,
-        docName,
-        docType,
-        collectionName,
-        project,
-        requestId: volc.request_id,
-        volc: volc.data,
-      });
     } catch (error: any) {
-      fs.unlink(file.path, () => undefined);
-      return res.status(502).json({
-        ok: false,
-        error: 'VOLC_KNOWLEDGE_UPLOAD_FAILED',
-        message: error?.message || 'Volc knowledge upload failed',
-      });
+      volcSync = 'failed';
+      console.warn('[KnowledgeDocuments] volc push failed (local index continues)', { docId, error: error?.message });
     }
+
+    const index = readIndex(storageDir);
+    const previous = index[docId];
+    if (previous?.filePath && previous.filePath !== file.path && fs.existsSync(previous.filePath)) {
+      fs.unlink(previous.filePath, () => undefined);
+    }
+
+    index[docId] = {
+      docId,
+      docName,
+      docType,
+      collectionName,
+      project,
+      filePath: file.path,
+      token,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      volcRequestId,
+      volcResourceId,
+      createdAt: new Date().toISOString(),
+    };
+    writeIndex(storageDir, index);
+
+    return res.json({
+      ok: true,
+      docId,
+      docName,
+      docType,
+      collectionName,
+      project,
+      volcSync,
+      requestId: volcRequestId,
+      volc: volcResourceId ? { resource_id: volcResourceId } : undefined,
+    });
   });
 
   // ─── ERP manual ingest: text → KnowledgeDocument + KnowledgeChunk (Prisma, audit) ───
