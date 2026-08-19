@@ -342,7 +342,7 @@ export function createQcService(prisma: PrismaClient) {
         throw new Error(`任务验货类型 ${assignment.inspectionType} 不支持大货报告录入（允许 midline | final）`);
       }
       if (r.result !== 'pass' && r.result !== 'fail') {
-        throw new Error('report.result 必须为 pass 或 fail');
+        throw new Error('report.result 必须是 pass 或 fail');
       }
       const reportId = assignment.inspectionType === 'final'
         ? `INR__${assignment.orderId}` // 出运门禁锚点（checkShipmentEligibility / checkGarmentShipmentEligibility 消费）
@@ -360,13 +360,15 @@ export function createQcService(prisma: PrismaClient) {
           result: r.result,
           inspectionDate: r.inspectionDate ?? new Date(ts).toISOString().slice(0, 10),
           inspectedBy: assignment.qcUserId,
-          totalUnits: r.totalUnits ?? null,
-          passedUnits: r.passedUnits ?? null,
+          // schema 契约对齐：totalUnits/passedUnits/majorDefects/minorDefects 为
+          // Int @default(0) 必填（不可 null），缺省语义为 0；lotSize/sampleSize 可空
+          totalUnits: r.totalUnits ?? 0,
+          passedUnits: r.passedUnits ?? 0,
           lotSize: r.lotSize ?? null,
           sampleSize: r.sampleSize ?? null,
           aqlLevel: r.aqlLevel ?? null,
-          majorDefects: r.majorDefects ?? null,
-          minorDefects: r.minorDefects ?? null,
+          majorDefects: r.majorDefects ?? 0,
+          minorDefects: r.minorDefects ?? 0,
           defectSummary: r.defectSummary ?? null,
           notes: r.notes ?? null,
           createdAt: BigInt(ts),

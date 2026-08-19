@@ -116,6 +116,16 @@ function makeMockPrisma() {
 
   const inspectionReport = {
     findUnique: async ({ where }: any) => inspectionReports.find(r => r.id === where.id) || null,
+    create: async ({ data }: any) => {
+      // 语义对齐 Prisma：non-nullable Int 字段显式 null → 抛错（防 schema 契约回退）
+      for (const f of ['totalUnits', 'passedUnits', 'criticalDefects', 'majorDefects', 'minorDefects']) {
+        if (f in data && data[f] === null) {
+          throw new Error(`Argument \`${f}\` must not be null.`);
+        }
+      }
+      inspectionReports.push(data);
+      return data;
+    },
   };
 
   return {
@@ -319,6 +329,52 @@ describe('P0 · QC 验货任务', () => {
     expect(cancelled.status).toBe(200);
     expect(cancelled.body.item.status).toBe('Cancelled');
     expect((await request(app).patch(`/api/v1/qc/assignments/${b.id}`).set(auth()).send({ notes: 'x' })).status).toBe(400);
+  });
+
+  it('complete 携带 report 数据 → 自动创建大货报告：final 锚定 INR__{orderId}，midline 锚定 __mid；必填 Int 缺省为 0 非 null', async () => {
+    const app = makeApp(prisma);
+
+    // final：report.result 非法 → 400
+    const a = (await createAssignment(app, { orderId: 'ORD-2', inspectionType: 'final', qcUserId: 'QC-1' })).body.item;
+    const badResult = await request(app).post(`/api/v1/qc/assignments/${a.id}/complete`).set(auth())
+      .send({ report: { result: 'conditional' } });
+    expect(badResult.status).toBe(400);
+    expect(badResult.body.error.message).toContain('result 必须是 pass 或 fail');
+
+    // final 正常路径：仅传必填 result（其余缺省）→ 报告创建 + 锚点 + 必填 Int 默认 0（非 null）
+    const completed = await request(app).post(`/api/v1/qc/assignments/${a.id}/complete`).set(auth())
+      .send({ report: { result: 'pass' } });
+    expect(completed.status).toBe(200);
+    expect(completed.body.item.reportId).toBe('INR__ORD-2');
+    const finalReport = prisma._stores.inspectionReports.find((r: any) => r.id === 'INR__ORD-2');
+    expect(finalReport).toMatchObject({
+      orderId: 'ORD-2',
+      inspectionType: 'final',
+      result: 'pass',
+      inspectedBy: 'QC-1',
+      totalUnits: 0,
+      passedUnits: 0,
+      majorDefects: 0,
+      minorDefects: 0,
+    });
+
+    // 重复报告防重：预置既有 final 报告（如直插 DB），完成新任务带 report → 400
+    seedOrder(prisma, { id: 'ORD-3' });
+    prisma._stores.inspectionReports.push({ id: 'INR__ORD-3', orderId: 'ORD-3', inspectionType: 'final' });
+    const dupAssignment = (await createAssignment(app, { orderId: 'ORD-3', inspectionType: 'final', qcUserId: 'QC-2' })).body.item;
+    const dup = await request(app).post(`/api/v1/qc/assignments/${dupAssignment.id}/complete`).set(auth())
+      .send({ report: { result: 'pass' } });
+    expect(dup.status).toBe(400);
+    expect(dup.body.error.message).toContain('验货报告已存在');
+
+    // midline：锚点 INR__{orderId}__mid，与 final 锚点不冲突
+    const m = (await createAssignment(app, { orderId: 'ORD-2', inspectionType: 'midline', qcUserId: 'QC-1' })).body.item;
+    const mid = await request(app).post(`/api/v1/qc/assignments/${m.id}/complete`).set(auth())
+      .send({ report: { result: 'fail', totalUnits: 500, passedUnits: 400, majorDefects: 3, minorDefects: 12, aqlLevel: '2.5/4.0 II' } });
+    expect(mid.status).toBe(200);
+    expect(mid.body.item.reportId).toBe('INR__ORD-2__mid');
+    const midReport = prisma._stores.inspectionReports.find((r: any) => r.id === 'INR__ORD-2__mid');
+    expect(midReport).toMatchObject({ inspectionType: 'midline', result: 'fail', totalUnits: 500, majorDefects: 3 });
   });
 
   it('改派 qcUserId 同样校验 UserAccount；列表过滤 + Order 快照 + location include', async () => {
