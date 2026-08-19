@@ -32,13 +32,22 @@ const EXCLUDED_ACTION_PREFIX = 'tool:';
 export interface ApprovalRouterOptions {
   prisma: PrismaClient;
   requireAuth: boolean;
+  /**
+   * 审批决策落库后的同步钩子（P0-003 审批→业务单据联动）。
+   * targetType=OrderChangeRequest 等业务单据在此同步自身状态；
+   * 钩子失败仅记日志（审批结果已生效，不回滚），供人工介入。
+   */
+  onDecided?: (approval: {
+    id: string; actionType: string; targetType: string; targetId: string | null;
+    status: 'approved' | 'rejected'; reviewerId: string; decisionNote?: string;
+  }) => Promise<void>;
 }
 
 const personSelect = { id: true, displayName: true, email: true } as const;
 
 export function createApprovalRouter(options: ApprovalRouterOptions): Router {
   const router = Router();
-  const { prisma, requireAuth } = options;
+  const { prisma, requireAuth, onDecided } = options;
 
   // ── 鉴权 + 角色门禁：仅 JWT 且具备审批角色 ──
   const authenticate = (req: Request, res: Response): { userId: string } | null => {
@@ -137,6 +146,26 @@ export function createApprovalRouter(options: ApprovalRouterOptions): Router {
         decision: status,
         decisionNote: note || undefined,
       });
+
+      // 审批→业务单据状态同步（P0-003）：OrderChangeRequest 等在钩子内同步
+      // 审批结果已落库生效，钩子失败仅记日志（不回滚审批），供人工介入。
+      if (onDecided) {
+        try {
+          await onDecided({
+            id: existing.id,
+            actionType: existing.actionType,
+            targetType: existing.targetType,
+            targetId: existing.targetId,
+            status,
+            reviewerId: auth.userId,
+            decisionNote: note || undefined,
+          });
+        } catch (syncErr: any) {
+          logger.error('[ApprovalRoute] onDecided 同步钩子失败（审批已生效，需人工介入）', {
+            approvalId: existing.id, targetType: existing.targetType, error: syncErr?.message,
+          });
+        }
+      }
 
       res.json({ item: updated });
     } catch (e: any) {

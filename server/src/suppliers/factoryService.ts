@@ -512,7 +512,9 @@ export function createFactoryService(prisma: PrismaClient) {
         status: { in: OCCUPYING_PO_STATUSES },
         expectedDeliveryDate: { not: null },
       },
-      select: { expectedDeliveryDate: true, lines: { where: { deletedAt: null }, select: { quantity: true } } },
+      // P0-002 修复：PurchaseLine 无 deletedAt 软删字段（随主单 onDelete: Cascade），
+      // 原 where: { deletedAt: null } 引用不存在字段导致 Prisma 校验 500（供应商 360° overview 全挂）。
+      select: { expectedDeliveryDate: true, lines: { select: { quantity: true } } },
     });
     for (const po of pos) {
       const month = String(po.expectedDeliveryDate).slice(0, 7);

@@ -84,6 +84,9 @@ import { createAuthRouter } from './auth/route';
 import { createAdminRouter } from './admin/route';
 import { createApprovalRouter } from './approvals/approvalRoute';
 import { createApprovalKernelRouter } from './approvals/approvalKernelRoute';
+import { createApprovalRoutingService } from './approvals/approvalRoutingService';
+import { createApprovalCreateService } from './approvals/approvalCreateService';
+import { createOrderChangeRequestService } from './orderChanges/orderChangeRequestService';
 import { createAuditRouter } from './audit/route';
 import { createHRRouter } from './hr/route';
 import { initializeNotificationBindings } from './notifications/eventBindings';
@@ -206,12 +209,16 @@ function splitConfigList(value: string | undefined, fallback: string[] = []): st
 }
 
 const sdkAuth = (req: Request, res: Response, next: () => void) => {
-    if (!SDK_CONFIG.requireAuth) return next();
-
-    // Priority 1: cookie JWT
+    // 身份解析无条件执行（P0-001 修复）：有凭证就解析注入 req.actor，
+    // 与鉴权开关解耦——requireAuth 只控制「无凭证是否拒绝」，不控制「是否解析」。
+    // 否则开发模式（requireAuth=false）下 req.actor 恒空，通知等要求用户身份的路由全 401。
     const actor = extractActorFromRequest(req);
     if (actor) {
         (req as any).actor = actor;
+    }
+    if (!SDK_CONFIG.requireAuth) return next();
+
+    if (actor) {
         return next();
     }
 
@@ -454,7 +461,31 @@ app.use('/api/admin', createAdminRouter({ prisma, email: emailService, requireAu
 
 // 业务审批中心（PRD 19.21）：双轨偏差等第九章业务审批的待办/已办/决策；
 // Agent 工具审批（tool:*）走 Assistant resolve，不在此暴露
-app.use('/api/v1/approvals', createApprovalRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));
+// P0-003 修复：审批决策后同步业务单据状态（OrderChangeRequest 等）
+const orderChangeApprovalSyncService = createOrderChangeRequestService({
+    prisma,
+    approvalCreateService: createApprovalCreateService({
+        prisma,
+        routingService: createApprovalRoutingService({ prisma }),
+    }),
+});
+app.use('/api/v1/approvals', createApprovalRouter({
+    prisma,
+    requireAuth: SDK_CONFIG.requireAuth,
+    onDecided: async (approval) => {
+        if (approval.targetType !== 'OrderChangeRequest') return;
+        const result = await orderChangeApprovalSyncService.syncFromApprovalDecision({
+            approvalRequestId: approval.id,
+            decision: approval.status,
+            decisionNote: approval.decisionNote,
+            actorId: approval.reviewerId,
+        });
+        if (!result.ok) {
+            // 钩子层面已约定仅记日志不回滚审批；此处抛出让 route 层统一 error log
+            throw new Error(result.error.message);
+        }
+    },
+}));
 
 // Phase 1 共享内核（DR-007）：审批委派 / BOSS 最终兜底 / 解析路径只读审计
 app.use('/api/v1/approvals-kernel', createApprovalKernelRouter({ prisma, requireAuth: SDK_CONFIG.requireAuth }));

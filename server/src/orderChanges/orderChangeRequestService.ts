@@ -604,6 +604,76 @@ export function createOrderChangeRequestService(opts: OrderChangeRequestServiceO
   }
 
   // ══════════════════════════════════════════════════════════════════
+  // syncFromApprovalDecision — 审批决策同步（P0-003 修复）
+  //   审批单 approved/rejected 后同步变更申请状态：
+  //   - approved → OrderChangeRequest.status: Pending → Approved（业务员随后 apply 生效，两段式语义保留）
+  //   - rejected → Pending → Rejected + 订单从 CancelRequested/PauseRequested 恢复申请前状态（时间线回查，同撤回路径）
+  //   幂等：仅 Pending 状态处理；找不到关联变更申请（非 OrderChangeRequest 类审批）静默返回。
+  // ══════════════════════════════════════════════════════════════════
+  async function syncFromApprovalDecision(params: {
+    approvalRequestId: string;
+    decision: 'approved' | 'rejected';
+    decisionNote?: string;
+    actorId: string;
+  }): Promise<OrderChangeResult<{ changeRequest: any; orderRestoredTo?: string | null }>> {
+    const { approvalRequestId, decision, decisionNote, actorId } = params;
+
+    const cr = await prisma.orderChangeRequest.findFirst({
+      where: { approvalRequestId, deletedAt: null },
+    });
+    if (!cr || cr.status !== 'Pending') {
+      // 非 OrderChangeRequest 类审批 / 已同步（幂等）→ 静默跳过
+      return { ok: true, data: { changeRequest: cr } };
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: cr.orderId } });
+    const schemaType: string = cr.changeTypes?.[0] ?? 'other';
+    const isPause = schemaType === 'other' && Boolean((cr as any).attachments?.pause);
+    const isCancel = schemaType === 'other' && !isPause;
+
+    // 驳回取消/暂停：恢复申请前状态（时间线回查 fromStatus，与撤回同源逻辑）
+    let restoreStatus: string | null = null;
+    if (
+      decision === 'rejected' && (isCancel || isPause) && order &&
+      (order.status === 'CancelRequested' || order.status === 'PauseRequested')
+    ) {
+      const lastTransition = await prisma.orderStatusTransition.findFirst({
+        where: { orderId: order.id, toStatus: order.status },
+        orderBy: { createdAt: 'desc' },
+      });
+      const candidate = lastTransition?.fromStatus ?? null;
+      restoreStatus = candidate && !DR010_GUARDED_STATUSES.has(candidate) && candidate !== 'Cancelled' ? candidate : 'Confirmed';
+    }
+
+    try {
+      const updated = await prisma.$transaction(async (tx: any) => {
+        const now = epochNow();
+        const next = await tx.orderChangeRequest.update({
+          where: { id: cr.id },
+          data: { status: decision === 'approved' ? 'Approved' : 'Rejected' },
+        });
+        // 驳回 → 订单恢复申请前状态（仅 cancel/pause 有状态迁移）
+        if (restoreStatus && order) {
+          await tx.order.update({ where: { id: order.id }, data: { status: restoreStatus, updatedAt: now } });
+          await writeExtensionTransition(tx, order.id, order.status, restoreStatus, actorId, `${cr.requestNumber} 审批驳回${decisionNote ? `：${decisionNote}` : ''}`);
+        }
+        await writeRouteAuditLog({
+          prisma: tx, actorId, source: 'service:order-change:approval-sync',
+          operation: 'order_change_approval_synced', targetType: 'OrderChangeRequest', targetId: cr.id,
+          before: { status: 'Pending' },
+          after: { status: decision === 'approved' ? 'Approved' : 'Rejected', orderRestoredTo: restoreStatus, decisionNote: decisionNote ?? null },
+        });
+        return next;
+      });
+      logger.info('[OrderChange] 审批决策已同步变更申请', { approvalRequestId, decision, changeRequestId: cr.id, orderRestoredTo: restoreStatus });
+      return { ok: true, data: { changeRequest: updated, orderRestoredTo: restoreStatus } };
+    } catch (e: any) {
+      logger.error('[OrderChange] 审批决策同步失败', { approvalRequestId, decision, error: e?.message });
+      return fail(ORDER_CHANGE_ERRORS.ORDER_STATUS_CONFLICT, `审批决策同步失败: ${String(e?.message ?? e)}`, 500);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
   // withdrawChangeRequest — 申请人撤回（仅 Pending，仅本人）
   // ══════════════════════════════════════════════════════════════════
   async function withdrawChangeRequest(params: { changeRequestId: string; actorId: string }): Promise<OrderChangeResult<{ changeRequest: any }>> {
@@ -788,6 +858,7 @@ export function createOrderChangeRequestService(opts: OrderChangeRequestServiceO
   return {
     createChangeRequest,
     applyChangeRequest,
+    syncFromApprovalDecision,
     withdrawChangeRequest,
     completeClosing,
     checkPauseResumeDue,
