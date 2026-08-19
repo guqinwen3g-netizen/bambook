@@ -91,10 +91,12 @@ interface DeptSeed {
 }
 const DEFAULT_DEPARTMENTS: DeptSeed[] = [
   { id: 'dept-company', name: '总公司' },
-  { id: 'dept-sales', name: '销售部', parentId: 'dept-company' },
+  { id: 'dept-sales', name: '业务部', parentId: 'dept-company' },
   { id: 'dept-finance', name: '财务部', parentId: 'dept-company' },
   { id: 'dept-admin', name: '行政人事部', parentId: 'dept-company' },
   { id: 'dept-management', name: '总经办', parentId: 'dept-company' },
+  { id: 'dept-qc', name: '质量部', parentId: 'dept-company' },
+  { id: 'dept-logistics', name: '后勤部', parentId: 'dept-company' },
 ];
 
 async function seedDepartments() {
@@ -105,7 +107,7 @@ async function seedDepartments() {
       create: { id: d.id, name: d.name, parentId: d.parentId ?? null, status: 'active' },
     });
   }
-  console.log(`[1/6] 部门：已 upsert ${DEFAULT_DEPARTMENTS.length} 个（根=总公司，下设销售/财务/行政人事/总经办）`);
+  console.log(`[1/6] 部门：已 upsert ${DEFAULT_DEPARTMENTS.length} 个（根=总公司，下设业务/财务/行政人事/总经办/质量/后勤）`);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
