@@ -14,7 +14,6 @@ import {
   RELATIONS_CARD_COLUMN_GAP,
   RELATIONS_CARD_COLUMN_WIDTH,
   RELATIONS_CARD_GRID_CLASS,
-  RELATIONS_CARD_LAYOUT_TRANSITION,
   RELATIONS_MOBILE_CATEGORY_CARD_CLASS,
   RELATIONS_MOBILE_CATEGORY_GRID_CLASS,
   RELATIONS_FORM_TITLE_BAR_CLASS,
@@ -330,8 +329,8 @@ describe('RelationsManager title system', () => {
     expect(indexCss).toContain('box-shadow: var(--bambook-selected-light-shadow) !important;');
     expect(indexCss).not.toContain('linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.10) 100%) !important');
     expect(indexCss).not.toContain('linear-gradient(135deg, rgba(125, 183, 255, 0.035) 0%, rgba(74, 144, 226, 0.012) 100%) !important');
-    expect(source).toContain('${relationCategoryGridClass} ${BAMBOOK_OS.layout.panelShadowViewportClass}');
-    expect(source).toContain('${RELATIONS_CARD_GRID_CLASS} ${BAMBOOK_OS.layout.panelShadowViewportClass}');
+    expect(source).toContain('${relationCategoryGridClass}');
+    expect(source).toContain('${RELATIONS_CARD_GRID_CLASS}');
     expect(formSource).toContain('<CompiledSurfacePanel');
     expect(RELATIONS_FORM_MAP_PANEL_CLASS).toBe('p-4 bambook-relations-form-map-panel');
     expect(RELATIONS_FORM_PANEL_CLASS).toBe('scroll-mt-28 p-5 bambook-relations-form-panel');
@@ -665,7 +664,7 @@ describe('RelationsManager title system', () => {
       source.indexOf('</form>')
     );
     expect(source).toContain("import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks'");
-    expect(source).not.toContain("import ScrollEdgeFades from './ui/ScrollEdgeFades'");
+    expect(source).toContain("import ScrollEdgeFades from './ui/ScrollEdgeFades'");
     expect(formSource).not.toContain('<ScrollEdgeFades');
     expect(source).not.toContain('const relationFormFadeBoundaryRef = useRef<HTMLDivElement | null>(null);');
     expect(source).toContain('scrollRef: relationFormScrollRef');
@@ -697,23 +696,20 @@ describe('RelationsManager title system', () => {
     const listStart = source.indexOf('{/* VIEW 2: ORGANIZATION LIST */}');
     const listSource = source.slice(
       listStart,
-      source.indexOf("className={relationListDisplayMode === 'grid'", listStart)
-    );
-    const listMaskHookSource = source.slice(
-      source.indexOf('scrollRef: relationListScrollRef'),
-      source.indexOf('// 打开弹窗时锁定 body 滚动')
+      source.indexOf("overflow-y-scroll ${RELATIONS_CARD_GRID_CLASS}", listStart)
     );
     const sharedCardStart = source.indexOf('const renderRelationCard = ({');
     const sharedCardSource = source.slice(sharedCardStart, source.indexOf('\n\n  return (', sharedCardStart));
 
     expect(source).toContain('const relationListScrollRef = useRef<HTMLDivElement | null>(null)');
     expect(source).toContain('const relationTableScrollRef = useRef<HTMLDivElement | null>(null)');
-    expect(listMaskHookSource).toContain('scrollRef: relationListScrollRef');
-    expect(listMaskHookSource).toContain("enabled: navLevel === 'organizations' && relationListDisplayMode === 'grid' && !showAddModal");
-    expect(listMaskHookSource).toContain('topHeight: 32');
-    expect(listMaskHookSource).toContain('topFadeStartOffset: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET');
-    expect(listMaskHookSource).toContain('bottomHeight: 48');
-    expect(source).not.toContain('<ScrollEdgeFades');
+    // 组织网格淡出已切换为 ScrollEdgeFades（容器级 mask，与侧边栏同源），不再用逐卡片 mask hook
+    expect(source).not.toContain('scrollRef: relationListScrollRef');
+    expect(listSource).toContain('<ScrollEdgeFades');
+    expect(listSource).toContain('scrollRef={relationListScrollRef}');
+    expect(listSource).toContain('topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}');
+    expect(listSource).toContain('topHeight={32}');
+    expect(listSource).toContain('bottomHeight={48}');
     expect(source).toContain('scrollRef: relationTableScrollRef');
     expect(source).toContain("enabled: navLevel === 'organizations' && relationListDisplayMode === 'table' && !showAddModal");
     expect(source).toContain('topHeight: 56');
@@ -721,6 +717,8 @@ describe('RelationsManager title system', () => {
     expect(source).toContain("bottomFadeActivation: 'zone'");
     expect(listSource).not.toContain('renderMode="overlay"');
     expect(listSource).toContain('ref={relationListScrollRef}');
+    // mask 挂在静止外壳（maskRef）而非滚动容器自身：滚动时遮罩不逐帧重栅格化，杜绝侧栏圆角区阶梯残影
+    expect(listSource).toContain('maskRef={relationListMaskRef}');
     expect(source).toContain('scrollRef={relationTableScrollRef}');
     expect(listSource).not.toContain('{renderRelationListToolbar(toolbarInsetClass)}');
     expect(sharedCardSource).toMatch(/<CompiledMotionInteractiveCard\s+as="button"\s+type="button"[\s\S]*?data-glass-edge-mask/);
@@ -1054,10 +1052,6 @@ describe('RelationsManager title system', () => {
       source.indexOf('{/* VIEW 1: CATEGORY GRID */}'),
       source.indexOf('{/* VIEW 2: ORGANIZATION LIST */}')
     );
-    const categoryMaskHookSource = source.slice(
-      source.indexOf('scrollRef: relationCategoryScrollRef'),
-      source.indexOf('scrollRef: relationListScrollRef')
-    );
     const sharedCardStart = source.indexOf('const renderRelationCard = ({');
     const sharedCardSource = source.slice(sharedCardStart, source.indexOf('\n\n  return (', sharedCardStart));
 
@@ -1068,7 +1062,6 @@ describe('RelationsManager title system', () => {
     expect(RELATIONS_CATEGORY_CARD_HIGHLIGHT_POSITION_CLASS).toBe('inset-0 rounded-[inherit]');
     expect(source).not.toContain('RELATIONS_CATEGORY_CARD_OUTER_RING_CLASS');
     expect(readFileSync(new URL('../index.css', import.meta.url), 'utf8')).not.toContain('relations-card-outer-ring');
-    expect(RELATIONS_CARD_LAYOUT_TRANSITION).toEqual({ duration: 0.36, ease: [0.16, 1, 0.3, 1] });
     expect(RELATIONS_CATEGORY_CARD_GRID_CLASS).toContain('grid-cols-[repeat(auto-fill,316px)]');
     expect(RELATIONS_CATEGORY_CARD_GRID_CLASS).toContain('justify-center');
     expect(RELATIONS_CARD_GRID_CLASS).toContain('grid-cols-[repeat(auto-fill,316px)]');
@@ -1127,24 +1120,33 @@ describe('RelationsManager title system', () => {
     expect(source).toContain('const relationCategoryCardClass = isMobile ? RELATIONS_MOBILE_CATEGORY_CARD_CLASS');
     expect(source).toContain('const relationCategoryScrollRef = useRef<HTMLDivElement | null>(null)');
     expect(source).toContain('const RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET = 64;');
-    expect(source).toContain('scrollRef: relationCategoryScrollRef');
-    expect(source).toContain("enabled: navLevel === 'category' && !showAddModal");
-    expect(categorySource).not.toContain('scrollRef={relationCategoryScrollRef}');
-    expect(categorySource).not.toContain('renderMode="content-mask"');
-    expect(categorySource).not.toContain('renderMode="overlay"');
+    // 淡出方案已切换为 ScrollEdgeFades（侧边栏同源）：容器级 mask，不再用逐卡片 mask hook
+    expect(source).not.toContain('scrollRef: relationCategoryScrollRef');
+    expect(source).not.toContain('scrollRef: relationListScrollRef');
+    expect(categorySource).toContain('<ScrollEdgeFades');
+    expect(categorySource).toContain('scrollRef={relationCategoryScrollRef}');
+    expect(categorySource).toContain('topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}');
+    expect(categorySource).toContain('topHeight={32}');
+    expect(categorySource).toContain('bottomHeight={48}');
     expect(categorySource).toContain('ref={relationCategoryScrollRef}');
-    expect(categoryMaskHookSource).toContain('topHeight: 32');
-    expect(categoryMaskHookSource).toContain('topFadeStartOffset: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET');
-    expect(categoryMaskHookSource).toContain('bottomHeight: 48');
+    // mask 挂在静止外壳（maskRef）而非滚动容器自身：滚动时遮罩不逐帧重栅格化，
+    // 避免与 main 圆角裁剪 + 侧栏 backdrop-filter 在左缘圆角区叠加产生阶梯残影
+    expect(categorySource).toContain('maskRef={relationCategoryMaskRef}');
+    expect(categorySource).toContain('ref={relationCategoryMaskRef}');
     expect(categorySource).toContain('<motion.div');
-    expect(categorySource).toContain('layout');
-    expect(categorySource).toContain('transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION }}');
+    // 已移除布局动画（framer layout prop）与 hover 位移——避免毛玻璃卡片 + transform 触发
+    // Chrome 合成层快照缓存导致的边缘鬼影/漂移/闪烁（注意：仅禁 motion layout prop，
+    // 不影响 BAMBOOK_OS.layout.* 等合法 layout token 引用）
+    expect(categorySource).not.toMatch(/<motion\.div[^>]*\slayout[\s=>]/);
+    expect(categorySource).not.toContain('RELATIONS_CARD_LAYOUT_TRANSITION');
+    expect(sharedCardSource).not.toMatch(/<CompiledMotionInteractiveCard[^>]*\slayout[\s=>]/);
+    expect(sharedCardSource).not.toContain('whileHover');
     expect(sharedCardSource).toContain('<CompiledMotionInteractiveCard');
     expect(sharedCardSource).toContain('as="button"');
     expect(sharedCardSource).toContain('idleSpotlightOpacity={0}');
     expect(sharedCardSource).toContain('liquidSpotlight');
     expect(sharedCardSource).toContain('liquidSpotlightTone="light"');
-    expect(sharedCardSource).toContain('transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION, delay: index * 0.05 }}');
+    expect(sharedCardSource).toContain("transition={{ duration: 0.18, delay: index * 0.04 }}");
     expect(categorySource).toContain('categories.map((cat, idx) => renderRelationCard({');
     expect(categorySource).toContain('cardKey: cat.id');
     expect(categorySource).toContain('icon: <cat.icon size={24} strokeWidth={1} />');
@@ -1229,8 +1231,16 @@ describe('RelationsManager title system', () => {
     expect(sharedCardSource).toContain('RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR');
     expect(organizationGridSource).toContain('${pageInsetExpandedClass}');
     expect(organizationGridSource).toContain('RELATIONS_CARD_GRID_CLASS');
-    expect(organizationGridSource).toContain('<motion.div layout');
-    expect(organizationGridSource).toContain('transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION }}');
+    expect(organizationGridSource).toContain('<ScrollEdgeFades');
+    // 组织网格同样使用静止外壳（maskRef）承载 mask，杜绝滚动逐帧重栅格化的阶梯残影；
+    // table 模式外壳降级为 display:contents 透明包裹
+    expect(organizationGridSource).toContain('maskRef={relationListMaskRef}');
+    expect(organizationGridSource).toContain('ref={relationListMaskRef}');
+    expect(organizationGridSource).toContain('<motion.div');
+    // 组织网格同样去掉了布局动画（framer layout prop），避免毛玻璃卡片 + transform 的合成层鬼影
+    // （仅禁 motion layout prop，不影响 BAMBOOK_OS.layout.* 等合法 layout token 引用）
+    expect(organizationGridSource).not.toMatch(/<motion\.div[^>]*\slayout[\s=>]/);
+    expect(organizationGridSource).not.toContain('RELATIONS_CARD_LAYOUT_TRANSITION');
     expect(sharedCardSource).toContain('<CompiledMotionInteractiveCard');
     expect(sharedCardSource).toContain('as="button"');
     expect(sharedCardSource).toContain('idleSpotlightOpacity={0}');
@@ -1431,8 +1441,10 @@ describe('RelationsManager title system', () => {
     expect(BAMBOOK_OS.layout.desktopTablePanelBottomEdgeClass).toBe('bambook-table-panel-bottom-edge');
     expect(source).toContain('<div className="w-full h-full flex flex-col bg-transparent overflow-visible">');
     expect(source).toContain("<div className={`${relationsContentCanvasClass} flex-1 min-h-0 relative overflow-visible ${fullscreenFormOpen ? 'hidden' : ''}`}>");
-    expect(source).toContain('${relationsMainBottomEdgeClass} ${relationCategoryViewportClass}');
-    expect(source).toContain('${relationsMainBottomEdgeClass} ${pageInsetExpandedClass}');
+    // 静止遮罩外壳承载几何（bleed + 底部边缘），滚动容器填充外壳并保留内容内边距
+    expect(source).toContain('${scrollContainerExpandedClass} ${relationsMainBottomEdgeClass}');
+    expect(source).toContain('h-full w-full ${relationCategoryViewportClass} overflow-y-scroll');
+    expect(source).toContain('h-full w-full ${pageInsetExpandedClass} pt-[104px] pb-8 overflow-y-scroll');
     expect(source).toContain('${relationsTableBottomEdgeClass} ${pageInsetClass}');
     expect(source).toContain('absolute inset-x-0 top-0 ${relationsMainBottomEdgeClass} min-h-0 flex overflow-visible');
   });

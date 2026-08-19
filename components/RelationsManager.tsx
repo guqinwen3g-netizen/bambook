@@ -28,6 +28,7 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
 import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
+import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { PageHeader } from './ui/PageHeader';
 import { motion } from 'framer-motion';
 import { resolveCoordinates, extractAddressFromRelation, type ResolvedCoordinates } from '../utils/geoResolveService';
@@ -301,7 +302,6 @@ export const RELATIONS_TABLE_ROW_SEPARATOR_CLASS = BAMBOOK_OS.controls.table.row
 export const RELATIONS_TABLE_CELL_MUTED_CLASS = BAMBOOK_OS.controls.table.cellMuted;
 export const RELATIONS_TABLE_EDIT_ACTION_CLASS = BAMBOOK_OS.controls.table.editAction;
 export const RELATIONS_TABLE_EMPTY_ACTION_CLASS = BAMBOOK_OS.controls.table.emptyAction;
-export const RELATIONS_CARD_LAYOUT_TRANSITION = BAMBOOK_OS.motion.layoutTransition;
 
 export const getRelationsCardRowWidth = (availableWidth: number) => {
   if (availableWidth <= 0) return RELATIONS_CARD_COLUMN_WIDTH;
@@ -388,6 +388,11 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const [resolvedCoords, setResolvedCoords] = useState<ResolvedCoordinates | null>(null);
   const relationCategoryScrollRef = useRef<HTMLDivElement | null>(null);
   const relationListScrollRef = useRef<HTMLDivElement | null>(null);
+  // 静止遮罩外壳：边缘淡出 mask 挂在外壳上而非滚动容器自身——滚动时遮罩层无需
+  // 逐帧重栅格化，避免与 main 圆角裁剪 + 侧栏 backdrop-filter 在左缘圆角区叠加
+  // 产生阶梯残影（Chromium 对运动中的 masked 层合成路径差异，随内核版本忽有忽无）
+  const relationCategoryMaskRef = useRef<HTMLDivElement | null>(null);
+  const relationListMaskRef = useRef<HTMLDivElement | null>(null);
   const relationTableScrollRef = useRef<HTMLDivElement | null>(null);
   const relationFormScrollRef = useRef<HTMLDivElement | null>(null);
   const relationFormContainerRef = useRef<HTMLDivElement | null>(null);
@@ -449,24 +454,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     };
   }, [navLevel, relationListDisplayMode]);
 
-  useGlassSurfaceEdgeMasks({
-    scrollRef: relationCategoryScrollRef,
-    enabled: navLevel === 'category' && !showAddModal,
-    scopeSelector: null,
-    topHeight: 32,
-    topFadeStartOffset: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET,
-    bottomHeight: 48,
-  });
-
-  useGlassSurfaceEdgeMasks({
-    scrollRef: relationListScrollRef,
-    enabled: navLevel === 'organizations' && relationListDisplayMode === 'grid' && !showAddModal,
-    scopeSelector: null,
-    topHeight: 32,
-    topFadeStartOffset: RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET,
-    bottomHeight: 48,
-  });
-
+  // 分类/组织网格视图的淡出已统一改由 ScrollEdgeFades 承接（见视图容器处），
+  // 不再使用逐卡片 useGlassSurfaceEdgeMasks——毛玻璃卡片 + 逐卡片 mask 会触发
+  // Chrome 合成层快照缓存，导致边缘鬼影/漂移/闪烁。
   useGlassSurfaceEdgeMasks({
     scrollRef: relationTableScrollRef,
     enabled: navLevel === 'organizations' && relationListDisplayMode === 'table' && !showAddModal,
@@ -1000,12 +990,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
       as="button"
       type="button"
       key={cardKey}
-      layout
       onClick={onClick}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, transition: { duration: 0.14, ease: [0.16, 1, 0.3, 1] } }}
-      transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION, delay: index * 0.05 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18, delay: index * 0.04 }}
       spotlightColor={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_COLOR : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_COLOR}
       spotlightSize={isDarkMode ? RELATIONS_CATEGORY_CARD_SPOTLIGHT_DARK_SIZE : RELATIONS_CATEGORY_CARD_SPOTLIGHT_LIGHT_SIZE}
       idleSpotlightOpacity={0}
@@ -1213,31 +1201,74 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
 
         {/* VIEW 1: CATEGORY GRID */}
         {navLevel === 'category' && (
-          <motion.div
-            layout
-            ref={relationCategoryScrollRef}
-            transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION }}
-            className={`absolute -top-16 ${scrollContainerExpandedClass} ${relationsMainBottomEdgeClass} ${relationCategoryViewportClass} overflow-y-scroll ${relationCategoryGridClass} ${BAMBOOK_OS.layout.panelShadowViewportClass}`}
-          >
-            {categories.map((cat, idx) => renderRelationCard({
-              cardKey: cat.id,
-              index: idx,
-              icon: <cat.icon size={24} strokeWidth={1} />,
-              title: cat.label,
-              description: cat.desc,
-              footerLabel: `${relations.filter(r => r.category === cat.id && r.isOrganization && !r.deletedAt).length} 组织`,
-              onClick: () => { setSelectedCategory(cat.id); setNavLevel('organizations'); setSearchTerm(''); },
-            }))}
-          </motion.div>
+          <div className="relative h-full">
+            {/* ScrollEdgeFades 与侧边栏同源：mask 挂在静止外壳（maskRef）而非滚动容器
+                自身——滚动时遮罩层不逐帧重栅格化，杜绝左缘圆角区与侧栏玻璃叠加的阶梯残影；
+                同时不叠加 panelShadowViewportClass 的 margin bleed + framer layout
+                （backdrop-filter 毛玻璃卡片 + transform 布局动画在 Chrome 会合成层快照 → 漂移/闪烁/鬼影） */}
+            <ScrollEdgeFades
+              scrollRef={relationCategoryScrollRef}
+              maskRef={relationCategoryMaskRef}
+              isDarkMode={isDarkMode}
+              variant="subtle"
+              topHeight={32}
+              topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}
+              bottomHeight={48}
+            />
+            <div
+              ref={relationCategoryMaskRef}
+              className={`absolute -top-16 ${scrollContainerExpandedClass} ${relationsMainBottomEdgeClass}`}
+            >
+              <motion.div
+                ref={relationCategoryScrollRef}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`h-full w-full ${relationCategoryViewportClass} overflow-y-scroll ${relationCategoryGridClass}`}
+              >
+                {categories.map((cat, idx) => renderRelationCard({
+                  cardKey: cat.id,
+                  index: idx,
+                  icon: <cat.icon size={24} strokeWidth={1} />,
+                  title: cat.label,
+                  description: cat.desc,
+                  footerLabel: `${relations.filter(r => r.category === cat.id && r.isOrganization && !r.deletedAt).length} 组织`,
+                  onClick: () => { setSelectedCategory(cat.id); setNavLevel('organizations'); setSearchTerm(''); },
+                }))}
+              </motion.div>
+            </div>
+          </div>
         )}
 
         {/* VIEW 2: ORGANIZATION LIST */}
         {navLevel === 'organizations' && (
           <div className="relative h-full">
-            <motion.div layout
+            {relationListDisplayMode === 'grid' && (
+              <ScrollEdgeFades
+                scrollRef={relationListScrollRef}
+                maskRef={relationListMaskRef}
+                isDarkMode={isDarkMode}
+                variant="subtle"
+                topHeight={32}
+                topFadeStartOffset={RELATIONS_CARD_GRID_EDGE_FADE_TOP_OFFSET}
+                bottomHeight={48}
+              />
+            )}
+            {/* 静止遮罩外壳：grid 模式承载边缘淡出 mask（滚动时遮罩不逐帧重栅格化，
+                杜绝左缘圆角区与侧栏玻璃叠加的阶梯残影）；table 模式降级为
+                display:contents 透明包裹，不参与盒树布局 */}
+            <div
+              ref={relationListMaskRef}
+              className={relationListDisplayMode === 'grid' ? `absolute -top-16 ${scrollContainerExpandedClass} ${relationsMainBottomEdgeClass}` : 'contents'}
+            >
+            <motion.div
               ref={relationListScrollRef}
-              transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION }}
-              className={relationListDisplayMode === 'grid' ? `absolute -top-16 ${scrollContainerExpandedClass} ${relationsMainBottomEdgeClass} ${pageInsetExpandedClass} pt-[104px] pb-8 overflow-y-scroll ${RELATIONS_CARD_GRID_CLASS} ${BAMBOOK_OS.layout.panelShadowViewportClass}` : `${BAMBOOK_OS.layout.relationsTableViewportClass} ${relationsTableBottomEdgeClass} ${pageInsetClass}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className={relationListDisplayMode === 'grid' ? `h-full w-full ${pageInsetExpandedClass} pt-[104px] pb-8 overflow-y-scroll ${RELATIONS_CARD_GRID_CLASS}` : `${BAMBOOK_OS.layout.relationsTableViewportClass} ${relationsTableBottomEdgeClass} ${pageInsetClass}`}
             >
             {relationListDisplayMode === 'grid' ? currentOrganizations.map((org, idx) => renderRelationCard({
               cardKey: org.id,
@@ -1297,8 +1328,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         liquidSpotlightTone="light"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        whileHover={{ y: -1, transition: { duration: 0.14, ease: [0.16, 1, 0.3, 1] } }}
-                        transition={{ layout: RELATIONS_CARD_LAYOUT_TRANSITION, delay: idx * 0.03 }}
+                        transition={{ duration: 0.18, delay: idx * 0.03 }}
                         className={`group grid cursor-pointer ${BAMBOOK_OS.layout.relationsTableColumnTemplateClass} text-xs transition-[background,color,transform] duration-200 relative isolate overflow-hidden ${relationTableRowHoverClass}`}
                       >
                         <span className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px ${relationTableRowSeparatorClass}`} aria-hidden="true" />
@@ -1356,6 +1386,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
               </div>
             )}
             </motion.div>
+            </div>
           </div>
         )}
 
