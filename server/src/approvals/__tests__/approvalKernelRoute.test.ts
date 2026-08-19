@@ -2,6 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createApprovalKernelRouter } from '../approvalKernelRoute';
+import { approvalEventBus } from '../../agent/events';
 
 /**
  * DR-007 审批内核路由契约测试（BASE-39-B2/B3）：
@@ -213,6 +214,38 @@ describe('approvalKernelRoute: POST /:id/boss-bypass 权限与校验', () => {
     expect(audit.actorId).toBe('u_boss');
     expect(audit.beforeValue).toBe('pending');
     expect(audit.afterValue).toBe('approved');
+  });
+
+  it('成功路径 → emit approvalEventBus resolved（跨链路唤醒挂起 Agent）', async () => {
+    mockActor = { userId: 'u_boss', roles: ['owner'] };
+    const emitSpy = vi.spyOn(approvalEventBus, 'emit').mockReturnValue(true);
+    try {
+      const { app } = makeApp();
+      const res = await request(app)
+        .post('/api/v1/approvals-kernel/ar_1/boss-bypass')
+        .send({ reason: LONG_BOSS_REASON });
+      expect(res.status).toBe(200);
+      expect(emitSpy).toHaveBeenCalledWith('resolved', 'ar_1', {
+        decision: 'approved',
+        decisionNote: `[BOSS_FINAL_BYPASS] ${LONG_BOSS_REASON}`,
+      });
+    } finally {
+      emitSpy.mockRestore();
+    }
+  });
+
+  it('非 pending 409 → 不 emit（失败路径零副作用）', async () => {
+    mockActor = { userId: 'u_boss', roles: ['owner'] };
+    const emitSpy = vi.spyOn(approvalEventBus, 'emit').mockReturnValue(true);
+    try {
+      const { app } = makeApp({ existing: { ...baseApproval, status: 'rejected' } });
+      await request(app)
+        .post('/api/v1/approvals-kernel/ar_1/boss-bypass')
+        .send({ reason: LONG_BOSS_REASON });
+      expect(emitSpy).not.toHaveBeenCalled();
+    } finally {
+      emitSpy.mockRestore();
+    }
   });
 });
 

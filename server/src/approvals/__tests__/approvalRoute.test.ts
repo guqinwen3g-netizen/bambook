@@ -1,7 +1,8 @@
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createApprovalRouter } from '../approvalRoute';
+import { approvalEventBus } from '../../agent/events';
 
 /**
  * 业务审批中心路由契约测试（PRD 19.21 + 9.6）：
@@ -168,6 +169,53 @@ describe('approvalRoute: POST /:id/decide 输入校验', () => {
       .send({ status: 'approved' });
     expect(res.status).toBe(403);
     expect(res.body.error).toContain('自审');
+  });
+});
+
+describe('approvalRoute: POST /:id/decide 跨链路唤醒（approvalEventBus）', () => {
+  let emitSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    emitSpy = vi.spyOn(approvalEventBus, 'emit').mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    emitSpy.mockRestore();
+  });
+
+  it('decide approved → emit resolved（agentLoop 按 id 匹配可恢复挂起循环）', async () => {
+    const { app } = makeApp({ existing: pendingApproval });
+    const res = await request(app)
+      .post('/api/v1/approvals/ar_1/decide')
+      .send({ status: 'approved', decisionNote: '价格合理' });
+    expect(res.status).toBe(200);
+    expect(emitSpy).toHaveBeenCalledWith('resolved', 'ar_1', {
+      decision: 'approved',
+      decisionNote: '价格合理',
+    });
+  });
+
+  it('decide rejected（含意见）→ emit resolved 携带 decisionNote', async () => {
+    const { app } = makeApp({ existing: pendingApproval });
+    const res = await request(app)
+      .post('/api/v1/approvals/ar_1/decide')
+      .send({ status: 'rejected', decisionNote: '折扣超限' });
+    expect(res.status).toBe(200);
+    expect(emitSpy).toHaveBeenCalledWith('resolved', 'ar_1', {
+      decision: 'rejected',
+      decisionNote: '折扣超限',
+    });
+  });
+
+  it('409 重复决策 / 403 自审 / 404 不存在 → 不 emit（失败路径零副作用）', async () => {
+    const { app: app409 } = makeApp({ existing: { ...pendingApproval, status: 'approved' } });
+    await request(app409).post('/api/v1/approvals/ar_1/decide').send({ status: 'approved' });
+    const { app: app403 } = makeApp({ existing: pendingApproval });
+    mockActor = { userId: 'u_requester', roles: ['manager'] };
+    await request(app403).post('/api/v1/approvals/ar_1/decide').send({ status: 'approved' });
+    const { app: app404 } = makeApp({ existing: null });
+    await request(app404).post('/api/v1/approvals/ar_missing/decide').send({ status: 'approved' });
+    expect(emitSpy).not.toHaveBeenCalled();
   });
 });
 

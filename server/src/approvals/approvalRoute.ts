@@ -21,6 +21,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
+import { approvalEventBus } from '../agent/events';
 
 // 业务审批可见/可决策角色：管理层（owner/admin）+ 部门主管（manager）
 const APPROVER_ROLES = ['owner', 'admin', 'manager'];
@@ -128,6 +129,15 @@ export function createApprovalRouter(options: ApprovalRouterOptions): Router {
       ]);
 
       logger.info('[ApprovalRoute] approval decided', { id: existing.id, actionType: existing.actionType, status, reviewerId: auth.userId });
+
+      // 跨链路唤醒：Agent 挂起中的审批（如经通知链接从审批中心直接决议 tool:* 单）
+      // 依赖 approvalEventBus 'resolved' 事件恢复循环；与 agent/route.ts resolve 端点同一事件契约。
+      // 无监听者时 emit 无副作用（业务审批常规路径不受影响）。
+      approvalEventBus.emit('resolved', existing.id, {
+        decision: status,
+        decisionNote: note || undefined,
+      });
+
       res.json({ item: updated });
     } catch (e: any) {
       logger.error('[ApprovalRoute] POST decide failed', { error: e?.message });

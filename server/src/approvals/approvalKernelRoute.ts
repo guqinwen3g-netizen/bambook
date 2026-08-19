@@ -21,6 +21,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
+import { approvalEventBus } from '../agent/events';
 
 // 内核读操作可见角色（与业务审批中心一致）
 const KERNEL_READ_ROLES = ['owner', 'admin', 'manager'];
@@ -195,6 +196,13 @@ export function createApprovalKernelRouter(options: ApprovalKernelRouterOptions)
       ]);
 
       logger.warn('[ApprovalKernel] boss final bypass approved', { id: existing.id, bossId: auth.userId, actionType: existing.actionType });
+
+      // 跨链路唤醒：与 approvalRoute decide / agent resolve 同一事件契约（agentLoop 按 id 匹配恢复）
+      approvalEventBus.emit('resolved', existing.id, {
+        decision: 'approved',
+        decisionNote: `[BOSS_FINAL_BYPASS] ${trimmedReason}`,
+      });
+
       res.json({ item: updated });
     } catch (e: any) {
       logger.error('[ApprovalKernel] POST boss-bypass failed', { error: e?.message });
