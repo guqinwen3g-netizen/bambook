@@ -2973,6 +2973,9 @@ model AgentCheckpoint {
   message        String
   scratchpad     Json // { thoughts: [], toolCalls: [] }
   iterations     Json // IterationTrace[]
+  // 批次 2b：挂起审批持久化——挂起等待审批时记录 { approvalId, step, toolId, toolInput, why, suspendedAt }，
+  // 进程重启后 resume 可查 ApprovalRequest 决议状态（真源）补执行或重新等待
+  pendingApproval Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

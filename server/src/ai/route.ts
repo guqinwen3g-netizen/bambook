@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AiChatRequest, AiEmit, AiEventType, createAiRuntime } from './runtime';
-import { normalizeTtsRequest, streamTtsSpeech, synthesizeTtsSpeech, TtsSpeechRequest, validateTtsRequest } from './tts';
+import { normalizeTtsRequest, streamTtsSpeech, synthesizeTtsSpeech, TtsSpeechRequest, validateTtsRequest, MELO_CIRCUIT_OPEN_ERROR } from './tts';
 import { extractActorFromRequest } from '../auth/middleware';
 import { createModuleAuthGuard, ModuleAuthGuardOptions } from '../auth/moduleGuard';
 import { TokenPayload } from '../auth/service';
@@ -152,7 +152,15 @@ export function createAiRouter(options: AiRouterOptions) {
       await streamTtsSpeech(input, res, controller.signal);
     } catch (error: any) {
       if (!res.headersSent) {
-        return res.status(502).json({ ok: false, error: 'TTS_FAILED', message: String(error?.message || error) });
+        const message = String(error?.message || error);
+        // 批次 2c：TTS 降级语义化——区分"未配置 / 熔断中（服务不可用）/ 其他失败"
+        if (message.includes('BAMBOOK_MELO_URL environment variable')) {
+          return res.status(503).json({ ok: false, error: 'TTS_NOT_CONFIGURED', message: 'TTS 服务未配置（BAMBOOK_MELO_URL 缺失）' });
+        }
+        if (message.startsWith(MELO_CIRCUIT_OPEN_ERROR)) {
+          return res.status(503).json({ ok: false, error: 'TTS_UNAVAILABLE', message: 'TTS 服务暂不可用（熔断冷却中），请稍后重试' });
+        }
+        return res.status(502).json({ ok: false, error: 'TTS_FAILED', message });
       }
       res.destroy(error);
       return;
@@ -190,6 +198,9 @@ function createBackendTtsEventStream(options: {
   let firstDeltaServerAt = 0;
   let firstTtsSegmentQueued = false;
   let firstSegmentTimer: ReturnType<typeof setTimeout> | null = null;
+  // 批次 2c：TTS 分片失败提示只发一次——melo 不可用时熔断会快速失败，
+  // 若每段都 emit step 提示会刷屏；首次失败告知"已降级为纯文本"，后续静默。
+  let ttsFailureNotified = false;
   const pending: Array<Promise<void>> = [];
 
   const clearFirstSegmentTimer = () => {
@@ -241,9 +252,10 @@ function createBackendTtsEventStream(options: {
         },
       });
     }).catch(error => {
-      if (!options.signal.aborted) {
-        options.emit('step', { message: `TTS 分片生成失败：${String(error?.message || error)}` });
-      }
+      if (options.signal.aborted) return;
+      if (ttsFailureNotified) return; // 一次性提示，后续分片静默降级
+      ttsFailureNotified = true;
+      options.emit('step', { message: `TTS 分片生成失败，本次回复已降级为纯文本：${String(error?.message || error)}` });
     });
     queue = task.then(() => undefined, () => undefined);
     pending.push(task);

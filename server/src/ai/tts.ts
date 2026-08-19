@@ -33,6 +33,68 @@ function getMeloInferenceTuning() {
 const MELO_SPEED_MIN = 0.5;
 const MELO_SPEED_MAX = 2.0;
 
+// ════════════════════════════════════════════════════════════════════
+// 批次 2c「TTS 降级路径」：进程级熔断器
+//
+// 问题：melo 服务不可达时，每个 TTS 分片都要等满请求超时
+// （BAMBOOK_MELO_REQUEST_TIMEOUT_MS 默认 240s）才失败，
+// chat 流的 finish() 会被长时间阻塞，且每段失败都 emit step 提示刷屏。
+//
+// 方案：首次失败（网络错误/超时/非 2xx）后打开熔断（冷却窗口内直接快速失败
+// MELO_CIRCUIT_OPEN），冷却结束自动半开重试；成功则关闭熔断。
+// 正文文本流不受影响——TTS 分片失败在 route 层被捕获并降级为纯文本。
+// ════════════════════════════════════════════════════════════════════
+
+export type MeloCircuitState = {
+  open: boolean;
+  openUntil: number;
+  lastError?: string;
+  lastFailedAt?: string;
+};
+
+let meloCircuit: MeloCircuitState = { open: false, openUntil: 0 };
+
+const DEFAULT_MELO_CIRCUIT_COOLDOWN_MS = 5 * 60 * 1000;
+
+function meloCircuitCooldownMs(): number {
+  const raw = Number(process.env.BAMBOOK_MELO_CIRCUIT_COOLDOWN_MS);
+  return Number.isFinite(raw) && raw >= 1000 ? raw : DEFAULT_MELO_CIRCUIT_COOLDOWN_MS;
+}
+
+export function getMeloCircuitState(): MeloCircuitState {
+  const now = Date.now();
+  if (meloCircuit.open && now >= meloCircuit.openUntil) {
+    // 冷却结束：半开——允许下一次真实请求（探测恢复）
+    meloCircuit = { open: false, openUntil: 0 };
+  }
+  return { ...meloCircuit };
+}
+
+/** 仅供测试重置模块级熔断状态 */
+export function resetMeloCircuitForTesting(): void {
+  meloCircuit = { open: false, openUntil: 0 };
+}
+
+function tripMeloCircuit(error: string): void {
+  meloCircuit = {
+    open: true,
+    openUntil: Date.now() + meloCircuitCooldownMs(),
+    lastError: error,
+    lastFailedAt: new Date().toISOString(),
+  };
+  logger.warn(`[melo-tts] circuit open for ${meloCircuitCooldownMs()}ms: ${error}`);
+}
+
+function closeMeloCircuit(): void {
+  if (meloCircuit.open) {
+    meloCircuit = { open: false, openUntil: 0 };
+    logger.info('[melo-tts] circuit closed (service recovered)');
+  }
+}
+
+/** 熔断打开时抛出的快速失败错误（不等请求超时） */
+export const MELO_CIRCUIT_OPEN_ERROR = 'MELO_CIRCUIT_OPEN';
+
 export type TtsSpeechRequest = {
   input: string;
   voice?: string;
@@ -176,6 +238,12 @@ function normalizeRate(value: unknown) {
 }
 
 async function synthesizeMeloWithService(input: TtsSpeechRequest, signal?: AbortSignal): Promise<TtsSpeechResult> {
+  // 熔断打开时快速失败（冷却窗口内不再等满请求超时）
+  const circuit = getMeloCircuitState();
+  if (circuit.open) {
+    throw new Error(`${MELO_CIRCUIT_OPEN_ERROR}: Melo TTS 暂不可用（上次失败：${circuit.lastError || 'unknown'}），将在冷却结束后自动重试`);
+  }
+
   const meloInput = toChineseMeloRequest(input);
   const serviceUrl = getMeloServiceUrl();
   const timeoutMs = Number(process.env.BAMBOOK_MELO_REQUEST_TIMEOUT_MS || 240_000);
@@ -201,15 +269,27 @@ async function synthesizeMeloWithService(input: TtsSpeechRequest, signal?: Abort
     });
 
     if (!response.ok) {
-      throw new Error(`Melo service failed: ${response.status} ${await response.text()}`);
+      const detail = `Melo service failed: ${response.status} ${await response.text()}`;
+      tripMeloCircuit(detail);
+      throw new Error(detail);
     }
 
-    return {
+    const result: TtsSpeechResult = {
       audio: Buffer.from(await response.arrayBuffer()),
       engine: response.headers.get('X-Bambook-TTS-Engine') || 'melo',
       serviceElapsedMs: response.headers.get('X-Bambook-TTS-Elapsed-Ms') || '',
       language: response.headers.get('X-Bambook-TTS-Language') || meloInput.language,
     };
+    closeMeloCircuit();
+    return result;
+  } catch (error: any) {
+    // 用户主动取消不算服务故障，不触发熔断
+    if (signal?.aborted) throw error;
+    const message = String(error?.message || error);
+    if (!message.startsWith('Melo service failed:')) {
+      tripMeloCircuit(message);
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);

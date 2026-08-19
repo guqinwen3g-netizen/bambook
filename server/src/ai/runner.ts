@@ -10,6 +10,7 @@ import { createCheckpointConversationId, PrismaCheckpointManager } from '../agen
 import { executeAgentTool } from '../agent/toolRuntime';
 import { createMemoryService } from '../agent/memory';
 import { createTtsAnnotationStripper, stripTtsAnnotationsForDisplay } from './ttsTextNormalizer';
+import { createLlmCompleter } from './llmProviders';
 
 type RunnerOptions = {
   prisma: PrismaClient;
@@ -366,7 +367,7 @@ export function createMacMiniChatRunner(options: RunnerOptions) {
       departmentIds: request.departmentIds,
     });
     const loop = createAgentLoop({
-      llm: createArkLLMCompleter(),
+      llm: createLlmCompleter(),
       toolExecutor: ({ toolId, input, actor: callActor, signal, skipApprovalCheck }) => executeAgentTool({
         prisma: options.prisma,
         actor: callActor,
@@ -379,6 +380,19 @@ export function createMacMiniChatRunner(options: RunnerOptions) {
       }).catch(err => { throw err; }),
       availableTools: AGENT_LOOP_TOOL_DESCRIPTORS,
       checkpointManager,
+      // 批次 2b：审批决议查询器——resume 挂起审批时查 ApprovalRequest（决议真源）。
+      // status='pending' → 重新挂起等待；approved/rejected/modified → 补执行或记失败。
+      approvalResolver: async approvalId => {
+        const row = await options.prisma.approvalRequest.findUnique({ where: { id: approvalId } }).catch(() => null);
+        if (!row) return null;
+        const payload = (row.payload as Record<string, unknown> | null) || {};
+        const resolution = (payload as any).resolution || {};
+        return {
+          status: row.status,
+          decisionNote: row.decisionNote,
+          modifiedInput: resolution.modifiedInput as Record<string, unknown> | undefined,
+        };
+      },
       // 跨会话记忆注入：run 开始时 recall 该用户可访问 scope 的最近记忆进系统提示词
       //（memoryLoader 异常不阻断对话，降级为无记忆上下文）
       memoryLoader: async memoryActor => {
@@ -450,118 +464,8 @@ export function createMacMiniChatRunner(options: RunnerOptions) {
   };
 }
 
-/**
- * 给 agentLoop 提供的非流式 LLMCompleter：复用 ARK chat completions 但禁用 stream，
- * 避免 LLM 决策阶段的 JSON 输出被当作正文 delta 推给前端。
- */
-function createArkLLMCompleter() {
-  return async function complete(input: {
-    systemPrompt: string;
-    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
-    model?: string;
-    temperature?: number;
-    signal: AbortSignal;
-    jsonMode?: boolean;
-    onDelta?: (chunk: string) => void;
-  }): Promise<string> {
-    const apiKey =
-      process.env.ARK_API_KEY ||
-      process.env.VOLCENGINE_API_KEY ||
-      process.env.TENCENT_API_KEY ||
-      process.env.ZHIPU_API_KEY;
-    const baseUrl = (process.env.BAMBOOK_MODEL_BASE_URL || 'https://ark.cn-beijing.volces.com/api/coding/v3').replace(/\/$/, '');
-    const model = input.model || process.env.BAMBOOK_MODEL_NAME || 'ark-code-latest';
-    if (!apiKey) {
-      throw new Error('Model API key is not configured on Mac mini');
-    }
-    const messages = [
-      { role: 'system', content: input.systemPrompt },
-      ...input.messages,
-    ];
-
-    // 流式路径：有 onDelta 时走 stream:true，失败降级非流式
-    if (input.onDelta) {
-      try {
-        return await arkStreamCompletion({
-          baseUrl, apiKey, model, messages,
-          temperature: input.temperature ?? 0.2,
-          signal: input.signal, onDelta: input.onDelta,
-        });
-      } catch (streamErr: any) {
-        if (streamErr?.name === 'AbortError') throw streamErr;
-        // 流式失败，降级到非流式
-      }
-    }
-
-    const body: Record<string, unknown> = {
-      model,
-      temperature: input.temperature ?? 0.2,
-      stream: false,
-      messages,
-    };
-    if (input.jsonMode) {
-      // 注意：不是所有模型/API 都支持 response_format JSON mode。
-      // 如果 API 不支持，response_format 会导致 400 错误。
-      // system prompt 里已经明确要求 JSON 输出格式，所以这里不再设置 response_format。
-      // 保留这个分支作为未来切换支持 JSON mode 的模型时的入口。
-    }
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      signal: input.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const data: any = await res.json().catch(() => ({}));
-      throw new Error(data?.error?.message || data?.message || `Model API failed with ${res.status}`);
-    }
-    const data: any = await res.json().catch(() => ({}));
-    return String(data?.choices?.[0]?.message?.content || '').trim();
-  };
-}
-
-async function arkStreamCompletion(params: {
-  baseUrl: string; apiKey: string; model: string;
-  messages: Array<{ role: string; content: string }>;
-  temperature: number; signal: AbortSignal;
-  onDelta: (chunk: string) => void;
-}): Promise<string> {
-  const res = await fetch(`${params.baseUrl}/chat/completions`, {
-    method: 'POST', signal: params.signal,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${params.apiKey}` },
-    body: JSON.stringify({ model: params.model, temperature: params.temperature, stream: true, messages: params.messages }),
-  });
-  if (!res.ok) throw new Error(`Model API stream failed with ${res.status}`);
-  if (!res.body) throw new Error('Model API stream returned no body');
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let fullText = '';
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data:')) continue;
-        const dataStr = trimmed.slice(5).trim();
-        if (dataStr === '[DONE]') continue;
-        try {
-          const chunk: any = JSON.parse(dataStr);
-          const delta = chunk?.choices?.[0]?.delta?.content;
-          if (delta) { fullText += delta; params.onDelta(delta); }
-        } catch { /* skip */ }
-      }
-    }
-  } finally { reader.releaseLock(); }
-  return fullText.trim();
-}
+// LLM completer 已迁移至 llmProviders.ts（批次 2a：provider 链 + 失败转移）。
+// createArkLLMCompleter 单 provider 实现删除，主 chat 路径统一走 createLlmCompleter()。
 
 export async function buildAttachmentContextFromAttachments(
   attachments: AttachmentInput[],

@@ -41,7 +41,9 @@ export type AgentWorkEventPhase =
   | 'form_request'
   | 'form_resolved'
   // checkpoint/resume phase
-  | 'checkpoint_resumed';
+  | 'checkpoint_resumed'
+  // 批次 2b：挂起审批恢复 phase（resume 检查决议 → 补执行/重新挂起）
+  | 'approval_resume';
 
 export type AgentWorkEventStatus =
   | 'queued'

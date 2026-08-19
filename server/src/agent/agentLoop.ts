@@ -22,7 +22,7 @@ import {
   ToolExecutor,
 } from './agentLoopTypes';
 import { AGENT_LOOP_LIMITS } from './defaults';
-import { AgentCheckpoint, CheckpointManager, generateCheckpointId } from './checkpoint';
+import { AgentCheckpoint, CheckpointManager, generateCheckpointId, PendingApprovalRecord } from './checkpoint';
 import { emitAgentWorkEvent, approvalEventBus, formEventBus } from './events';
 import { buildOrderConfirmError } from './feedbackContract';
 import { buildAgentSystemPrompt, buildAgentUserMessages, forceFinalAnswer, planNextStep } from './llmPlanner';
@@ -32,6 +32,46 @@ import { buildAgentSystemPrompt, buildAgentUserMessages, forceFinalAnswer, planN
  *
  * 依赖通过参数注入（LLMCompleter / ToolExecutor），方便测试中替换为 stub。
  */
+/**
+ * 批次 2b：审批决议快照——resume 时从 ApprovalRequest（决议真源）读取。
+ * status 即 ApprovalRequest.status（'pending' | 'approved' | 'rejected' | 'modified'）。
+ */
+export type ApprovalResolutionSnapshot = {
+  status: string;
+  decisionNote?: string | null;
+  modifiedInput?: Record<string, unknown>;
+};
+
+/**
+ * 挂起等待审批决议（进程内 eventBus 订阅 + 超时）。
+ * 挂起点与 resume 重挂起点共用同一等待语义。
+ */
+function awaitApprovalResolution(approvalId: string, signal: AbortSignal, timeoutMs = 15 * 60 * 1000): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timeoutId);
+      approvalEventBus.off('resolved', handler);
+      reject(new Error('ABORTED'));
+    };
+    const timeoutId = setTimeout(() => {
+      approvalEventBus.off('resolved', handler);
+      signal.removeEventListener('abort', onAbort);
+      reject(new Error(`等待审批超时（超过 ${Math.round(timeoutMs / 60000)} 分钟）`));
+    }, timeoutMs);
+    const handler = (id: string, res: any) => {
+      if (id === approvalId) {
+        clearTimeout(timeoutId);
+        approvalEventBus.off('resolved', handler);
+        signal.removeEventListener('abort', onAbort);
+        resolve(res);
+      }
+    };
+    if (signal.aborted) { onAbort(); return; }
+    signal.addEventListener('abort', onAbort);
+    approvalEventBus.on('resolved', handler);
+  });
+}
+
 export function createAgentLoop(deps: {
   llm: LLMCompleter;
   toolExecutor: ToolExecutor;
@@ -41,6 +81,11 @@ export function createAgentLoop(deps: {
   checkpointManager?: CheckpointManager;
   /** 可选：跨会话记忆装载器——run 开始时 recall 注入系统提示词。异常降级为空（不阻断对话）。 */
   memoryLoader?: (actor: AgentLoopInput['actor']) => Promise<Array<{ scope: string; memoryType: string; content: string }>>;
+  /**
+   * 批次 2b：可选审批决议查询器——resume 时查 ApprovalRequest（决议真源）。
+   * 返回 null 或 status='pending' 表示未决议（重新挂起等待）。
+   */
+  approvalResolver?: (approvalId: string) => Promise<ApprovalResolutionSnapshot | null>;
 }) {
   const toolWhitelist = new Set(deps.availableTools.map(t => t.id));
 
@@ -53,6 +98,7 @@ export function createAgentLoop(deps: {
 
     // ── checkpoint resume：尝试恢复上次中断的状态 ──
     let resumeStep = 1;
+    let resumedPendingApproval: PendingApprovalRecord | null = null;
     const conversationId = input.conversationId;
     if (deps.checkpointManager && conversationId) {
       const ckpt = await deps.checkpointManager.load(conversationId);
@@ -60,6 +106,7 @@ export function createAgentLoop(deps: {
         scratchpad.thoughts = ckpt.scratchpad.thoughts || [];
         scratchpad.toolCalls = ckpt.scratchpad.toolCalls as any || [];
         resumeStep = ckpt.step + 1;
+        resumedPendingApproval = ckpt.pendingApproval ?? null;
         emitAgentWorkEvent(input.emit, {
           phase: 'checkpoint_resumed',
           status: 'running',
@@ -68,6 +115,120 @@ export function createAgentLoop(deps: {
           metadata: { resumedFromStep: ckpt.step, resumeStep },
         });
       }
+    }
+
+    // ══ 批次 2b：挂起审批恢复 ══
+    // 挂起期间进程崩溃/重启：pendingApproval 已随 checkpoint 落库。
+    // 恢复时查 ApprovalRequest（决议真源）：
+    //   已决议 → 补执行（approved/modified 执行工具，rejected 记失败）进 scratchpad
+    //   未决议 → 重建 eventBus 订阅重新挂起（重启后内存订阅已丢失）
+    if (resumedPendingApproval) {
+      const pa = resumedPendingApproval;
+      emitAgentWorkEvent(input.emit, {
+        phase: 'approval_resume',
+        status: 'running',
+        title: '恢复挂起中的审批',
+        message: `检测到未完成的审批（挂起于第 ${pa.step} 步，工具 ${humanizeToolName(pa.toolId)}），正在检查决议状态。`,
+        metadata: { approvalId: pa.approvalId, step: pa.step, toolId: pa.toolId },
+      });
+
+      let snapshot: ApprovalResolutionSnapshot | null = null;
+      if (deps.approvalResolver) {
+        snapshot = await deps.approvalResolver(pa.approvalId).catch(() => null);
+      }
+
+      if (!snapshot || snapshot.status === 'pending') {
+        // 未决议 → 重新挂起等待（超时/abort 语义与主循环挂起点一致）
+        try {
+          const resolution: any = await awaitApprovalResolution(pa.approvalId, input.signal);
+          snapshot = {
+            status: String(resolution.decision || 'approved'),
+            decisionNote: resolution.decisionNote,
+            modifiedInput: resolution.modifiedInput,
+          };
+        } catch (err: any) {
+          const record: ToolExecutionRecord = {
+            callId: `resume_appr_${pa.approvalId}`,
+            step: pa.step,
+            toolId: pa.toolId,
+            input: pa.toolInput,
+            why: pa.why,
+            ok: false,
+            error: err.message === 'ABORTED' ? 'APPROVAL_ABORTED' : `APPROVAL_FAILED: ${err.message}`,
+            durationMs: 0,
+            startedAt: pa.suspendedAt,
+          };
+          scratchpad.toolCalls.push(record);
+          snapshot = null; // ABORTED 时主循环首轮 abort 检查会接管；超时则带失败记录继续
+        }
+      }
+
+      if (snapshot && snapshot.status !== 'pending') {
+        // 已决议 → 补执行并记录进 scratchpad（LLM 上下文完整）
+        const replayT0 = Date.now();
+        if (snapshot.status === 'rejected') {
+          scratchpad.toolCalls.push({
+            callId: `resume_appr_${pa.approvalId}`,
+            step: pa.step,
+            toolId: pa.toolId,
+            input: pa.toolInput,
+            why: pa.why,
+            ok: false,
+            error: `APPROVAL_REJECTED: ${snapshot.decisionNote || 'User rejected the operation'}`,
+            durationMs: Date.now() - replayT0,
+            startedAt: pa.suspendedAt,
+          });
+        } else {
+          const replayInput = snapshot.status === 'modified' && snapshot.modifiedInput
+            ? snapshot.modifiedInput
+            : pa.toolInput;
+          try {
+            const replayOutput = await runWithTimeout(
+              signal => deps.toolExecutor({
+                toolId: pa.toolId,
+                input: replayInput,
+                actor: input.actor,
+                signal,
+                skipApprovalCheck: true,
+                approvalId: pa.approvalId,
+              }),
+              config.perToolTimeoutMs,
+              input.signal,
+            );
+            scratchpad.toolCalls.push({
+              callId: `resume_appr_${pa.approvalId}`,
+              step: pa.step,
+              toolId: pa.toolId,
+              input: replayInput,
+              why: pa.why,
+              ok: true,
+              output: replayOutput,
+              durationMs: Date.now() - replayT0,
+              startedAt: pa.suspendedAt,
+            } as ToolExecutionRecord);
+          } catch (err: any) {
+            scratchpad.toolCalls.push({
+              callId: `resume_appr_${pa.approvalId}`,
+              step: pa.step,
+              toolId: pa.toolId,
+              input: replayInput,
+              why: pa.why,
+              ok: false,
+              error: String(err?.message || err),
+              durationMs: Date.now() - replayT0,
+              startedAt: pa.suspendedAt,
+            } as ToolExecutionRecord);
+          }
+        }
+        emitAgentWorkEvent(input.emit, {
+          phase: 'approval_resume',
+          status: 'complete',
+          title: '挂起审批已恢复',
+          message: `审批决议为 ${snapshot.status}，已按决议${snapshot.status === 'rejected' ? '记录拒绝结果' : '补执行工具'}。`,
+          metadata: { approvalId: pa.approvalId, decision: snapshot.status, step: pa.step },
+        });
+      }
+      // 清除挂起标记：随下一次步末 checkpoint 覆盖（pendingApproval: null）
     }
 
     const systemPrompt = buildAgentSystemPrompt({
@@ -368,6 +529,31 @@ export function createAgentLoop(deps: {
           // 而不是 throw。这里检测到后 emit blocked + approval block，然后提前结束循环。
           const outputObj = output as any;
           if (outputObj && outputObj.approvalRequired) {
+            // 批次 2b：挂起先落库——pendingApproval 随 checkpoint 持久化，
+            // 进程崩溃/重启后 resume 据此查 ApprovalRequest 决议补执行或重新等待
+            if (deps.checkpointManager && conversationId) {
+              await deps.checkpointManager.save({
+                id: generateCheckpointId(),
+                conversationId,
+                step,
+                message: input.message,
+                scratchpad: {
+                  thoughts: scratchpad.thoughts,
+                  toolCalls: scratchpad.toolCalls as any,
+                },
+                iterations: iterations as any,
+                pendingApproval: {
+                  approvalId: String(outputObj.approvalId),
+                  step,
+                  toolId: call.toolId,
+                  toolInput: call.input,
+                  why: call.why,
+                  suspendedAt: new Date().toISOString(),
+                },
+                createdAt: new Date().toISOString(),
+              }).catch(() => {});
+            }
+
             // emit blocked 事件（events.ts 会据此发射 approval block）
             emitAgentWorkEvent(emit, {
               phase: 'tool_call',
@@ -388,38 +574,10 @@ export function createAgentLoop(deps: {
               },
             }, { legacyStep: false });
 
-            // 挂起等待审批结果
+            // 挂起等待审批结果（helper 与 resume 重挂起共用同一等待语义）
             let resolution: any;
             try {
-              resolution = await new Promise((resolve, reject) => {
-                const onAbort = () => {
-                  clearTimeout(timeoutId);
-                  approvalEventBus.off('resolved', handler);
-                  reject(new Error('ABORTED'));
-                };
-
-                const timeoutId = setTimeout(() => {
-                  approvalEventBus.off('resolved', handler);
-                  input.signal.removeEventListener('abort', onAbort);
-                  reject(new Error('等待审批超时（超过 15 分钟）'));
-                }, 15 * 60 * 1000);
-
-                const handler = (id: string, res: any) => {
-                  if (id === outputObj.approvalId) {
-                    clearTimeout(timeoutId);
-                    approvalEventBus.off('resolved', handler);
-                    input.signal.removeEventListener('abort', onAbort);
-                    resolve(res);
-                  }
-                };
-
-                if (input.signal.aborted) {
-                  onAbort();
-                  return;
-                }
-                input.signal.addEventListener('abort', onAbort);
-                approvalEventBus.on('resolved', handler);
-              });
+              resolution = await awaitApprovalResolution(String(outputObj.approvalId), input.signal);
             } catch (err: any) {
               if (err.message === 'ABORTED') {
                 stopReason = 'aborted';

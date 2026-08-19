@@ -36,6 +36,20 @@ export function createCheckpointConversationId(input: {
   return `ckpt_v1_${createHash('sha256').update(JSON.stringify(scope)).digest('base64url')}`;
 }
 
+/**
+ * 批次 2b：挂起审批持久化记录。
+ * 挂起等待审批时随 checkpoint 落库；进程重启后 resume 据此查
+ * ApprovalRequest 决议状态（真源）补执行或重新等待。
+ */
+export interface PendingApprovalRecord {
+  approvalId: string;
+  step: number;
+  toolId: string;
+  toolInput: Record<string, unknown>;
+  why?: string;
+  suspendedAt: string;
+}
+
 export interface AgentCheckpoint {
   id: string;
   conversationId: string;
@@ -46,6 +60,8 @@ export interface AgentCheckpoint {
     toolCalls: Array<Record<string, unknown>>;
   };
   iterations: Array<Record<string, unknown>>;
+  /** 挂起中（未决议）的审批；决议处理后随步末 checkpoint 覆盖清除 */
+  pendingApproval?: PendingApprovalRecord | null;
   createdAt: string;
 }
 
@@ -93,12 +109,14 @@ export class PrismaCheckpointManager implements CheckpointManager {
         message: checkpoint.message,
         scratchpad: checkpoint.scratchpad,
         iterations: checkpoint.iterations,
+        pendingApproval: (checkpoint.pendingApproval ?? null) as any,
         createdAt: checkpoint.createdAt,
       },
       update: {
         step: checkpoint.step,
         scratchpad: checkpoint.scratchpad,
         iterations: checkpoint.iterations,
+        pendingApproval: (checkpoint.pendingApproval ?? null) as any,
       },
     });
   }
@@ -115,6 +133,7 @@ export class PrismaCheckpointManager implements CheckpointManager {
       message: row.message,
       scratchpad: row.scratchpad,
       iterations: row.iterations,
+      pendingApproval: (row.pendingApproval as PendingApprovalRecord | null) ?? null,
       createdAt: row.createdAt,
     };
   }
