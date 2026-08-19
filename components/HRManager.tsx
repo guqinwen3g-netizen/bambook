@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import EmployeeProfilesTab from './hr/EmployeeProfilesTab';
 import AttendanceLeaveTab from './hr/AttendanceLeaveTab';
@@ -1269,14 +1270,14 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         </div>
                         <div>
                           <div className={labelCls}>开始日期</div>
-                          <input type="date" className={inputCls} value={projectForm.startDate}
-                            onChange={e => setProjectForm(f => ({ ...f, startDate: e.target.value }))} />
+                          <CapsuleDateInput className={inputCls} value={projectForm.startDate}
+                            onChange={(v) => setProjectForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
                         </div>
                       </div>
                       <div>
                         <div className={labelCls}>结束日期</div>
-                        <input type="date" className={inputCls} value={projectForm.endDate}
-                          onChange={e => setProjectForm(f => ({ ...f, endDate: e.target.value }))} />
+                        <CapsuleDateInput className={inputCls} value={projectForm.endDate}
+                            onChange={(v) => setProjectForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
                       </div>
                       <div className="flex justify-end gap-2 pt-1">
                         <button onClick={closeProjectForm} className={actionButtonCls}>取消</button>
@@ -1339,8 +1340,8 @@ const HRManager: React.FC<HRManagerProps> = ({ isDarkMode }) => {
                         </div>
                         <div>
                           <div className={labelCls}>截止日期</div>
-                          <input type="date" className={inputCls} value={assignmentForm.dueDate}
-                            onChange={e => setAssignmentForm(f => ({ ...f, dueDate: e.target.value }))} />
+                          <CapsuleDateInput className={inputCls} value={assignmentForm.dueDate}
+                            onChange={(v) => setAssignmentForm(f => ({ ...f, dueDate: v }))} isDarkMode={isDarkMode} />
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 pt-1">

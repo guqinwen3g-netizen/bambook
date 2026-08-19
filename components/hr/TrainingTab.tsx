@@ -9,6 +9,7 @@ import {
   type TrainingCourse, type TrainingEnrollment, type EnrollmentStatus,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface TrainingTabProps {
   isDarkMode: boolean;
@@ -244,13 +245,13 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ isDarkMode, personnel }) => {
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>开始日期</div>
-              <input type="date" className={t.inputCls} value={courseForm.startDate}
-                onChange={e => setCourseForm(f => ({ ...f, startDate: e.target.value }))} />
+              <CapsuleDateInput className={t.inputCls} value={courseForm.startDate}
+                onChange={(v) => setCourseForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>结束日期</div>
-              <input type="date" className={t.inputCls} value={courseForm.endDate}
-                onChange={e => setCourseForm(f => ({ ...f, endDate: e.target.value }))} />
+              <CapsuleDateInput className={t.inputCls} value={courseForm.endDate}
+                onChange={(v) => setCourseForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>名额上限</div>

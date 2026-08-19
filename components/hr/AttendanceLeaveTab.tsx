@@ -10,6 +10,7 @@ import {
   type AttendanceRecord, type AttendanceSummaryRow, type LeaveRequest, type LeaveType,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface AttendanceLeaveTabProps {
   isDarkMode: boolean;
@@ -272,8 +273,8 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>日期 *</div>
-                  <input type="date" className={t.inputCls} value={attForm.date}
-                    onChange={e => setAttForm(f => ({ ...f, date: e.target.value }))} />
+                  <CapsuleDateInput className={t.inputCls} value={attForm.date}
+                    onChange={(v) => setAttForm(f => ({ ...f, date: v }))} isDarkMode={isDarkMode} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>签到（HH:MM）</div>
@@ -364,13 +365,13 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>开始日期 *</div>
-                  <input type="date" className={t.inputCls} value={leaveForm.startDate}
-                    onChange={e => setLeaveForm(f => ({ ...f, startDate: e.target.value }))} />
+                  <CapsuleDateInput className={t.inputCls} value={leaveForm.startDate}
+                    onChange={(v) => setLeaveForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>结束日期 *</div>
-                  <input type="date" className={t.inputCls} value={leaveForm.endDate}
-                    onChange={e => setLeaveForm(f => ({ ...f, endDate: e.target.value }))} />
+                  <CapsuleDateInput className={t.inputCls} value={leaveForm.endDate}
+                    onChange={(v) => setLeaveForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>事由</div>

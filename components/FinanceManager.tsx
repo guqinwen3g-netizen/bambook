@@ -1113,7 +1113,6 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const textPrimaryClass = 'text-[var(--text-primary)]';
   const textSecondaryClass = 'text-[var(--text-tertiary)]';
   const formInputClass = 'bds-input sm';
-  const formSelectClass = 'bds-select';
   const formSelectSmStyle = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' } as const;
   const formStaticClass = 'rounded-field bg-[var(--recessed-bg)] px-4 py-2.5 text-xs font-light text-[var(--text-tertiary)]';
 
@@ -2189,7 +2188,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   </div>
                 ) : (
                   <select value={allocForm.targetId} onChange={e => setAllocForm(f => ({ ...f, targetId: e.target.value }))}
-                    className={formSelectClass}>
+                    className="bds-select">
                     <option value="">请选择{isInvoiceContext ? '凭证' : '发票'}</option>
                     {(isInvoiceContext ? vouchers : invoices).map((item: any) => (
                       <option key={item.id} value={item.id}>{isInvoiceContext ? `${item.voucherNumber} · ${formatAmount(item.amount, item.currency)}` : `${item.invoiceNumber} · ${formatAmount(item.amount, item.currency)}`}</option>
@@ -2380,7 +2379,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>方向</label>
                   <select value={vatForm.direction} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, direction: e.target.value as VatInvoiceDirection }))}
-                    className={cx(formSelectClass, editingVat && 'opacity-50')}>
+                    className={cx('bds-select', editingVat && 'opacity-50')}>
                     <option value="Input">进项</option>
                     <option value="Output">销项</option>
                   </select>
@@ -2388,7 +2387,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>票种</label>
                   <select value={vatForm.invoiceType} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, invoiceType: e.target.value as VatInvoiceType }))}
-                    className={cx(formSelectClass, editingVat && 'opacity-50')}>
+                    className={cx('bds-select', editingVat && 'opacity-50')}>
                     <option value="Special">专票</option>
                     <option value="Normal">普票</option>
                   </select>
@@ -2638,7 +2637,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇用途</label>
                         <select value={remittanceForm.purpose} onChange={e => setRemittanceForm(f => ({ ...f, purpose: e.target.value }))}
-                          className={formSelectClass}>
+                          className="bds-select">
                           {REMITTANCE_PURPOSE_OPTIONS.map(o => (
                             <option key={o.id} value={o.id}>{o.label}</option>
                           ))}

@@ -9,6 +9,7 @@ import {
   type PayrollRun, type PayrollRunDetail, type PayrollItem, type SalaryStructure,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface PayrollTabProps {
   isDarkMode: boolean;
@@ -404,8 +405,8 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>生效日期 *</div>
-                  <input type="date" className={t.inputCls} value={salaryForm.effectiveFrom}
-                    onChange={e => setSalaryForm(f => ({ ...f, effectiveFrom: e.target.value }))} />
+                  <CapsuleDateInput className={t.inputCls} value={salaryForm.effectiveFrom}
+                    onChange={(v) => setSalaryForm(f => ({ ...f, effectiveFrom: v }))} isDarkMode={isDarkMode} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>备注</div>

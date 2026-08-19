@@ -59,6 +59,7 @@ import {
 import { PageHeader } from './ui/PageHeader';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import CapsuleDateInput from './ui/CapsuleDateInput';
 
 // ==================== 常量 ====================
 
@@ -608,10 +609,10 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     </select>
                   </FormField>
                   <FormField label="计划开始">
-                    <input type="date" className="bds-input sm" value={planForm.plannedStartDate} onChange={e => setPlanForm({ ...planForm, plannedStartDate: e.target.value })} />
+                    <CapsuleDateInput className="bds-input sm" value={planForm.plannedStartDate ?? ''} onChange={(v) => setPlanForm({ ...planForm, plannedStartDate: v })} isDarkMode={isDarkMode} />
                   </FormField>
                   <FormField label="计划结束">
-                    <input type="date" className="bds-input sm" value={planForm.plannedEndDate} onChange={e => setPlanForm({ ...planForm, plannedEndDate: e.target.value })} />
+                    <CapsuleDateInput className="bds-input sm" value={planForm.plannedEndDate ?? ''} onChange={(v) => setPlanForm({ ...planForm, plannedEndDate: v })} isDarkMode={isDarkMode} />
                   </FormField>
                   <FormField label="优先级">
                     <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.priority} onChange={e => setPlanForm({ ...planForm, priority: e.target.value as Priority })}>
@@ -860,7 +861,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={whForm.employeeName ?? ''} onChange={e => setWhForm({ ...whForm, employeeName: e.target.value })} />
                   </FormField>
                   <FormField label="日期">
-                    <input type="date" className="bds-input sm" value={whForm.workDate} onChange={e => setWhForm({ ...whForm, workDate: e.target.value })} />
+                    <CapsuleDateInput className="bds-input sm" value={whForm.workDate ?? ''} onChange={(v) => setWhForm({ ...whForm, workDate: v })} isDarkMode={isDarkMode} />
                   </FormField>
                   <FormField label="工时">
                     <input type="number" className="bds-input sm" value={whForm.hours} onChange={e => setWhForm({ ...whForm, hours: Number(e.target.value) })} />
@@ -936,7 +937,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input type="number" className="bds-input sm" value={ruleForm.ratePerUnit} onChange={e => setRuleForm({ ...ruleForm, ratePerUnit: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="生效日期">
-                    <input type="date" className="bds-input sm" value={ruleForm.effectiveFrom} onChange={e => setRuleForm({ ...ruleForm, effectiveFrom: e.target.value })} />
+                    <CapsuleDateInput className="bds-input sm" value={ruleForm.effectiveFrom ?? ''} onChange={(v) => setRuleForm({ ...ruleForm, effectiveFrom: v })} isDarkMode={isDarkMode} />
                   </FormField>
                 </CreateFormModal>
               )}
@@ -1005,7 +1006,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={recordForm.employeeName ?? ''} onChange={e => setRecordForm({ ...recordForm, employeeName: e.target.value })} />
                   </FormField>
                   <FormField label="日期">
-                    <input type="date" className="bds-input sm" value={recordForm.workDate} onChange={e => setRecordForm({ ...recordForm, workDate: e.target.value })} />
+                    <CapsuleDateInput className="bds-input sm" value={recordForm.workDate ?? ''} onChange={(v) => setRecordForm({ ...recordForm, workDate: v })} isDarkMode={isDarkMode} />
                   </FormField>
                   <FormField label="数量">
                     <input type="number" className="bds-input sm" value={recordForm.quantity} onChange={e => setRecordForm({ ...recordForm, quantity: Number(e.target.value) })} />

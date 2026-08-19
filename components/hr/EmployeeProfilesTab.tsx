@@ -13,6 +13,7 @@ import {
   type EmployeeProfile, type EmploymentEvent, type EmploymentEventType,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface DeptOption { id: string; name: string; }
 interface PositionOption { id: string; title: string; }
@@ -313,18 +314,18 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>入职日期 *</div>
-                  <input type="date" className={t.inputCls} value={profileForm.hireDate}
-                    onChange={e => setProfileForm(f => ({ ...f, hireDate: e.target.value }))} />
+                  <CapsuleDateInput className={t.inputCls} value={profileForm.hireDate}
+                    onChange={(v) => setProfileForm(f => ({ ...f, hireDate: v }))} isDarkMode={isDarkMode} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>转正日期</div>
-                  <input type="date" className={t.inputCls} value={profileForm.regularDate}
-                    onChange={e => setProfileForm(f => ({ ...f, regularDate: e.target.value }))} />
+                  <CapsuleDateInput className={t.inputCls} value={profileForm.regularDate}
+                    onChange={(v) => setProfileForm(f => ({ ...f, regularDate: v }))} isDarkMode={isDarkMode} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>合同到期日</div>
-                  <input type="date" className={t.inputCls} value={profileForm.contractEnd}
-                    onChange={e => setProfileForm(f => ({ ...f, contractEnd: e.target.value }))} />
+                  <CapsuleDateInput className={t.inputCls} value={profileForm.contractEnd}
+                    onChange={(v) => setProfileForm(f => ({ ...f, contractEnd: v }))} isDarkMode={isDarkMode} />
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>联系电话</div>
@@ -388,8 +389,8 @@ const EmployeeProfilesTab: React.FC<EmployeeProfilesTabProps> = ({ isDarkMode, p
                     </div>
                     <div>
                       <div className={t.labelCls + ' mb-1'}>生效日期 *</div>
-                      <input type="date" className={t.inputCls} value={eventForm.effectiveDate}
-                        onChange={e => setEventForm(f => ({ ...f, effectiveDate: e.target.value }))} />
+                      <CapsuleDateInput className={t.inputCls} value={eventForm.effectiveDate}
+                        onChange={(v) => setEventForm(f => ({ ...f, effectiveDate: v }))} isDarkMode={isDarkMode} />
                     </div>
                   </div>
                   {(eventForm.type === 'Transfer' || eventForm.type === 'Promote') && (

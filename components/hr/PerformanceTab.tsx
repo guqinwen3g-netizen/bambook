@@ -9,6 +9,7 @@ import {
   type PerformanceCycle, type PerformanceReview, type ReviewGrade,
 } from '../../services/hrService';
 import { statusSemanticClass, type StatusSemantic } from '../rdlBusinessStatusTokens';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 
 interface PerformanceTabProps {
   isDarkMode: boolean;
@@ -248,13 +249,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ isDarkMode, personnel }
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>开始日期</div>
-              <input type="date" className={t.inputCls} value={cycleForm.startDate}
-                onChange={e => setCycleForm(f => ({ ...f, startDate: e.target.value }))} />
+              <CapsuleDateInput className={t.inputCls} value={cycleForm.startDate}
+                onChange={(v) => setCycleForm(f => ({ ...f, startDate: v }))} isDarkMode={isDarkMode} />
             </div>
             <div>
               <div className={t.labelCls + ' mb-1'}>结束日期</div>
-              <input type="date" className={t.inputCls} value={cycleForm.endDate}
-                onChange={e => setCycleForm(f => ({ ...f, endDate: e.target.value }))} />
+              <CapsuleDateInput className={t.inputCls} value={cycleForm.endDate}
+                onChange={(v) => setCycleForm(f => ({ ...f, endDate: v }))} isDarkMode={isDarkMode} />
             </div>
           </div>
           <div className="flex justify-end gap-2">

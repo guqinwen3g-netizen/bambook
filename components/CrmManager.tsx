@@ -635,7 +635,7 @@ function OpportunitiesTab({
                     <div className="flex items-center gap-1 mt-1">
                       {STAGE_TRANSITION_TARGETS[opp.stage].length > 0 && (
                         <select
-                          className="text-xs bg-transparent outline-none cursor-pointer"
+                          className="bds-select text-xs bg-transparent outline-none cursor-pointer"
                           style={{ color: 'var(--text-tertiary)' }}
                           value=""
                           onChange={(e) => {

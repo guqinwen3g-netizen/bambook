@@ -135,7 +135,6 @@ function parseNum(raw: string): number | null {
 // ==================== 共享样式 ====================
 
 const inputClass = "bds-input";
-const selectClass = "bds-select";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -1044,7 +1043,7 @@ function PriceHistoryPanel({ registerNewAction }: { registerNewAction?: (fn: (()
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>材料类型</label>
-            <select className={selectClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as MaterialPriceType | '')}>
+            <select className="bds-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as MaterialPriceType | '')}>
               <option value="">全部</option>
               <option value="yarn">纱线</option>
               <option value="fabric">面料</option>
@@ -1236,7 +1235,7 @@ function MaterialPriceForm({
     <ModalShell title={editing ? '编辑价格记录' : '录入价格'} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="材料类型">
-          <select className={selectClass} value={materialType} onChange={(e) => setMaterialType(e.target.value as MaterialPriceType)}>
+          <select className="bds-select" value={materialType} onChange={(e) => setMaterialType(e.target.value as MaterialPriceType)}>
             <option value="yarn">纱线</option>
             <option value="fabric">面料</option>
             <option value="trimming">辅料</option>
@@ -1498,13 +1497,13 @@ function CommissionRuleForm({
         <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 E10-品牌中介" />
       </Field>
       <Field label="佣金率">
-        <select className={selectClass} value={rate} onChange={(e) => setRate(e.target.value)}>
+        <select className="bds-select" value={rate} onChange={(e) => setRate(e.target.value)}>
           <option value="5">E5（5%）</option>
           <option value="10">E10（10%）</option>
         </select>
       </Field>
       <Field label="中间人（空 = 默认规则）">
-        <select className={selectClass} value={intermediaryRelationId} onChange={(e) => setIntermediaryRelationId(e.target.value)}>
+        <select className="bds-select" value={intermediaryRelationId} onChange={(e) => setIntermediaryRelationId(e.target.value)}>
           <option value="">默认规则（不限中间人）</option>
           {relations.map((r) => (
             <option key={r.id} value={r.id}>{r.name}</option>

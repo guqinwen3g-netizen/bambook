@@ -99,7 +99,11 @@ BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-
                               # 白名单仅限表格行内操作，spec §3.1）
 BASELINE_FILTERBAR_H=0        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；
                               # 2026-08-18 W1 组2 收编 3→0：FinanceManager:1935 / FinanceCreditPanel:367 / FinancePaymentRequestsPanel:422 均删 h-auto min-h-11）
-BASELINE_NATIVE_CONTROLS=77   # M4: 原生 <select（无 bds-select 类）57 + type="date" 20 = 77
+BASELINE_NATIVE_CONTROLS=1    # M4: 原生 <select（无 bds-select 类）+ type="date" 合计
+                               # 2026-08-19 批次 3a 收敛 77→1：date 20→0（全部 CapsuleDateInput）；
+                               # select 真实非合规清零（原 77 中 ~55 为箭头截断误报，计数逻辑已修正）。
+                               # 余 1 = Assistant.tsx 聊天输入栏模型选择器 ghost（外层自绘胶囊承担 BDS 视觉，
+                               # 加 bds-select 会叠加自绘箭头+覆盖透明背景，前波次裁决豁免——与 M4 收编范围"表单场景"一致）
                               # 2026-08-18 P2-W4 组7+组8 收编 102→77：CockpitManager 2 date（-2）+
                               # crmRelationSections/DetailPanel/import 等 select→bds-select + date→CapsuleDateInput（-23）
                               # 2026-08-18 W2 遗留清零：RelationsManager 联系人生日 type=date → CapsuleDateInput（+hidden 兼容 FormData），date 35→34
@@ -364,7 +368,23 @@ else
 fi
 
 # M4: 原生 <select（无 bds-select 类）+ type="date" 合计（精确口径 281，spec §8 M4 对账注释）
-pg_native_select=$(rg -o '<select(?![^>]*bds-select)[^>]*>' --pcre2 -U --multiline-dotall --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | grep -c '<select')
+# 2026-08-19 批次 3a 修正计数逻辑：原 rg 正则被 JSX 箭头函数 => 截断（className 出现在
+# onChange 箭头之后即漏判 bds-select），长期虚报非合规数（基线 77 中 ~55 为误报）。
+# 新口径：perl 逐标签解析——先中和 => 再取开标签尾，bds-select 字面量判定。
+pg_native_select=$(find components -name '*.tsx' \
+  ! -name '*.test.*' ! -path '*__tests__*' ! -path '*mascot*' \
+  ! -name '*Globe*' ! -name '*EmailManager*' ! -name '*SampleInvoice*' \
+  ! -name '*fabricSampleInvoice*' \
+  -print0 2>/dev/null | xargs -0 perl -0777 -ne '
+    my $n = 0;
+    while (/<select\b/g) {
+      my $seg = substr($_, pos(), 800);
+      $seg =~ s/=>//g;
+      if ($seg =~ /^(.*?)>/s) { $n++ unless $1 =~ /bds-select/; }
+      else { $n++ }
+    }
+    print "$n\n";
+  ' 2>/dev/null | awk '{s+=$1} END{print s+0}')
 pg_native_date=$(rg -o 'type="date"' --glob '*.tsx' "${EXCLUDE_GLOBS[@]}" "${PG_SCAN_PATHS[@]}" 2>/dev/null | wc -l | tr -d ' ')
 pg_native_total=$((pg_native_select + pg_native_date))
 if [ "$pg_native_total" -gt "$BASELINE_NATIVE_CONTROLS" ]; then
