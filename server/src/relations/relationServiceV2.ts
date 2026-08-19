@@ -175,6 +175,38 @@ export function createRelationServiceV2(prisma: PrismaClient) {
     return { OR: orParts };
   }
 
+  /**
+   * v2.2（DR-042 §6.2/T-36）敏感字段遮罩：Relation.creditLimit（信用额度）仅「跟进人」
+   * （ownerId ∨ salesRepIds）与真全权角色（writeKind='all'）可见；小组共享（read/read+followup）
+   * 与全公司图书馆查阅者遮罩为 null（前端渲染 ****）。
+   * 信用等级 creditLevel 属「档案本体单写」字段（T-19），读取不遮罩——两者语义明确区分。
+   * 依据写侧口径（resolveWriteKind）判定，与 hasRelationWriteAccess 对齐，但直接吃已取到的行（零额外查询）。
+   */
+  async function buildSensitiveMasker(actor: TokenPayload | null | undefined) {
+    const mask = (row: any) => ({ ...row, creditLimit: null });
+    if (!actor) return mask;
+
+    const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
+    const writeKind = resolveWriteKind(resolver.rule);
+    if (writeKind === 'all') return (row: any) => row;
+
+    const userIds = resolver.allowedUserIds || [];
+    const deptIds = resolver.allowedDepartmentIds || [];
+    return (row: any) => {
+      if (!row || row.creditLimit === null || row.creditLimit === undefined) return row;
+      let canSee = false;
+      if (writeKind === 'self') {
+        canSee = row.ownerId === actor.userId
+          || (Array.isArray(row.salesRepIds) && row.salesRepIds.includes(actor.userId));
+      } else {
+        if (row.ownerId && userIds.includes(row.ownerId)) canSee = true;
+        if (Array.isArray(row.salesRepIds) && row.salesRepIds.some((u: string) => userIds.includes(u))) canSee = true;
+        if (row.departmentId && deptIds.includes(row.departmentId)) canSee = true;
+      }
+      return canSee ? row : mask(row);
+    };
+  }
+
   // ── 字典校验 ──
   async function validateDictField(dictCode: string, value: string | undefined): Promise<string | null> {
     if (!value) return null;
@@ -273,7 +305,9 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       ]);
 
       // DR-042 §8.2 徽章：标注每项经用户所在组的共享来源（部门维项为空数组=显示「本部门」）
-      const serialized = items.map(serializeRelation);
+      // v2.2 T-36：信用额度敏感字段遮罩（非跟进人/非全权 → null）
+      const masker = await buildSensitiveMasker(actor);
+      const serialized = items.map((i: any) => masker(serializeRelation(i)));
       let annotated = serialized;
       try {
         if (actor) {
@@ -325,7 +359,9 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       let teamShares: any[] = [];
       try { accessMode = await teamShareSvc.resolveRelationAccess(actor, id); } catch { /* fail-closed */ }
       try { teamShares = await teamShareSvc.getEntityTeamShares('relation', id); } catch { /* fail-soft */ }
-      return { ok: true, data: { ...serializeRelation(row), accessMode, teamShares } };
+      // v2.2 T-36：信用额度敏感字段遮罩（非跟进人/非全权 → null）
+      const masker = await buildSensitiveMasker(actor);
+      return { ok: true, data: { ...masker(serializeRelation(row)), accessMode, teamShares } };
     } catch (e: any) {
       return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
     }

@@ -32,6 +32,13 @@ export default defineConfig(({ mode }) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     },
+    // 本地 Web 开发/浏览器模拟测试：配合 VITE_API_BASE_URL=/api 将业务 API
+    // 代理到本地 8081 后端（zhipu/openai/searx 等更具体的 key 在前，优先匹配）。
+    '/api': {
+      target: 'http://localhost:8081',
+      changeOrigin: true,
+      secure: false,
+    },
 
   } as const;
 

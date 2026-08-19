@@ -124,6 +124,13 @@ export function getAuthState(): AuthState {
 }
 
 function getAuthApiBase(): string {
+  // 本地 Web/浏览器模拟测试：VITE_API_BASE_URL 显式配置相对基座（如 '/api'，
+  // 由 vite proxy 转发本地 8081 后端）时，auth 与业务 API 同源直连——
+  // 优先级与 apiService.getApiBaseUrl 的 env 分支对齐（此前 env 相对基座被
+  // 排除，登录请求绕过代理直打生产 DEFAULT_AUTH_ENDPOINT，本地账号全部登录失败）。
+  const envBase = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (envBase.startsWith('/')) return envBase.replace(/\/$/, '');
+
   try {
     const raw = localStorage.getItem('panda_system_config');
     if (raw) {

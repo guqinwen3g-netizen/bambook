@@ -250,6 +250,12 @@ export { CORPORATE_MASTER_IP, getApiBaseUrl } from './apiBase';
 const getDynamicApiBaseUrl = () => getApiBaseUrl();
 
 const normalizeEndpoint = (endpoint?: string): string => {
+  // 本地 Web dev（VITE_API_BASE_URL 相对基座，如 '/api'）为硬路由，
+  // 优先于调用方显式传入的 endpoint（默认为生产 cloudEndpoint）——
+  // 与 authService.getAuthApiBase 的 env 优先级语义对齐，避免
+  // 「登录走本地、业务数据却写往生产」的割裂路由。
+  const envBase = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (envBase.startsWith('/')) return envBase.replace(/\/$/, '');
   if (!endpoint?.trim()) return getDynamicApiBaseUrl().replace(/\/$/, '');
   let formatted = normalizeDataCenterEndpoint(endpoint);
   if (!formatted.startsWith('http')) formatted = `http://${formatted}`;

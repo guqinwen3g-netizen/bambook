@@ -362,6 +362,16 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       // 配置默认值
       const withDefaults = await applyConfigDefaults(input);
 
+      // v2.2（DR-042 §6.2 T-21）：以客户名义新建订单需为「宿主客户跟进人」（ownerId ∨ salesRepIds）
+      // 或真全权角色；小组共享（read / read+followup）不开放下单——防越权（此前 createOrder
+      // 未校验 customerRelationId 归属，组员可对共享客户直接下单）。
+      if (withDefaults.customerRelationId) {
+        const canCreateForCustomer = await teamShareSvc.hasRelationWriteAccess(actor, withDefaults.customerRelationId);
+        if (!canCreateForCustomer) {
+          return { ok: false, error: { code: 'FORBIDDEN', message: '仅跟进人可对该客户创建订单（DR-042 §6.2 T-21）' } };
+        }
+      }
+
       // 编号生成
       const code = await generateOrderCode();
 

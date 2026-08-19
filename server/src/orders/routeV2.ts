@@ -88,7 +88,7 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
     const result = await svc.createOrder(actor, req.body || {});
     if (!result.ok) {
       const statusMap: Record<string, number> = {
-        UNAUTHORIZED: 401, VALIDATION_FAILED: 400, SEQUENCE_FAILED: 500, INTERNAL_ERROR: 500,
+        UNAUTHORIZED: 401, FORBIDDEN: 403, VALIDATION_FAILED: 400, SEQUENCE_FAILED: 500, INTERNAL_ERROR: 500,
       };
       return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
     }

@@ -1055,6 +1055,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         hidden={fullscreenFormOpen}
         safeLeftStyle={RELATIONS_TITLE_SAFE_LEFT_STYLE}
         style={RELATIONS_CLEAR_REGION_STYLE}
+        /* Bug B 修复：滚动容器以 -top-16 负偏移伸入标题区且 DOM 靠后，
+           无定位的 PageHeader 被其层叠覆盖、拦截工具栏点击。
+           落实设计意图（透明标题条 z-30 悬浮于滚动内容之上） */
+        className="relative z-30"
         breadcrumb={(
           <>
         <div className={`${navLevel === 'category' ? RELATIONS_TITLE_NAV_GROUP_CLASS : RELATIONS_TITLE_BACK_NAV_GROUP_CLASS} ${navLevel === 'organizations' ? 'shrink-0' : 'flex-1'}`}>
@@ -1620,12 +1624,15 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
 
                     <div className={relationFormIsOrganization ? 'col-span-1' : ''}>
                       <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>
-                        主要邮箱
+                        联系方式
                       </label>
+                      {/* 数据合约承载「邮箱 | 电话」组合值（demo/存量数据均为组合格式），
+                          type=email 的原生校验会拒绝组合值导致保存被浏览器静默拦截——改 text */}
                       <input
                         name="contactInfo"
-                        type="email"
+                        type="text"
                         defaultValue={editingItem?.contactInfo}
+                        placeholder="邮箱 | 电话"
                         className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`}
                       />
                     </div>

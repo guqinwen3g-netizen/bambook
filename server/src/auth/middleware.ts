@@ -43,7 +43,9 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction) {
 export function extractActorFromRequest(req: Request): TokenPayload | null {
   const authHeader = req.headers.authorization || '';
   const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
-  const token = req.cookies?.bambook_token || bearer;
+  // 显式 Bearer 优先于被动 cookie：并存时若 cookie 抢先，显式指定的身份会被
+  // 静默忽略（如切换账号后旧 cookie 劫持请求），违背"显式凭证优先"惯例。
+  const token = bearer || req.cookies?.bambook_token;
   if (!token) return null;
   try {
     return auth.verifyToken(token);
