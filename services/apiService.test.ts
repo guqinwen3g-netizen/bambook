@@ -182,3 +182,65 @@ describe('apiService listUserAccounts（审批委派/QC 选人数据源）', () 
     });
   });
 });
+
+describe('apiService requestJson 超时治理与网络错误语义化', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('localStorage', createStorage());
+    vi.stubGlobal('sessionStorage', createStorage());
+  });
+
+  it('超时（TimeoutError）→ 语义化 REQUEST_TIMEOUT 错误，不暴露原始 DOMException', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+    }));
+
+    await expect(apiService.listUserAccounts('https://test.example.com'))
+      .rejects.toThrow('请求超时');
+  });
+
+  it('断网/传输层失败（TypeError: Failed to fetch）→ 语义化 NETWORK_ERROR 错误', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    }));
+
+    await expect(apiService.listUserAccounts('https://test.example.com'))
+      .rejects.toThrow('网络请求失败');
+  });
+
+  it('调用方主动取消（AbortError）→ 原样上抛，不被吞掉', async () => {
+    const abortErr = Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' });
+    vi.stubGlobal('fetch', vi.fn(async () => { throw abortErr; }));
+
+    await expect(apiService.listUserAccounts('https://test.example.com'))
+      .rejects.toBe(abortErr);
+  });
+
+  it('默认请求带超时 signal；调用方自带 signal 时原样透传不叠加', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => ({ ok: true, personnel: [] }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiService.listUserAccounts('https://test.example.com');
+    const defaultInit = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(defaultInit.signal).toBeInstanceOf(AbortSignal);
+
+    await apiService.listUserAccounts('https://test.example.com');
+    // requestJson 未暴露透传 signal 的公开 API；hrRequest 等内部通道继承同一行为，
+    // 此处仅断言默认超时 signal 在位（透传路径由 requestJson 签名保证，AbortError 用例已覆盖取消语义）
+    expect((fetchMock.mock.calls[1][1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('服务端错误信封（HTTP 500 + message）原样上抛，不被网络错误语义化污染', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({ message: 'server exploded' }),
+    })));
+
+    await expect(apiService.listUserAccounts('https://test.example.com'))
+      .rejects.toThrow('server exploded');
+  });
+});

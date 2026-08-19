@@ -301,18 +301,65 @@ const jwtAuthHeaders = (): Record<string, string> => {
   }
 };
 
-const requestJson = async <T>(path: string, opts: RequestInit & { endpoint?: string } = {}): Promise<T> => {
-  const { endpoint, headers, ...init } = opts;
+/**
+ * requestJson 默认超时（ms）：弱网/服务无响应时避免界面无限挂起。
+ * 大文件上传/流式（SSE/TTS）走独立 fetch 不经此入口；批量导入等长操作调用方传 timeoutMs 覆盖。
+ */
+const REQUEST_JSON_DEFAULT_TIMEOUT_MS = 30_000;
+
+const requestJson = async <T>(path: string, opts: RequestInit & { endpoint?: string; timeoutMs?: number } = {}): Promise<T> => {
+  const { endpoint, headers, timeoutMs = REQUEST_JSON_DEFAULT_TIMEOUT_MS, signal, ...init } = opts;
   // 已登录会话携带 JWT：后端写操作审计（AuditLog.actorId 外键）要求真实用户身份，
   // 仅 API key 时 actor 回退 'system' 会触发外键冲突；JWT 优先于 API key。
-  const response = await fetch(buildApiUrl(path, endpoint), {
-    ...init,
-    headers: {
-      ...jsonHeaders(),
-      ...jwtAuthHeaders(),
-      ...(headers || {}),
-    },
-  });
+  //
+  // 超时治理：调用方自带 signal（可取消操作）时不叠加超时；timeoutMs <= 0 显式关闭。
+  // 优先 AbortSignal.timeout（原生实现不阻塞事件循环）；缺失环境回退 controller+timer（finally 清理）。
+  let timeoutSignal: AbortSignal | null = null;
+  let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  if (!signal && timeoutMs > 0) {
+    if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as any).timeout === 'function') {
+      timeoutSignal = (AbortSignal as any).timeout(timeoutMs) as AbortSignal;
+    } else {
+      const controller = new AbortController();
+      timeoutTimer = setTimeout(() => {
+        try {
+          controller.abort(new DOMException(`timeout after ${timeoutMs}ms`, 'TimeoutError'));
+        } catch {
+          controller.abort();
+        }
+      }, timeoutMs);
+      timeoutSignal = controller.signal;
+    }
+  }
+  let response: Response;
+  try {
+    response = await fetch(buildApiUrl(path, endpoint), {
+      ...init,
+      signal: signal ?? timeoutSignal ?? undefined,
+      headers: {
+        ...jsonHeaders(),
+        ...jwtAuthHeaders(),
+        ...(headers || {}),
+      },
+    });
+  } catch (e: any) {
+    // 超时：本入口自建的超时 signal 已中止，或原生 TimeoutError → 语义化超时错误
+    if (timeoutSignal?.aborted || e?.name === 'TimeoutError') {
+      throw Object.assign(
+        new Error(`请求超时（${Math.round(timeoutMs / 1000)}s）：服务器无响应或网络不稳定，请稍后重试`),
+        { code: 'REQUEST_TIMEOUT' },
+      );
+    }
+    // 调用方主动取消：保持原语义上抛，不吞掉 AbortError
+    if (e?.name === 'AbortError') throw e;
+    // 其余传输层失败（DNS/断网/证书）→ 语义化网络错误
+    throw Object.assign(
+      new Error('网络请求失败：无法连接到服务器，请检查网络连接或服务地址配置'),
+      { code: 'NETWORK_ERROR', cause: e },
+    );
+  } finally {
+    if (timeoutTimer) clearTimeout(timeoutTimer);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const serverMessage = data?.message || (typeof data?.error === 'string' ? data.error : data?.error?.message);
@@ -824,6 +871,8 @@ export const apiService = {
       endpoint,
       method: 'POST',
       body: JSON.stringify({ rows, mode }),
+      // commit 模式逐行落库（历史报价批量导入可能数百行），放宽超时；preview 只解析用默认值
+      timeoutMs: mode === 'commit' ? 120_000 : 30_000,
     });
   },
 
