@@ -17,6 +17,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { TokenPayload } from '../auth/service';
 import { createPermissionService } from '../auth/permissionService';
+import { createTeamShareService } from '../teams/teamShareService';
 import { logger } from '../lib/logger';
 
 export type TraceScenario =
@@ -51,6 +52,8 @@ export interface TraceEdge {
 
 export function createTraceabilityService(prisma: PrismaClient) {
   const permSvc = createPermissionService({ prisma });
+  // v2.2（DR-042 §5.1 L2）：全景/履约链属业务层——跟进客户 ∪ 团队共享锚定
+  const teamShareSvc = createTeamShareService(prisma);
 
   // ── 序列化 ──
   function ser(row: any): any {
@@ -82,9 +85,10 @@ export function createTraceabilityService(prisma: PrismaClient) {
   // 1. 客户全景：Relation → Orders → Invoices → Payments → AR 汇总
   // ══════════════════════════════════════════════════════════════════
   async function customerPanorama(actor: TokenPayload | null | undefined, relationId: string): Promise<TraceResult> {
-    const scopeWhere = await buildScopeWhere(actor, 'relations');
+    // v2.2（DR-042 §5.1 L2）：客户全景含跟进/商机等业务子树——跟进人 ∨ 团队共享 ∨ 真全权角色
+    if (!(await teamShareSvc.hasBizReadAccess(actor, relationId))) throw new Error('NOT_FOUND');
     const rel = await (prisma as any).relation.findFirst({
-      where: { id: relationId, deletedAt: null, ...scopeWhere },
+      where: { id: relationId, deletedAt: null },
       include: {
         contacts: { where: { deletedAt: null }, take: 5 },
         followUpRecords: { where: { deletedAt: null }, take: 5, orderBy: { createdAt: 'desc' } },
@@ -135,9 +139,24 @@ export function createTraceabilityService(prisma: PrismaClient) {
   // 2. 订单履约链：Order → Production → Inspection → Shipment → Customs
   // ══════════════════════════════════════════════════════════════════
   async function orderFulfillment(actor: TokenPayload | null | undefined, orderId: string): Promise<TraceResult> {
-    const scopeWhere = await buildScopeWhere(actor, 'orders');
+    // v2.2（DR-042 §5.1 L2）：订单履约链锚 = 宿主客户 ∈ followedBy ∪ teamGranted ∪ 真全权
+    const orderVisible = await (async () => {
+      if (!actor) return false;
+      const resolver = await permSvc.getDataScopeResolver(actor, 'orders');
+      if (resolver.rule.kind === 'all') return true;
+      const visibleIds = await teamShareSvc.resolveVisibleRelationIds(actor);
+      const row = await (prisma as any).order.findFirst({
+        where: { id: orderId, deletedAt: null },
+        select: { ownerId: true, customerRelationId: true },
+      });
+      if (!row) return false;
+      if (row.customerRelationId && visibleIds.includes(row.customerRelationId)) return true;
+      if (!row.customerRelationId && row.ownerId === actor.userId) return true; // 无锚遗留订单：创建者可见
+      return false;
+    })();
+    if (!orderVisible) throw new Error('NOT_FOUND');
     const order = await (prisma as any).order.findFirst({
-      where: { id: orderId, deletedAt: null, ...scopeWhere },
+      where: { id: orderId, deletedAt: null },
       include: { lines: true },
     });
     if (!order) throw new Error('NOT_FOUND');
@@ -239,9 +258,10 @@ export function createTraceabilityService(prisma: PrismaClient) {
   // 4. 供应商全景：Relation(Supplier) → PurchaseOrders → Invoices → Payments → AP
   // ══════════════════════════════════════════════════════════════════
   async function supplierPanorama(actor: TokenPayload | null | undefined, relationId: string): Promise<TraceResult> {
-    const scopeWhere = await buildScopeWhere(actor, 'relations');
+    // v2.2（DR-042 §5.1 L2）：供应商全景含采购/应付等业务子树——跟进人 ∨ 团队共享 ∨ 真全权角色
+    if (!(await teamShareSvc.hasBizReadAccess(actor, relationId))) throw new Error('NOT_FOUND');
     const rel = await (prisma as any).relation.findFirst({
-      where: { id: relationId, deletedAt: null, ...scopeWhere },
+      where: { id: relationId, deletedAt: null },
       include: { factoryProfile: true },
     });
     if (!rel) throw new Error('NOT_FOUND');

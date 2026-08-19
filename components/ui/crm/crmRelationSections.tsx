@@ -300,7 +300,7 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
                   <span className={chip('info', isDarkMode)}>{FOLLOW_UP_TYPE_LABELS[fu.type] ?? fu.type}</span>
                   <span className={`shrink-0 text-[var(--text-tertiary)]`}>{fu.followUpAt}</span>
                   {fu.contact?.name && <span className="text-[var(--text-tertiary)]">· {fu.contact.name}</span>}
-                  {accessMode === 'department' && (
+                  {accessMode === 'owner' && (
                     <button type="button" onClick={() => handleDelete(fu.id)} disabled={busy} className={rowDeleteCls(isDarkMode)} title="删除跟进记录">
                       <Trash2 size={14} />
                     </button>
@@ -336,11 +336,9 @@ export const CrmFollowUpsSection: React.FC<{ relationId: string; isDarkMode: boo
             </div>
           </div>
         ) : (
-          accessMode !== 'department' && (
-            <p className={`mt-2 text-[11px] ${mutedTextCls(isDarkMode)}`}>
-              {accessMode === 'team-read' ? '组共享为只读档位，仅可查看跟进历史（DR-042 read 档）' : '无该客户的跟进权限'}
-            </p>
-          )
+          <p className={`mt-2 text-[11px] ${mutedTextCls(isDarkMode)}`}>
+            {accessMode === 'team-read' ? '组共享为只读档位，仅可查看跟进历史（DR-042 read 档）' : '无该客户的跟进权限（仅跟进人与协作组可操作，DR-042 v2.2 L2）'}
+          </p>
         )}
         {error && <p className="text-xs text-os-adaptive-danger mt-1">{error}</p>}
       </div>

@@ -380,6 +380,8 @@ model Relation {
   departmentId  String?
   /// 关联销售用户 IDs（多人对同一客户负责时用）
   salesRepIds   String[]  @default([])
+  /// v2.2（DR-042 §4.4 L1 档案层敏感标记）：normal=图书馆全公司可查；confidential=仅本人维+管理角色可见，禁止组共享
+  sensitivity   String    @default("normal")
 
   // ─── C1 CRM 深化：反向关联 ───
   contacts        Contact[]

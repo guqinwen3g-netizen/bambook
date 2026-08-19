@@ -29,6 +29,7 @@ import { createMoqResolutionService } from '../moq/moqResolutionService';
 import { createMoqValidationService, isCapsuleEligible } from '../moq/moqValidationService';
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
+import { createTeamShareService } from '../teams/teamShareService';
 
 /**
  * Order 模型可选业务字段白名单（创建/更新共用）。
@@ -131,6 +132,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
   const seqSvc = createSequenceService(prisma);
   const dictSvc = getDataDictionaryService(prisma);
   const configSvc = getSystemConfigService(prisma);
+  // v2.2（DR-042 §5.1 L2）：订单可见性锚 = 跟进客户 ∪ 团队共享（teamShareSvc 解析）
+  const teamShareSvc = createTeamShareService(prisma);
   // MOQ 域服务（配置 → 取数 → 校验；豁免审批单统一经 approvalCreateService，DR-007 服务端解析 reviewerId）
   const moqConfigSvc = createMoqConfigService({ prisma });
   const moqResolutionSvc = createMoqResolutionService({ prisma, configService: moqConfigSvc });
@@ -144,22 +147,41 @@ export function createOrderServiceV2(prisma: PrismaClient) {
     }),
   });
 
-  // ── 行级权限 where 构造 ──
+  // ── 行级权限 where 构造（v2.2 DR-042 §5.1 L2 换锚）──
+  // 订单可见性锚 = 宿主客户的跟进人（followedBy）∪ 团队共享客户 ∪ 真全权角色；
+  // 客户转让（ownerId/salesRepIds 变更）后历史订单视野自动继承（T-38）。
+  // 无客户锚的遗留订单（customerRelationId=null）回退创建者可见。
   async function buildScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
     if (!actor) return { ownerId: '__NOBODY__' };
     const resolver = await permSvc.getDataScopeResolver(actor, 'orders');
     if (resolver.rule.kind === 'all') return {};
-    if (resolver.rule.kind === 'self') {
-      return { ownerId: actor.userId };
-    }
-    // department
-    const deptIds = resolver.allowedDepartmentIds || [];
-    const userIds = resolver.allowedUserIds || [];
-    const orParts: any[] = [];
-    if (userIds.length > 0) orParts.push({ ownerId: { in: userIds } });
-    if (deptIds.length > 0) orParts.push({ departmentId: { in: deptIds } });
-    if (orParts.length === 0) return { ownerId: '__NOBODY__' };
-    return { OR: orParts };
+    const visibleRelationIds = await teamShareSvc.resolveVisibleRelationIds(actor);
+    return {
+      OR: [
+        { customerRelationId: { in: visibleRelationIds } },
+        { AND: [{ customerRelationId: null }, { ownerId: actor.userId }] },
+      ],
+    };
+  }
+
+  // ── 订单写 scope（v2.2 DR-042 §5.3）：创建者 ∪ 宿主客户跟进人 ∪ 真全权角色 ──
+  async function buildOrderWriteScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
+    if (!actor) return { ownerId: '__NOBODY__' };
+    const resolver = await permSvc.getDataScopeResolver(actor, 'orders');
+    if (resolver.rule.kind === 'all') return {};
+    const followedIds = await (prisma as any).relation.findMany({
+      where: {
+        deletedAt: null,
+        OR: [{ ownerId: actor.userId }, { salesRepIds: { has: actor.userId } }],
+      },
+      select: { id: true },
+    });
+    return {
+      OR: [
+        { ownerId: actor.userId },
+        { customerRelationId: { in: followedIds.map((r: any) => r.id) } },
+      ],
+    };
   }
 
   // ── 字典校验 ──
@@ -431,7 +453,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
   ): Promise<OrderV2Result<any>> {
     try {
       if (!actor) return { ok: false, error: { code: 'UNAUTHORIZED', message: '更新订单需登录' } };
-      const scopeWhere = await buildScopeWhere(actor);
+      // v2.2（DR-042 §5.3）：订单写 = 创建者 ∪ 宿主客户跟进人
+      const scopeWhere = await buildOrderWriteScopeWhere(actor);
       const existing = await (prisma as any).order.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
       });
@@ -522,7 +545,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         return { ok: false, error: { code: 'VALIDATION_FAILED', message: `status 必须是: ${VALID_ORDER_STATUSES.join(', ')}` } };
       }
 
-      const scopeWhere = await buildScopeWhere(actor);
+      // v2.2（DR-042 §5.3）：状态流转写 = 创建者 ∪ 宿主客户跟进人
+      const scopeWhere = await buildOrderWriteScopeWhere(actor);
       const existing = await (prisma as any).order.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
         select: {
@@ -625,7 +649,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
   ): Promise<OrderV2Result<any>> {
     try {
       if (!actor) return { ok: false, error: { code: 'UNAUTHORIZED', message: '删除订单需登录' } };
-      const scopeWhere = await buildScopeWhere(actor);
+      // v2.2（DR-042 §5.3）：删除写 = 创建者 ∪ 宿主客户跟进人
+      const scopeWhere = await buildOrderWriteScopeWhere(actor);
       const existing = await (prisma as any).order.findFirst({
         where: { id, deletedAt: null, ...scopeWhere },
         select: { id: true, code: true, customer: true },

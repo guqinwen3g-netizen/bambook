@@ -7,12 +7,14 @@
  *   3. 数据字典校验（dataDictionaryService → stage/tier 合法性）
  *   4. 系统配置默认值（systemConfigService → 默认币种/付款条款）
  *
- * DR-042 小组数据共享接入（设计真源：docs/design/03-业务规则/小组与业务数据共享.md v2.1）：
- *   - 读 scope = 本人维 ∪ 小组维（TeamDataGrant 生效授权）——§5.1 v2.1 组为主口径
- *     （resolver 层已把 department 规则收敛为本人维，部门退出数据权限计算）
- *   - 写 scope = 仅本人维——§6.2「档案本体永远只归属归属人可写」，读写分离是越权防线
+ * DR-042 小组数据共享接入（设计真源：docs/design/03-业务规则/小组与业务数据共享.md v2.2）：
+ *   - v2.2 三层视野：L1 档案图书馆化——normal 档案全公司可查；confidential 仅本人维+真全权角色
+ *     （写侧解析 rule.write ?? kind：sales = all + write:self → 读图书馆、写本人维，§4.4）
+ *   - L1 不消费组授权：TeamDataGrant 价值升格为 L2 业务子树互见 + 协作跟进（§5.3，
+ *     消费点迁至 crmRouteV2 / orderServiceV2 / traceabilityService 的 hasBizReadAccess）
  *   - 列表项携带 teamShares 徽章（用户所在组的共享来源，§8.2）
  *   - 详情携带 accessMode（owner/team-followup/team-read，§6.2 档位）
+ *     + bizVisible（v2.2 L2 业务 Tab 门控：非跟进且非团队 → 业务子树置空）
  *   - 详情页就地共享 API（shareRelationToTeams / unshareRelation / getRelationTeamShares）
  *
  * 并新增：销售漏斗聚合（按 stage 分组 count → 前端 Kanban/漏斗图渲染）
@@ -36,6 +38,7 @@ import {
   VALID_RELATION_CATEGORIES,
 } from '../relations/relationMutationService';
 import { createTeamShareService } from '../teams/teamShareService';
+import { resolveWriteKind } from '../_shared/rolePermissionMatrix';
 import { logger } from '../lib/logger';
 
 // ────────────────────────────────────────────────────────────────────
@@ -119,14 +122,42 @@ export function createRelationServiceV2(prisma: PrismaClient) {
   const configSvc = getSystemConfigService(prisma);
   const teamShareSvc = createTeamShareService(prisma);
 
-  // ── 行级权限 where 构造（本人维基座，读写共用；v2.1 组为主口径）──
-  // resolver 层已把业务数据模块的 department 规则收敛为 self，此处实际只走
-  // all / self 两分支；department 分支保留仅防 resolver 口径回退（防御性）。
-  async function buildSelfScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
+  // ── 行级权限 where 构造（v2.2 DR-042 §5.1 三层视野）──
+  // L1 档案层（图书馆）：normal 档案全公司可查；confidential 仅本人维 + 真全权角色。
+  // 真全权角色 = 写侧 kind 为 all（财务/QC/后勤/admin/超管）；sales = all+write:self
+  // → 图书馆全可见 + confidential 收窄 + 写本人维。
+  // L1 不消费组授权（组授权价值已升格为 L2 业务子树互见 + 协作跟进，§5.3）。
+  async function buildScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
     if (!actor) return { ownerId: '__NOBODY__' }; // 未登录 → 看不到任何数据
     const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
-    if (resolver.rule.kind === 'all') return {};
-    if (resolver.rule.kind === 'self') {
+    if (resolveWriteKind(resolver.rule) === 'all') return {}; // 真全权角色：全量（含 confidential）
+    // 图书馆口径：normal 全查 + confidential 仅跟进人可见（T-33/T-34）
+    //（sensitivity 非 nullable 且 db push 已回填 'normal'，无需 null 历史分支）
+    return {
+      OR: [
+        { sensitivity: 'normal' },
+        {
+          AND: [
+            { sensitivity: 'confidential' },
+            { OR: [{ ownerId: actor.userId }, { salesRepIds: { has: actor.userId } }] },
+          ],
+        },
+      ],
+    };
+  }
+
+  /**
+   * 写 scope（v2.2 DR-042 §4.4 读写分离）：解析 rule.write ?? kind。
+   * 真全权角色 → 全量可写；sales/self → 跟进人（ownerId ∨ salesRepIds）；
+   * department 分支保留仅防 resolver 口径回退（防御性）。
+   * 读写的分离是防越权核心：图书馆可见 ≠ 可改（T-40）。
+   */
+  async function buildWriteScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
+    if (!actor) return { ownerId: '__NOBODY__' };
+    const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
+    const writeKind = resolveWriteKind(resolver.rule);
+    if (writeKind === 'all') return {};
+    if (writeKind === 'self') {
       return { OR: [{ ownerId: actor.userId }, { salesRepIds: { has: actor.userId } }] };
     }
     // department（防御分支：仅当 hr 豁免口径被误用到 relations 时仍按部门维兜底）
@@ -142,36 +173,6 @@ export function createRelationServiceV2(prisma: PrismaClient) {
     }
     if (orParts.length === 0) return { ownerId: '__NOBODY__' };
     return { OR: orParts };
-  }
-
-  /**
-   * 读 scope（DR-042 §5.1 v2.1）：本人维 ∪ 小组维（TeamDataGrant）。
-   * 用于 listRelations / getRelation / get360View / getSalesFunnel。
-   */
-  async function buildScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
-    if (!actor) return { ownerId: '__NOBODY__' };
-    const selfWhere = await buildSelfScopeWhere(actor);
-    // all → 无过滤（小组维对其透明，T-11）
-    if (Object.keys(selfWhere).length === 0) return {};
-    // 小组维：用户所在组的生效授权实体（§5.2 每请求解析 + 60s 缓存）
-    const grantedIds = await teamShareSvc.getActiveGrantedRelationIds(actor.userId);
-    if (grantedIds.length === 0) return selfWhere;
-    // 本人维 OR 组合 + 小组维分支（并集，T-09）
-    const selfOr = selfWhere.OR as any[] | undefined;
-    const orParts: any[] = selfOr ? [...selfOr] : [];
-    orParts.push({ id: { in: grantedIds } });
-    // selfWhere 可能是 OR 组合 / ownerId 单值兜底形态（未登录时）
-    if (!selfOr && (selfWhere as any).ownerId) orParts.push({ ownerId: (selfWhere as any).ownerId });
-    return { OR: orParts };
-  }
-
-  /**
-   * 写 scope（DR-042 §6.2）：仅本人维——组共享不开放档案本体写。
-   * 用于 updateRelation / deleteRelation / changeStage / batchChangeStage。
-   * 读写的分离是防越权核心：组员经小组维可见 ≠ 可改（T-19/T-21）。
-   */
-  async function buildWriteScopeWhere(actor: TokenPayload | null | undefined): Promise<Record<string, unknown>> {
-    return buildSelfScopeWhere(actor);
   }
 
   // ── 字典校验 ──
@@ -427,6 +428,24 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       if (input.departmentId !== undefined) payload.departmentId = input.departmentId || null;
       if (input.salesRepIds !== undefined) payload.salesRepIds = Array.isArray(input.salesRepIds) ? input.salesRepIds.map(String) : [];
 
+      // v2.2（DR-042 §4.4）：敏感标记变更审计（relation_sensitivity_change，含新旧值）
+      if (input.sensitivity !== undefined) {
+        const before = String((existing as any).sensitivity || 'normal');
+        const after = input.sensitivity === 'confidential' ? 'confidential' : 'normal';
+        if (before !== after) {
+          await (prisma as any).auditLog.create({
+            data: {
+              id: `alog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              actorId: actor.userId,
+              action: 'relation_sensitivity_change',
+              targetType: 'Relation',
+              targetId: id,
+              detail: { from: before, to: after },
+            },
+          }).catch(() => undefined);
+        }
+      }
+
       const updated = await (prisma as any).relation.update({ where: { id }, data: payload });
       logger.info('[RelationV2] updated', { id, stage: input.stage, tier: input.tier });
       return { ok: true, data: serializeRelation(updated) };
@@ -574,14 +593,21 @@ export function createRelationServiceV2(prisma: PrismaClient) {
           creditLimits: { where: { deletedAt: null, status: 'active' }, take: 1, orderBy: { createdAt: 'desc' } },
           followUpRecords: { where: { deletedAt: null }, take: 20, orderBy: { followUpAt: 'desc' } },
           opportunities: { where: { deletedAt: null }, take: 20, orderBy: { createdAt: 'desc' } },
-          customerTiers: { where: { deletedAt: null, status: 'active' }, take: 1, orderBy: { createdAt: 'desc' } },
+          customerTiers: { where: { deletedAt: null }, take: 1, orderBy: { createdAt: 'desc' } },
           factoryProfile: true,
         },
       });
       if (!rel) return { ok: false, error: { code: 'NOT_FOUND', message: '客户不存在或无权限查看' } };
 
-      // 跨域聚合：订单 + 发票 + 收付款
-      const [orders, invoices, payments] = await Promise.all([
+      // v2.2（DR-042 §5.1）：360 视图分层——档案本体随 L1 图书馆可见；
+      // 业务子树（订单/发票/收付/跟进/商机/联系人/信用）随 L2 跟进客户锚定，
+      // 非跟进且非团队 → 业务数据置空 + bizVisible=false（前端渲染空态，T-37）
+      const bizVisible = actor
+        ? await teamShareSvc.hasBizReadAccess(actor, id).catch(() => false)
+        : false;
+
+      // 跨域聚合：订单 + 发票 + 收付款（仅 L2 可见时查询）
+      const [orders, invoices, payments] = bizVisible ? await Promise.all([
         (prisma as any).order.findMany({
           where: { customerRelationId: id, deletedAt: null },
           select: { id: true, code: true, status: true, type: true, product: true, quantity: true, quoteAmount: true, dueDate: true, createdAt: true },
@@ -596,11 +622,11 @@ export function createRelationServiceV2(prisma: PrismaClient) {
         }),
         (prisma as any).paymentVoucher.findMany({
           where: { customerRelationId: id, deletedAt: null },
-          select: { id: true, voucherNumber: true, type: true, status: true, amount: true, currency: true, paymentDate: true },
+          select: { voucherNumber: true, type: true, status: true, amount: true, currency: true, paymentDate: true },
           take: 50,
           orderBy: { createdAt: 'desc' },
         }),
-      ]);
+      ]) : [[], [], []];
 
       // 统计汇总
       const orderCount = orders.length;
@@ -638,16 +664,17 @@ export function createRelationServiceV2(prisma: PrismaClient) {
           relation: serializeRow(rel),
           accessMode,       // DR-042 v2.1：owner / team-followup / team-read
           teamShares,       // DR-042：详情页共享 chips
-          contacts: (rel.contacts || []).map(serializeRow),
-          creditLimit: rel.creditLimits?.[0] ? serializeRow(rel.creditLimits[0]) : null,
-          customerTier: rel.customerTiers?.[0] ? serializeRow(rel.customerTiers[0]) : null,
-          factoryProfile: rel.factoryProfile ? serializeRow(rel.factoryProfile) : null,
-          recentFollowUps: (rel.followUpRecords || []).map(serializeRow),
-          recentOpportunities: (rel.opportunities || []).map(serializeRow),
+          bizVisible,       // v2.2（DR-042 §5.1）：L2 业务 Tab 门控（false → 前端空态「仅跟进人与协作组可见」）
+          contacts: bizVisible ? (rel.contacts || []).map(serializeRow) : [],
+          creditLimit: bizVisible && rel.creditLimits?.[0] ? serializeRow(rel.creditLimits[0]) : null,
+          customerTier: bizVisible && rel.customerTiers?.[0] ? serializeRow(rel.customerTiers[0]) : null,
+          factoryProfile: bizVisible && rel.factoryProfile ? serializeRow(rel.factoryProfile) : null,
+          recentFollowUps: bizVisible ? (rel.followUpRecords || []).map(serializeRow) : [],
+          recentOpportunities: bizVisible ? (rel.opportunities || []).map(serializeRow) : [],
           orders: orders.map(serializeRow),
           invoices: invoices.map(serializeRow),
           payments: payments.map(serializeRow),
-          summary: {
+          summary: bizVisible ? {
             orderCount,
             totalOrderAmount,
             arTotal,
@@ -656,7 +683,7 @@ export function createRelationServiceV2(prisma: PrismaClient) {
             pendingFollowUpCount: pendingFollowUps.length,
             activeOpportunityCount: activeOpportunities.length,
             contactCount: rel.contacts?.length || 0,
-          },
+          } : null,
         },
       };
     } catch (e: any) {

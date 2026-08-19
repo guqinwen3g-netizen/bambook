@@ -127,6 +127,16 @@ describe('grantEntitiesToTeam 授权', () => {
     expect(r.error!.code).toBe('ENTITY_NOT_FOUND');
   });
 
+  it('T-41（v2.2）：confidential 档案禁止组共享 → SENSITIVE_ENTITY_NOT_SHAREABLE', async () => {
+    const prisma = makePrisma({
+      relationFindFirst: vi.fn().mockResolvedValue({ id: 'REL__SECRET', ownerId: 'user_1', departmentId: 'dept_1', salesRepIds: ['user_1'], sensitivity: 'confidential' }),
+    });
+    const svc = createTeamShareService(prisma);
+    const r = await svc.grantEntitiesToTeam(MANAGER, 'team_1', [{ entityType: 'relation', entityId: 'REL__SECRET', permission: 'read' }]);
+    expect(r.ok).toBe(false);
+    expect(r.error!.code).toBe('SENSITIVE_ENTITY_NOT_SHAREABLE');
+  });
+
   it('T-12：重复授权 = upsert 复活语义（revokedAt 置 null + 更新 permission）', async () => {
     const grantUpsert = vi.fn().mockResolvedValue({});
     const prisma = makePrisma({ grantUpsert });
@@ -317,5 +327,79 @@ describe('getActiveGrantedRelationIds 归属解析', () => {
     const ids = await svc.getActiveGrantedRelationIds('user_1');
     expect(ids).toEqual([]);
     expect(grantFindMany).not.toHaveBeenCalled();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// v2.2 三层视野：L2 业务锚（hasBizReadAccess / writeKind 写权限 / resolveVisibleRelationIds）
+// ═══════════════════════════════════════════════════════════════
+
+import { createPermissionService } from '../../auth/permissionService';
+
+describe('v2.2 L2 业务锚', () => {
+  beforeEach(() => { __clearTeamShareCacheForTests(); });
+
+  it('T-37：非跟进且非团队 → hasBizReadAccess false（业务层隔离核心）', async () => {
+    const prisma = makePrisma({
+      relationFindFirst: vi.fn().mockResolvedValue({ id: 'REL__X', ownerId: 'user_other', departmentId: 'dept_9', salesRepIds: [] }),
+      teamMemberFindMany: vi.fn().mockResolvedValue([]),
+    });
+    const svc = createTeamShareService(prisma);
+    expect(await svc.hasBizReadAccess(SALES, 'REL__X')).toBe(false);
+  });
+
+  it('T-39：组共享客户 → hasBizReadAccess true（团队业务互见）', async () => {
+    const prisma = makePrisma({
+      relationFindFirst: vi.fn().mockResolvedValue({ id: 'REL__TEAM', ownerId: 'user_other', departmentId: 'dept_9', salesRepIds: [] }),
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      grantFindMany: vi.fn().mockResolvedValue([{ entityId: 'REL__TEAM' }]),
+    });
+    const svc = createTeamShareService(prisma);
+    expect(await svc.hasBizReadAccess(SALES, 'REL__TEAM')).toBe(true);
+  });
+
+  it('T-40：all+write:self → hasRelationWriteAccess 走跟进人锚（salesRepIds 命中）', async () => {
+    vi.mocked(createPermissionService).mockImplementation((() => ({
+      getDataScopeResolver: vi.fn().mockResolvedValue({ rule: { kind: 'all', write: 'self' } }),
+    })) as any);
+    const prisma = makePrisma({
+      relationFindFirst: vi.fn().mockResolvedValue({ id: 'REL__1', ownerId: 'user_other', departmentId: 'dept_9', salesRepIds: ['user_1'] }),
+    });
+    const svc = createTeamShareService(prisma);
+    // 非 owner 但在 salesRepIds（协作跟进人）→ 可写
+    expect(await svc.hasRelationWriteAccess(SALES, 'REL__1')).toBe(true);
+  });
+
+  it('T-40：all+write:self → 非 owner 非 salesRep → 不可写（图书馆可见 ≠ 可改）', async () => {
+    vi.mocked(createPermissionService).mockImplementation((() => ({
+      getDataScopeResolver: vi.fn().mockResolvedValue({ rule: { kind: 'all', write: 'self' } }),
+    })) as any);
+    const prisma = makePrisma({
+      relationFindFirst: vi.fn().mockResolvedValue({ id: 'REL__X', ownerId: 'user_other', departmentId: 'dept_9', salesRepIds: [] }),
+    });
+    const svc = createTeamShareService(prisma);
+    expect(await svc.hasRelationWriteAccess(SALES, 'REL__X')).toBe(false);
+  });
+
+  it('真全权角色（rule=all 无 write 覆盖）→ 写权限直通', async () => {
+    vi.mocked(createPermissionService).mockImplementation((() => ({
+      getDataScopeResolver: vi.fn().mockResolvedValue({ rule: { kind: 'all' } }),
+    })) as any);
+    const prisma = makePrisma({});
+    const svc = createTeamShareService(prisma);
+    expect(await svc.hasRelationWriteAccess({ userId: 'user_finance', roles: ['finance'] } as any, 'REL__ANY')).toBe(true);
+  });
+
+  it('resolveVisibleRelationIds = followedBy ∪ teamGranted（订单 L2 换锚数据源）', async () => {
+    const prisma = makePrisma({
+      relationFindFirst: vi.fn().mockResolvedValue(null),
+      teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
+      grantFindMany: vi.fn().mockResolvedValue([{ entityId: 'REL__TEAM' }]),
+    });
+    // relation.findMany 返回本人跟进的客户
+    (prisma.relation as any).findMany = vi.fn().mockResolvedValue([{ id: 'REL__MINE' }]);
+    const svc = createTeamShareService(prisma);
+    const ids = await svc.resolveVisibleRelationIds(SALES);
+    expect(ids.sort()).toEqual(['REL__MINE', 'REL__TEAM'].sort());
   });
 });

@@ -705,9 +705,13 @@ export const apiService = {
     return () => source.close();
   },
 
+  /**
+   * 订单列表（V2 行级口径，DR-042 v2.2 L2 换锚）：可见性锚 = 宿主客户的跟进人 ∪ 团队共享 ∪ 管理角色。
+   * 旧 V1 端点无行级过滤，已切换至 V2；客户转让后历史订单视野自动继承。
+   */
   async listOrders(endpoint?: string): Promise<Order[]> {
-    const data = await requestJson<{ ok: boolean; orders: Order[] }>('/v1/orders', { endpoint, method: 'GET' });
-    return Array.isArray(data.orders) ? data.orders : [];
+    const data = await requestJson<{ ok: boolean; items: Order[]; total: number }>('/v2/orders?limit=500', { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
   },
 
   async getOrderTimeline(orderId: string, endpoint?: string): Promise<OrderStatusTransition[]> {
@@ -1302,38 +1306,38 @@ export const apiService = {
   // ── Phase 3 C1: CRM 深化 API ──
   // Contact
   async listContacts(relationId: string, endpoint?: string): Promise<Contact[]> {
-    const data = await requestJson<{ contacts: Contact[] }>(`/v1/crm/${encodeURIComponent(relationId)}/contacts`, { endpoint, method: 'GET' });
+    const data = await requestJson<{ contacts: Contact[] }>(`/v2/crm/${encodeURIComponent(relationId)}/contacts`, { endpoint, method: 'GET' });
     return data.contacts ?? [];
   },
   async createContact(relationId: string, input: ContactInput, endpoint?: string): Promise<Contact> {
-    const data = await requestJson<{ contact: Contact }>(`/v1/crm/${encodeURIComponent(relationId)}/contacts`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    const data = await requestJson<{ contact: Contact }>(`/v2/crm/${encodeURIComponent(relationId)}/contacts`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.contact;
   },
   async updateContact(id: string, input: Partial<ContactInput>, endpoint?: string): Promise<Contact> {
-    const data = await requestJson<{ contact: Contact }>(`/v1/crm/contacts/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    const data = await requestJson<{ contact: Contact }>(`/v2/crm/contacts/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
     return data.contact;
   },
   async deleteContact(id: string, endpoint?: string): Promise<void> {
-    await requestJson<{ ok: boolean }>(`/v1/crm/contacts/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+    await requestJson<{ ok: boolean }>(`/v2/crm/contacts/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
   // CreditLimit
   async getActiveCreditLimit(relationId: string, endpoint?: string): Promise<CreditLimit | null> {
     try {
-      const data = await requestJson<{ creditLimit: CreditLimit | null }>(`/v1/crm/${encodeURIComponent(relationId)}/credit-limit`, { endpoint, method: 'GET' });
+      const data = await requestJson<{ creditLimit: CreditLimit | null }>(`/v2/crm/${encodeURIComponent(relationId)}/credit-limit`, { endpoint, method: 'GET' });
       return data.creditLimit;
     } catch { return null; }
   },
   async listCreditLimitHistory(relationId: string, endpoint?: string): Promise<CreditLimit[]> {
-    const data = await requestJson<{ history: CreditLimit[] }>(`/v1/crm/${encodeURIComponent(relationId)}/credit-limit/history`, { endpoint, method: 'GET' });
+    const data = await requestJson<{ history: CreditLimit[] }>(`/v2/crm/${encodeURIComponent(relationId)}/credit-limit/history`, { endpoint, method: 'GET' });
     return data.history ?? [];
   },
   async setCreditLimit(relationId: string, input: CreditLimitInput, endpoint?: string): Promise<CreditLimit> {
-    const data = await requestJson<{ creditLimit: CreditLimit }>(`/v1/crm/${encodeURIComponent(relationId)}/credit-limit`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    const data = await requestJson<{ creditLimit: CreditLimit }>(`/v2/crm/${encodeURIComponent(relationId)}/credit-limit`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.creditLimit;
   },
   async updateCreditLimitStatus(id: string, status: string, endpoint?: string): Promise<CreditLimit> {
-    const data = await requestJson<{ creditLimit: CreditLimit }>(`/v1/crm/credit-limit/${encodeURIComponent(id)}/status`, { endpoint, method: 'PATCH', body: JSON.stringify({ status }) });
+    const data = await requestJson<{ creditLimit: CreditLimit }>(`/v2/crm/credit-limit/${encodeURIComponent(id)}/status`, { endpoint, method: 'PATCH', body: JSON.stringify({ status }) });
     return data.creditLimit;
   },
 
@@ -1343,7 +1347,7 @@ export const apiService = {
     if (opts?.limit != null) query.set('limit', String(opts.limit));
     if (opts?.includeCompleted) query.set('includeCompleted', 'true');
     const qs = query.toString();
-    const data = await requestJson<{ followUps: FollowUpRecord[] }>(`/v1/crm/${encodeURIComponent(relationId)}/follow-ups${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const data = await requestJson<{ followUps: FollowUpRecord[] }>(`/v2/crm/${encodeURIComponent(relationId)}/follow-ups${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
     return data.followUps ?? [];
   },
 
@@ -1382,23 +1386,25 @@ export const apiService = {
     return data;
   },
   async createFollowUp(relationId: string, input: FollowUpInput, endpoint?: string): Promise<FollowUpRecord> {
-    const data = await requestJson<{ followUp: FollowUpRecord }>(`/v1/crm/${encodeURIComponent(relationId)}/follow-ups`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    const data = await requestJson<{ followUp: FollowUpRecord }>(`/v2/crm/${encodeURIComponent(relationId)}/follow-ups`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.followUp;
   },
   async updateFollowUp(id: string, input: Partial<FollowUpInput>, endpoint?: string): Promise<FollowUpRecord> {
-    const data = await requestJson<{ followUp: FollowUpRecord }>(`/v1/crm/follow-ups/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    const data = await requestJson<{ followUp: FollowUpRecord }>(`/v2/crm/follow-ups/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
     return data.followUp;
   },
   async deleteFollowUp(id: string, endpoint?: string): Promise<void> {
-    await requestJson<{ ok: boolean }>(`/v1/crm/follow-ups/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+    await requestJson<{ ok: boolean }>(`/v2/crm/follow-ups/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
   async listOverdueFollowUps(daysAhead?: number, endpoint?: string): Promise<FollowUpRecord[]> {
     const query = daysAhead != null ? `?daysAhead=${daysAhead}` : '';
-    const data = await requestJson<{ overdue: FollowUpRecord[] }>(`/v1/crm/follow-ups/overdue${query}`, { endpoint, method: 'GET' });
-    return data.overdue ?? [];
+    const data = await requestJson<{ overdueFollowUps: FollowUpRecord[] }>(`/v2/crm/follow-ups/overdue${query}`, { endpoint, method: 'GET' });
+    return data.overdueFollowUps ?? [];
   },
 
   // ── 阶段 P3b：品牌线 BrandLine（PRD 6.2，客户 360°）──
+  // ⚠️ DR-042 v2.2 遗留：brand-lines / comm-logs 仍在 V1 端点（crmRouteV2 未覆盖，
+  // 无 L2 行级门禁）——待 Phase 3 V2 化补齐后切换（文档 §12 Phase 3 锚定扩展）。
   async listBrandLines(relationId: string, opts?: { includeInactive?: boolean }, endpoint?: string): Promise<BrandLine[]> {
     const qs = opts?.includeInactive ? '?includeInactive=1' : '';
     const data = await requestJson<{ items: BrandLine[]; total: number }>(`/v1/crm/${encodeURIComponent(relationId)}/brand-lines${qs}`, { endpoint, method: 'GET' });
@@ -1489,21 +1495,21 @@ export const apiService = {
     if (params?.stage) query.set('stage', params.stage);
     if (params?.salesRepId) query.set('salesRepId', params.salesRepId);
     const qs = query.toString();
-    const data = await requestJson<{ opportunities: Opportunity[] }>(`/v1/crm/opportunities${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    const data = await requestJson<{ opportunities: Opportunity[] }>(`/v2/crm/opportunities${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
     return data.opportunities ?? [];
   },
   async createOpportunity(relationId: string, input: OpportunityInput, endpoint?: string): Promise<Opportunity> {
-    const data = await requestJson<{ opportunity: Opportunity }>(`/v1/crm/${encodeURIComponent(relationId)}/opportunities`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    const data = await requestJson<{ opportunity: Opportunity }>(`/v2/crm/${encodeURIComponent(relationId)}/opportunities`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.opportunity;
   },
   async getOpportunity(id: string, endpoint?: string): Promise<Opportunity | null> {
     try {
-      const data = await requestJson<{ opportunity: Opportunity }>(`/v1/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+      const data = await requestJson<{ opportunity: Opportunity }>(`/v2/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
       return data.opportunity;
     } catch { return null; }
   },
   async updateOpportunity(id: string, input: Partial<OpportunityInput>, endpoint?: string): Promise<Opportunity> {
-    const data = await requestJson<{ opportunity: Opportunity }>(`/v1/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    const data = await requestJson<{ opportunity: Opportunity }>(`/v2/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
     return data.opportunity;
   },
   async transitionOpportunity(id: string, toStage: string, endpoint?: string): Promise<Opportunity> {
@@ -1511,37 +1517,37 @@ export const apiService = {
     return data.opportunity;
   },
   async deleteOpportunity(id: string, endpoint?: string): Promise<void> {
-    await requestJson<{ ok: boolean }>(`/v1/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+    await requestJson<{ ok: boolean }>(`/v2/crm/opportunities/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
   async getOpportunityPipelineSummary(salesRepId?: string, endpoint?: string): Promise<Record<string, { count: number; totalAmount: number }>> {
     const query = salesRepId ? `?salesRepId=${encodeURIComponent(salesRepId)}` : '';
-    const data = await requestJson<{ summary: Record<string, { count: number; totalAmount: number }> }>(`/v1/crm/opportunities/pipeline/summary${query}`, { endpoint, method: 'GET' });
-    return data.summary ?? {};
+    const data = await requestJson<{ pipeline: Record<string, { count: number; totalAmount: number }> }>(`/v2/crm/opportunities/pipeline/summary${query}`, { endpoint, method: 'GET' });
+    return data.pipeline ?? {};
   },
 
   // CustomerTier
   async getActiveCustomerTier(relationId: string, endpoint?: string): Promise<CustomerTier | null> {
     try {
-      const data = await requestJson<{ customerTier: CustomerTier | null }>(`/v1/crm/${encodeURIComponent(relationId)}/customer-tier`, { endpoint, method: 'GET' });
+      const data = await requestJson<{ customerTier: CustomerTier | null }>(`/v2/crm/${encodeURIComponent(relationId)}/customer-tier`, { endpoint, method: 'GET' });
       return data.customerTier;
     } catch { return null; }
   },
   async listCustomerTierHistory(relationId: string, endpoint?: string): Promise<CustomerTier[]> {
-    const data = await requestJson<{ history: CustomerTier[] }>(`/v1/crm/${encodeURIComponent(relationId)}/customer-tier/history`, { endpoint, method: 'GET' });
+    const data = await requestJson<{ history: CustomerTier[] }>(`/v2/crm/${encodeURIComponent(relationId)}/customer-tier/history`, { endpoint, method: 'GET' });
     return data.history ?? [];
   },
   async assignCustomerTier(relationId: string, input: CustomerTierInput, endpoint?: string): Promise<CustomerTier> {
-    const data = await requestJson<{ customerTier: CustomerTier }>(`/v1/crm/${encodeURIComponent(relationId)}/customer-tier`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    const data = await requestJson<{ customerTier: CustomerTier }>(`/v2/crm/${encodeURIComponent(relationId)}/customer-tier`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.customerTier;
   },
   async deleteCustomerTier(id: string, endpoint?: string): Promise<void> {
-    await requestJson<{ ok: boolean }>(`/v1/crm/customer-tier/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+    await requestJson<{ ok: boolean }>(`/v2/crm/customer-tier/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
   // CRM Overview
   async getCrmOverview(relationId: string, endpoint?: string): Promise<CrmOverview | null> {
     try {
-      const data = await requestJson<CrmOverview>(`/v1/crm/${encodeURIComponent(relationId)}/overview`, { endpoint, method: 'GET' });
+      const data = await requestJson<CrmOverview>(`/v2/crm/${encodeURIComponent(relationId)}/overview`, { endpoint, method: 'GET' });
       return data;
     } catch { return null; }
   },
@@ -2146,13 +2152,23 @@ export const apiService = {
     return Array.isArray(data.cases) ? data.cases : [];
   },
 
+  /**
+   * 客户档案列表（V2 三层视野，DR-042 v2.2）：L1 档案图书馆化——
+   * normal 档案全公司可查 + confidential 仅本人维；条目携带 sensitivity 与 teamShares 徽章数据。
+   * 旧 V1 端点无行级过滤（未设防的全可见），已切换至 V2 设计过的图书馆口径。
+   */
   async listRelations(endpoint?: string): Promise<Relation[]> {
-    const data = await requestJson<{ ok: boolean; relations: Relation[] }>('/v1/relations', { endpoint, method: 'GET' });
-    return Array.isArray(data.relations) ? data.relations : [];
+    const data = await requestJson<{ ok: boolean; items: Relation[]; total: number }>('/v2/relations?limit=500', { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
   },
 
+  /**
+   * 新建客户档案（V2 行级口径）：服务端自动填充归属三键——
+   * ownerId=当前登录人、departmentId=归属部门、salesRepIds=[owner]、code=CUS-xxxxx。
+   * 旧 V1 端点不填归属，建档后创建者在本人维视野里看不到自己的客户（已废弃）。
+   */
   async saveRelation(relation: Relation, endpoint?: string): Promise<Relation> {
-    const data = await requestJson<{ ok: boolean; relation: Relation }>('/v1/relations', {
+    const data = await requestJson<{ ok: boolean; relation: Relation }>('/v2/relations', {
       endpoint,
       method: 'POST',
       body: JSON.stringify(relation),
@@ -2160,8 +2176,9 @@ export const apiService = {
     return data.relation;
   },
 
+  /** 更新客户档案（V2 行级口径：写 scope 校验——本人/全权角色可改，组共享只读） */
   async updateRelation(id: string, relation: Partial<Relation>, endpoint?: string): Promise<Relation> {
-    const data = await requestJson<{ ok: boolean; relation: Relation }>(`/v1/relations/${encodeURIComponent(id)}`, {
+    const data = await requestJson<{ ok: boolean; relation: Relation }>(`/v2/relations/${encodeURIComponent(id)}`, {
       endpoint,
       method: 'PUT',
       body: JSON.stringify(relation),
@@ -2170,7 +2187,7 @@ export const apiService = {
   },
 
   async deleteRelation(id: string, endpoint?: string): Promise<Relation> {
-    const data = await requestJson<{ ok: boolean; relation: Relation }>(`/v1/relations/${encodeURIComponent(id)}`, {
+    const data = await requestJson<{ ok: boolean; relation: Relation }>(`/v2/relations/${encodeURIComponent(id)}`, {
       endpoint,
       method: 'DELETE',
     });

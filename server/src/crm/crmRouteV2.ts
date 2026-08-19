@@ -17,6 +17,7 @@ import { requirePermission } from '../auth/permissionGuard';
 import { extractActorFromRequest } from '../auth/middleware';
 import { createPermissionService } from '../auth/permissionService';
 import { createTeamShareService } from '../teams/teamShareService';
+import { resolveWriteKind } from '../_shared/rolePermissionMatrix';
 import { createCrmService } from './crmService';
 import { logger } from '../lib/logger';
 
@@ -38,41 +39,36 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
   const actorOf = (req: Request) => extractActorFromRequest(req);
   const actorId = (req: Request) => actorOf(req)?.userId || '';
 
-  // ── 行级权限：校验 relationId 是否在 actor 的 dataScope 内（部门维，DR-042 写口径）──
+  // ── 行级权限（v2.2 DR-042 §5.1 L2 业务锚）：CRM 子实体（跟进/联系人/商机/信用）──
+  //    写锚 = 跟进人 ∨ 真全权角色（teamShareSvc.hasRelationWriteAccess，writeKind 口径）
+  //    读锚 = 写锚 ∨ 组共享（teamShareSvc.hasBizReadAccess）
+  //    不读 relations 模块 scope——v2.2 后该 scope = L1 图书馆口径，语义不同（防 CRM 全泄）
   async function checkRelationScope(actor: any, relationId: string): Promise<boolean> {
     if (!actor) return false;
-    const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
-    if (resolver.rule.kind === 'all') return true;
-    const rel = await (opts.prisma as any).relation.findFirst({
-      where: { id: relationId, deletedAt: null },
-      select: { ownerId: true, departmentId: true },
-    });
-    if (!rel) return false;
-    if (resolver.rule.kind === 'self') return rel.ownerId === actor.userId;
-    const deptIds = resolver.allowedDepartmentIds || [];
-    const userIds = resolver.allowedUserIds || [];
-    if (userIds.length > 0 && rel.ownerId && userIds.includes(rel.ownerId)) return true;
-    if (deptIds.length > 0 && rel.departmentId && deptIds.includes(rel.departmentId)) return true;
-    return false;
+    return teamShareSvc.hasRelationWriteAccess(actor, relationId);
+  }
+
+  /** 单条子实体读门禁（GET /contacts/:id 等：宿主客户 L2 可见即可读） */
+  async function checkRelationReadScope(actor: any, relationId: string): Promise<boolean> {
+    if (!actor) return false;
+    return teamShareSvc.hasBizReadAccess(actor, relationId);
   }
 
   async function requireRelationScope(req: Request, res: Response): Promise<boolean> {
     const relationId = req.params.relationId;
     if (!relationId) return true;
     const ok = await checkRelationScope(actorOf(req), relationId);
-    if (!ok) { res.status(403).json({ error: 'FORBIDDEN', message: '无权限操作此客户的 CRM 数据' }); return false; }
+    if (!ok) { res.status(403).json({ error: 'FORBIDDEN', message: '无权限操作此客户的 CRM 数据（仅跟进人）' }); return false; }
     return true;
   }
 
-  // ── DR-042 §5.3 派生可见：读 = 部门维 ∨ 小组维共享（跟进历史/联系人等子实体随客户可见，T-17）──
+  // ── DR-042 §5.3 派生可见（v2.2 L2）：读 = 跟进人 ∨ 组共享（跟进历史/联系人等子实体随客户可见，T-17/T-39）──
   async function requireRelationReadScope(req: Request, res: Response): Promise<boolean> {
     const relationId = req.params.relationId;
     if (!relationId) return true;
     const actor = actorOf(req);
-    if (await checkRelationScope(actor, relationId)) return true;
-    const access = await teamShareSvc.resolveRelationAccess(actor, relationId);
-    if (access === 'team-followup' || access === 'team-read') return true;
-    res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此客户的 CRM 数据' });
+    if (await checkRelationReadScope(actor, relationId)) return true;
+    res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此客户的 CRM 数据（仅跟进人与协作组）' });
     return false;
   }
 
@@ -110,7 +106,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.getContact(req.params.id);
       if (!item) return res.status(404).json({ error: 'NOT_FOUND', message: '联系人不存在' });
-      if (item.relationId && !(await checkRelationScope(actorOf(req), item.relationId))) {
+      if (item.relationId && !(await checkRelationReadScope(actorOf(req), item.relationId))) {
         return res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此联系人' });
       }
       res.json({ ok: true, contact: serialize(item) });
@@ -143,7 +139,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
 
   // ═══════════ CreditLimit ═══════════
   router.get('/:relationId/credit-limit', requirePermission('crm:read'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    if (!(await requireRelationReadScope(req, res))) return;
     try {
       const item = await svc.getActiveCreditLimit(req.params.relationId);
       res.json({ ok: true, creditLimit: serialize(item) });
@@ -151,7 +147,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
   });
 
   router.get('/:relationId/credit-limit/history', requirePermission('crm:read'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    if (!(await requireRelationReadScope(req, res))) return;
     try {
       const items = await svc.listCreditLimitHistory(req.params.relationId);
       res.json({ ok: true, history: items.map(serialize) });
@@ -208,12 +204,13 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       const items = await svc.listOverdueFollowUps();
       const actor = actorOf(req);
       const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
-      if (resolver.rule.kind === 'all') {
+      // v2.2（DR-042 §5.1 L2）：逾期跟进列表锚 = 跟进客户 ∪ 团队共享（writeKind 区分真全权角色）
+      if (resolveWriteKind(resolver.rule) === 'all') {
         res.json({ ok: true, overdueFollowUps: items.map(serialize) });
       } else {
         const filtered = [];
         for (const f of items) {
-          if (f.relationId && await checkRelationScope(actor, f.relationId)) filtered.push(serialize(f));
+          if (f.relationId && await checkRelationReadScope(actor, f.relationId)) filtered.push(serialize(f));
         }
         res.json({ ok: true, overdueFollowUps: filtered });
       }
@@ -224,7 +221,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.getFollowUp(req.params.id);
       if (!item) return res.status(404).json({ error: 'NOT_FOUND', message: '跟进记录不存在' });
-      if (item.relationId && !(await checkRelationScope(actorOf(req), item.relationId))) {
+      if (item.relationId && !(await checkRelationReadScope(actorOf(req), item.relationId))) {
         return res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此跟进记录' });
       }
       res.json({ ok: true, followUp: serialize(item) });
@@ -265,12 +262,13 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       const items = await svc.listOpportunities(opts);
       const actor = actorOf(req);
       const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
-      if (resolver.rule.kind === 'all') {
+      // v2.2（DR-042 §5.1 L2）：商机列表锚 = 跟进客户 ∪ 团队共享（writeKind 区分真全权角色）
+      if (resolveWriteKind(resolver.rule) === 'all') {
         res.json({ ok: true, opportunities: items.map(serialize) });
       } else {
         const filtered = [];
         for (const o of items) {
-          if (o.relationId && await checkRelationScope(actor, o.relationId)) filtered.push(serialize(o));
+          if (o.relationId && await checkRelationReadScope(actor, o.relationId)) filtered.push(serialize(o));
         }
         res.json({ ok: true, opportunities: filtered });
       }
@@ -296,7 +294,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.getOpportunity(req.params.id);
       if (!item) return res.status(404).json({ error: 'NOT_FOUND', message: '商机不存在' });
-      if (item.relationId && !(await checkRelationScope(actorOf(req), item.relationId))) {
+      if (item.relationId && !(await checkRelationReadScope(actorOf(req), item.relationId))) {
         return res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此商机' });
       }
       res.json({ ok: true, opportunity: serialize(item) });
@@ -343,7 +341,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
 
   // ═══════════ CustomerTier ═══════════
   router.get('/:relationId/customer-tier', requirePermission('crm:read'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    if (!(await requireRelationReadScope(req, res))) return;
     try {
       const item = await svc.getActiveCustomerTier(req.params.relationId);
       res.json({ ok: true, customerTier: serialize(item) });
@@ -351,7 +349,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
   });
 
   router.get('/:relationId/customer-tier/history', requirePermission('crm:read'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    if (!(await requireRelationReadScope(req, res))) return;
     try {
       const items = await svc.listCustomerTierHistory(req.params.relationId);
       res.json({ ok: true, history: items.map(serialize) });
@@ -375,7 +373,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
 
   // ═══════════ Overview ═══════════
   router.get('/:relationId/overview', requirePermission('crm:read'), async (req, res) => {
-    if (!(await requireRelationScope(req, res))) return;
+    if (!(await requireRelationReadScope(req, res))) return;
     try {
       const data = await svc.getRelationCrmOverview(req.params.relationId);
       res.json({ ok: true, ...serialize(data) });

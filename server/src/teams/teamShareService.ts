@@ -18,6 +18,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { TokenPayload } from '../auth/service';
 import { createPermissionService } from '../auth/permissionService';
+import { resolveWriteKind } from '../_shared/rolePermissionMatrix';
 import { logger } from '../lib/logger';
 
 // ────────────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export type TeamShareErrorCode =
   | 'ENTITY_NOT_FOUND'
   | 'INVALID_GRANT'
   | 'GRANT_SCOPE_BLOCKED'   // 无该实体行级写权限（T-24）
+  | 'SENSITIVE_ENTITY_NOT_SHAREABLE' // v2.2（DR-042 §4.4）：confidential 档案禁止组共享（T-41）
   | 'FORBIDDEN';            // 非组长/主管/admin（T-22/T-23）
 
 export interface TeamShareResult<T = any> {
@@ -135,25 +137,62 @@ export function createTeamShareService(prisma: PrismaClient) {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // 2. 行级写权限判定（部门维，§6.1 不变量：有写权限才可共享）
-  //    口径与 crmRouteV2.checkRelationScope 一致（all/self/department）
+  // 2. 行级写权限判定（v2.2 DR-042 §4.4 读写分离）
+  //    写侧解析 rule.write ?? kind：真全权角色（财务/QC/后勤/admin）= all 放行；
+  //    sales（all + write:self）= 跟进人（ownerId ∨ salesRepIds）。
+  //    §6.1 不变量：有写权限才可共享；也是 L2 业务层「跟进人」锚的实现。
   // ══════════════════════════════════════════════════════════════
 
   async function hasRelationWriteAccess(actor: TokenPayload, relationId: string): Promise<boolean> {
     const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
-    if (resolver.rule.kind === 'all') return true;
+    const writeKind = resolveWriteKind(resolver.rule);
+    if (writeKind === 'all') return true;
     const rel = await prisma.relation.findFirst({
       where: { id: relationId, deletedAt: null },
       select: { ownerId: true, departmentId: true, salesRepIds: true },
     });
     if (!rel) return false;
-    if (resolver.rule.kind === 'self') return rel.ownerId === actor.userId;
+    if (writeKind === 'self') {
+      // v2.2 跟进人锚（DR-042 §5.1 followedBy）：负责人 ∨ 协作跟进人
+      return rel.ownerId === actor.userId
+        || (Array.isArray(rel.salesRepIds) && rel.salesRepIds.includes(actor.userId));
+    }
     const deptIds = resolver.allowedDepartmentIds || [];
     const userIds = resolver.allowedUserIds || [];
     if (userIds.length > 0 && rel.ownerId && userIds.includes(rel.ownerId)) return true;
     if (userIds.length > 0 && Array.isArray(rel.salesRepIds) && rel.salesRepIds.some((u: string) => userIds.includes(u))) return true;
     if (deptIds.length > 0 && rel.departmentId && deptIds.includes(rel.departmentId)) return true;
     return false;
+  }
+
+  /**
+   * v2.2 L2 业务读锚（DR-042 §5.1 visibleBiz）：跟进人 ∨ 组共享 ∨ 真全权角色。
+   * 消费点：crmRouteV2 子实体读门禁、orderServiceV2 L2 换锚、traceability 全景。
+   */
+  async function hasBizReadAccess(actor: TokenPayload | null | undefined, relationId: string): Promise<boolean> {
+    if (!actor) return false;
+    if (await hasRelationWriteAccess(actor, relationId)) return true; // 跟进人 ∨ all-scope
+    const { grantedRelationIds } = await getUserTeams(actor.userId);
+    return grantedRelationIds.includes(relationId);                   // 组共享（read / read+followup 均可读）
+  }
+
+  /**
+   * v2.2 L2 可见客户 ID 集（DR-042 §5.1）：followedBy ∪ teamGranted。
+   * 消费点：orderServiceV2 列表/详情的 customerRelationId IN 子句。
+   */
+  async function resolveVisibleRelationIds(actor: TokenPayload | null | undefined): Promise<string[]> {
+    if (!actor) return [];
+    const ids = new Set<string>();
+    const rels = await prisma.relation.findMany({
+      where: {
+        deletedAt: null,
+        OR: [{ ownerId: actor.userId }, { salesRepIds: { has: actor.userId } }],
+      },
+      select: { id: true },
+    });
+    for (const r of rels) ids.add(r.id);
+    for (const id of await getActiveGrantedRelationIds(actor.userId)) ids.add(id);
+    return Array.from(ids);
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -257,9 +296,14 @@ export function createTeamShareService(prisma: PrismaClient) {
       for (const item of uniqueItems) {
         const entity = await prisma.relation.findFirst({
           where: { id: item.entityId, deletedAt: null },
-          select: { id: true },
+          select: { id: true, sensitivity: true },
         });
         if (!entity) return fail('ENTITY_NOT_FOUND', `实体不存在或已删除：${item.entityId}`);
+        // v2.2（DR-042 §4.4 T-41）：confidential 档案禁止组共享——防绕过敏感标记；
+        // 确需协作走 salesRepIds 加跟进人（写侧身份，审计更强）
+        if (entity.sensitivity === 'confidential') {
+          return fail('SENSITIVE_ENTITY_NOT_SHAREABLE', `实体 ${item.entityId} 为机密档案（confidential），禁止组共享（DR-042 §4.4）`);
+        }
         if (!(await hasRelationWriteAccess(actor, item.entityId))) {
           return fail('GRANT_SCOPE_BLOCKED', `无实体 ${item.entityId} 的行级写权限，不可共享（DR-042 §6.1）`);
         }
@@ -495,6 +539,8 @@ export function createTeamShareService(prisma: PrismaClient) {
   return {
     getActiveGrantedRelationIds,
     hasRelationWriteAccess,
+    hasBizReadAccess,        // v2.2 L2 业务读锚（visibleBiz）
+    resolveVisibleRelationIds, // v2.2 L2 可见客户 ID 集（followedBy ∪ teamGranted）
     canManageTeam,
     grantEntitiesToTeam,
     revokeGrant,

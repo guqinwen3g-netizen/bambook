@@ -302,10 +302,20 @@ export const VIEW_TO_MAIN_SCOPES: Record<View, ViewPermissionScopes> = {
 // ═══════════════════════════════════════════════════════════════════
 
 export type DataScopeRule =
-  | { kind: 'all' }                                                          // 全公司可见
+  | { kind: 'all'; write?: 'all' | 'department' | 'self' }                   // 全公司可见（v2.2 DR-042 §4.4：write 可独立收窄，缺省 = 'all'）
   | { kind: 'department'; own: boolean; includeDescendantDepartments?: boolean } // 仅本部门（默认跨部门隔离）
   | { kind: 'team' }                                                         // 仅本Team（预留更细粒度，目前按department够用）
   | { kind: 'self' };                                                        // 仅自己（ownerId=me，暂时不启用因为CM-2选了无唯一owner，以后可开）
+
+/**
+ * v2.2（DR-042 §4.4 读写分离）：解析规则的写侧 kind。
+ * - { kind: 'all' } 缺省 write = 'all'（真全权角色：财务/QC/后勤/admin/超管）
+ * - { kind: 'all', write: 'self' }：读全量、写本人维（sales 档案图书馆化口径）
+ * - 其余 kind：写侧 = 读侧 kind（原语义）
+ */
+export function resolveWriteKind(rule: DataScopeRule): 'all' | 'department' | 'team' | 'self' {
+  return rule.kind === 'all' ? (rule.write ?? 'all') : rule.kind;
+}
 
 export const DEFAULT_DATA_SCOPE_BY_ROLE: Record<
   SystemRoleId,
@@ -315,9 +325,10 @@ export const DEFAULT_DATA_SCOPE_BY_ROLE: Record<
   // --- 业务员/销售主管：PL-2B 同部门互相可见，跨部门隔离 ---
   [SYSTEM_ROLE_IDS.SALES]: {
     '*': { kind: 'department', own: true, includeDescendantDepartments: false },
-    // Relations/CRM 客户域：和业务域一致（同部门都可以跟进）
-    relations: { kind: 'department', own: true },
-    crm: { kind: 'department', own: true },
+    // v2.2（DR-042 §5.1 L1 档案图书馆化）：读全公司（normal 档案全公司可查，
+    // confidential 由服务层收窄为本人维），写本人维（跟进人）
+    relations: { kind: 'all', write: 'self' },
+    crm: { kind: 'all', write: 'self' },
     // 财务域：业务员只能看自己/同部门经手的订单关联的发票/凭证，不能看全公司
     invoices: { kind: 'department', own: true },
     vouchers: { kind: 'department', own: true },

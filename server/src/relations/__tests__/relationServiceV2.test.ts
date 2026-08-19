@@ -464,7 +464,7 @@ describe('DR-042 buildScopeWhere 读/写 scope 分离', () => {
     })) as any);
   }
 
-  it('T-09：读 scope = 部门维 ∪ 小组维（OR 含 id-in 分支）', async () => {
+  it('T-33/T-34：读 scope = 图书馆（normal 全查 + confidential 仅跟进人，L1 不消费组授权）', async () => {
     useDepartmentRule();
     const prisma = makePrisma({
       teamMemberFindMany: vi.fn().mockResolvedValue([{ teamId: 'team_1' }]),
@@ -474,10 +474,32 @@ describe('DR-042 buildScopeWhere 读/写 scope 分离', () => {
     const where = await svc.buildScopeWhere(ACTOR);
     const orParts = (where as any).OR as any[];
     expect(orParts).toBeDefined();
-    // 部门维分支保留
-    expect(orParts.some((p: any) => p.departmentId)).toBe(true);
-    // 小组维分支注入（T-07：组共享实体可见）
-    expect(orParts.some((p: any) => p.id && p.id.in && p.id.in.includes('REL__TEAM'))).toBe(true);
+    // normal 全公司可查分支（T-33；sensitivity 非 nullable，db push 已回填）
+    expect(orParts.some((p: any) => p.sensitivity === 'normal')).toBe(true);
+    // confidential 仅本人维（ownerId ∨ salesRepIds，T-34）
+    const confBranch = orParts.find((p: any) => p.AND && p.AND[0]?.sensitivity === 'confidential');
+    expect(confBranch).toBeDefined();
+    const selfOr = confBranch.AND[1].OR;
+    expect(selfOr.some((p: any) => p.ownerId === ACTOR.userId)).toBe(true);
+    expect(selfOr.some((p: any) => p.salesRepIds?.has === ACTOR.userId)).toBe(true);
+    // v2.2：L1 不再消费组授权——小组维 id-in 分支绝不能出现在档案读 scope
+    expect(orParts.some((p: any) => p.id && p.id.in)).toBe(false);
+  });
+
+  it('T-40：all+write:self（sales 口径）→ 读图书馆、写本人维（读写分离核心）', async () => {
+    vi.mocked(createPermissionService).mockImplementation((() => ({
+      getDataScopeResolver: vi.fn().mockResolvedValue({ rule: { kind: 'all', write: 'self' } }),
+    })) as any);
+    const prisma = makePrisma({});
+    const svc = createRelationServiceV2(prisma);
+    // 读 = 图书馆口径（非 {}——写侧收窄即非真全权角色）
+    const readWhere = await svc.buildScopeWhere(ACTOR);
+    expect((readWhere as any).OR).toBeDefined();
+    // 写 = 本人维（ownerId ∨ salesRepIds）
+    const writeWhere = await svc.buildWriteScopeWhere(ACTOR);
+    const orParts = (writeWhere as any).OR as any[];
+    expect(orParts.some((p: any) => p.ownerId === ACTOR.userId)).toBe(true);
+    expect(orParts.some((p: any) => p.salesRepIds?.has === ACTOR.userId)).toBe(true);
   });
 
   it('T-19：写 scope 不含小组维（组共享 ≠ 可写，防越权核心）', async () => {

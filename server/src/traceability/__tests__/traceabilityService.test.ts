@@ -132,12 +132,12 @@ describe('customerPanorama 客户全景', () => {
     await expect(svc.trace(ACTOR, 'customerPanorama', 'NOPE')).rejects.toThrow('NOT_FOUND');
   });
 
-  it('无 actor → scope 退化为 __NOBODY__', async () => {
+  it('无 actor → L2 门禁直接拒绝（v2.2：业务层 fail-closed，不触达数据查询）', async () => {
     const prisma = makePrisma({ relationFindFirst: vi.fn().mockResolvedValue(null) });
     const svc = createTraceabilityService(prisma);
     await expect(svc.trace(null, 'customerPanorama', 'REL__1')).rejects.toThrow('NOT_FOUND');
-    const where = prisma.relation.findFirst.mock.calls[0][0].where;
-    expect(where.ownerId).toBe('__NOBODY__');
+    // v2.2（DR-042 §5.1 L2）：无 actor → hasBizReadAccess false → 在 relation 查询前短路
+    expect(prisma.relation.findFirst).not.toHaveBeenCalled();
   });
 
   it('contacts/followUpRecords/opportunities 被 include', async () => {

@@ -174,18 +174,19 @@ describe('runtime QA [toolRuntime]: commit dispatch 精确分支体', () => {
 
 // Part 13: 前端 apiService — POST/PUT/DELETE 完整消费
 describe('runtime QA [前端 apiService]: POST/PUT/DELETE 完整消费', () => {
-  it('saveRelation: POST /v1/relations', () => {
+  it('saveRelation: POST /v2/relations（DR-042 v2.2 行级口径，归属三键自动填充）', () => {
     expect(API_SVC_SRC).toContain('async saveRelation');
-    expect(API_SVC_SRC).toContain("'/v1/relations'");
+    expect(API_SVC_SRC).toContain("'/v2/relations'");
     expect(API_SVC_SRC).toContain("method: 'POST'");
   });
-  it('updateRelation: PUT /v1/relations/:id', () => {
+  it('updateRelation: PUT /v2/relations/:id', () => {
     expect(API_SVC_SRC).toContain('async updateRelation');
-    expect(API_SVC_SRC).toContain('/v1/relations/${encodeURIComponent(id)}');
+    expect(API_SVC_SRC).toContain('/v2/relations/${encodeURIComponent(id)}');
     expect(API_SVC_SRC).toContain("method: 'PUT'");
   });
-  it('deleteRelation: DELETE /v1/relations/:id', () => {
+  it('deleteRelation: DELETE /v2/relations/:id（写 scope 校验——仅跟进人可删）', () => {
     expect(API_SVC_SRC).toContain('async deleteRelation');
+    expect(API_SVC_SRC).toContain('/v2/relations/${encodeURIComponent(id)}');
     expect(API_SVC_SRC).toContain("method: 'DELETE'");
   });
 });

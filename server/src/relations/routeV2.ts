@@ -116,6 +116,7 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
         UNAUTHORIZED: 401, VALIDATION_FAILED: 400, INVALID_GRANT: 400,
         NOT_FOUND: 404, ENTITY_NOT_FOUND: 404, TEAM_NOT_FOUND: 404,
         TEAM_DISSOLVED: 409, FORBIDDEN: 403, GRANT_SCOPE_BLOCKED: 403,
+        SENSITIVE_ENTITY_NOT_SHAREABLE: 409, // v2.2 §4.4 T-41：confidential 禁止组共享
       };
       return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
     }

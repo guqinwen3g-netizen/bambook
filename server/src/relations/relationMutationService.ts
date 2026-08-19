@@ -83,6 +83,16 @@ export function toRelationDbPayload(input: any): Record<string, unknown> {
     reportsToId: input.reportsToId || null,
     role: input.role || null,
     department: input.department || null,
+    // 归属三键（v2.1 组为主视野的行级权限锚点）：
+    // ownerId=归属人（本人维可见/可写的判定核心）、departmentId=目录归属、
+    // stage=销售阶段、code=档案编号。V2 createRelation 传入却被旧白名单丢弃，
+    // 导致建档后 ownerId 落空——创建者对自己的客户失去写权限（DR-042 §6.1 判定）。
+    ownerId: input.ownerId || null,
+    departmentId: input.departmentId || null,
+    stage: input.stage || null,
+    code: input.code || null,
+    // v2.2（DR-042 §4.4）：L1 档案层敏感标记（normal=图书馆全公司可查 / confidential=本人维+管理角色）
+    sensitivity: input.sensitivity === 'confidential' ? 'confidential' : 'normal',
     tags: Array.isArray(input.tags) ? input.tags.map(String) : [],
     contactInfo: String(input.contactInfo || ''),
     rating: Number(input.rating || 3),
@@ -139,6 +149,15 @@ export function toRelationUpdatePayload(input: any): Record<string, unknown> {
   if (hasOwn(input, 'reportsToId')) out.reportsToId = input.reportsToId || null;
   if (hasOwn(input, 'role')) out.role = input.role || null;
   if (hasOwn(input, 'department')) out.department = input.department || null;
+  // 归属键（与 toRelationDbPayload 对齐）：转归属/调部门/改阶段/改编号走更新链路
+  if (hasOwn(input, 'ownerId')) out.ownerId = input.ownerId || null;
+  if (hasOwn(input, 'departmentId')) out.departmentId = input.departmentId || null;
+  if (hasOwn(input, 'stage')) out.stage = input.stage || null;
+  if (hasOwn(input, 'code')) out.code = input.code || null;
+  // v2.2（DR-042 §4.4）：敏感标记更新（仅 normal/confidential 合法值落库）
+  if (hasOwn(input, 'sensitivity')) {
+    out.sensitivity = input.sensitivity === 'confidential' ? 'confidential' : 'normal';
+  }
   if (hasOwn(input, 'tags')) out.tags = Array.isArray(input.tags) ? input.tags.map(String) : [];
   if (hasOwn(input, 'contactInfo')) out.contactInfo = String(input.contactInfo || '');
   if (hasOwn(input, 'rating')) out.rating = Number(input.rating || 3);

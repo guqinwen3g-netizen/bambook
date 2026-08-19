@@ -126,22 +126,22 @@ describe('主链 E2E [server]: 主链端点挂载全景', () => {
 });
 
 // ══════════════════════════════════════════════════════════════
-// Step 1: 客户创建（RelationsManager → apiService.saveRelation → POST /v1/relations）
+// Step 1: 客户创建（RelationsManager → apiService.saveRelation → POST /v2/relations）
 // ══════════════════════════════════════════════════════════════
 describe('主链 E2E [step 1]: 客户创建', () => {
-  it('apiService 契约：saveRelation POST /v1/relations 并解包 data.relation', () => {
+  it('apiService 契约：saveRelation POST /v2/relations 并解包 data.relation（DR-042 v2.2 行级口径）', () => {
     expect(API_SVC).toContain('async saveRelation');
-    expect(API_SVC).toContain("'/v1/relations'");
+    expect(API_SVC).toContain("'/v2/relations'");
   });
 
-  it('mock fetch：POST /api/v1/relations，载荷 round-trip，解包 relation', async () => {
+  it('mock fetch：POST /api/v2/relations，载荷 round-trip，解包 relation', async () => {
     const relation = {
       id: 'REL_C1', name: 'ACME Trading', category: 'Customer', type: 'Customer',
     } as unknown as Relation;
     const fetchMock = mockFetchOnce({ ok: true, relation: { ...relation, createdAt: 1 } });
     const saved = await apiService.saveRelation(relation, ENDPOINT);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain('/api/v1/relations');
+    expect(url).toContain('/api/v2/relations');
     expect(init.method).toBe('POST');
     expect(JSON.parse(String(init.body)).name).toBe('ACME Trading');
     expect(saved.id).toBe('REL_C1');
