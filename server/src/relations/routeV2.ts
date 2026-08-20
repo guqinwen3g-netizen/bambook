@@ -27,6 +27,7 @@ import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { requirePermission } from '../auth/permissionGuard';
 import { extractActorFromRequest } from '../auth/middleware';
+import { writeRouteAuditLog } from '../audit/routeAudit';
 import { createRelationServiceV2 } from './relationServiceV2';
 import { logger } from '../lib/logger';
 
@@ -159,6 +160,65 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
     const result = await svc.batchChangeStage(actor, ids, newStage);
     if (!result.ok) return res.status(500).json({ error: result.error!.code, message: result.error!.message });
     return res.json({ ok: true, ...result.data });
+  });
+
+  // ── GET /export.csv 客户档案受控导出（REQ2-13 DR-056-④，SEC-01）──
+  // 门禁 data:export:full（矩阵既定仅 SuperAdmin 的高危 scope）：业务员/普通角色 403；
+  // 每次导出写审计（actor/行数/过滤条件）。注册于 /:id 之前，防路径参数误吞。
+  router.get('/export.csv', requireWrite, requirePermission('data:export:full'), async (req, res) => {
+    try {
+      const where: Record<string, unknown> = { deletedAt: null };
+      if (typeof req.query.category === 'string' && req.query.category) where.category = req.query.category;
+      if (typeof req.query.stage === 'string' && req.query.stage) where.stage = req.query.stage;
+      if (typeof req.query.tier === 'string' && req.query.tier) where.tier = req.query.tier;
+      if (req.query.isOrganization === 'true') where.isOrganization = true;
+      if (req.query.isOrganization === 'false') where.isOrganization = false;
+
+      // 上限兜底：导出属管理动作，超限提示收窄过滤条件（防误操作全表拉取）
+      const MAX_EXPORT_ROWS = 20_000;
+      const total = await opts.prisma.relation.count({ where });
+      if (total > MAX_EXPORT_ROWS) {
+        return res.status(400).json({ error: 'EXPORT_TOO_LARGE', message: `匹配 ${total} 行超过导出上限 ${MAX_EXPORT_ROWS}，请用 category/stage/tier 收窄范围` });
+      }
+
+      const rows = await opts.prisma.relation.findMany({
+        where,
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        select: {
+          code: true, name: true, chineseName: true, englishName: true, category: true, type: true,
+          stage: true, tier: true, sensitivity: true, ownerId: true, primaryContactName: true,
+          email: true, phone: true, website: true, currency: true,
+        },
+      });
+
+      const header = ['code', 'name', 'chineseName', 'englishName', 'category', 'type', 'stage', 'tier', 'sensitivity', 'ownerId', 'primaryContactName', 'email', 'phone', 'website', 'currency'];
+      const csvEscape = (v: unknown): string => {
+        const s = v == null ? '' : String(v);
+        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csv = '\uFEFF' + [header.join(','), ...rows.map((r: any) => header.map(k => csvEscape((r as any)[k])).join(','))].join('\n');
+
+      // 审计：谁在何时导出了多少行、什么过滤条件（SEC-01 防泄露留痕）
+      await writeRouteAuditLog({
+        prisma: opts.prisma,
+        actorId: actorOf(req)?.userId || 'system',
+        source: 'relations',
+        operation: 'relations_export_csv',
+        targetType: 'Relation',
+        targetId: 'bulk',
+        after: { rowCount: rows.length, filters: where },
+        ip: req.ip ?? null,
+        operationType: 'link',
+      });
+
+      const filename = `relations-${new Date().toISOString().slice(0, 10)}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      return res.send(csv);
+    } catch (err: any) {
+      logger.error('[RelationsV2] export.csv failed', { error: err?.message });
+      return res.status(500).json({ error: 'EXPORT_FAILED', message: err?.message || '导出失败' });
+    }
   });
 
   // ── GET /:id 详情 ──

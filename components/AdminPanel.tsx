@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { hasRole } from '../services/authService';
 import { getApiBaseUrl } from '../services/apiBase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown, Workflow, Ruler, Database } from 'lucide-react';
+import { Users, Shield, BookOpen, Wrench, CheckSquare, ScrollText, UserPlus, Check, X, Trash2, Pencil, Fingerprint, Mail, KeyRound, Clock3, Building2, BadgeCheck, Crown, Workflow, Ruler, Database, ArrowLeftRight } from 'lucide-react';
 import { WorkflowPanel } from './WorkflowPanel';
 import { CompanyProfileSection } from './admin/CompanyProfileSection';
 import { PlatformRulesSection } from './admin/PlatformRulesSection';
@@ -12,9 +12,12 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
 import UserAvatar from './ui/UserAvatar';
 import SidePanelContainer from './ui/SidePanelContainer';
+import BottomSheet from './ui/BottomSheet';
+import ToggleSwitch from './ui/ToggleSwitch';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { buildDepartmentOptions } from '../lib/departmentTree';
+import { handoverService, HandoverCounts } from '../services/handoverService';
 
 const AVAILABLE_ROLES = ['viewer', 'merchandiser', 'sales', 'finance', 'manager', 'agent_operator', 'admin', 'owner'] as const;
 const ROLE_LABELS: Record<typeof AVAILABLE_ROLES[number], string> = {
@@ -223,6 +226,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const [userDraft, setUserDraft] = useState(EMPTY_USER_EDIT_DRAFT);
   // 用户表单部门选项（真源 /api/admin/users 响应 departments；与 kbDepartments 同构但独立缓存于 users tab）
   const [userDepartments, setUserDepartments] = useState<any[]>(() => readAdminPanelCache().users?.departments || []);
+
+  // REQ2-13 离职一键交接 state（DR-056：预览→确认→执行，BottomSheet 承载）
+  const [handoverTarget, setHandoverTarget] = useState<any | null>(null);
+  const [handoverSuccessorId, setHandoverSuccessorId] = useState('');
+  const [handoverPreview, setHandoverPreview] = useState<{ fromUser: any; counts: HandoverCounts; warnings: string[] } | null>(null);
+  const [handoverPreviewLoading, setHandoverPreviewLoading] = useState(false);
+  const [handoverDisable, setHandoverDisable] = useState(true);
+  const [handoverNote, setHandoverNote] = useState('');
+  const [handoverExecuting, setHandoverExecuting] = useState(false);
+  const [handoverError, setHandoverError] = useState('');
+  const [handoverResult, setHandoverResult] = useState<{ handoverId: string; counts: HandoverCounts; accountDisabled: boolean } | null>(null);
+  const [handoverRecords, setHandoverRecords] = useState<any[]>([]);
 
   // Knowledge ACL state
   const [knowledgeAcls, setKnowledgeAcls] = useState<any[]>(() => readAdminPanelCache()['knowledge-acl']?.acls || []);
@@ -460,6 +475,82 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
     } finally {
       setActionBusyId(null);
     }
+  };
+
+  // ── REQ2-13 离职一键交接（DR-056：预览→确认→执行；停用即时失效由服务端组合根守卫承接） ──
+  const handoverSuccessorOptions = useMemo(
+    () => users.filter((u: any) => u.status === 'active' && u.id !== handoverTarget?.id),
+    [users, handoverTarget],
+  );
+
+  const refreshHandoverPreview = async (fromUserId: string, toUserId?: string) => {
+    setHandoverPreviewLoading(true);
+    setHandoverError('');
+    try {
+      setHandoverPreview(await handoverService.preview(fromUserId, toUserId || undefined));
+    } catch (e: any) {
+      setHandoverError(e.message || '交接预览加载失败');
+    } finally {
+      setHandoverPreviewLoading(false);
+    }
+  };
+
+  const openHandover = async (u: any) => {
+    setHandoverTarget(u);
+    setHandoverSuccessorId('');
+    setHandoverPreview(null);
+    setHandoverDisable(true);
+    setHandoverNote('');
+    setHandoverError('');
+    setHandoverResult(null);
+    setHandoverRecords([]);
+    setHandoverPreviewLoading(true);
+    try {
+      const [preview, records] = await Promise.all([
+        handoverService.preview(u.id),
+        handoverService.listRecords(10),
+      ]);
+      setHandoverPreview(preview);
+      setHandoverRecords(records.records);
+    } catch (e: any) {
+      setHandoverError(e.message || '交接预览加载失败');
+    } finally {
+      setHandoverPreviewLoading(false);
+    }
+  };
+
+  const executeHandover = async () => {
+    if (!handoverTarget || !handoverSuccessorId || handoverExecuting) return;
+    const successor = handoverSuccessorOptions.find((u: any) => u.id === handoverSuccessorId);
+    const confirmed = await bdsConfirm({
+      title: '确认执行离职交接',
+      body: `将「${handoverTarget.displayName}」名下全部客户资产移交给「${successor?.displayName || handoverSuccessorId}」？${handoverDisable ? '交接完成后其账号将立即停用（未过期登录凭证同步失效）。' : '其账号将保持当前状态（不停用）。'}此操作单事务原子执行、全程留痕，不可撤销。`,
+      danger: true,
+    });
+    if (!confirmed) return;
+    setHandoverExecuting(true);
+    setHandoverError('');
+    try {
+      const result = await handoverService.execute({
+        fromUserId: handoverTarget.id,
+        toUserId: handoverSuccessorId,
+        disableAccount: handoverDisable,
+        note: handoverNote.trim() || undefined,
+      });
+      setHandoverResult(result);
+      bdsToast.success('离职交接完成，资产已全部移交。');
+      await loadTab('users');
+      setHandoverRecords((await handoverService.listRecords(10)).records);
+    } catch (e: any) {
+      setHandoverError(e.message || '交接执行失败');
+    } finally {
+      setHandoverExecuting(false);
+    }
+  };
+
+  const closeHandoverSheet = () => {
+    if (handoverExecuting) return;
+    setHandoverTarget(null);
   };
 
   const startUserEdit = (u: any) => {
@@ -816,6 +907,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                             className={brandActionCls}
                           >
                             <Check size={14} />{actionBusyId === editingUser.id ? '保存中' : '保存账号'}
+                          </button>
+                          <button
+                            onClick={() => openHandover(editingUser)}
+                            disabled={actionBusyId === editingUser.id}
+                            className={brandActionCls}
+                          >
+                            <ArrowLeftRight size={14} />离职交接
                           </button>
                           <button
                             onClick={() => disableAccount(editingUser.id, editingUser.displayName)}
@@ -1399,6 +1497,164 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
           </div>
         </SidePanelContainer>
       </div>
+
+      {/* REQ2-13 离职一键交接 BottomSheet（DR-056：预览→确认→执行 + 交接单留痕） */}
+      {handoverTarget && (
+        <BottomSheet
+          isOpen={!!handoverTarget}
+          onClose={closeHandoverSheet}
+          title="离职一键交接"
+          isDarkMode={isDarkMode}
+        >
+          <div className="space-y-4 px-6 py-5">
+            {/* 离职者档案头 */}
+            <div className={`flex items-center gap-3 p-3 rounded-inset border border-[var(--border-c-default)] bg-[var(--recessed-bg)]`}>
+              <UserAvatar
+                name={handoverTarget.displayName}
+                email={handoverTarget.email}
+                avatarUrl={handoverTarget.avatarUrl}
+                isDarkMode={isDarkMode}
+                sizeClassName="h-9 w-9"
+                textClassName="text-xs"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-light truncate text-[var(--text-primary)]">{handoverTarget.displayName}</div>
+                <div className="text-[11px] truncate text-[var(--text-tertiary)]">{maskAdminEmail(handoverTarget.email)}</div>
+              </div>
+              <span className={handoverTarget.status === 'active' ? brandChipCls : neutralChipCls}>{handoverTarget.status}</span>
+            </div>
+
+            {handoverResult ? (
+              <>
+                {/* 执行结果视图（交接单摘要） */}
+                <div className="bds-alert success">
+                  交接完成（单号 {handoverResult.handoverId}）：{handoverResult.counts.relationsOwned} 个档主客户、
+                  {handoverResult.counts.relationsCoFollowed} 个协同客户、{handoverResult.counts.opportunities} 个商机、
+                  {handoverResult.counts.followUpRecords} 条跟进记录、{handoverResult.counts.unanchoredOrders} 个无锚订单已全部移交；
+                  {handoverResult.accountDisabled ? '离职者账号已停用，未过期登录凭证同步失效。' : '离职者账号保持原状态。'}
+                </div>
+                <div className="flex justify-end pt-1">
+                  <button type="button" onClick={closeHandoverSheet} className={brandActionCls}>关闭</button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* 资产预览计数 */}
+                <div>
+                  <div className={`mb-2 text-[10px] tracking-[0.14em] ${BAMBOOK_OS.tone.text.formLabel}`}>待移交资产</div>
+                  {handoverPreviewLoading && !handoverPreview ? (
+                    <div className={sectionMutedClass}>加载中...</div>
+                  ) : handoverPreview ? (
+                    <div className="grid grid-cols-5 gap-2">
+                      {[
+                        { label: '档主客户', value: handoverPreview.counts.relationsOwned },
+                        { label: '协同客户', value: handoverPreview.counts.relationsCoFollowed },
+                        { label: '商机', value: handoverPreview.counts.opportunities },
+                        { label: '跟进记录', value: handoverPreview.counts.followUpRecords },
+                        { label: '无锚订单', value: handoverPreview.counts.unanchoredOrders },
+                      ].map(cell => (
+                        <div key={cell.label} className={`px-2 py-2.5 text-center ${inlineRowClass}`}>
+                          <div className="text-base font-light text-[var(--text-primary)]">{cell.value}</div>
+                          <div className="text-[10px] font-light text-[var(--text-tertiary)]">{cell.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className={`mt-2 text-[10px] font-light leading-relaxed text-[var(--text-tertiary)]`}>
+                    有客户锚的订单与邮件历史随客户归属自动继承（T-38），无需单独移交；档案与归属改写全程审计留痕。
+                  </div>
+                </div>
+
+                {handoverPreview?.warnings?.length ? (
+                  <div className="bds-alert warning">
+                    {handoverPreview.warnings.map((w, i) => <div key={i}>{w}</div>)}
+                  </div>
+                ) : null}
+
+                {/* 接收人选择 */}
+                <div>
+                  <label className={`mb-1.5 block text-[10px] tracking-[0.14em] ${BAMBOOK_OS.tone.text.formLabel}`}>接收人 *</label>
+                  <select
+                    value={handoverSuccessorId}
+                    onChange={e => {
+                      setHandoverSuccessorId(e.target.value);
+                      if (e.target.value) refreshHandoverPreview(handoverTarget.id, e.target.value);
+                    }}
+                    disabled={handoverExecuting}
+                    className="bds-select sm w-full"
+                  >
+                    <option value="">选择接收全部资产的在职账号</option>
+                    {handoverSuccessorOptions.map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.displayName}{u.email ? ` · ${u.email}` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 停用开关 + 备注 */}
+                <div className={`flex items-center justify-between gap-3 p-3 ${inlineRowClass}`}>
+                  <div className="min-w-0">
+                    <div className="text-xs font-light text-[var(--text-primary)]">交接后停用离职者账号</div>
+                    <div className="text-[10px] font-light text-[var(--text-tertiary)]">停用后立即无法登录，未过期登录凭证同步失效</div>
+                  </div>
+                  <ToggleSwitch
+                    checked={handoverDisable}
+                    onChange={setHandoverDisable}
+                    disabled={handoverExecuting}
+                    ariaLabel="交接后停用账号"
+                  />
+                </div>
+                <div>
+                  <label className={`mb-1.5 block text-[10px] tracking-[0.14em] ${BAMBOOK_OS.tone.text.formLabel}`}>交接备注</label>
+                  <input
+                    value={handoverNote}
+                    onChange={e => setHandoverNote(e.target.value)}
+                    disabled={handoverExecuting}
+                    placeholder="离职原因 / 客户沟通口径等（随交接单留痕）"
+                    className="bds-input sm w-full"
+                  />
+                </div>
+
+                {handoverError && <div className="bds-alert danger">{handoverError}</div>}
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" disabled={handoverExecuting} onClick={closeHandoverSheet} className={actionButtonCls}>取消</button>
+                  <button
+                    type="button"
+                    disabled={handoverExecuting || !handoverSuccessorId || handoverPreviewLoading}
+                    onClick={executeHandover}
+                    className={brandActionCls}
+                  >
+                    <ArrowLeftRight size={14} />{handoverExecuting ? '执行中...' : '执行交接'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* 交接单历史（append-only 留痕） */}
+            {handoverRecords.length > 0 && (
+              <div className="pt-2">
+                <div className={`mb-2 text-[10px] tracking-[0.14em] ${BAMBOOK_OS.tone.text.formLabel}`}>最近交接记录</div>
+                <div className="space-y-1.5">
+                  {handoverRecords.map((r: any) => (
+                    <div key={r.id} className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[11px] font-light ${inlineRowClass}`}>
+                      <span className="text-[var(--text-primary)]">{r.fromUserName}</span>
+                      <ArrowLeftRight size={14} className="text-[var(--text-tertiary)]" />
+                      <span className="text-[var(--text-primary)]">{r.toUserName}</span>
+                      <span className={neutralChipCls}>{r.disableAccount ? '已停用' : '未停用'}</span>
+                      <span className="text-[var(--text-tertiary)]">
+                        {r.detail?.relationsOwned ?? 0} 客户 · {r.detail?.opportunities ?? 0} 商机 · {r.detail?.followUpRecords ?? 0} 跟进
+                      </span>
+                      <span className="ml-auto text-[var(--text-tertiary)]">
+                        {new Date(r.createdAt).toLocaleString('zh-CN', { hour12: false })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </BottomSheet>
+      )}
     </div>
   );
 };

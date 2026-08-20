@@ -5971,3 +5971,29 @@ model Dr013ExceptionRequest {
   @@index([exceptionNumber])
 }
 
+// ============================================================================
+// REQ2-13：业务员离职一键交接（X-07 资产安全类，DR-056）
+// ============================================================================
+/// 交接单（append-only 留痕）：一次离职交接的完整快照——谁在何时把哪些
+/// 客户资产移交给谁、是否停用账号、各类资产计数。历史不可篡改。
+/// 设计真源：docs/design/04-模块设计/02-客户与开拓/业务员离职一键交接.md
+model HandoverRecord {
+  id             String   @id // 格式：HO_${shortId}
+  fromUserId     String // 离职者
+  toUserId       String // 接收人
+  operatedBy     String // 操作人（管理员）
+  fromUserName   String // 冗余快照：离职者显示名
+  toUserName     String // 冗余快照：接收人显示名
+  /// 交接时是否同步停用离职者账号（默认 true）
+  disableAccount Boolean  @default(true)
+  note           String? // 交接备注
+  /// 五类资产计数快照：{ relationsOwned, relationsCoFollowed, opportunities, followUpRecords, unanchoredOrders }
+  detail         Json?
+
+  createdAt      DateTime @default(now())
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([createdAt])
+}
+

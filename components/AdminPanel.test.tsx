@@ -135,3 +135,58 @@ describe('AdminPanel layout bounds', () => {
     expect(source).toContain('formatRiskModeLabel(p.riskMode)');
   });
 });
+
+describe('AdminPanel REQ2-13 离职一键交接（DR-056）', () => {
+  it('用户编辑视图提供离职交接入口（与停用/抹除并列）', () => {
+    expect(source).toContain("import { handoverService, HandoverCounts } from '../services/handoverService'");
+    expect(source).toContain('<ArrowLeftRight size={14} />离职交接');
+    expect(source).toContain('onClick={() => openHandover(editingUser)}');
+  });
+
+  it('交接走 BottomSheet 两段式：打开即预览（计数 + 最近交接单），选接收人后刷新预览', () => {
+    expect(source).toContain("import BottomSheet from './ui/BottomSheet'");
+    expect(source).toContain('title="离职一键交接"');
+    expect(source).toContain('handoverService.preview(u.id)');
+    expect(source).toContain('handoverService.listRecords(10)');
+    expect(source).toContain('refreshHandoverPreview(handoverTarget.id, e.target.value)');
+    // 五类资产计数格
+    expect(source).toContain("'档主客户'");
+    expect(source).toContain("'协同客户'");
+    expect(source).toContain("'商机'");
+    expect(source).toContain("'跟进记录'");
+    expect(source).toContain("'无锚订单'");
+    // T-38 自动继承口径说明
+    expect(source).toContain('T-38');
+  });
+
+  it('接收人选项仅限在职且非离职者本人；警示透出', () => {
+    expect(source).toContain("users.filter((u: any) => u.status === 'active' && u.id !== handoverTarget?.id)");
+    expect(source).toContain('handoverPreview.warnings.map');
+  });
+
+  it('执行前 bdsConfirm 确认（danger），执行后 toast + 用户列表与交接单历史刷新', () => {
+    expect(source).toContain("'确认执行离职交接'");
+    expect(source).toContain('danger: true');
+    expect(source).toContain("handoverService.execute({");
+    expect(source).toContain('fromUserId: handoverTarget.id');
+    expect(source).toContain('disableAccount: handoverDisable');
+    expect(source).toContain("bdsToast.success('离职交接完成，资产已全部移交。')");
+    expect(source).toContain("await loadTab('users')");
+  });
+
+  it('停用开关联动（ToggleSwitch）+ 执行中防重入（关闭/按钮禁用）', () => {
+    expect(source).toContain("import ToggleSwitch from './ui/ToggleSwitch'");
+    expect(source).toContain('checked={handoverDisable}');
+    expect(source).toContain('onChange={setHandoverDisable}');
+    expect(source).toContain('if (handoverExecuting) return;');
+    expect(source).toContain('disabled={handoverExecuting || !handoverSuccessorId || handoverPreviewLoading}');
+  });
+
+  it('交接单历史渲染 from → to + 停用标记 + 计数摘要（append-only 留痕可见）', () => {
+    expect(source).toContain('最近交接记录');
+    expect(source).toContain('{r.fromUserName}');
+    expect(source).toContain('{r.toUserName}');
+    expect(source).toContain("{r.disableAccount ? '已停用' : '未停用'}");
+    expect(source).toContain("{r.detail?.relationsOwned ?? 0} 客户 · {r.detail?.opportunities ?? 0} 商机 · {r.detail?.followUpRecords ?? 0} 跟进");
+  });
+});

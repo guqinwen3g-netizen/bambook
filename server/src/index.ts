@@ -20,6 +20,8 @@ import { createOrdersV2Router } from './orders/routeV2';
 import { createOrderLinesRouter } from './orders/orderLinesRoute';
 import { createRelationsRouter } from './relations/route';
 import { createRelationsV2Router } from './relations/routeV2';
+import { createHandoverRouter } from './handover/route';
+import { createAccountStatusGuard } from './auth/accountStatusGuard';
 import { createProductsRouter } from './products/route';
 import { createSystemAssetsRouter } from './system-assets/route';
 import { createPdmlRouter } from './pdml/route';
@@ -267,6 +269,9 @@ const corsWithCredentials = cors({
 app.use(corsWithCredentials);
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+// REQ2-13（DR-056-③）：停用账号即时失效——JWT 只验签不查库的根因缺口在组合根拦截
+//（30s TTL 缓存；停用/交接路径调用 invalidateAccountStatusCache 同进程即时失效）
+app.use(createAccountStatusGuard(prisma));
 // 请求耗时日志：5xx→error / 慢请求→warn / 其余→debug（Phase 1 · 任务 1.2）
 app.use(createRequestTimingMiddleware());
 app.use((req, res, next) => {
@@ -561,6 +566,16 @@ app.use(
 app.use(
     '/api/v2/relations',
     (req, res, next) => createRelationsV2Router({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+// REQ2-13（DR-056）：业务员离职一键交接——五类归属字段批量移交 + 停用留痕
+app.use(
+    '/api/v2/handover',
+    (req, res, next) => createHandoverRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

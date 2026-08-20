@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createAuthService } from '../auth/service';
 import { requireRole } from '../auth/middleware';
+import { invalidateAccountStatusCache } from '../auth/accountStatusGuard';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
 import { buildAuditLogQuery } from '../audit/entityQuery';
 import { AgentRole } from '../agent/types';
@@ -236,6 +237,9 @@ export function createAdminRouter(options: AdminRouterOptions) {
         },
       },
     });
+
+    // REQ2-13（DR-056-③）：停用即时失效——组合根状态守卫缓存同步失效
+    invalidateAccountStatusCache(id);
 
     await options.prisma.auditLog.create({
       data: { id: auditId(), actorId: actor?.userId || 'system', action: 'disable_account', targetType: 'UserAccount', targetId: id, ip: req.ip },
