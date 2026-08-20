@@ -27,6 +27,9 @@ import {
   replaceShipmentLines, replaceShipmentCartons, pullLinesFromOrder,
 } from './shipmentPackingService';
 import { createAllocationService } from './allocationService';
+import { createBookingLeadTimeService } from './bookingLeadTimeService';
+import { serializeValue } from '../lib/serializeValue';
+import { logger } from '../lib/logger';
 
 export interface ShippingRouterOptions {
   prisma: PrismaClient;
@@ -134,9 +137,24 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   const guard = createModuleAuthGuard({ requireAuth, apiKeys });
   router.use(guard);
 
+  // REQ2-20：旺季舱位提醒（订舱提前期规则扫描）
+  const bookingLeadTimeService = createBookingLeadTimeService(prisma);
+
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
 
+
+  // ── REQ2-20（DR-061）：GET /booking-reminders — 旺季舱位预警清单（订舱提前期规则扫描，只读零写） ──
+  // 字面路由：须在参数路由 /:id 之前注册
+  router.get('/booking-reminders', async (req: Request, res: Response) => {
+    try {
+      const result = await bookingLeadTimeService.listBookingReminders();
+      res.json(serializeValue(result));
+    } catch (err: any) {
+      logger.error('[ShippingRoute] booking reminders failed', { error: err?.message });
+      res.status(500).json({ error: { code: 'BOOKING_REMINDERS_FAILED', message: err.message } });
+    }
+  });
 
   // GET /api/v1/shipping — list / search
   router.get('/', async (req: Request, res: Response) => {

@@ -204,7 +204,15 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
       const shipmentId = input?.id
         || `SHP__${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       // PRD 5.6：服务端自动生成运单号（SH-YYYY-NNNN），传入时优先使用传入值
-      const shipmentNumber = input.shipmentNumber || await nextBusinessNumber(t, 'SH');
+      // REQ2-20 期间实测发现的第四例序列落后占位（与 REQ2-12 第三例同类根因）：
+      // BusinessSequence 缺 SEQ_SH_{year} 行而 Shipment 表已有 SH-YYYY-NNNN 直写行（迁移导入/序列重建）时
+      // 生成号即撞唯一键（P2002 事务回滚）→ occupied 回调查目标表（含软删）自动追平到首个未占用号
+      const shipmentNumber = input.shipmentNumber || await nextBusinessNumber(t, 'SH', undefined, {
+        occupied: async (num) => {
+          const dup = await t.shipment.findFirst({ where: { shipmentNumber: num }, select: { id: true } });
+          return dup != null;
+        },
+      });
       const data: any = { ...input, shipmentNumber, status: shipmentStatus, createdAt: now, updatedAt: now };
       if (shipmentId) data.id = shipmentId;
 

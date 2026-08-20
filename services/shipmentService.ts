@@ -183,6 +183,18 @@ export const shipmentService = {
     return res.json();
   },
 
+  /** REQ2-20（DR-061）— 旺季舱位预警清单（GET /v1/shipping/booking-reminders，只读） */
+  async getBookingReminders(endpoint?: string): Promise<{
+    rule: { peakMonths: number[]; peakDays: number; normalDays: number };
+    items: Array<{ orderId: string; poNumber: string | null; customer: string; dueDate: string; leadDays: number; isPeak: boolean; requiredByDate: string; remainingDays: number; level: 'overdue' | 'urgent' | 'warning'; suggestion: string }>;
+  }> {
+    const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl('/v1/shipping/booking-reminders', base);
+    const res = await fetch(url, { headers: apiService.getAuthHeaders() });
+    if (!res.ok) throw new Error(`getBookingReminders failed: HTTP ${res.status}`);
+    return res.json();
+  },
+
   // ────────────────────────────────────────────────────────────
   // C4 发货深化：装运行 / 逐箱 / 方式统计
   // ────────────────────────────────────────────────────────────

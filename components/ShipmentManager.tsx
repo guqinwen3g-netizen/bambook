@@ -273,6 +273,15 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
 
   // Phase B3 — 准交率统计（只读；挂载时拉取一次，失败静默不影响主流程）
   const [onTimeStats, setOnTimeStats] = useState<OnTimeStats | null>(null);
+  // REQ2-20（DR-061）：旺季舱位预警清单（订舱提前期规则扫描，只读）
+  const [bookingReminders, setBookingReminders] = useState<Awaited<ReturnType<typeof shipmentService.getBookingReminders>> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    shipmentService.getBookingReminders()
+      .then(r => { if (!cancelled) setBookingReminders(r); })
+      .catch(() => { /* 预警加载失败不阻断主列表 */ });
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => {
     let cancelled = false;
     shipmentService.getOnTimeStats()
@@ -575,6 +584,34 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
               <button type="button" onClick={() => setErrorMessage('')} aria-label="关闭错误提示" className="mt-px shrink-0 hover:opacity-70">
                 <X size={14} />
               </button>
+            </div>
+          )}
+
+          {/* REQ2-20（DR-061）：旺季舱位预警——订舱提前期规则（旺季/平时）扫描无出运安排的订单 */}
+          {bookingReminders && bookingReminders.items.length > 0 && (
+            <div className="shrink-0 rounded-inset border border-[var(--border-c-default)] bg-[var(--recessed-bg)] px-4 py-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="text-xs tracking-[0.14em] text-[var(--text-secondary)]">舱位预警 BOOKING</span>
+                <span className="bds-badge warning">{bookingReminders.items.length} 单待订舱</span>
+                <span className="text-[10px] font-light text-[var(--text-tertiary)]">
+                  规则：旺季（{bookingReminders.rule.peakMonths.map(m => `${m} 月`).join('/')}）提前 {bookingReminders.rule.peakDays} 天 · 平时提前 {bookingReminders.rule.normalDays} 天
+                </span>
+              </div>
+              <div className="mt-2 max-h-40 space-y-1.5 overflow-y-auto custom-scrollbar">
+                {bookingReminders.items.map(item => (
+                  <div key={item.orderId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-compact bg-[var(--recessed-bg-strong)] px-3 py-2 text-xs">
+                    <span className={cx('bds-badge',
+                      item.level === 'overdue' ? 'danger' : item.level === 'urgent' ? 'warning' : 'neutral')}>
+                      {item.level === 'overdue' ? '已过交期' : item.level === 'urgent' ? '紧急' : '待订舱'}
+                    </span>
+                    <span className="font-light text-[var(--text-primary)]">{item.customer}</span>
+                    {item.poNumber && <span className="text-[10px] font-light text-[var(--text-tertiary)]">{item.poNumber}</span>}
+                    <span className="text-[10px] font-light text-[var(--text-tertiary)]">交期 {item.dueDate}</span>
+                    {item.isPeak && <span className="bds-badge info">旺季</span>}
+                    <span className="text-[10px] font-light text-[var(--text-secondary)]">{item.suggestion}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">

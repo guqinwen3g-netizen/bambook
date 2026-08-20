@@ -19,6 +19,8 @@ function makeApp(opts: {
   onDataChange?: any;
   shipmentCreateFail?: boolean;
   cleanupFail?: boolean;
+  /** 已占用运单号（含软删直写行）——occupied 追平回归用 */
+  occupiedShipmentNumbers?: string[];
 } = {}) {
   const existing = opts.existingShipment ?? { id: 'SHP-1', shipmentNumber: 'SHP001', status: 'Booked' };
   const order = opts.hasOwnProperty('order') ? opts.order : { id: 'ORDER-1', status: 'Confirmed', deletedAt: null };
@@ -56,8 +58,23 @@ function makeApp(opts: {
   const shipmentEventCreate = vi.fn().mockResolvedValue({});
   const shipmentEventFindMany = vi.fn().mockResolvedValue([]);
 
+  // REQ2-20 第四例占位回归：occupied 追平回调查 shipment.findFirst（含软删直写行判定）
+  const occupiedSet = new Set(opts.occupiedShipmentNumbers ?? []);
+  const shipmentFindFirst = vi.fn().mockImplementation(async ({ where }: any) =>
+    occupiedSet.has(where.shipmentNumber) ? { id: `OCC-${where.shipmentNumber}` } : null,
+  );
+  // BusinessSequence mock（stateful 递增，模拟 DB increment 语义；upsert 仅确保行存在）
+  let seqCounter = 0;
+  const businessSequence = {
+    upsert: vi.fn().mockImplementation(async ({ create }: any) => ({ ...create, seq: seqCounter })),
+    update: vi.fn().mockImplementation(async () => ({ seq: ++seqCounter })),
+    findUnique: vi.fn().mockResolvedValue(null),
+    deleteMany: vi.fn().mockResolvedValue({}),
+  };
+
   const tx: any = {
-    shipment: { create: shipmentCreate, update: shipmentUpdate, findUnique: shipmentFindUnique },
+    shipment: { create: shipmentCreate, update: shipmentUpdate, findUnique: shipmentFindUnique, findFirst: shipmentFindFirst },
+    businessSequence,
     shipmentEvent: { create: shipmentEventCreate, findMany: shipmentEventFindMany },
     shipmentOrderAllocation: { findMany: vi.fn().mockResolvedValue([]) }, // DR-016 合票分配（本组用例无合票）
     order: { findUnique: orderFindUnique, update: orderUpdate },
@@ -146,6 +163,19 @@ describe('shipping route → service: POST /', () => {
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('ORDER_NOT_FOUND');
     expect(onDataChange).not.toHaveBeenCalled();
+  });
+
+  it('REQ2-20 第四例占位：序列落后于业务表（无 SEQ_SH 行 + 已有 SH-YYYY-0001 直写行）→ occupied 自动追平到 0002', async () => {
+    const year = new Date().getFullYear();
+    const { app, shipmentCreate } = makeApp({ occupiedShipmentNumbers: [`SH-${year}-0001`] });
+    const res = await request(app).post('/api/v1/shipping').set(authHeader()).send({
+      type: 'Export', shippingMethod: 'Sea', customerName: 'Acme',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.shipmentNumber).toBe(`SH-${year}-0002`);
+    expect(shipmentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ shipmentNumber: `SH-${year}-0002` }) }),
+    );
   });
 });
 
