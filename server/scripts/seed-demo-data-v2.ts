@@ -129,6 +129,8 @@ const organizations: RelationSeed[] = [
     name: '【演示】Atlas Outfitters Ltd.',
     category: 'Customer', type: 'Customer', isOrganization: true,
     parentId: null, reportsToId: null, role: null, department: null,
+    // P1-001 归属三键：L2 业务口径（followedBy）依赖 ownerId/salesRepIds
+    ownerId: 'usr_demo_sales_a', salesRepIds: ['usr_demo_sales_a'], departmentId: 'dept-sales',
     tags: [DEMO_TAG, 'customer', 'usa', 'menswear'],
     contactInfo: 'orders@atlas-outfitters.example | +1 212 555 0188',
     rating: 4.6, lastInteraction: BigInt(now), deletedAt: null,
@@ -162,6 +164,8 @@ const organizations: RelationSeed[] = [
     name: '【演示】Norden Studio AB',
     category: 'Customer', type: 'Customer', isOrganization: true,
     parentId: null, reportsToId: null, role: null, department: null,
+    // P1-001 归属三键：归 sales.b（与 sales.a 隔离，可验证业务员互不可见）
+    ownerId: 'usr_demo_sales_b', salesRepIds: ['usr_demo_sales_b'], departmentId: 'dept-sales',
     tags: [DEMO_TAG, 'customer', 'sweden', 'premium-casual'],
     contactInfo: 'sourcing@norden-studio.example | +46 8 555 0100',
     rating: 4.3, lastInteraction: BigInt(now - 86400000), deletedAt: null,
@@ -194,6 +198,8 @@ const organizations: RelationSeed[] = [
     name: '【演示】Peerless Clothing International',
     category: 'Customer', type: 'Customer', isOrganization: true,
     parentId: null, reportsToId: null, role: null, department: null,
+    // P1-001 归属三键：归 sales.a（剧本 C 催款主角；开屏默认选中即本人有权客户）
+    ownerId: 'usr_demo_sales_a', salesRepIds: ['usr_demo_sales_a'], departmentId: 'dept-sales',
     tags: [DEMO_TAG, 'customer', 'canada', 'menswear', 'suiting'],
     contactInfo: 'purchasing@peerless-clothing.example | +1 514 555 0200',
     rating: 4.8, lastInteraction: BigInt(now - 3600000), deletedAt: null,
@@ -1397,7 +1403,9 @@ const paymentVouchers: PaymentVoucherSeed[] = [
     paymentDate: '2026-02-28', paymentMethod: 'TT',
     status: 'reconciled', // DR-045：status 由 InvoiceAllocation 真源推导（全额核销 → reconciled）
     bankFee: 35.0000,
-    exchangeRate: 7.2300, baseCurrency: 'CNY',
+    // P1-006（DR-046 汇率快照口径）：收款日汇率低于开票日（INV-002 7.23）→
+    // 汇兑损失 21600 × (7.21 − 7.23) = −432 CNY，为 C5 报表提供可演示损益记录
+    exchangeRate: 7.2100, baseCurrency: 'CNY',
     invoiceId: 'DEMO-INV-002', appliedAmount: 21600.0000,
     orderId: 'DEMO-PO-2601004',
     customerRelationId: 'DEMO-CUST-NORDEN',
