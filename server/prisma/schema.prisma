@@ -3297,6 +3297,9 @@ model QuotationLine {
   amount      Decimal @db.Decimal(18, 4) // 行金额 = quantity * unitPrice
   notes       String?
 
+  // ─── REQ2-12 产品图片（DR-053-②：行级快照 URL，档案换图/删图后报价历史不失真） ───
+  imageUrl String? // 面料照片/色卡图（/api/uploads/... 绝对路径或外链）
+
   // ============ MOQ 行级 override（P0-6，同 OrderLine.moqOverride）============
   /// 需审批人备注 + scope: moq:line_override；高于产品档案和客户协议 MOQ
   moqOverride   Int?

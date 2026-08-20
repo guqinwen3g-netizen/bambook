@@ -1757,6 +1757,8 @@ export interface QuotationLine {
   unitPrice: number;
   amount: number;
   notes?: string;
+  /** REQ2-12 产品图片（行级快照 DR-053-②：档案主图自动带出或手动上传） */
+  imageUrl?: string;
   createdAt: string;
 }
 
@@ -1819,6 +1821,7 @@ export interface QuotationInput {
     unit: string;
     unitPrice: number;
     notes?: string;
+    imageUrl?: string;
   }>;
 }
 

@@ -925,6 +925,16 @@ export const apiService = {
     await requestJson<{ ok: boolean }>(`/v1/quotations/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
+  /** REQ2-12 报价行图片上传（面料照片/色卡图 → /api/uploads/quotations/... URL） */
+  async uploadQuotationLineImage(file: File, endpoint?: string): Promise<string> {
+    const form = new FormData();
+    form.append('file', file);
+    const data = await requestJson<{ ok: boolean; url: string }>('/v1/quotations/line-image', {
+      endpoint, method: 'POST', body: form,
+    });
+    return data.url;
+  },
+
   async sendQuotation(id: string, endpoint?: string): Promise<Quotation> {
     const data = await requestJson<{ quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}/send`, { endpoint, method: 'POST' });
     return data.quotation;

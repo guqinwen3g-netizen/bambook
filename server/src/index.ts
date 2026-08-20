@@ -692,6 +692,7 @@ app.use(
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
+        uploadDir: UPLOAD_DIR,
         onDataChange: publishDataChange,
     })(req, res, next),
 );

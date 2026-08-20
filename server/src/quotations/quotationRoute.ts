@@ -18,6 +18,9 @@
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
@@ -28,6 +31,8 @@ export interface QuotationRouterOptions {
   prisma: PrismaClient;
   requireAuth: boolean;
   apiKeys: Set<string>;
+  /** 上传根目录（index.ts UPLOAD_DIR；行图片落 quotations/ 子目录） */
+  uploadDir?: string;
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
 }
 
@@ -40,6 +45,35 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   // ── 统一模块鉴权（JWT 或 API-Key；写操作另行要求 JWT） ──
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+
+  // ── REQ2-12 报价行图片上传（DR-053：multer 落盘 quotations/，URL 由前端随行 imageUrl 提交） ──
+  const lineImageUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, file, cb) => {
+        const dir = path.join(options.uploadDir ?? path.join(process.cwd(), 'uploads'), 'quotations');
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      },
+      filename: (_req, file, cb) => {
+        const ext = path.extname(file.originalname) || '.jpg';
+        cb(null, `qt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+      else cb(new Error('仅支持 jpeg/png/webp/gif 图片'));
+    },
+  });
+
+  // POST /line-image — 上传面料照片/色卡图 → { url }（行级 imageUrl 提交时携带）
+  router.post('/line-image', requireWrite, lineImageUpload.single('file'), (req: Request, res: Response) => {
+    const f = req.file;
+    if (!f) return res.status(400).json({ error: { code: 'NO_FILE', message: '未提供图片文件' } });
+    const url = `/api/uploads/quotations/${f.filename}`;
+    logger.info('[QuotationRoute] line image uploaded', { url, size: f.size, actor: actorIdFromRequest(req) });
+    res.status(201).json({ ok: true, url });
+  });
 
   // ── GET / — 列表 ──
   router.get('/', async (req: Request, res: Response) => {

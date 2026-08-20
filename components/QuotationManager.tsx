@@ -32,6 +32,7 @@ import {
   Calculator,
   X,
   GitBranch,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { financeV2Service, type QuotationPricingResult } from '../services/financeV2Service';
@@ -135,6 +136,7 @@ interface DraftLine {
   unit: string;
   unitPrice: string;
   notes: string;
+  imageUrl: string;
 }
 
 const createEmptyLine = (): DraftLine => ({
@@ -145,6 +147,7 @@ const createEmptyLine = (): DraftLine => ({
   unit: 'YD',
   unitPrice: '',
   notes: '',
+  imageUrl: '',
 });
 
 // 报价有效期默认报价日 +30 天（外贸报价惯例；用户可改）
@@ -167,9 +170,15 @@ const sentDaysPending = (qt: Quotation): number | null => {
 const buildQuotationPrintHtml = (qt: Quotation): string => {
   const lines = qt.lines ?? [];
   const currency = qt.currency || 'USD';
+  // REQ2-12 DR-053-③：有图行嵌入缩略图（54px）；无图行不渲染——版式向后兼容
+  const hasAnyImage = lines.some(l => l.imageUrl);
+  const imageCell = (url?: string) => url
+    ? `<img src="${escapeHtml(url)}" alt="" style="width:54px;height:54px;object-fit:contain;border:1px solid #e2e8f0;border-radius:4px" />`
+    : '<span style="display:inline-block;width:54px;height:54px"></span>';
   const rows = lines.map((l, i) => `
     <tr>
       <td>${i + 1}</td>
+      ${hasAnyImage ? `<td>${imageCell(l.imageUrl)}</td>` : ''}
       <td>${escapeHtml([l.fabricCode, l.description].filter(Boolean).join(' · '))}${l.notes ? `<div style="color:#718096;font-size:10px">${escapeHtml(l.notes)}</div>` : ''}</td>
       <td style="text-align:right">${Number(l.quantity).toLocaleString('en-US')}</td>
       <td>${escapeHtml(l.unit)}</td>
@@ -207,6 +216,7 @@ const buildQuotationPrintHtml = (qt: Quotation): string => {
     <thead>
       <tr>
         <th style="width:36px">No.<br/>序号</th>
+        ${hasAnyImage ? '<th style="width:62px">Photo 图片</th>' : ''}
         <th>Description 品名描述</th>
         <th style="width:90px;text-align:right">Qty 数量</th>
         <th style="width:60px">Unit 单位</th>
@@ -217,7 +227,7 @@ const buildQuotationPrintHtml = (qt: Quotation): string => {
     <tbody>${rows}</tbody>
     <tfoot>
       <tr>
-        <td colspan="5">TOTAL 总计 (${escapeHtml(currency)})</td>
+        <td colspan="${hasAnyImage ? 6 : 5}">TOTAL 总计 (${escapeHtml(currency)})</td>
         <td style="text-align:right">${Number(qt.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       </tr>
     </tfoot>
@@ -485,6 +495,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
           unit: l.unit,
           unitPrice: parseFloat(l.unitPrice),
           notes: l.notes || undefined,
+          imageUrl: l.imageUrl || undefined,
         })),
       };
       await apiService.createQuotation(input);
@@ -514,6 +525,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   };
   const addFormLine = () => setFormLines(prev => [...prev, createEmptyLine()]);
   const removeFormLine = (key: string) => setFormLines(prev => (prev.length > 1 ? prev.filter(l => l.key !== key) : prev));
+
+  // ── REQ2-12 行图片上传（DR-053-① 手动通道：色卡图/实拍 → uploads/quotations/） ──
+  const [lineImageUploading, setLineImageUploading] = useState<string | null>(null);
+  const handleLineImageUpload = useCallback(async (lineKey: string, file: File | undefined) => {
+    if (!file) return;
+    setLineImageUploading(lineKey);
+    try {
+      const url = await apiService.uploadQuotationLineImage(file);
+      setFormLines(prev => prev.map(l => (l.key === lineKey ? { ...l, imageUrl: url } : l)));
+    } catch (e: any) {
+      setFormError(`图片上传失败：${e?.message || e}`);
+    } finally {
+      setLineImageUploading(null);
+    }
+  }, []);
 
   // ── F4：面料档案搜索（防抖 300ms，≥2 字符触发）──
   const searchFabricsForLine = useCallback((lineKey: string, q: string) => {
@@ -561,6 +587,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
         ...l,
         fabricCode: product.sku,
         description: l.description || autoDesc,
+        // REQ2-12 DR-053-①：档案主图自动带出（手动上传过则不覆盖）
+        imageUrl: l.imageUrl || product.imageUrl || '',
       };
     }));
   }, []);
@@ -740,6 +768,31 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                     </div>
                                   ))}
                                 </div>
+                              )}
+                            </div>
+                            {/* REQ2-12 产品图片：缩略预览 + 上传/替换/移除（档案主图自动带出） */}
+                            <div className="relative flex items-center justify-center overflow-hidden rounded-control border" style={{ borderColor: 'var(--border-c-default)', background: 'var(--recessed-bg)', minHeight: '34px' }}>
+                              {lineImageUploading === line.key ? (
+                                <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+                              ) : line.imageUrl ? (
+                                <>
+                                  <img src={line.imageUrl} alt="产品图" className="h-full max-h-14 w-full object-contain" />
+                                  <button type="button" onClick={() => updateFormLine(line.key, 'imageUrl', '')} className="absolute right-0.5 top-0.5 rounded-full bg-[var(--recessed-bg-strong)] p-0.5 opacity-0 transition-opacity hover:opacity-100 focus:opacity-100" style={{ color: 'var(--text-tertiary)' }} title="移除图片">
+                                    <X size={14} />
+                                  </button>
+                                </>
+                              ) : (
+                                <label className="flex cursor-pointer items-center gap-1 text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+                                  <ImageIcon size={14} />
+                                  产品图
+                                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => { handleLineImageUpload(line.key, e.target.files?.[0]); e.currentTarget.value = ''; }} />
+                                </label>
+                              )}
+                              {line.imageUrl && lineImageUploading !== line.key && (
+                                <label className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-control bg-[var(--recessed-bg-strong)] opacity-0 transition-opacity hover:opacity-100" style={{ color: 'var(--text-tertiary)' }} title="替换图片">
+                                  <ImageIcon size={14} />
+                                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => { handleLineImageUpload(line.key, e.target.files?.[0]); e.currentTarget.value = ''; }} />
+                                </label>
                               )}
                             </div>
                             <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />

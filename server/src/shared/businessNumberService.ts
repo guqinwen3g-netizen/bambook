@@ -78,6 +78,9 @@ export function isBusinessPrefix(prefix: string): prefix is BusinessPrefix {
  *   1. upsert 确保 BusinessSequence 行存在（首建并发 P2002 自动重试，QA-SEC-4A）
  *   2. increment 原子递增并返回新值
  *   3. 返回格式化编号
+ *   4. 占用追平（第三例软删占位根因修复）：opts.occupied 回调校验目标表（含软删行）
+ *      实际占用——序列空缺/落后于业务表时（如迁移导入直写单号、序列表重建）自动
+ *      递增追平到首个未占用号，杜绝"生成即撞唯一键"（P2002 事务回滚）。
  *
  * 注意：必须在事务内调用，确保取号与单据创建原子提交。
  */
@@ -85,6 +88,10 @@ export async function nextBusinessNumber(
   db: DbLike,
   prefix: BusinessPrefix,
   year?: number,
+  opts?: {
+    /** 编号占用校验（查目标业务表含软删行；返回 true=已占用需继续递增）。由调用方提供表映射。 */
+    occupied?: (number: string) => Promise<boolean>;
+  },
 ): Promise<string> {
   if (!isBusinessPrefix(prefix)) {
     throw new Error(`非法业务编号前缀: ${prefix}`);
@@ -128,23 +135,46 @@ export async function nextBusinessNumber(
     }
   }
 
-  // 原子递增并返回新值
-  const updated = await db.businessSequence.update({
-    where: { id },
-    data: {
-      seq: { increment: 1 },
-      updatedAt: BigInt(Date.now()),
-    },
-    select: { seq: true },
-  });
+  // 占用追平上限（防异常数据死循环；正常场景最多追平到业务表最大序号）
+  const MAX_OCCUPIED_RETRIES = 1000;
+  for (let attempt = 0; ; attempt++) {
+    // 原子递增并返回新值
+    const updated = await db.businessSequence.update({
+      where: { id },
+      data: {
+        seq: { increment: 1 },
+        updatedAt: BigInt(Date.now()),
+      },
+      select: { seq: true },
+    });
 
-  const seq = updated.seq;
-  const number = `${prefix}-${targetYear}-${String(seq).padStart(4, '0')}`;
+    const seq = updated.seq;
+    const number = `${prefix}-${targetYear}-${String(seq).padStart(4, '0')}`;
 
-  if (typeof logger.debug === 'function') {
-    logger.debug('[BusinessNumber] generated', { prefix, year: targetYear, seq, number });
+    if (opts?.occupied) {
+      let isOccupied = false;
+      try {
+        isOccupied = await opts.occupied(number);
+      } catch (e: any) {
+        // 占用校验失败 fail-closed：宁可中止也不产出可能冲突的编号
+        throw new Error(`BUSINESS_NUMBER_OCCUPIED_CHECK_FAILED: prefix=${prefix} number=${number} error=${e?.message ?? e}`);
+      }
+      if (isOccupied) {
+        if (attempt >= MAX_OCCUPIED_RETRIES) {
+          throw new Error(`BUSINESS_NUMBER_EXHAUSTED_RETRIES: prefix=${prefix} 连续 ${MAX_OCCUPIED_RETRIES} 个编号均被占用`);
+        }
+        if (typeof logger.debug === 'function') {
+          logger.debug('[BusinessNumber] number occupied, advancing', { prefix, year: targetYear, seq, number });
+        }
+        continue; // 序列落后：继续递增追平
+      }
+    }
+
+    if (typeof logger.debug === 'function') {
+      logger.debug('[BusinessNumber] generated', { prefix, year: targetYear, seq, number });
+    }
+    return number;
   }
-  return number;
 }
 
 /**

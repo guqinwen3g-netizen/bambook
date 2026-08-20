@@ -81,7 +81,8 @@ function makeApp(opts: {
     : vi.fn().mockResolvedValue({ id: 'AL-1' });
 
   const tx: any = {
-    quotation: { create: quotationCreate, update: quotationUpdate },
+    // REQ2-12 占用追平：nextBusinessNumber occupied 回调查 quotation.findFirst（含软删）——默认无占用
+    quotation: { create: quotationCreate, update: quotationUpdate, findFirst: vi.fn().mockResolvedValue(null) },
     quotationLine: { deleteMany: quotationLineDeleteMany, createMany: quotationLineCreateMany },
     auditLog: { create: auditCreate },
     // EntityLink 图谱（D1.1a）：sync/deactivate 走 tx 内 upsert/findMany/update

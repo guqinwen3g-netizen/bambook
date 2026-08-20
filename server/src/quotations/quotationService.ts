@@ -43,6 +43,8 @@ export interface QuotationLineInput {
   unit: string;
   unitPrice: number;
   notes?: string;
+  /** REQ2-12 产品图片 URL（行级快照 DR-053-②：档案主图自动带出或手动上传） */
+  imageUrl?: string;
 }
 
 export interface CreateQuotationInput {
@@ -253,7 +255,14 @@ export function createQuotationService(prisma: PrismaClient) {
 
     const created = await prisma.$transaction(async (tx) => {
       // PRD 5.6：服务端自动生成报价号（QT-YYYY-NNNN），传入时优先使用传入值
-      const quotationNumber = input.quotationNumber || await nextBusinessNumber(tx, 'QT');
+      // REQ2-12 期间实测发现的第三例软删占位：序列落后于业务表（迁移导入直写/序列表重建）时
+      // 生成号撞软删行唯一键 → occupied 回调查目标表（含软删）自动追平（businessNumberService 通用修复）
+      const quotationNumber = input.quotationNumber || await nextBusinessNumber(tx, 'QT', undefined, {
+        occupied: async (num) => {
+          const dup = await tx.quotation.findFirst({ where: { quotationNumber: num }, select: { id: true } });
+          return dup != null;
+        },
+      });
       const quotation = await tx.quotation.create({
         data: {
           id: quotationId,
@@ -296,6 +305,7 @@ export function createQuotationService(prisma: PrismaClient) {
               unitPrice: line.unitPrice,
               amount: calcLineAmount(line.quantity, line.unitPrice),
               notes: line.notes ?? null,
+              imageUrl: line.imageUrl ?? null,
               createdAt: now,
             })),
           },
@@ -416,6 +426,7 @@ export function createQuotationService(prisma: PrismaClient) {
             unitPrice: line.unitPrice,
             amount: calcLineAmount(line.quantity, line.unitPrice),
             notes: line.notes ?? null,
+            imageUrl: line.imageUrl ?? null,
             createdAt: now,
           })),
         });
