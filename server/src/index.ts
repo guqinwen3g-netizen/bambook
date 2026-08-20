@@ -21,6 +21,7 @@ import { createOrderLinesRouter } from './orders/orderLinesRoute';
 import { createRelationsRouter } from './relations/route';
 import { createRelationsV2Router } from './relations/routeV2';
 import { createHandoverRouter } from './handover/route';
+import { createFabricCalculatorRouter } from './tools/fabricCalculatorRoute';
 import { createAccountStatusGuard } from './auth/accountStatusGuard';
 import { createProductsRouter } from './products/route';
 import { createSystemAssetsRouter } from './system-assets/route';
@@ -577,6 +578,15 @@ app.use(
     '/api/v2/handover',
     (req, res, next) => createHandoverRouter({
         prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+    })(req, res, next),
+);
+
+// REQ2-22（DR-062）：面料计算器——六类行业换算/估算纯函数（零写路径，登录即可用）
+app.use(
+    '/api/v1/tools/fabric-calculator',
+    (req, res, next) => createFabricCalculatorRouter({
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
     })(req, res, next),

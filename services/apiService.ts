@@ -2215,6 +2215,11 @@ export const apiService = {
   async previewTrackB(input: TrackBInput, endpoint?: string): Promise<TrackBResult> {
     return requestJson<TrackBResult>(`/v1/pricing/track-b-preview`, { endpoint, method: 'POST', body: JSON.stringify(input) });
   },
+
+  // ── REQ2-22（DR-062）：面料计算器——六类行业换算/估算（纯计算零写路径，派生值后端单一真源） ──
+  async calculateFabric(kind: string, input: Record<string, unknown>, endpoint?: string): Promise<Record<string, any>> {
+    return requestJson<Record<string, any>>(`/v1/tools/fabric-calculator/calculate`, { endpoint, method: 'POST', body: JSON.stringify({ kind, ...input }) });
+  },
   async listPricingCalculations(params?: { orderId?: string; quotationId?: string; status?: string }, endpoint?: string): Promise<PricingCalculation[]> {
     const query = new URLSearchParams();
     if (params?.orderId) query.set('orderId', params.orderId);

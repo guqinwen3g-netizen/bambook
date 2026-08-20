@@ -21,9 +21,11 @@ import {
   Ship,
   Upload,
   Layers,
-  Cog
+  Cog,
+  Ruler
 } from 'lucide-react';
 import FabricSampleInvoiceGenerator from './tools/FabricSampleInvoiceGenerator';
+import FabricCalculatorPanel from './tools/FabricCalculatorPanel';
 import ShippingNoticeGenerator from './tools/ShippingNoticeGenerator';
 import PackingListGenerator from './tools/PackingListGenerator';
 import ContractGenerator from './tools/ContractGenerator';
@@ -78,6 +80,13 @@ const BusinessTools: React.FC<BusinessToolsProps> = ({ isDarkMode, relations = [
       description: '生成 Panda 面料样品发票',
       icon: Receipt,
       component: <FabricSampleInvoiceGenerator isDarkMode={isDarkMode} relations={relations} />
+    },
+    {
+      id: 'fabric-calculator',
+      name: '面料计算器',
+      description: '克重/纱支/门幅/卷装/装柜 行业换算（服务端计算）',
+      icon: Ruler,
+      component: <FabricCalculatorPanel isDarkMode={isDarkMode} />
     },
     {
       id: 'shipping-notice',
