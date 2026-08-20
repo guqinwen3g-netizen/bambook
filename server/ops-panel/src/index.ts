@@ -567,6 +567,61 @@ function updateModelKey(req: Request, res: Response) {
   return res.json({ ok: true, message: 'Model API key updated. Main API restart has been scheduled.' });
 }
 
+// ── 主 API 鉴权开关（BAMBOOK_REQUIRE_AUTH）─────────────────────────────
+// 开启后业务路由要求 JWT 或 SDK API key（health/login 按设计保持开放）。
+// 开启前置校验：服务端必须持有 SDK key（网页端 SSE ?apiKey=、Electron import、
+// OPS 探针 X-Bambook-API-Key 都依赖它）——sdkKey 未提供且 env 无既有 key 时拒绝开启，
+// 防止「一键开鉴权 → 实时通知/探针全断」的事故路径。
+function setMainApiRequireAuth(req: Request, res: Response) {
+  const enabled = req.body?.enabled !== false; // 缺省 true；显式 false 为回滚通道
+  const sdkKey = String(req.body?.sdkKey || req.headers['x-bambook-sdk-key'] || '').trim();
+
+  if (/[\r\n]/.test(sdkKey)) {
+    return res.status(400).json({ ok: false, error: 'BAD_SDK_KEY', message: 'SDK key cannot contain line breaks' });
+  }
+  if (sdkKey && sdkKey.length < 16) {
+    return res.status(400).json({ ok: false, error: 'BAD_SDK_KEY', message: 'SDK key is too short (min 16 chars)' });
+  }
+
+  const envHasSdkKey = [path.join(SERVER_ROOT, '.env.local'), path.join(SERVER_ROOT, '.env')]
+    .filter(p => fs.existsSync(p))
+    .some(p => fs.readFileSync(p, 'utf8').split('\n').some(l => /^(BAMBOOK_SDK_KEY|BAMBOOK_API_KEY|VITE_BAMBOOK_API_KEY)=/.test(l.trim())));
+  if (enabled && !sdkKey && !envHasSdkKey) {
+    return res.status(400).json({
+      ok: false,
+      error: 'SDK_KEY_REQUIRED',
+      message: '开启鉴权前需提供 sdkKey（或服务端 env 已配置 BAMBOOK_SDK_KEY）——网页端 SSE 实时通知与 OPS 探针依赖该 key',
+    });
+  }
+
+  const values: Record<string, string> = { BAMBOOK_REQUIRE_AUTH: enabled ? 'true' : 'false' };
+  if (sdkKey) values.BAMBOOK_SDK_KEY = sdkKey;
+  updateMainApiEnv(values);
+  appendActionLog({
+    action: 'setMainApiRequireAuth',
+    label: enabled ? '开启主 API 鉴权（BAMBOOK_REQUIRE_AUTH=true）' : '关闭主 API 鉴权（回滚）',
+    status: 'ok',
+    sdkKeyProvided: Boolean(sdkKey),
+    ip: req.ip,
+  });
+
+  // 主 API 与面板自身都重启：面板需重读 env 拿 MAIN_API_KEY（探针带 key）
+  const mainApiLabel = process.env.BAMBOOK_OPS_MAIN_API_LABEL || 'com.bambook.main-data-api';
+  spawn('/bin/bash', ['-lc', `sleep 1; launchctl kickstart -k "gui/$(id -u)/${mainApiLabel}"`], {
+    detached: true,
+    stdio: 'ignore',
+  }).unref();
+  schedulePanelRestart();
+
+  return res.json({
+    ok: true,
+    enabled,
+    message: enabled
+      ? '主 API 鉴权已开启，主 API 与运维面板将自动重启（约 10 秒）。回滚：POST { "enabled": false }'
+      : '主 API 鉴权已关闭（回滚完成），服务重启中',
+  });
+}
+
 function updateEmailKey(req: Request, res: Response) {
   const apiKey = String(req.body?.apiKey || req.headers['x-bambook-resend-key'] || '').trim();
   const from = String(req.body?.from || '').trim();
@@ -1848,6 +1903,7 @@ app.post('/api/admin/seed-rbac', auth, async (req, res) => {
 
 app.post('/api/admin/token', auth, changeOpsToken);
 app.post('/api/admin/model-key', auth, updateModelKey);
+app.post('/api/admin/require-auth', auth, setMainApiRequireAuth);
 app.post('/api/admin/email-key', auth, updateEmailKey);
 app.post('/api/admin/deploy-package', auth, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: DEPLOY_PACKAGE_LIMIT }), deployUploadedPackage);
 app.post('/api/admin/deploy-webapp', auth, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: DEPLOY_PACKAGE_LIMIT }), deployUploadedWebapp);
