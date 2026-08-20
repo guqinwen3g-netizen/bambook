@@ -1415,12 +1415,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                     }
                   }}
                   onDelete={() => {
+                    // 删除入口收拢：详情页底部为唯一删除入口，须经确认弹窗（不直删）
                     const targetId = selectedContactId || selectedOrgId;
                     if (targetId) {
-                      handleDelete(targetId);
-                      if (selectedContactId) {
-                        setSelectedContactId(null);
-                      }
+                      setConfirmDeleteId(targetId);
                     }
                   }}
                   isDarkMode={isDarkMode}
@@ -1512,15 +1510,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 </div>
               </div>
               <div className="flex h-full items-center gap-2 shrink-0">
-                {editingItem && (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDeleteId(editingItem.id)}
-                    className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[11px] font-light tracking-wide transition-all border text-[var(--text-tertiary)] border-[var(--border-c-default)] hover:bg-[var(--hover-darken)] hover:border-[var(--border-c-strong)]`}
-                  >
-                    <Trash2 size={13} strokeWidth={1.5} /> 移除
-                  </button>
-                )}
+                {/* 删除入口收拢：编辑界面不再承载删除（详情页底部唯一入口 + 确认弹窗） */}
                 <RelationsTitleSpotlightButton
                   isDarkMode={isDarkMode}
                   type="button"
@@ -2093,7 +2083,11 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         </div>
       )}
 
-      {confirmDeleteId && (
+      {confirmDeleteId && (() => {
+        // 删除对象判定：组织 or 联系人（唯一删除入口为详情页底部，两类共用本弹窗）
+        const deleteTarget = relations.find(r => r.id === confirmDeleteId);
+        const deletingOrganization = deleteTarget?.isOrganization ?? false;
+        return (
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className={`bg-[var(--bg-card)] rounded-card w-full max-w-sm shadow-none overflow-hidden animate-in zoom-in duration-300 backdrop-blur-xl`}>
             <div className="p-10 text-center space-y-6">
@@ -2101,9 +2095,11 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 <Trash2 size={32} strokeWidth={1.5} />
               </div>
               <div>
-                <h3 className={`text-base font-light mb-2 text-[var(--text-primary)]`}>确认移除此组织？</h3>
+                <h3 className={`text-base font-light mb-2 text-[var(--text-primary)]`}>{deletingOrganization ? '确认移除此组织？' : '确认移除此联系人？'}</h3>
                 <p className={`text-xs font-light leading-relaxed text-[var(--text-tertiary)]`}>
-                  移除后该组织将从关系智库列表消失。相关历史订单与记录仍会保留，此操作可由管理员恢复。
+                  {deletingOrganization
+                    ? '移除后该组织将从关系智库列表消失。相关历史订单与记录仍会保留，此操作可由管理员恢复。'
+                    : '移除后该联系人将从所属组织的通讯录消失。相关历史跟进与沟通记录仍会保留，此操作可由管理员恢复。'}
                 </p>
               </div>
               {relationSaveError && (
@@ -2129,7 +2125,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* 一键溯源侧边面板 */}
       {showTracePanel && selectedOrgId && (

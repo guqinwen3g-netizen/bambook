@@ -1520,4 +1520,20 @@ describe('RelationsManager title system', () => {
     expect(osVnextCss).toContain('.ui-lab-real-os-root--dark input[type="date"]::-webkit-calendar-picker-indicator');
     expect(osVnextCss).toContain('filter: invert(1);');
   });
+
+  it('删除入口收拢：编辑界面不承载删除（无移除按钮），详情页底部为唯一入口且须经确认弹窗', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+
+    // 编辑界面：不再有编辑态删除按钮（原右上角「移除」入口已收拢）
+    expect(source).not.toContain('setConfirmDeleteId(editingItem.id)');
+
+    // 详情页底部：onDelete 走确认弹窗（setConfirmDeleteId），绝不直删（handleDelete 仅由弹窗确认按钮触发）
+    expect(source).toContain('// 删除入口收拢：详情页底部为唯一删除入口，须经确认弹窗（不直删）');
+    expect(source).toContain('onDelete={() => {');
+    expect(source).not.toContain('handleDelete(targetId);');
+
+    // 确认弹窗文案按删除对象区分（组织/联系人共用弹窗）
+    expect(source).toContain(`{deletingOrganization ? '确认移除此组织？' : '确认移除此联系人？'}`);
+    expect(source).toContain('移除后该联系人将从所属组织的通讯录消失');
+  });
 });
