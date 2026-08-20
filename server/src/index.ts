@@ -166,7 +166,6 @@ const SDK_CONFIG = {
         process.env.BAMBOOK_SDK_KEY,
         process.env.BAMBOOK_API_KEY,
         process.env.VITE_BAMBOOK_API_KEY,
-        process.env.NODE_ENV === 'production' ? undefined : 'dev-key-2024',
     ].filter(Boolean) as string[]),
     requireAuth: process.env.BAMBOOK_REQUIRE_AUTH === 'true' || process.env.NODE_ENV === 'production',
 };
