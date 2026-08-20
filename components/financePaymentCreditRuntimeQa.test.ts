@@ -5,7 +5,7 @@ import type {
   PaymentRequestStatus,
   CreatePaymentRequestInput,
 } from '../services/paymentRequestService';
-import type { CreditStatus, CreditHistoryItem } from '../services/creditService';
+import type { CreditStatus, CreditHistoryItem, BankruptcySummary } from '../services/creditService';
 import type { VoucherCategory, PaymentVoucherWithCategory } from '../services/paymentVoucherService';
 
 const fs = require('fs');
@@ -35,6 +35,7 @@ const PR_ROUTE = fs.readFileSync(path.resolve(__dirname, '../server/src/paymentR
 const PR_BACKEND_SVC = fs.readFileSync(path.resolve(__dirname, '../server/src/paymentRequests/paymentRequestService.ts'), 'utf-8');
 const CREDIT_ROUTE = fs.readFileSync(path.resolve(__dirname, '../server/src/credit/creditRoute.ts'), 'utf-8');
 const CREDIT_BACKEND_SVC = fs.readFileSync(path.resolve(__dirname, '../server/src/credit/creditService.ts'), 'utf-8');
+const BANKRUPTCY_BACKEND_SVC = fs.readFileSync(path.resolve(__dirname, '../server/src/credit/bankruptcyService.ts'), 'utf-8');
 const PV_MUTATION_BACKEND = fs.readFileSync(path.resolve(__dirname, '../server/src/finance/paymentVoucherMutationService.ts'), 'utf-8');
 
 // ─────────────────────────────────────────────────────────────
@@ -307,5 +308,93 @@ describe('Track E [contract]: 审批人由服务端解析，前端不得传入',
       paymentCategory: 'deposit',
     };
     expect(row.paymentCategory).toBe('deposit');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Part 9: REQ2-15 客户破产货权处置（DR-055，X-10 全程留痕）
+// creditService bankruptcy 方法 ↔ 后端 creditRoute /bankruptcy 五端点
+// FinanceCreditPanel 破产处置区块（案件卡/开案/动作登记/闭案/时间线）
+// ─────────────────────────────────────────────────────────────
+describe('REQ2-15 [creditService]: 破产处置端点封装对齐后端路由', () => {
+  it('base path /v1/credit/bankruptcy（与信用域同路由，非 :customerId 子路径）', () => {
+    expect(CREDIT_SVC).toContain('`/v1/credit/bankruptcy${path}`');
+  });
+  it('五个方法：list / get / open / addAction / close', () => {
+    for (const m of ['listBankruptcyProceedings', 'getBankruptcyProceeding', 'openBankruptcyProceeding', 'addBankruptcyAction', 'closeBankruptcyProceeding']) {
+      expect(CREDIT_SVC).toContain(`async ${m}(`);
+    }
+  });
+  it('路径与后端 router 一致：POST+GET 列表 / GET /:id 详情 / POST /:id/actions / POST /:id/close', () => {
+    expect(CREDIT_SVC).toContain('}/actions`');
+    expect(CREDIT_SVC).toContain('}/close`');
+    expect(CREDIT_ROUTE).toContain("router.post('/bankruptcy'");
+    expect(CREDIT_ROUTE).toContain("router.get('/bankruptcy'");
+    expect(CREDIT_ROUTE).toContain("router.get('/bankruptcy/:id'");
+    expect(CREDIT_ROUTE).toContain("router.post('/bankruptcy/:id/actions'");
+    expect(CREDIT_ROUTE).toContain("router.post('/bankruptcy/:id/close'");
+  });
+  it('动作类型枚举镜像后端真源：六类动作 + 四类处置期动作', () => {
+    for (const t of ['declare', 'resale', 'return_shipment', 'bad_debt', 'recover', 'close']) {
+      expect(CREDIT_SVC).toContain(`'${t}'`);
+      expect(BANKRUPTCY_BACKEND_SVC).toContain(`'${t}'`);
+    }
+    expect(CREDIT_SVC).toContain("DISPOSAL_ACTION_TYPES: readonly BankruptcyActionType[] = ['resale', 'return_shipment', 'bad_debt', 'recover']");
+    expect(BANKRUPTCY_BACKEND_SVC).toContain("DISPOSAL_ACTION_TYPES = ['resale', 'return_shipment', 'bad_debt', 'recover']");
+  });
+  it('动作中文文案六类全覆盖（无裸枚举落 UI）', () => {
+    const m = CREDIT_SVC.match(/BANKRUPTCY_ACTION_LABELS[\s\S]*?};/);
+    expect(m).not.toBeNull();
+    for (const t of ['宣告破产', '转卖处置', '退运', '坏账登记', '部分回款', '闭案']) {
+      expect(m![0]).toContain(t);
+    }
+  });
+});
+
+describe('REQ2-15 [FinanceCreditPanel]: 破产处置区块（DR-055 三决策落点）', () => {
+  it('破产区块嵌入信用面板（案件列表 + 开案入口；DR-055-① 案件化）', () => {
+    expect(CREDIT_PANEL).toContain('破产处置 Bankruptcy');
+    expect(CREDIT_PANEL).toContain('开案登记');
+    expect(CREDIT_PANEL).toContain('renderBankruptcySection');
+  });
+  it('开案走 BottomSheet（宣告日 CapsuleDateInput + 申报债权额 + 备注）', () => {
+    expect(CREDIT_PANEL).toContain('<BottomSheet');
+    expect(CREDIT_PANEL).toContain('CapsuleDateInput');
+    expect(CREDIT_PANEL).toContain('宣告日');
+    expect(CREDIT_PANEL).toContain('申报债权总额');
+  });
+  it('案件详情子视图：实时损益汇总六格 + 处置时间线 append-only + 动作登记', () => {
+    for (const label of ['申报债权', '转卖回收', '部分回款', '退运成本', '坏账合计', '净损失', '处置时间线', '处置动作登记']) {
+      expect(CREDIT_PANEL).toContain(label);
+    }
+    expect(CREDIT_PANEL).toContain('renderProceedingDetail');
+  });
+  it('四类处置动作登记入口（resale/return_shipment/bad_debt/recover 全挂真实 API）', () => {
+    expect(CREDIT_PANEL).toContain('DISPOSAL_ACTION_META');
+    expect(CREDIT_PANEL).toContain('creditService.addBankruptcyAction');
+    expect(CREDIT_PANEL).toContain('creditService.openBankruptcyProceeding');
+    expect(CREDIT_PANEL).toContain('creditService.closeBankruptcyProceeding');
+    expect(CREDIT_PANEL).toContain('creditService.listBankruptcyProceedings');
+    expect(CREDIT_PANEL).toContain('creditService.getBankruptcyProceeding');
+  });
+  it('闭案确认含汇总结论 + 不自动解冻提示（DR-055-③）', () => {
+    expect(CREDIT_PANEL).toContain('闭案确认（终态）');
+    expect(CREDIT_PANEL).toContain('闭案不自动解冻');
+    expect(CREDIT_PANEL).toContain('净损失 = 申报债权 − 转卖回收 − 部分回款 + 退运成本');
+  });
+  it('破产写操作按 credit:freeze:write 门控（服务端 fail-closed 兜底）', () => {
+    expect(CREDIT_ROUTE).toContain("requireScope(req, res, 'credit:freeze:write')");
+    expect(BANKRUPTCY_BACKEND_SVC).toContain('freezeCredit');
+  });
+  it('开案自动冻结为 best-effort（冻结失败不阻断开案）', () => {
+    expect(BANKRUPTCY_BACKEND_SVC).toContain('creditFrozen = fr.ok');
+    expect(BANKRUPTCY_BACKEND_SVC).toContain('best-effort');
+  });
+  it('类型级契约：BankruptcySummary 净损失口径（申报 − 回收 − 回款 + 退运成本）', () => {
+    const summary: BankruptcySummary = {
+      totalClaimed: 100000, resaleRecovered: 40000, returnShippingCost: 8000,
+      badDebt: 45000, recovered: 7000, netLoss: 61000, actionCount: 5,
+    };
+    expect(summary.totalClaimed - summary.resaleRecovered - summary.recovered + summary.returnShippingCost).toBe(summary.netLoss);
   });
 });

@@ -5676,6 +5676,45 @@ model FactoryDelayRecord {
 }
 
 // ============================================================================
+// REQ2-15 客户破产货权处置（DR-055，X-10 L0 → L3）
+// ============================================================================
+/// 设计真源：财务与结算/客户破产货权处置.md §4
+/// 业务语义：客户破产案件（状态机 processing→closed）+ 处置动作流（append-only 全程留痕）。
+/// 开案即调用既有 creditService freeze（DR-055-③）；发票作废走既有 void 通道不双轨（DR-055-②）。
+model BankruptcyProceeding {
+  id                 String  @id // 格式：BKP__${shortId}
+  proceedingNumber   String  @unique // 业务号：BKP-YYYYMMDD-001
+  relationId         String // 破产客户 Relation
+  relationName       String // 冗余快照
+  status             String  @default("processing") // processing | closed
+  declaredAt         String // 宣告日 YYYY-MM-DD
+  totalClaimedAmount Decimal @default(0) @db.Decimal(18, 4) // 申报债权总额（开案登记）
+  closeNote          String? // 闭案备注（含净损失结论）
+  closedAt           BigInt?
+  createdAt          BigInt
+  updatedAt          BigInt
+  deletedAt          BigInt?
+
+  @@index([relationId])
+  @@index([status])
+}
+
+/// 处置动作（append-only；declare 首动作开案，close 终动作闭案）
+model BankruptcyAction {
+  id           String  @id // 格式：BKA__${shortId}
+  proceedingId String
+  actionType   String // declare | resale | return_shipment | bad_debt | recover | close
+  amount       Decimal @default(0) @db.Decimal(18, 4) // 金额（转卖回收/坏账/回款/退运成本；declare/close 为 0）
+  payload      Json? // 快照：买家/运单号/发票号/订单号/币种等
+  note         String?
+  actor        String? // 操作人
+  createdAt    BigInt
+  deletedAt    BigInt?
+
+  @@index([proceedingId])
+}
+
+// ============================================================================
 // Migration 5 — P1-1：PaymentRequest 付款申请单（DR-017 先申请后付款）
 // ============================================================================
 /// 设计真源：财务域模型组.md §2.1

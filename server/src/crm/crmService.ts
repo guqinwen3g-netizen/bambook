@@ -810,13 +810,14 @@ export function createCrmService(prisma: PrismaClient) {
   async function calculateUsedCredit(tx: any, relationId: string): Promise<number> {
     // 已用信用额度 = 该 relation（作为客户）关联的未付款 Receivable 发票总额
     // 简化版：查询 status != 'Paid' 且 type = 'Receivable' 的发票 amount 之和
+    // （Invoice.customerRelationId 为平铺字段——schema 无 order 关联，直接按字段过滤）
     const result = await tx.invoice.aggregate({
       _sum: { amount: true },
       where: {
         deletedAt: null,
         status: { notIn: ['Paid', 'Cancelled', 'Void'] },
         type: 'Receivable',
-        order: { customerRelationId: relationId },
+        customerRelationId: relationId,
       },
     });
     return result._sum?.amount ? Number(result._sum.amount) : 0;

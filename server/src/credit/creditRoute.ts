@@ -19,6 +19,7 @@ import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { hasScopeOnRequest } from '../auth/permissionGuard';
 import { createCreditService } from './creditService';
+import { createBankruptcyService } from './bankruptcyService';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
 
@@ -31,6 +32,7 @@ export function createCreditRouter(options: CreditRouterOptions): Router {
   const router = Router();
   const { prisma, requireAuth } = options;
   const creditService = createCreditService({ prisma });
+  const bankruptcyService = createBankruptcyService(prisma);
 
   // ── 鉴权：JWT fail-closed ──
   const authenticate = (req: Request, res: Response): { userId: string; roles: string[] } | null => {
@@ -51,6 +53,65 @@ export function createCreditRouter(options: CreditRouterOptions): Router {
     }
     return true;
   };
+
+  // ══════════════════════════════════════════════════════════════════
+  // REQ2-15 客户破产货权处置（DR-055；字面 /bankruptcy 路由须在 /:customerId 参数路由之前）
+  // 写守卫：credit:freeze:write（开案含冻结语义；处置动作/闭案同款信用域高危链）
+  // ══════════════════════════════════════════════════════════════════
+
+  const sendBankruptcy = <T>(res: Response, r: { ok: true; data: T } | { ok: false; error: { code: string; message: string; status: number } }, okStatus: number, wrap: (d: T) => Record<string, unknown>) => {
+    if (!r.ok) {
+      return res.status(r.error.status).json({ error: { code: r.error.code, message: r.error.message } });
+    }
+    res.status(okStatus).json(serializeValue(wrap(r.data)) as any);
+  };
+
+  // POST /bankruptcy — 开案（declare 首动作 + 自动信用冻结 best-effort）
+  router.post('/bankruptcy', async (req: Request, res: Response) => {
+    const auth = authenticate(req, res);
+    if (!auth) return;
+    if (!requireScope(req, res, 'credit:freeze:write')) return;
+    const r = await bankruptcyService.openProceeding((req.body ?? {}) as any, auth.userId);
+    sendBankruptcy(res, r, 201, (d) => ({ ok: true, proceeding: d.proceeding, creditFrozen: d.creditFrozen }));
+  });
+
+  // GET /bankruptcy?relationId=&status= — 案件列表（含金额汇总）
+  router.get('/bankruptcy', async (req: Request, res: Response) => {
+    const auth = authenticate(req, res);
+    if (!auth) return;
+    const r = await bankruptcyService.listProceedings({
+      relationId: typeof req.query.relationId === 'string' ? req.query.relationId : undefined,
+      status: typeof req.query.status === 'string' ? req.query.status : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+    });
+    sendBankruptcy(res, r, 200, (d) => ({ ok: true, items: d.items }));
+  });
+
+  // GET /bankruptcy/:id — 详情（动作时间线 + 损益汇总）
+  router.get('/bankruptcy/:id', async (req: Request, res: Response) => {
+    const auth = authenticate(req, res);
+    if (!auth) return;
+    const r = await bankruptcyService.getProceeding(req.params.id);
+    sendBankruptcy(res, r, 200, (d) => ({ ok: true, proceeding: d.proceeding, actions: d.actions, summary: d.summary }));
+  });
+
+  // POST /bankruptcy/:id/actions — 追加处置动作（resale/return_shipment/bad_debt/recover）
+  router.post('/bankruptcy/:id/actions', async (req: Request, res: Response) => {
+    const auth = authenticate(req, res);
+    if (!auth) return;
+    if (!requireScope(req, res, 'credit:freeze:write')) return;
+    const r = await bankruptcyService.addAction(req.params.id, (req.body ?? {}) as any, auth.userId);
+    sendBankruptcy(res, r, 201, (d) => ({ ok: true, action: d.action, summary: d.summary }));
+  });
+
+  // POST /bankruptcy/:id/close — 闭案（终态：close 动作 + 汇总结论落 closeNote）
+  router.post('/bankruptcy/:id/close', async (req: Request, res: Response) => {
+    const auth = authenticate(req, res);
+    if (!auth) return;
+    if (!requireScope(req, res, 'credit:freeze:write')) return;
+    const r = await bankruptcyService.closeProceeding(req.params.id, (req.body ?? {}) as any, auth.userId);
+    sendBankruptcy(res, r, 200, (d) => ({ ok: true, proceeding: d.proceeding, summary: d.summary }));
+  });
 
   // ══════════════════════════════════════════════════════════════════
   // POST /:customerId/freeze — 人工冻结（理由必填）
