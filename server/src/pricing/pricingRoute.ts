@@ -261,6 +261,22 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   });
 
   // ══════════════════════════════════════════════════════════════
+  // REQ2-14 海运费变动利润重估（DR-054：只读预览不落库，X-04 一屏可见）
+  // ══════════════════════════════════════════════════════════════
+
+  router.get('/freight-impact', async (req: Request, res: Response) => {
+    try {
+      const result = await profitSheets.reestimateFreightImpact({
+        multiplier: req.query.multiplier,
+        orderId: req.query.orderId,
+      });
+      res.json(serializeValue(result));
+    } catch (e: any) {
+      handleError(res, e, 'FREIGHT_IMPACT_FAILED');
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
   // 原材料价格
   // ══════════════════════════════════════════════════════════════
 

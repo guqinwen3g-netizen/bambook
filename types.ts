@@ -5009,6 +5009,33 @@ export interface OrderProfitSheet {
 export type MaterialPriceType = 'yarn' | 'fabric' | 'trimming';
 export type MaterialPriceSource = 'manual' | 'purchase-order' | 'quotation';
 
+/** REQ2-14 海运费变动利润重估（DR-054：只读预览，X-04 一屏可见） */
+export interface FreightImpactItem {
+  orderId: string;
+  poNumber: string;
+  customer: string | null;
+  status: string;
+  baseline: { grossProfit: number; grossMargin: number | null; freightCost: number; source: 'persisted' | 'computed' };
+  reestimated: { grossProfit: number; grossMargin: number | null; freightCost: number };
+  deltaProfit: number;
+  deltaMargin: number | null;
+  advice: 'renegotiate' | 'warn' | 'ok';
+}
+
+export interface FreightImpactResult {
+  items: FreightImpactItem[];
+  summary: {
+    multiplier: number;
+    affectedOrders: number;
+    baselineProfitTotal: number;
+    reestimatedProfitTotal: number;
+    deltaProfitTotal: number;
+    negativeProfitOrders: number;
+    renegotiateOrders: number;
+    warnOrders: number;
+  };
+}
+
 /** MaterialPriceHistory：原材料价格历史（轨道 A 估算校准数据源） */
 export interface MaterialPriceHistory {
   id: string;

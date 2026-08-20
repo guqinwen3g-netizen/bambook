@@ -207,6 +207,7 @@ import {
   PricingCalculationInput,
   PricingCalculationPatch,
   OrderProfitSheet,
+  FreightImpactResult,
   MaterialPriceHistory,
   MaterialPriceInput,
   MaterialPricePatch,
@@ -2232,6 +2233,13 @@ export const apiService = {
   },
   async deleteProfitSheet(orderId: string, endpoint?: string): Promise<void> {
     await requestJson<{ ok: boolean }>(`/v1/pricing/profit-sheets/order/${encodeURIComponent(orderId)}`, { endpoint, method: 'DELETE' });
+  },
+
+  /** REQ2-14 海运费变动利润重估（DR-054：只读预览，受影响订单清单 + 三级建议） */
+  async reestimateFreightImpact(multiplier: number, orderId?: string, endpoint?: string): Promise<FreightImpactResult> {
+    const query = new URLSearchParams({ multiplier: String(multiplier) });
+    if (orderId) query.set('orderId', orderId);
+    return requestJson<FreightImpactResult>(`/v1/pricing/freight-impact?${query.toString()}`, { endpoint, method: 'GET' });
   },
 
   // ── 阶段 P1: 原材料价格 MaterialPriceHistory API ──

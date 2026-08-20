@@ -61,6 +61,7 @@ import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { TrackAPanel } from './pricing/TrackAPanel';
+import { FreightImpactPanel } from './pricing/FreightImpactPanel';
 import { TrackBPanel, TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
 
@@ -571,6 +572,9 @@ function ProfitSheetsPanel() {
             生成利润表
           </button>
         </div>
+
+        {/* REQ2-14 海运费变动利润重估（X-04：倍率一击 → 受影响订单一屏可见） */}
+        <FreightImpactPanel />
 
         <div className="bds-card">
           <div className="flex items-center justify-between mb-3">
