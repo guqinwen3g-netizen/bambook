@@ -90,6 +90,13 @@ model Order {
   purchaseCurrency String? // default 'CNY' for purchase-side amounts
   salesCurrency    String? // default 'USD' for sales-side amounts
 
+  // ============ REQ2-18：Tech Pack 结构化解析（DR-059） ============
+  /// 解析快照：{ styleNo?, season?, fabricComposition?, colors?, sizeBreakdown?,
+  /// totalQty?, deliveryDate?, confidence, pages, textLength, uploadedAt }
+  /// 设计真源：Orders-订单管理/TechPack解析.md §2 DR-059-②（覆盖式单快照，历史经审计可溯）
+  techPack         Json?
+  techPackFileName String? // 规格书附件名（uploads/techpacks/{orderId}/ 下回读）
+
   // ============ Phase 2: Role snapshots + Relation FKs ============
   // FKs are *snapshot* references — we do NOT enforce a foreign-key constraint
   // because Relation rows can be archived independently of orders.

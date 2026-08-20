@@ -14,10 +14,19 @@
  */
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { requirePermission } from '../auth/permissionGuard';
 import { extractActorFromRequest } from '../auth/middleware';
+import { writeRouteAuditLog } from '../audit/routeAudit';
+import { extractPdfText } from '../import/extractText';
+import { parseTechPackText } from './techPackParser';
 import { createOrderServiceV2 } from './orderServiceV2';
+
+/** 上传根目录（与 index.ts UPLOAD_DIR 同源约定：BAMBOOK_UPLOAD_DIR 或 server/../uploads） */
+const UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../uploads');
 
 export interface OrdersV2RouterOptions {
   prisma: PrismaClient;
@@ -135,6 +144,147 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
       return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
     }
     return res.json({ ok: true, order: result.data });
+  });
+
+  // ══════════════════════════════════════════════════════════════════
+  // REQ2-18 Tech Pack 结构化解析（DR-059）：上传 PDF（或粘贴文本）→ 规则解析
+  // → 预览确认 → 显式勾选回填订单字段。守卫 orders:write。
+  // ══════════════════════════════════════════════════════════════════
+  const techPackDir = path.join(UPLOAD_DIR, 'techpacks');
+  const techPackUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => {
+        const orderDir = path.join(techPackDir, String(_req.params.id ?? 'unassigned'));
+        fs.mkdirSync(orderDir, { recursive: true });
+        cb(null, orderDir);
+      },
+      filename: (_req, file, cb) => {
+        const rand = Math.random().toString(36).slice(2, 8);
+        cb(null, `${Date.now()}-${rand}${path.extname(file.originalname) || '.pdf'}`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const isPdf = file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname);
+      if (!isPdf) return cb(new Error('UNSUPPORTED_FILE_TYPE'));
+      cb(null, true);
+    },
+  });
+
+  async function parseTechPackForOrder(orderId: string, source: { file?: Express.Multer.File; text?: string }) {
+    let text: string;
+    let pages = 1;
+    let fileName: string | null = null;
+    if (source.file) {
+      const extracted = await extractPdfText(source.file.buffer);
+      text = extracted.text;
+      pages = extracted.pages;
+      // multipart 通道：先落盘（destination 已按 orderId 分目录），fileName 供保存时登记
+      fileName = source.file.filename;
+    } else if (typeof source.text === 'string' && source.text.trim()) {
+      text = source.text;
+    } else {
+      return { status: 400, body: { error: 'VALIDATION_FAILED', message: 'multipart file 或 text 二选一必填' } };
+    }
+    const parsed = parseTechPackText(text);
+    if (!parsed.ok) {
+      return { status: 422, body: { error: parsed.error!.code, message: parsed.error!.message } };
+    }
+    return {
+      status: 200,
+      body: { ok: true, parsed: { ...parsed.snapshot, pages }, fileName, sourceType: source.file ? 'pdf' : 'text' },
+    };
+  }
+
+  // ── POST /:id/techpack/parse（multipart PDF 或 JSON { text }：解析预览，不落库不回填） ──
+  router.post('/:id/techpack/parse', requireWrite, requirePermission('orders:write'), (req, res) => {
+    const contentType = String(req.headers['content-type'] ?? '');
+    const isMultipart = contentType.includes('multipart/form-data');
+    const handler = async () => {
+      const order = await (opts.prisma as any).order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!order) return res.status(404).json({ error: 'NOT_FOUND', message: `订单 ${req.params.id} 不存在` });
+
+      let result: { status: number; body: any };
+      if (isMultipart) {
+        result = await new Promise(resolve => {
+          techPackUpload.single('file')(req, res, async (err: any) => {
+            if (err) {
+              const code = err.message === 'UNSUPPORTED_FILE_TYPE' ? 'UNSUPPORTED_FILE_TYPE' : 'UPLOAD_FAILED';
+              return resolve({ status: 400, body: { error: code, message: err.message } });
+            }
+            const r = await parseTechPackForOrder(req.params.id, { file: req.file as Express.Multer.File });
+            if (r.status !== 200 && req.file?.path) { try { fs.unlinkSync(req.file.path); } catch { /* 孤儿清理尽力 */ } }
+            resolve(r as any);
+          });
+        });
+      } else {
+        result = await parseTechPackForOrder(req.params.id, { text: req.body?.text });
+      }
+      return res.status(result.status).json(result.body);
+    };
+    handler().catch((e: any) => res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message || '解析失败' }));
+  });
+
+  // ── POST /:id/techpack（保存快照 + 显式 apply 回填） ──
+  router.post('/:id/techpack', requireWrite, requirePermission('orders:write'), async (req, res) => {
+    try {
+      const order = await (opts.prisma as any).order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!order) return res.status(404).json({ error: 'NOT_FOUND', message: `订单 ${req.params.id} 不存在` });
+      const parsed = req.body?.parsed;
+      if (!parsed || typeof parsed !== 'object') {
+        return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'parsed（解析快照）必填' });
+      }
+      const fileName = typeof req.body?.fileName === 'string' ? req.body.fileName : null;
+      const apply = req.body?.apply && typeof req.body.apply === 'object' ? req.body.apply : {};
+
+      const data: Record<string, unknown> = {
+        techPack: { ...parsed, uploadedAt: Date.now() },
+        techPackFileName: fileName,
+      };
+      const applied: string[] = [];
+      if (apply.product && typeof apply.product === 'string' && apply.product.trim()) { data.product = apply.product.trim(); applied.push('product'); }
+      if (apply.quantity != null && Number.isFinite(Number(apply.quantity)) && Number(apply.quantity) > 0) { data.quantity = Math.floor(Number(apply.quantity)); applied.push('quantity'); }
+      if (apply.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(String(apply.dueDate))) { data.dueDate = String(apply.dueDate); applied.push('dueDate'); }
+      if (apply.fabricContent && typeof apply.fabricContent === 'string' && apply.fabricContent.trim()) { data.fabricContent = apply.fabricContent.trim(); applied.push('fabricContent'); }
+      if (apply.productColorCode && typeof apply.productColorCode === 'string' && apply.productColorCode.trim()) { data.productColorCode = apply.productColorCode.trim(); applied.push('productColorCode'); }
+
+      const updated = await (opts.prisma as any).order.update({ where: { id: req.params.id }, data });
+      await writeRouteAuditLog({
+        prisma: opts.prisma,
+        actorId: actorOf(req)?.userId || 'system',
+        source: 'orders-techpack',
+        operation: 'techpack_save',
+        targetType: 'Order',
+        targetId: req.params.id,
+        before: { techPack: order.techPack ?? null, quantity: order.quantity, dueDate: order.dueDate, product: order.product },
+        after: { fileName, applied, totalQty: parsed.totalQty ?? null },
+        ip: req.ip ?? null,
+        operationType: 'update',
+      });
+      return res.json({ ok: true, order: updated, applied });
+    } catch (e: any) {
+      return res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message || '保存失败' });
+    }
+  });
+
+  // ── GET /:id/techpack（现快照） ──
+  router.get('/:id/techpack', requirePermission('orders:read'), async (req, res) => {
+    const order = await (opts.prisma as any).order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    if (!order) return res.status(404).json({ error: 'NOT_FOUND', message: `订单 ${req.params.id} 不存在` });
+    return res.json({ ok: true, techPack: order.techPack ?? null, techPackFileName: order.techPackFileName ?? null });
+  });
+
+  // ── GET /:id/techpack/file（附件下载） ──
+  router.get('/:id/techpack/file', requirePermission('orders:read'), async (req, res) => {
+    const order = await (opts.prisma as any).order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+    if (!order || !order.techPackFileName) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: '该订单无 Tech Pack 附件' });
+    }
+    const abs = path.join(techPackDir, String(req.params.id), path.basename(order.techPackFileName));
+    if (!fs.existsSync(abs)) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: '附件文件缺失（可能已被清理）' });
+    }
+    return res.download(abs, order.techPackFileName.endsWith('.pdf') ? order.techPackFileName : `${order.techPackFileName}.pdf`);
   });
 
   return router;

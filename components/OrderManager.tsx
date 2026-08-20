@@ -16,6 +16,7 @@ import { TraceabilityPanel } from './TraceabilityPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import { TestRequestPanel } from './qc/TestRequestPanel';
 import { OrderProcessChainPanel } from './mes/OrderProcessChainPanel';
+import { TechPackPanel } from './orders/TechPackPanel';
 import { TcChainPanel } from './suppliers/TcChainPanel';
 import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
@@ -1730,6 +1731,24 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           orderId={selectedOrder.id}
                           isDarkMode={isDarkMode}
                           relations={relations}
+                        />
+                      </div>
+                    )}
+
+                    {/* REQ2-18 Tech Pack 结构化解析（成衣线：规格书上传 → 六类字段解析 → 勾选回填订单，DR-059） */}
+                    {selectedOrder.type === 'Garment' && (
+                      <div id="order-detail-techpack" className="mb-6">
+                        <TechPackPanel
+                          key={`tp-${selectedOrder.id}`}
+                          orderId={selectedOrder.id}
+                          isDarkMode={isDarkMode}
+                          order={{
+                            product: selectedOrder.product,
+                            quantity: selectedOrder.quantity,
+                            dueDate: selectedOrder.dueDate,
+                            fabricContent: (selectedOrder as any).fabricContent ?? null,
+                            productColorCode: (selectedOrder as any).productColorCode ?? null,
+                          }}
                         />
                       </div>
                     )}
