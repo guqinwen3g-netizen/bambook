@@ -2126,6 +2126,37 @@ model Invoice {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// REQ2-08 催款函与对账单财务套件 (DR-050)
+// ════════════════════════════════════════════════════════════════════
+// 设计决策（DR-050，设计文档 §2）：
+//   ① 函生成即时组装（不落模板表）：账龄明细是逐发票动态行，模板变量表达不了
+//      表格——中英函由服务即时组装；EmailTemplate 单发票轻提醒模板保留两档并存
+//   ② 催款记录独立建模（快照留痕）：记录当次账龄全景（客户还款后历史不失真）；
+//      发送走既有 Outbox/SMTP，催款域只登记事实
+//   ③ 一键发起挂账龄行（选中即上下文：客户×币种）
+// 设计真源：docs/design/04-模块设计/05-财务与结算/催款函套件.md
+// ════════════════════════════════════════════════════════════════════
+
+/// 催款记录：当次账龄全景快照留痕（渠道/结果/跟进人）
+model DunningRecord {
+  id                 String  @id // 格式：DUN__${shortId}
+  customerRelationId String? // 关联客户（快照 FK）
+  customerName       String // 冗余快照（还款后历史不失真）
+  currency           String // 币种
+  totalOverdue       Decimal @db.Decimal(18, 4) // 逾期总额快照
+  invoiceCount       Int // 逾期发票数快照
+  agingBuckets       Json // 五桶快照 {current,d1_30,d31_60,d61_90,d90plus}
+  channel            String // email | phone | visit | other
+  result             String // sent | promised | paid | disputed | no_response
+  note               String?
+  operator           String? // 跟进人
+  createdAt          BigInt
+
+  @@index([customerRelationId])
+  @@index([createdAt])
+}
+
+// ════════════════════════════════════════════════════════════════════
 // REQ2-07 历史数据批量迁移 (DR-049)
 // ════════════════════════════════════════════════════════════════════
 // 设计决策（DR-049，设计文档 §2）：

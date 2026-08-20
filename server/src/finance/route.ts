@@ -24,6 +24,7 @@ import { validateStatusTransition } from '../statusTransition';
 import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMutationService';
 import { createInvoice, updateInvoice } from './invoiceMutationService';
 import { getAgingReport, getCustomerStatement, getSupplierStatement, getFxGainLoss, getConsolidatedProfitReport, getCashCalendar } from './reportService';
+import { createDunningService } from './dunningService';
 import { createFxSettlement, deleteFxSettlement, getFxLedger, getVoucherSettlementSummary } from './fxSettlementService';
 import { createOutwardRemittance, deleteOutwardRemittance, getVoucherRemittanceSummary, listOutwardRemittances } from './outwardRemittanceService';
 import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteVatInvoice, listVatInvoices, getVatInvoice } from './vatInvoiceService';
@@ -153,6 +154,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
 
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager', 'finance'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  const dunningService = createDunningService(prisma);
 
   // High-risk role guard: owner/admin/manager only
 
@@ -705,6 +707,42 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       logger.error('[finance] DELETE /:id failed', { error: err?.message || String(err) });
       res.status(500).json({ ok: false, error: { code: 'DELETE_FAILED', message: err.message } });
     }
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // REQ2-08 催款函套件 — /api/v1/finance/dunning（DR-050）
+  // 字面路由 /dunning 须在参数路由 /:id 之前注册。
+  // ────────────────────────────────────────────────────────────────
+
+  // POST /api/v1/finance/dunning/letter — 中英催款函生成（账龄明细注入，只读预览）
+  router.post('/dunning/letter', async (req: Request, res: Response) => {
+    const result = await dunningService.buildLetter((req.body ?? {}) as any);
+    if (!result.ok) {
+      return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+    }
+    return res.json({ ok: true, ...result.data });
+  });
+
+  // POST /api/v1/finance/dunning — 登记催款记录（快照留痕）
+  router.post('/dunning', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await dunningService.recordDunning((req.body ?? {}) as any);
+    if (!result.ok) {
+      return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+    }
+    return res.status(201).json({ ok: true, record: result.data.record });
+  });
+
+  // GET /api/v1/finance/dunning?customerRelationId=|customerName= — 催款历史
+  router.get('/dunning', async (req: Request, res: Response) => {
+    const result = await dunningService.listDunning({
+      customerRelationId: req.query.customerRelationId ? String(req.query.customerRelationId) : undefined,
+      customerName: req.query.customerName ? String(req.query.customerName) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+    });
+    if (!result.ok) {
+      return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+    }
+    return res.json({ ok: true, ...result.data });
   });
 
   // ────────────────────────────────────────────────────────────────

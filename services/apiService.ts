@@ -187,6 +187,11 @@ import {
   SupplierStatement,
   FxGainLossReport,
   BusinessCockpit,
+  // 催款函套件（REQ2-08，DR-050）
+  DunningLetter,
+  DunningChannel,
+  DunningResultStatus,
+  DunningRecord,
   // 定价与利润（阶段 P1）
   TaxRefundRate,
   TaxRefundRateInput,
@@ -804,6 +809,56 @@ export const apiService = {
     if (params?.to) query.set('to', params.to);
     const qs = query.toString();
     return requestJson<FxGainLossReport>(`/v1/finance/reports/fx-gain-loss${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  // ── REQ2-08 催款函套件（DR-050：中英函生成 / 登记留痕 / 历史）──
+  async buildDunningLetter(params: {
+    customerRelationId?: string;
+    customerName?: string;
+    currency: string;
+    asOf?: string;
+  }, endpoint?: string): Promise<DunningLetter> {
+    return requestJson<DunningLetter>('/v1/finance/dunning/letter', {
+      endpoint,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+  },
+
+  async recordDunning(params: {
+    customerRelationId?: string;
+    customerName: string;
+    currency: string;
+    totalOverdue: number;
+    invoiceCount: number;
+    agingBuckets?: Record<string, number>;
+    channel: DunningChannel;
+    result: DunningResultStatus;
+    note?: string;
+    operator?: string;
+  }, endpoint?: string): Promise<DunningRecord> {
+    const data = await requestJson<{ ok: boolean; record?: DunningRecord; error?: { code?: string; message?: string } }>(
+      '/v1/finance/dunning',
+      {
+        endpoint,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+    );
+    if (!data.ok || !data.record) throw new Error(data.error?.message || '催款记录登记失败');
+    return data.record;
+  },
+
+  async listDunningHistory(params: { customerRelationId?: string; customerName?: string; limit?: number } = {}, endpoint?: string): Promise<DunningRecord[]> {
+    const query = new URLSearchParams();
+    if (params.customerRelationId) query.set('customerRelationId', params.customerRelationId);
+    else if (params.customerName) query.set('customerName', params.customerName);
+    if (params.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const data = await requestJson<{ items: DunningRecord[] }>(`/v1/finance/dunning${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
   },
 
   // ── Phase C1: 经营驾驶舱 API（只读聚合）──

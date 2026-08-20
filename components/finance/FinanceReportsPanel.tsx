@@ -19,10 +19,11 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle, Plus, X } from 'lucide-react';
+import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle, Plus, X, Mail } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import { fxSettlementService } from '../../services/fxSettlementService';
 import { shipmentService } from '../../services/shipmentService';
+import DunningSheet from './DunningSheet';
 import {
   INTERNAL_TRANSFER_STATUSES,
   INTERNAL_TRANSFER_STATUS_LABEL,
@@ -110,6 +111,8 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   // ── 账龄 ──
   const [agingType, setAgingType] = useState<'Receivable' | 'Payable'>('Receivable');
   const [aging, setAging] = useState<AgingReport | null>(null);
+  // ── 催款（REQ2-08，DR-050-③：一键发起挂账龄行，选中即上下文）──
+  const [dunningRow, setDunningRow] = useState<{ customerRelationId: string | null; customerName: string; currency: string } | null>(null);
 
   // ── 对账单 ──
   const [relations, setRelations] = useState<Relation[]>([]);
@@ -468,7 +471,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
       { key: 'd61_90', label: '61-90 天' },
       { key: 'd90plus', label: '90 天以上' },
     ];
-    const gridCls = 'grid w-full min-w-0 grid-cols-[minmax(0,1.4fr)_repeat(6,minmax(0,0.75fr))]';
+    const gridCls = 'grid w-full min-w-0 grid-cols-[minmax(0,1.4fr)_repeat(6,minmax(0,0.75fr))_auto]';
+    // 逾期未结清 = 总额 − 未到期（催款针对逾期部分；应付侧无催款）
+    const canDun = (row: typeof aging.rows[number]) =>
+      agingType === 'Receivable' && (row.buckets.total - row.buckets.current) > 0.005;
     return (
       <>
         {/* 汇总卡片 */}
@@ -495,6 +501,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
             <div>客户 / 币种</div>
             {bucketCols.map(c => <div key={c.key} className="text-right">{c.label}</div>)}
             <div className="text-right">合计</div>
+            <div className="text-right">操作</div>
           </div>
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
             {aging.rows.map(row => (
@@ -509,6 +516,18 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   </div>
                 ))}
                 <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(row.buckets.total, row.currency)}</div>
+                <div className="flex justify-end pl-3">
+                  {canDun(row) && (
+                    <button
+                      type="button"
+                      onClick={() => setDunningRow({ customerRelationId: row.customerRelationId, customerName: row.customerName, currency: row.currency })}
+                      className={cx('flex items-center gap-1 rounded-control px-2.5 py-1.5 text-[11px] font-light transition-colors hover:bg-[var(--recessed-bg-hover)]', textSecondary)}
+                      aria-label={`对 ${row.customerName} 发起催款`}
+                    >
+                      <Mail size={14} strokeWidth={1.5} /> 催款
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -1446,6 +1465,19 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── REQ2-08 催款函 BottomSheet（DR-050：中英函预览/打印/登记/历史）── */}
+      {dunningRow && (
+        <DunningSheet
+          open={!!dunningRow}
+          onClose={() => setDunningRow(null)}
+          customerRelationId={dunningRow.customerRelationId}
+          customerName={dunningRow.customerName}
+          currency={dunningRow.currency}
+          asOf={aging?.asOf}
+          endpoint={endpoint}
+        />
       )}
     </div>
   );

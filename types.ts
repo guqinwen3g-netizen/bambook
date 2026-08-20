@@ -2411,6 +2411,49 @@ export interface AgingReport {
   totals: Array<{ currency: string } & AgingBuckets>;
 }
 
+/** REQ2-08 催款函套件（DR-050）：中英函预览 + 催款记录快照留痕 */
+export interface DunningLetterItem {
+  invoiceNumber: string;
+  open: number;
+  dueDate: string | null;
+  daysOverdue: number;
+  bucket: string;
+}
+
+export interface DunningLetterSummary {
+  customerName: string;
+  currency: string;
+  asOf: string;
+  invoiceCount: number;
+  totalOverdue: number;
+  buckets: Record<string, number>;
+  items: DunningLetterItem[];
+}
+
+export interface DunningLetter {
+  zh: { subject: string; body: string };
+  en: { subject: string; body: string };
+  summary: DunningLetterSummary;
+}
+
+export type DunningChannel = 'email' | 'phone' | 'visit' | 'other';
+export type DunningResultStatus = 'sent' | 'promised' | 'paid' | 'disputed' | 'no_response';
+
+export interface DunningRecord {
+  id: string;
+  customerRelationId: string | null;
+  customerName: string;
+  currency: string;
+  totalOverdue: number;
+  invoiceCount: number;
+  agingBuckets: Record<string, number>;
+  channel: DunningChannel;
+  result: DunningResultStatus;
+  note: string | null;
+  operator: string | null;
+  createdAt: string;
+}
+
 export interface StatementTransaction {
   date: string;
   kind: 'invoice' | 'receipt' | 'payment';
