@@ -16,6 +16,7 @@ import { TraceabilityPanel } from './TraceabilityPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import { TestRequestPanel } from './qc/TestRequestPanel';
 import { OrderProcessChainPanel } from './mes/OrderProcessChainPanel';
+import { TcChainPanel } from './suppliers/TcChainPanel';
 import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
@@ -1714,6 +1715,18 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       <div id="order-detail-process-chain" className="mb-6">
                         <OrderProcessChainPanel
                           key={`opc-${selectedOrder.id}`}
+                          orderId={selectedOrder.id}
+                          isDarkMode={isDarkMode}
+                          relations={relations}
+                        />
+                      </div>
+                    )}
+
+                    {/* REQ2-06 GRS TC 交易证书链（原料→工厂→我方三段 + 出货前一键校验，DR-048；面料/其他类 GRS 订单） */}
+                    {(selectedOrder.type === 'Fabric' || selectedOrder.type === 'Other') && (
+                      <div id="order-detail-tc-chain" className="mb-6">
+                        <TcChainPanel
+                          key={`tc-${selectedOrder.id}`}
                           orderId={selectedOrder.id}
                           isDarkMode={isDarkMode}
                           relations={relations}

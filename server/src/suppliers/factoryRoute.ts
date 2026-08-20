@@ -44,6 +44,7 @@ import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
 import { createFactoryService, FactoryProfileInput, FactoryEvaluationInput, FactoryCertificationInput } from './factoryService';
+import { createTcCertificateService, TcResult } from './tcCertificateService';
 
 export interface SupplierRouterOptions {
   prisma: PrismaClient;
@@ -58,6 +59,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const router = Router();
   const service = createFactoryService(prisma);
+  const tcService = createTcCertificateService(prisma);
 
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
@@ -106,6 +108,59 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     } catch (e: any) {
       handleError(res, e, 'EXPIRING_LIST_FAILED');
     }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // REQ2-06 GRS TC 交易证书链 TcCertificate（DR-048；字面路由须在 /:id 之前）
+  // ══════════════════════════════════════════════════════════════
+
+  /** TcResult → HTTP（结构化错误码直透） */
+  const handleTcResult = <T>(
+    res: Response,
+    result: TcResult<T>,
+    successStatus: number,
+    wrap: (data: T) => Record<string, unknown>,
+  ) => {
+    if (!result.ok) {
+      return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+    }
+    res.status(successStatus).json(serializeValue(wrap(result.data)) as any);
+  };
+
+  // POST /tc-certificates — 登记 TC（三段链）
+  router.post('/tc-certificates', requireWrite, async (req: Request, res: Response) => {
+    const result = await tcService.createTc((req.body ?? {}) as any);
+    if (result.ok) notify('create_tc_certificate', [result.data.tc.id]);
+    handleTcResult(res, result, 201, (d) => ({ ok: true, tc: d.tc }));
+  });
+
+  // GET /tc-certificates?orderId= | ?relationId= — 链视图（按 stage 分组 + 段位吨位聚合）
+  router.get('/tc-certificates', async (req: Request, res: Response) => {
+    const result = await tcService.listTc({
+      orderId: typeof req.query.orderId === 'string' ? req.query.orderId : undefined,
+      relationId: typeof req.query.relationId === 'string' ? req.query.relationId : undefined,
+    });
+    handleTcResult(res, result, 200, (d) => ({ ok: true, ...d }));
+  });
+
+  // GET /tc-certificates/verify?orderId= — 一键校验（四检查项，只读；出货门禁消费方调用）
+  router.get('/tc-certificates/verify', async (req: Request, res: Response) => {
+    const result = await tcService.verifyChain(String(req.query.orderId ?? ''));
+    handleTcResult(res, result, 200, (d) => ({ ok: true, verification: d }));
+  });
+
+  // PATCH /tc-certificates/:tcId — 修正（吨位/效期/备注白名单）
+  router.patch('/tc-certificates/:tcId', requireWrite, async (req: Request, res: Response) => {
+    const result = await tcService.updateTc(req.params.tcId, (req.body ?? {}) as any);
+    if (result.ok) notify('update_tc_certificate', [req.params.tcId]);
+    handleTcResult(res, result, 200, (d) => ({ ok: true, tc: d.tc }));
+  });
+
+  // DELETE /tc-certificates/:tcId — 软删
+  router.delete('/tc-certificates/:tcId', requireWrite, async (req: Request, res: Response) => {
+    const result = await tcService.deleteTc(req.params.tcId);
+    if (result.ok) notify('delete_tc_certificate', [req.params.tcId]);
+    handleTcResult(res, result, 200, (d) => ({ ok: true, id: d.id }));
   });
 
   // POST / — 建立工厂档案

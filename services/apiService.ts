@@ -148,6 +148,10 @@ import {
   OutsourcingOrderInput,
   OrderProcessNodeRow,
   OrderProcessChainSummary,
+  TcCertificateRow,
+  TcStageSummary,
+  TcChainVerification,
+  TcStage,
   OutsourcingStatus,
   // Customs
   CustomsType,
@@ -1676,6 +1680,37 @@ export const apiService = {
     const qs = days != null ? `?days=${days}` : '';
     const data = await requestJson<{ items: FactoryCertification[]; total: number }>(`/v1/suppliers/expiring-certifications${qs}`, { endpoint, method: 'GET' });
     return data.items ?? [];
+  },
+
+  // ── REQ2-06 GRS TC 交易证书链 TcCertificate（DR-048：三段链 + 一键校验） ──
+  async listTcCertificates(params: { orderId?: string; relationId?: string }, endpoint?: string): Promise<{ items: TcCertificateRow[]; byStage: TcStageSummary[] }> {
+    const query = new URLSearchParams();
+    if (params.orderId) query.set('orderId', params.orderId);
+    if (params.relationId) query.set('relationId', params.relationId);
+    const data = await requestJson<{ items: TcCertificateRow[]; byStage: TcStageSummary[] }>(
+      `/v1/suppliers/tc-certificates?${query.toString()}`, { endpoint, method: 'GET' });
+    return { items: data.items ?? [], byStage: data.byStage ?? [] };
+  },
+  async createTcCertificate(input: {
+    orderId: string; stage: TcStage; tcNo: string; quantityKg: number;
+    relationId?: string; issuedAt?: string; validUntil?: string; notes?: string; parentTcId?: string;
+  }, endpoint?: string): Promise<TcCertificateRow> {
+    const data = await requestJson<{ tc: TcCertificateRow }>('/v1/suppliers/tc-certificates', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.tc;
+  },
+  async verifyTcChain(orderId: string, endpoint?: string): Promise<TcChainVerification> {
+    const data = await requestJson<{ verification: TcChainVerification }>(
+      `/v1/suppliers/tc-certificates/verify?orderId=${encodeURIComponent(orderId)}`, { endpoint, method: 'GET' });
+    return data.verification;
+  },
+  async updateTcCertificate(id: string, patch: {
+    quantityKg?: number; issuedAt?: string; validUntil?: string; notes?: string;
+  }, endpoint?: string): Promise<TcCertificateRow> {
+    const data = await requestJson<{ tc: TcCertificateRow }>(`/v1/suppliers/tc-certificates/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.tc;
+  },
+  async deleteTcCertificate(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/suppliers/tc-certificates/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
   // FactoryCapacity 产能日历

@@ -51,6 +51,7 @@ import {
   FactoryCertificationInput,
   FactoryCapacity,
   FactoryPriceLevel,
+  TcCertificateRow,
 } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
@@ -800,6 +801,9 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                           onDelete={handleDeleteCertification}
                         />
                       )}
+                      {activeTab === 'certifications' && detail?.relationId && (
+                        <SupplierTcTrace relationId={detail.relationId} />
+                      )}
                       {activeTab === 'capacity' && (
                         <CapacityTab
                           capacity={capacity}
@@ -1095,6 +1099,70 @@ function CertificationsTab({
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── REQ2-06 TC 交易证书追溯（认证管理 Tab 内，按交易对手维度——验收锚点②） ───
+
+const TC_STAGE_LABELS_SUPPLIER: Record<string, string> = {
+  material_input: '原料 TC',
+  factory_output: '工厂 TC',
+  our_sale: '我方 TC',
+};
+
+function SupplierTcTrace({ relationId }: { relationId: string }) {
+  const [items, setItems] = useState<TcCertificateRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await apiService.listTcCertificates({ relationId });
+        if (!cancelled) setItems(data.items);
+      } catch {
+        if (!cancelled) setItems([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [relationId]);
+
+  return (
+    <div className="bds-card flat" style={{ padding: 'var(--space-4)' }}>
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+        <span className="text-xs" style={{ color: 'var(--text-primary)' }}>TC 交易证书追溯</span>
+        <span className="text-[10px] tracking-[0.14em]" style={{ color: 'var(--text-quaternary)' }}>TC CHAIN</span>
+        <span className="ml-auto text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{items.length} 张</span>
+      </div>
+      {loading ? (
+        <div className="flex items-center gap-2 py-4 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />加载 TC 链…
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-4 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+          该交易对手暂无 TC 证书记录（GRS 订单的 TC 登记在订单详情「GRS TC 证书链」区块）
+        </div>
+      ) : (
+        <div className="mt-2 space-y-1.5">
+          {items.map((t) => (
+            <div key={t.id} className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="bds-badge sm neutral">{TC_STAGE_LABELS_SUPPLIER[t.stage] ?? t.stage}</span>
+              <span className="tabular-nums" style={{ color: 'var(--text-primary)' }}>{t.tcNo}</span>
+              <span className="tabular-nums" style={{ color: 'var(--text-tertiary)' }}>
+                {Number(t.quantityKg).toLocaleString()} kg
+              </span>
+              <span style={{ color: 'var(--text-quaternary)' }}>
+                订单 {t.orderId}{t.validUntil ? ` · 效期至 ${t.validUntil}` : ''}
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>

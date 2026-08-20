@@ -3440,6 +3440,50 @@ export interface FactoryCertificationInput {
   attachmentPath?: string | null;
 }
 
+// ── REQ2-06 GRS TC 交易证书链 TcCertificate（DR-048：三段链 + 一键校验） ──
+
+export type TcStage = 'material_input' | 'factory_output' | 'our_sale';
+
+export interface TcCertificateRow {
+  id: string;
+  tcNo: string;
+  orderId: string;
+  relationId: string | null;
+  relationName: string | null;
+  stage: TcStage;
+  quantityKg: number;
+  issuedAt: string | null;
+  validUntil: string | null;
+  attachmentPath: string | null;
+  notes: string | null;
+  parentTcId: string | null;
+  createdAt: number;
+}
+
+export interface TcStageSummary {
+  stage: TcStage;
+  label: string;
+  count: number;
+  totalKg: number;
+}
+
+export interface TcChainVerification {
+  orderId: string;
+  poNumber: string | null;
+  verdict: 'complete' | 'warning';
+  tcCount: number;
+  byStage: { materialKg: number; factoryKg: number; ourKg: number };
+  missingStages: Array<{ stage: TcStage; label: string }>;
+  tonnageWarnings: string[];
+  orderUsage: {
+    checked: boolean;
+    orderUsageKg: number | null;
+    ourSaleKg: number;
+    warning: string | null;
+  };
+  expiredTc: Array<{ id: string; tcNo: string; validUntil: string }>;
+}
+
 export interface FactoryCapacity {
   id: string;
   factoryId: string;

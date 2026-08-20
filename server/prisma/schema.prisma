@@ -3457,6 +3457,51 @@ model FactoryCertification {
   @@index([validUntil])
 }
 
+// ════════════════════════════════════════════════════════════════════
+// REQ2-06 GRS TC 交易证书链 (DR-048)
+// ════════════════════════════════════════════════════════════════════
+// 设计决策（DR-048，设计文档 §2）：
+//   ① TC 与资质认证分轨：FactoryCertification 是工厂年度资质；TcCertificate 是
+//     每票交易的证书（三段链挂订单 + 交易对手）——两轨不合并
+//   ② 三段链按 stage 枚举 + 段位聚合勾稽（Σ 原料 ≥ Σ 工厂 ≥ Σ 我方），
+//     不做逐张 parent 拓扑（parentTcId 预留增强）
+//   ③ 一键校验四检查项：链完整性 / 段间吨位 / TC vs 订单用量（KG 行） / 有效期
+//     ——只读无副作用，出货门禁消费方调用
+// 设计真源：docs/design/04-模块设计/06-资源与支撑/Suppliers-供应商/GRS-TC交易证书链.md
+// ════════════════════════════════════════════════════════════════════
+
+/// GRS 订单交易证书：原料 TC → 工厂 TC → 我方 TC 三段链（缺链 = 无法清关）
+model TcCertificate {
+  id   String @id // 格式：TCC__${shortId}
+  tcNo String @unique // 证书编号（TC No.）
+
+  orderId      String // 挂订单（GRS 订单）
+  relationId   String? // 交易对手（出具方/接收方，跨模块 snapshot FK → Relation）
+  relationName String? // 冗余快照
+
+  // ─── 三段链（DR-048-②） ───
+  stage String // material_input(原料TC：上游→工厂) | factory_output(工厂TC：工厂→我方) | our_sale(我方TC：我方→客户)
+
+  // ─── 吨位与效期 ───
+  quantityKg Decimal @db.Decimal(18, 3) // 吨位（公斤，GRS TC 计量单位）
+  issuedAt   String? // 签发日 YYYY-MM-DD
+  validUntil String? // 有效期至（null = 长期有效）
+
+  attachmentPath String? // 证书 PDF（预留）
+  notes          String?
+
+  // ─── 可选链上游（增强预留，校验不依赖 DR-048-②） ───
+  parentTcId String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([orderId])
+  @@index([relationId])
+  @@index([stage])
+}
+
 // FactoryCapacity：工厂产能日历（PRD 13.3）——capacity 为计划产能；
 // 占用量不落地，由服务层按在手采购单（expectedDeliveryDate 落月）实时聚合。
 model FactoryCapacity {
