@@ -27,6 +27,7 @@ import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { listDatasets } from './datasets';
 import { rowsToCsv } from './reportEngine';
+import { createMonthlyCloseService } from './monthlyCloseService';
 import {
   createReportDefinition,
   deleteReportDefinition,
@@ -72,6 +73,10 @@ const ERROR_STATUS: Record<string, number> = {
   DEFINITION_INVALID: 409,
   DISABLED: 409,
   NOT_FOUND: 404,
+  // REQ2-17 月末结转（DR-058）
+  VALIDATION_FAILED: 400,
+  NO_MONTHLY_DEFINITIONS: 404,
+  INTERNAL_ERROR: 500,
 };
 
 export function createReportingRouter(options: ReportingRouterOptions): Router {
@@ -82,6 +87,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
 
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager', 'finance'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  const monthlyCloseService = createMonthlyCloseService(prisma);
 
   const sendError = (res: Response, error: { code: string; message: string }) => {
     res.status(ERROR_STATUS[error.code] ?? 500).json({ error });
@@ -198,6 +204,32 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
       return;
     }
     res.status(201).json(serialize({ run: result.data!.run }));
+  });
+
+  // ── REQ2-17 月末批量结转（DR-058）：mc: 幂等键月末时点快照 + 相邻期对比 ──
+  // 守卫与定义变更同级（结转是财务批量快照动作，高风险角色 + JWT）。
+  router.post('/monthly-close', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await monthlyCloseService.runMonthlyClose({
+      periodKey: typeof req.body?.periodKey === 'string' ? req.body.periodKey : undefined,
+      actorId: actorIdFromRequest(req),
+      ip: req.ip,
+    });
+    if (!result.ok) {
+      sendError(res, result.error!);
+      return;
+    }
+    res.json(serialize(result.data));
+  });
+
+  router.get('/monthly-close/compare', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    const result = await monthlyCloseService.compareMonthlyClose({
+      periodKey: typeof req.query.periodKey === 'string' ? req.query.periodKey : undefined,
+    });
+    if (!result.ok) {
+      sendError(res, result.error!);
+      return;
+    }
+    res.json(serialize(result.data));
   });
 
   // ── 运行历史 ──

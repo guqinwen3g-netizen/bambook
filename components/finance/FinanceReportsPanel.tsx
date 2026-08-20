@@ -24,6 +24,7 @@ import { apiService } from '../../services/apiService';
 import { fxSettlementService } from '../../services/fxSettlementService';
 import { shipmentService } from '../../services/shipmentService';
 import DunningSheet from './DunningSheet';
+import MonthlyCloseSection from './MonthlyCloseSection';
 import {
   INTERNAL_TRANSFER_STATUSES,
   INTERNAL_TRANSFER_STATUS_LABEL,
@@ -41,7 +42,7 @@ import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, Fx
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
-type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-ledger' | 'consolidated' | 'internal-trade';
+type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-ledger' | 'consolidated' | 'internal-trade' | 'monthly-close';
 
 /** YYYY-MM-DD（与 server internalTrade DATE_RE 一致） */
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -67,6 +68,7 @@ const REPORT_TABS: Array<{ id: ReportTabId; label: string; en: string }> = [
   { id: 'fx-ledger', label: '外汇台账', en: 'FX Ledger' },
   { id: 'consolidated', label: '合并利润', en: 'Consolidated' },
   { id: 'internal-trade', label: '内部供料', en: 'Internal Supply' },
+  { id: 'monthly-close', label: '月末结转', en: 'Monthly Close' },
 ];
 
 function formatAmount(amount: number, currency?: string): string {
@@ -1232,6 +1234,8 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           {tab === 'fx-ledger' && renderFxLedger()}
           {tab === 'consolidated' && renderConsolidated()}
           {tab === 'internal-trade' && renderTransfers()}
+          {/* REQ2-17 月末批量结转（DR-058）：月末时点快照 + 月度对比 */}
+          {tab === 'monthly-close' && <MonthlyCloseSection isDarkMode={isDarkMode} endpoint={endpoint} />}
         </>
       )}
 
