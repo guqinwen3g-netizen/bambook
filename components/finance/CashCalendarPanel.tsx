@@ -14,6 +14,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, CalendarClock, Coins, Globe2, Loader2, RefreshCw, Wallet } from 'lucide-react';
 import { apiService } from '../../services/apiService';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 import type { CashCalendarReport } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -41,7 +42,7 @@ interface CashCalendarPanelProps {
   endpoint?: string;
 }
 
-export function CashCalendarPanel({ isDarkMode: _isDarkMode, endpoint }: CashCalendarPanelProps) {
+export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelProps) {
   const [asOf, setAsOf] = useState(todayStr());
   const [days, setDays] = useState(30);
   const [data, setData] = useState<CashCalendarReport | null>(null);
@@ -89,7 +90,7 @@ export function CashCalendarPanel({ isDarkMode: _isDarkMode, endpoint }: CashCal
       <div className="flex shrink-0 items-center gap-2">
         <div className="bds-filterbar">
           <span className={cx('px-2 text-[10px] font-light tracking-[0.14em]', textSecondary)}>基准日</span>
-          <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} className={inputCls} />
+          <CapsuleDateInput value={asOf} onChange={setAsOf} isDarkMode={isDarkMode} className={inputCls} placeholder="基准日" />
           <span className={cx('px-1 text-[10px] font-light tracking-[0.14em]', textSecondary)}>预测窗口</span>
           {[30, 60, 90].map(d => (
             <button

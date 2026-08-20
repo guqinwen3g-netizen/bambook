@@ -271,7 +271,7 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
                 <span key={c} className="bds-badge sm warning">{COLOR_BATCH_DEFECT_LABELS[c]}</span>
               ))}
               {b.approvedAsSealed && (
-                <span className="bds-badge sm success"><Star size={10} strokeWidth={1.5} className="inline" /> 封样基准</span>
+                <span className="bds-badge sm success"><Star size={14} strokeWidth={1.5} className="inline" /> 封样基准</span>
               )}
               <span className={cx('ml-auto text-[11px] font-light', textSecondary)}>
                 {COLOR_BATCH_STATUS_LABELS[b.customerStatus]}{b.supplierName ? ` · ${b.supplierName}` : ''}
@@ -285,19 +285,19 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
               <div className="mt-2 flex items-center gap-2">
                 <button type="button" disabled={acting === b.id} onClick={() => submitFeedback(b, 'approved', true)}
                   className="bds-btn bds-btn-ghost">
-                  <CheckCircle2 size={13} strokeWidth={1.5} />通过并设基准
+                  <CheckCircle2 size={14} strokeWidth={1.5} />通过并设基准
                 </button>
                 <button type="button" disabled={acting === b.id} onClick={() => submitFeedback(b, 'needs_recast')}
                   className="bds-btn bds-btn-ghost">
-                  <RotateCcw size={13} strokeWidth={1.5} />要求重打
+                  <RotateCcw size={14} strokeWidth={1.5} />要求重打
                 </button>
                 <button type="button" disabled={acting === b.id} onClick={() => submitFeedback(b, 'rejected')}
                   className="bds-btn bds-btn-ghost">
-                  <XCircle size={13} strokeWidth={1.5} />拒绝
+                  <XCircle size={14} strokeWidth={1.5} />拒绝
                 </button>
                 <button type="button" disabled={acting === b.id} onClick={() => removeBatch(b)}
                   className="bds-btn bds-btn-ghost bds-btn-icon ml-auto" title="删除">
-                  <Trash2 size={13} strokeWidth={1.5} />
+                  <Trash2 size={14} strokeWidth={1.5} />
                 </button>
               </div>
             )}

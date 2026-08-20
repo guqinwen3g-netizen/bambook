@@ -28,6 +28,7 @@ export const ORDER_LINE_WRITABLE_FIELDS = new Set([
   'invoiceDate',
   'shipmentQuantity',
   'shipmentAmount',
+  'tolerancePercent', // REQ2-03 溢短装条款 ±N%
   'actualPaymentDate',
   'actualPaymentAmount',
   'specialInstructions',

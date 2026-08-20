@@ -278,6 +278,12 @@ model OrderLine {
   /// 设计真源：MOQ最小起订量.md §2.1 优先级#1
   moqOverride            Int?
 
+  // ============ REQ2-03 溢短装条款（面料合同惯例 ±N%）============
+  /// 溢短装容差百分比（对称条款 ±N%）：发货/开票数量允许偏离合同量的上限；
+  /// 默认 5（行业惯例 ±5%）；0 = 不允许溢短装（足量交付）
+  /// 设计真源：需求池 REQ2-03 · toleranceService 校验单一真源
+  tolerancePercent       Decimal  @default(5) @db.Decimal(5, 2)
+
   // ============ DR-005 内部交易结算价（P0-6 补充）============
   /// isInternalFabricTrade=true 时启用，替代 unitPrice 做内部核算；内部订单利润表以此为准
   internalTransferPrice  Decimal? @db.Decimal(18, 4)

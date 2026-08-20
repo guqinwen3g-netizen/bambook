@@ -837,6 +837,9 @@ export interface OrderLineLite {
   actualPaymentAmount?: number | null;
   specialInstructions?: string | null;
 
+  // ============ REQ2-03 溢短装条款（±N%，默认 5=行业惯例；0=足量交付） ============
+  tolerancePercent?: number | null;
+
   // Garment extension fields
   sizeBreakdown?: Record<string, number> | null;   // { S: 100, M: 200, L: 200, XL: 100 }
   productionSteps?: ProductionStep[] | null;        // [{ step, status, date }]
@@ -2460,6 +2463,40 @@ export interface FxGainLossReport {
   baseCurrency: string;
   rows: FxGainLossRow[];
   totalGainLoss: number;
+}
+
+// ── REQ2-03: 溢短装条款（toleranceService 单一真源，±N% 对称条款）──
+export type ToleranceVerdict = 'ok' | 'over_limit' | 'under_limit';
+
+export interface ToleranceCheckResult {
+  verdict: ToleranceVerdict;
+  deviationPct: number;
+  allowedMin: number;
+  allowedMax: number;
+  settlementQty: number;
+  settlementAmount: number | null;
+  maxLimitAmount: number | null;
+  minLimitAmount: number | null;
+  warning: string | null;
+}
+
+export interface OrderLineToleranceStatus {
+  orderLineId: string;
+  itemNo: string | null;
+  description: string | null;
+  unit: string | null;
+  contractQty: number;
+  shippedQty: number;
+  tolerancePercent: number;
+  unitPrice: number | null;
+  check: ToleranceCheckResult;
+}
+
+export interface OrderToleranceStatus {
+  orderId: string;
+  poNumber: string | null;
+  lines: OrderLineToleranceStatus[];
+  summary: { total: number; ok: number; overLimit: number; underLimit: number; unshipped: number };
 }
 
 // ── REQ2-02: 资金日历与 30 天现金流预测（DR-044 净额口径，与账龄/对账单同源）──

@@ -21,6 +21,7 @@ import { saveParsedOrders, updateOrderFields } from '../services/importService';
 import { createOrderLine, updateOrderLineFields } from '../services/orderLineService';
 import OrderClusterBlock from './order/OrderClusterBlock';
 import OrderLinesTable from './order/OrderLinesTable';
+import OrderToleranceSection from './order/OrderToleranceSection';
 import { useGlassSurfaceEdgeMasks } from './ui/useGlassSurfaceEdgeMasks';
 import { ProductionPipeline } from './ProductionPipeline';
 import { ProductionAlerts } from './ProductionAlerts';
@@ -290,6 +291,8 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const [poItems, setPoItems] = useState<PoItem[]>([]);
   const [selectedLineItem, setSelectedLineItem] = useState<OrderLineItem | null>(null);
   const [editLineForm, setEditLineForm] = useState<Partial<OrderLineItem> | null>(null);
+  // REQ2-03：行保存（shipmentQuantity/tolerancePercent 变更）后自增，驱动溢短装视图重取
+  const [toleranceRefreshKey, setToleranceRefreshKey] = useState(0);
   const [statusTimeline, setStatusTimeline] = useState<OrderStatusTransition[]>([]);
   // DR-010 编辑门禁：已批准订单受控字段直改被拦截后，预填并引导到变更申请表单
   const [changeGatePrefill, setChangeGatePrefill] = useState<ChangeRequestGatePrefill | null>(null);
@@ -652,6 +655,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         invoiceDate: editLineForm.invoiceDate,
         shipmentQuantity: editLineForm.shipmentQuantity,
         shipmentAmount: editLineForm.shipmentAmount,
+        tolerancePercent: editLineForm.tolerancePercent,
         actualPaymentDate: editLineForm.actualPaymentDate,
         actualPaymentAmount: editLineForm.actualPaymentAmount,
         specialInstructions: editLineForm.specialInstructions,
@@ -672,6 +676,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       setEditLineForm({ ...line });
       onSelectOrder(line.order);
       setIsEditing(false);
+      setToleranceRefreshKey((k) => k + 1);
       return;
     }
     // DR-010 门禁引导：已批准订单的受控字段（数量/金额/交期/客户/产品）直改不直接落库——
@@ -728,6 +733,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           invoiceDate: editLineForm.invoiceDate,
           shipmentQuantity: editLineForm.shipmentQuantity,
           shipmentAmount: editLineForm.shipmentAmount,
+          tolerancePercent: editLineForm.tolerancePercent,
           actualPaymentDate: editLineForm.actualPaymentDate,
           actualPaymentAmount: editLineForm.actualPaymentAmount,
           specialInstructions: editLineForm.specialInstructions,
@@ -743,6 +749,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           const lineMerged = mergeLineIntoOrders(savedLine, updatedOrders);
           setOrders(lineMerged, savedLine.order);
           onSelectOrder(savedLine.order);
+          setToleranceRefreshKey((k) => k + 1);
         } catch (lineErr: any) {
           // eslint-disable-next-line no-console
           console.error('[detail-save] line persist failed:', lineErr);
@@ -1741,16 +1748,24 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                             ['数量', 'quantity'],
                             ['单价', 'unitPrice'],
                             ['小计', 'netValue'],
+                            ['溢短装条款', 'tolerancePercent'],
                             ['状态', 'status'],
                             ['实际发货日', 'shippingDate'],
                             ['发票号', 'invoiceNumber'],
                             ['收款日', 'actualPaymentDate'],
                           ].map(([label, key]) => {
             const raw = (isEditing && editLineForm ? (editLineForm as any)[key] : (selectedLineItem as any)[key]) ?? '';
+            // REQ2-03：溢短装条款查阅态归一为 ±N%（Prisma Decimal 经 JSON 序列化为 "5.00"，统一 Number 化展示）
+            const isTolerance = key === 'tolerancePercent';
+            const toleranceDisplay = raw === '' || raw === null || raw === undefined
+              ? ''
+              : `±${Number(raw)}%`;
             // 查阅态日期归一：日期键统一 YYYY-MM-DD（与 OrderFieldInput 档案态一致）
             const value = !isEditing && ['exMillDate', 'deliveryDate', 'shippingDate', 'actualPaymentDate'].includes(key)
               ? formatYmd(raw) || ''
-              : raw;
+              : isTolerance
+                ? (isEditing ? (raw === '' || raw === null || raw === undefined ? '' : String(Number(raw))) : toleranceDisplay)
+                : raw;
             const isEmpty = !value || value === '-' || value === '';
             return (
               <div key={key} className="space-y-1.5">
@@ -1758,8 +1773,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 {isEditing ? (
                   <input
                     className={`bds-input ${FIELD_NO_SPINNER_CLASS}`}
+                    inputMode={isTolerance ? 'decimal' : undefined}
+                    placeholder={isTolerance ? '如 5' : undefined}
                     value={String(value)}
-                    onChange={(event) => setEditLineForm((prev) => ({ ...(prev ?? selectedLineItem), [key]: ['quantity', 'unitPrice', 'netValue'].includes(key) ? Number(event.target.value) : event.target.value }))}
+                    onChange={(event) => setEditLineForm((prev) => ({ ...(prev ?? selectedLineItem), [key]: ['quantity', 'unitPrice', 'netValue', 'tolerancePercent'].includes(key) ? Number(event.target.value) : event.target.value }))}
                   />
                 ) : (
                   <div className={`min-h-6 truncate rounded-inset px-2.5 py-1 ${isEmpty ? FIELD_SLOT_EMPTY_CLASS : FIELD_SLOT_FILLED_CLASS}`}>
@@ -1780,6 +1797,19 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           lines={selectedOrder.lines}
                           isDarkMode={isDarkMode}
                           currency={selectedOrder.salesCurrency || 'USD'}
+                        />
+                      </div>
+                    )}
+
+                    {/* REQ2-03 溢短装校验：全部行已发量 vs 合同量（±N% 条款区间 + 超限预警） */}
+                    {selectedOrder.id && selectedOrder.lines && selectedOrder.lines.length > 0 && (
+                      <div id="order-detail-tolerance" className="mt-6">
+                        <OrderToleranceSection
+                          key={selectedOrder.id}
+                          orderId={selectedOrder.id}
+                          isDarkMode={isDarkMode}
+                          currency={selectedOrder.salesCurrency || 'USD'}
+                          refreshKey={toleranceRefreshKey}
                         />
                       </div>
                     )}

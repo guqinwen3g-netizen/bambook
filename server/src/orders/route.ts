@@ -10,6 +10,7 @@ import { persistOrders, PersistResult } from '../import/persistOrders';
 import { ParsedOrder } from '../import/types';
 import { syncOrderEntityReferences } from '../entities/sync';
 import { getOrder, getOrderContext, queryOrders } from './query';
+import { checkTolerance, getOrderToleranceStatus } from './toleranceService';
 import { logger } from '../lib/logger';
 import { nextBusinessNumber } from '../shared/businessNumberService';
 
@@ -85,6 +86,30 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
     } catch (e: any) {
       logger.error('[orders/context] failed', { error: e?.message || String(e) });
       return res.status(500).json({ ok: false, error: { code: 'CONTEXT_FAILED', message: '订单全链路聚合查询失败' } });
+    }
+  });
+
+  // REQ2-03 溢短装状态：全部行已发量 vs 合同量（±N% 条款校验，只读）
+  router.get('/:id/tolerance-status', async (req: Request, res: Response) => {
+    try {
+      const status = await getOrderToleranceStatus(opts.prisma, req.params.id);
+      if (!status) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
+      return res.json({ ok: true, ...status });
+    } catch (e: any) {
+      logger.error('[orders/tolerance-status] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ ok: false, error: { code: 'TOLERANCE_FAILED', message: '订单溢短装状态查询失败' } });
+    }
+  });
+
+  // REQ2-03 纯计算端点：发货/开票量容差预检（供前端与发货域共用，无副作用）
+  router.post('/tolerance-check', async (req: Request, res: Response) => {
+    try {
+      const { contractQty, actualQty, tolerancePercent, unitPrice } = req.body ?? {};
+      const result = checkTolerance({ contractQty, actualQty, tolerancePercent, unitPrice });
+      return res.json({ ok: true, check: result });
+    } catch (e: any) {
+      const status = e?.code === 'INVALID_QTY' ? 400 : 500;
+      return res.status(status).json({ ok: false, error: { code: e?.code ?? 'TOLERANCE_CHECK_FAILED', message: e?.message ?? '校验失败' } });
     }
   });
 
