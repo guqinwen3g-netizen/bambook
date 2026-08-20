@@ -785,14 +785,28 @@ async function deployUploadedWebapp(req: Request, res: Response) {
 
     // 大体量静态资源目录内容稳定、极少变更，轻量部署包可省略以降低上传体积。
     // 此处从上一版本自动沿用，避免被全量替换语义误删。
-    // 扩展沿用目录：data/wallpapers（3D 地图瓦片+壁纸）、glyphs（字体字形）、
-    // geo（地理数据）、fonts（字体文件）、dev-assets（开发资源）。
-    for (const heavyDir of ['data', 'wallpapers', 'glyphs', 'geo', 'fonts', 'dev-assets']) {
+    // 扩展沿用目录：data/glyphs（字体字形）、geo（地理数据）、fonts（字体文件）。
+    // wallpapers/dev-assets 为已清理死重（壁纸功能下线/零引用设计物料），不再沿用。
+    // webapp-root 首次部署无 prev 时：重资产从老入口 webapp/ 交叉沿用——
+    // 地图数据/字体与构建 base 路径无关，两份产物完全相同，免 88MB 全量种子上传。
+    const carryDirs = target === 'webapp-root'
+      ? ['data', 'glyphs', 'geo', 'fonts']
+      : ['data', 'wallpapers', 'glyphs', 'geo', 'fonts', 'dev-assets'];
+    const crossEntrySource = (target === 'webapp-root' && !fs.existsSync(prevDir)
+      && fs.existsSync(path.join(SERVER_ROOT, 'webapp')))
+      ? path.join(SERVER_ROOT, 'webapp')
+      : null;
+    if (crossEntrySource) {
+      appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', from: 'webapp', note: '首次部署 webapp-root，重资产交叉沿用老入口' });
+    }
+    for (const heavyDir of carryDirs) {
       const inPackage = path.join(extractDir, heavyDir);
       const inPrev = path.join(prevDir, heavyDir);
-      if (!fs.existsSync(inPackage) && fs.existsSync(inPrev)) {
-        await execFileAsync('/bin/cp', ['-R', inPrev, path.join(webappDir, heavyDir)], { timeout: 120_000 });
-        appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', dir: heavyDir });
+      const inCross = crossEntrySource ? path.join(crossEntrySource, heavyDir) : null;
+      const source = fs.existsSync(inPrev) ? inPrev : (inCross && fs.existsSync(inCross) ? inCross : null);
+      if (!fs.existsSync(inPackage) && source) {
+        await execFileAsync('/bin/cp', ['-R', source, path.join(webappDir, heavyDir)], { timeout: 120_000 });
+        appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', dir: heavyDir, from: source === inPrev ? 'prev' : 'webapp' });
       }
     }
 
@@ -800,8 +814,10 @@ async function deployUploadedWebapp(req: Request, res: Response) {
     for (const heavyFile of ['ne_50m_admin_0_countries.geojson', 'earth_specular_2048.jpg']) {
       const inPackage = path.join(extractDir, heavyFile);
       const inPrev = path.join(prevDir, heavyFile);
-      if (!fs.existsSync(inPackage) && fs.existsSync(inPrev)) {
-        fs.copyFileSync(inPrev, path.join(webappDir, heavyFile));
+      const inCross = crossEntrySource ? path.join(crossEntrySource, heavyFile) : null;
+      const source = fs.existsSync(inPrev) ? inPrev : (inCross && fs.existsSync(inCross) ? inCross : null);
+      if (!fs.existsSync(inPackage) && source) {
+        fs.copyFileSync(source, path.join(webappDir, heavyFile));
         appendActionLog({ action: 'deployUploadedWebapp', status: 'carryover', file: heavyFile });
       }
     }
@@ -809,14 +825,17 @@ async function deployUploadedWebapp(req: Request, res: Response) {
     // assets/ 目录全量文件级沿用：JS/CSS bundles 和字体文件均为 content-hash 命名，
     // 轻量包省略后按文件名从上一版本补齐；新文件会以新 hash 出现在新包中。
     // 这允许超轻量包只包含变更的 JS/CSS 文件，未变更的自动从上一版本沿用。
-    const prevAssets = path.join(prevDir, 'assets');
+    // webapp-root 首次部署时 assets 字体同样从老入口交叉沿用（JS/CSS 因 base 不同必然全量在包内）。
+    const assetsSourceDir = fs.existsSync(path.join(prevDir, 'assets'))
+      ? path.join(prevDir, 'assets')
+      : (crossEntrySource ? path.join(crossEntrySource, 'assets') : null);
     const newAssets = path.join(webappDir, 'assets');
-    if (fs.existsSync(prevAssets) && fs.existsSync(newAssets)) {
+    if (assetsSourceDir && fs.existsSync(assetsSourceDir) && fs.existsSync(newAssets)) {
       let carriedAssets = 0;
-      for (const f of fs.readdirSync(prevAssets)) {
+      for (const f of fs.readdirSync(assetsSourceDir)) {
         const target = path.join(newAssets, f);
         if (!fs.existsSync(target)) {
-          fs.copyFileSync(path.join(prevAssets, f), target);
+          fs.copyFileSync(path.join(assetsSourceDir, f), target);
           carriedAssets += 1;
         }
       }

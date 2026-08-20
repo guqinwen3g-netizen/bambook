@@ -128,18 +128,26 @@ else
   CHUNK_FAILED=0
   for CHUNK_FILE in "$CHUNK_DIR"/chunk-*; do
     printf '\r==> 上传块 %d/%d ...' "$((CHUNK_INDEX + 1))" "$TOTAL_CHUNKS"
-    CHUNK_HTTP=$(curl --http1.1 -sS -m 120 -o "$HTTP_RESP" -w '%{http_code}' \
-      -X POST "$OPS_URL/api/admin/deploy-webapp-chunk" \
-      -H 'Content-Type: application/octet-stream' \
-      -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
-      -H "X-Upload-Id: $UPLOAD_ID" \
-      -H "X-Chunk-Index: $CHUNK_INDEX" \
-      -H "X-Total-Chunks: $TOTAL_CHUNKS" \
-      ${DEPLOY_TARGET_HEADER:+-H "$DEPLOY_TARGET_HEADER"} \
-      --data-binary "@$CHUNK_FILE")
+    # 分块级重试：隧道瞬时故障（502/SSL_RESET）一次重试即可扛过，指数退避 3s/9s
+    CHUNK_HTTP=""
+    for ATTEMPT in 1 2 3; do
+      CHUNK_HTTP=$(curl --http1.1 -sS -m 120 -o "$HTTP_RESP" -w '%{http_code}' \
+        -X POST "$OPS_URL/api/admin/deploy-webapp-chunk" \
+        -H 'Content-Type: application/octet-stream' \
+        -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
+        -H "X-Upload-Id: $UPLOAD_ID" \
+        -H "X-Chunk-Index: $CHUNK_INDEX" \
+        -H "X-Total-Chunks: $TOTAL_CHUNKS" \
+        ${DEPLOY_TARGET_HEADER:+-H "$DEPLOY_TARGET_HEADER"} \
+        --data-binary "@$CHUNK_FILE") && [[ "$CHUNK_HTTP" == "200" ]] && break
+      if [[ "$ATTEMPT" -lt 3 ]]; then
+        printf '\r==> 块 %d 失败（HTTP %s），%.0fs 后重试 %d/3 ...' "$CHUNK_INDEX" "$CHUNK_HTTP" "$((ATTEMPT * 3))" "$ATTEMPT"
+        sleep $((ATTEMPT * 3))
+      fi
+    done
     if [[ "$CHUNK_HTTP" != "200" ]]; then
       echo ""
-      echo "error: 块 $CHUNK_INDEX 上传失败 (HTTP $CHUNK_HTTP)" >&2
+      echo "error: 块 $CHUNK_INDEX 上传失败（含 3 次重试，HTTP $CHUNK_HTTP）" >&2
       cat "$HTTP_RESP" >&2
       CHUNK_FAILED=1
       break
