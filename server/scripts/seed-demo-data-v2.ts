@@ -75,6 +75,7 @@ type OrderSeed = {
 type DevelopmentCaseSeed = Prisma.DevelopmentCaseUncheckedCreateInput;
 type InvoiceSeed = Prisma.InvoiceUncheckedCreateInput;
 type PaymentVoucherSeed = Prisma.PaymentVoucherUncheckedCreateInput;
+type InvoiceAllocationSeed = Prisma.InvoiceAllocationUncheckedCreateInput;
 type ShipmentSeed = Prisma.ShipmentUncheckedCreateInput;
 type ShipmentLineSeed = Prisma.ShipmentLineUncheckedCreateInput;
 type InsightSeed = Prisma.InsightUncheckedCreateInput;
@@ -1377,6 +1378,7 @@ const paymentVouchers: PaymentVoucherSeed[] = [
     id: 'DEMO-PAY-001', voucherNumber: 'PAY-2026-ATL-0320',
     type: 'Receipt', amount: 29900.0000, currency: 'USD',
     paymentDate: '2026-03-20', paymentMethod: 'TT',
+    status: 'reconciled', // DR-045：status 由 InvoiceAllocation 真源推导（全额核销 → reconciled）
     bankFee: 45.0000,
     exchangeRate: 7.2500, baseCurrency: 'CNY',
     invoiceId: 'DEMO-INV-001', appliedAmount: 29900.0000,
@@ -1392,6 +1394,7 @@ const paymentVouchers: PaymentVoucherSeed[] = [
     id: 'DEMO-PAY-002', voucherNumber: 'PAY-2026-NRD-0228',
     type: 'Receipt', amount: 21600.0000, currency: 'USD',
     paymentDate: '2026-02-28', paymentMethod: 'TT',
+    status: 'reconciled', // DR-045：status 由 InvoiceAllocation 真源推导（全额核销 → reconciled）
     bankFee: 35.0000,
     exchangeRate: 7.2300, baseCurrency: 'CNY',
     invoiceId: 'DEMO-INV-002', appliedAmount: 21600.0000,
@@ -1407,6 +1410,7 @@ const paymentVouchers: PaymentVoucherSeed[] = [
     id: 'DEMO-PAY-003', voucherNumber: 'PAY-2026-PRL-0330',
     type: 'Receipt', amount: 50000.0000, currency: 'USD',
     paymentDate: '2026-03-30', paymentMethod: 'TT',
+    status: 'reconciled', // DR-045：status 由 InvoiceAllocation 真源推导（凭证全额核销给 INV-003 → reconciled）
     bankFee: 80.0000,
     exchangeRate: 7.2500, baseCurrency: 'CNY',
     invoiceId: 'DEMO-INV-003', appliedAmount: 50000.0000,
@@ -1422,6 +1426,7 @@ const paymentVouchers: PaymentVoucherSeed[] = [
     id: 'DEMO-PAY-004', voucherNumber: 'PAY-2026-DAESE-0405',
     type: 'Disbursement', amount: 93750.0000, currency: 'CNY',
     paymentDate: '2026-04-05', paymentMethod: 'TT',
+    status: 'reconciled', // DR-045：status 由 InvoiceAllocation 真源推导（全额核销 → reconciled）
     bankFee: 200.0000,
     exchangeRate: null, baseCurrency: 'CNY',
     invoiceId: 'DEMO-INV-005', appliedAmount: 93750.0000,
@@ -1431,6 +1436,40 @@ const paymentVouchers: PaymentVoucherSeed[] = [
     notes: 'DEMO: DAESE 羊毛面料货款，INV-2026-JH-0310 全额支付，扣除手续费后净额 93550 CNY。',
     attachments: null,
     createdAt: BigInt(now - 1 * 86400000), updatedAt: BigInt(now - 1 * 86400000), deletedAt: null,
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// 11b. INVOICE ALLOCATIONS — 核销明细（DR-045：核销唯一真源）
+// ═══════════════════════════════════════════════════════════════════
+// P1-004/005/006 根因修复：核销事实必须落 InvoiceAllocation 分配表，
+// 发票/凭证 status 与 appliedAmount 快照均由该表派生；只写快照不写
+// 明细 = 脏数据（账龄全额虚高 / 待收统计虚高 / 汇率损益报表恒空）。
+// id 格式与 applyAllocation 运行时一致：ALLOC__${invoiceId}__${voucherId}
+const invoiceAllocations: InvoiceAllocationSeed[] = [
+  { // Atlas 全额核销 INV-001
+    id: 'ALLOC__DEMO-INV-001__DEMO-PAY-001',
+    invoiceId: 'DEMO-INV-001', voucherId: 'DEMO-PAY-001',
+    appliedAmount: 29900.0000, appliedDate: '2026-03-20',
+    createdAt: BigInt(now - 5 * 86400000), updatedAt: BigInt(now - 5 * 86400000),
+  },
+  { // Norden 全额核销 INV-002
+    id: 'ALLOC__DEMO-INV-002__DEMO-PAY-002',
+    invoiceId: 'DEMO-INV-002', voucherId: 'DEMO-PAY-002',
+    appliedAmount: 21600.0000, appliedDate: '2026-02-28',
+    createdAt: BigInt(now - 12 * 86400000), updatedAt: BigInt(now - 12 * 86400000),
+  },
+  { // Peerless 部分核销 INV-003（$84,000 收 $50,000，余 $34,000 挂账）
+    id: 'ALLOC__DEMO-INV-003__DEMO-PAY-003',
+    invoiceId: 'DEMO-INV-003', voucherId: 'DEMO-PAY-003',
+    appliedAmount: 50000.0000, appliedDate: '2026-03-30',
+    createdAt: BigInt(now - 2 * 86400000), updatedAt: BigInt(now - 2 * 86400000),
+  },
+  { // DAESE 应付全额核销 INV-005
+    id: 'ALLOC__DEMO-INV-005__DEMO-PAY-004',
+    invoiceId: 'DEMO-INV-005', voucherId: 'DEMO-PAY-004',
+    appliedAmount: 93750.0000, appliedDate: '2026-04-05',
+    createdAt: BigInt(now - 1 * 86400000), updatedAt: BigInt(now - 1 * 86400000),
   },
 ];
 
@@ -1886,6 +1925,8 @@ async function rollbackDemo(prisma: PrismaClient): Promise<void> {
     // Delete ShipmentLines before Shipments (foreign key)
     await tx.shipmentLine.deleteMany({ where: { id: { startsWith: 'DEMO-SHPL-' } } });
     await tx.shipment.deleteMany({ where: { id: { startsWith: 'DEMO-SHP-' } } });
+    // Allocations before vouchers/invoices（DR-045 核销真源，id 前缀 ALLOC__DEMO-）
+    await tx.invoiceAllocation.deleteMany({ where: { id: { startsWith: 'ALLOC__DEMO-' } } });
     await tx.paymentVoucher.deleteMany({ where: { id: { startsWith: 'DEMO-PAY-' } } });
     await tx.invoice.deleteMany({ where: { id: { startsWith: 'DEMO-INV-' } } });
     await tx.developmentCase.deleteMany({ where: { id: { startsWith: 'DEMO-DEV-' } } });
@@ -2020,6 +2061,15 @@ async function applyDemo(prisma: PrismaClient): Promise<void> {
     // 11. Payment vouchers
     for (const pv of paymentVouchers) {
       await tx.paymentVoucher.upsert({ where: { id: pv.id }, update: pv, create: pv });
+    }
+
+    // 11b. Invoice allocations — DR-045 核销真源（P1-004/005/006 修复）
+    for (const alloc of invoiceAllocations) {
+      await tx.invoiceAllocation.upsert({
+        where: { invoiceId_voucherId: { invoiceId: alloc.invoiceId, voucherId: alloc.voucherId } },
+        update: alloc,
+        create: alloc,
+      });
     }
 
     // 12. Shipments + ShipmentLines

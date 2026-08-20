@@ -32,6 +32,7 @@ import type { PrismaClient } from '@prisma/client';
 import { registerTool } from './toolDispatchRegistry';
 import type { ToolDefinition } from './toolRegistry';
 import { INTERNAL_TRANSFER_STATUSES } from '../internalTrade/internalTransferService';
+import { serializeValue } from '../lib/serializeValue';
 
 // ───────────────────────────────────────────────────────────────────
 // 通用辅助
@@ -45,21 +46,6 @@ function numberInput(v: unknown, dflt: number): number {
 function strInput(v: unknown): string | undefined {
   const s = typeof v === 'string' ? v.trim() : '';
   return s || undefined;
-}
-
-/** BigInt / Decimal JSON 序列化（与 creditRoute 同口径，保障 agent observation JSON 安全） */
-function serializeValue<T>(value: T): T {
-  if (value === null || value === undefined) return value;
-  if (typeof value === 'bigint') return Number(value) as T;
-  if (Array.isArray(value)) return value.map(serializeValue) as T;
-  if (typeof value === 'object') {
-    if ((value as any).constructor?.name === 'Decimal') return Number((value as any).toString()) as T;
-    if (value instanceof Date) return value;
-    const out: any = {};
-    for (const [k, v] of Object.entries(value as any)) out[k] = serializeValue(v);
-    return out;
-  }
-  return value;
 }
 
 /** 依赖 approvalCreateService 的域服务构造（与各域 route 同一线路，仅用于其只读函数；惰性加载） */

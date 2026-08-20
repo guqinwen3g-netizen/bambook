@@ -20,6 +20,7 @@ import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
+import { serializeValue } from '../lib/serializeValue';
 import { createLookbookService, LookbookInput, LookbookItemInput } from './lookbookService';
 
 export interface LookbookRouterOptions {
@@ -27,19 +28,6 @@ export interface LookbookRouterOptions {
   requireAuth: boolean;
   apiKeys: Set<string>;
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
-}
-
-function serializeValue<T>(value: T): T {
-  if (value === null || value === undefined) return value;
-  if (typeof value === 'bigint') return Number(value) as T;
-  if (Array.isArray(value)) return value.map(serializeValue) as T;
-  if (typeof value === 'object') {
-    if ((value as any).constructor?.name === 'Decimal') return Number((value as any).toString()) as T;
-    const out: any = {};
-    for (const [k, v] of Object.entries(value as any)) out[k] = serializeValue(v);
-    return out;
-  }
-  return value;
 }
 
 export function createLookbookRouter(options: LookbookRouterOptions): Router {

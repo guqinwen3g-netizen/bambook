@@ -109,6 +109,40 @@ function serializeFinanceValue<T>(value: T): T {
   return value;
 }
 
+function round4(n: number): number {
+  return Math.round(n * 10000) / 10000;
+}
+
+/**
+ * DR-044 净额口径：按 InvoiceAllocation 真源批量汇总已核销金额。
+ * 列表响应附派生字段 appliedAmount（已核销合计）/ openAmount（未结清余额 =
+ * 单据金额 − 已核销），KPI/账龄/对账单跨模块同口径，不消费可能过期的
+ * PaymentVoucher.appliedAmount 快照（DR-045：快照仅为向后兼容展示）。
+ */
+async function attachAllocationDerivedFields(
+  prisma: PrismaClient,
+  items: any[],
+  scope: 'invoice' | 'voucher',
+): Promise<any[]> {
+  if (items.length === 0) return items;
+  const ids = items.map(i => i.id);
+  const allocSums = await (prisma as any).invoiceAllocation.groupBy({
+    by: [scope === 'invoice' ? 'invoiceId' : 'voucherId'],
+    where: scope === 'invoice' ? { invoiceId: { in: ids } } : { voucherId: { in: ids } },
+    _sum: { appliedAmount: true },
+  });
+  const appliedMap = new Map<string, number>(
+    allocSums.map((a: any) => [
+      scope === 'invoice' ? a.invoiceId : a.voucherId,
+      a._sum.appliedAmount != null ? Number(a._sum.appliedAmount) : 0,
+    ]),
+  );
+  return items.map(item => {
+    const applied = appliedMap.get(item.id) ?? 0;
+    return { ...item, appliedAmount: round4(applied), openAmount: round4(Number(item.amount) - applied) };
+  });
+}
+
 export function createFinanceRouter(options: FinanceRouterOptions): Router {
   const { prisma, onDataChange, requireAuth, apiKeys } = options;
   const router = Router();
@@ -142,7 +176,9 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       prisma.invoice.findMany({ where, take: limit, skip: offset, orderBy: { createdAt: 'desc' } }),
       prisma.invoice.count({ where }),
     ]);
-    res.json({ items, total });
+    // DR-044 净额口径：附 appliedAmount/openAmount（InvoiceAllocation 真源派生）
+    const itemsWithOpen = await attachAllocationDerivedFields(prisma, items as any[], 'invoice');
+    res.json({ items: serializeFinanceValue(itemsWithOpen), total });
     } catch (err: any) {
       res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
     }
@@ -192,7 +228,9 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       (prisma as any).paymentVoucher.findMany({ where, take: limit, skip: offset, orderBy: { createdAt: 'desc' } }),
       (prisma as any).paymentVoucher.count({ where }),
     ]);
-    res.json({ items, total });
+    // DR-044 净额口径：附 appliedAmount/openAmount（InvoiceAllocation 真源派生）
+    const itemsWithOpen = await attachAllocationDerivedFields(prisma, items as any[], 'voucher');
+    res.json({ items: serializeFinanceValue(itemsWithOpen), total });
     } catch (err: any) {
       res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
     }

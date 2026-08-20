@@ -289,6 +289,18 @@ const aggregateByCurrency = <T extends { currency?: string; amount: number }>(
   return Array.from(map.values());
 };
 
+/**
+ * DR-044 净额口径：未结清/未核销余额 = 单据金额 − 已核销（InvoiceAllocation 真源派生）。
+ * openAmount 为列表接口附带的派生字段；旧数据缺失时兜底：发票退全额、凭证退 amount − appliedAmount。
+ */
+const netOpenAmount = (item: { amount: number; openAmount?: number; appliedAmount?: number }): number => {
+  if (typeof item.openAmount === 'number' && Number.isFinite(item.openAmount)) return item.openAmount;
+  if (typeof item.appliedAmount === 'number' && Number.isFinite(item.appliedAmount)) {
+    return Math.max(0, item.amount - item.appliedAmount);
+  }
+  return item.amount;
+};
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 const FinanceManager: React.FC<FinanceManagerProps> = ({
@@ -1117,16 +1129,18 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const formStaticClass = 'rounded-field bg-[var(--recessed-bg)] px-4 py-2.5 text-xs font-light text-[var(--text-tertiary)]';
 
   // ── KPI row (always derived from ALL invoices + ALL vouchers) ───
+  // DR-044 净额口径：四张卡均按"单据金额 − 已核销"聚合（openAmount 派生字段），
+  // 与账龄分析/对账单/报表同一公式，消除"账龄 $84,000 vs 对账单 $34,000"分裂（P1-005）。
   const kpiCards: KpiCard[] = useMemo(() => {
     const openReceivable = invoices.filter(i => i.type === 'Receivable' && i.status !== 'Paid' && i.status !== 'Cancelled');
     const openPayable = invoices.filter(i => i.type === 'Payable' && i.status !== 'Paid' && i.status !== 'Cancelled');
-    const openReceiptVouchers = vouchers.filter(v => v.type === 'Receipt' && v.status !== 'reconciled');
-    const openDisbursementVouchers = vouchers.filter(v => v.type === 'Disbursement' && v.status !== 'reconciled');
+    const openReceiptVouchers = vouchers.filter(v => v.type === 'Receipt' && v.status !== 'reconciled' && v.status !== 'cancelled');
+    const openDisbursementVouchers = vouchers.filter(v => v.type === 'Disbursement' && v.status !== 'reconciled' && v.status !== 'cancelled');
 
-    const recv = formatCurrencyAggregate(aggregateByCurrency(openReceivable));
-    const pay = formatCurrencyAggregate(aggregateByCurrency(openPayable));
-    const recvV = formatCurrencyAggregate(aggregateByCurrency(openReceiptVouchers));
-    const payV = formatCurrencyAggregate(aggregateByCurrency(openDisbursementVouchers));
+    const recv = formatCurrencyAggregate(aggregateByCurrency(openReceivable.map(i => ({ currency: i.currency, amount: netOpenAmount(i) }))));
+    const pay = formatCurrencyAggregate(aggregateByCurrency(openPayable.map(i => ({ currency: i.currency, amount: netOpenAmount(i) }))));
+    const recvV = formatCurrencyAggregate(aggregateByCurrency(openReceiptVouchers.map(v => ({ currency: v.currency, amount: netOpenAmount(v) }))));
+    const payV = formatCurrencyAggregate(aggregateByCurrency(openDisbursementVouchers.map(v => ({ currency: v.currency, amount: netOpenAmount(v) }))));
 
     return [
       { label: '应收发票', primary: recv.primary, secondary: recv.secondary },

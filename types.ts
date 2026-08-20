@@ -2315,6 +2315,10 @@ export interface Invoice {
   settlementDate?: string;
   currency?: string;
   amount: number;
+  /** DR-044 派生字段：Σ InvoiceAllocation.appliedAmount（列表接口附带；缺失=0） */
+  appliedAmount?: number;
+  /** DR-044 派生字段：未结清余额 = amount − appliedAmount（列表接口附带；缺失时兜底 amount） */
+  openAmount?: number;
   exchangeRate?: number;
   baseCurrency?: string;
   notes?: string;
@@ -2344,6 +2348,8 @@ export interface PaymentVoucher {
   exchangeRate?: number;
   baseCurrency?: string;
   appliedAmount?: number;
+  /** DR-044 派生字段：未核销余额 = amount − Σ InvoiceAllocation（列表接口附带；缺失时兜底 amount − appliedAmount） */
+  openAmount?: number;
   notes?: string;
   attachments?: unknown;
   deletedAt?: number | null;
