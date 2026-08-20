@@ -92,8 +92,10 @@
 
 | 命令 | 脚本 | 说明 |
 |------|------|------|
-| `npm run deploy:web` | `scripts/ops-upload-webapp.sh` | 构建前端 dist/ → 打包上传 → Mac Mini 解压到 webapp/ |
+| `npm run deploy:web` | `scripts/ops-upload-webapp.sh` | 构建前端 dist/ → 打包上传 → Mac Mini 解压到 webapp/（老路径入口） |
 | `npm run deploy:web:light` | 同上 + `BAMBOOK_WEB_LIGHT=1` | 轻量模式：跳过 data/wallpapers/字体（~90MB → ~4MB），服务器沿用现有版本 |
+| `npm run deploy:web:subdomain` | 同上 + `BAMBOOK_WEB_SUBDOMAIN=1` | 子域名模式：base=/ 根路径直挂，解压到 webapp-root/，入口 `https://bambook.jiangsupanda.com/`（需 Cloudflare Tunnel Public Hostname 指向 localhost:8081） |
+| `npm run deploy:web:subdomain:light` | 同上 + 双 flag | 子域名轻量模式（webapp-root 有旧版后可用） |
 | `npm run deploy:server` | `scripts/ops-upload-package.sh` | 打包 server/ → 上传 → Mac Mini 解压部署后端 |
 | `npm run deploy:all` | server + web 顺序执行 | 全量部署 |
 
@@ -106,13 +108,19 @@
 ### 5.1 构建阶段
 
 ```bash
+# 老路径入口（默认）
 BAMBOOK_WEB_DEPLOY=1 VITE_API_BASE_URL=/bambook/api npm run build
+# 子域名入口
+BAMBOOK_WEB_SUBDOMAIN=1 VITE_API_BASE_URL=/api npm run build
 ```
 
 | 环境变量 | 作用 |
 |---------|------|
 | `BAMBOOK_WEB_DEPLOY=1` | 让 vite.config.ts 把 base 切到 `/bambook/api/app/` |
-| `VITE_API_BASE_URL=/bambook/api` | 写死 API 根路径，避免网页端误连非数据中心 API |
+| `BAMBOOK_WEB_SUBDOMAIN=1` | 子域名模式：base=/（根路径直挂，部署到 webapp-root/） |
+| `VITE_API_BASE_URL=/bambook/api` 或 `/api` | 写死 API 根路径（同域相对路径），避免网页端误连非数据中心 API |
+
+双入口架构：老 `webapp/`（base=/bambook/api/app/，Express 挂 `/api/app`）与新 `webapp-root/`（base=/，Express 根路径直挂 + SPA fallback）为两份不同 base 的构建产物，双目录并存；OPS Panel `X-Deploy-Target: webapp-root` header 区分部署目标。
 
 ### 5.2 壁纸压缩
 

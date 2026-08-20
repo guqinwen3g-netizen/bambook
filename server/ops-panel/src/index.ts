@@ -744,17 +744,22 @@ async function deployUploadedWebapp(req: Request, res: Response) {
     return res.status(400).json({ ok: false, error: 'EMPTY_PACKAGE', message: 'Missing tar.gz request body' });
   }
 
+  // 部署目标：webapp（默认，老路径入口 base=/bambook/api/app/）| webapp-root（子域名入口 base=/）
+  const rawTarget = String(req.headers['x-deploy-target'] || 'webapp');
+  const target = rawTarget === 'webapp-root' ? 'webapp-root' : 'webapp';
+
   const tmpRoot = fs.mkdtempSync('/tmp/bambook-webapp-upload-');
   const archivePath = path.join(tmpRoot, 'payload.tar.gz');
   fs.writeFileSync(archivePath, req.body);
 
-  appendActionLog({ action: 'deployUploadedWebapp', label: '上传网页端打包并部署', status: 'started', bytes: req.body.length, ip: req.ip });
+  appendActionLog({ action: 'deployUploadedWebapp', label: `上传网页端打包并部署（${target}）`, status: 'started', bytes: req.body.length, ip: req.ip });
 
   // Webapp lives next to the main API source so the express.static at
   // /api/app picks it up automatically. Keep one previous version on disk
   // for emergency manual rollback (mv webapp.prev webapp).
-  const webappDir = path.join(SERVER_ROOT, 'webapp');
-  const prevDir = path.join(SERVER_ROOT, 'webapp.prev');
+  // webapp-root 同构双目录：主 API 根路径直挂（子域名 bambook.jiangsupanda.com）。
+  const webappDir = path.join(SERVER_ROOT, target);
+  const prevDir = path.join(SERVER_ROOT, `${target}.prev`);
 
   try {
     const extractDir = path.join(tmpRoot, 'extract');
@@ -835,7 +840,10 @@ async function deployUploadedWebapp(req: Request, res: Response) {
     return res.json({
       ok: true,
       action: 'deployUploadedWebapp',
-      message: '网页端已部署到 ~/bambook-main-api/webapp/，主 API 重启已排程，约 5~10 秒后访问 https://jiangsupanda.com/bambookos/',
+      target,
+      message: target === 'webapp-root'
+        ? '网页端已部署到 ~/bambook-main-api/webapp-root/，主 API 重启已排程，约 5~10 秒后访问 https://bambook.jiangsupanda.com/'
+        : '网页端已部署到 ~/bambook-main-api/webapp/，主 API 重启已排程，约 5~10 秒后访问 https://jiangsupanda.com/bambook/api/app/',
       bytes: req.body.length,
     });
   } catch (error: any) {
@@ -1834,6 +1842,8 @@ interface ChunkedUpload {
   totalChunks: number;
   receivedChunks: number;
   createdAt: number;
+  /** 部署目标（webapp | webapp-root），首块记录、finalize 时透传 */
+  target?: string;
 }
 const webappChunkedUploads = new Map<string, ChunkedUpload>();
 // 每 5 分钟清理超过 10 分钟的未完成上传
@@ -1864,6 +1874,7 @@ app.post('/api/admin/deploy-webapp-chunk', auth, express.raw({ type: ['applicati
       totalChunks,
       receivedChunks: 0,
       createdAt: Date.now(),
+      target: String(req.headers['x-deploy-target'] || 'webapp'),
     });
   }
 
@@ -1899,8 +1910,8 @@ app.post('/api/admin/deploy-webapp-finalize', auth, express.json(), async (req, 
 
   appendActionLog({ action: 'deployUploadedWebapp', label: '分块上传网页端打包并部署', status: 'reassembled', bytes: fullArchive.length, chunks: upload.totalChunks });
 
-  // 构造模拟的 Express Request 复用 deployUploadedWebapp
-  const mockReq = { body: fullArchive } as any;
+  // 构造模拟的 Express Request 复用 deployUploadedWebapp（透传部署目标 target）
+  const mockReq = { body: fullArchive, headers: { 'x-deploy-target': upload.target || 'webapp' } } as any;
   return deployUploadedWebapp(mockReq, res);
 });
 

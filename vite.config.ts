@@ -50,8 +50,11 @@ export default defineConfig(({ mode }) => {
   // the public path ever changes.
   // /bambook/api/app/ reuses the existing /bambook/api Cloudflare Tunnel ingress
   // (server strips the /bambook prefix; webapp mounted at /api/app).
+  // BAMBOOK_WEB_SUBDOMAIN=1：子域名入口（https://bambook.jiangsupanda.com/）
+  // 根路径直挂 webapp，API 同域相对路径（VITE_API_BASE_URL=/api），base 回到 '/'。
   const webBase = process.env.BAMBOOK_WEB_BASE
-    || (process.env.BAMBOOK_WEB_DEPLOY === '1' ? '/bambook/api/app/' : '/');
+    || (process.env.BAMBOOK_WEB_SUBDOMAIN === '1' ? '/'
+      : (process.env.BAMBOOK_WEB_DEPLOY === '1' ? '/bambook/api/app/' : '/'));
 
   return {
     base: webBase,

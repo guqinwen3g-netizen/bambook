@@ -6,7 +6,7 @@ const SERVER_ROOT = path.resolve(__dirname, '..');
 dotenv.config({ path: path.join(SERVER_ROOT, '.env.local'), override: true });
 dotenv.config({ path: path.join(SERVER_ROOT, '.env') });
 
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { PrismaClient } from '@prisma/client';
@@ -1634,6 +1634,23 @@ app.get('/api/market/all', async (_req: Request, res: Response) => {
 // [DELETED] /api/sdk/* routes — dead code, no frontend callers.
 // The real API surface is /api/v1/* (orders, relations, products, import).
 // =============================================================================
+
+// 子域名入口 webapp-root（https://bambook.jiangsupanda.com/）：根路径直挂 SPA。
+// 与老入口 webapp/（base=/bambook/api/app/，挂 /api/app）双目录并存——两份构建 base 不同不可共用。
+// 注意：SPA fallback 的 app.get('*') 必须在全部 API 路由之后注册（本位置即文件末尾 listen 前），
+// 否则会劫持 API 路由；/api、/bambook、含扩展名的请求一律放行不进 fallback。
+const WEBAPP_ROOT_DIR = path.join(__dirname, '..', 'webapp-root');
+if (fs.existsSync(WEBAPP_ROOT_DIR)) {
+    app.use(express.static(WEBAPP_ROOT_DIR));
+    app.get('/', (_req: Request, res: Response) => {
+        res.sendFile(path.join(WEBAPP_ROOT_DIR, 'index.html'));
+    });
+    app.get('*', (req: Request, res: Response, next: NextFunction) => {
+        const p = req.path || '/';
+        if (p.startsWith('/api/') || p.startsWith('/bambook/') || p.includes('.')) return next();
+        res.sendFile(path.join(WEBAPP_ROOT_DIR, 'index.html'));
+    });
+}
 
 app.listen(PORT, () => {
     logger.info(`Sovereign Neural Core Online on port ${PORT}`);

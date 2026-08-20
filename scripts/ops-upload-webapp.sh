@@ -21,12 +21,22 @@ if [[ ! -f package.json ]]; then
 fi
 
 # 1) 构建：
-#    - BAMBOOK_WEB_DEPLOY=1 让 vite.config.ts 把 base 切到 /bambook/api/app/
+#    - 默认（BAMBOOK_WEB_DEPLOY=1）让 vite.config.ts 把 base 切到 /bambook/api/app/
+#    - 子域名模式（BAMBOOK_WEB_SUBDOMAIN=1）：base=/ 根路径直挂，部署到 webapp-root/，
+#      入口 https://bambook.jiangsupanda.com/（需 Cloudflare Tunnel 加 Public Hostname）
 #    - VITE_API_BASE_URL 写死 API 根路径，避免网页端误连非数据中心 API
 #      (网页端跟主 API 同域，用相对路径即可)
-#    - /bambook/api/app/ 复用已有 /bambook/api Cloudflare Tunnel ingress，无需额外配置
-echo "==> 构建 webapp (BAMBOOK_WEB_DEPLOY=1, base=/bambook/api/app/, API → /bambook/api)..."
-BAMBOOK_WEB_DEPLOY=1 VITE_API_BASE_URL=/bambook/api npm run build
+if [[ "${BAMBOOK_WEB_SUBDOMAIN:-0}" == "1" ]]; then
+  echo "==> 构建 webapp (BAMBOOK_WEB_SUBDOMAIN=1, base=/, API → /api, 部署目标 webapp-root)..."
+  BAMBOOK_WEB_SUBDOMAIN=1 VITE_API_BASE_URL=/api npm run build
+  DEPLOY_TARGET="webapp-root"
+  DEPLOY_TARGET_HEADER="X-Deploy-Target: webapp-root"
+else
+  echo "==> 构建 webapp (BAMBOOK_WEB_DEPLOY=1, base=/bambook/api/app/, API → /bambook/api)..."
+  BAMBOOK_WEB_DEPLOY=1 VITE_API_BASE_URL=/bambook/api npm run build
+  DEPLOY_TARGET="webapp"
+  DEPLOY_TARGET_HEADER=""
+fi
 
 if [[ ! -d dist ]]; then
   echo "error: build did not produce dist/" >&2
@@ -98,17 +108,18 @@ CHUNK_SIZE=$((192 * 1024))        # 每块 192KB（隧道安全阈值内，服�
 HTTP_RESP=$(mktemp)
 
 if [[ "$SIZE" -le "$CHUNK_THRESHOLD" ]]; then
-  echo "==> 上传到 $OPS_URL/api/admin/deploy-webapp ..."
+  echo "==> 上传到 $OPS_URL/api/admin/deploy-webapp (target=$DEPLOY_TARGET) ..."
   HTTP_CODE=$(curl --http1.1 -sS -m 360 -o "$HTTP_RESP" -w '%{http_code}' \
     -X POST "$OPS_URL/api/admin/deploy-webapp" \
     -H 'Content-Type: application/gzip' \
     -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
+    ${DEPLOY_TARGET_HEADER:+-H "$DEPLOY_TARGET_HEADER"} \
     --data-binary "@$ARCHIVE")
 else
   # ── 分块上传 ──
   UPLOAD_ID="webapp-$(date +%s)-$RANDOM$RANDOM"
   TOTAL_CHUNKS=$(( (SIZE + CHUNK_SIZE - 1) / CHUNK_SIZE ))
-  echo "==> 包大小 ${SIZE_MB} MB 超阈值，分块上传：${TOTAL_CHUNKS} 块 × 192KB (uploadId=$UPLOAD_ID)"
+  echo "==> 包大小 ${SIZE_MB} MB 超阈值，分块上传：${TOTAL_CHUNKS} 块 × 192KB (uploadId=$UPLOAD_ID, target=$DEPLOY_TARGET)"
 
   CHUNK_DIR="$(mktemp -d)"
   split -b "$CHUNK_SIZE" "$ARCHIVE" "$CHUNK_DIR/chunk-"
@@ -124,6 +135,7 @@ else
       -H "X-Upload-Id: $UPLOAD_ID" \
       -H "X-Chunk-Index: $CHUNK_INDEX" \
       -H "X-Total-Chunks: $TOTAL_CHUNKS" \
+      ${DEPLOY_TARGET_HEADER:+-H "$DEPLOY_TARGET_HEADER"} \
       --data-binary "@$CHUNK_FILE")
     if [[ "$CHUNK_HTTP" != "200" ]]; then
       echo ""
@@ -149,6 +161,7 @@ else
     -X POST "$OPS_URL/api/admin/deploy-webapp-finalize" \
     -H 'Content-Type: application/json' \
     -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
+    ${DEPLOY_TARGET_HEADER:+-H "$DEPLOY_TARGET_HEADER"} \
     -d "{\"uploadId\": \"$UPLOAD_ID\"}")
 fi
 unset OPS_TOKEN
@@ -167,5 +180,9 @@ if [[ "$HTTP_CODE" != "200" ]]; then
   exit 2
 fi
 
-osascript -e 'display notification "网页端已部署，访问 https://jiangsupanda.com/bambook/api/app/" with title "Bambook 网页端"' 2>/dev/null || true
-echo "✓ 部署成功 — https://jiangsupanda.com/bambook/api/app/"
+osascript -e 'display notification "网页端已部署（'"$DEPLOY_TARGET"'）" with title "Bambook 网页端"' 2>/dev/null || true
+if [[ "$DEPLOY_TARGET" == "webapp-root" ]]; then
+  echo "✓ 部署成功 — https://bambook.jiangsupanda.com/（需 Cloudflare Tunnel Public Hostname 已指向 localhost:8081）"
+else
+  echo "✓ 部署成功 — https://jiangsupanda.com/bambook/api/app/"
+fi

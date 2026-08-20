@@ -27,6 +27,8 @@
     "agent:status": "node scripts/agent-runtime-status.mjs",
     "deploy:web": "bash scripts/ops-upload-webapp.sh",
     "deploy:web:light": "BAMBOOK_WEB_LIGHT=1 bash scripts/ops-upload-webapp.sh",
+    "deploy:web:subdomain": "BAMBOOK_WEB_SUBDOMAIN=1 bash scripts/ops-upload-webapp.sh",
+    "deploy:web:subdomain:light": "BAMBOOK_WEB_SUBDOMAIN=1 BAMBOOK_WEB_LIGHT=1 bash scripts/ops-upload-webapp.sh",
     "deploy:server": "bash scripts/ops-upload-package.sh",
     "deploy:all": "npm run deploy:server && npm run deploy:web",
     "check:tokens": "bash scripts/check-design-tokens.sh",
