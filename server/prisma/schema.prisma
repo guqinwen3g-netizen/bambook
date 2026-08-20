@@ -4565,6 +4565,55 @@ model OutsourcingLine {
   @@index([outsourcingOrderId])
 }
 
+// ════════════════════════════════════════════════════════════════════
+// REQ2-05 面料工序级委外链 (Order Process Chain, DR-047)
+// ════════════════════════════════════════════════════════════════════
+// 设计决策（DR-047，设计文档 §2）：
+//   ① 工序链 = 计划与成本核算层（订单视角）；OutsourcingOrder = 执行单据层
+//     （供应商视角）—— outsourcingOrderId 可选关联，状态机不耦合（MES 零侵入扩展）
+//   ② 加工费为成本口径（供 BOM/利润表消费），不生成应付——应付走既有采购域
+//   ③ 按产出量计费（染厂出缸量行业惯例）：amount = outputQty × unitPrice；
+//     未完工按投入量预估（estimate 口径）
+// 设计真源：docs/design/04-模块设计/03-订单与生产/ProductionBoard-生产看板/面料工序级委外链.md
+// ════════════════════════════════════════════════════════════════════
+
+/// 面料订单工序链节点：坯布→染整→后整理（→涂层）各环节投入产出/损耗/加工费
+model OrderProcessNode {
+  id      String @id // 格式：OPN__${shortId}
+  orderId String // 挂订单（面料域）
+
+  seq         Int    // 工序序号（展示排序；同订单唯一；不强制顺序推进——面料有平行工序）
+  processType String // gray_fabric(坯布织造) | dyeing(染整) | finishing(后整理) | coating(涂层) | other
+  supplierId   String? // 承接工厂（跨模块 snapshot FK → Relation）
+  supplierName String? // 冗余快照
+
+  // ─── 数量（按产出计费 DR-047-③） ───
+  inputQty  Decimal  @db.Decimal(18, 4) // 投入量
+  outputQty Decimal? @db.Decimal(18, 4) // 产出量（完工登记后落值）
+  unit      String   @default("M") // M | YD | KG
+
+  // ─── 加工费（成本口径 DR-047-②：不生成应付） ───
+  unitPrice Decimal @db.Decimal(18, 4) // 加工费单价（按产出量）
+  currency  String  @default("CNY")
+  amount    Decimal @default(0) @db.Decimal(18, 4) // 完工 = outputQty×unitPrice；未完工 = inputQty×unitPrice（预估）
+
+  // ─── 状态：planned → in_progress → done（完工登记产出量→损耗+金额重算） ───
+  status      String  @default("planned")
+  completedAt BigInt?
+  notes       String?
+
+  // ─── 可选关联外协单（DR-047-① 执行载体，不耦合状态机） ───
+  outsourcingOrderId String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  // seq 唯一性由服务层校验（deletedAt: null 过滤）——DB 层 @@unique 会让软删行
+  // 占用唯一键阻止 seq 复用（验收实测 P2002：删 903 后重建 903 被拒）
+  @@index([orderId])
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase 5 B5 + Phase 3 C6: 外贸与报关（CustomsDeclaration / HsCode /
 // LetterOfCredit / TaxRefund / TradeDocument / CustomsDeclarationLine）

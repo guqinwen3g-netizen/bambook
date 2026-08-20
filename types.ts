@@ -4045,6 +4045,45 @@ export interface OutsourcingOrderInput {
   lines?: OutsourcingLineInput[];
 }
 
+// ── REQ2-05 面料工序级委外链 OrderProcessNode（DR-047：计划+成本核算层） ──
+
+export type FabricProcessType = 'gray_fabric' | 'dyeing' | 'finishing' | 'coating' | 'other';
+export type OrderProcessStatus = 'planned' | 'in_progress' | 'done';
+
+export interface OrderProcessNodeRow {
+  id: string;
+  orderId: string;
+  seq: number;
+  processType: FabricProcessType;
+  supplierId: string | null;
+  supplierName: string | null;
+  inputQty: number;
+  outputQty: number | null;
+  unit: string;
+  unitPrice: number;
+  currency: string;
+  amount: number;
+  status: OrderProcessStatus;
+  completedAt: number | null;
+  notes: string | null;
+  outsourcingOrderId: string | null;
+  createdAt: number;
+}
+
+export interface OrderProcessChainSummary {
+  total: number;
+  done: number;
+  inProgress: number;
+  planned: number;
+  firstInputQty: number;
+  lastOutputQty: number | null;
+  /** 累计损耗 =（首道投入 − 末道产出）/ 首道投入（无完工节点为 null——预估态） */
+  cumulativeLossPct: number | null;
+  /** 加工费合计（完工按产出×单价，未完工按投入预估——BOM/利润表消费口径） */
+  totalAmount: number;
+  byType: Array<{ type: FabricProcessType; amount: number }>;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // 外贸与报关 Customs (Phase 5 B5 + Phase 3 C6)
 // 报关单 / HS编码 / 信用证 / 出口退税 / 贸易单据

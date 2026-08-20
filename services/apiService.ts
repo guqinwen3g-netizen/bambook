@@ -146,6 +146,8 @@ import {
   PieceRateSummary,
   OutsourcingOrder,
   OutsourcingOrderInput,
+  OrderProcessNodeRow,
+  OrderProcessChainSummary,
   OutsourcingStatus,
   // Customs
   CustomsType,
@@ -1317,6 +1319,42 @@ export const apiService = {
   async receiveOutsourcing(id: string, opts: { qualityAcceptedQty: number; qualityRejectedQty?: number }, endpoint?: string): Promise<OutsourcingOrder> {
     const data = await requestJson<{ item: OutsourcingOrder }>(`/v1/mes/outsourcing/${encodeURIComponent(id)}/receive`, { endpoint, method: 'POST', body: JSON.stringify(opts) });
     return data.item;
+  },
+
+  // ── REQ2-05 面料工序级委外链 OrderProcessNode（DR-047：计划+成本核算层） ──
+  async listOrderProcessChain(orderId: string, endpoint?: string): Promise<{ nodes: OrderProcessNodeRow[]; summary: OrderProcessChainSummary }> {
+    const data = await requestJson<{ nodes: OrderProcessNodeRow[]; summary: OrderProcessChainSummary }>(
+      `/v1/mes/order-processes?orderId=${encodeURIComponent(orderId)}`, { endpoint, method: 'GET' });
+    return { nodes: data.nodes ?? [], summary: data.summary };
+  },
+
+  async createOrderProcessNode(input: {
+    orderId: string; seq: number; processType: string; supplierId?: string;
+    inputQty: number; unit?: string; unitPrice: number; notes?: string; outsourcingOrderId?: string;
+  }, endpoint?: string): Promise<OrderProcessNodeRow> {
+    const data = await requestJson<{ node: OrderProcessNodeRow }>('/v1/mes/order-processes', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.node;
+  },
+
+  async updateOrderProcessNode(id: string, patch: {
+    supplierId?: string | null; inputQty?: number; unit?: string; unitPrice?: number; notes?: string;
+  }, endpoint?: string): Promise<OrderProcessNodeRow> {
+    const data = await requestJson<{ node: OrderProcessNodeRow }>(`/v1/mes/order-processes/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(patch) });
+    return data.node;
+  },
+
+  async startOrderProcessNode(id: string, endpoint?: string): Promise<OrderProcessNodeRow> {
+    const data = await requestJson<{ node: OrderProcessNodeRow }>(`/v1/mes/order-processes/${encodeURIComponent(id)}/start`, { endpoint, method: 'POST', body: '{}' });
+    return data.node;
+  },
+
+  async completeOrderProcessNode(id: string, input: { outputQty: number; actualUnitPrice?: number }, endpoint?: string): Promise<{ node: OrderProcessNodeRow; lossPct: number | null }> {
+    const data = await requestJson<{ node: OrderProcessNodeRow; lossPct: number | null }>(`/v1/mes/order-processes/${encodeURIComponent(id)}/complete`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return { node: data.node, lossPct: data.lossPct };
+  },
+
+  async deleteOrderProcessNode(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/mes/order-processes/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
   // ── Phase 3 C1: CRM 深化 API ──

@@ -64,6 +64,7 @@ import {
   PieceRateStatus,
   OutsourcingStatus,
 } from './mesService';
+import { createProcessChainService, ProcessChainResult } from './processChainService';
 
 export interface MesRouterOptions {
   prisma: PrismaClient;
@@ -87,6 +88,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   const router = Router();
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createMesService(prisma);
+  const chainService = createProcessChainService(prisma);
 
   const authenticate = (req: Request, res: Response): boolean => {
     if (!requireAuth) return true;
@@ -620,6 +622,70 @@ export function createMesRouter(options: MesRouterOptions): Router {
       logger.error('[MesRoute] POST outsourcing receive failed', { error: e?.message });
       res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to receive outsourcing order' });
     }
+  });
+
+  // ════════════════════════════════════════
+  // REQ2-05 面料工序级委外链 OrderProcessNode（DR-047：计划+成本核算层）
+  // ════════════════════════════════════════
+
+  /** ProcessChainResult → HTTP（结构化错误码直透） */
+  const handleChainResult = <T>(
+    res: Response,
+    result: ProcessChainResult<T>,
+    successStatus: number,
+    wrap: (data: T) => Record<string, unknown>,
+  ) => {
+    if (!result.ok) {
+      return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+    }
+    res.status(successStatus).json(wrap(result.data) as any);
+  };
+
+  // 创建工序节点
+  router.post('/order-processes', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const result = await chainService.createNode((req.body ?? {}) as any);
+    if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'create', ids: [result.data.node.id] });
+    handleChainResult(res, result, 201, (d) => ({ ok: true, node: d.node }));
+  });
+
+  // 订单工序链全景（完整链路进度 + 累计损耗 + 加工费合计）
+  router.get('/order-processes', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const result = await chainService.listChain(String(req.query.orderId ?? ''));
+    handleChainResult(res, result, 200, (d) => ({ ok: true, ...d }));
+  });
+
+  // 修正计划字段（planned/in_progress 限定；done 仅备注）
+  router.patch('/order-processes/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const result = await chainService.updateNode(req.params.id, (req.body ?? {}) as any);
+    if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'update', ids: [req.params.id] });
+    handleChainResult(res, result, 200, (d) => ({ ok: true, node: d.node }));
+  });
+
+  // planned → in_progress
+  router.post('/order-processes/:id/start', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const result = await chainService.startNode(req.params.id);
+    if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'start', ids: [req.params.id] });
+    handleChainResult(res, result, 200, (d) => ({ ok: true, node: d.node }));
+  });
+
+  // 完工登记：产出量 → 损耗率 + 金额重算（按产出计费 DR-047-③）
+  router.post('/order-processes/:id/complete', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const result = await chainService.completeNode(req.params.id, (req.body ?? {}) as any);
+    if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'complete', ids: [req.params.id] });
+    handleChainResult(res, result, 200, (d) => ({ ok: true, node: d.node, lossPct: d.lossPct }));
+  });
+
+  // 软删（仅 planned；开工/完工节点核算留痕不可删）
+  router.delete('/order-processes/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const result = await chainService.deleteNode(req.params.id);
+    if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'delete', ids: [req.params.id] });
+    handleChainResult(res, result, 200, (d) => ({ ok: true, id: d.id }));
   });
 
   return router;

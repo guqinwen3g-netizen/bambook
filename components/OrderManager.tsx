@@ -15,6 +15,7 @@ import {
 import { TraceabilityPanel } from './TraceabilityPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import { TestRequestPanel } from './qc/TestRequestPanel';
+import { OrderProcessChainPanel } from './mes/OrderProcessChainPanel';
 import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
@@ -1704,6 +1705,18 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                           orderId={selectedOrder.id}
                           orderLabel={selectedOrder.poNumber}
                           isDarkMode={isDarkMode}
+                        />
+                      </div>
+                    )}
+
+                    {/* REQ2-05 面料工序级委外链（坯布→染整→后整理→涂层：投入产出/累计损耗/加工费核算，DR-047） */}
+                    {selectedOrder.type === 'Fabric' && (
+                      <div id="order-detail-process-chain" className="mb-6">
+                        <OrderProcessChainPanel
+                          key={`opc-${selectedOrder.id}`}
+                          orderId={selectedOrder.id}
+                          isDarkMode={isDarkMode}
+                          relations={relations}
                         />
                       </div>
                     )}
