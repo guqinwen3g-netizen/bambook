@@ -2125,6 +2125,38 @@ model Invoice {
   @@index([departmentId])
 }
 
+// ════════════════════════════════════════════════════════════════════
+// REQ2-07 历史数据批量迁移 (DR-049)
+// ════════════════════════════════════════════════════════════════════
+// 设计决策（DR-049，设计文档 §2）：
+//   ① 校验与落库两段式：validate 无副作用可反复；commit 自带二次校验
+//      （validate→commit 间库内新增重复 → 跳过计 skipped，不硬失败）
+//   ② 四类模板列契约（英文 key 表头）：customers/suppliers→Relation、
+//      orders→Order（source='data-migration'）、invoices→Invoice；
+//      查重双层：文件内 + 库内
+//   ③ 跨域独立路由 /api/v1/data-migration（不挂任一业务域）；
+//      整批回滚走软删（entityIds 是回滚真源）
+// 设计真源：docs/design/04-模块设计/08-设置与后台/Settings-设置/历史数据迁移.md
+// ════════════════════════════════════════════════════════════════════
+
+/// 导入批次：entityIds 整批回滚（软删）真源
+model ImportBatch {
+  id           String @id // 格式：IMB__${shortId}
+  type         String // customers | suppliers | orders | invoices
+  fileName     String
+  totalRows    Int    // 文件数据行数
+  importedRows Int    // 实际落库行数（valid 且非库内重复）
+  skippedRows  Int    // 跳过行数（校验错误 + commit 时库内重复）
+  entityIds    String[] @default([]) // 本批次创建的实体 id（回滚软删依据）
+  status       String @default("committed") // committed | rolled_back
+  rolledBackAt BigInt?
+  createdAt    BigInt
+  updatedAt    BigInt
+
+  @@index([type])
+  @@index([createdAt])
+}
+
 model PaymentVoucher {
   id            String @id // 格式：PAY__${shortId}
   voucherNumber String @unique // 业务凭证号（如 PAY-20260615-001）

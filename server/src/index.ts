@@ -47,6 +47,7 @@ import { createCrmRouter } from './crm/crmRoute';
 import { createCrmV2Router } from './crm/crmRouteV2';
 import { createSupplierRouter } from './suppliers/factoryRoute';
 import { createSuppliersV2Router } from './suppliers/factoryRouteV2';
+import { createDataMigrationRouter } from './migration/dataMigrationRoute';
 import { createSeasonRouter } from './seasons/seasonRoute';
 import { createSeasonsV2Router } from './seasons/seasonRouteV2';
 import { createMarketingV2Router } from './marketing/marketingRouteV2';
@@ -786,6 +787,17 @@ app.use(
 app.use(
     '/api/v1/suppliers',
     (req, res, next) => createSupplierRouter({
+        prisma,
+        requireAuth: SDK_CONFIG.requireAuth,
+        apiKeys: SDK_CONFIG.apiKeys,
+        onDataChange: publishDataChange,
+    })(req, res, next),
+);
+
+// REQ2-07 历史数据批量迁移（跨 relations/orders/invoices 独立域，DR-049-③）
+app.use(
+    '/api/v1/data-migration',
+    (req, res, next) => createDataMigrationRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,

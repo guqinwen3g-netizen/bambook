@@ -2460,6 +2460,72 @@ export const apiService = {
     });
   },
 
+  // ── REQ2-07 历史数据批量迁移（DR-049：validate 零落库 → commit 落库+批次留痕） ──
+  /** 纯鉴权头（不带 Content-Type——FormData 须由浏览器自动设 boundary） */
+  _migrationAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {};
+    const apiKey = getApiKey();
+    if (apiKey) headers['X-Bambook-API-Key'] = apiKey;
+    try {
+      const token = localStorage.getItem('bambook_auth_token') || sessionStorage.getItem('bambook_auth_token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    } catch { /* ignore */ }
+    return headers;
+  },
+
+  async downloadMigrationTemplate(type: string, endpoint?: string): Promise<Blob> {
+    const url = buildApiUrl(`/v1/data-migration/templates/${encodeURIComponent(type)}`, endpoint);
+    const res = await fetch(url, { headers: this._migrationAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    }
+    return res.blob();
+  },
+
+  async validateMigrationFile(type: string, file: File, endpoint?: string): Promise<{
+    rows: Array<{ lineNo: number; data: Record<string, string>; valid: boolean; reason?: string }>;
+    totalRows: number; validCount: number; errorCount: number;
+  }> {
+    const url = buildApiUrl('/v1/data-migration/validate', endpoint);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('type', type);
+    const res = await fetch(url, { method: 'POST', headers: this._migrationAuthHeaders(), body: form });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    return data;
+  },
+
+  async commitMigrationFile(type: string, file: File, endpoint?: string): Promise<{
+    batch: { id: string; importedRows: number; skippedRows: number };
+    imported: number; skipped: number;
+  }> {
+    const url = buildApiUrl('/v1/data-migration/commit', endpoint);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('type', type);
+    const res = await fetch(url, { method: 'POST', headers: this._migrationAuthHeaders(), body: form });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    return data;
+  },
+
+  async listImportBatches(endpoint?: string): Promise<Array<{
+    id: string; type: string; fileName: string; totalRows: number; importedRows: number;
+    skippedRows: number; entityIds: string[]; status: 'committed' | 'rolled_back'; createdAt: number;
+  }>> {
+    const data = await requestJson<{ items: any[] }>('/v1/data-migration/batches', { endpoint, method: 'GET' });
+    return data.items ?? [];
+  },
+
+  async rollbackImportBatch(batchId: string, endpoint?: string): Promise<{ rolledBack: number }> {
+    const data = await requestJson<{ rolledBack: number }>(`/v1/data-migration/batches/${encodeURIComponent(batchId)}/rollback`, {
+      endpoint, method: 'POST', body: JSON.stringify({}),
+    });
+    return data;
+  },
+
   async setProductImagePrimary(productId: string, imageId: string, endpoint?: string): Promise<void> {
     await requestJson(`/v1/products/assets/${encodeURIComponent(productId)}/images/${encodeURIComponent(imageId)}/primary`, {
       endpoint,
