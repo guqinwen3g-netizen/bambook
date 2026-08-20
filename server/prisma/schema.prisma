@@ -5648,6 +5648,31 @@ model ColorCard {
 }
 
 // ============================================================================
+// REQ2-10 工厂延迟链路影响计算（DR-052，X-02 L0 → L3）
+// ============================================================================
+/// 设计真源：Suppliers-供应商/工厂延迟链路影响计算.md §4
+/// 业务语义：工厂延迟事实登记 + 受影响聚合快照（缓冲侵蚀三级分级）。
+/// 登记即联动 FactoryEvaluation(delivery) 交期分下调（recordAutoEvaluation 幂等）。
+/// 订单交期变更走既有 OrderChangeRequest 审批（DR-052-① 两域分离）。
+model FactoryDelayRecord {
+  id                 String   @id // 格式：FDR__${shortId}
+  recordNumber       String   @unique // 业务号：FDR-YYYYMMDD-001
+  supplierRelationId String? // 工厂 Relation（快照 FK）
+  supplierName       String // 冗余快照
+  delayDays          Int // 延迟天数（正整数）
+  reason             String? // capacity | material | quality_rework | weather | other
+  reasonNote         String? // 自由备注
+  affectedOrderIds   String[] @default([]) // 登记时受影响订单快照
+  impactSummary      Json? // 分级快照 {critical, warning, info, criticalOrderIds}
+  registeredBy       String? // 登记人
+  createdAt          BigInt
+  deletedAt          BigInt?
+
+  @@index([supplierRelationId])
+  @@index([createdAt])
+}
+
+// ============================================================================
 // Migration 5 — P1-1：PaymentRequest 付款申请单（DR-017 先申请后付款）
 // ============================================================================
 /// 设计真源：财务域模型组.md §2.1

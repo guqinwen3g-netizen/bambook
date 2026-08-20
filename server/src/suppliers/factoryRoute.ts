@@ -45,6 +45,7 @@ import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
 import { createFactoryService, FactoryProfileInput, FactoryEvaluationInput, FactoryCertificationInput } from './factoryService';
 import { createTcCertificateService, TcResult } from './tcCertificateService';
+import { createDelayImpactService } from './delayImpactService';
 
 export interface SupplierRouterOptions {
   prisma: PrismaClient;
@@ -60,6 +61,7 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
   const router = Router();
   const service = createFactoryService(prisma);
   const tcService = createTcCertificateService(prisma);
+  const delayService = createDelayImpactService(prisma);
 
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
@@ -161,6 +163,49 @@ export function createSupplierRouter(options: SupplierRouterOptions): Router {
     const result = await tcService.deleteTc(req.params.tcId);
     if (result.ok) notify('delete_tc_certificate', [req.params.tcId]);
     handleTcResult(res, result, 200, (d) => ({ ok: true, id: d.id }));
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // REQ2-10 工厂延迟链路影响计算（DR-052；字面路由须在 /:id 之前）
+  // ══════════════════════════════════════════════════════════════
+
+  /** DelayImpactResult → HTTP（结构化错误码直透） */
+  const handleDelayResult = <T>(res: Response, result: { ok: true; data: T } | { ok: false; error: { code: string; message: string; status: number } }, successStatus: number, wrap: (data: T) => Record<string, unknown>) => {
+    if (!result.ok) {
+      return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+    }
+    res.status(successStatus).json(serializeValue(wrap(result.data)) as any);
+  };
+
+  // GET /delays/preview?supplierRelationId=&delayDays= — 登记前预检（不落库）
+  router.get('/delays/preview', async (req: Request, res: Response) => {
+    const result = await delayService.previewImpact(
+      String(req.query.supplierRelationId ?? ''),
+      Number(req.query.delayDays),
+    );
+    handleDelayResult(res, result, 200, (d) => ({ ok: true, ...d }));
+  });
+
+  // POST /delays — 登记延迟（落库 + 影响快照 + 交期分联动）
+  router.post('/delays', requireWrite, async (req: Request, res: Response) => {
+    const result = await delayService.registerDelay((req.body ?? {}) as any, actorIdFromRequest(req));
+    if (result.ok) notify('register_factory_delay', [result.data.record.id]);
+    handleDelayResult(res, result, 201, (d) => ({ ok: true, record: d.record, impact: d.impact, qualityScoreLinked: d.qualityScoreLinked }));
+  });
+
+  // GET /delays?supplierRelationId= — 延迟记录列表
+  router.get('/delays', async (req: Request, res: Response) => {
+    const result = await delayService.listDelays({
+      supplierRelationId: typeof req.query.supplierRelationId === 'string' ? req.query.supplierRelationId : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+    });
+    handleDelayResult(res, result, 200, (d) => ({ ok: true, items: d.items }));
+  });
+
+  // GET /delays/:id — 详情（登记时影响快照）
+  router.get('/delays/:id', async (req: Request, res: Response) => {
+    const result = await delayService.getDelay(req.params.id);
+    handleDelayResult(res, result, 200, (d) => ({ ok: true, record: d.record }));
   });
 
   // POST / — 建立工厂档案

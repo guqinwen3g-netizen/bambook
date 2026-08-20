@@ -149,6 +149,9 @@ import {
   OrderProcessNodeRow,
   OrderProcessChainSummary,
   TcCertificateRow,
+  DelayImpactResult,
+  DelayReason,
+  FactoryDelayRecord,
   TcStageSummary,
   TcChainVerification,
   TcStage,
@@ -1766,6 +1769,28 @@ export const apiService = {
   },
   async deleteTcCertificate(id: string, endpoint?: string): Promise<void> {
     await requestJson<{ ok: boolean }>(`/v1/suppliers/tc-certificates/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  // ── REQ2-10 工厂延迟链路影响（DR-052：缓冲侵蚀分级 + 沟通建议 + 交期分联动） ──
+  async previewFactoryDelay(supplierRelationId: string, delayDays: number, endpoint?: string): Promise<DelayImpactResult> {
+    const query = new URLSearchParams({ supplierRelationId, delayDays: String(delayDays) });
+    return requestJson<DelayImpactResult>(`/v1/suppliers/delays/preview?${query.toString()}`, { endpoint, method: 'GET' });
+  },
+  async registerFactoryDelay(input: {
+    supplierRelationId: string; supplierName?: string; delayDays: number;
+    reason?: DelayReason; reasonNote?: string; registeredBy?: string;
+  }, endpoint?: string): Promise<{ record: FactoryDelayRecord; impact: DelayImpactResult; qualityScoreLinked: boolean }> {
+    const data = await requestJson<{ record: FactoryDelayRecord; impact: DelayImpactResult; qualityScoreLinked: boolean }>(
+      '/v1/suppliers/delays', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return { record: data.record, impact: data.impact, qualityScoreLinked: data.qualityScoreLinked };
+  },
+  async listFactoryDelays(params: { supplierRelationId?: string; limit?: number } = {}, endpoint?: string): Promise<FactoryDelayRecord[]> {
+    const query = new URLSearchParams();
+    if (params.supplierRelationId) query.set('supplierRelationId', params.supplierRelationId);
+    if (params.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const data = await requestJson<{ items: FactoryDelayRecord[] }>(`/v1/suppliers/delays${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return data.items ?? [];
   },
 
   // FactoryCapacity 产能日历

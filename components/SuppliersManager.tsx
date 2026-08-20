@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   CalendarRange,
+  TimerReset,
   Ban,
   CircleCheck,
   Pencil,
@@ -59,6 +60,7 @@ import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { FactoryDelayPanel } from './suppliers/FactoryDelayPanel';
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
 
 // ==================== 跨模块落点（阶段 IA 全局收编） ====================
@@ -104,13 +106,14 @@ export const primeSuppliersFactoryPreview = (relationId: string) => {
 
 // ==================== 常量 ====================
 
-type SupplierTab = 'overview' | 'evaluations' | 'certifications' | 'capacity';
+type SupplierTab = 'overview' | 'evaluations' | 'certifications' | 'capacity' | 'delays';
 
 const TABS: Array<{ id: SupplierTab; label: string; icon: LucideIcon }> = [
   { id: 'overview', label: '总览', icon: Building2 },
   { id: 'evaluations', label: '评分记录', icon: Star },
   { id: 'certifications', label: '认证管理', icon: ShieldCheck },
   { id: 'capacity', label: '产能日历', icon: CalendarRange },
+  { id: 'delays', label: '延迟影响', icon: TimerReset },
 ];
 
 const SORT_OPTIONS = [
@@ -810,6 +813,13 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                           onCreate={() => { setEditingCapacityMonth(null); setShowCapacityForm(true); }}
                           onEdit={(row) => { setEditingCapacityMonth(row); setShowCapacityForm(true); }}
                           onDelete={handleDeleteCapacity}
+                        />
+                      )}
+                      {activeTab === 'delays' && detail?.relationId && (
+                        <FactoryDelayPanel
+                          relationId={detail.relationId}
+                          supplierName={detail.relation?.name ?? ''}
+                          isDarkMode={isDarkMode}
                         />
                       )}
 

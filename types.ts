@@ -3503,6 +3503,48 @@ export interface TcCertificateRow {
   createdAt: number;
 }
 
+/** REQ2-10 工厂延迟链路影响（DR-052：缓冲侵蚀三级分级 + 沟通建议 + 交期分联动） */
+export type DelayImpactLevel = 'critical' | 'warning' | 'info';
+export type DelayReason = 'capacity' | 'material' | 'quality_rework' | 'weather' | 'other';
+
+export interface DelayImpactItem {
+  orderId: string;
+  poNumber: string;
+  customer: string | null;
+  product: string | null;
+  quantity: number | null;
+  unit: string | null;
+  status: string;
+  dueDate: string | null;
+  productionPlanDeadline: string | null;
+  planDateMissing: boolean;
+  newCompletionDate: string | null;
+  bufferDays: number | null;
+  level: DelayImpactLevel;
+}
+
+export interface DelayImpactResult {
+  supplierName: string;
+  delayDays: number;
+  items: DelayImpactItem[];
+  summary: { total: number; critical: number; warning: number; info: number; criticalOrderIds: string[] };
+  advice: Record<string, string>;
+}
+
+export interface FactoryDelayRecord {
+  id: string;
+  recordNumber: string;
+  supplierRelationId: string | null;
+  supplierName: string;
+  delayDays: number;
+  reason: DelayReason | null;
+  reasonNote: string | null;
+  affectedOrderIds: string[];
+  impactSummary: { total: number; critical: number; warning: number; info: number; delayDays?: number } | null;
+  registeredBy: string | null;
+  createdAt: number;
+}
+
 export interface TcStageSummary {
   stage: TcStage;
   label: string;
