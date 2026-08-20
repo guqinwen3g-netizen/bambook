@@ -369,6 +369,8 @@ export interface SampleColorBatchRow {
   developmentCaseId: string | null;
   roundNo: number | null;
   orderId: string | null;
+  colorCardId: string | null;           // REQ2-09：关联色卡
+  colorCode: string | null;             // REQ2-09：色号快照（如 "19-4052 TCX"）
   dyeLotNo: string;                     // 缸号
   batchNo: string | null;
   rollNos: string[];
@@ -392,6 +394,7 @@ export interface CreateColorBatchInput {
   stage: 'lab_dip' | 'bulk';
   developmentCaseId?: string;           // lab_dip 必填
   orderId?: string;                     // bulk 必填
+  colorCardId?: string;                 // REQ2-09：色号关联（可选，服务端落 colorCode 快照）
   dyeLotNo: string;
   batchNo?: string;
   rollNos?: string[];
@@ -402,6 +405,40 @@ export interface CreateColorBatchInput {
   supplierRelationId?: string;
   photos?: Array<{ name: string; url: string }>;
   notes?: string;
+}
+
+/** REQ2-09 色卡（Pantone TCX seed + 客户自定义） */
+export interface ColorCardRow {
+  id: string;
+  code: string;
+  name: string | null;
+  family: string | null;
+  r: number;
+  g: number;
+  b: number;
+  source: string;
+}
+
+/** 色卡详情 + 相近色（Lab ΔE 升序） */
+export interface ColorCardNearestItem extends ColorCardRow {
+  deltaE: number;
+}
+
+/** 该色号（含相近色）历史打色记录（"这个色以前哪些缸过了"经验参考） */
+export interface ColorCardBatchHistoryItem {
+  id: string;
+  batchCode: string;
+  stage: 'lab_dip' | 'bulk';
+  colorCode: string | null;
+  dyeLotNo: string;
+  batchNo: string | null;
+  colorRating: number;
+  defectCauses: string[];
+  customerStatus: string;
+  supplierName: string | null;
+  developmentCaseId: string | null;
+  orderId: string | null;
+  createdAt: number;
 }
 
 /** 取证聚合（3 分钟 SLA：缸号×批次×批色记录×封样基准一次成型） */
@@ -573,5 +610,34 @@ export const sampleService = {
       ? `developmentCaseId=${encodeURIComponent(params.developmentCaseId)}`
       : `orderId=${encodeURIComponent(params.orderId!)}`;
     return getJson<ColorBatchEvidence>(`/color-batches/evidence?${qs}`, endpoint, 'getColorBatchEvidence failed');
+  },
+
+  // ── REQ2-09 Pantone 色号库（DR-051：选色号即带 RGB 参考与相近历史打色） ──
+
+  /** 色号库搜索（code/name 模糊；limit=200 供面板全量色块映射） */
+  async searchColorCards(params: { search?: string; family?: string; limit?: number } = {}, endpoint?: string): Promise<{ items: ColorCardRow[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.family) qs.set('family', params.family);
+    if (params.limit) qs.set('limit', String(params.limit));
+    const q = qs.toString();
+    const data = await getJson<{ items: ColorCardRow[]; total: number }>(
+      `/colors${q ? '?' + q : ''}`, endpoint, 'searchColorCards failed');
+    return { items: data.items || [], total: data.total ?? 0 };
+  },
+
+  /** 色卡详情 + nearest 相近色（Lab ΔE 升序 top 8） */
+  async getColorCard(code: string, endpoint?: string): Promise<{ color: ColorCardRow; nearest: ColorCardNearestItem[] }> {
+    const data = await getJson<{ color: ColorCardRow; nearest: ColorCardNearestItem[] }>(
+      `/colors/${encodeURIComponent(code)}`, endpoint, 'getColorCard failed');
+    return { color: data.color, nearest: data.nearest || [] };
+  },
+
+  /** 该色号历史打色（includeNearby=true 并集 ΔE≤15 相近色的打色） */
+  async getColorCardBatches(code: string, includeNearby = true, endpoint?: string): Promise<{ color: ColorCardRow; matchedCodes: string[]; batches: ColorCardBatchHistoryItem[] }> {
+    const data = await getJson<{ color: ColorCardRow; matchedCodes: string[]; batches: ColorCardBatchHistoryItem[] }>(
+      `/colors/${encodeURIComponent(code)}/color-batches?includeNearby=${includeNearby ? 'true' : 'false'}`,
+      endpoint, 'getColorCardBatches failed');
+    return { color: data.color, matchedCodes: data.matchedCodes || [], batches: data.batches || [] };
   },
 };

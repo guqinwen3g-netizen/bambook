@@ -15,8 +15,8 @@
  * 设计：flat 无阴影、BDS 语义类、评级徽章 success/info/warning/danger 变体。
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Palette, Plus, Printer, RotateCcw, Star, Trash2, XCircle, CheckCircle2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Palette, Plus, Printer, RotateCcw, Star, Trash2, XCircle, CheckCircle2, Search } from 'lucide-react';
 import {
   sampleService,
   COLOR_BATCH_DEFECT_CAUSES,
@@ -26,6 +26,8 @@ import {
   type SampleColorBatchRow,
   type ColorBatchDefectCause,
   type ColorBatchEvidence,
+  type ColorCardRow,
+  type ColorCardBatchHistoryItem,
 } from '../../services/sampleService';
 import BottomSheet from '../ui/BottomSheet';
 import { bdsConfirm } from '../ui/BdsDialog';
@@ -83,12 +85,22 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  // 登记表单（A5 必填：缸号 + 主评级）
+  // 登记表单（A5 必填：缸号 + 主评级；色号可选 REQ2-09）
   const [formDyeLotNo, setFormDyeLotNo] = useState('');
   const [formRating, setFormRating] = useState(4);
   const [formDefects, setFormDefects] = useState<ColorBatchDefectCause[]>([]);
   const [formBatchNo, setFormBatchNo] = useState('');
   const [formNotes, setFormNotes] = useState('');
+
+  // ── REQ2-09 色号选择器状态 ──
+  const [formColorCard, setFormColorCard] = useState<ColorCardRow | null>(null);
+  const [colorSearch, setColorSearch] = useState('');
+  const [colorSuggestions, setColorSuggestions] = useState<ColorCardRow[]>([]);
+  const [colorSearching, setColorSearching] = useState(false);
+  const [colorHistory, setColorHistory] = useState<ColorCardBatchHistoryItem[] | null>(null);
+  const [colorHistoryLoading, setColorHistoryLoading] = useState(false);
+  const [colorCodeMap, setColorCodeMap] = useState<Map<string, ColorCardRow>>(new Map());
+  const colorSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scopeParams = stage === 'lab_dip' ? { developmentCaseId } : { orderId };
 
@@ -106,10 +118,55 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
     }
   }, [stage, developmentCaseId, orderId]);
 
+  // 色号库全量映射（108 色量级一次拉取，供列表行色块渲染；失败静默——色块是增强显示）
+  useEffect(() => {
+    let alive = true;
+    sampleService.searchColorCards({ limit: 200 }).then(({ items }) => {
+      if (!alive) return;
+      setColorCodeMap(new Map(items.map(c => [c.code, c])));
+    }).catch(() => { /* 色块不可用时降级为纯文字色号 */ });
+    return () => { alive = false; };
+  }, []);
+
   useEffect(() => { load(); }, [load]);
 
   const toggleDefect = (c: ColorBatchDefectCause) =>
     setFormDefects(prev => (prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]));
+
+  /** REQ2-09 色号搜索（300ms 防抖 → 建议列表） */
+  const handleColorSearch = useCallback((q: string) => {
+    setColorSearch(q);
+    if (colorSearchTimer.current) clearTimeout(colorSearchTimer.current);
+    if (!q.trim()) { setColorSuggestions([]); return; }
+    colorSearchTimer.current = setTimeout(async () => {
+      setColorSearching(true);
+      try {
+        const { items } = await sampleService.searchColorCards({ search: q.trim(), limit: 8 });
+        setColorSuggestions(items);
+      } catch {
+        setColorSuggestions([]);
+      } finally {
+        setColorSearching(false);
+      }
+    }, 300);
+  }, []);
+
+  /** 选中色号：预览 + 相近历史打色（验收锚点：自动带出 RGB 参考与相近历史打色） */
+  const pickColorCard = useCallback(async (card: ColorCardRow) => {
+    setFormColorCard(card);
+    setColorSearch(card.code);
+    setColorSuggestions([]);
+    setColorHistory(null);
+    setColorHistoryLoading(true);
+    try {
+      const { batches: history } = await sampleService.getColorCardBatches(card.code, true);
+      setColorHistory(history);
+    } catch {
+      setColorHistory([]);
+    } finally {
+      setColorHistoryLoading(false);
+    }
+  }, []);
 
   const submitCreate = useCallback(async () => {
     if (acting) return;
@@ -121,6 +178,7 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
         stage,
         developmentCaseId: stage === 'lab_dip' ? developmentCaseId : undefined,
         orderId: stage === 'bulk' ? orderId : undefined,
+        colorCardId: formColorCard?.id,
         dyeLotNo,
         colorRating: formRating,
         defectCauses: formDefects,
@@ -130,13 +188,14 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
       bdsToast.success(`打色批次 ${r.batch?.batchCode ?? ''} 已登记。`);
       setShowCreate(false);
       setFormDyeLotNo(''); setFormRating(4); setFormDefects([]); setFormBatchNo(''); setFormNotes('');
+      setFormColorCard(null); setColorSearch(''); setColorSuggestions([]); setColorHistory(null);
       await load();
     } catch (e: any) {
       bdsToast.danger(`登记失败：${e?.message || e}`);
     } finally {
       setActing(null);
     }
-  }, [acting, stage, developmentCaseId, orderId, formDyeLotNo, formRating, formDefects, formBatchNo, formNotes, load]);
+  }, [acting, stage, developmentCaseId, orderId, formDyeLotNo, formRating, formDefects, formBatchNo, formNotes, formColorCard, load]);
 
   /** 客户判定（通过可设封样基准；疵点自动入供应商质量分——后端联动） */
   const submitFeedback = useCallback(async (batch: SampleColorBatchRow, status: 'approved' | 'rejected' | 'needs_recast', asSealed = false) => {
@@ -264,6 +323,16 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
           <div key={b.id} className="rounded-control border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] px-3 py-2.5">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <span className={cx('font-light tabular-nums', textPrimary)}>缸 {b.dyeLotNo}</span>
+              {b.colorCode && (
+                <span className={cx('inline-flex items-center gap-1.5 text-[11px] font-light', textSecondary)} title={colorCodeMap.get(b.colorCode)?.name ?? b.colorCode}>
+                  <span
+                    aria-hidden
+                    className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-[var(--border-c-default)]"
+                    style={{ backgroundColor: (() => { const c = colorCodeMap.get(b.colorCode); return c ? `rgb(${c.r}, ${c.g}, ${c.b})` : 'transparent'; })() }}
+                  />
+                  {b.colorCode}
+                </span>
+              )}
               {b.batchNo && <span className={cx('text-[11px]', textSecondary)}>{b.batchNo}</span>}
               {b.roundNo != null && stage === 'lab_dip' && <span className={cx('text-[10px]', textFaint)}>第 {b.roundNo} 轮</span>}
               <span className={ratingBadgeClass(b.colorRating)}>{b.colorRating} 级 · {COLOR_RATING_LABELS[b.colorRating]}</span>
@@ -305,7 +374,7 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
         ))}
       </div>
 
-      {/* 登记弹窗（A5 ≤2min：缸号 + 评级必填） */}
+      {/* 登记弹窗（A5 ≤2min：缸号 + 评级必填；色号可选 REQ2-09） */}
       <BottomSheet isOpen={showCreate} onClose={() => setShowCreate(false)} title={stage === 'lab_dip' ? '登记打色批次' : '登记缸差记录'}>
         <div className="space-y-4 px-6 py-5">
           <div>
@@ -317,6 +386,94 @@ export function SampleColorBatchPanel({ stage, developmentCaseId, orderId, order
               autoFocus
               className="bds-input sm w-full"
             />
+          </div>
+          {/* REQ2-09 色号选择器：搜索 → 建议列表 → 选中预览 + 相近历史打色 */}
+          <div className="relative">
+            <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>色号（选填，Pantone TCX / 自定义）</label>
+            <div className="relative">
+              <Search size={14} strokeWidth={1.5} className={cx('pointer-events-none absolute left-3 top-1/2 -translate-y-1/2', textFaint)} />
+              <input
+                value={colorSearch}
+                onChange={e => handleColorSearch(e.target.value)}
+                onFocus={() => { if (formColorCard) setFormColorCard(null); }}
+                placeholder="如 19-4052 / Classic Blue / 客户色号"
+                className="bds-input sm w-full pl-9"
+              />
+              {colorSearching && <Loader2 size={14} className={cx('absolute right-3 top-1/2 -translate-y-1/2 animate-spin', textFaint)} />}
+            </div>
+            {/* 建议列表 */}
+            {colorSuggestions.length > 0 && !formColorCard && (
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-field border border-[var(--border-c-default)] bg-[var(--bg-raised)]">
+                {colorSuggestions.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => pickColorCard(c)}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-light transition-colors hover:bg-[var(--hover-darken)]"
+                  >
+                    <span
+                      aria-hidden
+                      className="inline-block h-4 w-4 shrink-0 rounded-full border border-[var(--border-c-default)]"
+                      style={{ backgroundColor: `rgb(${c.r}, ${c.g}, ${c.b})` }}
+                    />
+                    <span className={cx('tabular-nums', textPrimary)}>{c.code}</span>
+                    <span className={cx('truncate', textSecondary)}>{c.name ?? ''}</span>
+                    {c.family && <span className={cx('ml-auto shrink-0 text-[10px]', textFaint)}>{c.family}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* 选中预览：色块 + 色名 + RGB（近似值口径提示） */}
+            {formColorCard && (
+              <div className={cx('mt-2 flex items-center gap-2.5 rounded-field border border-[var(--border-c-subtle)] bg-[var(--recessed-bg)] px-3 py-2')}>
+                <span
+                  aria-hidden
+                  className="inline-block h-6 w-6 shrink-0 rounded-full border border-[var(--border-c-default)]"
+                  style={{ backgroundColor: `rgb(${formColorCard.r}, ${formColorCard.g}, ${formColorCard.b})` }}
+                />
+                <div className="min-w-0">
+                  <div className={cx('text-xs font-light', textPrimary)}>{formColorCard.code} · {formColorCard.name ?? '未命名'}</div>
+                  <div className={cx('text-[10px] font-light tabular-nums', textFaint)}>RGB({formColorCard.r}, {formColorCard.g}, {formColorCard.b}) · 近似参考，对色以实物色卡为准</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setFormColorCard(null); setColorSearch(''); setColorHistory(null); }}
+                  className={cx('ml-auto shrink-0 rounded-full p-1 transition-colors hover:bg-[var(--hover-darken)]', textFaint)}
+                  aria-label="清除色号"
+                >
+                  <XCircle size={14} strokeWidth={1.5} />
+                </button>
+              </div>
+            )}
+            {/* 相近历史打色（验收锚点：自动带出） */}
+            {formColorCard && (
+              <div className="mt-2">
+                <div className={cx('mb-1.5 flex items-center gap-1.5 text-[10px] tracking-[0.14em]', textSecondary)}>
+                  相近历史打色（同色号及 ΔE≤15 相近色）
+                  {colorHistoryLoading && <Loader2 size={14} className="animate-spin" />}
+                </div>
+                {colorHistory != null && colorHistory.length === 0 && (
+                  <div className={cx('px-1 text-[11px] font-light', textFaint)}>该色号暂无历史打色记录</div>
+                )}
+                {colorHistory != null && colorHistory.length > 0 && (
+                  <div className="space-y-1">
+                    {colorHistory.slice(0, 5).map(h => (
+                      <div key={h.id} className={cx('flex items-center gap-2 rounded-control px-2.5 py-1.5 text-[11px] font-light', 'bg-[var(--recessed-bg)]')}>
+                        <span className={cx('tabular-nums', textPrimary)}>缸 {h.dyeLotNo}</span>
+                        {h.colorCode !== formColorCard.code && <span className={cx('text-[10px]', textFaint)}>{h.colorCode}</span>}
+                        <span className={ratingBadgeClass(h.colorRating)}>{h.colorRating} 级</span>
+                        <span className={cx('ml-auto tabular-nums', textSecondary)}>
+                          {COLOR_BATCH_STATUS_LABELS[h.customerStatus as keyof typeof COLOR_BATCH_STATUS_LABELS] ?? h.customerStatus}{h.supplierName ? ` · ${h.supplierName}` : ''}
+                        </span>
+                      </div>
+                    ))}
+                    {colorHistory.length > 5 && (
+                      <div className={cx('px-1 text-[10px] font-light', textFaint)}>共 {colorHistory.length} 条，仅显示最近 5 条</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label className={cx('mb-1.5 block text-[10px] tracking-[0.14em]', textSecondary)}>色差评级（4-5 级制）*</label>

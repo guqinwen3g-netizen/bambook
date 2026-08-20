@@ -105,11 +105,12 @@ export function createColorBatchService(prisma: PrismaClient) {
     throw Object.assign(new Error(`非法阶段：${stage}（允许 lab_dip | bulk）`), { code: 'INVALID_STAGE' });
   }
 
-  // ── 登记（A5 ≤2min：必填缸号/评级；疵点原因选填） ──
+  // ── 登记（A5 ≤2min：必填缸号/评级；疵点原因选填；色号可选 REQ2-09） ──
   async function createColorBatch(input: {
     stage: string;
     developmentCaseId?: string;
     orderId?: string;
+    colorCardId?: string;
     dyeLotNo?: string;
     batchNo?: string;
     rollNos?: string[];
@@ -142,6 +143,16 @@ export function createColorBatchService(prisma: PrismaClient) {
         supplierName = supplierName || rel.name;
       }
 
+      // 色号关联（REQ2-09 DR-051-③：可选 FK + code 快照；不存在即 400 fail-closed）
+      let colorCardId: string | null = null;
+      let colorCode: string | null = null;
+      if (input.colorCardId) {
+        const card = await db.colorCard.findFirst({ where: { id: input.colorCardId, deletedAt: null } });
+        if (!card) return fail('COLOR_CARD_NOT_FOUND', `色卡 ${input.colorCardId} 不存在`);
+        colorCardId = card.id;
+        colorCode = card.code;
+      }
+
       const ts = Date.now();
       const created = await db.sampleColorBatch.create({
         data: {
@@ -151,6 +162,8 @@ export function createColorBatchService(prisma: PrismaClient) {
           developmentCaseId: stage === 'lab_dip' ? input.developmentCaseId! : null,
           roundNo: scope.roundNo ?? null,
           orderId: stage === 'bulk' ? input.orderId! : null,
+          colorCardId,
+          colorCode,
           dyeLotNo,
           batchNo: input.batchNo?.trim() || null,
           rollNos: Array.isArray(input.rollNos) ? input.rollNos.map(String).filter(Boolean) : [],

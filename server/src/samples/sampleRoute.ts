@@ -40,6 +40,7 @@ import { createFabricShipmentSampleService } from './fabricShipmentSampleService
 import { createEarlyProductionSampleService } from './earlyProductionSampleService';
 import { createGarmentSampleGateService } from './garmentSampleGateService';
 import { createColorBatchService } from './colorBatchService';
+import { createColorCardService } from './colorCardService';
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
 import { createExceptionService } from '../exceptions/exceptionService';
@@ -361,6 +362,95 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
   // ══════════════════════════════════════════════════════════════
   const colorBatchService = createColorBatchService(prisma);
   const requireColorBatchWrite = [requireWrite, requirePermission('sample:color_batch:write')];
+
+  // ══════════════════════════════════════════════════════════════
+  // REQ2-09 Pantone 色号库（DR-051）— /colors
+  // 读走 JWT/API-Key；写必须 JWT（sample:color_batch:write 同款角色链）
+  // ══════════════════════════════════════════════════════════════
+  const colorCardService = createColorCardService(prisma);
+  const requireColorCardWrite = [requireWrite, requirePermission('sample:color_batch:write')];
+
+  router.get('/colors', async (req: Request, res: Response) => {
+    try {
+      const r = await colorCardService.listColors({
+        search: typeof req.query.search === 'string' ? req.query.search : undefined,
+        family: typeof req.query.family === 'string' ? req.query.family : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      });
+      sendResult(res, r, 200, 'items');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_LIST_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_LIST_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // 字面路由（/colors/:code/color-batches）须在参数路由（/colors/:id PATCH/DELETE 按 id）之前；
+  // GET /colors/:code 与 PATCH/DELETE /colors/:id 键不同不冲突
+  router.get('/colors/:code/color-batches', async (req: Request, res: Response) => {
+    try {
+      const r = await colorCardService.listColorBatchesForColor(
+        req.params.code,
+        req.query.includeNearby === 'true' || req.query.includeNearby === '1',
+      );
+      sendResult(res, r, 200, 'batches');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_BATCHES_FOR_COLOR_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_BATCHES_FOR_COLOR_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.get('/colors/:code', async (req: Request, res: Response) => {
+    try {
+      const r = await colorCardService.getColorByCode(req.params.code);
+      sendResult(res, r, 200, 'color');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_GET_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_GET_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.post('/colors', ...requireColorCardWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorCardService.createColor(req.body ?? {});
+      if (r.ok) notify('create_color_card', [r.data.color.id]);
+      sendResult(res, r, 201, 'color');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_CREATE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_CREATE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.patch('/colors/:id', ...requireColorCardWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorCardService.updateColor(req.params.id, req.body ?? {});
+      sendResult(res, r, 200, 'color');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_UPDATE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_UPDATE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.delete('/colors/:id', ...requireColorCardWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorCardService.deleteColor(req.params.id);
+      if (r.ok) notify('delete_color_card', [req.params.id]);
+      sendResult(res, r, 200, 'deleted');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_DELETE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_DELETE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // 种子端点（幂等）：Pantone TCX 常用子集补缺
+  router.post('/colors/seed', ...requireColorCardWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorCardService.seedPantoneTcx();
+      res.status(200).json(serializeValue({ ok: true, ...r }));
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_SEED_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_SEED_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
 
   // 字面路由（/color-batches/evidence）须在参数路由（/color-batches/:id）之前
   router.get('/color-batches/evidence', async (req: Request, res: Response) => {

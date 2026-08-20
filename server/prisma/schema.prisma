@@ -5583,6 +5583,10 @@ model SampleColorBatch {
   roundNo           Int? // 开发案轮次快照（登记时 currentRound）
   orderId           String? // 大货阶段挂订单
 
+  // ─── 色号关联（REQ2-09，DR-051-③：可选 FK + 快照，色卡变更/删除后历史不失真） ───
+  colorCardId String? // 关联 ColorCard
+  colorCode   String? // 冗余快照（如 "19-4052 TCX"）
+
   // ─── 缸号 / 批次 / 卷号（追溯三键） ───
   dyeLotNo String   // 缸号（染厂染色缸次）
   batchNo  String?  // 批次号
@@ -5618,6 +5622,29 @@ model SampleColorBatch {
   @@index([supplierRelationId])
   @@index([dyeLotNo])
   @@index([stage])
+  @@index([colorCardId])
+}
+
+// ============================================================================
+// REQ2-09 Pantone 色号库（DR-051，IND-02 L0 → L3）
+// ============================================================================
+/// 设计真源：Development-开发/Pantone色号库.md §4
+/// 业务语义：标准色卡参照库（Pantone TCX seed 起步 + 客户自定义），打色选色号
+/// 即带出 RGB 参考与相近历史打色。RGB 为公开近似值口径，对色以实物色卡为准。
+model ColorCard {
+  id        String   @id // 格式：CLR__${shortId}
+  code      String   @unique // 色号（"19-4052 TCX" / 客户自定义）
+  name      String? // 色名（"Classic Blue"）
+  family    String? // 色系（Blue / Red / ... 用于筛选）
+  r         Int // sRGB 0-255（公开近似值）
+  g         Int
+  b         Int
+  source    String   @default("seed") // seed | custom
+  deletedAt BigInt?
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@index([family])
 }
 
 // ============================================================================
