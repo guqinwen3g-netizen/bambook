@@ -882,8 +882,15 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     setRelationBusy(true);
     try {
       const deletedRelation = await apiService.deleteRelation(id, cloudEndpoint);
+      const wasSelectedOrg = selectedOrgId === deletedRelation.id;
       onUpdate(relations.filter(r => r.id !== deletedRelation.id), deletedRelation);
       if (selectedContactId === id) setSelectedContactId(null);
+      // 删除当前浏览的组织后回退到组织列表——navLevel='detail' 的内容区依赖
+      // selectedOrganization 存在才渲染，不回退会停留在空白详情页
+      if (wasSelectedOrg) {
+        setSelectedOrgId(null);
+        setNavLevel('organizations');
+      }
       setConfirmDeleteId(null);
       setShowAddModal(false);
       setEditingItem(null);

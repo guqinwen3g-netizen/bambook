@@ -1536,4 +1536,11 @@ describe('RelationsManager title system', () => {
     expect(source).toContain(`{deletingOrganization ? '确认移除此组织？' : '确认移除此联系人？'}`);
     expect(source).toContain('移除后该联系人将从所属组织的通讯录消失');
   });
+
+  it('删除当前浏览的组织后回退到组织列表（不残留空白详情页）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('const wasSelectedOrg = selectedOrgId === deletedRelation.id;');
+    expect(source).toContain("if (wasSelectedOrg) {\n        setSelectedOrgId(null);\n        setNavLevel('organizations');\n      }");
+  });
 });
