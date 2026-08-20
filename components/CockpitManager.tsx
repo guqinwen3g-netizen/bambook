@@ -36,9 +36,9 @@ function formatPct(rate: number | null): string {
   return rate == null ? '—' : `${(rate * 100).toFixed(1)}%`;
 }
 
-function firstDayOfMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+/** P2-002：默认区间=今年（年度经营视角是老板看板常规基准，避免跨季订单在"当月"默认下开屏空态） */
+function firstDayOfYear(): string {
+  return `${new Date().getFullYear()}-01-01`;
 }
 
 function today(): string {
@@ -51,7 +51,7 @@ interface CockpitManagerProps {
 }
 
 export function CockpitManager({ isDarkMode, endpoint }: CockpitManagerProps) {
-  const [from, setFrom] = useState(firstDayOfMonth());
+  const [from, setFrom] = useState(firstDayOfYear());
   const [to, setTo] = useState(today());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

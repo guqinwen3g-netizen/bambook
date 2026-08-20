@@ -10,7 +10,7 @@ import {
   AlertTriangle,
   Globe, List,
   Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, GitBranch,
-  Search
+  Search, ArrowLeft
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
 import BottomSheet from './ui/BottomSheet';
@@ -1369,6 +1369,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 )}
               </div>
               <div className="pointer-events-auto relative flex items-center gap-2">
+                {/* P2-004：显式「返回列表」入口（原裸 X 图标按钮可发现性差，验收判为无返回入口） */}
+                <button
+                  onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); setIsEditing(false); setEditForm(null); }}
+                  className="bds-btn bds-btn-ghost"
+                >
+                  <ArrowLeft size={14} strokeWidth={1.5} />返回列表
+                </button>
+                <div className={`h-4 w-px ${DIVIDER_CLASS}`}></div>
                 {isEditing ? (
                   <button onClick={handleSaveEdit} className="bds-btn bds-btn-primary">
                     <Save size={14} strokeWidth={1.5} />保存修改
@@ -1378,10 +1386,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     <Edit2 size={14} strokeWidth={1.5} />编辑项目
                   </button>
                 )}
-                <div className={`h-4 w-px ${DIVIDER_CLASS}`}></div>
                 <button
                   onClick={() => { onSelectOrder(null); setSelectedLineItem(null); setEditLineForm(null); setIsEditing(false); setEditForm(null); }}
                   className="bds-btn bds-btn-ghost bds-btn-icon"
+                  title="关闭详情"
                 >
                   <X size={16} strokeWidth={1.5} />
                 </button>

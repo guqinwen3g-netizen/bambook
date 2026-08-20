@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { AgentMessageCard } from './AgentMessageCard';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
+import { PageHeader } from './ui/PageHeader';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import { bdsToast } from './ui/bdsToast';
@@ -2075,9 +2076,10 @@ const Assistant: React.FC<AssistantProps> = ({
   const agentRootClass = isAgentFullscreen
     ? `fixed inset-0 z-[420] flex h-dvh min-h-0 flex-col overflow-hidden ${agentFullscreenBackgroundClass}`
     : 'flex h-full min-h-0 w-full flex-col overflow-hidden';
+  // P3-001：非全屏加 PageHeader 后行容器改 flex-1（原 h-full 会在 header 兄弟节点下溢出）
   const agentPanelRowClass = isAgentFullscreen
     ? 'flex flex-1 min-h-0 w-full'
-    : 'flex h-full min-h-0 w-full overflow-hidden';
+    : 'flex min-h-0 w-full flex-1 overflow-hidden';
   const agentPanelClass = isAgentFullscreen
     ? 'bambook-agent-fullscreen-surface flex-1 min-w-0 h-full'
     : 'flex-1 min-w-0 h-full';
@@ -2194,6 +2196,14 @@ const Assistant: React.FC<AssistantProps> = ({
         catalogStatus={agentToolCatalogStatus}
         catalogError={agentToolCatalogError}
         onRetryCatalog={() => void loadAgentToolCatalog()}
+        isDarkMode={isDarkMode}
+      />
+      {/* P3-001：补统一页面标题栏（W-PG 纪律）；全屏沉浸态隐藏 */}
+      <PageHeader
+        title="AI 助手"
+        subtitle="AI Assistant"
+        contextLabel="Agent Workspace"
+        hidden={isAgentFullscreen}
         isDarkMode={isDarkMode}
       />
       <motion.div

@@ -1121,6 +1121,9 @@ const App: React.FC = () => {
   const handleViewChange = (view: View) => {
     // 常规导航清除下钻落点覆盖（A5d），避免旧 tab 定位残留
     setModuleTabOverrides({});
+    // P2-004：侧边栏点击订单模块 = 显式回列表（清详情选中），切走再切回不再困在旧详情
+    //（handleOpenOrderById 直达链路在 handleViewChange 之后 setSelectedOrder，不受影响）
+    if (view === View.Orders) setSelectedOrder(null);
     setCurrentView(canAccessView(view) ? view : View.Dashboard);
   };
   const handleReportNavigate = (view: View, tab?: string) => {

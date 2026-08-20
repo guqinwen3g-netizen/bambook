@@ -49,20 +49,22 @@ import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
 
 // ==================== 常量 ====================
+// P3-002：对外报价状态主语明确化——Sent/Accepted/Rejected 动作方是客户（我方发出后由客户回应），
+// 原文案「已发送/已拒绝」无法分辨主语（我方拒绝？客户拒绝？）
 const STATUS_TABS: Array<{ id: 'all' | QuotationStatus; label: string }> = [
   { id: 'all', label: '全部' },
   { id: 'Draft', label: '草稿' },
-  { id: 'Sent', label: '已发送' },
-  { id: 'Accepted', label: '已接受' },
-  { id: 'Rejected', label: '已拒绝' },
+  { id: 'Sent', label: '已发客户' },
+  { id: 'Accepted', label: '客户已接受' },
+  { id: 'Rejected', label: '客户已拒绝' },
   { id: 'Expired', label: '已过期' },
 ];
 
 const STATUS_LABELS: Record<QuotationStatus, string> = {
   Draft: '草稿',
-  Sent: '已发送',
-  Accepted: '已接受',
-  Rejected: '已拒绝',
+  Sent: '已发客户',
+  Accepted: '客户已接受',
+  Rejected: '客户已拒绝',
   Expired: '已过期',
 };
 

@@ -55,11 +55,13 @@ const HEADER_ALIASES: Record<keyof HistoricalQuotationImportRow, string[]> = {
 const TEMPLATE_HEADERS = ['报价号', '客户', '金额', '币种', '报价日期', '有效期', '状态', '业务员', '备注'];
 const TEMPLATE_EXAMPLE = ['Q-2025-001', 'Client A', 12500.5, 'USD', '2025-01-15', '2025-02-15', '已接受', 'Sales A', '历史归档导入'];
 
+// P3-002：新旧文案双收录——「已发送/已接受/已拒绝」为历史 Excel 兼容，
+// 「已发客户/客户已接受/客户已拒绝」为 P3-002 主语明确化后口径
 const STATUS_ZH_TO_ENUM: Record<string, string> = {
   草稿: 'Draft',
-  已发送: 'Sent',
-  已接受: 'Accepted',
-  已拒绝: 'Rejected',
+  已发送: 'Sent', 已发客户: 'Sent',
+  已接受: 'Accepted', 客户已接受: 'Accepted',
+  已拒绝: 'Rejected', 客户已拒绝: 'Rejected',
   已过期: 'Expired',
 };
 
