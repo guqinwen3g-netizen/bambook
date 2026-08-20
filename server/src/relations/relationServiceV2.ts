@@ -53,6 +53,7 @@ export interface RelationListFilter {
   search?: string;         // name / englishName / chineseName / code 模糊搜索
   isOrganization?: boolean;
   teamId?: string;         // DR-042 §8.2 组筛选器：只看某个组的共享数据
+  bizScope?: 'mine';       // P1-001：L2 业务口径（followedBy ∪ teamGranted），CRM 下拉防默认选中无权客户
   limit?: number;
   offset?: number;
   sort?: string;           // name / lastInteraction / rating / createdAt
@@ -269,6 +270,16 @@ export function createRelationServiceV2(prisma: PrismaClient) {
           select: { entityId: true },
         });
         where.id = { in: teamGrantIds.map((g: any) => g.entityId) };
+      }
+      if (filter.bizScope === 'mine') {
+        // P1-001（DR-042 §5.1 L2 业务口径）：CRM 等业务页下拉只列本人可见客户
+        // （followedBy ∪ teamGranted，与 crmRouteV2 hasBizReadAccess 同一真源），
+        // 防止默认选中无权客户 → 跟进记录 403。真全权角色 L2 全可见，不过滤。
+        const resolver = await permSvc.getDataScopeResolver(actor, 'relations');
+        if (resolveWriteKind(resolver.rule) !== 'all') {
+          const visibleIds = await teamShareSvc.resolveVisibleRelationIds(actor);
+          where.id = { in: visibleIds };
+        }
       }
       if (filter.isOrganization !== undefined) where.isOrganization = filter.isOrganization;
       if (filter.search) {

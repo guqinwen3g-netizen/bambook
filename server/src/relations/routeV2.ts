@@ -68,6 +68,7 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
       offset: req.query.offset ? Number(req.query.offset) : undefined,
       sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
       teamId: typeof req.query.teamId === 'string' ? req.query.teamId : undefined, // DR-042 §8.2 组筛选器
+      bizScope: (req.query.bizScope === 'mine' ? 'mine' : undefined) as 'mine' | undefined, // P1-001：L2 业务口径（CRM 下拉）
     };
     const result = await svc.listRelations(actor, filter);
     if (!result.ok) return res.status(500).json({ error: result.error!.code, message: result.error!.message });

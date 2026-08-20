@@ -2162,9 +2162,12 @@ export const apiService = {
    * 客户档案列表（V2 三层视野，DR-042 v2.2）：L1 档案图书馆化——
    * normal 档案全公司可查 + confidential 仅本人维；条目携带 sensitivity 与 teamShares 徽章数据。
    * 旧 V1 端点无行级过滤（未设防的全可见），已切换至 V2 设计过的图书馆口径。
+   * bizScope='mine'：L2 业务口径（P1-001）——followedBy ∪ teamGranted，
+   * 供 CRM 等业务页下拉使用，防止默认选中无权客户触发 403。
    */
-  async listRelations(endpoint?: string): Promise<Relation[]> {
-    const data = await requestJson<{ ok: boolean; items: Relation[]; total: number }>('/v2/relations?limit=500', { endpoint, method: 'GET' });
+  async listRelations(endpoint?: string, params?: { bizScope?: 'mine' }): Promise<Relation[]> {
+    const qs = params?.bizScope === 'mine' ? '&bizScope=mine' : '';
+    const data = await requestJson<{ ok: boolean; items: Relation[]; total: number }>(`/v2/relations?limit=500${qs}`, { endpoint, method: 'GET' });
     return Array.isArray(data.items) ? data.items : [];
   },
 

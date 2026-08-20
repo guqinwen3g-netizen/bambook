@@ -76,6 +76,7 @@ type DevelopmentCaseSeed = Prisma.DevelopmentCaseUncheckedCreateInput;
 type InvoiceSeed = Prisma.InvoiceUncheckedCreateInput;
 type PaymentVoucherSeed = Prisma.PaymentVoucherUncheckedCreateInput;
 type InvoiceAllocationSeed = Prisma.InvoiceAllocationUncheckedCreateInput;
+type FactoryProfileSeed = Prisma.FactoryProfileUncheckedCreateInput;
 type ShipmentSeed = Prisma.ShipmentUncheckedCreateInput;
 type ShipmentLineSeed = Prisma.ShipmentLineUncheckedCreateInput;
 type InsightSeed = Prisma.InsightUncheckedCreateInput;
@@ -1474,6 +1475,87 @@ const invoiceAllocations: InvoiceAllocationSeed[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
+// 11c. FACTORY PROFILES — 供应商工厂档案（P1-002 修复）
+// ═══════════════════════════════════════════════════════════════════
+// 根因：供应商身份真源在 Relation(category=Supplier)（schema 注释），但
+// 供应商管理页 /api/v1/suppliers 查 FactoryProfile 1:1 挂接表——seed 只建
+// Relation 未建档案 → 开屏恒 0 家工厂。此处为 7 家供应商组织（isOrganization）
+// 补建档案；联系人个人（type=Contact，parentId 挂组织）不是工厂，不建档案。
+// 评分缓存 = relation.rating（5 分制）×20 折百分制；交期分模拟略低（真实感）。
+const factoryProfiles: FactoryProfileSeed[] = [
+  { // 金华常青纺织厂 — 棉弹力机织
+    id: 'FACP__DEMO-MILL-JINHUA', relationId: 'DEMO-MILL-JINHUA',
+    monthlyCapacity: 500000.0000, capacityUnit: 'M', workerCount: 260,
+    specialties: ['棉弹力斜纹', '府绸', '帆布'],
+    qualityScore: 90, deliveryScore: 87, priceLevel: 'Mid',
+    firstOrderAt: '2025-03-15', totalOrders: 6, totalAmount: 2380000.0000,
+    bankName: '中国工商银行金华婺城支行', bankAccount: 'DEMO-CN-JH-003',
+    notes: 'DEMO: 棉弹力布稳定，染色批差风险低。',
+    createdAt: BigInt(now - 180 * 86400000), updatedAt: BigInt(now - 2 * 86400000), deletedAt: null,
+  },
+  { // 苏州蓝河染织 — 涤粘混纺/针织染整
+    id: 'FACP__DEMO-MILL-SUZHOU', relationId: 'DEMO-MILL-SUZHOU',
+    monthlyCapacity: 450000.0000, capacityUnit: 'M', workerCount: 190,
+    specialties: ['涤粘混纺', '毛感针织', '再生涤纶'],
+    qualityScore: 82, deliveryScore: 78, priceLevel: 'Mid',
+    firstOrderAt: '2025-06-20', totalOrders: 4, totalAmount: 1650000.0000,
+    bankName: '中国银行苏州吴江支行', bankAccount: 'DEMO-CN-SZ-004',
+    notes: 'DEMO: 高峰期排产紧，建议保留 7 天缓冲。',
+    createdAt: BigInt(now - 150 * 86400000), updatedAt: BigInt(now - 3 * 86400000), deletedAt: null,
+  },
+  { // 南通北星针织 — 针织面料
+    id: 'FACP__DEMO-MILL-NANTONG', relationId: 'DEMO-MILL-NANTONG',
+    monthlyCapacity: 380000.0000, capacityUnit: 'M', workerCount: 140,
+    specialties: ['双面布', '抓毛布', '罗纹', '功能针织'],
+    qualityScore: 80, deliveryScore: 81, priceLevel: 'Low',
+    firstOrderAt: '2025-09-02', totalOrders: 3, totalAmount: 920000.0000,
+    bankName: '中国建设银行南通通州支行', bankAccount: 'DEMO-CN-NT-005',
+    notes: 'DEMO: 需提前锁定纱线，交期约 45-60 天。',
+    createdAt: BigInt(now - 120 * 86400000), updatedAt: BigInt(now - 4 * 86400000), deletedAt: null,
+  },
+  { // 绍兴绿环再生纺织 — 再生环保面料（GRS）
+    id: 'FACP__DEMO-MILL-SHAOXING', relationId: 'DEMO-MILL-SHAOXING',
+    monthlyCapacity: 420000.0000, capacityUnit: 'M', workerCount: 210,
+    specialties: ['再生涤纶', '环保混纺', '功能涂层'],
+    qualityScore: 88, deliveryScore: 85, priceLevel: 'Mid',
+    firstOrderAt: '2025-04-10', totalOrders: 5, totalAmount: 1870000.0000,
+    bankName: '招商银行绍兴柯桥支行', bankAccount: 'DEMO-CN-SX-006',
+    notes: 'DEMO: 再生系列资料齐全，GRS 文件响应快，随批次归档。',
+    createdAt: BigInt(now - 160 * 86400000), updatedAt: BigInt(now - 5 * 86400000), deletedAt: null,
+  },
+  { // DAESE Textile — 精纺羊毛（韩国）
+    id: 'FACP__DEMO-MILL-DAESE', relationId: 'DEMO-MILL-DAESE',
+    monthlyCapacity: 300000.0000, capacityUnit: 'M', workerCount: 170,
+    specialties: ['精纺羊毛', '羊毛混纺', '高支薄型'],
+    qualityScore: 86, deliveryScore: 83, priceLevel: 'High',
+    firstOrderAt: '2025-11-05', totalOrders: 2, totalAmount: 2150000.0000,
+    bankName: 'KEB Hana Bank Seoul', bankAccount: 'DEMO-KR-DS-007', bankSwift: 'KOEXKRSE',
+    notes: 'DEMO: 精纺羊毛面料，验厂评分高，交期稳定。',
+    createdAt: BigInt(now - 100 * 86400000), updatedAt: BigInt(now - 6 * 86400000), deletedAt: null,
+  },
+  { // 张家港骏马辅料织标厂 — 辅料
+    id: 'FACP__DEMO-TRIM-ZJG-LABEL', relationId: 'DEMO-TRIM-ZJG-LABEL',
+    monthlyCapacity: 1200000.0000, capacityUnit: 'PC', workerCount: 80,
+    specialties: ['织标', '印标', '吊牌'],
+    qualityScore: 78, deliveryScore: 84, priceLevel: 'Low',
+    firstOrderAt: '2025-08-18', totalOrders: 8, totalAmount: 360000.0000,
+    bankName: '中国农业银行张家港支行', bankAccount: 'DEMO-CN-ZJG-008',
+    notes: 'DEMO: 打样快，小单灵活。',
+    createdAt: BigInt(now - 90 * 86400000), updatedAt: BigInt(now - 8 * 86400000), deletedAt: null,
+  },
+  { // 湖州百纤纱线 — 纱线供应商
+    id: 'FACP__DEMO-MILL-HUZHOU-YARN', relationId: 'DEMO-MILL-HUZHOU-YARN',
+    monthlyCapacity: 900000.0000, capacityUnit: null, workerCount: 110,
+    specialties: ['涤纶纱', '粘胶纱', '混纺纱'],
+    qualityScore: 84, deliveryScore: 82, priceLevel: 'Mid',
+    firstOrderAt: '2025-07-22', totalOrders: 4, totalAmount: 1280000.0000,
+    bankName: '中国工商银行湖州支行', bankAccount: 'DEMO-CN-HZ-009',
+    notes: 'DEMO: 纱线按吨计价，产能单位与面料不同。',
+    createdAt: BigInt(now - 110 * 86400000), updatedAt: BigInt(now - 10 * 86400000), deletedAt: null,
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════
 // 12. SHIPMENTS + SHIPMENT LINES
 // ═══════════════════════════════════════════════════════════════════
 const shipments: ShipmentSeed[] = [
@@ -1931,6 +2013,8 @@ async function rollbackDemo(prisma: PrismaClient): Promise<void> {
     await tx.invoice.deleteMany({ where: { id: { startsWith: 'DEMO-INV-' } } });
     await tx.developmentCase.deleteMany({ where: { id: { startsWith: 'DEMO-DEV-' } } });
     await tx.insight.deleteMany({ where: { id: { startsWith: 'DEMO-INS-' } } });
+    // Factory profiles（P1-002；id 前缀 FACP__DEMO-，级联清理 evaluations/certs/capacity）
+    await tx.factoryProfile.deleteMany({ where: { id: { startsWith: 'FACP__DEMO-' } } });
 
     // Order lines & orders
     const demoOrders = await tx.order.findMany({
@@ -2070,6 +2154,11 @@ async function applyDemo(prisma: PrismaClient): Promise<void> {
         update: alloc,
         create: alloc,
       });
+    }
+
+    // 11c. Factory profiles — P1-002 供应商档案补建（幂等）
+    for (const fp of factoryProfiles) {
+      await tx.factoryProfile.upsert({ where: { id: fp.id }, update: fp, create: fp });
     }
 
     // 12. Shipments + ShipmentLines

@@ -183,11 +183,12 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
   const [showCreditForm, setShowCreditForm] = useState(false);
   const [showTierForm, setShowTierForm] = useState(false);
 
-  // ── 加载客户列表 ──
+  // ── 加载客户列表（P1-001：bizScope='mine' L2 业务口径——followedBy ∪ teamGranted，
+  //    与跟进记录/商机等子实体读门禁同源，防止默认选中无权客户开屏即 403）──
   const loadRelations = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await apiService.listRelations();
+      const list = await apiService.listRelations(undefined, { bizScope: 'mine' });
       const filtered = search
         ? list.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()) || (r.category || '').includes(search.toLowerCase()))
         : list;

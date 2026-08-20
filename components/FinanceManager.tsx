@@ -255,6 +255,18 @@ const VOUCHER_STATUS_GUIDE: Record<VoucherStatus, { label: string; nextStep: str
   cancelled: { label: '已作废', nextStep: '该凭证已作废，不再参与核销。' },
 };
 
+/** P3-003：状态列中文映射（与快捷统计「已结清/已开票/部分销账」同口径） */
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  Draft: '草稿',
+  Issued: '已开票',
+  PartiallyPaid: '部分销账',
+  Paid: '已结清',
+  Cancelled: '已作废',
+};
+
+const voucherStatusLabel = (status: string | undefined): string =>
+  VOUCHER_STATUS_GUIDE[(status || 'unreconciled') as VoucherStatus]?.label ?? (status || 'unreconciled');
+
 type KpiCard = {
   label: string;
   primary: string;
@@ -1269,7 +1281,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         </div>
         <div className="min-w-0 px-1 py-1">
           <span className={invoiceStatusBadge(item.status)}>
-            {item.status}
+            {INVOICE_STATUS_LABEL[item.status] ?? item.status}
           </span>
           <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{invoiceTypeLabel(item.type)}</div>
         </div>
@@ -1308,7 +1320,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         <div className="min-w-0 px-1 py-1">
           <div className="flex min-w-0 items-center gap-1">
             <span className={voucherStatusBadge((item.status || 'unreconciled') as VoucherStatus)}>
-              {item.status || 'unreconciled'}
+              {voucherStatusLabel(item.status)}
             </span>
             {(item as PaymentVoucherWithCategory).voucherCategory && (item as PaymentVoucherWithCategory).voucherCategory !== 'normal' && (
               <span className={FINANCE_STATUS_BADGE}>{voucherCategoryLabel((item as PaymentVoucherWithCategory).voucherCategory)}</span>
@@ -1551,7 +1563,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     const statusChipClassApplied = isInvoice
       ? invoiceStatusBadge(invoice!.status)
       : voucherStatusBadge((voucher!.status || 'unreconciled') as VoucherStatus);
-    const statusLabel = isInvoice ? invoice!.status : (voucher!.status || 'unreconciled');
+    const statusLabel = isInvoice
+      ? (INVOICE_STATUS_LABEL[invoice!.status] ?? invoice!.status)
+      : voucherStatusLabel(voucher!.status);
 
     const fieldRows = isInvoice
       ? [
