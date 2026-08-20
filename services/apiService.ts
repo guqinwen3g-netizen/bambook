@@ -176,6 +176,7 @@ import {
   CustomsOverview,
   // Finance Reports (Phase B2)
   AgingReport,
+  CashCalendarReport,
   CustomerStatement,
   SupplierStatement,
   FxGainLossReport,
@@ -766,6 +767,15 @@ export const apiService = {
     const query = new URLSearchParams({ type });
     if (asOf) query.set('asOf', asOf);
     return requestJson<AgingReport>(`/v1/finance/reports/aging?${query.toString()}`, { endpoint, method: 'GET' });
+  },
+
+  /** REQ2-02 资金日历与 30 天现金流预测（DR-044 净额口径） */
+  async getCashCalendar(params: { asOf?: string; days?: number } = {}, endpoint?: string): Promise<CashCalendarReport> {
+    const query = new URLSearchParams();
+    if (params.asOf) query.set('asOf', params.asOf);
+    if (params.days) query.set('days', String(params.days));
+    const qs = query.toString();
+    return requestJson<CashCalendarReport>(`/v1/finance/reports/cash-calendar${qs ? `?${qs}` : ''}`, { endpoint, method: 'GET' });
   },
 
   async getCustomerStatement(params: { customerRelationId: string; from?: string; to?: string }, endpoint?: string): Promise<CustomerStatement> {

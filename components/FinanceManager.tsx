@@ -7,8 +7,9 @@ import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { apiService } from '../services/apiService';
 import { financeV2Service } from '../services/financeV2Service';
-import { BadgeCheck, Ban, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
+import { BadgeCheck, Ban, CalendarClock, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
+import { CashCalendarPanel } from './finance/CashCalendarPanel';
 import { FinancePaymentRequestsPanel } from './finance/FinancePaymentRequestsPanel';
 import { FinanceCreditPanel } from './finance/FinanceCreditPanel';
 import type {
@@ -76,7 +77,7 @@ const clearFinanceInvoicePrime = () => {
   }
 };
 
-type FinanceTabId = 'invoices' | 'vouchers' | 'paymentRequests' | 'credit' | 'vatInvoices' | 'reports';
+type FinanceTabId = 'invoices' | 'vouchers' | 'paymentRequests' | 'credit' | 'vatInvoices' | 'cashCalendar' | 'reports';
 
 /** A5d 报表下钻联动：允许外部（报表中心）按 id 指定落点 tab */
 export type { FinanceTabId };
@@ -189,6 +190,7 @@ const FINANCE_TABS: Array<{ id: FinanceTabId; label: string; icon: typeof FileTe
   { id: 'paymentRequests', label: '付款申请', icon: ClipboardList },
   { id: 'credit', label: '客户信用', icon: ShieldCheck },
   { id: 'vatInvoices', label: '增值税', icon: Receipt },
+  { id: 'cashCalendar', label: '资金日历', icon: CalendarClock },
   { id: 'reports', label: '报表', icon: BarChart3 },
 ];
 
@@ -1207,8 +1209,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     return result;
   }, [vatInvoices, selectedType, selectedStatus, searchTerm]);
 
-  // 自包含 tab（报表 / 付款申请 / 客户信用）由专属面板全权渲染，不消费共享列表与核销副作用
-  const isSelfContainedTab = activeTab === 'reports' || activeTab === 'paymentRequests' || activeTab === 'credit';
+  // 自包含 tab（报表 / 资金日历 / 付款申请 / 客户信用）由专属面板全权渲染，不消费共享列表与核销副作用
+  const isSelfContainedTab = activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'paymentRequests' || activeTab === 'credit';
   const activeList: Array<InvoiceEntity | VoucherEntity | VatInvoiceEntity> =
     isSelfContainedTab ? [] : activeTab === 'invoices' ? filteredInvoices : activeTab === 'vatInvoices' ? filteredVatInvoices : filteredVouchers;
   const selectedItem = activeList.find(item => item.id === selectedId) || activeList[0];
@@ -1229,7 +1231,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   // ── Status quick-stats (shown at right of toolbar for the active tab) ───
   const statusStats = useMemo(() => {
-    if (activeTab === 'reports') return [];
+    if (activeTab === 'reports' || activeTab === 'cashCalendar') return [];
     if (activeTab === 'invoices') {
       const paid = invoices.filter(i => i.status === 'Paid').length;
       const partiallyPaid = invoices.filter(i => i.status === 'PartiallyPaid').length;
@@ -1869,7 +1871,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       <PageHeader
         title="财务管理"
         subtitle="Invoices / Vouchers / Reconciliation"
-        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : activeTab === 'paymentRequests' ? 'Payment Requests' : activeTab === 'credit' ? 'Credit Control' : 'Voucher Desk'}
+        contextLabel={activeTab === 'invoices' ? 'Invoice Desk' : activeTab === 'vatInvoices' ? 'VAT Desk' : activeTab === 'reports' ? 'Finance Reports' : activeTab === 'cashCalendar' ? 'Cash Calendar' : activeTab === 'paymentRequests' ? 'Payment Requests' : activeTab === 'credit' ? 'Credit Control' : 'Voucher Desk'}
         isDarkMode={isDarkMode}
         actions={(
           <>
@@ -1936,17 +1938,24 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <div className={cx('ml-auto text-[11px] font-light', textSecondaryClass)}>
               {activeTab === 'reports'
                 ? '账龄 / 对账单 / 汇率损益 / 外汇台账'
-                : activeTab === 'paymentRequests'
-                  ? '先申请后付款 · 审批链闭环'
-                  : activeTab === 'credit'
-                    ? '额度 / 冻结门禁 / 历史时间线'
-                    : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
+                : activeTab === 'cashCalendar'
+                  ? '今日动作 · 30 天预测 · 外汇敞口'
+                  : activeTab === 'paymentRequests'
+                    ? '先申请后付款 · 审批链闭环'
+                    : activeTab === 'credit'
+                      ? '额度 / 冻结门禁 / 历史时间线'
+                      : `共 ${activeList.length} ${activeTab === 'invoices' ? '张发票' : activeTab === 'vatInvoices' ? '张增值税票' : '张凭证'}`}
             </div>
           </div>
 
           {/* 报表 tab：自包含面板（账龄 / 对账单 / 汇率损益 / 外汇台账） */}
           {activeTab === 'reports' && (
             <FinanceReportsPanel isDarkMode={isDarkMode} />
+          )}
+
+          {/* 资金日历 tab（REQ2-02）：自包含面板（今日动作 / 30 天预测 / 外汇敞口 / 预收款泳道） */}
+          {activeTab === 'cashCalendar' && (
+            <CashCalendarPanel isDarkMode={isDarkMode} />
           )}
 
           {/* 付款申请 tab：自包含面板（DR-017 先申请后付款 + 审批链） */}

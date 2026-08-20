@@ -23,7 +23,7 @@ import { createAllocation, updateAllocation, deleteAllocation } from './allocati
 import { validateStatusTransition } from '../statusTransition';
 import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMutationService';
 import { createInvoice, updateInvoice } from './invoiceMutationService';
-import { getAgingReport, getCustomerStatement, getSupplierStatement, getFxGainLoss, getConsolidatedProfitReport } from './reportService';
+import { getAgingReport, getCustomerStatement, getSupplierStatement, getFxGainLoss, getConsolidatedProfitReport, getCashCalendar } from './reportService';
 import { createFxSettlement, deleteFxSettlement, getFxLedger, getVoucherSettlementSummary } from './fxSettlementService';
 import { createOutwardRemittance, deleteOutwardRemittance, getVoucherRemittanceSummary, listOutwardRemittances } from './outwardRemittanceService';
 import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteVatInvoice, listVatInvoices, getVatInvoice } from './vatInvoiceService';
@@ -775,6 +775,20 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       res.json(report);
     } catch (err: any) {
       logger.error('[finance] GET /reports/fx-gain-loss failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/reports/cash-calendar?asOf=YYYY-MM-DD&days=30 — REQ2-02 资金日历
+  router.get('/reports/cash-calendar', async (req: Request, res: Response) => {
+    try {
+      const report = await getCashCalendar(prisma, {
+        asOf: req.query.asOf ? String(req.query.asOf) : undefined,
+        days: req.query.days ? Number(req.query.days) : undefined,
+      });
+      res.json(report);
+    } catch (err: any) {
+      logger.error('[finance] GET /reports/cash-calendar failed', { error: err?.message || String(err) });
       res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
     }
   });

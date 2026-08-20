@@ -417,6 +417,193 @@ export async function getFxGainLoss(
 }
 
 // ────────────────────────────────────────────────────────────────
+// 3b. 资金日历与 30 天现金流预测（REQ2-02，剧本 C）
+// ────────────────────────────────────────────────────────────────
+//
+// 设计真源：需求池 REQ2-02 · DR-044 净额口径（与账龄/对账单/KPI 同一公式）
+//
+// 口径：
+//   - 现金流事件 = 未结清发票（open = amount − Σ InvoiceAllocation，净额）
+//     Receivable → inflow（应收到期收款）/ Payable → outflow（应付到期付款）
+//   - 今日动作清单：dueDate ≤ asOf（逾期 + 今日到期），daysOverdue = asOf − dueDate
+//   - 30 天预测：asOf < dueDate ≤ asOf+days，按币种分组不折算（多币种纪律同账龄）
+//   - 外汇敞口（E4）：非本位币（CNY）净应收/净应付合计（全部未结清，不限窗口）
+//   - 预收款/保证金泳道：未核销凭证余额（amount − Σ allocation）按 voucherCategory 分组
+//   - 日期基准与账龄一致：dueDate 缺失回退 issueDate
+//
+
+export interface CashCalendarAction {
+  invoiceId: string;
+  invoiceNumber: string;
+  type: 'Receivable' | 'Payable';
+  counterparty: string | null;
+  currency: string;
+  openAmount: number;
+  dueDate: string;
+  daysOverdue: number; // 0 = 今日到期；>0 = 逾期天数
+}
+
+export interface CashCalendarForecastRow {
+  currency: string;
+  overdueInflow: number;   // 已逾期未收
+  overdueOutflow: number;  // 已逾期未付
+  windowInflow: number;    // 未来 days 天应收到期
+  windowOutflow: number;   // 未来 days 天应付到期
+  netWindow: number;       // windowInflow − windowOutflow
+  itemCount: number;
+}
+
+export interface FxExposureRow {
+  currency: string;
+  netReceivable: number; // 非本位币全部未结清应收
+  netPayable: number;    // 非本位币全部未结清应付
+}
+
+export interface UnappliedVoucherRow {
+  voucherCategory: string; // normal | advance | deposit | ...
+  currency: string;
+  unapplied: number;       // amount − Σ allocation（未核销余额）
+  count: number;
+}
+
+export interface CashCalendarReport {
+  asOf: string;
+  days: number;
+  windowEnd: string;
+  todayActions: CashCalendarAction[];
+  upcoming: CashCalendarAction[];
+  forecast: CashCalendarForecastRow[];
+  fxExposure: FxExposureRow[];
+  unappliedVouchers: UnappliedVoucherRow[];
+}
+
+function addDaysYmd(ymd: string, days: number): string {
+  return new Date(new Date(ymd + 'T00:00:00Z').getTime() + days * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+export async function getCashCalendar(
+  prisma: PrismaClient,
+  params: { asOf?: string; days?: number } = {},
+): Promise<CashCalendarReport> {
+  const asOf = params.asOf ?? new Date().toISOString().slice(0, 10);
+  const days = Math.min(Math.max(params.days ?? 30, 1), 90);
+  const windowEnd = addDaysYmd(asOf, days);
+
+  // 未结清发票（与 getAgingReport 同一过滤与净额公式）
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      type: { in: ['Receivable', 'Payable'] },
+      status: { in: ['Issued', 'PartiallyPaid'] },
+      deletedAt: null,
+    },
+    select: {
+      id: true, invoiceNumber: true, type: true, amount: true, currency: true,
+      issueDate: true, dueDate: true, customerName: true, baseCurrency: true,
+    },
+  });
+  const ids = invoices.map(i => i.id);
+  const allocSums = ids.length > 0
+    ? await prisma.invoiceAllocation.groupBy({
+        by: ['invoiceId'],
+        where: { invoiceId: { in: ids } },
+        _sum: { appliedAmount: true },
+      })
+    : [];
+  const allocMap = new Map(allocSums.map(a => [a.invoiceId, a._sum.appliedAmount != null ? Number(a._sum.appliedAmount) : 0]));
+
+  const todayActions: CashCalendarAction[] = [];
+  const upcoming: CashCalendarAction[] = [];
+  const forecastMap = new Map<string, CashCalendarForecastRow>();
+  const fxMap = new Map<string, FxExposureRow>();
+
+  for (const inv of invoices) {
+    const open = round4(Number(inv.amount) - (allocMap.get(inv.id) ?? 0));
+    if (open <= 0) continue;
+    const dueDate = inv.dueDate ?? inv.issueDate;
+    const daysOverdue = Math.floor((new Date(asOf + 'T00:00:00Z').getTime() - new Date(dueDate + 'T00:00:00Z').getTime()) / MS_PER_DAY);
+    const action: CashCalendarAction = {
+      invoiceId: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      type: inv.type as 'Receivable' | 'Payable',
+      counterparty: inv.customerName ?? null,
+      currency: inv.currency,
+      openAmount: open,
+      dueDate,
+      daysOverdue: Math.max(0, daysOverdue),
+    };
+
+    if (dueDate <= asOf) todayActions.push(action);
+    else if (dueDate <= windowEnd) upcoming.push(action);
+
+    // 预测（按币种）
+    let f = forecastMap.get(inv.currency);
+    if (!f) {
+      f = { currency: inv.currency, overdueInflow: 0, overdueOutflow: 0, windowInflow: 0, windowOutflow: 0, netWindow: 0, itemCount: 0 };
+      forecastMap.set(inv.currency, f);
+    }
+    f.itemCount += 1;
+    if (dueDate <= asOf) {
+      if (inv.type === 'Receivable') f.overdueInflow = round4(f.overdueInflow + open);
+      else f.overdueOutflow = round4(f.overdueOutflow + open);
+    } else if (dueDate <= windowEnd) {
+      if (inv.type === 'Receivable') f.windowInflow = round4(f.windowInflow + open);
+      else f.windowOutflow = round4(f.windowOutflow + open);
+    }
+
+    // 外汇敞口：非本位币（本位币 CNY；与 fx-gain-loss 的 baseCurrency 判定一致）
+    if (inv.currency !== 'CNY') {
+      let fx = fxMap.get(inv.currency);
+      if (!fx) { fx = { currency: inv.currency, netReceivable: 0, netPayable: 0 }; fxMap.set(inv.currency, fx); }
+      if (inv.type === 'Receivable') fx.netReceivable = round4(fx.netReceivable + open);
+      else fx.netPayable = round4(fx.netPayable + open);
+    }
+  }
+
+  for (const f of forecastMap.values()) f.netWindow = round4(f.windowInflow - f.windowOutflow);
+  todayActions.sort((a, b) => b.daysOverdue - a.daysOverdue || b.openAmount - a.openAmount);
+  upcoming.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || b.openAmount - a.openAmount);
+
+  // 预收款/保证金泳道：未核销凭证余额（DR-045 真源 = InvoiceAllocation 汇总）
+  const vouchers = await prisma.paymentVoucher.findMany({
+    where: { deletedAt: null },
+    select: { id: true, amount: true, currency: true, voucherCategory: true },
+  });
+  const voucherIds = vouchers.map(v => v.id);
+  const voucherAllocSums = voucherIds.length > 0
+    ? await prisma.invoiceAllocation.groupBy({
+        by: ['voucherId'],
+        where: { voucherId: { in: voucherIds } },
+        _sum: { appliedAmount: true },
+      })
+    : [];
+  const voucherAllocMap = new Map(voucherAllocSums.map(a => [a.voucherId, a._sum.appliedAmount != null ? Number(a._sum.appliedAmount) : 0]));
+  const unappliedMap = new Map<string, UnappliedVoucherRow>();
+  for (const v of vouchers) {
+    const unapplied = round4(Number(v.amount) - (voucherAllocMap.get(v.id) ?? 0));
+    if (unapplied <= 0) continue;
+    const key = `${v.voucherCategory}::${v.currency}`;
+    let row = unappliedMap.get(key);
+    if (!row) {
+      row = { voucherCategory: v.voucherCategory, currency: v.currency, unapplied: 0, count: 0 };
+      unappliedMap.set(key, row);
+    }
+    row.unapplied = round4(row.unapplied + unapplied);
+    row.count += 1;
+  }
+
+  return {
+    asOf,
+    days,
+    windowEnd,
+    todayActions,
+    upcoming,
+    forecast: [...forecastMap.values()].sort((a, b) => b.netWindow - a.netWindow),
+    fxExposure: [...fxMap.values()].sort((a, b) => (b.netReceivable + b.netPayable) - (a.netReceivable + a.netPayable)),
+    unappliedVouchers: [...unappliedMap.values()].sort((a, b) => b.unapplied - a.unapplied),
+  };
+}
+
+// ────────────────────────────────────────────────────────────────
 // 4. 公司合并利润视图（DR-005 抵销内部面料采购/销售）
 // ────────────────────────────────────────────────────────────────
 //

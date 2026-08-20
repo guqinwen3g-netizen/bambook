@@ -2462,6 +2462,52 @@ export interface FxGainLossReport {
   totalGainLoss: number;
 }
 
+// ── REQ2-02: 资金日历与 30 天现金流预测（DR-044 净额口径，与账龄/对账单同源）──
+export interface CashCalendarAction {
+  invoiceId: string;
+  invoiceNumber: string;
+  type: 'Receivable' | 'Payable';
+  counterparty: string | null;
+  currency: string;
+  openAmount: number; // 未结清净额 = amount − Σ InvoiceAllocation
+  dueDate: string;
+  daysOverdue: number; // 0=今日到期；>0=逾期天数
+}
+
+export interface CashCalendarForecastRow {
+  currency: string;
+  overdueInflow: number;
+  overdueOutflow: number;
+  windowInflow: number;
+  windowOutflow: number;
+  netWindow: number;
+  itemCount: number;
+}
+
+export interface FxExposureRow {
+  currency: string;
+  netReceivable: number; // 非本位币全部未结清应收
+  netPayable: number;
+}
+
+export interface UnappliedVoucherRow {
+  voucherCategory: string; // normal | advance(预收款) | deposit(保证金) | ...
+  currency: string;
+  unapplied: number; // 凭证未核销余额（DR-045 真源）
+  count: number;
+}
+
+export interface CashCalendarReport {
+  asOf: string;
+  days: number;
+  windowEnd: string;
+  todayActions: CashCalendarAction[];
+  upcoming: CashCalendarAction[];
+  forecast: CashCalendarForecastRow[];
+  fxExposure: FxExposureRow[];
+  unappliedVouchers: UnappliedVoucherRow[];
+}
+
 // ── Phase F2: 外汇核销闭环（结汇水单 + 台账，消费 /v1/finance/fx-settlements contract）──
 // 注意：Decimal 字段经后端 serializeFinanceValue 序列化为 string（保精度），createdAt/updatedAt 为 number
 export interface FxSettlement {
