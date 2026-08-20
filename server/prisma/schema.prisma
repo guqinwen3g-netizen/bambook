@@ -5972,6 +5972,50 @@ model Dr013ExceptionRequest {
 }
 
 // ============================================================================
+// REQ2-16：样品间管理（IND-05 实体流程数字化，DR-057）
+// ============================================================================
+/// 设计真源：Development-开发/样品间管理.md §4
+/// 业务语义：实物样卡登记（二维码编号=载荷）→ 借出/归还状态机 → 看样记录挂客户。
+/// 实体样卡与逻辑色卡（ColorCard，REQ2-09）分轨：colorCardCode 可选关联不带库存。
+model SampleCardItem {
+  id            String   @id // 格式：SCI__${shortId}
+  code          String   @unique // 样卡编号：SC-YYYYMMDD-NNN（二维码载荷）
+  name          String // 样卡名称（面料名/色卡名/成衣款名）
+  cardType      String   @default("fabric") // fabric | garment | colorcard | trim | other
+  colorCardCode String? // 关联逻辑色卡 ColorCard.code（可选）
+  location      String? // 样品间架位（自由文本）
+  status        String   @default("in_stock") // in_stock | borrowed | retired
+  notes         String?
+  createdAt     BigInt
+  updatedAt     BigInt
+  deletedAt     BigInt?
+
+  @@index([status])
+  @@index([cardType])
+}
+
+/// 借还/看样流水（append-only：归还只补 returnedAt/conditionNote，不删不改历史）。
+/// borrow=内部借出（borrowerUserId）；viewing=客户看样（relationId 快照，即看即还不占借出状态）。
+model SampleCardLoan {
+  id             String  @id // 格式：SCL__${shortId}
+  itemId         String
+  loanType       String // borrow | viewing
+  borrowerName   String // 借用人/看样联系人
+  borrowerUserId String? // borrow 时关联用户
+  relationId     String? // viewing 时关联客户 Relation
+  relationName   String? // 冗余快照
+  loanedAt       BigInt
+  dueAt          BigInt? // 预计归还（borrow 必填，viewing 可空）
+  returnedAt     BigInt?
+  conditionNote  String? // 归还状态备注（损坏/缺失留痕）
+  operatorId     String? // 登记人
+  createdAt      BigInt
+
+  @@index([itemId])
+  @@index([loanType, returnedAt])
+}
+
+// ============================================================================
 // REQ2-13：业务员离职一键交接（X-07 资产安全类，DR-056）
 // ============================================================================
 /// 交接单（append-only 留痕）：一次离职交接的完整快照——谁在何时把哪些

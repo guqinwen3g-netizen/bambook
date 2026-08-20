@@ -229,6 +229,7 @@ export const PERMISSION_SCOPES = {
   'sample:early_production:write': '早期生产样登记/写入（DR-015）',
   'sample:shipment:write': '船样登记/写入（S/S）',
   'sample:color_batch:write': '打色批次登记/客户判定写入（REQ2-01 色差管理）',
+  'sample:room:write': '样品间样卡登记/借出/归还/看样登记（REQ2-16）',
   'exception:dr013:create': 'DR-013 受控例外申请创建',
   'finance:payment_request:create': '付款申请创建',
   'finance:payment_request:approve': '付款申请审批',
@@ -434,6 +435,7 @@ const SALES_BASE: RolePermissionMatrix = {
   'sample:early_production:write': true,
   'sample:shipment:write': true,
   'sample:color_batch:write': true,
+  'sample:room:write': true,
   'exception:dr013:create': true,
   'finance:payment_request:create': true,
 };
@@ -622,6 +624,7 @@ const ADMIN_BASE: RolePermissionMatrix = {
   'sample:early_production:write': true,
   'sample:shipment:write': true,
   'sample:color_batch:write': true,
+  'sample:room:write': true,
   'exception:dr013:create': true,
   'finance:payment_request:create': true,
   'finance:payment_request:approve': true,

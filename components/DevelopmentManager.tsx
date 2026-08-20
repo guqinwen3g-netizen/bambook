@@ -23,6 +23,7 @@ import { View } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { SampleNodesPanel } from './development/SampleNodesPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
+import SampleRoomPanel from './development/SampleRoomPanel';
 import { primeQuotationCreateFromDevCase } from './QuotationManager';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
@@ -582,6 +583,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
             </CompiledSurfacePanel>
           </div>
         </div>
+
+        {/* REQ2-16 样品间（DR-057）：开发样→实物样卡库存延伸；App.tsx 冻结期挂本页底部可折叠区块 */}
+        <SampleRoomPanel isDarkMode={isDarkMode} />
       </main>
 
       {isFormModalOpen && (

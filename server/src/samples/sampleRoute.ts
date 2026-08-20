@@ -41,6 +41,7 @@ import { createEarlyProductionSampleService } from './earlyProductionSampleServi
 import { createGarmentSampleGateService } from './garmentSampleGateService';
 import { createColorBatchService } from './colorBatchService';
 import { createColorCardService } from './colorCardService';
+import { createSampleRoomService } from './sampleRoomService';
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
 import { createExceptionService } from '../exceptions/exceptionService';
@@ -449,6 +450,114 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
     } catch (e: any) {
       logger.error('[SampleRoute] COLOR_SEED_FAILED', { error: e?.message });
       res.status(500).json({ error: { code: 'COLOR_SEED_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════
+  // REQ2-16 样品间管理（DR-057）：实物样卡登记（二维码编号）→ 借出/归还 → 看样记录
+  // 守卫沿样品域惯例：读登录即可（样卡目录非敏感）；写 JWT + sample:room:write。
+  // ══════════════════════════════════════════════════════════════════
+  const sampleRoomService = createSampleRoomService(prisma);
+  const requireRoomWrite = [requireWrite, requirePermission('sample:room:write')];
+
+  // POST /room/items — 样卡登记（编号自动生成 SC-YYYYMMDD-NNN，二维码载荷）
+  router.post('/room/items', ...requireRoomWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await sampleRoomService.createItem(req.body ?? {}, actorIdFromRequest(req));
+      if (r.ok) notify('create_sample_card', [r.data.item.id]);
+      sendResult(res, r, 201, 'item');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_ITEM_CREATE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_ITEM_CREATE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // GET /room/items — 列表（状态/类型/搜索/编号直达；附活跃借出与逾期派生标记）
+  router.get('/room/items', async (req: Request, res: Response) => {
+    try {
+      const r = await sampleRoomService.listItems({
+        status: typeof req.query.status === 'string' ? req.query.status : undefined,
+        cardType: typeof req.query.cardType === 'string' ? req.query.cardType : undefined,
+        search: typeof req.query.search === 'string' ? req.query.search : undefined,
+        code: typeof req.query.code === 'string' ? req.query.code : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        offset: req.query.offset ? Number(req.query.offset) : undefined,
+      });
+      sendResult(res, r, 200, 'list');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_ITEM_LIST_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_ITEM_LIST_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // GET /room/items/:id — 详情（含借还历史正序）
+  router.get('/room/items/:id', async (req: Request, res: Response) => {
+    try {
+      const r = await sampleRoomService.getItem(req.params.id);
+      sendResult(res, r, 200, 'detail');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_ITEM_GET_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_ITEM_GET_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // POST /room/items/:id/retire — 退役（终态；在借不可退役）
+  router.post('/room/items/:id/retire', ...requireRoomWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await sampleRoomService.retireItem(req.params.id, req.body?.note, actorIdFromRequest(req));
+      if (r.ok) notify('retire_sample_card', [req.params.id]);
+      sendResult(res, r, 200, 'item');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_ITEM_RETIRE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_ITEM_RETIRE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // POST /room/items/:id/loans — 借出（borrow）/ 看样登记（viewing）
+  router.post('/room/items/:id/loans', ...requireRoomWrite, async (req: Request, res: Response) => {
+    try {
+      const body = req.body ?? {};
+      const r = await sampleRoomService.createLoan(req.params.id, {
+        loanType: body.loanType,
+        borrowerName: body.borrowerName,
+        borrowerUserId: body.borrowerUserId,
+        relationId: body.relationId,
+        dueAt: body.dueAt != null ? Number(body.dueAt) : undefined,
+      }, actorIdFromRequest(req));
+      if (r.ok) notify('loan_sample_card', [req.params.id]);
+      sendResult(res, r, 201, 'loanResult');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_LOAN_CREATE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_LOAN_CREATE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // POST /room/loans/:id/return — 归还（append-only：只补 returnedAt/conditionNote）
+  router.post('/room/loans/:id/return', ...requireRoomWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await sampleRoomService.returnLoan(req.params.id, req.body?.conditionNote, actorIdFromRequest(req));
+      if (r.ok) notify('return_sample_card', [r.data.item.id]);
+      sendResult(res, r, 200, 'loanResult');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_LOAN_RETURN_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_LOAN_RETURN_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // GET /room/loans — 借还流水（在借/逾期/历史/看样）
+  router.get('/room/loans', async (req: Request, res: Response) => {
+    try {
+      const r = await sampleRoomService.listLoans({
+        active: req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined,
+        overdue: req.query.overdue === 'true' ? true : undefined,
+        loanType: typeof req.query.loanType === 'string' ? req.query.loanType : undefined,
+        itemId: typeof req.query.itemId === 'string' ? req.query.itemId : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      });
+      sendResult(res, r, 200, 'list');
+    } catch (e: any) {
+      logger.error('[SampleRoute] ROOM_LOAN_LIST_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'ROOM_LOAN_LIST_FAILED', message: e?.message ?? 'operation failed' } });
     }
   });
 
