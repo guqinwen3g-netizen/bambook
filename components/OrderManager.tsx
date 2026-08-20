@@ -13,6 +13,7 @@ import {
   Search, ArrowLeft
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
+import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
@@ -1685,6 +1686,19 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         relations={relations}
                       />
                     </div>
+
+                    {/* REQ2-01 大货缸差记录（面料订单：染厂分缸生产的缸号级色差证据链，投诉取证 3min SLA） */}
+                    {selectedOrder.type === 'Fabric' && (
+                      <div id="order-detail-color-batches" className="mb-6">
+                        <SampleColorBatchPanel
+                          key={`bulk-${selectedOrder.id}`}
+                          stage="bulk"
+                          orderId={selectedOrder.id}
+                          orderLabel={selectedOrder.poNumber}
+                          isDarkMode={isDarkMode}
+                        />
+                      </div>
+                    )}
 
                     {/* 生产管线 (10阶段门禁引擎) */}
                     <div id="order-detail-pipeline">

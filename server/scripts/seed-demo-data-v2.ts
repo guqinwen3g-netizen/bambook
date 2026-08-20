@@ -77,6 +77,8 @@ type InvoiceSeed = Prisma.InvoiceUncheckedCreateInput;
 type PaymentVoucherSeed = Prisma.PaymentVoucherUncheckedCreateInput;
 type InvoiceAllocationSeed = Prisma.InvoiceAllocationUncheckedCreateInput;
 type FactoryProfileSeed = Prisma.FactoryProfileUncheckedCreateInput;
+type SampleColorBatchSeed = Prisma.SampleColorBatchUncheckedCreateInput;
+type FactoryEvaluationSeed = Prisma.FactoryEvaluationUncheckedCreateInput;
 type ShipmentSeed = Prisma.ShipmentUncheckedCreateInput;
 type ShipmentLineSeed = Prisma.ShipmentLineUncheckedCreateInput;
 type InsightSeed = Prisma.InsightUncheckedCreateInput;
@@ -1564,6 +1566,92 @@ const factoryProfiles: FactoryProfileSeed[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
+// 11d. SAMPLE COLOR BATCHES — 打色批次（REQ2-01 剧本 A 完整演示）
+// ═══════════════════════════════════════════════════════════════════
+// lab_dip（DEV-26004 Norden PV 混纺，developing，苏州蓝河）：3 缸——
+//   1 号偏红重打 / 2 号 OK 封样基准 / 3 号偏红+色浅重打（剧本 A 原景）
+// bulk（PO-2601007 Peerless 羊毛大货，DAESE）：2 缸——大货缸差取证场景
+// 已判定批次同步造 FactoryEvaluation(sourceType='color_batch')，供质量分趋势演示
+//（运行时真实判定走 service 事务联动；seed 直写为演示数据口径，id 对齐 ALLOC 范式幂等）
+const sampleColorBatches: SampleColorBatchSeed[] = [
+  { // 剧本 A · 缸 1：偏红，客户要求重打
+    id: 'SCB__DEMO-26004-A101', batchCode: 'SCB-20260115-001',
+    stage: 'lab_dip', developmentCaseId: 'DEMO-DEV-26004', roundNo: 2,
+    dyeLotNo: '缸A-101', batchNo: 'B1', rollNos: ['R01'],
+    colorRating: 3, sideDiff: 4, endDiff: 3,
+    defectCauses: ['red_cast'],
+    customerStatus: 'needs_recast', approvedAsSealed: false,
+    customerFeedbackNote: '色光偏红，与标样差异明显，要求重打。', customerFeedbackDate: '2026-01-18',
+    supplierRelationId: 'DEMO-MILL-SUZHOU', supplierName: '【演示】苏州蓝河染织',
+    notes: 'DEMO: 剧本 A 缸 1——偏红重打案例。',
+    createdAt: BigInt(now - 20 * 86400000), updatedAt: BigInt(now - 17 * 86400000), deletedAt: null,
+  },
+  { // 剧本 A · 缸 2：与标样一致，客户通过 → 封样基准
+    id: 'SCB__DEMO-26004-A102', batchCode: 'SCB-20260115-002',
+    stage: 'lab_dip', developmentCaseId: 'DEMO-DEV-26004', roundNo: 2,
+    dyeLotNo: '缸A-102', batchNo: 'B1', rollNos: ['R02'],
+    colorRating: 5, sideDiff: 5, endDiff: 5,
+    defectCauses: [],
+    customerStatus: 'approved', approvedAsSealed: true,
+    customerFeedbackNote: '与标样一致，批准为该颜色生产基准。', customerFeedbackDate: '2026-01-18',
+    supplierRelationId: 'DEMO-MILL-SUZHOU', supplierName: '【演示】苏州蓝河染织',
+    notes: 'DEMO: 剧本 A 缸 2——封样基准。',
+    createdAt: BigInt(now - 20 * 86400000), updatedAt: BigInt(now - 17 * 86400000), deletedAt: null,
+  },
+  { // 剧本 A · 缸 3：偏红+色浅，重打
+    id: 'SCB__DEMO-26004-A103', batchCode: 'SCB-20260115-003',
+    stage: 'lab_dip', developmentCaseId: 'DEMO-DEV-26004', roundNo: 2,
+    dyeLotNo: '缸A-103', batchNo: 'B1', rollNos: ['R03'],
+    colorRating: 2, sideDiff: 3, endDiff: 2,
+    defectCauses: ['red_cast', 'lighter'],
+    customerStatus: 'needs_recast', approvedAsSealed: false,
+    customerFeedbackNote: '整体偏红且色浅一档，重打。', customerFeedbackDate: '2026-01-18',
+    supplierRelationId: 'DEMO-MILL-SUZHOU', supplierName: '【演示】苏州蓝河染织',
+    notes: 'DEMO: 剧本 A 缸 3——双疵点重打案例。',
+    createdAt: BigInt(now - 20 * 86400000), updatedAt: BigInt(now - 17 * 86400000), deletedAt: null,
+  },
+  { // 大货缸差 · 缸 D-201：轻微差异待判定
+    id: 'SCB__DEMO-2601007-D201', batchCode: 'SCB-20260301-001',
+    stage: 'bulk', orderId: 'DEMO-PO-2601007',
+    dyeLotNo: '缸D-201', batchNo: 'B1', rollNos: ['R11', 'R12', 'R13'],
+    colorRating: 4, sideDiff: 4, endDiff: 4,
+    defectCauses: [],
+    customerStatus: 'pending', approvedAsSealed: false,
+    supplierRelationId: 'DEMO-MILL-DAESE', supplierName: '【演示】DAESE Textile Co., Ltd.',
+    notes: 'DEMO: 大货首缸，轻微差异范围内。',
+    createdAt: BigInt(now - 5 * 86400000), updatedAt: BigInt(now - 5 * 86400000), deletedAt: null,
+  },
+  { // 大货缸差 · 缸 D-202：偏蓝，客户要求重染
+    id: 'SCB__DEMO-2601007-D202', batchCode: 'SCB-20260301-002',
+    stage: 'bulk', orderId: 'DEMO-PO-2601007',
+    dyeLotNo: '缸D-202', batchNo: 'B1', rollNos: ['R21', 'R22'],
+    colorRating: 3, sideDiff: 4, endDiff: 3,
+    defectCauses: ['blue_cast'],
+    customerStatus: 'needs_recast', approvedAsSealed: false,
+    customerFeedbackNote: '客户投诉缸差：D-202 偏蓝，要求重新对色。', customerFeedbackDate: '2026-03-05',
+    supplierRelationId: 'DEMO-MILL-DAESE', supplierName: '【演示】DAESE Textile Co., Ltd.',
+    notes: 'DEMO: 大货缸差取证场景——一键导出证据链。',
+    createdAt: BigInt(now - 4 * 86400000), updatedAt: BigInt(now - 3 * 86400000), deletedAt: null,
+  },
+];
+
+// 已判定批次的供应商质量分明细（评级→分数映射同 service：3→70 / 2→50）
+const colorBatchEvaluations: FactoryEvaluationSeed[] = [
+  { id: 'FAEV__COLOR-DEMO-26004-A101', factoryId: 'FACP__DEMO-MILL-SUZHOU', kind: 'inspection', score: 70,
+    sourceType: 'color_batch', sourceId: 'SCB__DEMO-26004-A101', evaluatedAt: '2026-01-18',
+    note: '色差评级3级(明显差异) 疵点:偏红 判定:要求重打 缸号:缸A-101',
+    createdAt: BigInt(now - 17 * 86400000), deletedAt: null },
+  { id: 'FAEV__COLOR-DEMO-26004-A103', factoryId: 'FACP__DEMO-MILL-SUZHOU', kind: 'inspection', score: 50,
+    sourceType: 'color_batch', sourceId: 'SCB__DEMO-26004-A103', evaluatedAt: '2026-01-18',
+    note: '色差评级2级(严重偏离) 疵点:偏红/色浅 判定:要求重打 缸号:缸A-103',
+    createdAt: BigInt(now - 17 * 86400000), deletedAt: null },
+  { id: 'FAEV__COLOR-DEMO-2601007-D202', factoryId: 'FACP__DEMO-MILL-DAESE', kind: 'inspection', score: 70,
+    sourceType: 'color_batch', sourceId: 'SCB__DEMO-2601007-D202', evaluatedAt: '2026-03-05',
+    note: '色差评级3级(明显差异) 疵点:偏蓝 判定:要求重打 缸号:缸D-202',
+    createdAt: BigInt(now - 3 * 86400000), deletedAt: null },
+];
+
+// ═══════════════════════════════════════════════════════════════════
 // 12. SHIPMENTS + SHIPMENT LINES
 // ═══════════════════════════════════════════════════════════════════
 const shipments: ShipmentSeed[] = [
@@ -2023,6 +2111,9 @@ async function rollbackDemo(prisma: PrismaClient): Promise<void> {
     await tx.insight.deleteMany({ where: { id: { startsWith: 'DEMO-INS-' } } });
     // Factory profiles（P1-002；id 前缀 FACP__DEMO-，级联清理 evaluations/certs/capacity）
     await tx.factoryProfile.deleteMany({ where: { id: { startsWith: 'FACP__DEMO-' } } });
+    // Sample color batches（REQ2-01；id 前缀 SCB__DEMO- + 色差评分明细 FAEV__COLOR-DEMO-）
+    await tx.sampleColorBatch.deleteMany({ where: { id: { startsWith: 'SCB__DEMO-' } } });
+    await tx.factoryEvaluation.deleteMany({ where: { id: { startsWith: 'FAEV__COLOR-DEMO-' } } });
 
     // Order lines & orders
     const demoOrders = await tx.order.findMany({
@@ -2167,6 +2258,23 @@ async function applyDemo(prisma: PrismaClient): Promise<void> {
     // 11c. Factory profiles — P1-002 供应商档案补建（幂等）
     for (const fp of factoryProfiles) {
       await tx.factoryProfile.upsert({ where: { id: fp.id }, update: fp, create: fp });
+    }
+
+    // 11d. Sample color batches + 色差质量分明细（REQ2-01 剧本 A；幂等）
+    for (const scb of sampleColorBatches) {
+      await tx.sampleColorBatch.upsert({ where: { id: scb.id }, update: scb, create: scb });
+    }
+    for (const fev of colorBatchEvaluations) {
+      await tx.factoryEvaluation.upsert({ where: { id: fev.id }, update: fev, create: fev });
+    }
+    // 重算受影响工厂的质量缓存分（均值口径，与 factoryService.addEvaluation 同公式）
+    for (const factoryId of [...new Set(colorBatchEvaluations.map(e => e.factoryId))]) {
+      const rows = await tx.factoryEvaluation.findMany({
+        where: { factoryId, kind: 'inspection', deletedAt: null },
+        select: { score: true },
+      });
+      const avg = rows.length ? rows.reduce((s: number, r: any) => s + r.score, 0) / rows.length : 0;
+      await tx.factoryProfile.update({ where: { id: factoryId }, data: { qualityScore: avg } });
     }
 
     // 12. Shipments + ShipmentLines

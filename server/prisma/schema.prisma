@@ -5323,6 +5323,60 @@ model FabricShipmentSample {
 }
 
 // ============================================================================
+// REQ2-01 — SampleColorBatch 打色批次（色差管理体系）
+// ============================================================================
+/// 设计真源：Development-开发/色差管理体系.md §4（IND-01 L0 → L3）
+/// 业务语义：缸号级色差证据链。两态挂载：lab_dip 挂开发案（打色阶段），
+/// bulk 挂订单（大货缸差）。批色通过即封样基准；客户判定时疵点原因结构化
+/// 自动追加供应商 FactoryEvaluation(inspection) 质量分（append-only 真源）。
+model SampleColorBatch {
+  id        String  @id // 格式：SCB__${shortId}
+  batchCode String  @unique // 业务号：SCB-YYYYMMDD-001
+
+  // ─── 两态挂载（lab_dip 必填 developmentCaseId；bulk 必填 orderId） ───
+  stage             String // lab_dip(开发打色) | bulk(大货缸差)
+  developmentCaseId String? // 打色阶段挂开发案
+  roundNo           Int? // 开发案轮次快照（登记时 currentRound）
+  orderId           String? // 大货阶段挂订单
+
+  // ─── 缸号 / 批次 / 卷号（追溯三键） ───
+  dyeLotNo String   // 缸号（染厂染色缸次）
+  batchNo  String?  // 批次号
+  rollNos  String[] @default([]) // 取样卷号
+
+  // ─── 色差评级（4-5 级制） ───
+  colorRating Int // 主评级 1-5（5=与标样一致…1=完全不符）
+  sideDiff    Int? // 左右色差 1-5（null=未评）
+  endDiff     Int? // 前后色差 1-5
+
+  // ─── 疵点原因（结构化枚举，多选；供应商质量分趋势聚合维度） ───
+  defectCauses String[] @default([]) // red_cast | blue_cast | lighter | darker
+
+  // ─── 客户判定 / 封样衔接 ───
+  customerStatus       String  @default("pending") // pending | approved | rejected | needs_recast
+  approvedAsSealed     Boolean @default(false) // 批色通过即封样基准（同 scope 同色唯一）
+  customerFeedbackNote String?
+  customerFeedbackDate String? // YYYY-MM-DD
+
+  // ─── 供应商（染厂，质量分联动目标） ───
+  supplierRelationId String?
+  supplierName       String?
+
+  photos Json? // 照片附件 [{name,url,uploadedAt}]
+  notes  String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([developmentCaseId])
+  @@index([orderId])
+  @@index([supplierRelationId])
+  @@index([dyeLotNo])
+  @@index([stage])
+}
+
+// ============================================================================
 // Migration 5 — P1-1：PaymentRequest 付款申请单（DR-017 先申请后付款）
 // ============================================================================
 /// 设计真源：财务域模型组.md §2.1

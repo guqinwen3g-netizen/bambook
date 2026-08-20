@@ -39,6 +39,7 @@ import { serializeValue } from '../lib/serializeValue';
 import { createFabricShipmentSampleService } from './fabricShipmentSampleService';
 import { createEarlyProductionSampleService } from './earlyProductionSampleService';
 import { createGarmentSampleGateService } from './garmentSampleGateService';
+import { createColorBatchService } from './colorBatchService';
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
 import { createExceptionService } from '../exceptions/exceptionService';
@@ -351,6 +352,83 @@ export function createSampleRouter(options: SampleRouterOptions): Router {
     } catch (e: any) {
       logger.error('[SampleRoute] SAMPLE_CONFIRM_FAILED', { error: e?.message });
       res.status(500).json({ error: { code: 'SAMPLE_CONFIRM_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // REQ2-01 打色批次（色差管理体系）：缸号级色差证据链
+  // 读走 JWT/API-Key；写必须 JWT（sample:color_batch:write scope）
+  // ══════════════════════════════════════════════════════════════
+  const colorBatchService = createColorBatchService(prisma);
+  const requireColorBatchWrite = [requireWrite, requirePermission('sample:color_batch:write')];
+
+  // 字面路由（/color-batches/evidence）须在参数路由（/color-batches/:id）之前
+  router.get('/color-batches/evidence', async (req: Request, res: Response) => {
+    try {
+      const r = await colorBatchService.getColorBatchEvidence({
+        developmentCaseId: typeof req.query.developmentCaseId === 'string' ? req.query.developmentCaseId : undefined,
+        orderId: typeof req.query.orderId === 'string' ? req.query.orderId : undefined,
+      });
+      sendResult(res, r, 200, 'evidence');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_EVIDENCE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_EVIDENCE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.get('/color-batches', async (req: Request, res: Response) => {
+    try {
+      const r = await colorBatchService.listColorBatches({
+        developmentCaseId: typeof req.query.developmentCaseId === 'string' ? req.query.developmentCaseId : undefined,
+        orderId: typeof req.query.orderId === 'string' ? req.query.orderId : undefined,
+      });
+      sendResult(res, r, 200, 'items');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_BATCH_LIST_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_BATCH_LIST_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.post('/color-batches', ...requireColorBatchWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorBatchService.createColorBatch(req.body ?? {}, actorIdFromRequest(req));
+      if (r.ok) notify('create_color_batch', [r.data.id]);
+      sendResult(res, r, 201, 'batch');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_BATCH_CREATE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_BATCH_CREATE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.patch('/color-batches/:id', ...requireColorBatchWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorBatchService.updateColorBatch(req.params.id, req.body ?? {});
+      sendResult(res, r, 200, 'batch');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_BATCH_UPDATE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_BATCH_UPDATE_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  // 客户判定（批色即封样 + 疵点自动入供应商质量分）
+  router.post('/color-batches/:id/customer-feedback', ...requireColorBatchWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorBatchService.recordCustomerFeedback(req.params.id, req.body ?? {}, actorIdFromRequest(req));
+      if (r.ok) notify('color_batch_customer_feedback', [req.params.id]);
+      sendResult(res, r, 200, 'batch');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_FEEDBACK_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_FEEDBACK_FAILED', message: e?.message ?? 'operation failed' } });
+    }
+  });
+
+  router.delete('/color-batches/:id', ...requireColorBatchWrite, async (req: Request, res: Response) => {
+    try {
+      const r = await colorBatchService.deleteColorBatch(req.params.id, actorIdFromRequest(req));
+      sendResult(res, r, 200, 'deleted');
+    } catch (e: any) {
+      logger.error('[SampleRoute] COLOR_BATCH_DELETE_FAILED', { error: e?.message });
+      res.status(500).json({ error: { code: 'COLOR_BATCH_DELETE_FAILED', message: e?.message ?? 'operation failed' } });
     }
   });
 

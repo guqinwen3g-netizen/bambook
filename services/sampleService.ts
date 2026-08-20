@@ -327,6 +327,94 @@ async function getJson<T>(path: string, endpoint?: string, fallback = 'request f
   return res.json();
 }
 
+/** POST/PATCH/DELETE 通用发送（色差批次判定/软删） */
+async function sendJson<T>(path: string, method: 'POST' | 'PATCH' | 'DELETE', body: unknown, endpoint?: string, fallback = 'request failed'): Promise<T> {
+  const res = await fetch(samplesUrl(path, endpoint), {
+    method,
+    headers: apiService.getAuthHeaders(),
+    body: JSON.stringify(body ?? {}),
+  });
+  if (!res.ok) await parseError(res, fallback);
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 4. REQ2-01 打色批次（色差管理体系：缸号级色差证据链）
+// ══════════════════════════════════════════════════════════════
+
+export const COLOR_BATCH_DEFECT_CAUSES = ['red_cast', 'blue_cast', 'lighter', 'darker'] as const;
+export type ColorBatchDefectCause = (typeof COLOR_BATCH_DEFECT_CAUSES)[number];
+
+export const COLOR_BATCH_DEFECT_LABELS: Record<ColorBatchDefectCause, string> = {
+  red_cast: '偏红', blue_cast: '偏蓝', lighter: '色浅', darker: '色深',
+};
+
+export const COLOR_BATCH_CUSTOMER_STATUSES = ['pending', 'approved', 'rejected', 'needs_recast'] as const;
+export type ColorBatchCustomerStatus = (typeof COLOR_BATCH_CUSTOMER_STATUSES)[number];
+
+export const COLOR_BATCH_STATUS_LABELS: Record<ColorBatchCustomerStatus, string> = {
+  pending: '待客户判定', approved: '客户通过', rejected: '客户拒绝', needs_recast: '要求重打',
+};
+
+/** 4-5 级制评级语义（色差灰卡口径） */
+export const COLOR_RATING_LABELS: Record<number, string> = {
+  5: '与标样一致', 4: '轻微差异', 3: '明显差异', 2: '严重偏离', 1: '完全不符',
+};
+
+/** SampleColorBatch 行（镜像后端 schema；两态：lab_dip 挂开发案 / bulk 挂订单） */
+export interface SampleColorBatchRow {
+  id: string;
+  batchCode: string;                    // SCB-YYYYMMDD-001
+  stage: 'lab_dip' | 'bulk';
+  developmentCaseId: string | null;
+  roundNo: number | null;
+  orderId: string | null;
+  dyeLotNo: string;                     // 缸号
+  batchNo: string | null;
+  rollNos: string[];
+  colorRating: number;                  // 主评级 1-5
+  sideDiff: number | null;              // 左右色差 1-5
+  endDiff: number | null;               // 前后色差 1-5
+  defectCauses: ColorBatchDefectCause[];
+  customerStatus: ColorBatchCustomerStatus;
+  approvedAsSealed: boolean;            // 封样基准（同 scope 唯一）
+  customerFeedbackNote: string | null;
+  customerFeedbackDate: string | null;
+  supplierRelationId: string | null;
+  supplierName: string | null;
+  photos: Array<{ name: string; url: string; uploadedAt?: string }> | null;
+  notes: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateColorBatchInput {
+  stage: 'lab_dip' | 'bulk';
+  developmentCaseId?: string;           // lab_dip 必填
+  orderId?: string;                     // bulk 必填
+  dyeLotNo: string;
+  batchNo?: string;
+  rollNos?: string[];
+  colorRating: number;
+  sideDiff?: number;
+  endDiff?: number;
+  defectCauses?: ColorBatchDefectCause[];
+  supplierRelationId?: string;
+  photos?: Array<{ name: string; url: string }>;
+  notes?: string;
+}
+
+/** 取证聚合（3 分钟 SLA：缸号×批次×批色记录×封样基准一次成型） */
+export interface ColorBatchEvidence {
+  scope: { developmentCaseId?: string; caseCode?: string; caseName?: string; orderId?: string; poNumber?: string; customerName: string | null };
+  sealedBasis: SampleColorBatchRow | null;
+  batches: SampleColorBatchRow[];
+  summary: {
+    total: number; approved: number; rejected: number; needsRecast: number; pending: number;
+    defectCauseCount: Partial<Record<ColorBatchDefectCause, number>>;
+  };
+}
+
 // ══════════════════════════════════════════════════════════════
 // service
 // ══════════════════════════════════════════════════════════════
@@ -448,5 +536,42 @@ export const sampleService = {
     const data = await getJson<{ items: GarmentSampleRound[]; sealedRoundId: string | null }>(
       `/garment/${encodeURIComponent(caseId)}/rounds`, endpoint, 'listGarmentRounds failed');
     return { items: data.items || [], sealedRoundId: data.sealedRoundId ?? null };
+  },
+
+  // ── REQ2-01 打色批次（色差管理体系） ──
+
+  /** 打色批次登记（A5 ≤2min：缸号/评级必填；疵点原因选填） */
+  async createColorBatch(input: CreateColorBatchInput, endpoint?: string): Promise<{ batch: SampleColorBatchRow; qualityScoreLinked?: boolean }> {
+    const data = await postJson<{ batch: SampleColorBatchRow }>(
+      '/color-batches', input, endpoint, 'createColorBatch failed');
+    return data.batch as any;
+  },
+
+  /** 批次列表（developmentCaseId 与 orderId 二选一） */
+  async listColorBatches(params: { developmentCaseId?: string; orderId?: string }, endpoint?: string): Promise<SampleColorBatchRow[]> {
+    const qs = params.developmentCaseId
+      ? `developmentCaseId=${encodeURIComponent(params.developmentCaseId)}`
+      : `orderId=${encodeURIComponent(params.orderId!)}`;
+    const data = await getJson<{ items: SampleColorBatchRow[] }>(
+      `/color-batches?${qs}`, endpoint, 'listColorBatches failed');
+    return data.items || [];
+  },
+
+  /** 客户判定（批色即封样 + 疵点自动入供应商质量分） */
+  async recordColorBatchFeedback(batchId: string, input: { status: 'approved' | 'rejected' | 'needs_recast'; note?: string; asSealed?: boolean }, endpoint?: string): Promise<{ batch: SampleColorBatchRow; qualityScoreLinked: boolean }> {
+    return sendJson(`/color-batches/${encodeURIComponent(batchId)}/customer-feedback`, 'POST', input, endpoint, 'recordColorBatchFeedback failed');
+  },
+
+  /** 批次软删 */
+  async deleteColorBatch(batchId: string, endpoint?: string): Promise<void> {
+    await sendJson(`/color-batches/${encodeURIComponent(batchId)}`, 'DELETE', {}, endpoint, 'deleteColorBatch failed');
+  },
+
+  /** 色差取证聚合（缸号×批次×批色记录×封样基准，导出打印数据源） */
+  async getColorBatchEvidence(params: { developmentCaseId?: string; orderId?: string }, endpoint?: string): Promise<ColorBatchEvidence> {
+    const qs = params.developmentCaseId
+      ? `developmentCaseId=${encodeURIComponent(params.developmentCaseId)}`
+      : `orderId=${encodeURIComponent(params.orderId!)}`;
+    return getJson<ColorBatchEvidence>(`/color-batches/evidence?${qs}`, endpoint, 'getColorBatchEvidence failed');
   },
 };

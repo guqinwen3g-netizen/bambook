@@ -22,6 +22,7 @@ import type {
 import { View } from '../types';
 import RelatedEntitiesPanel from './RelatedEntitiesPanel';
 import { SampleNodesPanel } from './development/SampleNodesPanel';
+import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import { primeQuotationCreateFromDevCase } from './QuotationManager';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
@@ -533,6 +534,10 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                     </div>
                     <div className="mt-4">
                       <SampleNodesPanel key={selectedCase.id} caseId={selectedCase.id} caseType={selectedCase.type} isDarkMode={isDarkMode} />
+                    </div>
+                    {/* REQ2-01 打色批次（色差管理体系）：面料/成衣打色阶段缸号级批色记录 */}
+                    <div className="mt-4">
+                      <SampleColorBatchPanel key={`color-${selectedCase.id}`} stage="lab_dip" developmentCaseId={selectedCase.id} isDarkMode={isDarkMode} />
                     </div>
                     {selectedCase.stage === 'approved' && !selectedCase.linkedOrderId && (
                       <button
