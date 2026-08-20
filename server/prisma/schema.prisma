@@ -2705,6 +2705,87 @@ model InspectionReport {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// Third-Party Test Request — 第三方测试管理 (REQ2-04, IND-03 缺口补齐)
+// ════════════════════════════════════════════════════════════════════
+// 设计决策：
+//   - 与质量域既有两轨分工（避免双轨）：qcChainService 样品评审是过程质量控制，
+//     InspectionReport 是出货前实物验货（AQL 抽检）；本模块是第三方实验室送样检测
+//     （理化/合规指标），测试结果数据仅在此建模（档案 complianceTests 是客户要求非结果）。
+//   - fail 结论强制挂整改（100% 跟踪闭环验收锚点）：PATCH result=fail 时服务端校验
+//     failItems 非空且 ≥1 条 open 整改，否则 400。
+//   - 报告 PDF 附件走 ProductImage 范式：multer diskStorage 相对路径 + 软删，
+//     访问经 /api/uploads 静态服务同源。
+//   - 业务日期 String YYYY-MM-DD、时间戳 BigInt epoch ms、id 格式 TR__${shortId}——
+//     与其他模块一致。
+// 设计真源：docs/design/04-模块设计/03-订单与生产/QcWorkbench-QC质检中心/第三方测试管理.md
+// ════════════════════════════════════════════════════════════════════
+
+/// 测试委托：订单级第三方实验室检测委托单
+model TestRequest {
+  id   String @id // 格式：TR__${shortId}
+  trNo String @unique // 业务号：TR-YYYYMMDD-001
+
+  orderId String // 挂订单（全类型：面料/成衣/其他）
+
+  // ─── 委托内容 ───
+  testItems    String[] // 测试项目枚举多选：color_fastness/shrinkage/tensile/ph/formaldehyde/azo/gsm/width/other
+  agency       String // 委托机构：sgs | its | bv | other
+  sentDate     String? // 送样日 YYYY-MM-DD
+  expectedDate String? // 预计报告日
+  notes        String? // 委托备注（样品描述/客户特殊要求）
+
+  // ─── 结论（pending→pass/fail 单向终态；重测走新委托单） ───
+  result      String   @default("pending") // pending | pass | fail
+  reportNo    String? // 实验室报告编号
+  reportDate  String? // 报告签发日
+  failItems   String[] @default([]) // 失败项子集（fail 时必填，整改挂此维度）
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt? // 软删（仅 pending 态允许；终态单归档保留）
+
+  files              TestReportFile[]
+  correctiveActions  TestCorrectiveAction[]
+
+  @@index([orderId])
+}
+
+/// 报告 PDF 附件（ProductImage 范式：相对路径 + 软删）
+model TestReportFile {
+  id            String @id
+  testRequestId String
+  filePath      String // 相对路径：test-reports/{requestId}/{timestamp}-{rand}.pdf
+  fileName      String // 原始文件名
+  mimeType      String // application/pdf
+  fileSize      Int
+  uploadedAt    BigInt
+  deletedAt     BigInt?
+
+  testRequest TestRequest @relation(fields: [testRequestId], references: [id], onDelete: Cascade)
+
+  @@index([testRequestId])
+}
+
+/// 失败项整改记录（独立模型：open 清单可查询、闭环状态可审计）
+model TestCorrectiveAction {
+  id            String @id
+  testRequestId String
+  failItem      String // 对应 TestRequest.failItems 之一
+  action        String // 整改措施（返工/复测/让步接收/客户沟通…）
+  owner         String? // 责任人
+  dueDate       String? // 整改期限 YYYY-MM-DD
+  status        String @default("open") // open | closed
+  closedAt      BigInt?
+  closeNote     String? // 闭环说明
+  createdAt     BigInt
+  updatedAt     BigInt
+
+  testRequest TestRequest @relation(fields: [testRequestId], references: [id], onDelete: Cascade)
+
+  @@index([testRequestId])
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Email Module — 邮件接收与附件存储 (Phase 4a)
 // ════════════════════════════════════════════════════════════════════
 // 设计决策：

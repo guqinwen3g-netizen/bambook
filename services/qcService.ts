@@ -170,9 +170,9 @@ function qcUrl(path: string, endpoint?: string): string {
   return apiService.buildApiUrl(`/v1/qc${path}`, base);
 }
 
-async function postJson<T>(path: string, body: unknown, endpoint?: string, fallback = 'request failed'): Promise<T> {
+async function postJson<T>(path: string, body: unknown, endpoint?: string, fallback = 'request failed', method: 'POST' | 'PATCH' | 'DELETE' = 'POST'): Promise<T> {
   const res = await fetch(qcUrl(path, endpoint), {
-    method: 'POST',
+    method,
     headers: apiService.getAuthHeaders(),
     body: JSON.stringify(body ?? {}),
   });
@@ -186,6 +186,71 @@ async function getJson<T>(path: string, endpoint?: string, fallback = 'request f
   });
   if (!res.ok) await parseError(res, fallback);
   return res.json();
+}
+
+// ══════════════════════════════════════════════════════════════
+// REQ2-04 第三方测试管理（TestRequest — 订单级实验室检测委托）
+// ══════════════════════════════════════════════════════════════
+
+/** 测试项目枚举（镜像后端 testRequestService.TEST_ITEMS） */
+export const TEST_ITEMS = [
+  'color_fastness', 'shrinkage', 'tensile', 'ph', 'formaldehyde', 'azo', 'gsm', 'width', 'other',
+] as const;
+export const TEST_ITEM_LABELS: Record<string, string> = {
+  color_fastness: '色牢度', shrinkage: '缩水率', tensile: '强力', ph: 'pH 值',
+  formaldehyde: '甲醛', azo: '偶氮', gsm: '克重', width: '幅宽', other: '其他',
+};
+
+export const TEST_AGENCIES = ['sgs', 'its', 'bv', 'other'] as const;
+export const TEST_AGENCY_LABELS: Record<string, string> = { sgs: 'SGS', its: 'ITS', bv: 'BV', other: '其他机构' };
+export const TEST_RESULT_LABELS: Record<string, string> = { pending: '待报告', pass: '通过', fail: '不合格' };
+
+export interface TestReportFileRow {
+  id: string;
+  testRequestId: string;
+  filePath: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  uploadedAt: number;
+}
+
+export interface TestCorrectiveActionRow {
+  id: string;
+  testRequestId: string;
+  failItem: string;
+  action: string;
+  owner: string | null;
+  dueDate: string | null;
+  status: 'open' | 'closed';
+  closedAt: number | null;
+  closeNote: string | null;
+}
+
+export interface TestRequestRow {
+  id: string;
+  trNo: string;
+  orderId: string;
+  testItems: string[];
+  agency: string;
+  sentDate: string | null;
+  expectedDate: string | null;
+  notes: string | null;
+  result: 'pending' | 'pass' | 'fail';
+  reportNo: string | null;
+  reportDate: string | null;
+  failItems: string[];
+  createdAt: number;
+  files: TestReportFileRow[];
+  correctiveActions: TestCorrectiveActionRow[];
+}
+
+export interface TestRequestSummary {
+  total: number;
+  pass: number;
+  fail: number;
+  pending: number;
+  openCorrectiveActions: number;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -254,5 +319,81 @@ export const qcService = {
     const data = await postJson<{ item: QcInspectionReport }>(
       `/reports/${encodeURIComponent(reportId)}/sign`, { role }, endpoint, 'signReport failed');
     return data.item;
+  },
+
+  // ── REQ2-04 第三方测试管理 ──
+
+  /** 登记测试委托 {orderId, testItems[], agency, sentDate?, expectedDate?, notes?} */
+  async createTestRequest(input: {
+    orderId: string;
+    testItems: string[];
+    agency: string;
+    sentDate?: string;
+    expectedDate?: string;
+    notes?: string;
+  }, endpoint?: string): Promise<{ request: TestRequestRow }> {
+    const data = await postJson<{ request: TestRequestRow }>(
+      '/test-requests', input, endpoint, 'createTestRequest failed');
+    return { request: data.request };
+  },
+
+  /** 订单维度全景（附件+整改+summary，3 击数据源） */
+  async listTestRequests(orderId: string, endpoint?: string): Promise<{ items: TestRequestRow[]; summary: TestRequestSummary }> {
+    const data = await getJson<{ items: TestRequestRow[]; summary: TestRequestSummary }>(
+      `/test-requests?orderId=${encodeURIComponent(orderId)}`, endpoint, 'listTestRequests failed');
+    return { items: data.items || [], summary: data.summary };
+  },
+
+  /** 结论登记（fail 门禁：failItems + correctiveAction 必传或已有 open 整改） */
+  async updateTestRequest(id: string, patch: {
+    result?: 'pass' | 'fail';
+    reportNo?: string;
+    reportDate?: string;
+    failItems?: string[];
+    notes?: string;
+    sentDate?: string;
+    expectedDate?: string;
+    correctiveAction?: { failItem: string; action: string; owner?: string; dueDate?: string };
+  }, endpoint?: string): Promise<{ request: TestRequestRow }> {
+    const data = await postJson<{ request: TestRequestRow }>(
+      `/test-requests/${encodeURIComponent(id)}`, patch, endpoint, 'updateTestRequest failed', 'PATCH');
+    return { request: data.request };
+  },
+
+  /** 软删委托（仅 pending） */
+  async deleteTestRequest(id: string, endpoint?: string): Promise<void> {
+    await postJson(`/test-requests/${encodeURIComponent(id)}`, {}, endpoint, 'deleteTestRequest failed', 'DELETE');
+  },
+
+  /** 上传报告 PDF（multipart；PDF only ≤10MB） */
+  async uploadTestReport(id: string, files: File[], endpoint?: string): Promise<{ files: TestReportFileRow[] }> {
+    const url = qcUrl(`/test-requests/${encodeURIComponent(id)}/files`, endpoint);
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    const res = await fetch(url, { method: 'POST', body: form, headers: apiService.getAuthHeaders() });
+    if (!res.ok) await parseError(res, 'uploadTestReport failed');
+    const data = await res.json();
+    return { files: data.files || [] };
+  },
+
+  /** 报告下载 URL（新窗口打开/预览） */
+  testReportDownloadUrl(id: string, fileId: string, endpoint?: string): string {
+    return qcUrl(`/test-requests/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}`, endpoint);
+  },
+
+  /** 追加整改记录（仅 fail 单；failItem ∈ failItems） */
+  async addCorrectiveAction(id: string, input: {
+    failItem: string; action: string; owner?: string; dueDate?: string;
+  }, endpoint?: string): Promise<{ correctiveAction: TestCorrectiveActionRow }> {
+    const data = await postJson<{ correctiveAction: TestCorrectiveActionRow }>(
+      `/test-requests/${encodeURIComponent(id)}/corrective-actions`, input, endpoint, 'addCorrectiveAction failed');
+    return { correctiveAction: data.correctiveAction };
+  },
+
+  /** 整改闭环（open→closed） */
+  async closeCorrectiveAction(caId: string, closeNote?: string, endpoint?: string): Promise<{ correctiveAction: TestCorrectiveActionRow }> {
+    const data = await postJson<{ correctiveAction: TestCorrectiveActionRow }>(
+      `/test-requests/corrective-actions/${encodeURIComponent(caId)}/close`, { closeNote }, endpoint, 'closeCorrectiveAction failed');
+    return { correctiveAction: data.correctiveAction };
   },
 };

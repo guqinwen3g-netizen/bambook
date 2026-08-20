@@ -852,12 +852,14 @@ app.use(
 );
 
 // 阶段 P0 回补：QC 驻地 / 验货任务 / QC 工作台（PRD 6.2 / 4.2）
+// REQ2-04：uploadDir 供第三方测试报告 PDF 落盘（与 products 图片同源 UPLOAD_DIR）
 app.use(
     '/api/v1/qc',
     (req, res, next) => createQcRouter({
         prisma,
         requireAuth: SDK_CONFIG.requireAuth,
         apiKeys: SDK_CONFIG.apiKeys,
+        uploadDir: UPLOAD_DIR,
         onDataChange: publishDataChange,
     })(req, res, next),
 );

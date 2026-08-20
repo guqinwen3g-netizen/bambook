@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
+import { TestRequestPanel } from './qc/TestRequestPanel';
 import BottomSheet from './ui/BottomSheet';
 import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
@@ -1706,6 +1707,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         />
                       </div>
                     )}
+
+                    {/* REQ2-04 第三方测试委托（全订单类型：SGS/ITS/BV 送样检测 → 报告归档 → 失败项整改闭环，3 击查看） */}
+                    <div id="order-detail-test-requests" className="mb-6">
+                      <TestRequestPanel
+                        key={`tr-${selectedOrder.id}`}
+                        orderId={selectedOrder.id}
+                        isDarkMode={isDarkMode}
+                      />
+                    </div>
 
                     {/* 生产管线 (10阶段门禁引擎) */}
                     <div id="order-detail-pipeline">
