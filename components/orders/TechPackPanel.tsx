@@ -160,11 +160,11 @@ export function TechPackPanel({ orderId, order, onOrderUpdated }: TechPackPanelP
             onChange={e => { handleFile(e.target.files?.[0]); e.currentTarget.value = ''; }}
           />
           <button type="button" className="bds-btn bds-btn-secondary h-8 text-[11px]" disabled={parsing} onClick={() => fileInputRef.current?.click()}>
-            {parsing ? <Loader2 size={13} className="animate-spin" /> : <FileUp size={13} />}
+            {parsing ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
             上传规格书解析
           </button>
           <button type="button" className="bds-btn bds-btn-ghost h-8 text-[11px]" onClick={() => setShowPaste(v => !v)}>
-            <ClipboardPaste size={13} />
+            <ClipboardPaste size={14} />
             粘贴文本
           </button>
           {savedFileName && (
@@ -184,7 +184,7 @@ export function TechPackPanel({ orderId, order, onOrderUpdated }: TechPackPanelP
             className="bds-input bds-textarea min-h-24 w-full text-xs"
           />
           <button type="button" className="bds-btn bds-btn-secondary h-8 text-[11px]" disabled={parsing || !pasteText.trim()} onClick={() => doParse({ text: pasteText })}>
-            {parsing ? <Loader2 size={13} className="animate-spin" /> : null}
+            {parsing ? <Loader2 size={14} className="animate-spin" /> : null}
             解析文本
           </button>
         </div>
@@ -214,7 +214,7 @@ export function TechPackPanel({ orderId, order, onOrderUpdated }: TechPackPanelP
           <div className="flex justify-end gap-2 px-3 py-2">
             <button type="button" className="bds-btn bds-btn-ghost h-8 text-[11px]" disabled={saving} onClick={() => { setParsed(null); setApply({}); }}>取消</button>
             <button type="button" className="bds-btn bds-btn-primary h-8 text-[11px]" disabled={saving} onClick={handleSave}>
-              {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               保存并回填
             </button>
           </div>

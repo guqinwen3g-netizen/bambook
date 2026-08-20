@@ -14,6 +14,7 @@ import { ChevronDown, ChevronUp, Plus, QrCode, RotateCcw, Search, Archive } from
 import BottomSheet from '../ui/BottomSheet';
 import { bdsToast } from '../ui/bdsToast';
 import { bdsConfirm } from '../ui/BdsDialog';
+import CapsuleDateInput from '../ui/CapsuleDateInput';
 import { sampleRoomService, SampleCardItemView } from '../../services/sampleRoomService';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -247,7 +248,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
                 )}
                 <span className="ml-auto flex items-center gap-1">
                   <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="二维码打印" onClick={() => openQr(item)}>
-                    <QrCode size={13} />
+                    <QrCode size={14} />
                   </button>
                   {item.status === 'in_stock' && (
                     <button
@@ -260,12 +261,12 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
                   )}
                   {item.status === 'borrowed' && item.activeLoan && (
                     <button type="button" className="bds-btn bds-btn-secondary h-7 px-2 text-[11px]" onClick={() => handleReturn(item)}>
-                      <RotateCcw size={13} />归还
+                      <RotateCcw size={14} />归还
                     </button>
                   )}
                   {item.status !== 'retired' && (
                     <button type="button" className="bds-btn bds-btn-ghost h-7 px-2 text-[11px]" title="退役" onClick={() => handleRetire(item)}>
-                      <Archive size={13} />
+                      <Archive size={14} />
                     </button>
                   )}
                 </span>
@@ -349,7 +350,7 @@ const SampleRoomPanel: React.FC<SampleRoomPanelProps> = ({ isDarkMode }) => {
             {loanForm.loanType === 'borrow' && (
               <div>
                 <label className="mb-1.5 block text-[10px] tracking-[0.14em] text-[var(--text-tertiary)]">预计归还日</label>
-                <input type="date" value={loanForm.dueDate} onChange={e => setLoanForm(f => ({ ...f, dueDate: e.target.value }))} className="bds-input sm w-auto" />
+                <CapsuleDateInput className="bds-input sm w-auto" value={loanForm.dueDate} onChange={(v) => setLoanForm(f => ({ ...f, dueDate: v }))} isDarkMode={isDarkMode} />
                 <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">逾期（超过预计归还日未还）在列表标红提醒。</div>
               </div>
             )}
