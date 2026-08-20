@@ -30,7 +30,15 @@ export function createAiRouter(options: AiRouterOptions) {
   const agentRuntime = options.prisma ? createAgentRuntimeService({ prisma: options.prisma }) : null;
   const ttsSynthesizer = options.ttsSynthesizer || synthesizeTtsSpeech;
 
-  router.get('/metrics', auth(options), (_req, res) => {
+  // /metrics 是 OPS Panel 状态探测消费的只读运行指标：与 Agent 执行面（chat 等严格
+  // 主身份模式）不同，对齐 agent 路由 /status 的口径——普通 moduleAuthGuard，
+  // 裸 SDK API key（X-Bambook-API-Key）即可读取，无需 Agent 服务主体映射。
+  const metricsGuard = createModuleAuthGuard({
+    requireAuth: options.requireAuth,
+    apiKeys: options.apiKeys,
+  });
+
+  router.get('/metrics', metricsGuard, (_req, res) => {
     res.json({ ok: true, metrics: options.runtime.getMetrics() });
   });
 
