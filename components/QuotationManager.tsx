@@ -33,8 +33,13 @@ import {
   X,
   GitBranch,
   Image as ImageIcon,
+  History,
+  TrendingDown,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import BottomSheet from './ui/BottomSheet';
+import { bdsConfirm } from './ui/BdsDialog';
+import { bdsToast } from './ui/bdsToast';
 import { financeV2Service, type QuotationPricingResult } from '../services/financeV2Service';
 import { TraceabilityPanel } from './TraceabilityPanel';
 import { getExporterProfile } from './tools/exportDocs/exporterProfile';
@@ -378,7 +383,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   }, [formLines]);
 
   // ── 状态转换操作 ──
-  const handleAction = useCallback(async (id: string, action: 'send' | 'accept' | 'reject' | 'delete' | 'convert') => {
+  const handleAction = useCallback(async (id: string, action: 'send' | 'accept' | 'reject' | 'delete' | 'convert' | 'revise') => {
+    if (action === 'revise') {
+      if (!(await bdsConfirm({
+        title: '砍价修订',
+        body: '快照当前版本留痕并回到草稿状态——编辑价格后重新发送。谈判轮次与版本历史全程可溯。',
+      }))) return;
+    }
     setActionLoading(`${id}_${action}`);
     setConvertedOrderId(null);
     try {
@@ -386,6 +397,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       else if (action === 'accept') await apiService.acceptQuotation(id);
       else if (action === 'reject') await apiService.rejectQuotation(id);
       else if (action === 'delete') await apiService.deleteQuotation(id);
+      else if (action === 'revise') await apiService.reviseQuotation(id, '砍价修订');
       else if (action === 'convert') {
         const result = await apiService.convertQuotationToOrder(id);
         setConvertedOrderId(result.orderId);
@@ -397,6 +409,32 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setActionLoading(null);
     }
   }, [fetchQuotations]);
+
+  // ── REQ2-19：版本历史弹层 ──
+  const [versionSheet, setVersionSheet] = useState<{ quotation: any; versions: any[] } | null>(null);
+  const openVersionSheet = useCallback(async (qt: any) => {
+    setVersionSheet({ quotation: qt, versions: [] });
+    try {
+      const versions = await apiService.listQuotationVersions(qt.id);
+      setVersionSheet({ quotation: qt, versions });
+    } catch (e: any) {
+      setError(`版本历史加载失败：${e?.message || e}`);
+      setVersionSheet(null);
+    }
+  }, []);
+
+  // ── REQ2-19：客户砍价画像弹层 ──
+  const [profileSheet, setProfileSheet] = useState<{ relationId: string; relationName: string; profile: any } | null>(null);
+  const openPriceProfile = useCallback(async (relationId: string, relationName: string) => {
+    setProfileSheet({ relationId, relationName, profile: null });
+    try {
+      const profile = await apiService.getQuotationPriceProfile(relationId);
+      setProfileSheet({ relationId, relationName, profile });
+    } catch (e: any) {
+      setError(`砍价画像加载失败：${e?.message || e}`);
+      setProfileSheet(null);
+    }
+  }, []);
 
   // ── 生成形式发票 PI（Phase 1-04：从 Accepted 报价单生成 PI）──
   const handleGeneratePi = useCallback(async (id: string) => {
@@ -1051,6 +1089,28 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                                 {/* 操作按钮 */}
                                 <div className="flex items-center gap-2 pt-2 flex-wrap">
+                                  {/* REQ2-19 版本徽章（version≥2 可查谈判链） */}
+                                  {(qt as any).version != null && (qt as any).version >= 2 && (
+                                    <button
+                                      onClick={() => openVersionSheet(qt)}
+                                      className="bds-btn bds-btn-ghost"
+                                      title="砍价版本历史"
+                                    >
+                                      <History size={14} />
+                                      <span>v{(qt as any).version}</span>
+                                    </button>
+                                  )}
+                                  {/* REQ2-19：客户砍价画像（客户维度首报偏差统计） */}
+                                  {qt.customerRelationId && (
+                                    <button
+                                      onClick={() => openPriceProfile(qt.customerRelationId!, qt.customerName || '客户')}
+                                      className="bds-btn bds-btn-ghost"
+                                      title="该客户历史砍价画像"
+                                    >
+                                      <TrendingDown size={14} />
+                                      <span>画像</span>
+                                    </button>
+                                  )}
                                   {qt.status === 'Draft' && (
                                     <>
                                       <button
@@ -1082,6 +1142,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                       <button onClick={() => handleAction(qt.id, 'accept')} disabled={actionLoading === `${qt.id}_accept`} className="bds-btn bds-btn-secondary">
                                         {actionLoading === `${qt.id}_accept` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                                         <span>接受</span>
+                                      </button>
+                                      {/* REQ2-19：砍价修订（快照当前版回 Draft 改价重发） */}
+                                      <button onClick={() => handleAction(qt.id, 'revise')} disabled={actionLoading === `${qt.id}_revise`} className="bds-btn bds-btn-secondary">
+                                        {actionLoading === `${qt.id}_revise` ? <Loader2 size={14} className="animate-spin" /> : <History size={14} />}
+                                        <span>砍价修订</span>
                                       </button>
                                       <button onClick={() => handleAction(qt.id, 'reject')} disabled={actionLoading === `${qt.id}_reject`} className="bds-btn bds-btn-danger">
                                         {actionLoading === `${qt.id}_reject` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
@@ -1284,6 +1349,82 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
             </div>
           </div>
         </>
+      )}
+
+      {/* ── REQ2-19（DR-060）：版本历史弹层（谈判链 append-only） ── */}
+      {versionSheet && (
+        <BottomSheet isOpen onClose={() => setVersionSheet(null)} title={`版本历史 · ${versionSheet.quotation.quotationNumber ?? ''}`} isDarkMode={isDarkMode}>
+          <div className="space-y-2 px-6 py-5">
+            <div className="text-[11px] font-light leading-relaxed text-[var(--text-tertiary)]">
+              当前 v{versionSheet.quotation.version ?? 1} · {Number(versionSheet.quotation.totalAmount).toFixed(2)} {versionSheet.quotation.currency}；
+              下方为历史版本快照（保存新版本前的完整旧内容，含行单价留痕）。
+            </div>
+            {versionSheet.versions.length === 0 && (
+              <div className="text-xs font-light text-[var(--text-tertiary)] px-1 py-2">加载中...</div>
+            )}
+            {versionSheet.versions.map((v: any) => (
+              <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-compact bg-[var(--recessed-bg)] px-3 py-2 text-xs">
+                <span className="bds-badge neutral">v{v.version}</span>
+                <span className="font-light text-[var(--text-primary)]">{Number(v.totalAmount).toFixed(2)} {v.currency ?? ''}</span>
+                {v.changeReason && <span className="bds-badge info">{v.changeReason}</span>}
+                {v.linesSnapshot && v.linesSnapshot.length > 0 && (
+                  <span className="text-[10px] font-light text-[var(--text-tertiary)]">
+                    行单价 {v.linesSnapshot.map((l: any) => Number(l.unitPrice).toFixed(2)).join(' / ')}
+                  </span>
+                )}
+                <span className="ml-auto text-[10px] font-light text-[var(--text-tertiary)]">
+                  {new Date(Number(v.createdAt)).toLocaleString('zh-CN', { hour12: false })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* ── REQ2-19（DR-060）：客户砍价画像弹层 ── */}
+      {profileSheet && (
+        <BottomSheet isOpen onClose={() => setProfileSheet(null)} title={`砍价画像 · ${profileSheet.relationName}`} isDarkMode={isDarkMode}>
+          <div className="space-y-3 px-6 py-5">
+            {!profileSheet.profile && <div className="text-xs font-light text-[var(--text-tertiary)]">加载中...</div>}
+            {profileSheet.profile && profileSheet.profile.items?.length === 0 && (
+              <div className="text-xs font-light text-[var(--text-tertiary)]">该客户暂无报价记录。</div>
+            )}
+            {profileSheet.profile?.summary && (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: '报价单数', value: profileSheet.profile.summary.quotationCount },
+                  { label: '砍价单数', value: profileSheet.profile.summary.negotiatedCount },
+                  { label: '平均降幅', value: `${profileSheet.profile.summary.avgCutPct}%` },
+                  { label: '成交偏差', value: profileSheet.profile.summary.avgDealDeviationPct != null ? `${profileSheet.profile.summary.avgDealDeviationPct}%` : '—' },
+                ].map(cell => (
+                  <div key={cell.label} className="rounded-compact bg-[var(--recessed-bg)] px-2 py-2.5 text-center">
+                    <div className="text-base font-light text-[var(--text-primary)]">{cell.value}</div>
+                    <div className="text-[10px] font-light text-[var(--text-tertiary)]">{cell.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {profileSheet.profile?.items?.map((item: any) => (
+              <div key={item.quotationId} className="rounded-compact bg-[var(--recessed-bg)] px-3 py-2 text-xs">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="font-light text-[var(--text-primary)]">{item.quotationNumber}</span>
+                  <span className="bds-badge neutral">{item.status}</span>
+                  <span className="text-[10px] font-light text-[var(--text-tertiary)]">v{item.version} · {item.rounds} 轮</span>
+                  <span className="text-[10px] font-light text-[var(--text-tertiary)]">{item.issueDate}</span>
+                  {item.cutPct != null && item.cutPct !== 0 && (
+                    <span className="bds-badge warning">{item.cutPct > 0 ? '+' : ''}{item.cutPct}%</span>
+                  )}
+                  {item.dealDeviationPct != null && (
+                    <span className="bds-badge info">成交 {item.dealDeviationPct}%{item.orderPo ? ` · ${item.orderPo}` : ''}</span>
+                  )}
+                </div>
+                <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">
+                  首报 {item.firstAmount} → 当前 {item.currentAmount} {item.currency}
+                </div>
+              </div>
+            ))}
+          </div>
+        </BottomSheet>
       )}
     </div>
   );

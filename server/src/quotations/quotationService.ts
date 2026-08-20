@@ -140,6 +140,47 @@ function validateStatusTransition(from: string, to: QuotationStatus): void {
 }
 
 // ────────────────────────────────────────────────────────────────
+// REQ2-19（DR-060-①）：版本快照 helper（append-only，事务内调用）
+// ────────────────────────────────────────────────────────────────
+/** 将当前报价（含行）完整快照为 QuotationVersion（保存新版本前的旧内容留档） */
+async function snapshotQuotationVersion(tx: any, quotation: any, actorId: string, changeReason: string | null): Promise<void> {
+  const lines = Array.isArray(quotation.lines) ? quotation.lines : [];
+  await tx.quotationVersion.create({
+    data: {
+      id: `QTV_${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      quotationId: quotation.id,
+      version: quotation.version ?? 1,
+      totalAmount: quotation.totalAmount,
+      currency: quotation.currency,
+      headerSnapshot: {
+        status: quotation.status,
+        quotationNumber: quotation.quotationNumber,
+        customerRelationId: quotation.customerRelationId,
+        customerName: quotation.customerName,
+        issueDate: quotation.issueDate,
+        validUntil: quotation.validUntil,
+        deliveryTerms: quotation.deliveryTerms,
+        paymentTerms: quotation.paymentTerms,
+        exchangeRate: quotation.exchangeRate != null ? Number(quotation.exchangeRate) : null,
+        notes: quotation.notes,
+      },
+      linesSnapshot: lines.map((l: any) => ({
+        lineNumber: l.lineNumber,
+        fabricCode: l.fabricCode,
+        description: l.description,
+        quantity: l.quantity,
+        unit: l.unit,
+        unitPrice: Number(l.unitPrice),
+        amount: Number(l.amount),
+      })),
+      changeReason,
+      changedBy: actorId || null,
+      createdAt: Date.now(),
+    },
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
 // 服务工厂
 // ────────────────────────────────────────────────────────────────
 
@@ -410,7 +451,14 @@ export function createQuotationService(prisma: PrismaClient) {
     const lines = input.lines;
     const totalAmount = lines ? calcTotalAmount(lines) : Number(existing.totalAmount);
 
+    // REQ2-19（DR-060-①）：金额或行变化 → 自动快照旧版（append-only 版本链）
+    const amountChanged = Math.abs(Number(totalAmount) - Number(existing.totalAmount)) > 1e-9;
+    const linesChanged = !!lines && lines.length > 0;
+
     const updated = await prisma.$transaction(async (tx) => {
+      if (amountChanged || linesChanged) {
+        await snapshotQuotationVersion(tx, existing, actorId, null);
+      }
       // 若提供新行明细，先删后建
       if (lines && lines.length > 0) {
         await tx.quotationLine.deleteMany({ where: { quotationId: id } });
@@ -438,6 +486,8 @@ export function createQuotationService(prisma: PrismaClient) {
           quotationNumber: input.quotationNumber ?? undefined,
           currency: input.currency ?? undefined,
           totalAmount,
+          // REQ2-19：版本随快照递增（snapshotQuotationVersion 写旧版后 +1）
+          version: (amountChanged || linesChanged) ? (existing.version ?? 1) + 1 : undefined,
           exchangeRate: input.exchangeRate ?? undefined,
           baseCurrency: input.baseCurrency ?? undefined,
           customerRelationId: input.customerRelationId ?? undefined,
@@ -986,6 +1036,132 @@ export function createQuotationService(prisma: PrismaClient) {
     return { orderId: result.order.id, quotation: result.quotation as QuotationDetail };
   }
 
+  // ── REQ2-19（DR-060-①）：显式修订（砍价重报通道）──
+  // Draft/Sent 可修订：快照当前版 → version+1 → 状态回 Draft（编辑后重发）。
+  // Accepted/Rejected/Expired 终态不可修订（新询价新建报价单）。
+  async function reviseQuotation(id: string, changeReason: string | undefined, actorId: string): Promise<QuotationDetail> {
+    const existing = await prisma.quotation.findUnique({ where: { id }, include: { lines: true } });
+    if (!existing || existing.deletedAt) throw new Error(`报价单 ${id} 不存在`);
+    if (existing.status !== 'Draft' && existing.status !== 'Sent') {
+      throw new Error(`报价单 ${id} 状态为 ${existing.status}，仅 Draft/Sent 可修订（终态请新建报价单）`);
+    }
+    const now = Date.now();
+    const updated = await prisma.$transaction(async (tx) => {
+      await snapshotQuotationVersion(tx, existing, actorId, changeReason ?? null);
+      return tx.quotation.update({
+        where: { id },
+        data: { version: (existing.version ?? 1) + 1, status: 'Draft', updatedAt: now },
+        include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      });
+    });
+    await prisma.auditLog.create({
+      data: {
+        id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+        actorId: actorId || 'system',
+        action: 'revise_quotation',
+        targetType: 'Quotation',
+        targetId: id,
+        detail: { source: 'api:quotation', before: { version: existing.version ?? 1, status: existing.status, totalAmount: Number(existing.totalAmount) }, after: { version: (existing.version ?? 1) + 1, status: 'Draft' }, changeReason: changeReason ?? null } as any,
+        ip: null, operationType: 'update', fieldPath: 'version',
+        beforeValue: null as any, afterValue: null as any, transactionId: null,
+      },
+    });
+    logger.info('[QuotationService] quotation revised', { id, fromVersion: existing.version ?? 1 });
+    return updated as QuotationDetail;
+  }
+
+  // ── REQ2-19（DR-060-②）：版本历史（append-only 正序） ──
+  async function listQuotationVersions(id: string): Promise<any[]> {
+    const versions = await (prisma as any).quotationVersion.findMany({
+      where: { quotationId: id },
+      orderBy: { version: 'asc' },
+    });
+    return versions;
+  }
+
+  // ── REQ2-19（DR-060-②）：客户砍价画像 ──
+  // 客户维度：每报价单首报金额（版本链最早快照 ∨ v1）vs 当前金额降幅 × 轮次；成交单关联 Order.totalNet。
+  async function getPriceProfile(relationId: string): Promise<any> {
+    const quotations = await prisma.quotation.findMany({
+      where: { customerRelationId: relationId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, quotationNumber: true, status: true, currency: true, totalAmount: true,
+        version: true, createdAt: true, issueDate: true, convertedOrderId: true, sentAt: true,
+      },
+    });
+    if (quotations.length === 0) {
+      return { relationId, items: [], summary: null };
+    }
+    // 首报金额：v1 有快照取最早快照；无快照（从未改价）= 当前金额
+    const firstVersions = await (prisma as any).quotationVersion.findMany({
+      where: { quotationId: { in: quotations.map(q => q.id) } },
+      orderBy: { version: 'asc' },
+    });
+    const firstByQuotation = new Map<string, any>();
+    for (const v of firstVersions) {
+      if (!firstByQuotation.has(v.quotationId)) firstByQuotation.set(v.quotationId, v);
+    }
+    // 成交订单金额（转换关联；totalNet 优先，convert 路径未录 totalNet 时 fallback quoteAmount——报价转换继承额）
+    const convertedIds = quotations.map(q => q.convertedOrderId).filter(Boolean) as string[];
+    const orders = convertedIds.length
+      ? await prisma.order.findMany({ where: { id: { in: convertedIds } }, select: { id: true, totalNet: true, quoteAmount: true, poNumber: true } })
+      : [];
+    for (const o of orders) {
+      (o as any).dealAmount = o.totalNet != null ? Number(o.totalNet) : Number(o.quoteAmount);
+    }
+    const orderByQuotation = new Map<string, any>();
+    for (const q of quotations) {
+      if (q.convertedOrderId) {
+        const o = orders.find(x => x.id === q.convertedOrderId);
+        if (o) orderByQuotation.set(q.id, o);
+      }
+    }
+
+    const items = quotations.map(q => {
+      const first = firstByQuotation.get(q.id);
+      const firstAmount = first ? Number(first.totalAmount) : Number(q.totalAmount);
+      const currentAmount = Number(q.totalAmount);
+      const cutPct = firstAmount !== 0 ? Math.round(((currentAmount - firstAmount) / firstAmount) * 10000) / 100 : null;
+      const order = orderByQuotation.get(q.id);
+      const dealDeviationPct = order && order.dealAmount != null && Number.isFinite(order.dealAmount) && firstAmount !== 0
+        ? Math.round(((Number(order.dealAmount) - firstAmount) / firstAmount) * 10000) / 100
+        : null;
+      return {
+        quotationId: q.id,
+        quotationNumber: q.quotationNumber,
+        status: q.status,
+        currency: q.currency,
+        version: q.version ?? 1,
+        rounds: Math.max((q.version ?? 1) - 1, firstVersions.filter((v: any) => v.quotationId === q.id).length),
+        firstAmount,
+        currentAmount,
+        cutPct,
+        issueDate: q.issueDate,
+        convertedOrderId: q.convertedOrderId ?? null,
+        orderPo: order?.poNumber ?? null,
+        orderDealAmount: order?.dealAmount ?? null,
+        dealDeviationPct,
+      };
+    });
+
+    const negotiated = items.filter(i => i.cutPct != null && i.cutPct !== 0);
+    const dealt = items.filter(i => i.dealDeviationPct != null);
+    const summary = {
+      quotationCount: items.length,
+      negotiatedCount: negotiated.length,
+      avgCutPct: negotiated.length > 0
+        ? Math.round((negotiated.reduce((s, i) => s + (i.cutPct ?? 0), 0) / negotiated.length) * 100) / 100
+        : 0,
+      maxCutPct: negotiated.length > 0 ? Math.min(...negotiated.map(i => i.cutPct ?? 0)) : 0,
+      dealtCount: dealt.length,
+      avgDealDeviationPct: dealt.length > 0
+        ? Math.round((dealt.reduce((s, i) => s + (i.dealDeviationPct ?? 0), 0) / dealt.length) * 100) / 100
+        : null,
+    };
+    return { relationId, items, summary };
+  }
+
   return {
     createQuotation,
     updateQuotation,
@@ -997,6 +1173,9 @@ export function createQuotationService(prisma: PrismaClient) {
     rejectQuotation,
     expireQuotation,
     convertToOrder,
+    reviseQuotation,
+    listQuotationVersions,
+    getPriceProfile,
   };
 }
 

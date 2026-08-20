@@ -71,6 +71,8 @@ function makePrisma(opts: {
   const tx: any = {
     quotation: { create: quotationCreate, update: quotationUpdate },
     quotationLine: { deleteMany: quotationLineDeleteMany, createMany: quotationLineCreateMany },
+    // REQ2-19：Draft 改价自动版本快照（tx 内 append QuotationVersion）
+    quotationVersion: { create: vi.fn().mockResolvedValue({}) },
     auditLog: { create: auditCreate },
     // DR-007：价格审批单不在 tx 内直写（tx 无 approvalRequest；误写会 TypeError 暴露）
     // EntityLink 图谱（D1.1a）：sync/deactivate 走 tx 内 upsert/findMany/update

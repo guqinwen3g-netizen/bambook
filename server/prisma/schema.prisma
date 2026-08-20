@@ -3230,6 +3230,9 @@ model Quotation {
   currency    String // USD | CNY | EUR ...
   totalAmount Decimal @db.Decimal(18, 4) // 报价总金额（所有行金额合计）
 
+  // ─── REQ2-19 版本链（DR-060-①）：Draft 编辑金额/行变化自动快照旧版；revise 显式修订 +1 ───
+  version     Int     @default(1) // 当前版本号（1 = 首报；砍价轮次 = version - 1）
+
   // ─── 汇率快照（外贸场景） ───
   exchangeRate Decimal? @db.Decimal(18, 4) // 报价当日 currency → baseCurrency 汇率
   baseCurrency String   @default("CNY") // 本位币
@@ -3288,6 +3291,28 @@ model Quotation {
   @@index([validUntil])
   @@index([ownerId])
   @@index([departmentId])
+}
+
+// ============================================================================
+// REQ2-19：报价版本快照（砍价画像，生命周期③，DR-060）
+// ============================================================================
+/// 版本链（append-only）：Draft 编辑金额/行变化时自动快照旧版；revise 显式修订时快照。
+/// 砍价画像 = 版本链首版金额 vs 当前金额（降幅）× 客户维度聚合。
+/// 设计真源：Quotations-报价/砍价画像与版本对比.md §4
+model QuotationVersion {
+  id             String  @id // 格式：QTV_${shortId}
+  quotationId    String
+  version        Int // 被快照的版本号（该快照为保存新版本前的完整旧内容）
+  totalAmount    Decimal @db.Decimal(18, 4) // 该版本报价总额
+  currency       String?
+  headerSnapshot Json? // 报价头快照（条款/客户/状态等关键字段）
+  linesSnapshot  Json? // 行快照数组（fabricCode/description/quantity/unit/unitPrice/amount）
+  changeReason   String? // 修订原因（砍价/规格变更/汇率等）
+  changedBy      String?
+  createdAt      BigInt
+
+  @@unique([quotationId, version])
+  @@index([quotationId])
 }
 
 model QuotationLine {

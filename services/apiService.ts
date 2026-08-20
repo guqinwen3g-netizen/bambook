@@ -951,6 +951,28 @@ export const apiService = {
     return data.quotation;
   },
 
+  // ── REQ2-19（DR-060）：砍价画像与版本对比 ──
+  /** 显式修订（砍价重报：快照当前版 + version+1 + 回 Draft 可编辑重发） */
+  async reviseQuotation(id: string, changeReason?: string, endpoint?: string): Promise<Quotation> {
+    const data = await requestJson<{ quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}/revise`, { endpoint, method: 'POST', body: JSON.stringify({ changeReason }) });
+    return data.quotation;
+  },
+
+  /** 版本历史（append-only 正序） */
+  async listQuotationVersions(id: string, endpoint?: string): Promise<Array<{ id: string; version: number; totalAmount: number; currency?: string; changeReason?: string | null; changedBy?: string | null; createdAt: number; linesSnapshot?: Array<{ unitPrice: number; quantity: number; amount: number }> }>> {
+    const data = await requestJson<{ versions: any[] }>(`/v1/quotations/${encodeURIComponent(id)}/versions`, { endpoint });
+    return data.versions ?? [];
+  },
+
+  /** 客户砍价画像（首报偏差统计） */
+  async getQuotationPriceProfile(relationId: string, endpoint?: string): Promise<{
+    relationId: string;
+    items: Array<{ quotationId: string; quotationNumber: string; status: string; currency: string; version: number; rounds: number; firstAmount: number; currentAmount: number; cutPct: number | null; issueDate: string; convertedOrderId: string | null; orderPo: string | null; orderDealAmount: number | null; dealDeviationPct: number | null }>;
+    summary: { quotationCount: number; negotiatedCount: number; avgCutPct: number; maxCutPct: number; dealtCount: number; avgDealDeviationPct: number | null } | null;
+  }> {
+    return requestJson(`/v1/quotations/price-profile?relationId=${encodeURIComponent(relationId)}`, { endpoint });
+  },
+
   async convertQuotationToOrder(id: string, overrides?: { poNumber?: string; millName?: string; type?: string; dueDate?: string }, endpoint?: string): Promise<{ orderId: string; quotation: Quotation }> {
     const data = await requestJson<{ orderId: string; quotation: Quotation }>(`/v1/quotations/${encodeURIComponent(id)}/convert-to-order`, {
       endpoint,

@@ -95,6 +95,22 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
     }
   });
 
+  // ── REQ2-19（DR-060-②）：GET /price-profile?relationId= — 客户砍价画像 ──
+  // 字面路由：必须在参数路由 GET /:id 之前注册（否则被当作 id 吞掉）
+  router.get('/price-profile', async (req: Request, res: Response) => {
+    try {
+      const relationId = typeof req.query.relationId === 'string' ? req.query.relationId : '';
+      if (!relationId) {
+        return res.status(400).json({ error: 'relationId 必填（客户砍价画像按客户维度聚合）' });
+      }
+      const profile = await service.getPriceProfile(relationId);
+      res.json(profile);
+    } catch (e: any) {
+      logger.error('[QuotationRoute] GET price-profile failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to build price profile' });
+    }
+  });
+
   // ── GET /:id — 详情 ──
   router.get('/:id', async (req: Request, res: Response) => {
     try {
@@ -267,6 +283,32 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
       logger.error('[QuotationRoute] POST expire failed', { error: e?.message });
       const status = e?.message?.includes('不存在') ? 404 : 400;
       res.status(status).json({ error: e?.message || 'failed to expire quotation' });
+    }
+  });
+
+  // ── REQ2-19（DR-060-①）：POST /:id/revise — 显式修订（砍价重报：快照当前版 + version+1 + 回 Draft） ──
+  router.post('/:id/revise', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const actor = (req as any).actor;
+      const { changeReason } = req.body || {};
+      const quotation = await service.reviseQuotation(req.params.id, changeReason, actor?.userId || 'system');
+      onDataChange?.({ entity: 'Quotation', action: 'revise', ids: [quotation.id] });
+      res.json({ quotation });
+    } catch (e: any) {
+      logger.error('[QuotationRoute] POST revise failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('仅 Draft/Sent') ? 409 : 400;
+      res.status(status).json({ error: e?.message || 'failed to revise quotation' });
+    }
+  });
+
+  // ── REQ2-19（DR-060-②）：GET /:id/versions — 版本历史（append-only 正序） ──
+  router.get('/:id/versions', async (req: Request, res: Response) => {
+    try {
+      const versions = await service.listQuotationVersions(req.params.id);
+      res.json({ versions });
+    } catch (e: any) {
+      logger.error('[QuotationRoute] GET versions failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to list versions' });
     }
   });
 
