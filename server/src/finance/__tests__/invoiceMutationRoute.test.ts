@@ -13,6 +13,12 @@ function makeApp(opts: { invoice?: any; syncFail?: boolean; auditFail?: boolean;
   const auditCreate = opts.auditFail ? vi.fn().mockRejectedValue(new Error('AUDIT_REJECT')) : vi.fn().mockResolvedValue({ id: 'AL-1' });
   const entityReferenceUpsert = opts.syncFail ? vi.fn().mockRejectedValue(new Error('SYNC_REJECT')) : vi.fn().mockResolvedValue({});
   const entityLinkUpsert = vi.fn().mockResolvedValue({});
+  const orderFindMany = vi.fn().mockResolvedValue([
+      { id: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1' },
+      { id: 'O2', orderNumber: 'ORD-2', poNumber: null },
+    ]);
+  const orderAllocCreate = vi.fn().mockResolvedValue({});
+  const orderAllocUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
   const tx = {
     invoice: { create: invoiceCreate, update: invoiceUpdate, findUnique: invoiceFindUnique },
     paymentVoucher: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -20,18 +26,21 @@ function makeApp(opts: { invoice?: any; syncFail?: boolean; auditFail?: boolean;
     auditLog: { create: auditCreate },
     entityReference: { upsert: entityReferenceUpsert },
     entityLink: { upsert: entityLinkUpsert, findMany: vi.fn().mockResolvedValue([]), update: vi.fn() },
+    order: { findMany: orderFindMany },
+    invoiceOrderAllocation: { create: orderAllocCreate, updateMany: orderAllocUpdateMany },
   } as any;
   const prisma = {
     invoice: { findMany: vi.fn().mockResolvedValue([]), findUnique: invoiceFindUnique },
     paymentVoucher: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn() },
     invoiceAllocation: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
+    invoiceOrderAllocation: { findMany: vi.fn().mockResolvedValue([{ id: 'IOA__1', orderId: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1', allocatedAmount: new Prisma.Decimal('50.0000'), note: null }]) },
     $transaction: vi.fn(async (fn: any) => fn(tx)),
   } as any;
   const onDataChange = opts.onDataChange || vi.fn();
   const app = express();
   app.use(express.json());
   app.use('/api/v1/finance', createFinanceRouter({ prisma, requireAuth: false, apiKeys: new Set(), onDataChange }));
-  return { app, prisma, invoiceCreate, invoiceUpdate, invoiceFindUnique, auditCreate, entityReferenceUpsert, entityLinkUpsert, onDataChange };
+  return { app, prisma, invoiceCreate, invoiceUpdate, invoiceFindUnique, auditCreate, entityReferenceUpsert, entityLinkUpsert, onDataChange, orderAllocCreate, orderAllocUpdateMany, orderFindMany };
 }
 
 describe('invoiceMutationService route POST /finance', () => {
@@ -48,6 +57,28 @@ describe('invoiceMutationService route POST /finance', () => {
     expect(entityLinkUpsert).toHaveBeenCalled();
     expect(auditCreate).toHaveBeenCalledTimes(1);
     expect(onDataChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('create with orderIds → writes invoice↔order allocations with snapshot', async () => {
+    const { app, orderAllocCreate, orderFindMany } = makeApp();
+    const res = await request(app).post('/api/v1/finance').set(authHeader()).send({ invoiceNumber: 'INV-2', type: 'Receivable', amount: '100', currency: 'USD', issueDate: '2026-07-02', status: 'Draft', orderIds: ['O1', 'O2'] });
+    expect(res.status).toBe(201);
+    // orderFindMany 用分配订单做快照（orderNumber/poNumber）
+    expect(orderFindMany).toHaveBeenCalledWith({ where: { id: { in: ['O1', 'O2'] }, deletedAt: null }, select: { id: true, orderNumber: true, poNumber: true } });
+    expect(orderAllocCreate).toHaveBeenCalledTimes(2);
+    const callData = orderAllocCreate.mock.calls.map((c: any) => c[0].data);
+    expect(callData.map((d: any) => d.orderId)).toEqual(expect.arrayContaining(['O1', 'O2']));
+    expect(callData.find((d: any) => d.orderId === 'O1')).toMatchObject({ invoiceId: 'INV__NEW', orderId: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1' });
+    expect(callData.find((d: any) => d.orderId === 'O2')).toMatchObject({ orderNumber: 'ORD-2', poNumber: null });
+  });
+
+  it('GET /:id → returns orderAllocations alongside invoice', async () => {
+    const { app, prisma } = makeApp();
+    const res = await request(app).get('/api/v1/finance/INV__1').set(authHeader());
+    expect(res.status).toBe(200);
+    expect(prisma.invoiceOrderAllocation.findMany).toHaveBeenCalledWith({ where: { invoiceId: 'INV__1', deletedAt: null }, orderBy: { createdAt: 'asc' } });
+    expect(Array.isArray(res.body.orderAllocations)).toBe(true);
+    expect(res.body.orderAllocations[0]).toMatchObject({ orderId: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1', allocatedAmount: 50 });
   });
 
   it('invalid status → 400 INVALID_STATUS before tx', async () => {

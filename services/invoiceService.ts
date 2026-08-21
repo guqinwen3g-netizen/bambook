@@ -3,7 +3,7 @@
  * Communicates with /api/v1/finance endpoints (invoices).
  */
 import { apiService } from './apiService';
-import type { Invoice, InvoiceStatus, InvoiceType } from '../types';
+import type { Invoice, InvoiceAttachment, InvoiceOrderAllocation, InvoiceStatus, InvoiceType, InvoiceWriteInput } from '../types';
 
 type InvoiceListParams = {
   type?: InvoiceType;
@@ -38,22 +38,20 @@ export const invoiceService = {
     return data.items || [];
   },
 
-  async getInvoice(id: string, endpoint?: string): Promise<Invoice> {
+  // DR：详情——GET /v1/finance/:id，返回附带 orderAllocations[]（发票↔订单多对多）
+  async getInvoice(id: string, endpoint?: string): Promise<Invoice & { orderAllocations?: InvoiceOrderAllocation[] }> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/${encodeURIComponent(id)}`, base);
-
-    const res = await fetch(url, {
-      headers: apiService.getAuthHeaders(),
-    });
+    const res = await fetch(url, { headers: apiService.getAuthHeaders() });
     if (!res.ok) throw new Error(`getInvoice failed: HTTP ${res.status}`);
     const data = await res.json();
-    return data;
+    return data as Invoice & { orderAllocations?: InvoiceOrderAllocation[] };
   },
 
-  async createInvoice(input: Partial<Invoice>, endpoint?: string): Promise<Invoice> {
+  /** POST /v1/finance —— 创建发票（支持 orderIds[] 多订单分配） */
+  async createInvoice(input: Partial<Invoice> & InvoiceWriteInput, endpoint?: string): Promise<Invoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl('/v1/finance', base);
-
     const res = await fetch(url, {
       method: 'POST',
       headers: apiService.getAuthHeaders(),
@@ -70,10 +68,10 @@ export const invoiceService = {
     return data;
   },
 
-  async updateInvoice(id: string, input: Partial<Invoice>, endpoint?: string): Promise<Invoice> {
+  /** PATCH /v1/finance/:id —— 更新发票（orderIds[] 时后端按 replace 语义重写分配） */
+  async updateInvoice(id: string, input: Partial<Invoice> & InvoiceWriteInput, endpoint?: string): Promise<Invoice> {
     const base = endpoint || apiService.getStoredConfig().cloudEndpoint;
     const url = apiService.buildApiUrl(`/v1/finance/${encodeURIComponent(id)}`, base);
-
     const res = await fetch(url, {
       method: 'PATCH',
       headers: apiService.getAuthHeaders(),
@@ -88,6 +86,16 @@ export const invoiceService = {
     }
     const data = await res.json();
     return data;
+  },
+
+  /** 导出发票 PDF（下载到本地） */
+  async renderInvoicePdf(id: string, endpoint?: string): Promise<void> {
+    return apiService.renderInvoicePdf(id, endpoint);
+  },
+
+  /** 上传发票真实文件（multipart），返回登记后的附件结构 */
+  async uploadInvoiceAttachment(id: string, file: File, endpoint?: string): Promise<InvoiceAttachment> {
+    return apiService.uploadInvoiceAttachment(id, file, endpoint);
   },
 
   // task_mqyusoio: 消费后端 POST /:id/cancel + DELETE /:id（task_mqyurxot voidDeleteService）

@@ -78,6 +78,131 @@ export function createEntitiesRouter(opts: EntitiesRouterOptions): Router {
   });
 
   // ---------------------------------------------------------------------------
+  // GET /api/v1/entities/related-summary?type=relation.organization&id=XYZ
+  //
+  // 跨模块导航的计数聚合：按业务表真实关联字段 count（不用 EntityLink 图谱——
+  // 图谱存在历史双命名残留，且"该客户有几笔订单"应以业务真相为准）。
+  // 返回各业务域的关联数，前端渲染为详情页的"关联业务"入口卡片。
+  // ---------------------------------------------------------------------------
+  router.get('/related-summary', async (req, res) => {
+    try {
+      const type = trimOrUndef(req.query.type);
+      const id = trimOrUndef(req.query.id);
+      if (!type || !id) {
+        return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'type 与 id 必填' });
+      }
+      if (type !== 'relation.organization' && type !== 'relation.contact' && type !== 'product') {
+        return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'related-summary 目前仅支持 relation.organization / relation.contact / product' });
+      }
+
+      const prisma = opts.prisma as any;
+      const notDeleted = { deletedAt: null };
+
+      // ── product 维度：按产品档案（ProductAsset）聚合。
+      // 精确 FK：开发/库存/BOM 直接 productAssetId；
+      // 业务行（订单/报价/采购/出运）为单据快照编码，用产品编码集合匹配
+      // （ProductAsset.sku ∪ FabricProfile.articleNo ∪ FabricCustomerCode.clientCode）。 ──
+      if (type === 'product') {
+        const asset = await prisma.productAsset.findUnique({
+          where: { id, deletedAt: null },
+          include: { fabricProfile: true, fabricCustomerCodes: true },
+        });
+        if (!asset) {
+          return res.status(404).json({ error: 'NOT_FOUND', message: 'product 档案不存在' });
+        }
+        const codes: string[] = ([] as string[])
+          .concat(asset.sku || [])
+          .concat(asset.fabricProfile?.articleNo ? [asset.fabricProfile.articleNo] : [])
+          .concat((asset.fabricCustomerCodes ?? []).map((c: any) => c.clientCode).filter(Boolean));
+        const uniqueCodes = Array.from(new Set(codes)).filter(Boolean);
+        const codeMatch = uniqueCodes.length
+          ? { in: uniqueCodes }
+          : undefined;
+
+        // 出运无直接 lines 关系（snapshot FK 风格），先经 shipmentLine.productCode 收集 shipmentId 再计数
+        const shipRows = codeMatch
+          ? await prisma.shipmentLine.findMany({ where: { productCode: codeMatch }, select: { shipmentId: true } })
+          : [];
+        const shipIds = Array.from(new Set((shipRows ?? []).map((r: any) => r.shipmentId).filter(Boolean)));
+
+        const [orders, quotations, purchaseOrders, developments, inventory, boms, shipments] =
+          await Promise.all([
+            codeMatch
+              ? prisma.order.count({ where: { ...notDeleted, lines: { some: { OR: [
+                  { itemNo: codeMatch }, { materialCode: codeMatch },
+                ] } } } })
+              : 0,
+            codeMatch
+              ? prisma.quotation.count({ where: { ...notDeleted, lines: { some: { fabricCode: codeMatch } } } })
+              : 0,
+            codeMatch
+              ? prisma.purchaseOrder.count({ where: { ...notDeleted, lines: { some: { materialCode: codeMatch } } } })
+              : 0,
+            prisma.developmentCase.count({ where: { ...notDeleted, productAssetId: id } }),
+            prisma.inventoryItem.count({ where: { ...notDeleted, productAssetId: id } }),
+            // Prisma client 对全大写 model「BOM」暴露为 bOM（首字母小写）
+            prisma.bOM.count({ where: { ...notDeleted, productAssetId: id } }),
+            shipIds.length
+              ? prisma.shipment.count({ where: { ...notDeleted, id: { in: shipIds } } })
+              : 0,
+          ]);
+
+        return res.json({
+          ok: true,
+          type,
+          id,
+          summary: {
+            orders, developments, quotations, purchaseOrders, inventory, boms, shipments,
+            // 以下域对产品维度不适用，置 0 占位
+            invoices: 0, paymentVouchers: 0, vatInvoices: 0, customsDeclarations: 0,
+            taxRefunds: 0, lettersOfCredit: 0, fxSettlements: 0, outwardRemittances: 0,
+            opportunities: 0, outsourcingOrders: 0,
+          },
+        });
+      }
+
+      // ── relation 维度：组织/联系人 → 各业务域计数。订单按四个角色取并集 ──
+      const [orders, developments, quotations, purchaseOrders, invoices, paymentVouchers,
+        vatInvoices, shipments, customsDeclarations, taxRefunds, lettersOfCredit,
+        fxSettlements, outwardRemittances, opportunities, outsourcingOrders] = await Promise.all([
+        prisma.order.count({ where: { ...notDeleted, OR: [
+          { customerRelationId: id }, { consigneeRelationId: id }, { billToRelationId: id }, { millRelationId: id },
+        ] } }),
+        prisma.developmentCase.count({ where: { ...notDeleted, customerRelationId: id } }),
+        prisma.quotation.count({ where: { ...notDeleted, customerRelationId: id } }),
+        prisma.purchaseOrder.count({ where: { ...notDeleted, supplierRelationId: id } }),
+        prisma.invoice.count({ where: { ...notDeleted, customerRelationId: id } }),
+        prisma.paymentVoucher.count({ where: { ...notDeleted, customerRelationId: id } }),
+        prisma.vatInvoice.count({ where: { ...notDeleted, relationId: id } }),
+        prisma.shipment.count({ where: { ...notDeleted, customerRelationId: id } }),
+        prisma.customsDeclaration.count({ where: { ...notDeleted, relationId: id } }),
+        prisma.taxRefund.count({ where: { ...notDeleted, relationId: id } }),
+        prisma.letterOfCredit.count({ where: { ...notDeleted, relationId: id } }),
+        prisma.fxSettlement.count({ where: { ...notDeleted, customerRelationId: id } }),
+        prisma.outwardRemittance.count({ where: { ...notDeleted, customerRelationId: id } }),
+        prisma.opportunity.count({ where: { ...notDeleted, relationId: id } }),
+        prisma.outsourcingOrder.count({ where: { ...notDeleted, supplierId: id } }),
+      ]);
+
+      return res.json({
+        ok: true,
+        type,
+        id,
+        summary: {
+          orders, developments, quotations, purchaseOrders, invoices, paymentVouchers,
+          vatInvoices, shipments, customsDeclarations, taxRefunds, lettersOfCredit,
+          fxSettlements, outwardRemittances, opportunities, outsourcingOrders,
+          // relation 维度不适用产品域，置 0 占位
+          inventory: 0, boms: 0,
+        },
+      });
+    } catch (e: any) {
+      logger.error('[entities/related-summary] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ error: 'RELATED_SUMMARY_FAILED', message: String(e?.message ?? e) });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
   // EntityLink graph queries
   //
   // GET /api/v1/entities/links?fromType=order&fromId=ABC

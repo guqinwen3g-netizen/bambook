@@ -7,7 +7,7 @@ import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { apiService } from '../services/apiService';
 import { financeV2Service } from '../services/financeV2Service';
-import { BadgeCheck, Ban, CalendarClock, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
+import { BadgeCheck, Ban, CalendarClock, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3, Upload, Download, Paperclip } from 'lucide-react';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import { CashCalendarPanel } from './finance/CashCalendarPanel';
 import { FinancePaymentRequestsPanel } from './finance/FinancePaymentRequestsPanel';
@@ -28,12 +28,17 @@ import type {
   VatInvoiceType,
   TaxRefund as TaxRefundEntity,
   Relation,
+  InvoiceOrderAllocation,
+  InvoiceAttachment,
+  Order as OrderEntity,
 } from '../types';
-import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 
 // ── Typedefs & constants ──────────────────────────────────────────────────
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -204,6 +209,8 @@ interface FinanceManagerProps {
   setInvoices: React.Dispatch<React.SetStateAction<InvoiceEntity[]>>;
   vouchers: VoucherEntity[];
   setVouchers: React.Dispatch<React.SetStateAction<VoucherEntity[]>>;
+  /** 跨模块导航：单据详情「关联业务」入口页面切换 */
+  onNavigate?: (view: import('../types').View) => void;
 }
 
 // ── Small shared render helpers ───────────────────────────────────────────
@@ -324,6 +331,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   setInvoices,
   vouchers,
   setVouchers,
+  onNavigate,
 }) => {
   // ── View switching ───
   const [activeTab, setActiveTab] = useState<FinanceTabId>(initialTab);
@@ -331,6 +339,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  // 跨模块导航筛选（关系智库档案「关联业务 → 发票/收付款/增值税发票」入口）：
+  // 挂载时消费一次——tab 预填（如 vatInvoices）+ relation 筛选；✕ 清除回全量
+  const navContext = useState(() => consumeCrossModuleNav())[0];
+  const [navRelationFilter, setNavRelationFilter] = useState(() => navContext?.filter ?? null);
+  useEffect(() => {
+    if (navContext?.tab && ['invoices', 'vouchers', 'paymentRequests', 'credit', 'vatInvoices', 'cashCalendar', 'reports'].includes(navContext.tab)) {
+      setActiveTab(navContext.tab as FinanceTabId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Filter state (one flat set; resets on tab change) ───
   const [searchTerm, setSearchTerm] = useState('');
@@ -648,9 +667,18 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   // ── P0 invoice manual UI: 创建/编辑发票 modal state ───
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<InvoiceEntity | null>(null);
-  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', type: 'Receivable' as 'Receivable' | 'Payable', status: 'Draft' as InvoiceStatus, amount: '', currency: 'USD', customerName: '', customerRelationId: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '' });
+  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', type: 'Receivable' as 'Receivable' | 'Payable', status: 'Draft' as InvoiceStatus, amount: '', currency: 'USD', customerName: '', customerRelationId: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '', orderIds: [] as string[] });
   const [invoiceSaving, setInvoiceSaving] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  // DR：发票详情（orderAllocations + attachments）——发票 tab 选中时拉取 GET /v1/finance/:id
+  const [invoiceDetail, setInvoiceDetail] = useState<(InvoiceEntity & { orderAllocations?: InvoiceOrderAllocation[] }) | null>(null);
+  const [invoiceDetailLoading, setInvoiceDetailLoading] = useState(false);
+  // 发票表单多订单分配用订单候选列表（apiService.listOrders）
+  const [orderOptions, setOrderOptions] = useState<OrderEntity[]>([]);
+  // 发票附件上传状态
+  const [invoiceUpFile, setInvoiceUpFile] = useState<File | null>(null);
+  const [invoiceUploading, setInvoiceUploading] = useState(false);
+  const [invoiceAttachmentErr, setInvoiceAttachmentErr] = useState<string | null>(null);
 
   // ── 跨模块 prime 消费：采购单 → 生成应付发票（预填供应商/币种/金额并直接开新建 modal）───
   useEffect(() => {
@@ -665,7 +693,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       currency: prime.currency || 'USD',
       customerName: prime.supplierName || '',
       customerRelationId: prime.supplierRelationId || '',
-      issueDate: '', dueDate: '', notes: prime.notes || '', orderId: '', exchangeRate: '',
+      issueDate: '', dueDate: '', notes: prime.notes || '', orderId: '', exchangeRate: '', orderIds: [],
     });
     setInvoiceError(null);
     setShowInvoiceModal(true);
@@ -673,9 +701,10 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
   const openCreateInvoice = () => {
     setEditingInvoice(null);
-    setInvoiceForm({ invoiceNumber: '', type: 'Receivable', status: 'Draft', amount: '', currency: 'USD', customerName: '', customerRelationId: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '' });
+    setInvoiceForm({ invoiceNumber: '', type: 'Receivable', status: 'Draft', amount: '', currency: 'USD', customerName: '', customerRelationId: '', issueDate: '', dueDate: '', notes: '', orderId: '', exchangeRate: '', orderIds: [] });
     setInvoiceError(null);
     setShowInvoiceModal(true);
+    loadOrderOptions();
   };
 
   const openEditInvoice = (inv: InvoiceEntity) => {
@@ -693,9 +722,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       notes: inv.notes || '',
       orderId: inv.orderId || '',
       exchangeRate: inv.exchangeRate != null ? String(inv.exchangeRate) : '',
+      // DR：多订单分配——优先用详情接口带回的 orderAllocations；列表无该字段时退化到单个 orderId
+      orderIds: ((inv as InvoiceEntity & { orderAllocations?: InvoiceOrderAllocation[] }).orderAllocations ?? []).map(a => a.orderId),
     });
     setInvoiceError(null);
     setShowInvoiceModal(true);
+    loadOrderOptions();
+  };
+
+  // 加载发票表单多订单分配候选订单（best-effort，失败不阻塞表单）
+  const loadOrderOptions = () => {
+    apiService.listOrders()
+      .then(list => { if (Array.isArray(list)) setOrderOptions(list); })
+      .catch(() => setOrderOptions([]));
   };
 
   // task_mqyusoio: 作废/软删 state（消费后端 contract，不伪造）
@@ -749,15 +788,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         notes: invoiceForm.notes || undefined,
         orderId: invoiceForm.orderId.trim() || undefined,
         exchangeRate: invoiceForm.exchangeRate ? Number(invoiceForm.exchangeRate) : undefined,
+        // DR：多订单分配——提交 orderIds[]（create 插入 / update 全量替换）
+        ...(invoiceForm.orderIds.length > 0 ? { orderIds: invoiceForm.orderIds } : {}),
       };
       if (editingInvoice) {
         // 编辑：调 PATCH，成功后用后端返回更新本地
         const updated = await invoiceService.updateInvoice(editingInvoice.id, payload);
         setInvoices(prev => prev.map(i => i.id === updated.id ? { ...i, ...updated } as InvoiceEntity : i));
+        setSelectedId(updated.id);
       } else {
         // 新建：调 POST，成功后追加到本地
         const created = await invoiceService.createInvoice(payload);
         setInvoices(prev => [created as InvoiceEntity, ...prev]);
+        setSelectedId(created.id);
       }
       setShowInvoiceModal(false);
     } catch (e: any) {
@@ -1167,6 +1210,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   // ── Per-tab lists & current row selection ───
   const filteredInvoices = useMemo(() => {
     let result = invoices;
+    if (navRelationFilter) result = result.filter(i => i.customerRelationId === navRelationFilter.relationId);
     if (selectedType !== 'all') result = result.filter(i => i.type === selectedType);
     if (selectedStatus !== 'all') result = result.filter(i => i.status === selectedStatus);
     if (searchTerm.trim()) {
@@ -1177,10 +1221,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       );
     }
     return result;
-  }, [invoices, selectedType, selectedStatus, searchTerm]);
+  }, [invoices, selectedType, selectedStatus, searchTerm, navRelationFilter]);
 
   const filteredVouchers = useMemo(() => {
     let result = vouchers;
+    if (navRelationFilter) result = result.filter(v => v.customerRelationId === navRelationFilter.relationId);
     if (selectedType !== 'all') result = result.filter(v => v.type === selectedType);
     if (selectedStatus !== 'all') result = result.filter(v => v.status === selectedStatus);
     if (searchTerm.trim()) {
@@ -1191,11 +1236,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       );
     }
     return result;
-  }, [vouchers, selectedType, selectedStatus, searchTerm]);
+  }, [vouchers, selectedType, selectedStatus, searchTerm, navRelationFilter]);
 
   // C6 增值税发票：本地过滤（方向 → type chips / 状态 → status chips，与发票/凭证 tab 同一交互范式）
   const filteredVatInvoices = useMemo(() => {
     let result = vatInvoices;
+    if (navRelationFilter) result = result.filter(v => v.relationId === navRelationFilter.relationId);
     if (selectedType !== 'all') result = result.filter(v => v.direction === selectedType);
     if (selectedStatus !== 'all') result = result.filter(v => v.status === selectedStatus);
     if (searchTerm.trim()) {
@@ -1207,7 +1253,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       );
     }
     return result;
-  }, [vatInvoices, selectedType, selectedStatus, searchTerm]);
+  }, [vatInvoices, selectedType, selectedStatus, searchTerm, navRelationFilter]);
 
   // 自包含 tab（报表 / 资金日历 / 付款申请 / 客户信用）由专属面板全权渲染，不消费共享列表与核销副作用
   const isSelfContainedTab = activeTab === 'reports' || activeTab === 'cashCalendar' || activeTab === 'paymentRequests' || activeTab === 'credit';
@@ -1228,6 +1274,71 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       .catch(() => setAllocations([]))
       .finally(() => setAllocLoading(false));
   }, [selectedItem?.id, activeTab]);
+
+  // DR：发票 tab 选中时拉取详情（GET /v1/finance/:id），获取发票↔订单 orderAllocations + 附件 attachments
+  useEffect(() => {
+    if (activeTab !== 'invoices' || !selectedItem?.id) { setInvoiceDetail(null); return; }
+    let cancelled = false;
+    setInvoiceDetailLoading(true);
+    invoiceService.getInvoice(selectedItem.id)
+      .then(detail => { if (!cancelled) setInvoiceDetail(detail); })
+      .catch(() => { if (!cancelled) setInvoiceDetail(null); })
+      .finally(() => { if (!cancelled) setInvoiceDetailLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedItem?.id, activeTab, invoices]);
+
+  // 导出发票 PDF（GET /:id/render.pdf → 浏览器下载）
+  const handleExportInvoicePdf = async (invoice: InvoiceEntity) => {
+    try {
+      await invoiceService.renderInvoicePdf(invoice.id);
+      bdsToast.success(`已导出发票 ${invoice.invoiceNumber} 的 PDF`);
+    } catch (e: any) {
+      setInvoiceAttachmentErr(`导出 PDF 失败：${e?.message ?? e}`);
+    }
+  };
+
+  // 上传发票真实文件（POST /:id/attachments，multipart 'file'）→ 登记到 invoice.attachments
+  const handleUploadInvoiceAttachment = async (invoiceId: string) => {
+    const file = invoiceUpFile;
+    if (!file) { setInvoiceAttachmentErr('请先选择要上传的发票文件'); return; }
+    setInvoiceUploading(true);
+    setInvoiceAttachmentErr(null);
+    try {
+      const att = await invoiceService.uploadInvoiceAttachment(invoiceId, file);
+      // 用后端返回的附件更新本地详情附件列表
+      setInvoiceDetail(prev => {
+        if (!prev) return prev;
+        const prevArts = (Array.isArray((prev as any).attachments) ? (prev as any).attachments : []) as InvoiceAttachment[];
+        return { ...prev, attachments: [...prevArts, att] };
+      });
+      setInvoiceUpFile(null);
+      bdsToast.success('发票附件上传成功');
+    } catch (e: any) {
+      setInvoiceAttachmentErr(`上传失败：${e?.message ?? e}`);
+    } finally {
+      setInvoiceUploading(false);
+    }
+  };
+
+  // 下载/查看附件（带鉴权头拉取 blob 后触发浏览器保存）
+  const handleDownloadAttachment = async (att: InvoiceAttachment) => {
+    try {
+      const url = apiService.buildApiUrl(att.url, undefined);
+      const res = await fetch(url, { headers: apiService.getAuthHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = att.fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e: any) {
+      setInvoiceAttachmentErr(`下载附件失败：${e?.message ?? e}`);
+    }
+  };
 
   // ── Status quick-stats (shown at right of toolbar for the active tab) ───
   const statusStats = useMemo(() => {
@@ -1455,9 +1566,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
         )}
         <div className="shrink-0 px-5 py-5">
-          {/* 根因修复（2026-08-21）：头部行必须 flex-wrap，否则窄 panel 下右侧按钮簇
-              被左侧标题挤破、向右戳出被 overflow-hidden 裁切（"编辑/导出PDF 仍溢出"）。
-              加 flex-wrap 后空间不足时按钮簇整块落到标题下方，而非顶破。 */}
+          {/* 与发票/凭证详情头部一致（2026-08-21）：头部行 flex-wrap + 按钮簇去 shrink-0，
+              窄 panel 下按钮簇整块落到标题下方而非顶破。 */}
           <div className="flex flex-wrap min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>当前增值税发票</div>
@@ -1533,14 +1643,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               不含税 {formatAmount(Number(vat.netAmount), vat.currency)} + 税额 {formatAmount(Number(vat.taxAmount), vat.currency)}
             </div>
           </div>
+          {vat.relationId && (
           <div className="mt-4">
-            <RelatedEntitiesPanel
-              type="vatInvoice"
-              id={vat.id}
+            <RelatedWorkspacesSection
+              sourceType="relation"
+              relationId={vat.relationId}
+              relationRole="customer"
+              onNavigate={onNavigate}
               isDarkMode={isDarkMode}
-              title="增值税发票关联视图"
             />
           </div>
+          )}
         </div>
       </>
     );
@@ -1616,8 +1729,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
         )}
         <div className="shrink-0 px-5 py-5">
-          {/* 与发票/凭证详情头部一致（2026-08-21）：头部行 flex-wrap + 按钮簇去 shrink-0，
-              窄 panel 下按钮簇整块落到标题下方而非顶破。 */}
+          {/* 根因修复（2026-08-21）：头部行必须 flex-wrap，否则窄 panel 下右侧按钮簇
+              被左侧标题挤破、向右戳出被 overflow-hidden 裁切（"编辑/导出PDF 仍溢出"）。
+              加 flex-wrap 后空间不足时按钮簇整块落到标题下方，而非顶破。 */}
           <div className="flex flex-wrap min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>{headerLabel}</div>
@@ -1650,6 +1764,18 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 >
                   {convertingPiId === invoice.id ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} strokeWidth={1.75} />}
                   转为应收
+                </button>
+              )}
+              {/* 导出发票 PDF */}
+              {isInvoice && invoice && (
+                <button
+                  type="button"
+                  disabled={invoiceDetailLoading}
+                  onClick={() => handleExportInvoicePdf(invoice)}
+                  className="bds-btn bds-btn-secondary"
+                >
+                  <Download size={16} strokeWidth={1.75} />
+                  导出 PDF
                 </button>
               )}
               {/* task_mqyusoio: 作废入口（只对非 Cancelled 发票显示） */}
@@ -1810,6 +1936,97 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
             <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>{summary.label}</div>
             <div className={cx('mt-2 text-sm font-light tabular-nums', textPrimaryClass)}>{summary.value}</div>
           </div>
+          {/* DR：发票↔订单 多对多——关联订单分配列表（消费 GET /:id 的 orderAllocations） */}
+          {isInvoice && invoice && (
+            <div className="mt-4">
+              <div className="rounded-inset p-4 bds-inset">
+                <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>关联订单（{invoiceDetail?.orderAllocations?.length ?? 0}）</div>
+                {invoiceDetailLoading ? (
+                  <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>加载中...</div>
+                ) : !invoiceDetail?.orderAllocations || invoiceDetail.orderAllocations.length === 0 ? (
+                  <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>暂无关联订单。在「编辑」中分配一个或多个订单。</div>
+                ) : (
+                  <div className="mt-2 space-y-1.5">
+                    {invoiceDetail.orderAllocations.map((oa: InvoiceOrderAllocation) => (
+                      <div key={oa.id} className="rdl-data-row min-h-0 justify-between px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                            {oa.orderNumber ? `订单 ${oa.orderNumber}` : `订单 ${oa.orderId.slice(-8)}`}
+                            {oa.poNumber ? ` · PO ${oa.poNumber}` : ''}
+                          </div>
+                          <div className={cx('mt-0.5 text-[10px] font-light', textSecondaryClass)}>
+                            {oa.allocatedAmount != null ? `分配金额 ${oa.allocatedAmount}` : '未核定分配金额'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* DR：发票附件——查看/下载 + 上传真实文件 */}
+          {isInvoice && invoice && (
+            <div className="mt-4">
+              <div className="rounded-inset p-4 bds-inset">
+                {/* 根因修复（2026-08-21）：原 flex justify-between + 固定 w-40 input
+                    在 340~360px 详情 panel 下无法收缩，整行被撑破溢出。
+                    改为 flex-wrap，input 用 min-w-0 flex-1 可收缩，窄宽时按钮自动换行。 */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>附件（{((Array.isArray((invoiceDetail as any)?.attachments) ? (invoiceDetail as any).attachments : []) as InvoiceAttachment[]).length}）</div>
+                  <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:flex-none">
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                      className="bds-input min-w-0 flex-1 text-[10px] sm:w-40 sm:flex-none"
+                      onChange={e => setInvoiceUpFile(e.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      disabled={invoiceUploading}
+                      onClick={() => handleUploadInvoiceAttachment(invoice.id)}
+                      className="bds-btn bds-btn-secondary"
+                    >
+                      <Upload size={14} strokeWidth={1.75} />
+                      {invoiceUploading ? '上传中...' : '上传文件'}
+                    </button>
+                  </div>
+                </div>
+                {invoiceAttachmentErr && (
+                  <div className="bds-alert danger mt-2">{invoiceAttachmentErr}</div>
+                )}
+                {(() => {
+                  const arts = (Array.isArray((invoiceDetail as any)?.attachments) ? (invoiceDetail as any).attachments : []) as InvoiceAttachment[];
+                  if (arts.length === 0) {
+                    return <div className={cx('mt-2 text-[11px] font-light', textSecondaryClass)}>暂无附件。上传发票文件以便归档留痕。</div>;
+                  }
+                  return (
+                    <div className="mt-2 space-y-1.5">
+                      {arts.map((att, idx) => (
+                        <div key={`${att.fileName}-${idx}`} className="rdl-data-row min-h-0 justify-between px-2.5 py-1.5">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Paperclip size={14} strokeWidth={1.75} className={textSecondaryClass} />
+                            <div className="min-w-0">
+                              <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>{att.fileName}</div>
+                              {att.fileSize != null && (
+                                <div className={cx('mt-0.5 text-[10px] font-light', textSecondaryClass)}>
+                                  {Math.round(att.fileSize / 1024)} KB{att.uploadedAt ? ` · ${new Date(att.uploadedAt).toLocaleString()}` : ''}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => handleDownloadAttachment(att)}
+                            className="bds-btn bds-btn-ghost bds-btn-icon">
+                            <Download size={14} strokeWidth={1.75} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
           {/* P1 payment reconcile manual UI: 核销明细 + 手动核销入口 */}
           <div className="mt-4">
             <div className="rounded-inset p-4 bds-inset">
@@ -1862,14 +2079,27 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
             </div>
           </div>
-          <div className="mt-4">
-            <RelatedEntitiesPanel
-              type={isInvoice ? 'invoice' : 'payment-voucher'}
-              id={selectedItem.id}
-              isDarkMode={isDarkMode}
-              title={isInvoice ? '发票关联视图' : '凭证关联视图'}
-            />
-          </div>
+          {(() => {
+            const relId = isInvoice
+              ? (selectedItem as InvoiceEntity).customerRelationId
+              : (selectedItem as VoucherEntity).customerRelationId;
+            const relName = isInvoice
+              ? (selectedItem as InvoiceEntity).customerName
+              : (selectedItem as VoucherEntity).customerName;
+            if (!relId) return null;
+            return (
+              <div className="mt-4">
+                <RelatedWorkspacesSection
+                  sourceType="relation"
+                  relationId={relId}
+                  relationName={relName ?? ''}
+                  relationRole="customer"
+                  onNavigate={onNavigate}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+            );
+          })()}
         </div>
       </>
     );
@@ -1983,6 +2213,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
 
           {!isSelfContainedTab && (
           <>
+          {navRelationFilter && (
+            <NavRelationFilterChip filter={navRelationFilter} label={activeTab === 'vatInvoices' ? '增值税发票' : activeTab === 'invoices' ? '发票' : '收付款'} onClear={() => setNavRelationFilter(null)} />
+          )}
           {/* Shared toolbar (chips adapt per tab) */}
           <div className="bds-filterbar">
               <div className="relative min-w-0 flex-[1_1_260px]">
@@ -2067,7 +2300,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select className="bds-select" value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '' }))}>
+                  <select className="bds-select sm" value={voucherForm.type} onChange={e => setVoucherForm(f => ({ ...f, type: e.target.value as 'Receipt' | 'Disbursement', customerRelationId: '' }))}>
                     <option value="Receipt">收款</option>
                     <option value="Disbursement">付款</option>
                   </select>
@@ -2080,7 +2313,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>凭证分类</label>
-                <select className="bds-select" value={voucherForm.voucherCategory} onChange={e => setVoucherForm(f => ({ ...f, voucherCategory: e.target.value as VoucherCategory }))}>
+                <select className="bds-select sm" value={voucherForm.voucherCategory} onChange={e => setVoucherForm(f => ({ ...f, voucherCategory: e.target.value as VoucherCategory }))}>
                   {VOUCHER_CATEGORIES.map(c => (
                     <option key={c} value={c}>{VOUCHER_CATEGORY_LABELS[c]}</option>
                   ))}
@@ -2094,14 +2327,14 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付款方式</label>
-                  <select className="bds-select" value={voucherForm.paymentMethod} onChange={e => setVoucherForm(f => ({ ...f, paymentMethod: e.target.value }))}>
+                  <select className="bds-select sm" value={voucherForm.paymentMethod} onChange={e => setVoucherForm(f => ({ ...f, paymentMethod: e.target.value }))}>
                     <option value="TT">TT</option><option value="LC">LC</option><option value="Cash">Cash</option><option value="Other">Other</option>
                   </select>
                 </div>
               </div>
               <div>
                 <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>交易对象档案</label>
-                <select className="bds-select" value={voucherForm.customerRelationId} onChange={e => {
+                <select className="bds-select sm" value={voucherForm.customerRelationId} onChange={e => {
                     const rid = e.target.value;
                     const rel = relationOptions.find(r => r.id === rid);
                     setVoucherForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
@@ -2148,7 +2381,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>类型</label>
-                  <select className="bds-select" value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value as 'Receivable' | 'Payable', customerRelationId: '' }))}>
+                  <select className="bds-select sm" value={invoiceForm.type} onChange={e => setInvoiceForm(f => ({ ...f, type: e.target.value as 'Receivable' | 'Payable', customerRelationId: '' }))}>
                     <option value="Receivable">应收</option>
                     <option value="Payable">应付</option>
                   </select>
@@ -2167,7 +2400,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 </div>
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>{invoiceForm.type === 'Payable' ? '供应商档案' : '客户档案'}</label>
-                  <select className="bds-select" value={invoiceForm.customerRelationId} onChange={e => {
+                  <select className="bds-select sm" value={invoiceForm.customerRelationId} onChange={e => {
                       const rid = e.target.value;
                       const rel = relationOptions.find(r => r.id === rid);
                       setInvoiceForm(f => ({ ...f, customerRelationId: rid, customerName: rel ? relationDisplayName(rel) : f.customerName }));
@@ -2198,18 +2431,42 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>汇率（→本位币）</label>
-                  <input type="number" step="0.0001" value={invoiceForm.exchangeRate} onChange={e => setInvoiceForm(f => ({ ...f, exchangeRate: e.target.value }))}
-                    placeholder="如 7.25"
-                    className={formInputClass} />
-                </div>
-                <div>
-                  <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>关联订单 ID</label>
-                  <input value={invoiceForm.orderId} onChange={e => setInvoiceForm(f => ({ ...f, orderId: e.target.value }))}
-                    placeholder="可选"
-                    className={formInputClass} />
-                </div>
+                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>汇率（→本位币）</label>
+                <input type="number" step="0.0001" value={invoiceForm.exchangeRate} onChange={e => setInvoiceForm(f => ({ ...f, exchangeRate: e.target.value }))}
+                  placeholder="如 7.25"
+                  className={formInputClass} />
               </div>
+              <div>
+                <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>关联订单（多选）</label>
+                {orderOptions.length === 0 ? (
+                  <input value={invoiceForm.orderId} onChange={e => setInvoiceForm(f => ({ ...f, orderId: e.target.value }))}
+                    placeholder="订单列表不可用时可手动输入 1 个订单 ID"
+                    className={formInputClass} />
+                ) : (
+                  <div className="bds-inset max-h-28 space-y-1 overflow-y-auto rounded-field p-1.5">
+                    {orderOptions.map(o => {
+                      const checked = invoiceForm.orderIds.includes(o.id);
+                      return (
+                        <label key={o.id} className="flex items-center gap-2 py-0.5">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setInvoiceForm(f => ({
+                              ...f,
+                              orderIds: checked ? f.orderIds.filter(id => id !== o.id) : [...f.orderIds, o.id],
+                            }))}
+                            className="bds-checkbox"
+                          />
+                          <span className={cx('truncate text-[11px] font-light', checked ? textPrimaryClass : textSecondaryClass)}>
+                            {o.customer || o.id.slice(-8)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
               {invoiceError && <div className="bds-alert danger">{invoiceError}</div>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
@@ -2240,7 +2497,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   </div>
                 ) : (
                   <select value={allocForm.targetId} onChange={e => setAllocForm(f => ({ ...f, targetId: e.target.value }))}
-                    className="bds-select">
+                    className="bds-select sm">
                     <option value="">请选择{isInvoiceContext ? '凭证' : '发票'}</option>
                     {(isInvoiceContext ? vouchers : invoices).map((item: any) => (
                       <option key={item.id} value={item.id}>{isInvoiceContext ? `${item.voucherNumber} · ${formatAmount(item.amount, item.currency)}` : `${item.invoiceNumber} · ${formatAmount(item.amount, item.currency)}`}</option>
@@ -2431,7 +2688,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>方向</label>
                   <select value={vatForm.direction} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, direction: e.target.value as VatInvoiceDirection }))}
-                    className={cx('bds-select', editingVat && 'opacity-50')}>
+                    className={cx('bds-select sm', editingVat && 'opacity-50')}>
                     <option value="Input">进项</option>
                     <option value="Output">销项</option>
                   </select>
@@ -2439,7 +2696,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>票种</label>
                   <select value={vatForm.invoiceType} disabled={!!editingVat} onChange={e => setVatForm(f => ({ ...f, invoiceType: e.target.value as VatInvoiceType }))}
-                    className={cx('bds-select', editingVat && 'opacity-50')}>
+                    className={cx('bds-select sm', editingVat && 'opacity-50')}>
                     <option value="Special">专票</option>
                     <option value="Normal">普票</option>
                   </select>
@@ -2556,7 +2813,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
               {vatTransitionAction === 'Declared' && (
                 <div>
                   <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>退税申报单 *</label>
-                  <select className="bds-select" value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
+                  <select className="bds-select sm" value={vatTransitionForm.taxRefundId} onChange={e => setVatTransitionForm(f => ({ ...f, taxRefundId: e.target.value }))}
                     disabled={vatRefundOptionsLoading}>
                     <option value="">{vatRefundOptionsLoading ? '加载退税申报单…' : '请选择退税申报单'}</option>
                     {vatRefundOptions.map(r => (
@@ -2689,7 +2946,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                       <div>
                         <label className={cx('mb-1 block text-[11px] font-light', textSecondaryClass)}>付汇用途</label>
                         <select value={remittanceForm.purpose} onChange={e => setRemittanceForm(f => ({ ...f, purpose: e.target.value }))}
-                          className="bds-select">
+                          className="bds-select sm">
                           {REMITTANCE_PURPOSE_OPTIONS.map(o => (
                             <option key={o.id} value={o.id}>{o.label}</option>
                           ))}

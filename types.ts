@@ -86,8 +86,6 @@ export interface SystemConfig {
   backgroundImage?: string;
   systemWallpaperOptions?: WallpaperOption[];
   enableProductionGlobe?: boolean;
-  // 控制全局光效（spotlight 跟随光、liquid edge 边缘光晕）。默认开启；关闭后玻璃材质 / 边框 / 阴影保持不变。
-  enableLightEffects?: boolean;
 
   // AI Core — chatModelId 与 lib/ai/client MODELS 中的模型 ID 一致
   chatModelId?: string;
@@ -2333,9 +2331,47 @@ export interface Invoice {
   baseCurrency?: string;
   notes?: string;
   attachments?: unknown;
+  /** DR：发票↔订单 多对多——详情接口附带（GET /v1/finance/:id），列表接口缺失 */
+  orderAllocations?: InvoiceOrderAllocation[];
   deletedAt?: number | null;
   updatedAt: number;
   createdAt: number;
+}
+
+/** 发票↔订单 多对多分配行（消费 GET /v1/finance/:id 的 orderAllocations 契约） */
+export interface InvoiceOrderAllocation {
+  id: string;
+  orderId: string;
+  orderNumber?: string | null;
+  poNumber?: string | null;
+  allocatedAmount?: number | null;
+  note?: string | null;
+}
+
+/** Invoice.attachments 中的单个附件（上传接口登记后的结构） */
+export interface InvoiceAttachment {
+  fileName: string;
+  url: string;
+  mimeType?: string;
+  fileSize?: number;
+  uploadedAt?: string;
+}
+
+/** 发票写操作输入：在现有一致字段基础上支持 orderIds[]（多订单分配，create 插入 / update 全量替换） */
+export interface InvoiceWriteInput {
+  invoiceNumber?: string;
+  type?: InvoiceType;
+  status?: InvoiceStatus;
+  amount?: number;
+  currency?: string;
+  customerName?: string;
+  customerRelationId?: string;
+  issueDate?: string;
+  dueDate?: string;
+  notes?: string;
+  orderId?: string;
+  exchangeRate?: number;
+  orderIds?: string[];
 }
 
 export type VoucherStatus = 'unreconciled' | 'partially_reconciled' | 'reconciled' | 'cancelled';

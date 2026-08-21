@@ -215,4 +215,119 @@ describe('entities route', () => {
     expect(hydrateRes.body.items[0].id).toBe('FCC-1');
     expect(hydrateRes.body.items[0].fillPatch.clientCode).toBe('ZROH-123');
   });
+
+  // ── GET /related-summary：跨模块导航计数聚合 ──
+
+  const RELATED_SUMMARY_MODELS = [
+    'order', 'developmentCase', 'quotation', 'purchaseOrder', 'invoice',
+    'paymentVoucher', 'vatInvoice', 'shipment', 'customsDeclaration', 'taxRefund',
+    'letterOfCredit', 'fxSettlement', 'outwardRemittance', 'opportunity', 'outsourcingOrder',
+  ] as const;
+
+  function makeSummaryPrisma(counts: Partial<Record<typeof RELATED_SUMMARY_MODELS[number], number>> = {}) {
+    const prisma: Record<string, { count: ReturnType<typeof vi.fn> }> = {};
+    for (const model of RELATED_SUMMARY_MODELS) {
+      prisma[model] = { count: vi.fn().mockResolvedValue(counts[model] ?? 0) };
+    }
+    return prisma;
+  }
+
+  it('related-summary: rejects missing type/id and unsupported entity types', async () => {
+    const missingParam = await request(makeApp(makeSummaryPrisma()))
+      .get('/api/v1/entities/related-summary');
+    expect(missingParam.status).toBe(400);
+    expect(missingParam.body.error).toBe('VALIDATION_FAILED');
+
+    const badType = await request(makeApp(makeSummaryPrisma()))
+      .get('/api/v1/entities/related-summary?type=order&id=ORD-1');
+    expect(badType.status).toBe(400);
+    expect(badType.body.error).toBe('VALIDATION_FAILED');
+  });
+
+  it('related-summary product: 404 for missing product, aggregates by productAssetId + codes', async () => {
+    const prisma: any = {
+      productAsset: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+    };
+    const res404 = await request(makeApp(prisma))
+      .get('/api/v1/entities/related-summary?type=product&id=PDT-MISS');
+    expect(res404.status).toBe(404);
+    expect(res404.body.error).toBe('NOT_FOUND');
+
+    prisma.productAsset.findUnique.mockResolvedValue({
+      id: 'PDT-A', sku: 'SKU-A', fabricProfile: { articleNo: 'ART-A' },
+      fabricCustomerCodes: [{ clientCode: 'CL-A' }, { clientCode: 'CL-B' }],
+    });
+    prisma.order = { count: vi.fn().mockResolvedValue(3) };
+    prisma.quotation = { count: vi.fn().mockResolvedValue(2) };
+    prisma.purchaseOrder = { count: vi.fn().mockResolvedValue(1) };
+    prisma.developmentCase = { count: vi.fn().mockResolvedValue(4) };
+    prisma.inventoryItem = { count: vi.fn().mockResolvedValue(5) };
+    prisma.bOM = { count: vi.fn().mockResolvedValue(0) };
+    prisma.shipmentLine = { findMany: vi.fn().mockResolvedValue([{ shipmentId: 'SHIP-1' }, { shipmentId: 'SHIP-2' }]) };
+    prisma.shipment = { count: vi.fn().mockResolvedValue(2) };
+
+    const res = await request(makeApp(prisma))
+      .get('/api/v1/entities/related-summary?type=product&id=PDT-A');
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.summary.orders).toBe(3);
+    expect(res.body.summary.developments).toBe(4);
+    expect(res.body.summary.inventory).toBe(5);
+    expect(res.body.summary.boms).toBe(0);
+
+    const codes = ['SKU-A', 'ART-A', 'CL-A', 'CL-B'];
+    expect(prisma.order.count).toHaveBeenCalledWith({
+      where: { deletedAt: null, lines: { some: { OR: [{ itemNo: { in: codes } }, { materialCode: { in: codes } }] } } },
+    });
+    expect(prisma.developmentCase.count).toHaveBeenCalledWith({
+      where: { deletedAt: null, productAssetId: 'PDT-A' },
+    });
+    expect(prisma.inventoryItem.count).toHaveBeenCalledWith({
+      where: { deletedAt: null, productAssetId: 'PDT-A' },
+    });
+  });
+
+  it('related-summary: counts every business domain with soft-delete and relation filters', async () => {
+    const prisma = makeSummaryPrisma({ order: 6, quotation: 2, outsourcingOrder: 3 });
+
+    const res = await request(makeApp(prisma))
+      .get('/api/v1/entities/related-summary?type=relation.organization&id=REL-ATLAS');
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.id).toBe('REL-ATLAS');
+    expect(res.body.summary).toEqual({
+      orders: 6, developments: 0, quotations: 2, purchaseOrders: 0, invoices: 0,
+      paymentVouchers: 0, vatInvoices: 0, shipments: 0, customsDeclarations: 0,
+      taxRefunds: 0, lettersOfCredit: 0, fxSettlements: 0, outwardRemittances: 0,
+      opportunities: 0, outsourcingOrders: 3, inventory: 0, boms: 0,
+    });
+
+    // 计数走业务表真实关联字段（订单 = 四角色并集；采购/外协 = 供应商侧；其余 = 客户/relation 侧）
+    expect(prisma.order.count).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        OR: [
+          { customerRelationId: 'REL-ATLAS' }, { consigneeRelationId: 'REL-ATLAS' },
+          { billToRelationId: 'REL-ATLAS' }, { millRelationId: 'REL-ATLAS' },
+        ],
+      },
+    });
+    expect(prisma.quotation.count).toHaveBeenCalledWith({
+      where: { deletedAt: null, customerRelationId: 'REL-ATLAS' },
+    });
+    expect(prisma.purchaseOrder.count).toHaveBeenCalledWith({
+      where: { deletedAt: null, supplierRelationId: 'REL-ATLAS' },
+    });
+    expect(prisma.outsourcingOrder.count).toHaveBeenCalledWith({
+      where: { deletedAt: null, supplierId: 'REL-ATLAS' },
+    });
+    // 15 个业务域全部被查询（无遗漏入口）
+    for (const model of RELATED_SUMMARY_MODELS) {
+      expect(prisma[model].count).toHaveBeenCalledTimes(1);
+    }
+  });
 });

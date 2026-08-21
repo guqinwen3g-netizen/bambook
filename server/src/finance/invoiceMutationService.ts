@@ -105,11 +105,56 @@ function toError(e: any, fallback: InvoiceMutationErrorCode): InvoiceMutationErr
   return { code: fallback, message: String(e?.message ?? e) };
 }
 
+/** 解析发票的多订单分配输入（orderIds）。未提供返回 ok；非法返回错误。 */
+function resolveOrderAllocations(input: any): { ok: true; orderIds?: string[] } | { ok: false; error: InvoiceMutationError } {
+  const raw = input?.orderIds;
+  if (raw === undefined || raw === null) return { ok: true };
+  if (!Array.isArray(raw) || raw.some((id: any) => typeof id !== 'string' || !id.trim())) {
+    return { ok: false, error: { code: 'INVALID_AMOUNT', message: 'orderIds must be an array of non-empty strings' } };
+  }
+  return { ok: true, orderIds: Array.from(new Set(raw.map((id: string) => id.trim()))) };
+}
+
+/**
+ * 事务内写入发票↔订单分配（发票 ↔ 订单多对多）。
+ * create：直接插入分配行；update：先软删该发票既有分配再插入新分配（replace 语义）。
+ * 订单号/PO 从 Order 快照带回。
+ */
+async function syncInvoiceOrderAllocations(tx: any, invoiceId: string, orderIds: string[] | undefined): Promise<void> {
+  if (!orderIds || orderIds.length === 0) return;
+  const now = BigInt(Date.now());
+  const rows: Array<{ id: string; orderNumber: string | null; poNumber: string | null }> =
+    await tx.order.findMany({
+      where: { id: { in: orderIds }, deletedAt: null },
+      select: { id: true, orderNumber: true, poNumber: true },
+    }) || [];
+  const byId = new Map(rows.map((o) => [o.id, o]));
+  for (const orderId of orderIds) {
+    const o = byId.get(orderId);
+    await tx.invoiceOrderAllocation.create({
+      data: {
+        id: generateId('IOA'),
+        invoiceId,
+        orderId,
+        orderNumber: o?.orderNumber ?? null,
+        poNumber: o?.poNumber ?? null,
+        allocatedAmount: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
+}
+
 export async function createInvoice(params: { prisma: PrismaClient; input: InvoiceMutationInput; actorId?: string; ip?: string | null }): Promise<InvoiceMutationResult> {
   const { prisma, input, actorId, ip } = params;
   const normalized = normalizeCreateInput(input);
   if (!normalized.ok) {
     return { ok: false, error: normalized.error };
+  }
+  const alloc = resolveOrderAllocations(input);
+  if (!alloc.ok) {
+    return { ok: false, error: alloc.error };
   }
   try {
     const result = await (prisma as any).$transaction(async (tx: any) => {
@@ -120,6 +165,8 @@ export async function createInvoice(params: { prisma: PrismaClient; input: Invoi
       const data = { id, ...normalized.data, invoiceNumber, createdAt: now, updatedAt: now };
       const invoice = await tx.invoice.create({ data });
       await syncInvoiceReferences(prisma, invoice, { source: 'route:invoice:create' }, tx);
+      // 发票 ↔ 订单 多对多分配（orderIds 提供的订单写入分配表）
+      await syncInvoiceOrderAllocations(tx, invoice.id, alloc.ok ? alloc.orderIds : undefined);
       const auditId = await writeRouteAuditLog({
         prisma: tx, actorId: actorId || 'api', source: 'route:invoice:create',
         operation: 'create_invoice', targetType: 'Invoice', targetId: invoice.id,
@@ -160,6 +207,10 @@ export async function updateInvoice(params: { prisma: PrismaClient; invoiceId: s
   if (!normalized.ok) {
     return { ok: false, error: normalized.error };
   }
+  const alloc = resolveOrderAllocations(input);
+  if (!alloc.ok) {
+    return { ok: false, error: alloc.error };
+  }
   try {
     const result = await (prisma as any).$transaction(async (tx: any) => {
       const existing = await tx.invoice.findUnique({ where: { id: invoiceId }, select: { id: true, status: true, amount: true, deletedAt: true } });
@@ -175,6 +226,11 @@ export async function updateInvoice(params: { prisma: PrismaClient; invoiceId: s
       const data = { ...normalized.data, updatedAt: BigInt(Date.now()) };
       const invoice = await tx.invoice.update({ where: { id: invoiceId }, data });
       await syncInvoiceReferences(prisma, invoice, { source: 'route:invoice:update' }, tx);
+      // 发票 ↔ 订单 多对多分配（replace 语义：提供 orderIds 时先软删旧分配再写入新分配）
+      if (alloc.ok && Array.isArray(input?.orderIds)) {
+        await tx.invoiceOrderAllocation.updateMany({ where: { invoiceId, deletedAt: null }, data: { deletedAt: BigInt(Date.now()) } });
+        await syncInvoiceOrderAllocations(tx, invoiceId, alloc.orderIds);
+      }
       const auditId = await writeRouteAuditLog({
         prisma: tx, actorId: actorId || 'api', source: 'route:invoice:update',
         operation: 'update_invoice', targetType: 'Invoice', targetId: invoice.id,

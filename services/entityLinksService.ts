@@ -51,6 +51,29 @@ export interface LinksResponse {
   snapshots?: Record<string, Record<string, unknown> | null>;
 }
 
+/** related-summary 聚合计数（跨模块导航入口卡片用） */
+export interface RelatedSummary {
+  orders: number;
+  developments: number;
+  quotations: number;
+  purchaseOrders: number;
+  invoices: number;
+  paymentVouchers: number;
+  vatInvoices: number;
+  shipments: number;
+  customsDeclarations: number;
+  taxRefunds: number;
+  lettersOfCredit: number;
+  fxSettlements: number;
+  outwardRemittances: number;
+  opportunities: number;
+  outsourcingOrders: number;
+  /** 产品维度：库存（InventoryItem.productAssetId 精确） */
+  inventory: number;
+  /** 产品维度：BOM / 成本核算（BOM.productAssetId 精确） */
+  boms: number;
+}
+
 const headers = (): Record<string, string> => apiService.getAuthHeaders();
 
 export const entityLinksService = {
@@ -99,6 +122,25 @@ export const entityLinksService = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
     return data as NeighborsResponse;
+  },
+
+  /**
+   * 跨模块导航计数：该组织在各业务域的关联记录数（按业务表真实字段 count）。
+   * 详情页「关联业务」入口卡片的数据源。
+   */
+  async getRelatedSummary(params: {
+    type: string;
+    id: string;
+    endpoint?: string;
+  }): Promise<RelatedSummary> {
+    const base = params.endpoint || apiService.getStoredConfig().cloudEndpoint;
+    const url = apiService.buildApiUrl('/v1/entities/related-summary', base);
+    const query = new URLSearchParams({ type: params.type, id: params.id });
+
+    const res = await fetch(`${url}?${query.toString()}`, { headers: headers() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+    return (data?.summary ?? {}) as RelatedSummary;
   },
 };
 

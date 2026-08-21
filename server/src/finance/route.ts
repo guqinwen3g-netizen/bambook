@@ -10,11 +10,15 @@
  *   - L4 审批：高风险 mutation 默认走 manifest.safety.approval=required
  */
 import { Router, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { renderHtmlToPdf } from '../templates/pdf';
 import { syncInvoiceReferences, syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { cancelInvoice, cancelVoucher, deleteInvoice, deleteVoucher } from './voidDeleteService';
@@ -28,6 +32,58 @@ import { createDunningService } from './dunningService';
 import { createFxSettlement, deleteFxSettlement, getFxLedger, getVoucherSettlementSummary } from './fxSettlementService';
 import { createOutwardRemittance, deleteOutwardRemittance, getVoucherRemittanceSummary, listOutwardRemittances } from './outwardRemittanceService';
 import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteVatInvoice, listVatInvoices, getVatInvoice } from './vatInvoiceService';
+
+/** 发票附件上传根目录（与订单/报价同源约定：BAMBOOK_UPLOAD_DIR 或 server/../../uploads） */
+const FINANCE_UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../uploads');
+
+function ensureDir(p: string): void { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); }
+
+const money = (v: any, currency = '') => `${v == null ? '0.00' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ''}`;
+const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
+/** 发票 A4 PDF 渲染（含发票↔订单多对多分配列表；内联样式，邮件/打印场景不依赖 CSS 变量） */
+function invoicePdfHtml(invoice: any, allocs: Array<any>): string {
+  const typeLabel = invoice.type === 'Proforma' ? '形式发票' : invoice.type === 'Payable' ? '应付发票' : '应收发票';
+  const rows = (allocs ?? []).map((a) => `
+      <tr>
+        <td class="mono">${esc(a.orderNumber)}</td>
+        <td class="mono">${esc(a.poNumber ?? '—')}</td>
+        <td class="num">${a.allocatedAmount != null ? money(a.allocatedAmount, invoice.currency) : money(invoice.amount, invoice.currency)}</td>
+      </tr>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    * { box-sizing: border-box; font-family: Helvetica, Arial, sans-serif; }
+    body { color: #111827; margin: 0; }
+    .head { display: flex; justify-content: space-between; border-bottom: 2px solid #111827; padding-bottom: 12px; }
+    h1 { font-size: 22px; margin: 0; font-weight: 600; }
+    .kicker { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .12em; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+    th { text-align: left; font-weight: 600; border-bottom: 1px solid #d1d5db; padding: 6px 8px; font-size: 11px; color: #6b7280; text-transform: uppercase; }
+    td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+    .num { text-align: right; }
+    .mono { font-family: ui-monospace, Menlo, monospace; }
+    .meta { margin-top: 18px; font-size: 13px; line-height: 1.7; }
+    .meta b { display: inline-block; min-width: 90px; color: #6b7280; font-weight: 500; }
+    .total { margin-top: 12px; font-size: 14px; font-weight: 600; text-align: right; }
+  </style></head><body>
+    <div class="head">
+      <div>
+        <div class="kicker">Invoice</div>
+        <h1>${esc(invoice.invoiceNumber)}</h1>
+      </div>
+      <div class="kicker" style="text-align:right;">${esc(typeLabel)}<div style="font-size:12px;color:#111827;text-transform:none;letter-spacing:0;">${esc(invoice.customerName ?? '')}</div></div>
+    </div>
+    <div class="meta">
+      <div><b>状态</b>${esc(invoice.status)}</div>
+      <div><b>开票日期</b>${esc(invoice.issueDate)}</div>
+      <div><b>到期日</b>${esc(invoice.dueDate ?? '—')}</div>
+    </div>
+    <table>
+      <thead><tr><th>订单号</th><th>PO</th><th>金额</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="total">合计：${money(invoice.amount == null ? '0' : invoice.amount, invoice.currency)}</div>
+  </body></html>`;
+}
 
 export interface FinanceRouterOptions {
   prisma: PrismaClient;
@@ -850,9 +906,65 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
     try {
       const item = await prisma.invoice.findUnique({ where: { id: req.params.id } });
       if (!item || item.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '发票不存在' } });
-      res.json(item);
+      // DR：发票 ↔ 订单 多对多——附带该发票的订单分配列表（含订单号/PO 快照）
+      const orderAllocations = await (prisma as any).invoiceOrderAllocation.findMany({
+        where: { invoiceId: item.id, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      });
+      res.json({
+        ...serializeFinanceValue(item),
+        orderAllocations: (orderAllocations ?? []).map((a: any) => ({
+          id: a.id, orderId: a.orderId, orderNumber: a.orderNumber ?? null,
+          poNumber: a.poNumber ?? null, allocatedAmount: a.allocatedAmount != null ? Number(a.allocatedAmount) : null, note: a.note ?? null,
+        })),
+      });
     } catch (err: any) {
       res.status(500).json({ error: { code: 'GET_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/:id/render.pdf — 导出发票 PDF（含发票↔订单多对多分配列表）
+  router.get('/:id/render.pdf', async (req: Request, res: Response) => {
+    try {
+      const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id } });
+      if (!invoice || invoice.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '发票不存在' } });
+      const allocs = await (prisma as any).invoiceOrderAllocation.findMany({ where: { invoiceId: invoice.id, deletedAt: null }, orderBy: { createdAt: 'asc' } });
+      const pdf = await renderHtmlToPdf(invoicePdfHtml(invoice, allocs ?? []), { format: 'A4' });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.pdf"`);
+      res.send(pdf.pdf);
+    } catch (err: any) {
+      logger.error('[finance] GET /:id/render.pdf failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'PDF_FAILED', message: err?.message || String(err) } });
+    }
+  });
+
+  // POST /api/v1/finance/:id/attachments — 上传真实发票文件（multer 落盘 uploads/invoices/），登记 Invoice.attachments
+  const invoiceAttachmentUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => { const dir = path.join(FINANCE_UPLOAD_DIR, 'invoices'); ensureDir(dir); cb(null, dir); },
+      filename: (_req, file, cb) => { cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname) || '.pdf'}`); },
+    }),
+    limits: { fileSize: 15 * 1024 * 1024 },
+    fileFilter: (_req, file, cb: any) => {
+      const ok = /\.(pdf|png|jpe?g|webp|docx?|xlsx?)$/i.test(file.originalname);
+      cb(ok ? null : new Error('UNSUPPORTED_FILE_TYPE'), ok);
+    },
+  });
+  router.post('/:id/attachments', invoiceAttachmentUpload.single('file'), async (req: any, res: Response) => {
+    try {
+      const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id } });
+      if (!invoice || invoice.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '发票不存在' } });
+      if (!req.file) return res.status(400).json({ error: { code: 'INVALID_FILE', message: 'file 必填' } });
+      const url = `/api/uploads/invoices/${req.file.filename}`;
+      const prev = Array.isArray(invoice.attachments) ? invoice.attachments : [];
+      const next = [...prev, { fileName: req.file.originalname, url, mimeType: req.file.mimetype, fileSize: req.file.size, uploadedAt: new Date().toISOString() }];
+      await prisma.invoice.update({ where: { id: invoice.id }, data: { attachments: next as any, updatedAt: BigInt(Date.now()) } });
+      onDataChange?.({ entity: 'finance', action: 'update', ids: [invoice.id] });
+      res.status(201).json({ ok: true, attachment: next[next.length - 1] });
+    } catch (e: any) {
+      logger.error('[finance] POST /:id/attachments failed', { error: e?.message || String(e) });
+      res.status(500).json({ error: { code: 'UPLOAD_FAILED', message: e?.message || String(e) } });
     }
   });
 

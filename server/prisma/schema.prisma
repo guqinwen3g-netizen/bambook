@@ -2144,6 +2144,31 @@ model Invoice {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// 发票 ↔ 订单 多对多分配（一对多 / 多对一 / 多对多）
+// ════════════════════════════════════════════════════════════════════
+// 业务语义：一张应收/应付发票可含多个订单（合并开票），也可仅覆盖一个订单；
+//           一个订单可能被多张发票分摊（分期开票/预开）。发票 ↔ 订单为多对多，
+//           由本分配表承载。原 Invoice.orderId 保留为主订单快照（兼容既有数据/列表）。
+// snapshot FK 风格（与全库一致，不加 @relation），软删（deletedAt）。
+model InvoiceOrderAllocation {
+  id              String   @id // 格式：IOA__${shortId}
+  invoiceId       String
+  orderId         String
+  orderNumber     String? // 冗余快照：订单号
+  poNumber        String? // 冗余快照：客户 PO
+  allocatedAmount Decimal? @db.Decimal(18, 4) // 本订单在发票中的分摊金额（可空=整单）
+  note            String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@unique([invoiceId, orderId])
+  @@index([invoiceId])
+  @@index([orderId])
+}
+
+// ════════════════════════════════════════════════════════════════════
 // REQ2-08 催款函与对账单财务套件 (DR-050)
 // ════════════════════════════════════════════════════════════════════
 // 设计决策（DR-050，设计文档 §2）：

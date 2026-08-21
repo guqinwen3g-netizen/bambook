@@ -15,6 +15,9 @@ import {
   ProductAssetDetail,
   ProductSubCategory,
   Invoice,
+  InvoiceAttachment,
+  InvoiceOrderAllocation,
+  InvoiceWriteInput,
   PaymentVoucher,
   Quotation,
   QuotationInput,
@@ -507,7 +510,6 @@ export const apiService = {
       compactMode: false,
       systemWallpaperOptions: undefined,
       enableProductionGlobe: true,
-      enableLightEffects: true,
       // AI Core（默认与 Assistant 内 MODELS.FAST 一致 = MODELS.AUTO）
       chatModelId: 'ark-code-latest',
       temperature: 0.7,
@@ -770,6 +772,57 @@ export const apiService = {
   async listInvoices(endpoint?: string): Promise<Invoice[]> {
     const data = await requestJson<{ items: Invoice[]; total: number }>('/v1/finance', { endpoint, method: 'GET' });
     return Array.isArray(data.items) ? data.items : [];
+  },
+
+  /** DR：发票详情——GET /v1/finance/:id，附带发票↔订单多对多 orderAllocations（含订单号/PO 快照）+ 附件 */
+  async getInvoice(id: string, endpoint?: string): Promise<Invoice & { orderAllocations?: InvoiceOrderAllocation[] }> {
+    return requestJson<Invoice & { orderAllocations?: InvoiceOrderAllocation[] }>(
+      `/v1/finance/${encodeURIComponent(id)}`,
+      { endpoint, method: 'GET' },
+    );
+  },
+
+  /** 导出发票 PDF——GET /v1/finance/:id/render.pdf，下载到本地（浏览器触发保存） */
+  async renderInvoicePdf(id: string, endpoint?: string): Promise<void> {
+    const url = buildApiUrl(`/v1/finance/${encodeURIComponent(id)}/render.pdf`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error?.message || data?.error?.code || `HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename="?([^";]+)"?/i);
+    const filename = (m && m[1] ? m[1] : `invoice-${id}.pdf`).replace(/%[0-9A-F]{2}/gi, '');
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** 上传发票真实文件——POST /v1/finance/:id/attachments（multipart form，字段名 file） */
+  async uploadInvoiceAttachment(id: string, file: File, endpoint?: string): Promise<InvoiceAttachment> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const url = buildApiUrl(`/v1/finance/${encodeURIComponent(id)}/attachments`, endpoint);
+    const res = await fetch(url, { method: 'POST', headers: this.getAuthHeaders(), body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message || data?.error?.code || `HTTP ${res.status}`);
+    return data.attachment as InvoiceAttachment;
+  },
+
+  /** 创建发票——POST /v1/finance，支持 orderIds[] 多订单分配 */
+  async createInvoice(input: InvoiceWriteInput, endpoint?: string): Promise<Invoice> {
+    return requestJson<Invoice>('/v1/finance', { endpoint, method: 'POST', body: JSON.stringify(input) });
+  },
+
+  /** 更新发票——PATCH /v1/finance/:id，orderIds[] 时后端按 replace 语义全量重写分配 */
+  async updateInvoice(id: string, input: InvoiceWriteInput, endpoint?: string): Promise<Invoice> {
+    return requestJson<Invoice>(`/v1/finance/${encodeURIComponent(id)}`, { endpoint, method: 'PATCH', body: JSON.stringify(input) });
   },
 
   async listPaymentVouchers(endpoint?: string): Promise<PaymentVoucher[]> {
