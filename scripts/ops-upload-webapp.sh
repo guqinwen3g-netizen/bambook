@@ -68,22 +68,7 @@ if [[ -d dist/wallpapers && -x /usr/bin/sips ]]; then
   echo "==> 壁纸发布体积: $(awk -v kb="$BEFORE_WALLPAPERS_KB" 'BEGIN{printf "%.2f", kb/1024}') MB → $(awk -v kb="$AFTER_WALLPAPERS_KB" 'BEGIN{printf "%.2f", kb/1024}') MB"
 fi
 
-# 2) 打包 dist 内容（不含 dist 目录本身这层，方便服务器端直接展开为 webapp/）
-# 轻量模式（BAMBOOK_WEB_LIGHT=1）：不打包 data/ 与 wallpapers/（3D 地图瓦片+壁纸，内容稳定），
-# 服务器端 deploy-webapp 会自动从上一版本沿用这些目录。用于隧道质量差时把 ~90MB 包降到 ~4MB。
-echo "==> 打包 dist/ → $ARCHIVE"
-TAR_EXCLUDES=(--exclude='*.map')
-if [[ "${BAMBOOK_WEB_LIGHT:-0}" == "1" ]]; then
-  # data/wallpapers 为目录级沿用；assets 下 woff/woff2 字体（content-hash 命名，~35MB）文件级沿用
-  TAR_EXCLUDES+=(--exclude='./data' --exclude='./wallpapers' --exclude='*.woff' --exclude='*.woff2')
-  echo "==> 轻量模式：跳过 dist/data、dist/wallpapers 与字体文件（服务器沿用现有版本）"
-fi
-tar "${TAR_EXCLUDES[@]}" -czf "$ARCHIVE" -C dist .
-SIZE=$(stat -f%z "$ARCHIVE" 2>/dev/null || stat -c%s "$ARCHIVE")
-SIZE_MB=$(awk -v b="$SIZE" 'BEGIN{ printf "%.2f", b/1024/1024 }')
-echo "==> 包大小: ${SIZE_MB} MB"
-
-# 3) 取 token（与 ops-upload-package.sh 共用 keychain 条目）
+# 2) 取 token（与 ops-upload-package.sh 共用 keychain 条目）——提前到打包前：增量 diff 需要先查远端清单
 OPS_TOKEN="$(security find-generic-password -a bambook-ops -s bambook-ops-token -w 2>/dev/null || true)"
 if [[ -z "$OPS_TOKEN" ]]; then
   OPS_TOKEN="$(osascript <<'OSA'
@@ -99,6 +84,74 @@ if [[ -z "$OPS_TOKEN" ]]; then
   echo "已取消（未输入 token）" >&2
   exit 1
 fi
+
+# 3) 打包 dist 内容（不含 dist 目录本身这层，方便服务器端直接展开为 webapp/）
+# 增量模式（默认）：拉取远端文件清单（webapp-manifest 端点），跳过「同名且同 size」
+# 的未变文件——assets/ 为 contenthash 命名，同名即同内容；服务器端 deploy-webapp 的
+# 沿用机制（assets 文件级 + data/glyphs/geo/fonts 目录级 + 根级大文件）自动从上一
+# 版本补齐被省略的文件。manifest 端点不可用（旧版 OPS Panel）时回退全量。
+# 轻量模式（BAMBOOK_WEB_LIGHT=1）：叠加跳过 data/ 与 wallpapers/ 与字体（目录级沿用）。
+echo "==> 打包 dist/ → $ARCHIVE"
+TAR_EXCLUDES=(--exclude='*.map')
+if [[ "${BAMBOOK_WEB_LIGHT:-0}" == "1" ]]; then
+  # data/wallpapers 为目录级沿用；assets 下 woff/woff2 字体（content-hash 命名，~35MB）文件级沿用
+  TAR_EXCLUDES+=(--exclude='./data' --exclude='./wallpapers' --exclude='*.woff' --exclude='*.woff2')
+  echo "==> 轻量模式：跳过 dist/data、dist/wallpapers 与字体文件（服务器沿用现有版本）"
+fi
+
+MANIFEST_RESP=$(mktemp)
+MANIFEST_HTTP=$(curl --http1.1 -sS -m 30 -o "$MANIFEST_RESP" -w '%{http_code}' \
+  -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
+  "$OPS_URL/api/admin/webapp-manifest?target=$DEPLOY_TARGET" 2>/dev/null || echo "000")
+if [[ "$MANIFEST_HTTP" == "200" ]] && command -v python3 >/dev/null 2>&1; then
+  # 远端清单一次性转成 "path<TAB>size" 行表（逐文件 grep 查，避免每文件起 python 进程）
+  MANIFEST_TABLE=$(python3 -c "
+import json
+try:
+    m = json.load(open('$MANIFEST_RESP')).get('files', {})
+    print('\n'.join('%s\t%d' % (k, v) for k, v in m.items()))
+except Exception:
+    pass
+" 2>/dev/null || true)
+  # 远端清单 → 逐文件排除（本地 dist 中同名且同 size 的文件视为未变，跳过打包）
+  # 注意：查表用 awk（无匹配返回 0）——grep 无匹配返回 1 会被 set -e 直接终止脚本
+  DIFF_EXCLUDES_FILE=$(mktemp)
+  SKIP_COUNT=0
+  SKIP_BYTES=0
+  TOTAL_COUNT=0
+  while IFS= read -r -d '' f; do
+    TOTAL_COUNT=$((TOTAL_COUNT + 1))
+    rel="${f#dist/}"
+    [[ "$rel" == "index.html" ]] && continue  # 入口文件永不跳过
+    remote_size=$(printf '%s\n' "$MANIFEST_TABLE" | awk -F'\t' -v k="$rel" '$1==k{print $2; exit}')
+    if [[ -n "$remote_size" ]]; then
+      local_size=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f")
+      if [[ "$local_size" == "$remote_size" ]]; then
+        echo "./$rel" >> "$DIFF_EXCLUDES_FILE"
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+        SKIP_BYTES=$((SKIP_BYTES + local_size))
+      fi
+    fi
+  done < <(find dist -type f ! -name '*.map' -print0)
+  if [[ "$SKIP_COUNT" -gt 0 ]]; then
+    while IFS= read -r excl; do
+      TAR_EXCLUDES+=(--exclude="$excl")
+    done < "$DIFF_EXCLUDES_FILE"
+    SKIP_MB=$(awk -v b="$SKIP_BYTES" 'BEGIN{ printf "%.2f", b/1024/1024 }')
+    echo "==> 增量模式：跳过 $SKIP_COUNT/$TOTAL_COUNT 个未变文件（$SKIP_MB MB，仅上传变化部分）"
+  else
+    echo "==> 增量模式：无已存在的远端文件（首次部署或全部变化），全量打包"
+  fi
+  rm -f "$DIFF_EXCLUDES_FILE"
+else
+  echo "==> 增量模式不可用（manifest HTTP $MANIFEST_HTTP），回退全量打包"
+fi
+rm -f "$MANIFEST_RESP"
+
+tar "${TAR_EXCLUDES[@]}" -czf "$ARCHIVE" -C dist .
+SIZE=$(stat -f%z "$ARCHIVE" 2>/dev/null || stat -c%s "$ARCHIVE")
+SIZE_MB=$(awk -v b="$SIZE" 'BEGIN{ printf "%.2f", b/1024/1024 }')
+echo "==> 包大小: ${SIZE_MB} MB"
 
 # 4) 上传
 # Cloudflare 隧道对 POST body 转发有阈值（实测 >~300KB 易 524/Broken pipe），

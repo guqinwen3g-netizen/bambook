@@ -1908,6 +1908,37 @@ app.post('/api/admin/email-key', auth, updateEmailKey);
 app.post('/api/admin/deploy-package', auth, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: DEPLOY_PACKAGE_LIMIT }), deployUploadedPackage);
 app.post('/api/admin/deploy-webapp', auth, express.raw({ type: ['application/gzip', 'application/octet-stream'], limit: DEPLOY_PACKAGE_LIMIT }), deployUploadedWebapp);
 
+// ── webapp 文件清单（增量部署 diff 基线）────────────────────────────────────
+// 客户端构建后拉取远端清单，跳过「同名且同 size」的未变文件（assets/ 全部为
+// contenthash 命名——同名即同内容，size 双保险），只上传变化文件。
+// 服务器端 deploy-webapp 的沿用机制（assets 文件级 + data/glyphs/geo/fonts
+// 目录级 + 根级大文件）自动从上一版本补齐被省略的文件，无需额外改动。
+app.get('/api/admin/webapp-manifest', auth, async (req: Request, res: Response) => {
+  const rawTarget = String(req.query.target || 'webapp');
+  const target = rawTarget === 'webapp-root' ? 'webapp-root' : 'webapp';
+  const webappDir = path.join(SERVER_ROOT, target);
+  try {
+    if (!fs.existsSync(webappDir)) {
+      return res.json({ ok: true, target, files: {} });
+    }
+    const files: Record<string, number> = {};
+    const walk = (dir: string, prefix: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) {
+          walk(path.join(dir, entry.name), rel);
+        } else if (entry.isFile()) {
+          try { files[rel] = fs.statSync(path.join(dir, entry.name)).size; } catch { /* skip */ }
+        }
+      }
+    };
+    walk(webappDir, '');
+    res.json({ ok: true, target, files });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: String(error?.message || error) });
+  }
+});
+
 // ── 分块上传 webapp（隧道 body 转发受限时的回退方案）──────────────────────────
 // Cloudflare Tunnel 对 POST body 大小有限制（~500KB），完整 webapp 包（5MB+）
 // 无法一次性通过。分块上传端点允许客户端将包拆分为多个 < 400KB 的块，
