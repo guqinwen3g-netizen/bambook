@@ -65,7 +65,8 @@ import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
-import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
 
 // ==================== 常量 ====================
 
@@ -159,9 +160,13 @@ interface CrmManagerProps {
 // ==================== 主组件 ====================
 
 export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) {
+  // ── 跨模块导航：消费上下文（商机入口跳转 → 直接选中该客户，activeTab 默认即商机）──
+  const [navContext] = useState(() => consumeCrossModuleNav());
+  const navRelationId = navContext?.filter?.relationId ?? null;
+
   const [activeTab, setActiveTab] = useState<CrmTab>('opportunities');
   const [relations, setRelations] = useState<Relation[]>([]);
-  const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null);
+  const [selectedRelationId, setSelectedRelationId] = useState<string | null>(navRelationId);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -185,10 +190,18 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
 
   // ── 加载客户列表（P1-001：bizScope='mine' L2 业务口径——followedBy ∪ teamGranted，
   //    与跟进记录/商机等子实体读门禁同源，防止默认选中无权客户开屏即 403）──
+  //    跨模块导航例外：导航目标客户不在 mine 口径时放宽到全量口径（服务端仍按权限过滤），
+  //    保证「关系档案 → 商机」跳转后下拉里能选中目标客户而非空态死路。
   const loadRelations = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await apiService.listRelations(undefined, { bizScope: 'mine' });
+      let list = await apiService.listRelations(undefined, { bizScope: 'mine' });
+      if (navRelationId && !list.some((r) => r.id === navRelationId)) {
+        try {
+          const full = await apiService.listRelations();
+          if (full.some((r) => r.id === navRelationId)) list = full;
+        } catch { /* 保持 mine 口径 */ }
+      }
       const filtered = search
         ? list.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()) || (r.category || '').includes(search.toLowerCase()))
         : list;
@@ -201,7 +214,7 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
     } finally {
       setLoading(false);
     }
-  }, [search, selectedRelationId]);
+  }, [search, selectedRelationId, navRelationId]);
 
   useEffect(() => {
     loadRelations();
@@ -504,13 +517,15 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
                 />
               )}
 
-              {/* 跨模块关联视图（EntityLink 图谱）— 客户全维度：订单/报价/商机/开发案/发票等 */}
+              {/* 关联业务（产品化 Links）— 该客户的订单/开发/报价/出运/商机等入口 */}
               <div className="pt-4">
-                <RelatedEntitiesPanel
-                  type="relation.organization"
-                  id={selectedRelation.id}
+                <RelatedWorkspacesSection
+                  sourceType="relation"
+                  relationId={selectedRelation.id}
+                  relationName={selectedRelation.name}
+                  relationRole="customer"
+                  onNavigate={onNavigate}
                   isDarkMode={isDarkMode}
-                  title="客户关联视图"
                 />
               </div>
             </motion.div>

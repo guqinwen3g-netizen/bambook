@@ -60,11 +60,13 @@ import {
   VatInvoiceStatus,
 } from '../types';
 import { vatInvoiceService } from '../services/vatInvoiceService';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
-import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 
 // ==================== 常量 ====================
 
@@ -169,16 +171,31 @@ interface CustomsManagerProps {
   initialTab?: TabId;
   /** Wave A1：贸易单据台账收口单据中心后的跳转回调（App 注入 handleViewChange） */
   onOpenDocumentCenter?: () => void;
+  /** 跨模块导航：单据详情「关联业务」入口页面切换 */
+  onNavigate?: (view: import('../types').View) => void;
 }
 
 // ==================== 组件 ====================
 
-const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab, onOpenDocumentCenter }) => {
+const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab, onOpenDocumentCenter, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'declarations');
   // A5d：与 FinanceManager 同一口径 — initialTab 变更时响应式同步（下钻落点定位）
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
   }, [initialTab]);
+
+  // 跨模块导航筛选（关系智库档案「关联业务 → 报关/退税/信用证」入口）：
+  // 挂载时消费一次——tab 预填 + relation 筛选；✕ 清除回全量
+  const navContext = useState(() => consumeCrossModuleNav())[0];
+  const [navRelationFilter, setNavRelationFilter] = useState(() => navContext?.filter ?? null);
+  useEffect(() => {
+    if (navContext?.tab && ['declarations', 'hsCodes', 'lettersOfCredit', 'taxRefunds', 'tradeDocuments', 'docGenerator', 'docTemplates'].includes(navContext.tab)) {
+      setActiveTab(navContext.tab as TabId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const navMatches = (item: { relationId?: string | null }) =>
+    !navRelationFilter || item.relationId === navRelationFilter.relationId;
   const [declarations, setDeclarations] = useState<CustomsDeclaration[]>([]);
   const [hsCodes, setHsCodes] = useState<HsCode[]>([]);
   const [lettersOfCredit, setLettersOfCredit] = useState<LetterOfCredit[]>([]);
@@ -585,12 +602,15 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 )}
                               </div>
                               {/* 跨模块关联视图（EntityLink 图谱）— 清关出运/关联订单/报关客户/退税 */}
-                              <RelatedEntitiesPanel
-                                type="customsDeclaration"
-                                id={decl.id}
-                                isDarkMode={isDarkMode}
-                                title="报关关联视图"
-                              />
+                              {decl.relationId && (
+                                <RelatedWorkspacesSection
+                                  sourceType="relation"
+                                  relationId={decl.relationId}
+                                  relationRole="customer"
+                                  onNavigate={onNavigate}
+                                  isDarkMode={isDarkMode}
+                                />
+                              )}
                             </div>
                           )}
                         </div>
@@ -743,12 +763,15 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                               )}
                               {/* 跨模块关联视图（EntityLink 图谱）— 开证客户/关联订单（展开时才加载，对齐报关卡门控模式） */}
                               <div className="mt-3">
-                                <RelatedEntitiesPanel
-                                  type="letterOfCredit"
-                                  id={lc.id}
+                                {lc.relationId && (
+                                <RelatedWorkspacesSection
+                                  sourceType="relation"
+                                  relationId={lc.relationId}
+                                  relationRole="customer"
+                                  onNavigate={onNavigate}
                                   isDarkMode={isDarkMode}
-                                  title="信用证关联视图"
                                 />
+                              )}
                               </div>
                             </div>
                           )}
@@ -855,12 +878,15 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                               )}
                               {/* 跨模块关联视图（EntityLink 图谱）— 关联报关单/订单/客户（展开时才加载，对齐报关卡门控模式） */}
                               <div className="mt-3">
-                                <RelatedEntitiesPanel
-                                  type="taxRefund"
-                                  id={tr.id}
+                                {tr.relationId && (
+                                <RelatedWorkspacesSection
+                                  sourceType="relation"
+                                  relationId={tr.relationId}
+                                  relationRole="customer"
+                                  onNavigate={onNavigate}
                                   isDarkMode={isDarkMode}
-                                  title="退税关联视图"
                                 />
+                              )}
                               </div>
                             </div>
                           )}

@@ -82,7 +82,8 @@ describe('Settings permission visibility', () => {
     expect(source).not.toContain('const switchSliderCls');
     expect(source).not.toContain('const switchControlCls');
     expect(source).toContain('className={switchCls(isProductionGlobeEnabled)}');
-    expect(source).toContain('className={switchCls(isLightEffectsEnabled)}');
+    expect(source).toContain('className={switchCls(devOptions.comingSoonOverlay)}');
+    expect(source).not.toContain('isLightEffectsEnabled');
     expect(source).not.toContain('const switchStatesCls');
     expect(source).not.toContain('const switchStateCls');
     expect(source).not.toContain('const switchStatesCls = \'absolute inset-0 z-10 grid grid-cols-2 items-center\'');

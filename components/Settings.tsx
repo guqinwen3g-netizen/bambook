@@ -4,13 +4,14 @@ import { apiService } from '../services/apiService';
 import { knowledgeApiService } from '../services/knowledgeApiService';
 import { storageService, type DeviceStorageReport } from '../services/storageService';
 import { getAuthState, changePassword, logout, hasPermission, updateMyProfile, login } from '../services/authService';
+import { getDevOptions, setDevOption, subscribe as subscribeDevOptions, type DevOptions } from '../services/devOptionsService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layout, BrainCircuit, Volume2,
   Monitor, Moon, Sun, DatabaseZap,
   Bot, Server, Cpu, Globe, User, ArrowRight, LogOut,
   HardDrive, RefreshCw, Trash2, Pencil, RotateCw, Image, Upload,
-  Sparkles, KeyRound
+  KeyRound, Wrench
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { PageHeader } from './ui/PageHeader';
@@ -41,7 +42,7 @@ export interface SettingsProps {
   isDarkMode?: boolean;
 }
 
-type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'account';
+type TabId = 'appearance' | 'ai' | 'voice' | 'sync' | 'storage' | 'account' | 'developer';
 type AvatarCropDraft = {
   src: string;
   fileName: string;
@@ -298,7 +299,21 @@ export const SETTINGS_TABS: { id: TabId; label: string; hint: string; icon: type
   { id: 'ai', label: 'AI 对话', hint: '模型与温度', icon: BrainCircuit },
   { id: 'voice', label: '朗读', hint: '自动播报语速', icon: Volume2 },
   { id: 'sync', label: '连接', hint: '云端与知识库连接', icon: Globe },
-  { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive }
+  { id: 'storage', label: '存储', hint: '缓存与空间', icon: HardDrive },
+  { id: 'developer', label: '开发者选项', hint: '开发与演示工具', icon: Wrench }
+];
+
+// 开发者选项 · 演示账号快速切换（点击即以该账号登录，便于验收不同角色视图）
+const DEMO_ACCOUNTS: { email: string; name: string }[] = [
+  { email: 'boss@bambook.local', name: '沈国强 · 超管' },
+  { email: 'gm@bambook.local', name: '林志远 · 管理员' },
+  { email: 'sales.manager@bambook.local', name: '陈雅雯 · 销售主管' },
+  { email: 'sales.a@bambook.local', name: '苏晓芸 · 业务员' },
+  { email: 'sales.b@bambook.local', name: '周子墨 · 业务员' },
+  { email: 'finance.manager@bambook.local', name: '赵美玲 · 财务主管' },
+  { email: 'finance@bambook.local', name: '钱志明 · 财务' },
+  { email: 'qc@bambook.local', name: '吴建国 · QC' },
+  { email: 'logistics@bambook.local', name: '郑海涛 · 后勤' },
 ];
 
 type CompiledSettingsPageBlueprint = {
@@ -391,6 +406,9 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const [localConfig, setLocalConfig] = useState<SystemConfig>(config);
   const currentThemeModeRef = useRef<SystemConfig['themeMode']>(config.themeMode);
   const [accountView, setAccountView] = useState<'overview' | 'modify'>('overview');
+  const [devOptions, setDevOptions] = useState<DevOptions>(() => getDevOptions());
+
+  useEffect(() => subscribeDevOptions(setDevOptions), []);
 
   useEffect(() => {
     setLocalConfig(config);
@@ -414,7 +432,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const [confirmPw, setConfirmPw] = useState('');
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pwLoading, setPwLoading] = useState(false);
-  // DEV 验收专用：演示账号一键切换（生产构建零渲染）
+  // 开发者选项 · 演示账号一键切换（由开发者选项页开关控制）
   const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
   const [switchMsg, setSwitchMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [storageReport, setStorageReport] = useState<DeviceStorageReport | null>(null);
@@ -508,7 +526,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const user = auth.user;
   const canUseAiChat = hasPermission('ai:chat');
   const isProductionGlobeEnabled = localConfig.enableProductionGlobe !== false;
-  const isLightEffectsEnabled = localConfig.enableLightEffects !== false;
   const wallpaperOptions = normalizeWallpaperOptions(localConfig.systemWallpaperOptions);
   const groupedWallpaperOptions = wallpaperOptions.reduce<Array<{ group: string; presets: WallpaperOption[] }>>((groups, preset) => {
     const groupName = preset.group || '未分组';
@@ -523,8 +540,10 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
   const visibleTabs = useMemo(() => SETTINGS_TABS.filter(tab => (
     mode === 'account'
       ? tab.id === 'account'
-      : tab.id !== 'account' && (canUseAiChat || (tab.id !== 'ai' && tab.id !== 'voice'))
-  )), [mode, canUseAiChat]);
+      : tab.id !== 'account'
+        && (tab.id !== 'developer' || devOptions.developerMode)
+        && (canUseAiChat || (tab.id !== 'ai' && tab.id !== 'voice'))
+  )), [mode, canUseAiChat, devOptions.developerMode]);
 
   useEffect(() => {
     if (visibleTabs.some(tab => tab.id === activeTab)) return;
@@ -548,7 +567,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
     await logout();
   };
 
-  // DEV 验收专用：一键切换演示账号（登录新账号 → 全局状态刷新 → 各页面按新权限重挂载）
+  // 开发者选项 · 一键切换演示账号（登录新账号 → 全局状态刷新 → 各页面按新权限重挂载）
   const handleQuickSwitch = async (email: string) => {
     if (switchingAccount) return;
     setSwitchingAccount(email);
@@ -731,7 +750,15 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               );
             })}
             <div className="mt-auto pt-3 px-2 pb-1 text-[10px] text-[var(--text-tertiary)]">
-              Bambook Hub v3.0
+              <div>Bambook Hub v3.0</div>
+              <button
+                type="button"
+                onClick={() => setDevOption('developerMode', !devOptions.developerMode)}
+                className="mt-1 flex items-center gap-1 opacity-70 hover:opacity-100 hover:text-[var(--text-secondary)] transition-all"
+              >
+                <Wrench size={10} strokeWidth={1.5} />
+                {devOptions.developerMode ? '开发者选项已开启' : '开发者选项'}
+              </button>
             </div>
           </CompiledSplitNavPanel>
         )}
@@ -796,28 +823,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                           aria-checked={isProductionGlobeEnabled}
                           onClick={() => handleUpdate('enableProductionGlobe', !isProductionGlobeEnabled)}
                           className={switchCls(isProductionGlobeEnabled)}
-                        />
-                      </div>
-                    </div>
-                    <div className={card + ' p-5 mt-4'}>
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <div className={`mt-0.5 ${iconWellCls}`}>
-                            <Sparkles size={18} strokeWidth={1.5} />
-                          </div>
-                          <div className="min-w-0">
-                            <div className={`text-sm font-light ${primaryTextCls}`}>界面光效</div>
-                            <p className={`mt-1 text-xs leading-relaxed ${weakTextCls}`}>
-                              控制面板与卡片上的鼠标跟随光斑及液态边缘光晕。关闭后玻璃材质、边框、阴影保持不变。
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={isLightEffectsEnabled}
-                          onClick={() => handleUpdate('enableLightEffects', !isLightEffectsEnabled)}
-                          className={switchCls(isLightEffectsEnabled)}
                         />
                       </div>
                     </div>
@@ -1375,54 +1380,6 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                         </button>
                       </div>
 
-                      {/* DEV 验收专用：演示账号一键切换面板（import.meta.env.DEV 守卫，生产构建零渲染） */}
-                      {import.meta.env.DEV && (
-                        <div className={`p-4 rounded-control border ${optionIdleCls}`}>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-light">演示账号快速切换</div>
-                              <div className={`mt-1 text-[11px] ${weakTextCls}`}>验收专用 · 仅开发模式可见</div>
-                            </div>
-                            {switchMsg && (
-                              <span className={`text-[11px] ${switchMsg.ok ? 'text-[var(--status-success)]' : 'text-[var(--status-danger)]'}`}>
-                                {switchMsg.text}
-                              </span>
-                            )}
-                          </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2">
-                            {[
-                              { email: 'boss@bambook.local', name: '沈国强 · 超管' },
-                              { email: 'gm@bambook.local', name: '林志远 · 管理员' },
-                              { email: 'sales.manager@bambook.local', name: '陈雅雯 · 销售主管' },
-                              { email: 'sales.a@bambook.local', name: '苏晓芸 · 业务员' },
-                              { email: 'sales.b@bambook.local', name: '周子墨 · 业务员' },
-                              { email: 'finance.manager@bambook.local', name: '赵美玲 · 财务主管' },
-                              { email: 'finance@bambook.local', name: '钱志明 · 财务' },
-                              { email: 'qc@bambook.local', name: '吴建国 · QC' },
-                              { email: 'logistics@bambook.local', name: '郑海涛 · 后勤' },
-                            ].map((acct) => {
-                              const isCurrent = user?.email === acct.email;
-                              const isBusy = switchingAccount === acct.email;
-                              return (
-                                <button
-                                  key={acct.email}
-                                  type="button"
-                                  disabled={isCurrent || !!switchingAccount}
-                                  onClick={() => handleQuickSwitch(acct.email)}
-                                  className={`px-3 py-2 rounded-control border text-[11px] font-light transition-all ${
-                                    isCurrent
-                                      ? 'border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
-                                      : 'border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]'
-                                  } disabled:opacity-50`}
-                                >
-                                  {isBusy ? '切换中…' : isCurrent ? `${acct.name}（当前）` : acct.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
                       <button
                         type="button"
                         onClick={() => setAccountView('modify')}
@@ -1495,6 +1452,92 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {activeTab === 'developer' && (
+                <div className="space-y-6">
+                  {/* 装修遮挡 */}
+                  <div className={card + ' p-5'}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className={`mt-0.5 ${iconWellCls}`}>
+                          <Layout size={18} strokeWidth={1.5} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className={`text-sm font-light ${primaryTextCls}`}>装修遮挡</div>
+                          <p className={`mt-1 text-xs leading-relaxed ${weakTextCls}`}>
+                            v0.8 未交付模块以磨砂面板覆盖，并提示「开发中 · 即将上线」。关闭后显示完整界面。
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={devOptions.comingSoonOverlay}
+                        onClick={() => setDevOption('comingSoonOverlay', !devOptions.comingSoonOverlay)}
+                        className={switchCls(devOptions.comingSoonOverlay)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 演示账号快速切换 */}
+                  <div className={card + ' p-5'}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className={`mt-0.5 ${iconWellCls}`}>
+                          <User size={18} strokeWidth={1.5} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className={`text-sm font-light ${primaryTextCls}`}>演示账号快速切换</div>
+                          <p className={`mt-1 text-xs leading-relaxed ${weakTextCls}`}>
+                            点击即以演示账号身份登录，便于验收不同角色视图。
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={devOptions.demoAccountSwitch}
+                        onClick={() => setDevOption('demoAccountSwitch', !devOptions.demoAccountSwitch)}
+                        className={switchCls(devOptions.demoAccountSwitch)}
+                      />
+                    </div>
+                    {devOptions.demoAccountSwitch && (
+                      <div className="mt-4">
+                        {switchMsg && (
+                          <div className={`mb-3 text-xs rounded-control px-3 py-2 ${switchMsg.ok ? 'text-[var(--status-success)]' : 'text-[var(--status-danger)]'}`}>
+                            {switchMsg.text}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-3 gap-2">
+                          {DEMO_ACCOUNTS.map((acct) => {
+                            const isCurrent = user?.email === acct.email;
+                            const isBusy = switchingAccount === acct.email;
+                            return (
+                              <button
+                                key={acct.email}
+                                type="button"
+                                disabled={isCurrent || !!switchingAccount}
+                                onClick={() => handleQuickSwitch(acct.email)}
+                                className={`px-3 py-2 rounded-control border text-[11px] font-light transition-all ${
+                                  isCurrent
+                                    ? 'border-[var(--border-c-strong)] bg-[var(--recessed-bg-strong)] text-[var(--text-primary)]'
+                                    : 'border-[var(--border-c-subtle)] text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]'
+                                } disabled:opacity-50`}
+                              >
+                                {isBusy ? '切换中…' : isCurrent ? `${acct.name}（当前）` : acct.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`${card} p-5 text-[11px] ${weakTextCls}`}>
+                    开发者选项入口位于设置页左下角，默认隐藏；关闭开发者模式后，导航栏不再显示本页。
+                  </div>
                 </div>
               )}
 

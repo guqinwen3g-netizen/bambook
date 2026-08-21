@@ -24,7 +24,8 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { OS_MATERIAL } from './ui/osMaterial';
 import { bdsToast } from './ui/bdsToast';
 import { PageHeader } from './ui/PageHeader';
-import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
+import type { View } from '../types';
 import {
   RELATIONS_FORM_NESTED_ROW_CLASS,
   RELATIONS_FORM_QUIET_ACTION_CLASS,
@@ -74,6 +75,8 @@ export interface ProductsManagerProps {
   cloudEndpoint?: string;
   isDarkMode?: boolean;
   isMobile?: boolean;
+  /** 跨模块导航：产品档案「关联业务」入口页面切换 */
+  onNavigate?: (view: View) => void;
   moduleSettings?: {
     defaultListDisplayMode?: ProductListDisplayMode;
     defaultTableSort?: { column: string; desc: boolean };
@@ -579,7 +582,7 @@ const CertificationCheckboxes: React.FC<{
   );
 };
 
-const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCategories, relations = [], onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings }) => {
+const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCategories, relations = [], onUpdateProducts = () => undefined, onUpdateCategories = () => undefined, cloudEndpoint, isDarkMode = false, isMobile = false, moduleSettings, onNavigate }) => {
   const blueprint = useMemo(() => compileProductsPage(), []);
   const [navLevel, setNavLevel] = useState<NavLevel>('main');
   const [sideSearchTerm, setSideSearchTerm] = useState('');
@@ -3639,7 +3642,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                                   <div key={price.id} className={`rounded-control px-3 py-2 bg-[var(--recessed-bg)]`}>
                                     <div className="flex items-center justify-between gap-3">
                                       <span className={`text-xs font-light ${'text-[var(--text-primary)]'}`}>
-                                        {price.currency} {price.amount}{price.unit ? ` / ${price.unit}` : ''}
+                                        {price.currency} {price.amount != null ? String(price.amount) : ''}{price.unit ? ` / ${price.unit}` : ''}
                                       </span>
                                       <span className={`text-[10px] text-[var(--text-tertiary)]`}>
                                         {price.effectiveDate || new Date(price.updatedAt).toLocaleDateString()}
@@ -3671,13 +3674,19 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                    </>
 	                  )}
 
-	                  {/* 跨模块关联视图（EntityLink 图谱）— 开发案/BOM/订单行等 */}
+	                  {/* 关联业务（产品化 Links）— 该产品的订单/报价/采购/开发/库存/BOM/出运入口 */}
 	                  <div className="pt-2">
-	                    <RelatedEntitiesPanel
-	                      type="product"
-	                      id={selectedProduct.id}
+	                    <RelatedWorkspacesSection
+	                      sourceType="product"
+                      productId={selectedProduct.id}
+                      productName={selectedProduct?.name ?? ''}
+                      productCodes={[
+	                        selectedProduct.sku,
+	                        selectedProduct.fabricProfile?.articleNo,
+	                        ...(selectedProduct.fabricCustomerCodes ?? []).map(c => c.clientCode),
+	                      ].filter((c): c is string => !!c)}
+	                      onNavigate={onNavigate}
 	                      isDarkMode={isDarkMode}
-	                      title="产品关联视图"
 	                    />
 	                  </div>
 

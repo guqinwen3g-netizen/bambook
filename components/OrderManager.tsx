@@ -23,6 +23,8 @@ import ImportWizard from './import/ImportWizard';
 import { ParsedOrder, SavedOrderRow } from '../types';
 import { saveParsedOrders, updateOrderFields } from '../services/importService';
 import { createOrderLine, updateOrderLineFields } from '../services/orderLineService';
+import { consumeCrossModuleNav, matchesProductAnchor } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import OrderClusterBlock from './order/OrderClusterBlock';
 import OrderLinesTable from './order/OrderLinesTable';
 import OrderToleranceSection from './order/OrderToleranceSection';
@@ -34,7 +36,7 @@ import { bdsToast } from './ui/bdsToast';
 import CustomSelect from './ui/CustomSelect';
 import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
 import { CompiledMotionInteractiveCard, CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives';
-import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import AuditHistorySection from './AuditHistorySection';
 import OrderContextSection from './order/OrderContextSection';
 import OrderSectionHeader from './order/OrderSectionHeader';
@@ -474,10 +476,27 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   // Capsule 子视图：成衣 Tab 下的业务线透镜（capsuleOnly 仅 garment 生效；未标记订单归大货）
   const [capsuleOnly, setCapsuleOnly] = useState(false);
   const capsuleActive = orderType === 'garment' && capsuleOnly;
+
+  // 跨模块导航筛选（关系智库档案「关联业务 → 订单」入口）：挂载时消费一次，
+  // 之后用户可点 ✕ 清除回到全量视图。订单按四个角色维度取并集（下单/收货/结算/供应）。
+  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
+  const orderMatchesNav = (o: Order | undefined) => {
+    if (!o || !navRelationFilter) return true;
+    // 产品锚：按订单行编码（itemNo/materialCode）∈ 产品编码集合匹配
+    if (navRelationFilter.anchor === 'product') return matchesProductAnchor(o as any, navRelationFilter);
+    // relation 锚：按四个角色维度（下单/收货/结算/供应）取并集
+    const id = navRelationFilter.relationId;
+    return o.customerRelationId === id ||
+      o.consigneeRelationId === id ||
+      o.billToRelationId === id ||
+      o.millRelationId === id;
+  };
+
   const filteredOrders = orders.filter(o =>
     !o.deletedAt &&
     (isAllType || o.type === currentDbType) &&
-    (!capsuleActive || o.businessLine === 'capsule'),
+    (!capsuleActive || o.businessLine === 'capsule') &&
+    orderMatchesNav(o),
   );
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [orderFilterStatus, setOrderFilterStatus] = useState<string>('all');
@@ -486,6 +505,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
     let items = flattenOrderLines(orders).filter(item => isAllType || item.order?.type === currentDbType);
     if (capsuleActive) {
       items = items.filter(item => item.order?.businessLine === 'capsule');
+    }
+    if (navRelationFilter) {
+      items = items.filter(item => orderMatchesNav(item.order));
     }
     if (orderFilterStatus !== 'all') {
       items = items.filter(item => item.order?.status === orderFilterStatus);
@@ -501,7 +523,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
       );
     }
     return items;
-  }, [orders, orderType, capsuleActive, orderSearchTerm, orderFilterStatus, isAllType, currentDbType]);
+  }, [orders, orderType, capsuleActive, orderSearchTerm, orderFilterStatus, isAllType, currentDbType, navRelationFilter]);
 
   const mergeLineIntoOrders = (line: OrderLineItem, sourceOrders: Order[] = orders): Order[] => {
     const parent = line.order;
@@ -1042,6 +1064,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
           左右边界严格对齐；pb-4 呼吸间距与下方内容面板分层（基准范式同 QuotationManager mb-4） */}
       {!desktopFullscreenOpen && (
         <div className="shrink-0 px-7 pt-2 pb-4 pointer-events-auto">
+          {navRelationFilter && (
+            <div className="mb-2">
+              <NavRelationFilterChip filter={navRelationFilter} label="订单" onClear={() => setNavRelationFilter(null)} />
+            </div>
+          )}
           <div className="bds-filterbar flex-wrap gap-y-2">
             <div className="relative hidden md:block min-w-40 flex-[1_1_180px] max-w-60">
               <Search size={14} strokeWidth={1.5} className={`absolute left-3 top-1/2 -translate-y-1/2 ${TXT_FAINT}`} />
@@ -1658,15 +1685,18 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                       )}
                     </CompiledSurfacePanel>
 
-                    {/* 跨模块关联视图 — 客户/供应商/收货方/销售/跟单等 EntityLink */}
-                    <div id="order-detail-related">
-                      <RelatedEntitiesPanel
-                        type="order"
-                        id={selectedOrder.id}
+                    {/* 关联业务（产品化 Links）— 该客户的订单/开发/报价/出运等入口 */}
+                    {selectedOrder.customerRelationId && (
+                    <div id="order-detail-related" className="pt-4">
+                      <RelatedWorkspacesSection
+                        sourceType="relation"
+                        relationId={selectedOrder.customerRelationId}
+                        relationRole="customer"
+                        onNavigate={onNavigate}
                         isDarkMode={isDarkMode}
-                        title="订单关联视图"
                       />
                     </div>
+                    )}
 
                     {/* 阶段 D / D3：订单全链路（报价→开发→BOM→采购→生产→外协→出运→财务） */}
                     <div id="order-detail-context">

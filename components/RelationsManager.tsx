@@ -1434,6 +1434,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                     : selectedOrganization
                   }
                   organization={selectedContactId ? selectedOrganization : undefined}
+                  onNavigate={onNavigate}
                   onEdit={() => {
                     const target = selectedContactId
                       ? orgContacts.find(c => c.id === selectedContactId)

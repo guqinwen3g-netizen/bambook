@@ -59,7 +59,7 @@ import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
-import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { FactoryDelayPanel } from './suppliers/FactoryDelayPanel';
 import { primeRelationsOrgDetailPreview } from './RelationsManager';
 
@@ -824,14 +824,16 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                         />
                       )}
 
-                      {/* 跨模块关联视图（EntityLink 图谱） */}
+                      {/* 关联业务（产品化 Links）— 该供应商的采购/订单/报价/开发/出运等入口 */}
                       {detail?.relationId && (
                         <div className="pt-4">
-                          <RelatedEntitiesPanel
-                            type="relation.organization"
-                            id={detail.relationId}
+                          <RelatedWorkspacesSection
+                            sourceType="relation"
+                            relationId={detail.relationId}
+                            relationName={detail.relation?.name ?? ''}
+                            relationRole="supplier"
+                            onNavigate={onNavigate}
                             isDarkMode={isDarkMode}
-                            title="供应商关联视图"
                           />
                         </div>
                       )}

@@ -11,6 +11,8 @@ import {
   CompiledTableShell,
 } from './ui/primitives/compiledPrimitives';
 import { developmentService } from '../services/developmentService';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import type {
   DevelopmentCase as DevCase,
   DevelopmentCaseCreateInput,
@@ -20,7 +22,7 @@ import type {
   SampleType,
 } from '../types';
 import { View } from '../types';
-import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { SampleNodesPanel } from './development/SampleNodesPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import SampleRoomPanel from './development/SampleRoomPanel';
@@ -165,6 +167,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const formScrollRef = useRef<HTMLDivElement | null>(null);
 
+  // 跨模块导航筛选（关系智库档案「关联业务 → 开发」入口）：挂载时消费一次
+  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
+
   // 手动刷新（从后端拉取最新数据，不阻塞渲染）
   const handleRefresh = useCallback(async () => {
     try {
@@ -182,6 +187,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
   const filteredCases = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return cases.filter(item => {
+      if (navRelationFilter && item.customerRelationId !== navRelationFilter.relationId) return false;
       if (selectedType !== 'all' && item.type !== selectedType) return false;
       if (selectedStage !== 'all' && item.stage !== selectedStage) return false;
       if (normalizedSearch) {
@@ -190,7 +196,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       }
       return true;
     });
-  }, [cases, selectedType, selectedStage, searchTerm]);
+  }, [cases, selectedType, selectedStage, searchTerm, navRelationFilter]);
 
   const selectedCase = filteredCases.find(item => item.id === selectedCaseId) || filteredCases[0];
 
@@ -349,8 +355,14 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
 
       <main className={cx('flex-1 min-h-0 flex flex-col px-7 pt-0 bambook-main-panel-bottom-inset overflow-visible w-full h-full', isFormModalOpen && 'hidden')}>
         <div className="flex h-full min-h-0 flex-col gap-3">
+          {navRelationFilter && (
+            <NavRelationFilterChip filter={navRelationFilter} label="开发" onClear={() => setNavRelationFilter(null)} />
+          )}
+          {/* 根因修复（2026-08-21）：原搜索框 min-w-48 + 两 select shrink-0（且 w-30 为无效
+              Tailwind 类导致 auto 宽度跳变），窄视口下整行最小宽 ~500px 不可收缩，flex-wrap
+              把 select 挤成错乱两行。改为财务同款范式：全行 min-w-0 可收缩，任何宽度保持单行。 */}
           <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">
-            <div className="relative min-w-48 flex-[1_1_220px] max-w-xs">
+            <div className="relative min-w-0 flex-[1_1_220px]">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-quaternary)]" />
               <input
                 value={searchTerm}
@@ -361,7 +373,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
             </div>
             <div className="hidden h-4 w-px shrink-0 xl:block bg-[var(--border-c-strong)]" />
             <select
-              className="bds-select w-36 shrink-0"
+              className="bds-select w-36"
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value as DevelopmentTypeId)}
             >
@@ -372,7 +384,7 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               ))}
             </select>
             <select
-              className="bds-select w-30 shrink-0"
+              className="bds-select w-36"
               value={selectedStage}
               onChange={(e) => setSelectedStage(e.target.value as DevelopmentStageId)}
             >
@@ -384,7 +396,9 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
             </select>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_320px]">
+          {/* 侧栏宽改为响应式 minmax(320px,360px)：原硬锁 320px 在窄 xl 视口下过小，
+              详情内容（样品节点/打色批次/关联业务）堆积易溢出（与财务管理同一根因）。 */}
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
             <CompiledTableShell
               isDarkMode={isDarkMode}
               scrollRef={tableScrollRef}
@@ -470,52 +484,51 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
               {selectedCase ? (
                 <>
                   <div className="shrink-0 px-5 py-4" style={{ borderBottom: 'var(--border-subtle)' }}>
-                    <div className="flex min-w-0 items-start justify-between gap-3">
+                    {/* 与财务管理详情头部同一范式（2026-08-21）：头部行 flex-wrap，
+                        窄 panel 下按钮簇整块落到标题下方而非顶破；状态徽章归标题块，与动作按钮分离。 */}
+                    <div className="flex flex-wrap min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className={cx('text-[10px] tracking-[0.18em]', textSecondaryClass)}>当前开发单</div>
                         <div className={cx('mt-2 truncate text-base', textPrimaryClass)}>{selectedCase.name}</div>
                         <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{selectedCase.code} · {typeLabelMap[selectedCase.type]} · S{selectedCase.currentRound}</div>
+                        <div className="mt-2"><span className={`bds-badge sm ${stageTone(selectedCase.stage)}`}>{stageLabelMap[selectedCase.stage]}</span></div>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className={`bds-badge sm ${stageTone(selectedCase.stage)}`}>
-                          {stageLabelMap[selectedCase.stage]}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {onNavigate && selectedCase.stage !== 'cancelled' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                primeQuotationCreateFromDevCase({
-                                  customerName: selectedCase.customerName || undefined,
-                                  description: `${selectedCase.productName || selectedCase.name}（开发案 ${selectedCase.code}）`,
-                                  inquiryRef: selectedCase.code,
-                                });
-                                onNavigate(View.Quotations);
-                              }}
-                              title="跳转到报价管理并预填本开发案客户/产品"
-                              className="bds-btn bds-btn-secondary"
-                            >
-                              <FileText size={14} />
-                              发起报价
-                            </button>
-                          )}
+                      {/* 按钮簇只放纯动作按钮；flex-wrap + justify-start：窄 panel 下可换行且左对齐整齐 */}
+                      <div className="flex flex-wrap items-center justify-start gap-2">
+                        {onNavigate && selectedCase.stage !== 'cancelled' && (
                           <button
                             type="button"
-                            onClick={openEditModal}
+                            onClick={() => {
+                              primeQuotationCreateFromDevCase({
+                                customerName: selectedCase.customerName || undefined,
+                                description: `${selectedCase.productName || selectedCase.name}（开发案 ${selectedCase.code}）`,
+                                inquiryRef: selectedCase.code,
+                              });
+                              onNavigate(View.Quotations);
+                            }}
+                            title="跳转到报价管理并预填本开发案客户/产品"
                             className="bds-btn bds-btn-secondary"
                           >
-                            <Pencil size={14} />
-                            编辑
+                            <FileText size={14} />
+                            发起报价
                           </button>
-                          <button
-                            type="button"
-                            onClick={handleDelete}
-                            className="bds-btn bds-btn-danger"
-                          >
-                            <Trash2 size={14} />
-                            删除
-                          </button>
-                        </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={openEditModal}
+                          className="bds-btn bds-btn-secondary"
+                        >
+                          <Pencil size={14} />
+                          编辑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDelete}
+                          className="bds-btn bds-btn-danger"
+                        >
+                          <Trash2 size={14} />
+                          删除
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -564,14 +577,18 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                         已转订单 · {selectedCase.linkedOrderPo || selectedCase.linkedOrderId}
                       </div>
                     )}
+                    {selectedCase.customerRelationId && (
                     <div className="mt-4">
-                      <RelatedEntitiesPanel
-                        type="development-case"
-                        id={selectedCase.id}
+                      <RelatedWorkspacesSection
+                        sourceType="relation"
+                        relationId={selectedCase.customerRelationId}
+                        relationName={selectedCase.customerName ?? ''}
+                        relationRole="customer"
+                        onNavigate={onNavigate}
                         isDarkMode={isDarkMode}
-                        title="开发单关联视图"
                       />
                     </div>
+                    )}
                   </div>
                 </>
               ) : (

@@ -119,4 +119,32 @@ apps/Bambook/
 
 ---
 
-*Last Updated: 2026-06-15*  ｜  *Truth-source 修订：把"内嵌后端"主架构叙事更正为"客户端 + Mac Mini 数据中心两端分离"。*
+## 6. 运行环境拓扑（Dev / Prod 务必区分，切勿混淆）
+
+项目**同时存在多个前端与后端**，开发与生产环境完全隔离。任何部署 / 联调 / 造数前，必须先确认当前所处环境 —— 混淆 Dev 与 Prod 是最常见的高危失误。
+
+### 开发测试环境（Dev，纯本地，数据可随意造）
+| 形态 | 端点 / 入口 | 说明 |
+| :--- | :--- | :--- |
+| 开发网页版 | `http://localhost:3000` | 纯开发测试的网页版，连接本地库 |
+| 开发客户端 | Electron（本地启动） | 纯开发测试的桌面客户端，连接本地库 |
+| 本地数据库 | **Local Panda Hub** | 纯开发测试用的本地库，与生产正式库物理隔离，可随时重置 / 造数 |
+
+> Dev 三件套（localhost:3000 / Electron / Local Panda Hub）共用一套本地库，**绝不可写入任何生产数据**。
+
+### 生产真实环境（Prod，对接真实业务）
+| 形态 | 端点 / 入口 | 说明 |
+| :--- | :--- | :--- |
+| 正式网页版 | `https://bambook.jiangsupanda.com` | 项目的正式网页版，对接真实生产 |
+| 正式后端 / 数据中心 | Mac Mini 上的 `jiangsupanda.com` 后端 | 真实正式数据库后端，业务真源所在 |
+
+> Prod 网页版（bambook.jiangsupanda.com）与 Prod 后端（Mac Mini / jiangsupanda.com）共用同一套正式数据库，**任何写入即真实业务数据**。
+
+### 铁律
+1. 本地开发（localhost:3000 / Electron）永远只连 **Local Panda Hub**；上线 / 验收才走 **bambook.jiangsupanda.com + Mac Mini 正式库**。
+2. 演示数据、测试账号、假订单只允许存在于 Local Panda Hub；推生产前必须清空。
+3. 不要把 Dev 端点（localhost / 本地库）误配到生产构建，也不要把生产 API Key / 库连到本地开发。
+
+---
+
+*Last Updated: 2026-08-21*  ｜  *新增 §6 运行环境拓扑（Dev/Prod 区分），呼应 2026-08-21 v0.8 交付决策。*

@@ -194,15 +194,6 @@ const MobileWebApp: React.FC = () => {
   const lastWriteTimeRef = useRef<number>(0);
   const syncStatusRef = useRef<'idle' | 'pushing' | 'pulling' | 'repairing' | 'blocked'>('idle');
   const isProductionGlobeEnabled = config.enableProductionGlobe !== false;
-  const isLightEffectsEnabled = config.enableLightEffects !== false;
-  useEffect(() => {
-    const cls = 'bambook-light-effects-disabled';
-    if (isLightEffectsEnabled) {
-      document.body.classList.remove(cls);
-    } else {
-      document.body.classList.add(cls);
-    }
-  }, [isLightEffectsEnabled]);
 
   useEffect(() => {
     authStateRef.current = authState;

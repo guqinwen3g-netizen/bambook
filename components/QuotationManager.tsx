@@ -43,7 +43,7 @@ import { bdsToast } from './ui/bdsToast';
 import { financeV2Service, type QuotationPricingResult } from '../services/financeV2Service';
 import { TraceabilityPanel } from './TraceabilityPanel';
 import { getExporterProfile } from './tools/exportDocs/exporterProfile';
-import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult, TrackAInput } from '../types';
+import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult, TrackAInput, View } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import QuotationImportWizard from './import/QuotationImportWizard';
@@ -52,7 +52,9 @@ import { TrackBPanel, type TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
 import { printHtmlDocument, escapeHtml } from './tools/printDocument';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
-import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 
 // ==================== 常量 ====================
 // P3-002：对外报价状态主语明确化——Sent/Accepted/Rejected 动作方是客户（我方发出后由客户回应），
@@ -128,6 +130,8 @@ interface QuotationManagerProps {
   isDarkMode: boolean;
   /** 阶段 IA-3：报价转订单成功后「查看订单」直达跳转 */
   onOpenOrder?: (orderId: string) => void;
+  /** 跨模块导航：报价详情「关联业务」入口页面切换 */
+  onNavigate?: (view: View) => void;
 }
 
 let lineCounter = 0;
@@ -265,7 +269,7 @@ const buildQuotationPrintHtml = (qt: Quotation): string => {
   </div>`;
 };
 
-const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenOrder }) => {
+const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenOrder, onNavigate }) => {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -358,6 +362,16 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   useEffect(() => {
     apiService.listRelations().then(setRelations).catch(() => {});
   }, []);
+
+  // 跨模块导航筛选（关系智库档案「关联业务 → 报价」入口）：挂载时消费一次，
+  // 服务端 fetch 结果之上本地精确过滤（customerRelationId）
+  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
+  const visibleQuotations = useMemo(
+    () => navRelationFilter
+      ? quotations.filter(qt => qt.customerRelationId === navRelationFilter.relationId)
+      : quotations,
+    [quotations, navRelationFilter],
+  );
 
   // ── 客户选项 ──
   const customerOptions = useMemo(() => {
@@ -835,7 +849,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                             </div>
                             <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
                             <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
-                            <select className="bds-select" value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                            <select className="bds-select sm" value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)}>
                               {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
                             <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
@@ -903,6 +917,9 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                     → 搜索 + 状态 segment 并入同一组合 bar（spec §2.1：搜索+≥1 筛选共行 = 组合嵌套 bar；
                     评估结论：并入优于「单层搜索+独立 segment 行」两行之案——单行收敛上边距，
                     与 OrderManager/ShipmentManager 范式一致） */}
+                {navRelationFilter && (
+                  <NavRelationFilterChip filter={navRelationFilter} label="报价" onClear={() => setNavRelationFilter(null)} />
+                )}
                 <div className="bds-filterbar mb-4 flex-wrap gap-y-2">
                   <div className="relative min-w-40 flex-[1_1_200px] max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
@@ -953,15 +970,15 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                   <div className="flex items-center justify-center py-12">
                     <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                   </div>
-                ) : quotations.length === 0 ? (
+                ) : visibleQuotations.length === 0 ? (
                   <div className="bds-empty">
                     <div className="glyph"><FileText size={24} /></div>
-                    <div className="title">暂无报价单</div>
-                    <div className="desc">点击「新建报价单」开始，或导入历史报价</div>
+                    <div className="title">{navRelationFilter ? '该客户暂无报价单' : '暂无报价单'}</div>
+                    <div className="desc">{navRelationFilter ? '当前为跨模块筛选视图，点上方 ✕ 查看全部' : '点击「新建报价单」开始，或导入历史报价'}</div>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {quotations.map((qt, index) => (
+                    {visibleQuotations.map((qt, index) => (
                       <motion.div
                         key={qt.id}
                         initial={{ opacity: 0, y: 10 }}
@@ -1219,12 +1236,18 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                     <span>打印报价单</span>
                                   </button>
                                 </div>
-                                <RelatedEntitiesPanel
-                                  type="quotation"
-                                  id={qt.id}
-                                  isDarkMode={isDarkMode}
-                                  title="报价关联视图"
-                                />
+                                {qt.customerRelationId && (
+                                <div className="pt-3">
+                                  <RelatedWorkspacesSection
+                                    sourceType="relation"
+                                    relationId={qt.customerRelationId}
+                                    relationName={qt.customerName ?? ''}
+                                    relationRole="customer"
+                                    onNavigate={onNavigate}
+                                    isDarkMode={isDarkMode}
+                                  />
+                                </div>
+                                )}
                               </div>
                             </motion.div>
                           )}

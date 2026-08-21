@@ -21,6 +21,7 @@ import { BAMBOOK_OS } from './bambookOsTokens';
 import CapsuleDateInput from './CapsuleDateInput';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './RelatedWorkspacesSection';
 import AuditHistorySection from '../AuditHistorySection';
 import { FinanceCreditPanel } from '../finance/FinanceCreditPanel';
 import {
@@ -35,6 +36,8 @@ interface DetailPanelProps {
     onEdit: () => void;
     onDelete: () => void;
     isDarkMode: boolean;
+    /** 跨模块导航（关联业务入口 → 目标模块自动筛选为该档案数据） */
+    onNavigate?: (view: import('../../types').View) => void;
 }
 
 // 信息项组件
@@ -145,7 +148,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
     organization,
     onEdit,
     onDelete,
-    isDarkMode
+    isDarkMode,
+    onNavigate,
 }) => {
     const isOrg = type === 'organization';
     const [followUps, setFollowUps] = useState<FollowUpRecord[] | null>(null);
@@ -424,12 +428,21 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
         <p className="text-xs text-os-adaptive-danger">{p3bError}</p>
     ) : null;
 
-    // 跨模块关联视图（EntityLink 图谱，组织/联系人两种布局共用）
-    // 联系人双码合并：owned 链接挂在 relation.contact，订单角色链接指向 relation.person
-    const relatedEntitiesSection = (
+    // 跨模块关联（产品化 Links）：
+    //   组织 → 关联业务导航枢纽（点击跳目标模块并自动筛选为该客户/供应商的数据）；
+    //   联系人 → 保留图谱关联视图（联系人的业务踪迹经组织聚合，导航入口在组织侧）
+    const relatedEntitiesSection = isOrg ? (
+        <RelatedWorkspacesSection
+            relationId={data.id}
+            relationName={data.chineseName || data.englishName || data.name}
+            relationRole={data.category === 'Supplier' ? 'supplier' : 'customer'}
+            onNavigate={onNavigate}
+            isDarkMode={isDarkMode}
+        />
+    ) : (
         <RelatedEntitiesPanel
-            type={isOrg ? 'relation.organization' : 'relation.contact'}
-            additionalTypes={isOrg ? undefined : ['relation.person']}
+            type="relation.contact"
+            additionalTypes={['relation.person']}
             id={data.id}
             isDarkMode={isDarkMode}
             title="关联视图"
