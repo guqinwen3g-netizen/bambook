@@ -42,7 +42,7 @@ import {
 import { PageHeader } from './ui/PageHeader';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { bdsConfirm } from './ui/BdsDialog';
-import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 
 // ==================== 常量 ====================
 // BDS v2.1：状态 → bds-badge 语义变体（主题透明，替代 statusSemanticClass 拼装）
@@ -95,9 +95,11 @@ function formatCurrency(n: number | undefined | null, currency = 'CNY'): string 
 
 interface BomManagerProps {
   isDarkMode: boolean;
+  /** 跨模块导航：BOM 详情「关联业务」入口页面切换 */
+  onNavigate?: (view: import('../types').View) => void;
 }
 
-const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
+const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
   const [boms, setBoms] = useState<BOM[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -509,13 +511,18 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode }) => {
                               )}
                             </div>
 
-                            {/* 跨模块关联视图（EntityLink 图谱）— 所属订单/关联产品/来源报价 */}
-                            <RelatedEntitiesPanel
-                              type="bom"
-                              id={bom.id}
-                              isDarkMode={isDarkMode}
-                              title="BOM 关联视图"
-                            />
+                            {/* 关联业务（产品化 Links）— 该产品的订单/报价/采购/开发/库存/BOM/出运入口 */}
+                            {bom.productAssetId && (
+                            <div className="pt-3">
+                              <RelatedWorkspacesSection
+                                sourceType="product"
+                                productId={bom.productAssetId}
+                                productName={bom.description ?? ''}
+                                onNavigate={onNavigate}
+                                isDarkMode={isDarkMode}
+                              />
+                            </div>
+                            )}
                           </div>
                         </motion.div>
                       )}
@@ -689,7 +696,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
           </div>
           <div>
             <label className={labelCls}>币种</label>
-            <select className="bds-select" value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+            <select className="bds-select sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
               <option value="CNY">CNY 人民币</option>
               <option value="USD">USD 美元</option>
               <option value="EUR">EUR 欧元</option>
@@ -715,7 +722,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-2">
                     <label className={labelCls}>类型</label>
-                    <select className="bds-select" value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select className="bds-select sm" value={line.materialType} onChange={(e) => handleLineChange(index, 'materialType', e.target.value)}>
                       {MATERIAL_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                     </select>
                   </div>
@@ -733,7 +740,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                   </div>
                   <div className="col-span-1">
                     <label className={labelCls}>单位</label>
-                    <select className="bds-select" value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select className="bds-select sm" value={line.unit} onChange={(e) => handleLineChange(index, 'unit', e.target.value)}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
@@ -770,7 +777,7 @@ const CreateBOMModal: React.FC<CreateBOMModalProps> = ({ onClose, onSuccess }) =
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-3">
                     <label className={labelCls}>类型</label>
-                    <select className="bds-select" value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)} style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                    <select className="bds-select sm" value={cost.costType} onChange={(e) => handleCostChange(index, 'costType', e.target.value)}>
                       {COST_TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                   </div>

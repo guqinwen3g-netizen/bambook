@@ -13,7 +13,9 @@ import {
 import type { Shipment as ShipmentType, ShipmentStatus, ShipmentEvent, ShipmentLine, ShipmentCarton } from '../types';
 import { shipmentService } from '../services/shipmentService';
 import type { OnTimeStats, MethodStats } from '../services/shipmentService';
-import RelatedEntitiesPanel from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 
 // ── 阶段 IA-3：订单详情下游动作 prime（创建出运预填订单，与 Suppliers preview 同模式） ──
 const SHIPMENT_CREATE_PRIME_KEY = 'bambook_shipment_create_prime';
@@ -57,6 +59,8 @@ interface ShipmentManagerProps {
   isDarkMode: boolean;
   shipments: ShipmentType[];
   setShipments: React.Dispatch<React.SetStateAction<ShipmentType[]>>;
+  /** 跨模块导航：运单详情「关联业务」入口页面切换 */
+  onNavigate?: (view: import('../types').View) => void;
 }
 
 type ShipmentStatusId = 'all' | ShipmentStatus;
@@ -246,7 +250,7 @@ const STATUS_TONE_COLOR: Record<ReturnType<typeof statusTone>, string> = {
 const SPOTLIGHT_COLOR = 'rgb(var(--os-vnext-brand-blue-rgb)/0.18)';
 const SPOTLIGHT_SIZE = 200;
 
-const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments, setShipments }) => {
+const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments, setShipments, onNavigate }) => {
   const [selectedStatus, setSelectedStatus] = useState<ShipmentStatusId>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -300,9 +304,13 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     return () => { cancelled = true; };
   }, []);
 
+  // 跨模块导航筛选（关系智库档案「关联业务 → 出运」入口）：挂载时消费一次
+  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
+
   // Derive filtered list from App-level shipments (optimistic display from cache + dataHub)
   const filteredShipments = useMemo(() => {
     let result = shipments;
+    if (navRelationFilter) result = result.filter(s => s.customerRelationId === navRelationFilter.relationId);
     if (selectedStatus !== 'all') result = result.filter(s => s.status === selectedStatus);
     if (searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
@@ -314,7 +322,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
       );
     }
     return result;
-  }, [shipments, selectedStatus, searchTerm]);
+  }, [shipments, selectedStatus, searchTerm, navRelationFilter]);
   const selectedShipment = filteredShipments.find(item => item.id === selectedId) || filteredShipments[0];
 
   // F3 — 物流节点时间轴（选中运单时拉取；状态变更后随 selectedShipment.status 联动刷新）
@@ -613,6 +621,9 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                 ))}
               </div>
             </div>
+          )}
+          {navRelationFilter && (
+            <NavRelationFilterChip filter={navRelationFilter} label="出运" onClear={() => setNavRelationFilter(null)} />
           )}
           <div className="bds-filterbar shrink-0 flex-wrap gap-y-2">
             <div className="relative min-w-48 flex-[1_1_220px] max-w-xs">
@@ -965,14 +976,17 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
                         )}
                       </div>
                     </div>
+                    {selectedShipment.customerRelationId && (
                     <div className="mt-4">
-                      <RelatedEntitiesPanel
-                        type="shipment"
-                        id={selectedShipment.id}
+                      <RelatedWorkspacesSection
+                        sourceType="relation"
+                        relationId={selectedShipment.customerRelationId}
+                        relationRole="customer"
+                        onNavigate={onNavigate}
                         isDarkMode={isDarkMode}
-                        title="运单关联视图"
                       />
                     </div>
+                    )}
                   </div>
                 </>
               ) : (
@@ -1398,10 +1412,9 @@ function PackingEditorModal({
                       {carton.items.map(item => (
                         <div key={item.key} className="flex items-center gap-2">
                           <select
-                            className="bds-select flex-1"
+                            className="bds-select sm flex-1"
                             value={item.lineKey}
                             onChange={e => updateCarton(carton.key, { items: carton.items.map(i => i.key === item.key ? { ...i, lineKey: e.target.value } : i) })}
-                            style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
                           >
                             {lines.map(l => (
                               <option key={l.key} value={l.key}>

@@ -13,7 +13,7 @@
  * 设计：BDS v2.1 — 组件对主题透明（无 isDarkMode 样式分支），暗色由 tokens.css 统一覆盖
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -60,6 +60,8 @@ import { PageHeader } from './ui/PageHeader';
 import { StatusSemantic } from './rdlBusinessStatusTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 
 // ==================== 常量 ====================
 
@@ -132,6 +134,14 @@ type TabId = 'plans' | 'workStations' | 'workHours' | 'pieceRateRules' | 'pieceR
 
 const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
   const [activeTab, setActiveTab] = useState<TabId>('plans');
+
+  // ── 跨模块导航：消费上下文（外协入口跳转 → 自动切外协 tab + 供应商筛选）──
+  const navContext = useState(() => consumeCrossModuleNav())[0];
+  const [navRelationFilter, setNavRelationFilter] = useState(() => navContext?.filter ?? null);
+  useEffect(() => {
+    if (navRelationFilter || navContext?.tab === 'outsourcing') setActiveTab('outsourcing');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── 各 Tab 数据 ──
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
@@ -409,10 +419,18 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
     finally { setActionLoading(null); }
   };
 
+  // ── 跨模块导航筛选：外协订单按供应商 relation 过滤 ──
+  const visibleOutsourcing = useMemo(
+    () => navRelationFilter
+      ? outsourcingOrders.filter(oso => oso.supplierId === navRelationFilter.relationId)
+      : outsourcingOrders,
+    [outsourcingOrders, navRelationFilter],
+  );
+
   const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode; count?: number }> = [
     { id: 'plans', label: '排产', icon: <CalendarClock size={12} />, count: plans.length },
     { id: 'workStations', label: '工位', icon: <Cog size={12} />, count: workStations.length },
-    { id: 'outsourcing', label: '外协', icon: <Send size={12} />, count: outsourcingOrders.length },
+    { id: 'outsourcing', label: '外协', icon: <Send size={12} />, count: navRelationFilter ? visibleOutsourcing.length : outsourcingOrders.length },
     { id: 'workHours', label: '工时', icon: <Clock size={12} />, count: workHours.length },
     { id: 'pieceRateRules', label: '计件规则', icon: <Award size={12} />, count: pieceRateRules.length },
     { id: 'pieceRateRecords', label: '计件记录', icon: <Award size={12} />, count: pieceRateRecords.length },
@@ -590,13 +608,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={planForm.planNumber} onChange={e => setPlanForm({ ...planForm, planNumber: e.target.value })} placeholder="PP-2026-001" />
                   </FormField>
                   <FormField label="工位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.workStationId} onChange={e => setPlanForm({ ...planForm, workStationId: e.target.value })}>
+                    <select className="bds-select sm" value={planForm.workStationId} onChange={e => setPlanForm({ ...planForm, workStationId: e.target.value })}>
                       <option value="">选择工位</option>
                       {workStations.map(w => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
                     </select>
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.processType} onChange={e => setPlanForm({ ...planForm, processType: e.target.value as WorkStationType })}>
+                    <select className="bds-select sm" value={planForm.processType} onChange={e => setPlanForm({ ...planForm, processType: e.target.value as WorkStationType })}>
                       {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
@@ -604,7 +622,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input type="number" className="bds-input sm" value={planForm.plannedQuantity} onChange={e => setPlanForm({ ...planForm, plannedQuantity: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.unit} onChange={e => setPlanForm({ ...planForm, unit: e.target.value })}>
+                    <select className="bds-select sm" value={planForm.unit} onChange={e => setPlanForm({ ...planForm, unit: e.target.value })}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </FormField>
@@ -615,7 +633,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <CapsuleDateInput className="bds-input sm" value={planForm.plannedEndDate ?? ''} onChange={(v) => setPlanForm({ ...planForm, plannedEndDate: v })} isDarkMode={isDarkMode} />
                   </FormField>
                   <FormField label="优先级">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={planForm.priority} onChange={e => setPlanForm({ ...planForm, priority: e.target.value as Priority })}>
+                    <select className="bds-select sm" value={planForm.priority} onChange={e => setPlanForm({ ...planForm, priority: e.target.value as Priority })}>
                       {PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
                   </FormField>
@@ -678,7 +696,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={wsForm.name} onChange={e => setWsForm({ ...wsForm, name: e.target.value })} placeholder="缝纫一号线" />
                   </FormField>
                   <FormField label="类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={wsForm.type} onChange={e => setWsForm({ ...wsForm, type: e.target.value as WorkStationType })}>
+                    <select className="bds-select sm" value={wsForm.type} onChange={e => setWsForm({ ...wsForm, type: e.target.value as WorkStationType })}>
                       {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
@@ -706,13 +724,16 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                 <button onClick={() => refreshTab('outsourcing')} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                   <RefreshCw size={16} className={actionLoading === 'refresh:outsourcing' ? 'animate-spin' : ''} />
                 </button>
+                {navRelationFilter && (
+                  <NavRelationFilterChip filter={navRelationFilter} label="外协订单" onClear={() => setNavRelationFilter(null)} />
+                )}
               </div>
 
-              {outsourcingOrders.length === 0 ? (
-                <EmptyState icon={<Send size={24} />} text="暂无外协订单" />
+              {visibleOutsourcing.length === 0 ? (
+                <EmptyState icon={<Send size={24} />} text={navRelationFilter ? '该供应商暂无外协订单' : '暂无外协订单'} />
               ) : (
                 <div className="space-y-2">
-                  {outsourcingOrders.map((oso, i) => {
+                  {visibleOutsourcing.map((oso, i) => {
                     const semantic = statusSemanticOf(OUTSOURCING_STATUSES, oso.status);
                     return (
                       <motion.div key={oso.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }} className="bds-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -788,7 +809,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={osoForm.orderNumber} onChange={e => setOsoForm({ ...osoForm, orderNumber: e.target.value })} placeholder="OSO-2026-001" />
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={osoForm.processType} onChange={e => setOsoForm({ ...osoForm, processType: e.target.value as OutsourcingProcessType })}>
+                    <select className="bds-select sm" value={osoForm.processType} onChange={e => setOsoForm({ ...osoForm, processType: e.target.value as OutsourcingProcessType })}>
                       {OUTSOURCING_PROCESS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
@@ -796,7 +817,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input type="number" className="bds-input sm" value={osoForm.quantity} onChange={e => setOsoForm({ ...osoForm, quantity: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={osoForm.unit} onChange={e => setOsoForm({ ...osoForm, unit: e.target.value })}>
+                    <select className="bds-select sm" value={osoForm.unit} onChange={e => setOsoForm({ ...osoForm, unit: e.target.value })}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </FormField>
@@ -804,7 +825,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input type="number" className="bds-input sm" value={osoForm.unitPrice} onChange={e => setOsoForm({ ...osoForm, unitPrice: Number(e.target.value) })} />
                   </FormField>
                   <FormField label="币种">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={osoForm.currency} onChange={e => setOsoForm({ ...osoForm, currency: e.target.value })}>
+                    <select className="bds-select sm" value={osoForm.currency} onChange={e => setOsoForm({ ...osoForm, currency: e.target.value })}>
                       <option value="CNY">CNY 人民币</option>
                       <option value="USD">USD 美元</option>
                     </select>
@@ -852,7 +873,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showWhForm && (
                 <CreateFormModal title="记录工时" onClose={() => setShowWhForm(false)} onSubmit={submitWh} loading={actionLoading === 'submit:wh'}>
                   <FormField label="排产单">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={whForm.productionPlanId} onChange={e => setWhForm({ ...whForm, productionPlanId: e.target.value })}>
+                    <select className="bds-select sm" value={whForm.productionPlanId} onChange={e => setWhForm({ ...whForm, productionPlanId: e.target.value })}>
                       <option value="">选择排产单</option>
                       {plans.map(p => <option key={p.id} value={p.id}>{p.planNumber}</option>)}
                     </select>
@@ -924,12 +945,12 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
                     <input className="bds-input sm" value={ruleForm.name} onChange={e => setRuleForm({ ...ruleForm, name: e.target.value })} placeholder="缝纫计件标准" />
                   </FormField>
                   <FormField label="工序类型">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={ruleForm.processType} onChange={e => setRuleForm({ ...ruleForm, processType: e.target.value as WorkStationType })}>
+                    <select className="bds-select sm" value={ruleForm.processType} onChange={e => setRuleForm({ ...ruleForm, processType: e.target.value as WorkStationType })}>
                       {WS_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                   </FormField>
                   <FormField label="单位">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={ruleForm.unit} onChange={e => setRuleForm({ ...ruleForm, unit: e.target.value })}>
+                    <select className="bds-select sm" value={ruleForm.unit} onChange={e => setRuleForm({ ...ruleForm, unit: e.target.value })}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </FormField>
@@ -997,7 +1018,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
               {showRecordForm && (
                 <CreateFormModal title="新增计件记录" onClose={() => setShowRecordForm(false)} onSubmit={submitRecord} loading={actionLoading === 'submit:record'}>
                   <FormField label="计件规则">
-                    <select className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }} value={recordForm.pieceRateRuleId} onChange={e => setRecordForm({ ...recordForm, pieceRateRuleId: e.target.value, unit: pieceRateRules.find(r => r.id === e.target.value)?.unit || 'PC' })}>
+                    <select className="bds-select sm" value={recordForm.pieceRateRuleId} onChange={e => setRecordForm({ ...recordForm, pieceRateRuleId: e.target.value, unit: pieceRateRules.find(r => r.id === e.target.value)?.unit || 'PC' })}>
                       <option value="">选择规则</option>
                       {pieceRateRules.filter(r => r.isActive).map(r => <option key={r.id} value={r.id}>{r.code} · {r.name} ({formatNum(Number(r.ratePerUnit))}/{r.unit})</option>)}
                     </select>

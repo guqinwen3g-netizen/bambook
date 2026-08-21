@@ -1077,7 +1077,7 @@ export function WorkflowPanel({ isDarkMode }: WorkflowPanelProps) {
     primaryText: 'text-[var(--text-primary)]',
     weakText: 'text-[var(--text-tertiary)]',
     brandIcon: BAMBOOK_OS.tone.text.brandEmphasis,
-    inputCls: `w-full px-3 py-1.5 rounded-control outline-none text-xs ${BAMBOOK_OS.controls.recessedField.base}`,
+    inputCls: 'bds-input sm',
     dividerCls: 'border-[var(--border-c-default)]',
   };
   const { card, primaryText, weakText, brandIcon, inputCls, dividerCls } = skin;

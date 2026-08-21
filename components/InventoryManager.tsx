@@ -254,7 +254,6 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
 
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
   const labelCls = 'block text-xs mb-1 text-[var(--text-tertiary)]';
-  const selectSmStyle: React.CSSProperties = { height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' };
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
@@ -310,11 +309,11 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
               {/* 工具栏 */}
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <div className="bds-filterbar">
-                  <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ fontSize: 'var(--text-xs)', maxWidth: 160 }}>
+                  <select value={warehouseFilter} onChange={(e) => setWarehouseFilter(e.target.value)} className="bds-select" style={{ maxWidth: 160 }}>
                     <option value="">全部仓库</option>
                     {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </select>
-                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bds-select" style={{ ...selectSmStyle, maxWidth: 120 }}>
+                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bds-select" style={{ maxWidth: 120 }}>
                     <option value="">全部品类</option>
                     {ITEM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -437,14 +436,14 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                                       <div className="p-3 rounded-inset bds-inset">
                                         <h4 className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>库存变动</h4>
                                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
-                                          <select value={movementForm.type} onChange={(e) => setMovementForm({ ...movementForm, type: e.target.value as StockMovementType })} className="bds-select" style={selectSmStyle}>
+                                          <select value={movementForm.type} onChange={(e) => setMovementForm({ ...movementForm, type: e.target.value as StockMovementType })} className="bds-select sm">
                                             {MOVEMENT_TYPES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                                           </select>
                                           <input type="number" value={movementForm.quantity || ''} onChange={(e) => setMovementForm({ ...movementForm, quantity: parseFloat(e.target.value) || 0 })} placeholder="数量 *" className="bds-input sm" />
                                           <CapsuleDateInput value={movementForm.movementDate || ''} onChange={(v) => setMovementForm({ ...movementForm, movementDate: v })} className="bds-input sm" />
                                           <input type="text" value={movementForm.reason || ''} onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })} placeholder="原因" className="bds-input sm" />
                                           {movementForm.type === 'Transfer' && (
-                                            <select value={movementForm.targetWarehouseId || ''} onChange={(e) => setMovementForm({ ...movementForm, targetWarehouseId: e.target.value })} className="bds-select xl:col-span-2" style={selectSmStyle}>
+                                            <select value={movementForm.targetWarehouseId || ''} onChange={(e) => setMovementForm({ ...movementForm, targetWarehouseId: e.target.value })} className="bds-select sm xl:col-span-2">
                                               <option value="">目标仓库...</option>
                                               {warehouses.filter(w => w.id !== item.warehouseId).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                             </select>

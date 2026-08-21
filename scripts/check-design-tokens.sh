@@ -371,6 +371,8 @@ fi
 # 2026-08-19 批次 3a 修正计数逻辑：原 rg 正则被 JSX 箭头函数 => 截断（className 出现在
 # onChange 箭头之后即漏判 bds-select），长期虚报非合规数（基线 77 中 ~55 为误报）。
 # 新口径：perl 逐标签解析——先中和 => 再取开标签尾，bds-select 字面量判定。
+# 2026-08-21 口径扩展：bds-select 类名收敛至变量（AdminPanel selectCls / hrTokens
+# selectCls），变量引用形式（selectCls / t.selectCls）与字面量同等放行——运行时类名均含 bds-select。
 pg_native_select=$(find components -name '*.tsx' \
   ! -name '*.test.*' ! -path '*__tests__*' ! -path '*mascot*' \
   ! -name '*Globe*' ! -name '*EmailManager*' ! -name '*SampleInvoice*' \
@@ -380,7 +382,7 @@ pg_native_select=$(find components -name '*.tsx' \
     while (/<select\b/g) {
       my $seg = substr($_, pos(), 800);
       $seg =~ s/=>//g;
-      if ($seg =~ /^(.*?)>/s) { $n++ unless $1 =~ /bds-select/; }
+      if ($seg =~ /^(.*?)>/s) { $n++ unless $1 =~ /bds-select|selectCls/; }
       else { $n++ }
     }
     print "$n\n";

@@ -45,7 +45,9 @@ import { primeFinanceInvoiceCreate } from './FinanceManager';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
-import { RelatedEntitiesPanel } from './RelatedEntitiesPanel';
+import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
+import { consumeCrossModuleNav } from '../services/crossModuleNav';
+import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 
 // ==================== 常量 ====================
 
@@ -264,6 +266,15 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   }, [statusFilter, searchQuery]);
 
   useEffect(() => { fetchPurchaseOrders(); }, [fetchPurchaseOrders]);
+
+  // 跨模块导航筛选（关系智库供应商档案「关联业务 → 采购」入口）：挂载时消费一次
+  const [navRelationFilter, setNavRelationFilter] = useState(() => consumeCrossModuleNav()?.filter ?? null);
+  const visiblePurchaseOrders = useMemo(
+    () => navRelationFilter
+      ? purchaseOrders.filter(po => po.supplierRelationId === navRelationFilter.relationId)
+      : purchaseOrders,
+    [purchaseOrders, navRelationFilter],
+  );
 
   useEffect(() => {
     apiService.listRelations().then(setRelations).catch(() => {});
@@ -558,11 +569,11 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                           <div className="grid grid-cols-2 xl:grid-cols-6 gap-2">
                             <input type="text" value={line.materialCode} onChange={(e) => updateFormLine(line.key, 'materialCode', e.target.value)} placeholder="物料编码" className="bds-input sm" />
                             <input type="text" value={line.description} onChange={(e) => updateFormLine(line.key, 'description', e.target.value)} placeholder="品名描述 *" className="bds-input sm xl:col-span-2" />
-                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                            <select value={line.category} onChange={(e) => updateFormLine(line.key, 'category', e.target.value)} className="bds-select sm">
                               {LINE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                             <input type="number" value={line.quantity} onChange={(e) => updateFormLine(line.key, 'quantity', e.target.value)} placeholder="数量 *" className="bds-input sm" />
-                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select" style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}>
+                            <select value={line.unit} onChange={(e) => updateFormLine(line.key, 'unit', e.target.value)} className="bds-select sm">
                               {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
                             <input type="number" step="0.01" value={line.unitPrice} onChange={(e) => updateFormLine(line.key, 'unitPrice', e.target.value)} placeholder="单价 *" className="bds-input sm" />
@@ -601,6 +612,9 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
             ) : (
               <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
                 {/* 工具栏：过滤控件组合 → filterbar 玻璃条（主操作已收编 PageHeader） */}
+                {navRelationFilter && (
+                  <NavRelationFilterChip filter={navRelationFilter} label="采购" onClear={() => setNavRelationFilter(null)} />
+                )}
                 <div className="bds-filterbar mb-4">
                   <div className="relative flex-1 max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-quaternary)' }} />
@@ -636,15 +650,15 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                   <div className="flex items-center justify-center py-12">
                     <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-quaternary)' }} />
                   </div>
-                ) : purchaseOrders.length === 0 ? (
+                ) : visiblePurchaseOrders.length === 0 ? (
                   <div className="bds-empty">
                     <div className="glyph"><PackageCheck size={24} /></div>
-                    <div className="title">暂无采购单</div>
-                    <div className="desc">点击「新建采购单」开始</div>
+                    <div className="title">{navRelationFilter ? '该供应商暂无采购单' : '暂无采购单'}</div>
+                    <div className="desc">{navRelationFilter ? '当前为跨模块筛选视图，点上方 ✕ 查看全部' : '点击「新建采购单」开始'}</div>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {purchaseOrders.map((po, index) => {
+                    {visiblePurchaseOrders.map((po, index) => {
                       const receipts = receiptsByPo[po.id] || [];
                       return (
                         <motion.div
@@ -891,13 +905,17 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     )}
                                   </div>
 
-                                  {/* 跨模块关联视图（EntityLink 图谱）— 采购供应商/所属订单/来源 BOM/来源报价 */}
-                                  <RelatedEntitiesPanel
-                                    type="purchaseOrder"
-                                    id={po.id}
+                                  {/* 关联业务（产品化 Links）— 该供应商的采购/订单/开发/报价/出运等入口 */}
+                                  {po.supplierRelationId && (
+                                  <RelatedWorkspacesSection
+                                    sourceType="relation"
+                                    relationId={po.supplierRelationId}
+                                    relationName={po.supplierName ?? ''}
+                                    relationRole="supplier"
+                                    onNavigate={onNavigate}
                                     isDarkMode={isDarkMode}
-                                    title="采购关联视图"
                                   />
+                                  )}
                                 </div>
                               </motion.div>
                             )}

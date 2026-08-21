@@ -132,7 +132,7 @@ export const ADMIN_PANEL_SCROLL_CLASS = 'h-full min-h-0 overflow-y-auto custom-s
 export const ADMIN_USER_LIST_SCROLL_CLASS = 'min-h-0 flex-1 overflow-y-auto custom-scrollbar';
 export const ADMIN_PANEL_GLASS_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-transparent bg-[var(--recessed-bg)] shadow-none`;
 export const ADMIN_USER_CARD_CLASS = `${BAMBOOK_OS.material.glassColor} ${BAMBOOK_OS.material.panelSurface} border-[var(--border-c-strong)] bg-[var(--recessed-bg)]`;
-export const ADMIN_USER_FIELD_CLASS = BAMBOOK_OS.controls.recessedField.base;
+export const ADMIN_USER_FIELD_CLASS = 'bds-input';
 // 旧导出别名（配方已坍缩为自适应单条，外部引用与测试保持不变）
 export const ADMIN_PANEL_GLASS_DARK_CLASS = ADMIN_PANEL_GLASS_CLASS;
 export const ADMIN_PANEL_GLASS_LIGHT_CLASS = ADMIN_PANEL_GLASS_CLASS;
@@ -267,7 +267,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
   const userCardClass = ADMIN_USER_CARD_CLASS;
   const card = `rounded-inset border transition-[background,border-color,box-shadow] duration-300 ${userCardClass}`;
   const labelCls = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
-  const inputCls = `w-full h-9 px-3 rounded-control border outline-none text-xs font-light transition-[background,border-color,box-shadow,transform] duration-200 ${ADMIN_USER_FIELD_CLASS}`;
+  // v2.3 字段统一裁决：BDS .bds-input/.bds-select 已胶囊化（36px/描边/rounded-control），
+  // 与原 recessedField 胶囊配方完全同规格——表单字段直接用 BDS 类，消灭双真源
+  const inputCls = 'bds-input';
+  const selectCls = 'mt-1 bds-select';
   const actionButtonCls = `h-9 px-3 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.actionControl.bordered}`;
   const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-[background,color,box-shadow,transform,border-color] duration-200 ${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`;
   const brandTextCls = BAMBOOK_OS.tone.text.brandEmphasis;
@@ -759,14 +762,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div><label className={labelCls}>邮箱</label><input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className={inputCls + ' mt-1'} placeholder="name@company.com" /></div>
                         <div><label className={labelCls}>密码</label><input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className={inputCls + ' mt-1'} placeholder="至少6位" /></div>
                         <div><label className={labelCls}>角色</label>
-                          <select value={newUser.roles} onChange={e => setNewUser({...newUser, roles: e.target.value})} className="bds-select mt-1">
+                          <select value={newUser.roles} onChange={e => setNewUser({...newUser, roles: e.target.value})} className={selectCls}>
                             {assignableRoles.length > 0
                               ? assignableRoles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)
                               : <option value={DEFAULT_ASSIGN_ROLE}>业务员</option>}
                           </select>
                         </div>
                         <div><label className={labelCls}>部门</label>
-                          <select className="bds-select mt-1" value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})}>
+                          <select className={selectCls} value={newUser.departmentId} onChange={e => setNewUser({...newUser, departmentId: e.target.value})}>
                             <option value="">未分配</option>
                             {buildDepartmentOptions(userDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
                           </select>
@@ -834,7 +837,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                         <div>
                           <label className={labelCls}>部门</label>
                           <select
-                            className="bds-select mt-1"
+                            className={selectCls}
                             value={userDraft.departmentId}
                             onChange={e => setUserDraft(prev => ({ ...prev, departmentId: e.target.value }))}
                           >
@@ -847,7 +850,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                           <select
                             value={userDraft.status}
                             onChange={e => setUserDraft(prev => ({ ...prev, status: e.target.value }))}
-                            className="bds-select mt-1"
+                            className={selectCls}
                           >
                             {ADMIN_USER_STATUS_OPTIONS.map(option => (
                               <option key={option.value} value={option.value}>{option.label}</option>
@@ -881,7 +884,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                               value={userDraft.role}
                               onChange={e => setUserDraft(prev => ({ ...prev, role: e.target.value }))}
                               disabled={actionBusyId === editingUser.id}
-                              className="bds-select mt-1 disabled:opacity-50"
+                              className={selectCls + ' disabled:opacity-50'}
                             >
                               {assignableRoles.length > 0 ? assignableRoles.map(role => (
                                 <option key={role.id} value={role.id}>{role.name}</option>
@@ -1292,34 +1295,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className={labelCls}>文档</label>
-                          <select value={aclForm.documentId} onChange={e => setAclForm({ ...aclForm, documentId: e.target.value })} className="bds-select mt-1">
+                          <select value={aclForm.documentId} onChange={e => setAclForm({ ...aclForm, documentId: e.target.value })} className={selectCls}>
                             <option value="">选择文档...</option>
                             {kbDocuments.map((d: any) => <option key={d.id} value={d.id}>{d.title}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>访问范围</label>
-                          <select value={aclForm.scope} onChange={e => setAclForm({ ...aclForm, scope: e.target.value })} className="bds-select mt-1">
+                          <select value={aclForm.scope} onChange={e => setAclForm({ ...aclForm, scope: e.target.value })} className={selectCls}>
                             {KNOWLEDGE_SCOPES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>角色（可选）</label>
-                          <select value={aclForm.roleId} onChange={e => setAclForm({ ...aclForm, roleId: e.target.value })} className="bds-select mt-1">
+                          <select value={aclForm.roleId} onChange={e => setAclForm({ ...aclForm, roleId: e.target.value })} className={selectCls}>
                             <option value="">不限角色</option>
                             {kbRoles.map((r: any) => <option key={r.id} value={r.id}>{formatRoleLabel(r.name)}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>部门（可选）</label>
-                          <select value={aclForm.departmentId} onChange={e => setAclForm({ ...aclForm, departmentId: e.target.value })} className="bds-select mt-1">
+                          <select value={aclForm.departmentId} onChange={e => setAclForm({ ...aclForm, departmentId: e.target.value })} className={selectCls}>
                             <option value="">不限部门</option>
                             {buildDepartmentOptions(kbDepartments).map((d: any) => <option key={d.id} value={d.id}>{d.label}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>权限级别</label>
-                          <select value={aclForm.access} onChange={e => setAclForm({ ...aclForm, access: e.target.value })} className="bds-select mt-1">
+                          <select value={aclForm.access} onChange={e => setAclForm({ ...aclForm, access: e.target.value })} className={selectCls}>
                             {ACCESS_LEVELS.map(a => <option key={a} value={a}>{formatAccessLabel(a)}</option>)}
                           </select>
                         </div>
@@ -1411,27 +1414,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isDarkMode }) => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className={labelCls}>工具</label>
-                          <select value={toolPermForm.toolId} onChange={e => setToolPermForm({ ...toolPermForm, toolId: e.target.value })} className="bds-select mt-1">
+                          <select value={toolPermForm.toolId} onChange={e => setToolPermForm({ ...toolPermForm, toolId: e.target.value })} className={selectCls}>
                             <option value="">选择工具...</option>
                             {tools.map((t: any) => <option key={t.id} value={t.id}>{t.name} ({t.scope})</option>)}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>角色</label>
-                          <select value={toolPermForm.roleId} onChange={e => setToolPermForm({ ...toolPermForm, roleId: e.target.value })} className="bds-select mt-1">
+                          <select value={toolPermForm.roleId} onChange={e => setToolPermForm({ ...toolPermForm, roleId: e.target.value })} className={selectCls}>
                             <option value="">选择角色...</option>
                             {toolRoles.map((r: any) => <option key={r.id} value={r.id}>{formatRoleLabel(r.name)}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>访问级别</label>
-                          <select value={toolPermForm.access} onChange={e => setToolPermForm({ ...toolPermForm, access: e.target.value })} className="bds-select mt-1">
+                          <select value={toolPermForm.access} onChange={e => setToolPermForm({ ...toolPermForm, access: e.target.value })} className={selectCls}>
                             {TOOL_ACCESS_LEVELS.map(a => <option key={a} value={a}>{formatAccessLabel(a)}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>风险模式</label>
-                          <select value={toolPermForm.riskMode} onChange={e => setToolPermForm({ ...toolPermForm, riskMode: e.target.value })} className="bds-select mt-1">
+                          <select value={toolPermForm.riskMode} onChange={e => setToolPermForm({ ...toolPermForm, riskMode: e.target.value })} className={selectCls}>
                             {RISK_MODES.map(m => <option key={m} value={m}>{formatRiskModeLabel(m)}</option>)}
                           </select>
                         </div>

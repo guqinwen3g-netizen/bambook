@@ -351,7 +351,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <label className={t.labelCls}>添加成员</label>
-              <select className="bds-select mt-1" value={memberUserId} onChange={e => setMemberUserId(e.target.value)}>
+              <select className={t.selectCls + ' mt-1'} value={memberUserId} onChange={e => setMemberUserId(e.target.value)}>
                 <option value="">选择用户</option>
                 {personnel.filter(u => !members.some(m => m.userId === u.id)).map(u => (
                   <option key={u.id} value={u.id}>{u.displayName}</option>
@@ -377,7 +377,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <label className={t.labelCls}>选择客户（我可见范围内）</label>
-              <select className="bds-select mt-1" value={grantRelationId} onChange={e => setGrantRelationId(e.target.value)}>
+              <select className={t.selectCls + ' mt-1'} value={grantRelationId} onChange={e => setGrantRelationId(e.target.value)}>
                 <option value="">{relationOptions.length === 0 ? '暂无可共享的客户' : '选择要共享的客户档案'}</option>
                 {relationOptions
                   .filter(r => !activeGrants.some(g => g.entityId === r.id))
@@ -390,7 +390,7 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             </div>
             <div>
               <label className={t.labelCls}>档位</label>
-              <select className="bds-select mt-1" value={grantPermission} onChange={e => setGrantPermission(e.target.value as 'read' | 'read+followup')}>
+              <select className={t.selectCls + ' mt-1'} value={grantPermission} onChange={e => setGrantPermission(e.target.value as 'read' | 'read+followup')}>
                 <option value="read+followup">可查看 + 可跟进</option>
                 <option value="read">仅查看</option>
               </select>
@@ -458,14 +458,14 @@ const TeamManagementTab: React.FC<TeamManagementTabProps> = ({ isDarkMode, perso
             </div>
             <div>
               <label className={t.labelCls}>组长（可空缺）</label>
-              <select className="bds-select mt-1" value={teamForm.leaderId} onChange={e => setTeamForm({ ...teamForm, leaderId: e.target.value })}>
+              <select className={t.selectCls + ' mt-1'} value={teamForm.leaderId} onChange={e => setTeamForm({ ...teamForm, leaderId: e.target.value })}>
                 <option value="">空缺（组照常运作，T-06）</option>
                 {personnel.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
               </select>
             </div>
             <div>
               <label className={t.labelCls}>关联部门（可选）</label>
-              <select className="bds-select mt-1" value={teamForm.departmentId} onChange={e => setTeamForm({ ...teamForm, departmentId: e.target.value })}>
+              <select className={t.selectCls + ' mt-1'} value={teamForm.departmentId} onChange={e => setTeamForm({ ...teamForm, departmentId: e.target.value })}>
                 <option value="">跨部门（不关联）</option>
                 {deptOptions.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>

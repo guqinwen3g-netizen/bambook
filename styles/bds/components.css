@@ -128,30 +128,36 @@
 .bds-btn-icon.sm .bds-icon { width: var(--icon-sm); height: var(--icon-sm); }
 .bds-iconbadge .bds-icon { width: var(--icon-sm); height: var(--icon-sm); }
 
-/* ============ 2. Input 输入框 — 玻璃上凹槽填充（--recessed-* 墨洗），无边框 ============ */
+/* ============ 2. Input 输入框 — 胶囊字段（v2.3 裁决：描边胶囊为全站唯一字段语言） ============ */
 /* 宽度默认值（:where 零特异性，2026-08-16 根因修复）：
    表单场景默认撑满 100%；应用层 Tailwind 宽度类（w-[140px] 等）可自然覆盖。
    事故背景：原 .bds-input/.bds-select 内联 width:100% 与 Tailwind 类同特异性且
    components.css 后加载，导致 filterbar 内 select 通栏挤压换行（开发管理工具区堆叠）。 */
 :where(.bds-input, .bds-select) { width: 100%; }
 
+/* 2026-08-21 BDS v2.3 字段几何裁决（用户对比样拍板 A·保留胶囊并反向统一）：
+   .bds-input/.bds-select 从「44px 无描边玻璃凹槽」升级为「36px 可见描边胶囊」，
+   与 BAMBOOK_OS recessedField 胶囊配方完全同规格——高度 36px / 描边
+   --border-c-default / 圆角 --radius-control / 字号 12px / focus 描边加深 +
+   recessed 加深（无 ring，flat 纪律）。消灭双真源：此前 45 文件用 BDS 字段、
+   17 文件用胶囊配方并存的混用。 */
 .bds-input {
-  height: var(--h-input);
-  padding: var(--p-input);
-  border-radius: var(--r-input);
-  border: 1px solid transparent;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-c-default);
   background: var(--recessed-bg);
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  font-size: 12px;
   color: var(--text-primary);
   transition: all var(--duration-fast) var(--ease-default);
 }
 .bds-input:hover { background: var(--recessed-bg-hover); }
 .bds-input:focus {
   outline: none;
-  background: var(--bg-card);
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
+  background: var(--recessed-bg-hover);
+  border-color: var(--border-c-strong);
+  box-shadow: none;
 }
 .bds-input:disabled {
   background: var(--recessed-bg);
@@ -169,20 +175,20 @@
   padding-top: var(--space-3);
 }
 
-/* Select（原生 <select> 填充式 + 自绘箭头） */
+/* Select（原生 <select> 胶囊字段 + 自绘箭头）— v2.3 几何与 .bds-input 同规格 */
 select.bds-select {
   appearance: none;
-  height: var(--h-input);
-  padding: var(--p-input);
+  height: 36px;
+  padding: 0 12px;
   padding-right: 34px;
-  border-radius: var(--r-input);
-  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-c-default);
   background-color: var(--recessed-bg);
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 6L0 0H10L5 6Z' fill='%230B0C0B' fill-opacity='0.4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 14px center;
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  font-size: 12px;
   color: var(--text-primary);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-default);
@@ -190,9 +196,9 @@ select.bds-select {
 select.bds-select:hover { background-color: var(--recessed-bg-hover); }
 select.bds-select:focus {
   outline: none;
-  background-color: var(--bg-card);
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
+  background-color: var(--recessed-bg-hover);
+  border-color: var(--border-c-strong);
+  box-shadow: none;
 }
 .dark select.bds-select, [data-theme="dark"] select.bds-select {
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 6L0 0H10L5 6Z' fill='%23F4F5F2' fill-opacity='0.5'/%3E%3C/svg%3E");
@@ -754,7 +760,8 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   background: var(--recessed-bg);
 }
 .bds-filterbar .bds-input:hover { background: var(--recessed-bg-hover); }
-.bds-filterbar .bds-input:focus { background: var(--bg-card); }
+/* v2.3：filterbar 内字段 focus 与胶囊字段同语言（recessed 加深，不翻卡底） */
+.bds-filterbar .bds-input:focus { background: var(--recessed-bg-hover); }
 /* Filterbar 内控件等高 + 同形纪律：
    1. input / select 强制拉齐 btn md 高度（40px），避免 input sm(34px) vs btn(40px) 不齐
    2. input / select 强制 pill 圆角，与容器 filterbar(--radius-pill) 和按钮(--r-btn pill) 同形，
@@ -1684,9 +1691,9 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   align-items: center;
   gap: var(--space-1);
   padding: 4px var(--space-2);
-  border-radius: var(--r-input);
+  border-radius: var(--radius-control);
   background: var(--recessed-bg);
-  min-height: var(--h-input);
+  min-height: 36px;
   flex-wrap: wrap;
 }
 .bds-linked-input .li-chip {

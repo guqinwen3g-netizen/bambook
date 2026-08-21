@@ -8,6 +8,8 @@ export interface HrTokens {
   cardClass: string;
   labelCls: string;
   inputCls: string;
+  /** 表单 select——与 inputCls 同规格（recessedField.select），消除同表单内 BDS 默认规格 select 与胶囊 input 混用 */
+  selectCls: string;
   primaryButtonCls: string;
   actionButtonCls: string;
   subtleButtonCls: string;
@@ -27,7 +29,9 @@ export function hrTokens(isDarkMode: boolean): HrTokens {
 
   const labelCls = `text-[10px] font-light tracking-wide ${BAMBOOK_OS.tone.text.formLabel}`;
 
-  const inputCls = `w-full h-9 px-3 rounded-control border outline-none text-xs font-light transition-all duration-200 ${BAMBOOK_OS.controls.recessedField.base}`;
+  const inputCls = 'bds-input';
+
+  const selectCls = 'bds-select';
 
   const primaryButtonCls = `h-9 px-4 rounded-control border inline-flex items-center justify-center gap-1.5 text-[11px] font-light tracking-wide transition-all duration-200 ${
     `${BAMBOOK_OS.controls.stateControl.base} ${BAMBOOK_OS.controls.stateControl.interaction}`
@@ -59,6 +63,7 @@ export function hrTokens(isDarkMode: boolean): HrTokens {
     cardClass,
     labelCls,
     inputCls,
+    selectCls,
     primaryButtonCls,
     actionButtonCls,
     subtleButtonCls,

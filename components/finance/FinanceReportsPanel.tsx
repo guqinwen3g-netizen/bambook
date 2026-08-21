@@ -1287,7 +1287,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                       <select
                         value={createForm.garmentOrderId}
                         onChange={e => setCreateForm(f => ({ ...f, garmentOrderId: e.target.value }))}
-                        className="bds-select"
+                        className="bds-select sm"
                         disabled={!orderOptions}
                       >
                         <option value="">{orderOptions ? '请选择服装订单' : '加载订单...'}</option>
@@ -1301,7 +1301,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                       <select
                         value={createForm.fabricOrderId}
                         onChange={e => setCreateForm(f => ({ ...f, fabricOrderId: e.target.value }))}
-                        className="bds-select"
+                        className="bds-select sm"
                         disabled={!orderOptions}
                       >
                         <option value="">{orderOptions ? '请选择面料订单' : '加载订单...'}</option>
@@ -1398,7 +1398,7 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                       <select
                         value={deliveryForm.shipmentId}
                         onChange={e => setDeliveryForm(f => ({ ...f, shipmentId: e.target.value }))}
-                        className="bds-select"
+                        className="bds-select sm"
                       >
                         <option value="">请选择运单</option>
                         {shipmentOptions.map(s => (

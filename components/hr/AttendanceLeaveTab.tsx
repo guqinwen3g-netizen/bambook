@@ -206,7 +206,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
         {subView === 'records' ? (
           <>
             <input type="month" className={`${t.inputCls} max-w-40`} value={month} onChange={e => setMonth(e.target.value)} />
-            <select className="bds-select max-w-36" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <select className={`${t.selectCls} max-w-36`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="">全部状态</option>
               {ATTENDANCE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -218,7 +218,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
           </>
         ) : (
           <>
-            <select className="bds-select max-w-36" value={leaveStatusFilter} onChange={e => setLeaveStatusFilter(e.target.value)}>
+            <select className={`${t.selectCls} max-w-36`} value={leaveStatusFilter} onChange={e => setLeaveStatusFilter(e.target.value)}>
               <option value="">全部状态</option>
               {LEAVE_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -265,7 +265,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <div className="grid grid-cols-4 gap-3">
                 <div>
                   <div className={t.labelCls + ' mb-1'}>员工 *</div>
-                  <select className="bds-select" value={attForm.userId}
+                  <select className={t.selectCls} value={attForm.userId}
                     onChange={e => setAttForm(f => ({ ...f, userId: e.target.value }))}>
                     <option value="">请选择</option>
                     {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
@@ -345,7 +345,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <div className={t.labelCls + ' mb-1'}>员工 *</div>
-                  <select className="bds-select" value={leaveForm.userId}
+                  <select className={t.selectCls} value={leaveForm.userId}
                     onChange={e => setLeaveForm(f => ({ ...f, userId: e.target.value }))}>
                     <option value="">请选择</option>
                     {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
@@ -353,7 +353,7 @@ const AttendanceLeaveTab: React.FC<AttendanceLeaveTabProps> = ({ isDarkMode, per
                 </div>
                 <div>
                   <div className={t.labelCls + ' mb-1'}>请假类型</div>
-                  <select className="bds-select" value={leaveForm.type}
+                  <select className={t.selectCls} value={leaveForm.type}
                     onChange={e => setLeaveForm(f => ({ ...f, type: e.target.value as LeaveType }))}>
                     {LEAVE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>

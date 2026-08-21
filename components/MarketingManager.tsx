@@ -598,8 +598,7 @@ function LookbookItemsEditor({
                 </span>
                 <span className="col-span-1">
                   <select
-                    className="bds-select"
-                    style={{ height: 'var(--h-input-sm)', fontSize: 'var(--text-xs)' }}
+                    className="bds-select sm"
                     value={d.currency ?? ''}
                     onChange={(e) => handlePatch(d.productAssetId, { currency: e.target.value || null })}
                   >

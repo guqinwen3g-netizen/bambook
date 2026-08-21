@@ -504,7 +504,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                 <select
                   value={form.supplierRelationId}
                   onChange={e => setForm(f => ({ ...f, supplierRelationId: e.target.value }))}
-                  className="bds-select"
+                  className="bds-select sm"
                 >
                   <option value="">手动输入（不关联档案）</option>
                   {supplierOptions.map(r => (
@@ -534,7 +534,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                   <select
                     value={form.paymentCategory}
                     onChange={e => setForm(f => ({ ...f, paymentCategory: e.target.value as PaymentCategory }))}
-                    className="bds-select"
+                    className="bds-select sm"
                   >
                     {VOUCHER_CATEGORIES.map(c => (
                       <option key={c} value={c}>{VOUCHER_CATEGORY_LABELS[c]}</option>
@@ -552,7 +552,7 @@ export function FinancePaymentRequestsPanel({ isDarkMode: _isDarkMode, endpoint,
                   <select
                     value={form.sourceType}
                     onChange={e => setForm(f => ({ ...f, sourceType: e.target.value as '' | PaymentRequestSourceType }))}
-                    className="bds-select"
+                    className="bds-select sm"
                   >
                     <option value="">不关联</option>
                     {PAYMENT_REQUEST_SOURCE_TYPES.map(t => (

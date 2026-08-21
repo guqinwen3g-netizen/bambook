@@ -39,12 +39,10 @@ describe('AdminPanel layout bounds', () => {
     expect(ADMIN_PANEL_GLASS_LIGHT_CLASS).toContain('bambook-dashboard-glass-color');
     expect(ADMIN_USER_CARD_DARK_CLASS).toContain('bambook-dashboard-glass-color');
     expect(ADMIN_USER_CARD_LIGHT_CLASS).toContain('bambook-dashboard-glass-color');
-    // recessedField 已演进为 flat 雕刻配方并收编至 BDS token 真源：var() 任意值绕开 flat 护栏
-    // （border:0 !important 误伤），可见描边是字段语义的必要组成，故禁用 backdrop-blur/shadow 触发子串
-    expect(ADMIN_USER_FIELD_DARK_CLASS).toContain('!bg-none');
-    expect(ADMIN_USER_FIELD_DARK_CLASS).toContain('border-[color:var(--border-c-default)]');
-    expect(ADMIN_USER_FIELD_LIGHT_CLASS).toContain('!bg-none');
-    expect(ADMIN_USER_FIELD_LIGHT_CLASS).toContain('border-[color:var(--border-c-default)]');
+    // v2.3 字段统一裁决：表单字段真源收敛为 BDS 类（.bds-input 已胶囊化：
+    // 36px/可见描边/rounded-control，几何与原 recessedField 配方完全同规格）
+    expect(ADMIN_USER_FIELD_DARK_CLASS).toBe('bds-input');
+    expect(ADMIN_USER_FIELD_LIGHT_CLASS).toBe('bds-input');
   });
 
   it('keeps admin page status color language constrained to brand blue, neutral, and danger', () => {

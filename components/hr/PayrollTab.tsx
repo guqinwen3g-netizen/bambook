@@ -383,7 +383,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ isDarkMode, personnel }) => {
       {subView === 'salary' && (
         <>
           <div className="flex items-center gap-2 px-1">
-            <select className="bds-select max-w-56" value={salaryUserId} onChange={e => setSalaryUserId(e.target.value)}>
+            <select className={`${t.selectCls} max-w-56`} value={salaryUserId} onChange={e => setSalaryUserId(e.target.value)}>
               <option value="">选择员工查看薪资历史</option>
               {personnel.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
             </select>
