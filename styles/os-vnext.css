@@ -1363,13 +1363,13 @@
 }
 
 /*
- * 全局光效开关：RDL 基座默认隐藏 Bambook SpotlightCard 内层
- * spotlight gradient（鼠标跟随主光斑 + 液态边缘光晕）。
+ * 光效默认关闭：Bambook 主程序（.bambook-os-root）范围内 SpotlightCard 内层
+ * spotlight gradient（鼠标跟随主光斑 + 液态边缘光晕）一律隐藏。
  *
  * 视觉骨架（玻璃材质 / 边框 / 圆角 / 阴影 / 容器布局）完全保留，只去掉光效本身。
- * body class 保留为兼容层，Bambook 主程序范围内默认关闭。
+ * 旧「界面光效」设置开关与 body.bambook-light-effects-disabled 兼容层已移除
+ * （2026-08-21：该开关在桌面端为死开关——本规则无条件隐藏与其状态无关）。
  */
-body.bambook-light-effects-disabled [data-spotlight-scope],
 .bambook-os-root [data-spotlight-scope] {
   display: none !important;
 }
