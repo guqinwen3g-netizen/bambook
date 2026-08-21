@@ -132,6 +132,10 @@ export function toRelationDbPayload(input: any): Record<string, unknown> {
     language: input.language || null,
     timezone: input.timezone || null,
     personalNote: input.personalNote || null,
+    // 联系人统一（自 Contact 实体并入）：仅 isOrganization=false 的人物记录消费
+    isPrimary: Boolean(input.isPrimary),
+    isDecisionMaker: Boolean(input.isDecisionMaker),
+    contactStatus: input.contactStatus || null,
   };
 }
 
@@ -199,6 +203,10 @@ export function toRelationUpdatePayload(input: any): Record<string, unknown> {
   if (hasOwn(input, 'language')) out.language = input.language || null;
   if (hasOwn(input, 'timezone')) out.timezone = input.timezone || null;
   if (hasOwn(input, 'personalNote')) out.personalNote = input.personalNote || null;
+  // 联系人统一（自 Contact 实体并入）：仅 isOrganization=false 的人物记录消费
+  if (hasOwn(input, 'isPrimary')) out.isPrimary = Boolean(input.isPrimary);
+  if (hasOwn(input, 'isDecisionMaker')) out.isDecisionMaker = Boolean(input.isDecisionMaker);
+  if (hasOwn(input, 'contactStatus')) out.contactStatus = input.contactStatus || null;
   return out;
 }
 

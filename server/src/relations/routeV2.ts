@@ -65,6 +65,8 @@ export function createRelationsV2Router(opts: RelationsV2RouterOptions): Router 
       departmentId: typeof req.query.departmentId === 'string' ? req.query.departmentId : undefined,
       search: typeof req.query.search === 'string' ? req.query.search : undefined,
       isOrganization: req.query.isOrganization === 'true' ? true : req.query.isOrganization === 'false' ? false : undefined,
+      // 联系人统一：按挂靠组织过滤人物记录（CRM 页联系人 Tab 拉档案域联系人用）
+      parentId: typeof req.query.parentId === 'string' && req.query.parentId ? req.query.parentId : undefined,
       limit: req.query.limit ? Number(req.query.limit) : undefined,
       offset: req.query.offset ? Number(req.query.offset) : undefined,
       sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,

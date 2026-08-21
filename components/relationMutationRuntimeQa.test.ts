@@ -211,7 +211,9 @@ describe('runtime QA [RelationsManager UI]: 消费真实 apiService', () => {
   });
   it('delete 成功用后端返回 deletedRelation.id filter（消费后端返回，不本地伪成功）', () => {
     expect(RELATIONS_MGR_SRC).toContain('const deletedRelation');
-    expect(RELATIONS_MGR_SRC).toContain('r.id !== deletedRelation.id');
+    // 级联合约：filter 以 deletedRelation.id 为锚 + 后端返回的 cascadedContactIds（组织删除时级联软删的联系人）
+    expect(RELATIONS_MGR_SRC).toContain('const removedIds = new Set([deletedRelation.id, ...(cascadedIds || [])]);');
+    expect(RELATIONS_MGR_SRC).toContain('relations.filter(r => !removedIds.has(r.id))');
   });
   it('handleSave 是 async（await apiService）', () => {
     expect(RELATIONS_MGR_SRC).toContain('const handleSave = async (e: React.FormEvent');

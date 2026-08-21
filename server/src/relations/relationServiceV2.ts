@@ -38,6 +38,7 @@ import {
   VALID_RELATION_CATEGORIES,
 } from '../relations/relationMutationService';
 import { createTeamShareService } from '../teams/teamShareService';
+import { createCrmService } from '../crm/crmService';
 import { resolveWriteKind } from '../_shared/rolePermissionMatrix';
 import { logger } from '../lib/logger';
 
@@ -52,6 +53,7 @@ export interface RelationListFilter {
   departmentId?: string;
   search?: string;         // name / englishName / chineseName / code 模糊搜索
   isOrganization?: boolean;
+  parentId?: string;       // 联系人统一：按挂靠组织过滤人物记录
   teamId?: string;         // DR-042 §8.2 组筛选器：只看某个组的共享数据
   bizScope?: 'mine';       // P1-001：L2 业务口径（followedBy ∪ teamGranted），CRM 下拉防默认选中无权客户
   limit?: number;
@@ -122,6 +124,55 @@ export function createRelationServiceV2(prisma: PrismaClient) {
   const dictSvc = getDataDictionaryService(prisma);
   const configSvc = getSystemConfigService(prisma);
   const teamShareSvc = createTeamShareService(prisma);
+  const crmSvc = createCrmService(prisma);
+
+  // ── 主联系人独占切换（联系人统一）：isPrimary=true 落库前清除同组织下其他 primary ──
+  async function enforcePrimaryExclusivity(tx: any, parentId: string | null | undefined, exceptId?: string) {
+    if (!parentId) return;
+    await tx.relation.updateMany({
+      where: {
+        parentId,
+        isOrganization: false,
+        isPrimary: true,
+        ...(exceptId ? { id: { not: exceptId } } : {}),
+        deletedAt: null,
+      },
+      data: { isPrimary: false },
+    });
+  }
+
+  // ── 信用额度单一真源联动（档案 ↔ CRM CreditLimit 实体）──
+  // relation.creditLimit（档案冗余字段）与 CreditLimit 实体（生效额度真源）必须同步：
+  // 档案保存额度 → upsert Active 实体（复用 crmService.setCreditLimit：过期旧档 +
+  // 重算已用 + 审计 + 回写档案）；清空额度 → Expire 生效档。否则详情页「财务信息」
+  // 与「信用额度」模块呈现互相矛盾的数字（验收发现的 F1 缺陷）。
+  async function syncCreditLimitEntity(
+    relationId: string,
+    newLimit: number,
+    opts: { currency?: string | null },
+    actorId?: string,
+  ): Promise<void> {
+    try {
+      if (newLimit > 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        await crmSvc.setCreditLimit(relationId, {
+          totalLimit: newLimit,
+          currency: opts.currency || 'CNY',
+          validFrom: today,
+          notes: 'synced_from_relation_profile',
+        }, actorId || 'system');
+      } else {
+        const ts = BigInt(Date.now());
+        await (prisma as any).creditLimit.updateMany({
+          where: { relationId, status: 'Active', deletedAt: null },
+          data: { status: 'Expired', updatedAt: ts },
+        });
+      }
+    } catch (e: any) {
+      // 联动失败不阻断档案保存主链路（额度实体可后续在 CRM 面板单独设置），但要留痕
+      logger.error('[RelationV2] credit limit sync failed', { relationId, newLimit, error: e?.message });
+    }
+  }
 
   // ── 行级权限 where 构造（v2.2 DR-042 §5.1 三层视野）──
   // L1 档案层（图书馆）：normal 档案全公司可查；confidential 仅本人维 + 真全权角色。
@@ -282,6 +333,8 @@ export function createRelationServiceV2(prisma: PrismaClient) {
         }
       }
       if (filter.isOrganization !== undefined) where.isOrganization = filter.isOrganization;
+      // 联系人统一：按挂靠组织过滤人物记录（CRM 页联系人 Tab 拉档案域联系人用）
+      if (filter.parentId) where.parentId = filter.parentId;
       if (filter.search) {
         const s = filter.search.trim();
         if (s) {
@@ -431,6 +484,16 @@ export function createRelationServiceV2(prisma: PrismaClient) {
         create: payload,
       });
 
+      // 主联系人独占（联系人统一）：新建/更新联系人为 primary 时清除同组织其他 primary
+      if (!rel.isOrganization && rel.isPrimary && rel.parentId) {
+        await enforcePrimaryExclusivity(prisma, rel.parentId, rel.id);
+      }
+
+      // 信用额度单一真源联动：新建档案直接填了额度 → 同步建 CRM CreditLimit 实体
+      if (Number(payload.creditLimit || 0) > 0) {
+        await syncCreditLimitEntity(rel.id, Number(payload.creditLimit), { currency: (payload as any).currency }, actor.userId);
+      }
+
       logger.info('[RelationV2] created', { id: rel.id, code, category, stage, ownerId });
       return { ok: true, data: serializeRelation(rel) };
     } catch (e: any) {
@@ -494,6 +557,21 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       }
 
       const updated = await (prisma as any).relation.update({ where: { id }, data: payload });
+
+      // 主联系人独占（联系人统一）：更新联系人为 primary 时清除同组织其他 primary
+      if (!(updated as any).isOrganization && (updated as any).isPrimary && (updated as any).parentId) {
+        await enforcePrimaryExclusivity(prisma, (updated as any).parentId, id);
+      }
+
+      // 信用额度单一真源联动：档案 creditLimit 数值变化 → 同步 CRM CreditLimit 实体
+      if (Object.prototype.hasOwnProperty.call(input, 'creditLimit')) {
+        const newLimit = Number(input.creditLimit || 0);
+        const oldLimit = Number((existing as any).creditLimit || 0);
+        if (newLimit !== oldLimit) {
+          await syncCreditLimitEntity(id, newLimit, { currency: (input as any).currency }, actor.userId);
+        }
+      }
+
       logger.info('[RelationV2] updated', { id, stage: input.stage, tier: input.tier });
       return { ok: true, data: serializeRelation(updated) };
     } catch (e: any) {
@@ -520,9 +598,19 @@ export function createRelationServiceV2(prisma: PrismaClient) {
       if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: '客户/实体不存在或无权限操作' } };
 
       const now = BigInt(Date.now());
+      // 级联软删子联系人：组织删除后其下联系人（parentId 指向该组织）在前端不可达
+      // （组织详情页已不存在、组织列表只渲染 isOrganization），不级联会留下永久孤儿脏数据
+      const cascade = await (prisma as any).relation.updateMany({
+        where: { parentId: id, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      const cascadedIds = (cascade?.count || 0) > 0
+        ? (await (prisma as any).relation.findMany({ where: { parentId: id }, select: { id: true } })).map((r: { id: string }) => r.id)
+        : [];
       const del = await (prisma as any).relation.update({ where: { id }, data: { deletedAt: now } });
-      logger.info('[RelationV2] soft-deleted', { id, name: existing.name });
-      return { ok: true, data: serializeRelation(del) };
+      logger.info('[RelationV2] soft-deleted', { id, name: existing.name, cascadedContacts: cascade.count });
+      // cascadedContactIds：供前端同步移除内存数组中被级联的联系人（非持久化字段）
+      return { ok: true, data: { ...serializeRelation(del), cascadedContactIds: cascadedIds } };
     } catch (e: any) {
       return { ok: false, error: { code: 'INTERNAL_ERROR', message: String(e?.message ?? e) } };
     }

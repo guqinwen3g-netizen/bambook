@@ -13,7 +13,7 @@ import {
 import { TraceabilityPanel } from './TraceabilityPanel';
 import ContactList from './ui/ContactList';
 import DetailPanel from './ui/DetailPanel';
-import OrgChart from './ui/OrgChart';
+import OrgChart, { isDescendantContact } from './ui/OrgChart';
 import CustomSelect from './ui/CustomSelect';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import {
@@ -126,12 +126,16 @@ const writeRelationsPreviewState = (state: RelationsPreviewState) => {
  * 阶段 IA-2：跨模块跳转关系智库指定组织详情。
  * 调用方在触发视图切换（onNavigate(View.Relations)）前调用，
  * Relations 挂载时经 preview state 直接落在该组织详情的联系人 Tab。
+ * category 必传：详情页返回上一级落在该分类的组织列表——缺省时组织列表
+ * 因 selectedCategory=null 渲染为空（"暂无组织"），返回栈断链。
  */
-export const primeRelationsOrgDetailPreview = (orgId: string) => {
+export const primeRelationsOrgDetailPreview = (orgId: string, category?: RelationCategory | null) => {
+  const prev = readRelationsPreviewState();
   writeRelationsPreviewState({
-    ...readRelationsPreviewState(),
+    ...prev,
     navLevel: 'detail',
     selectedOrgId: orgId,
+    selectedCategory: category ?? prev.selectedCategory ?? null,
     selectedContactId: null,
     activeTab: 'contacts',
   });
@@ -573,7 +577,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   useEffect(() => {
     if (!showAddModal) return;
     setFormSelectValues({
-      rating: String(editingItem?.rating || 3),
+      // rating 历史数据可能是小数（demo seed 4.6）：表单 Tier 是 1-5 离散枚举，
+      // 回填时四舍五入到最近合法档位，否则 CustomSelect 值不匹配显示"请选择..."
+      rating: String(Math.min(5, Math.max(1, Math.round(Number(editingItem?.rating || 3))))),
       paymentTerms: editingItem?.paymentTerms || '',
       currency: editingItem?.currency || '',
       language: editingItem?.language || '',
@@ -854,6 +860,10 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         timezone: formData.get('timezone') as string || undefined,
         personalNote: formData.get('personalNote') as string || undefined,
         reportsToId: editingItem?.reportsToId,
+        // 联系人统一：CRM 语义字段不在表单内——编辑时保留原值（否则保存会静默重置）
+        isPrimary: editingItem?.isPrimary ?? false,
+        isDecisionMaker: editingItem?.isDecisionMaker ?? false,
+        contactStatus: editingItem?.contactStatus,
       } : {}),
     };
 
@@ -883,8 +893,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     try {
       const deletedRelation = await apiService.deleteRelation(id, cloudEndpoint);
       const wasSelectedOrg = selectedOrgId === deletedRelation.id;
-      onUpdate(relations.filter(r => r.id !== deletedRelation.id), deletedRelation);
-      if (selectedContactId === id) setSelectedContactId(null);
+      // 后端删除组织时级联软删其下联系人（cascadedContactIds）——内存数组同步移除，
+      // 避免残留已被软删的联系人（下次刷新才会消失的幻影数据）
+      const cascadedIds = (deletedRelation as any).cascadedContactIds as string[] | undefined;
+      const removedIds = new Set([deletedRelation.id, ...(cascadedIds || [])]);
+      onUpdate(relations.filter(r => !removedIds.has(r.id)), deletedRelation);
+      if (selectedContactId === id || cascadedIds?.includes(selectedContactId || '')) setSelectedContactId(null);
       // 删除当前浏览的组织后回退到组织列表——navLevel='detail' 的内容区依赖
       // selectedOrganization 存在才渲染，不回退会停留在空白详情页
       if (wasSelectedOrg) {
@@ -906,18 +920,11 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     if (!source) return;
     if (source.reportsToId === reportsToId) return;
     if (reportsToId === contactId) return;
+    if (reportsToId && !orgContacts.some(contact => contact.id === reportsToId)) return;
 
-    const target = reportsToId ? orgContacts.find(contact => contact.id === reportsToId) : undefined;
-    if (reportsToId && !target) return;
-
-    let cursor = target;
-    const seen = new Set<string>();
-    while (cursor?.reportsToId) {
-      if (cursor.reportsToId === contactId) return;
-      if (seen.has(cursor.id)) return;
-      seen.add(cursor.id);
-      cursor = orgContacts.find(contact => contact.id === cursor?.reportsToId);
-    }
+    // 环防御：目标若在被拖联系人的子树中，移动会形成汇报环。
+    // UI canDrop 已拦截（同一 isDescendantContact 规则），此处为提交层兜底（防绕过 UI 直接调用）
+    if (isDescendantContact(orgContacts, contactId, reportsToId || undefined)) return;
 
     const updated: Relation = { ...source, reportsToId };
     onUpdate(relations.map(relation => relation.id === contactId ? updated : relation), updated);
@@ -1059,7 +1066,13 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
               type="button"
               onClick={() => {
                 if (navLevel === 'detail') {
-                  setNavLevel('organizations');
+                  // 跨模块直达详情（无分类语境）时返回分类首页：
+                  // selectedCategory=null 的组织列表渲染为空（"暂无组织"），返回栈断链
+                  if (!selectedCategory) {
+                    setNavLevel('category');
+                  } else {
+                    setNavLevel('organizations');
+                  }
                   setSelectedOrgId(null);
                   setSelectedContactId(null);
                   setActiveTab('contacts');
@@ -1368,20 +1381,29 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                 </CompiledTableShell>
             )}
 
-            {/* Empty state */}
+            {/* Empty state：区分「搜索无结果」与「分类本就为空」——前者提示调整关键词，后者引导创建 */}
             {currentOrganizations.length === 0 && (
               <div className={`col-span-full py-20 flex flex-col items-center justify-center text-[var(--text-tertiary)]`}>
                 <div className={`w-20 h-20 rounded-inset flex items-center justify-center mb-6 ${relationQuietIconSurfaceClass}`}>
                   <Building2 size={40} strokeWidth={1} className="opacity-40" />
                 </div>
-                <p className="text-sm font-light tracking-wide mb-2">暂无组织</p>
-                <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>点击下方按钮创建第一个组织</p>
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className={`px-4 py-2 rounded-full text-xs font-light transition-all ${relationTableEmptyActionClass}`}
-                >
-                  创建组织
-                </button>
+                {searchTerm.trim() ? (
+                  <>
+                    <p className="text-sm font-light tracking-wide mb-2">未找到匹配的组织</p>
+                    <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>「{searchTerm}」在{categories.find(c => c.id === selectedCategory)?.label || '当前分类'}中没有匹配结果，试试其他关键词</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-light tracking-wide mb-2">暂无组织</p>
+                    <p className={`text-xs mb-4 text-[var(--text-tertiary)]`}>该分类还没有组织，点击下方按钮创建第一个</p>
+                    <button
+                      onClick={() => setShowAddModal(true)}
+                      className={`px-4 py-2 rounded-full text-xs font-light transition-all ${relationTableEmptyActionClass}`}
+                    >
+                      创建组织
+                    </button>
+                  </>
+                )}
               </div>
             )}
             </motion.div>

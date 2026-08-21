@@ -354,7 +354,6 @@ async function seedOne(seed: DictSeed): Promise<{ code: string; entriesN: number
       entries: seed.entries
         .map((e, i) => ({ order: i, ...e }))
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) as any,
-      labels: null,
       description: seed.description ?? null,
       updatedAt: BigInt(Date.now()),
     },

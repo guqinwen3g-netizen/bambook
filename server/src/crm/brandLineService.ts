@@ -204,12 +204,18 @@ export function createBrandLineService(prisma: PrismaClient) {
     if (!input.summary?.trim()) throw new Error('沟通摘要必填');
     if (!input.occurredAt || !DATE_RE.test(input.occurredAt)) throw new Error('沟通日期格式须为 YYYY-MM-DD');
     if (input.contactId) {
-      const contact = await db.contact.findFirst({
+      // 联系人统一：contactId 指向 Relation 人物记录（parentId 挂靠校验）。
+      // 历史数据可能仍是旧 Contact 表 id——查 Relation 未命中时回退查 Contact 归档表。
+      const person = await db.relation.findFirst({
+        where: { id: input.contactId, parentId: relationId, isOrganization: false, deletedAt: null },
+        select: { id: true },
+      });
+      const legacy = person ? null : await db.contact.findFirst({
         where: { id: input.contactId, relationId, deletedAt: null },
         select: { id: true },
       });
       // 输入校验失败语义为 400（非目标资源缺失），措辞避开路由的“不存在→404”映射
-      if (!contact) throw new Error(`联系人 ${input.contactId} 不属于该客户或已删除`);
+      if (!person && !legacy) throw new Error(`联系人 ${input.contactId} 不属于该客户或已删除`);
     }
 
     const ts = now();

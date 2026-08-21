@@ -319,7 +319,8 @@ export default function CrmManager({ isDarkMode, onNavigate }: CrmManagerProps) 
 
   const handleManageContactsInRelations = () => {
     if (!selectedRelationId) return;
-    primeRelationsOrgDetailPreview(selectedRelationId);
+    // category 传入保证关系智库详情页返回上级时落在正确分类的组织列表（返回栈完整）
+    primeRelationsOrgDetailPreview(selectedRelationId, selectedRelation?.category);
     onNavigate?.(View.Relations);
   };
 
@@ -817,7 +818,10 @@ function ContactsTab({
           <div className="bds-empty col-span-full">
             <div className="glyph"><Users size={24} /></div>
             <div className="title">暂无联系人</div>
-            <div className="desc">可到关系智库为「{selectedRelation.name}」建立联系人档案</div>
+            {/* 文案诚实化：CRM 此处展示的是「联系人名片」（Contact 实体），与关系智库
+                左侧通讯录（档案域联系人）是两个数据源——引导到名片的真实创建入口
+                （关系智库组织详情页的「联系人名片」区块），而非通讯录（建了也不在此显示） */}
+            <div className="desc">到关系智库「{selectedRelation.name}」详情页的「联系人名片」区块添加</div>
           </div>
         )}
         {contacts.map((c) => (

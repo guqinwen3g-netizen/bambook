@@ -712,7 +712,8 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
                   {onNavigate && (
                     <button
                       onClick={() => {
-                        primeRelationsOrgDetailPreview(selectedProfile.relationId);
+                        // 'Supplier' 固定分类：详情页返回上级落在供应商组织列表（返回栈完整）
+                        primeRelationsOrgDetailPreview(selectedProfile.relationId, 'Supplier');
                         onNavigate(View.Relations);
                       }}
                       className="bds-btn bds-btn-secondary"

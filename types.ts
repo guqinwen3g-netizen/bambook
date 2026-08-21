@@ -267,6 +267,10 @@ export interface Relation {
   language?: string;              // 语言偏好 (zh-CN, en-US)
   timezone?: string;              // 时区 (Asia/Shanghai)
   personalNote?: string;          // 个人备注
+  // 联系人统一（自 Contact 实体并入）：仅 isOrganization=false 的人物记录消费
+  isPrimary?: boolean;            // 主联系人标记（同组织下唯一，独占切换）
+  isDecisionMaker?: boolean;      // 决策人标记
+  contactStatus?: string;         // 联系人状态 Active | Inactive | Left
 }
 
 // [v2.4 Products Architecture]

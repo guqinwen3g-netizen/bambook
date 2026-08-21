@@ -18,13 +18,22 @@ import { extractActorFromRequest } from '../auth/middleware';
 import { createPermissionService } from '../auth/permissionService';
 import { createTeamShareService } from '../teams/teamShareService';
 import { resolveWriteKind } from '../_shared/rolePermissionMatrix';
-import { createCrmService } from './crmService';
+import { createCrmService, CrmValidationError } from './crmService';
 import { logger } from '../lib/logger';
 
 export interface CrmV2RouterOptions {
   prisma: PrismaClient;
   requireAuth: boolean;
   apiKeys: Set<string>;
+}
+
+// 统一错误映射：输入合约违规（CrmValidationError）→ 400 VALIDATION_FAILED；
+// 其余（DB/内部）→ 500 INTERNAL_ERROR。防止 Prisma 约束错误以 500 泄漏给客户端。
+function crmCatch(res: Response, e: any) {
+  if (e instanceof CrmValidationError) {
+    return res.status(400).json({ error: 'VALIDATION_FAILED', message: e.message });
+  }
+  return res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message });
 }
 
 export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
@@ -91,7 +100,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const items = await svc.listContacts(req.params.relationId);
       res.json({ ok: true, contacts: items.map(serialize) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.post('/:relationId/contacts', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -99,7 +108,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.createContact(req.params.relationId, req.body, actorId(req));
       res.json({ ok: true, contact: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.get('/contacts/:id', requirePermission('crm:read'), async (req, res) => {
@@ -110,7 +119,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
         return res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此联系人' });
       }
       res.json({ ok: true, contact: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.put('/contacts/:id', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -122,7 +131,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       }
       const item = await svc.updateContact(req.params.id, req.body, actorId(req));
       res.json({ ok: true, contact: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.delete('/contacts/:id', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -134,7 +143,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       }
       await svc.deleteContact(req.params.id, actorId(req));
       res.json({ ok: true, deleted: true });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   // ═══════════ CreditLimit ═══════════
@@ -143,7 +152,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.getActiveCreditLimit(req.params.relationId);
       res.json({ ok: true, creditLimit: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.get('/:relationId/credit-limit/history', requirePermission('crm:read'), async (req, res) => {
@@ -151,7 +160,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const items = await svc.listCreditLimitHistory(req.params.relationId);
       res.json({ ok: true, history: items.map(serialize) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.post('/:relationId/credit-limit', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -159,14 +168,14 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.setCreditLimit(req.params.relationId, req.body, actorId(req));
       res.json({ ok: true, creditLimit: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.patch('/credit-limit/:id/status', requireWrite, requirePermission('crm:write'), async (req, res) => {
     try {
       const item = await svc.updateCreditLimitStatus(req.params.id, req.body?.status, actorId(req));
       res.json({ ok: true, creditLimit: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   // ═══════════ FollowUp ═══════════
@@ -176,7 +185,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const items = await svc.listFollowUps(req.params.relationId);
       res.json({ ok: true, followUps: items.map(serialize) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.post('/:relationId/follow-ups', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -193,10 +202,25 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
         });
       }
     }
+    // 输入合约校验（FollowUpInput 必填三键）：缺失时 400 而非落库层 500 泄漏 Prisma 原始错误
+    const body = req.body || {};
+    const missing = (['type', 'content', 'followUpAt'] as const).filter(
+      (key) => typeof body[key] !== 'string' || !(body[key] as string).trim(),
+    );
+    if (missing.length > 0) {
+      return res.status(400).json({ error: 'VALIDATION_FAILED', message: `body.${missing.join('/')} 必填` });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(body.followUpAt) || Number.isNaN(Date.parse(body.followUpAt))) {
+      return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.followUpAt 必须是 YYYY-MM-DD 日期' });
+    }
+    if (body.nextFollowUpAt !== undefined && body.nextFollowUpAt !== null && String(body.nextFollowUpAt) !== ''
+      && (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.nextFollowUpAt)) || Number.isNaN(Date.parse(String(body.nextFollowUpAt))))) {
+      return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.nextFollowUpAt 必须是 YYYY-MM-DD 日期' });
+    }
     try {
-      const item = await svc.createFollowUp(req.params.relationId, req.body, actorId(req));
+      const item = await svc.createFollowUp(req.params.relationId, body, actorId(req));
       res.json({ ok: true, followUp: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.get('/follow-ups/overdue', requirePermission('crm:read'), async (req, res) => {
@@ -214,7 +238,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
         }
         res.json({ ok: true, overdueFollowUps: filtered });
       }
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.get('/follow-ups/:id', requirePermission('crm:read'), async (req, res) => {
@@ -225,7 +249,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
         return res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此跟进记录' });
       }
       res.json({ ok: true, followUp: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.put('/follow-ups/:id', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -237,7 +261,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       }
       const item = await svc.updateFollowUp(req.params.id, req.body, actorId(req));
       res.json({ ok: true, followUp: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.delete('/follow-ups/:id', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -249,7 +273,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       }
       await svc.deleteFollowUp(req.params.id, actorId(req));
       res.json({ ok: true, deleted: true });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   // ═══════════ Opportunity ═══════════
@@ -272,7 +296,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
         }
         res.json({ ok: true, opportunities: filtered });
       }
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.post('/:relationId/opportunities', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -280,14 +304,14 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.createOpportunity(req.params.relationId, req.body, actorId(req));
       res.json({ ok: true, opportunity: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.get('/opportunities/pipeline/summary', requirePermission('crm:read'), async (req, res) => {
     try {
       const data = await svc.getOpportunityPipelineSummary();
       res.json({ ok: true, pipeline: data });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.get('/opportunities/:id', requirePermission('crm:read'), async (req, res) => {
@@ -298,7 +322,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
         return res.status(403).json({ error: 'FORBIDDEN', message: '无权限查看此商机' });
       }
       res.json({ ok: true, opportunity: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.put('/opportunities/:id', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -310,7 +334,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       }
       const item = await svc.updateOpportunity(req.params.id, req.body, actorId(req));
       res.json({ ok: true, opportunity: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.post('/opportunities/:id/transition', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -324,7 +348,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       if (!toStage) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.toStage 必填' });
       const item = await svc.transitionOpportunityStage(req.params.id, toStage, actorId(req));
       res.json({ ok: true, opportunity: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.delete('/opportunities/:id', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -336,7 +360,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
       }
       await svc.deleteOpportunity(req.params.id, actorId(req));
       res.json({ ok: true, deleted: true });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   // ═══════════ CustomerTier ═══════════
@@ -345,7 +369,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.getActiveCustomerTier(req.params.relationId);
       res.json({ ok: true, customerTier: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.get('/:relationId/customer-tier/history', requirePermission('crm:read'), async (req, res) => {
@@ -353,7 +377,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const items = await svc.listCustomerTierHistory(req.params.relationId);
       res.json({ ok: true, history: items.map(serialize) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.post('/:relationId/customer-tier', requireWrite, requirePermission('crm:write'), async (req, res) => {
@@ -361,14 +385,14 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const item = await svc.assignCustomerTier(req.params.relationId, req.body, actorId(req));
       res.json({ ok: true, customerTier: serialize(item) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   router.delete('/customer-tier/:id', requireWrite, requirePermission('crm:write'), async (req, res) => {
     try {
       await svc.deleteCustomerTier(req.params.id, actorId(req));
       res.json({ ok: true, deleted: true });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   // ═══════════ Overview ═══════════
@@ -377,7 +401,7 @@ export function createCrmV2Router(opts: CrmV2RouterOptions): Router {
     try {
       const data = await svc.getRelationCrmOverview(req.params.relationId);
       res.json({ ok: true, ...serialize(data) });
-    } catch (e: any) { res.status(500).json({ error: 'INTERNAL_ERROR', message: e?.message }); }
+    } catch (e: any) { crmCatch(res, e); }
   });
 
   return router;

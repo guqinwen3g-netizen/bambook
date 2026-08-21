@@ -33,7 +33,8 @@ interface OrgNode {
     level: number;
 }
 
-const buildOrgTree = (contacts: Relation[]): OrgNode[] => {
+// 导出供 RelationsManager.handleMoveContact 复用：UI canDrop 与提交层防御共用同一环检测规则
+export const buildOrgTree = (contacts: Relation[]): OrgNode[] => {
     // 找出所有顶级节点（没有 reportsToId 或 reportsToId 不在 contacts 中）
     const contactIds = new Set(contacts.map(c => c.id));
 
@@ -56,7 +57,9 @@ const buildOrgTree = (contacts: Relation[]): OrgNode[] => {
     return topLevel.map(c => buildSubtree(c, 0));
 };
 
-const isDescendantContact = (contacts: Relation[], sourceId: string, maybeDescendantId?: string) => {
+// 环检测纯函数：maybeDescendantId 的汇报链上是否会出现 sourceId（即是否为其后代）。
+// UI canDrop（拖拽预判）与 RelationsManager.handleMoveContact（提交层兜底）共用。
+export const isDescendantContact = (contacts: Relation[], sourceId: string, maybeDescendantId?: string) => {
     if (!maybeDescendantId) return false;
 
     let current = contacts.find(contact => contact.id === maybeDescendantId);

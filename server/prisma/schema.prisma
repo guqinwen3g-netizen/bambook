@@ -382,6 +382,15 @@ model Relation {
   timezone      String?
   personalNote  String?
 
+  // ─── 联系人统一（Relation 人物轨为唯一真源）：自 Contact 实体并入的 CRM 语义 ───
+  // 仅 isOrganization=false 的人物记录消费；组织记录恒为 false/null
+  /// 主联系人标记（同组织下唯一，独占切换）
+  isPrimary       Boolean  @default(false)
+  /// 决策人标记（采购决策链）
+  isDecisionMaker Boolean  @default(false)
+  /// 联系人状态：Active | Inactive | Left（null=未设置）
+  contactStatus   String?
+
   // ─── Phase 1-01 客户/市场域升级：接入平台域（权限/编号/字典） ───
   /// 客户阶段（Lead/Opportunity/Quotation/TrialOrder/Customer/Key/Churned）—— 对应 DataDictionary.relation_stage
   stage         String?  @default("Customer")
@@ -461,7 +470,7 @@ model Contact {
   deletedAt BigInt?
 
   relation        Relation         @relation(fields: [relationId], references: [id], onDelete: Cascade)
-  followUpRecords FollowUpRecord[]
+  // 联系人统一：FollowUpRecord.contactId 不再关联本表（已改裸引用指向 Relation 人物）
 
   @@index([relationId])
   @@index([isPrimary])
@@ -538,7 +547,9 @@ model FollowUpRecord {
   deletedAt BigInt?
 
   relation Relation @relation(fields: [relationId], references: [id], onDelete: Cascade)
-  contact  Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  // 联系人统一：contactId 指向 Relation 人物记录（裸引用，不加 DB 外键——
+  // 与 CommunicationLog/CommissionRule 的 snapshot FK 同口径；历史数据可能是旧 Contact id）
+  // contact  Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([relationId])
   @@index([contactId])

@@ -111,6 +111,18 @@ const STAGE_DEFAULT_PROBABILITY: Record<string, number> = {
   ClosedLost: 0,
 };
 
+// 合法商机阶段枚举（与流转矩阵同源）：创建入口校验用，
+// 防止落库矩阵外的 stage（该商机将永远无法流转——矩阵查不到按终态处理）
+export const VALID_OPPORTUNITY_STAGES = Object.keys(OPPORTUNITY_TRANSITIONS);
+
+// CRM 输入合约违规（路由层映射 400 VALIDATION_FAILED，区别于内部错误的 500）
+export class CrmValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CrmValidationError';
+  }
+}
+
 // ────────────────────────────────────────────────────────────────
 // 辅助函数
 // ────────────────────────────────────────────────────────────────
@@ -122,7 +134,7 @@ function generateId(prefix: string): string {
 function validateOpportunityTransition(from: string, to: string): void {
   const allowed = OPPORTUNITY_TRANSITIONS[from];
   if (!allowed || !allowed.includes(to)) {
-    throw new Error(`非法商机阶段转换：${from} → ${to}（允许的目标：${allowed?.join(', ') || '无（终态）'}）`);
+    throw new CrmValidationError(`非法商机阶段转换：${from} → ${to}（允许的目标：${allowed?.join(', ') || '无（终态）'}）`);
   }
 }
 
@@ -134,28 +146,73 @@ export function createCrmService(prisma: PrismaClient) {
   const now = () => Date.now();
 
   // ══════════════════════════════════════════════════════════════
-  // 1. 联系人管理（Contact）
+  // 1. 联系人管理（Contact）—— Relation 人物轨代理
+  //
+  // 联系人统一（方案 A）：Relation(isOrganization=false) 人物记录是组织联系人的
+  // 唯一真源（与关系智库通讯录/组织架构/Agent relations.expand 同源）。本节 CRUD
+  // 以 Contact API 合约形状代理读写 Relation，字段映射：title↔role、
+  // status↔contactStatus、relationId↔parentId。Contact 表保留为迁移前历史归档，
+  // 不再写入。返回的 id 即 Relation id（跟进 contactId 引用随之统一指向 Relation）。
   // ══════════════════════════════════════════════════════════════
+
+  function relationToContact(row: any): Contact {
+    // 路由层 serialize 会做 BigInt→number 归一；此处形状映射（createdAt/updatedAt 从
+    // lastInteraction 兜底，Contact 合约的 number 类型由 serialize 兜底转换）
+    return {
+      id: row.id,
+      relationId: row.parentId,
+      name: row.name,
+      title: row.role ?? null,
+      department: row.department ?? null,
+      email: row.email ?? null,
+      phone: row.phone ?? null,
+      mobile: row.mobile ?? null,
+      wechat: row.wechat ?? null,
+      whatsapp: row.whatsapp ?? null,
+      isPrimary: !!row.isPrimary,
+      isDecisionMaker: !!row.isDecisionMaker,
+      birthday: row.birthday ?? null,
+      personalNote: row.personalNote ?? null,
+      tags: Array.isArray(row.tags) ? row.tags : [],
+      status: row.contactStatus ?? 'Active',
+      createdAt: Number(row.lastInteraction ?? 0),
+      updatedAt: Number(row.lastInteraction ?? 0),
+      deletedAt: row.deletedAt != null ? Number(row.deletedAt) : null,
+    } as unknown as Contact;
+  }
 
   async function createContact(relationId: string, input: ContactInput, actorId: string): Promise<Contact> {
     const ts = now();
-    const contactId = generateId('CTC');
+    const contactId = `REL-${ts}-${Math.random().toString(36).slice(2, 8)}`;
+    if (!input?.name?.trim()) {
+      throw new CrmValidationError('body.name 必填（联系人姓名）');
+    }
 
     const created = await prisma.$transaction(async (tx) => {
-      // 若新联系人为 primary，先清除该 relation 下其他 primary
+      // 父组织必须存在且未删（与 Agent relation.onboard 同规约：category 继承父组织）
+      const org = await tx.relation.findFirst({
+        where: { id: relationId, isOrganization: true, deletedAt: null },
+        select: { category: true },
+      });
+      if (!org) throw new CrmValidationError(`组织 ${relationId} 不存在或已删除，无法挂靠联系人`);
+
+      // 若新联系人为 primary，先清除该组织下其他 primary（同 parentId 人物轨独占）
       if (input.isPrimary) {
-        await tx.contact.updateMany({
-          where: { relationId, isPrimary: true, deletedAt: null },
-          data: { isPrimary: false, updatedAt: ts },
+        await tx.relation.updateMany({
+          where: { parentId: relationId, isOrganization: false, isPrimary: true, deletedAt: null },
+          data: { isPrimary: false, lastInteraction: ts },
         });
       }
 
-      const contact = await tx.contact.create({
+      const rel = await tx.relation.create({
         data: {
           id: contactId,
-          relationId,
           name: input.name,
-          title: input.title ?? null,
+          category: org.category,
+          type: 'Contact',
+          isOrganization: false,
+          parentId: relationId,
+          role: input.title ?? null,
           department: input.department ?? null,
           email: input.email ?? null,
           phone: input.phone ?? null,
@@ -164,12 +221,13 @@ export function createCrmService(prisma: PrismaClient) {
           whatsapp: input.whatsapp ?? null,
           isPrimary: input.isPrimary ?? false,
           isDecisionMaker: input.isDecisionMaker ?? false,
+          contactStatus: 'Active',
           birthday: input.birthday ?? null,
           personalNote: input.personalNote ?? null,
           tags: input.tags ?? [],
-          status: 'Active',
-          createdAt: ts,
-          updatedAt: ts,
+          contactInfo: '',
+          rating: 3,
+          lastInteraction: ts,
         },
       });
 
@@ -178,9 +236,9 @@ export function createCrmService(prisma: PrismaClient) {
           id: generateId('alog'),
           actorId: actorId || 'system',
           action: 'create_contact',
-          targetType: 'Contact',
+          targetType: 'Relation',
           targetId: contactId,
-          detail: { source: 'api:crm', after: { relationId, name: input.name } } as any,
+          detail: { source: 'api:crm', after: { relationId, name: input.name, isPrimary: rel.isPrimary } } as any,
           ip: null,
           operationType: 'create',
           fieldPath: null,
@@ -190,43 +248,47 @@ export function createCrmService(prisma: PrismaClient) {
         },
       });
 
-      return contact;
+      return rel;
     });
 
-    logger.info('[CrmService] contact created', { id: contactId, relationId, name: input.name });
-    return created;
+    logger.info('[CrmService] contact created (Relation person)', { id: contactId, parentId: relationId, name: input.name });
+    return relationToContact(created);
   }
 
   async function listContacts(relationId: string): Promise<Contact[]> {
-    return prisma.contact.findMany({
-      where: { relationId, deletedAt: null },
-      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
+    const rows = await prisma.relation.findMany({
+      where: { parentId: relationId, isOrganization: false, deletedAt: null },
+      orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
     });
+    return rows.map(relationToContact);
   }
 
   async function getContact(id: string): Promise<Contact | null> {
-    return prisma.contact.findFirst({ where: { id, deletedAt: null } });
+    const row = await prisma.relation.findFirst({
+      where: { id, isOrganization: false, deletedAt: null },
+    });
+    return row ? relationToContact(row) : null;
   }
 
   async function updateContact(id: string, input: Partial<ContactInput>, actorId: string): Promise<Contact> {
     const ts = now();
-    const existing = await prisma.contact.findFirst({ where: { id, deletedAt: null } });
+    const existing = await prisma.relation.findFirst({ where: { id, isOrganization: false, deletedAt: null } });
     if (!existing) throw new Error(`联系人 ${id} 不存在`);
 
     const updated = await prisma.$transaction(async (tx) => {
-      // 若设为 primary，先清除同 relation 下其他 primary
+      // 若设为 primary，先清除同组织下其他 primary
       if (input.isPrimary) {
-        await tx.contact.updateMany({
-          where: { relationId: existing.relationId, isPrimary: true, id: { not: id }, deletedAt: null },
-          data: { isPrimary: false, updatedAt: ts },
+        await tx.relation.updateMany({
+          where: { parentId: existing.parentId || '', isOrganization: false, isPrimary: true, id: { not: id }, deletedAt: null },
+          data: { isPrimary: false, lastInteraction: ts },
         });
       }
 
-      return tx.contact.update({
+      return tx.relation.update({
         where: { id },
         data: {
           ...(input.name !== undefined && { name: input.name }),
-          ...(input.title !== undefined && { title: input.title }),
+          ...(input.title !== undefined && { role: input.title }),
           ...(input.department !== undefined && { department: input.department }),
           ...(input.email !== undefined && { email: input.email }),
           ...(input.phone !== undefined && { phone: input.phone }),
@@ -238,22 +300,22 @@ export function createCrmService(prisma: PrismaClient) {
           ...(input.birthday !== undefined && { birthday: input.birthday }),
           ...(input.personalNote !== undefined && { personalNote: input.personalNote }),
           ...(input.tags !== undefined && { tags: input.tags }),
-          updatedAt: ts,
+          lastInteraction: ts,
         },
       });
     });
 
-    logger.info('[CrmService] contact updated', { id, actorId });
-    return updated;
+    logger.info('[CrmService] contact updated (Relation person)', { id, actorId });
+    return relationToContact(updated);
   }
 
   async function deleteContact(id: string, actorId: string): Promise<void> {
     const ts = now();
-    await prisma.contact.update({
+    await prisma.relation.update({
       where: { id },
-      data: { deletedAt: ts, updatedAt: ts, isPrimary: false },
+      data: { deletedAt: ts, lastInteraction: ts, isPrimary: false },
     });
-    logger.info('[CrmService] contact soft-deleted', { id, actorId });
+    logger.info('[CrmService] contact soft-deleted (Relation person)', { id, actorId });
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -263,6 +325,12 @@ export function createCrmService(prisma: PrismaClient) {
   async function setCreditLimit(relationId: string, input: CreditLimitInput, actorId: string): Promise<CreditLimit> {
     const ts = now();
     const clId = generateId('CL');
+    if (!Number.isFinite(Number(input?.totalLimit)) || Number(input?.totalLimit) <= 0) {
+      throw new CrmValidationError('body.totalLimit 必填且须为正数（信用额度）');
+    }
+    if (!input?.validFrom?.trim()) {
+      throw new CrmValidationError('body.validFrom 必填（生效日期 YYYY-MM-DD）');
+    }
 
     const created = await prisma.$transaction(async (tx) => {
       // 将同 relation 下已有的 Active 信用额度标记为 Expired
@@ -291,6 +359,14 @@ export function createCrmService(prisma: PrismaClient) {
           updatedAt: ts,
         },
       });
+
+      // 信用额度单一真源联动：CreditLimit 实体是生效额度的真源，
+      // 同步回写档案冗余字段 relation.creditLimit——否则详情页「财务信息」
+      // （读档案字段）与「信用额度」模块（读实体）呈现互相矛盾的数字
+      await tx.relation.update({
+        where: { id: relationId },
+        data: { creditLimit: input.totalLimit },
+      }).catch(() => undefined);
 
       await tx.auditLog.create({
         data: {
@@ -411,6 +487,23 @@ export function createCrmService(prisma: PrismaClient) {
     return created;
   }
 
+  // 联系人统一：FollowUpRecord.contactId 已指向 Relation 人物 id。
+  // 旧 include contact（Contact 表 FK）对 Relation id 返回 null——改为从 Relation
+  // 批量拼装 contact 展示对象（name/title），兼容历史 Contact id（查不到则置空）。
+  async function attachFollowUpContacts<T extends { contactId: string | null }>(rows: T[]): Promise<(T & { contact: { name: string; title: string | null } | null })[]> {
+    const contactIds = [...new Set(rows.map(r => r.contactId).filter((id): id is string => !!id))];
+    if (contactIds.length === 0) return rows as any;
+    const people = await prisma.relation.findMany({
+      where: { id: { in: contactIds }, isOrganization: false },
+      select: { id: true, name: true, role: true },
+    });
+    const byId = new Map(people.map(p => [p.id, { name: p.name, title: p.role ?? null }]));
+    return rows.map(row => ({
+      ...row,
+      contact: row.contactId ? (byId.get(row.contactId) ?? null) : null,
+    })) as any;
+  }
+
   async function listFollowUps(relationId: string, opts: { limit?: number; includeCompleted?: boolean } = {}): Promise<FollowUpRecord[]> {
     const where: Record<string, unknown> = { relationId, deletedAt: null };
     if (!opts.includeCompleted) {
@@ -421,19 +514,21 @@ export function createCrmService(prisma: PrismaClient) {
         { nextFollowUpAt: null, followUpAt: { gte: today } },
       ];
     }
-    return prisma.followUpRecord.findMany({
+    const rows = await prisma.followUpRecord.findMany({
       where: where as any,
       orderBy: [{ nextFollowUpAt: 'asc' }, { followUpAt: 'desc' }],
       take: opts.limit ?? 100,
-      include: { contact: { select: { name: true, title: true } } },
     });
+    return attachFollowUpContacts(rows);
   }
 
   async function getFollowUp(id: string): Promise<FollowUpRecord | null> {
-    return prisma.followUpRecord.findFirst({
+    const row = await prisma.followUpRecord.findFirst({
       where: { id, deletedAt: null },
-      include: { contact: { select: { name: true, title: true } } },
     });
+    if (!row) return null;
+    const [withContact] = await attachFollowUpContacts([row]);
+    return withContact;
   }
 
   async function updateFollowUp(id: string, input: Partial<FollowUpInput>, actorId: string): Promise<FollowUpRecord> {
@@ -492,7 +587,17 @@ export function createCrmService(prisma: PrismaClient) {
   async function createOpportunity(relationId: string, input: OpportunityInput, actorId: string): Promise<Opportunity> {
     const ts = now();
     const oppId = generateId('OPP');
+    if (!input?.title?.trim()) {
+      throw new CrmValidationError('body.title 必填（商机标题）');
+    }
+    if (!Number.isFinite(Number(input?.amount)) || Number(input?.amount) <= 0) {
+      throw new CrmValidationError('body.amount 必填且须为正数');
+    }
     const stage = input.stage ?? 'Prospecting';
+    // stage 枚举校验：矩阵外的 stage 落库后无法流转（矩阵按终态处理）
+    if (!VALID_OPPORTUNITY_STAGES.includes(stage)) {
+      throw new CrmValidationError(`body.stage "${stage}" 非法，合法值：${VALID_OPPORTUNITY_STAGES.join(', ')}`);
+    }
     const probability = input.probability ?? STAGE_DEFAULT_PROBABILITY[stage] ?? 10;
 
     const created = await prisma.$transaction(async (tx) => {
@@ -699,6 +804,12 @@ export function createCrmService(prisma: PrismaClient) {
   async function assignCustomerTier(relationId: string, input: CustomerTierInput, actorId: string): Promise<CustomerTier> {
     const ts = now();
     const tierId = generateId('TIER');
+    if (!input?.level?.trim()) {
+      throw new CrmValidationError('body.level 必填（分层等级）');
+    }
+    if (!input?.evaluatedAt?.trim()) {
+      throw new CrmValidationError('body.evaluatedAt 必填（评定日期 YYYY-MM-DD）');
+    }
 
     const created = await prisma.$transaction(async (tx) => {
       // 将同 relation 下已有 active tier 标记为过期

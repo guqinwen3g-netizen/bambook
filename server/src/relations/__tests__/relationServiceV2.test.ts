@@ -83,6 +83,7 @@ function makePrisma(overrides: {
   findFirst?: any;
   upsert?: any;
   update?: any;
+  updateMany?: any;
   teamMemberFindMany?: any;
   teamGrantFindMany?: any;
 } = {}) {
@@ -93,6 +94,8 @@ function makePrisma(overrides: {
       findFirst: overrides.findFirst ?? vi.fn().mockResolvedValue(makeRelation()),
       upsert: overrides.upsert ?? vi.fn().mockImplementation(async ({ where, create }: any) => ({ ...create, id: where.id })),
       update: overrides.update ?? vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
+      // 级联软删子联系人（A7 修复）：默认无子联系人（count=0）
+      updateMany: overrides.updateMany ?? vi.fn().mockResolvedValue({ count: 0 }),
     },
     // DR-042 小组共享依赖模型（默认：不在任何组、无授权）
     teamMember: {
@@ -283,6 +286,23 @@ describe('deleteRelation 软删除客户', () => {
     expect(r.ok).toBe(true);
     const updateCall = prisma.relation.update.mock.calls[0][0];
     expect(updateCall.data.deletedAt).toBeDefined();
+  });
+
+  it('组织删除 → 级联软删子联系人并返回 cascadedContactIds', async () => {
+    // A7 修复：组织删除后其下联系人（parentId 指向该组织）必须级联软删，
+    // 否则残留 UI 不可达的孤儿脏数据
+    const prisma = makePrisma({
+      updateMany: vi.fn().mockResolvedValue({ count: 2 }),
+      findMany: vi.fn().mockResolvedValue([{ id: 'C1' }, { id: 'C2' }]),
+    });
+    const svc = createRelationServiceV2(prisma);
+    const r = await svc.deleteRelation(ACTOR, 'REL__ORG');
+    expect(r.ok).toBe(true);
+    const cascadeCall = prisma.relation.updateMany.mock.calls[0][0];
+    expect(cascadeCall.where.parentId).toBe('REL__ORG');
+    expect(cascadeCall.where.deletedAt).toBeNull();
+    expect(cascadeCall.data.deletedAt).toBeDefined();
+    if (r.ok) expect(r.data.cascadedContactIds).toEqual(['C1', 'C2']);
   });
 });
 

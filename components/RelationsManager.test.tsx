@@ -94,6 +94,7 @@ import {
   RELATIONS_TITLE_VIEW_SWITCH_CLASS,
   RELATIONS_TITLE_SAFE_LEFT_STYLE,
 } from './RelationsManager';
+import { buildOrgTree, isDescendantContact } from './ui/OrgChart';
 import { OS_MATERIAL } from './ui/osMaterial';
 import {
   SIDEBAR_ACTIVE_CLASS,
@@ -1542,5 +1543,241 @@ describe('RelationsManager title system', () => {
 
     expect(source).toContain('const wasSelectedOrg = selectedOrgId === deletedRelation.id;');
     expect(source).toContain("if (wasSelectedOrg) {\n        setSelectedOrgId(null);\n        setNavLevel('organizations');\n      }");
+  });
+
+  it('删除组织时前端同步移除被级联软删的联系人（cascadedContactIds 合约）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+
+    // 后端 deleteRelation 级联软删子联系人并返回 cascadedContactIds：
+    // 前端必须一并从内存数组移除，否则残留幻影联系人（刷新前仍可见）
+    expect(source).toContain("(deletedRelation as any).cascadedContactIds as string[] | undefined");
+    expect(source).toContain("const removedIds = new Set([deletedRelation.id, ...(cascadedIds || [])]);");
+    expect(source).toContain('relations.filter(r => !removedIds.has(r.id))');
+    expect(source).toContain("cascadedIds?.includes(selectedContactId || '')");
+  });
+});
+
+describe('RelationsManager 验收补充：排序全模式与搜索/更新路径', () => {
+  const rel = (id: string, name: string, extra: Partial<Relation> = {}) => ({
+    id, name, isOrganization: true, category: 'Customer', ...extra,
+  } as Relation);
+
+  it('排序 rating 模式：Tier 高到低（同级按名称稳定序）', () => {
+    const a = rel('r-a', 'Alpha Mills', { rating: 3 });
+    const b = rel('r-b', 'Beta Textiles', { rating: 5 });
+    const c = rel('r-c', 'Gamma Fabrics', { rating: 5 });
+    const sorted = [a, b, c].sort((x, y) => compareRelationsForList(x, y, 'rating'));
+    expect(sorted.map(r => r.name)).toEqual(['Beta Textiles', 'Gamma Fabrics', 'Alpha Mills']);
+  });
+
+  it('排序 contacts 模式：联系人多到少', () => {
+    const a = rel('r-a', 'Alpha');
+    const b = rel('r-b', 'Beta');
+    const counts: Record<string, number> = { 'r-a': 2, 'r-b': 7 };
+    const sorted = [a, b].sort((x, y) => compareRelationsForList(x, y, 'contacts', id => counts[id] || 0));
+    expect(sorted.map(r => r.name)).toEqual(['Beta', 'Alpha']);
+  });
+
+  it('排序 name 模式：名称 A-Z（大小写不敏感）', () => {
+    const a = rel('r-a', 'zeta fabrics');
+    const b = rel('r-b', 'Atlas Outfitters');
+    const sorted = [a, b].sort((x, y) => compareRelationsForList(x, y, 'name'));
+    expect(sorted.map(r => r.name)).toEqual(['Atlas Outfitters', 'zeta fabrics']);
+  });
+
+  it('排序 recent 模式：最近互动优先，缺失 lastInteraction 视为 0', () => {
+    const a = rel('r-a', 'Alpha', { lastInteraction: 100 });
+    const b = rel('r-b', 'Beta', {});
+    const sorted = [b, a].sort((x, y) => compareRelationsForList(x, y, 'recent'));
+    expect(sorted.map(r => r.name)).toEqual(['Alpha', 'Beta']);
+  });
+
+  it('搜索过滤覆盖中文名/英文名/主联系人/联系信息/标签六路字段', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const derivedStart = source.indexOf('const currentOrganizations = useMemo(() => {');
+    const derivedSource = source.slice(derivedStart, source.indexOf('}, [relations, relationSortMode, searchTerm, selectedCategory]);', derivedStart));
+
+    expect(derivedSource).toContain("r.name.toLowerCase().includes(lower)");
+    expect(derivedSource).toContain("(r.chineseName || '').toLowerCase().includes(lower)");
+    expect(derivedSource).toContain("(r.englishName || '').toLowerCase().includes(lower)");
+    expect(derivedSource).toContain("(r.primaryContactName || '').toLowerCase().includes(lower)");
+    expect(derivedSource).toContain("(r.primaryContactEmail || '').toLowerCase().includes(lower)");
+    expect(derivedSource).toContain("(r.contactInfo || '').toLowerCase().includes(lower)");
+    expect(derivedSource).toContain("(r.tags || []).some(tag => tag.toLowerCase().includes(lower))");
+    // 分类与软删双重过滤（读路径不泄露其他分类与已删数据）
+    expect(derivedSource).toContain('r.category === selectedCategory');
+    expect(derivedSource).toContain('!r.deletedAt');
+  });
+
+  it('更新路径：表单保存按 isOrganization 分支组装组织/联系人字段', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const saveStart = source.indexOf('const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {');
+    const saveSource = source.slice(saveStart, source.indexOf('const handleDelete = async (id: string) => {', saveStart));
+
+    // 公共字段：名称/类别/评级/标签
+    expect(saveSource).toContain("name: formData.get('name') as string");
+    expect(saveSource).toContain("category: formData.get('category') as RelationCategory");
+    expect(saveSource).toContain("rating: Number(formData.get('rating') || editingItem?.rating || 3)");
+    expect(saveSource).toContain("tags: formData.getAll('tags').map(value => String(value).trim()).filter(Boolean)");
+    // 组织分支：五段式（基础/联系/地址/财务/备注）
+    expect(saveSource).toContain('...(isOrg ? {');
+    expect(saveSource).toContain("paymentTerms: formData.get('paymentTerms') as string || undefined");
+    expect(saveSource).toContain("creditLimit: formData.get('creditLimit') ? Number(formData.get('creditLimit')) : undefined");
+    expect(saveSource).toContain('shipToAddresses: shipToAddressesFromRows()');
+    expect(saveSource).toContain('backupContacts: backupContactsFromRows()');
+    // 联系人分支：个人信息/联系方式
+    expect(saveSource).toContain('...(!isOrg ? {');
+    expect(saveSource).toContain("birthday: formData.get('birthday') as string || undefined");
+    expect(saveSource).toContain("language: formData.get('language') as string || undefined");
+    expect(saveSource).toContain('otherContacts: otherContactsFromRows()');
+    // 挂靠：联系人挂当前组织（selectedOrgId）
+    expect(saveSource).toContain('parentId: selectedOrgId || editingItem?.parentId || undefined');
+    // 保存走 V2 API：新建 saveRelation / 编辑 updateRelation
+    expect(saveSource).toContain('apiService.updateRelation(item.id, item, cloudEndpoint)');
+    expect(saveSource).toContain('apiService.saveRelation(item, cloudEndpoint)');
+  });
+
+  it('保存失败在界面呈现错误而非静默吞掉（写路径错误反馈）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const saveStart = source.indexOf('const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {');
+    const saveSource = source.slice(saveStart, source.indexOf('const handleDelete = async (id: string) => {', saveStart));
+
+    expect(saveSource).toContain("setRelationSaveError(e?.message || '保存失败，请稍后重试')");
+    expect(source).toContain('data-relation-save-error={relationSaveError}');
+  });
+});
+
+describe('关系智库验收补充：组织架构树与汇报环检测', () => {
+  const contact = (id: string, reportsToId?: string) => ({ id, reportsToId }) as Relation;
+
+  it('isDescendantContact：直接子节点是后代', () => {
+    // A ← B（B 汇报给 A）：B 是 A 的后代
+    const contacts = [contact('A'), contact('B', 'A')];
+    expect(isDescendantContact(contacts, 'A', 'B')).toBe(true);
+  });
+
+  it('isDescendantContact：间接（深层）后代', () => {
+    // A ← B ← C：C 是 A 的深层后代
+    const contacts = [contact('A'), contact('B', 'A'), contact('C', 'B')];
+    expect(isDescendantContact(contacts, 'A', 'C')).toBe(true);
+  });
+
+  it('isDescendantContact：祖先不是后代（合法移动方向）', () => {
+    // A ← B：把 A 拖到 B 下（A 的目标是 B）——B 不是 A 的后代，合法
+    const contacts = [contact('A'), contact('B', 'A')];
+    expect(isDescendantContact(contacts, 'A', 'A') ).toBe(false); // 自己对自己（上层已拦）
+    expect(isDescendantContact(contacts, 'B', 'A')).toBe(false);  // A 是 B 的祖先，反向移动合法
+  });
+
+  it('isDescendantContact：无汇报关系返回 false', () => {
+    const contacts = [contact('A'), contact('B')];
+    expect(isDescendantContact(contacts, 'A', 'B')).toBe(false);
+  });
+
+  it('isDescendantContact：undefined 目标返回 false（拖到组织根）', () => {
+    const contacts = [contact('A'), contact('B', 'A')];
+    expect(isDescendantContact(contacts, 'A', undefined)).toBe(false);
+  });
+
+  it('isDescendantContact：汇报链上已有环（脏数据）不无限循环', () => {
+    // B→C→B（既有环，脏数据防御）：遍历带 seen 集合，必须终止
+    const contacts = [contact('A'), contact('B', 'C'), contact('C', 'B')];
+    expect(() => isDescendantContact(contacts, 'A', 'B')).not.toThrow();
+    expect(isDescendantContact(contacts, 'A', 'B')).toBe(false); // 环里遇不到 A
+    expect(isDescendantContact(contacts, 'C', 'B')).toBe(true);  // 环内互为"后代"
+  });
+
+  it('isDescendantContact：目标不在通讯录返回 false', () => {
+    const contacts = [contact('A')];
+    expect(isDescendantContact(contacts, 'A', 'GHOST')).toBe(false);
+  });
+
+  it('buildOrgTree：按 reportsToId 建树，孤儿挂顶级', () => {
+    // A（根）← B；C 汇报给不存在的 X → C 挂顶级
+    const contacts = [contact('A'), contact('B', 'A'), contact('C', 'X')];
+    const tree = buildOrgTree(contacts);
+    const rootIds = tree.map(n => n.contact.id).sort();
+    expect(rootIds).toEqual(['A', 'C']);
+    const aNode = tree.find(n => n.contact.id === 'A');
+    expect(aNode?.children.map(c => c.contact.id)).toEqual(['B']);
+    expect(aNode?.level).toBe(0);
+    expect(aNode?.children[0].level).toBe(1);
+  });
+
+  it('handleMoveContact 复用 isDescendantContact 单一环检测规则（无重复实现）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const moveStart = source.indexOf('const handleMoveContact = (contactId: string, reportsToId?: string) => {');
+    const moveSource = source.slice(moveStart, source.indexOf('const selectedContact =', moveStart));
+
+    // 提交层兜底必须调用共享纯函数，而非内联第二套 while 循环环检测
+    expect(moveSource).toContain('isDescendantContact(orgContacts, contactId, reportsToId || undefined)');
+    expect(moveSource).not.toContain('while (cursor?.reportsToId)');
+    // 前置防御：自己汇报给自己 / 无变化 / 目标不存在
+    expect(moveSource).toContain('if (reportsToId === contactId) return');
+    expect(moveSource).toContain('if (source.reportsToId === reportsToId) return');
+    expect(moveSource).toContain("if (reportsToId && !orgContacts.some(contact => contact.id === reportsToId)) return");
+  });
+
+  it('OrgChart canDrop 预判与提交层共用同一规则（UI 与提交层一致性）', () => {
+    const orgChartSource = readFileSync(new URL('./ui/OrgChart.tsx', import.meta.url), 'utf8');
+    const canDropSource = orgChartSource.slice(
+      orgChartSource.indexOf('const canDropOnContact = (targetId: string) => {'),
+      orgChartSource.indexOf('const canDropOnOrganization'),
+    );
+
+    expect(canDropSource).toContain('!isDescendantContact(contacts, draggingContactId, targetId)');
+    // UI 层预判：自己不可拖给自己 + 已挂在该目标下不可重复挂
+    expect(canDropSource).toContain('if (draggingContactId === targetId) return false');
+    expect(canDropSource).toContain('if (!dragged || dragged.reportsToId === targetId) return false');
+  });
+});
+
+describe('关系智库验收补充：跨模块跳转返回栈与空态语义', () => {
+  it('primeRelationsOrgDetailPreview 写入 category（返回上级落在正确分类的组织列表）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const primeSource = source.slice(
+      source.indexOf('export const primeRelationsOrgDetailPreview'),
+      source.indexOf('const relationSortOptions'),
+    );
+
+    // P2 修复：category 参数写入 selectedCategory——缺省时组织列表渲染为空（返回栈断链）
+    expect(primeSource).toContain('category?: RelationCategory | null');
+    expect(primeSource).toContain('selectedCategory: category ?? prev.selectedCategory ?? null');
+  });
+
+  it('跨模块调用方传入 category（CRM 传选中客户分类 / 供应商固定 Supplier）', () => {
+    const crmSource = readFileSync(new URL('./CrmManager.tsx', import.meta.url), 'utf8');
+    const suppliersSource = readFileSync(new URL('./SuppliersManager.tsx', import.meta.url), 'utf8');
+
+    expect(crmSource).toContain('primeRelationsOrgDetailPreview(selectedRelationId, selectedRelation?.category)');
+    expect(suppliersSource).toContain("primeRelationsOrgDetailPreview(selectedProfile.relationId, 'Supplier')");
+  });
+
+  it('详情页返回上级在无分类语境时回分类首页（兜底防御）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const backSource = source.slice(
+      source.indexOf('aria-label="返回上一级"') - 1200,
+      source.indexOf('aria-label="返回上一级"'),
+    );
+
+    expect(backSource).toContain('if (!selectedCategory) {');
+    expect(backSource).toContain("setNavLevel('category');");
+    expect(backSource).toContain("setNavLevel('organizations');");
+  });
+
+  it('搜索空态与分类空态文案区分（P3 修复）', () => {
+    const source = readFileSync(new URL('./RelationsManager.tsx', import.meta.url), 'utf8');
+    const emptySource = source.slice(
+      source.indexOf('{/* Empty state'),
+      source.indexOf(')}\n            </motion.div>'),
+    );
+
+    // 搜索无结果：提示调整关键词，不误导用户"创建第一个组织"
+    expect(emptySource).toContain('searchTerm.trim() ? (');
+    expect(emptySource).toContain('未找到匹配的组织');
+    expect(emptySource).toContain('试试其他关键词');
+    // 分类为空：引导创建
+    expect(emptySource).toContain('该分类还没有组织');
+    expect(emptySource).toContain('创建组织');
   });
 });
