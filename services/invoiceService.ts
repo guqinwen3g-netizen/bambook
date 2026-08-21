@@ -93,6 +93,11 @@ export const invoiceService = {
     return apiService.renderInvoicePdf(id, endpoint);
   },
 
+  /** 发票预览 HTML（与导出 PDF 同源渲染 + screen 页边距，所见即所得） */
+  async getInvoicePreviewHtml(id: string, endpoint?: string): Promise<string> {
+    return apiService.getInvoicePreviewHtml(id, endpoint);
+  },
+
   /** 上传发票真实文件（multipart），返回登记后的附件结构 */
   async uploadInvoiceAttachment(id: string, file: File, endpoint?: string): Promise<InvoiceAttachment> {
     return apiService.uploadInvoiceAttachment(id, file, endpoint);

@@ -14,14 +14,22 @@ import { Prisma } from '@prisma/client';
 import {
   appendTradeDocumentVersion,
   generateTradeDocumentNumber,
+  generateTradeDocumentFile,
   generateTradeDocumentsFromShipment,
   packTradeDocumentsByOrder,
   toTradeDocumentSnapshot,
   TRADE_DOC_NUMBER_PREFIX,
 } from '../tradeDocumentLifecycleService';
 
+// ── Mock 声明（vi.hoisted：vi.mock 工厂提升后在 import 阶段即可安全引用）──
+const { assembleMock, pdfMock, invoiceHtmlMock, fsMock } = vi.hoisted(() => ({
+  assembleMock: vi.fn(),
+  pdfMock: vi.fn(),
+  invoiceHtmlMock: vi.fn(),
+  fsMock: { existsSync: vi.fn(() => true), mkdirSync: vi.fn(), writeFileSync: vi.fn() },
+}));
+
 // ── Mock 装配服务（不触真实 DB，返回固定 documentSet 数据）──
-const assembleMock = vi.fn();
 vi.mock('../../shipping/documentSetService', () => ({
   assembleDocumentSetData: (...args: any[]) => assembleMock(...args),
 }));
@@ -29,6 +37,15 @@ vi.mock('../../shipping/documentSetService', () => ({
 vi.mock('../../lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
+
+// ── Mock PDF 渲染（不启 Puppeteer）+ 财务发票模板（CI 真源分支）+ fs 落盘 ──
+vi.mock('../../templates/pdf', () => ({
+  renderHtmlToPdf: (...args: any[]) => pdfMock(...args),
+}));
+vi.mock('../../finance/route', () => ({
+  renderInvoiceDocumentHtml: (...args: any[]) => invoiceHtmlMock(...args),
+}));
+vi.mock('fs', () => ({ ...fsMock, default: fsMock }));
 
 const YEAR = new Date().getFullYear();
 
@@ -303,5 +320,91 @@ describe('toTradeDocumentSnapshot', () => {
     expect(snap.totalAmount).toBe(12.34);
     expect(snap.notes).toBeNull();
     expect(snap.status).toBe('Draft');
+  });
+});
+
+describe('generateTradeDocumentFile', () => {
+  const DOC_HTML = '<!doctype html><html><head><style>body{}</style></head><body>PACKING LIST CONTENT</body></html>';
+
+  beforeEach(() => {
+    pdfMock.mockReset().mockResolvedValue({ pdf: Buffer.from('%PDF-1.4 fake'), sha: 'abc123', bytes: 20 });
+    invoiceHtmlMock.mockReset().mockResolvedValue('<!doctype html><html>COMMERCIAL INVOICE FROM FINANCE</html>');
+    fsMock.writeFileSync.mockReset();
+    fsMock.existsSync.mockReset().mockReturnValue(true);
+    fsMock.mkdirSync.mockReset();
+  });
+
+  function makeDocPrisma(doc: any) {
+    const update = vi.fn().mockImplementation(async ({ data }: any) => ({ id: doc.id, ...data }));
+    const prisma = makePrisma({
+      docFindFirst: vi.fn().mockResolvedValue(doc),
+      verFindFirst: vi.fn().mockResolvedValue({ version: 2, content: {} }),
+    });
+    prisma.tradeDocument.update = update;
+    return { prisma, update };
+  }
+
+  it('CI 带财务回链 → 服务端财务真源模板自渲染（忽略入参 html）+ 落盘 + 回写 + 审计', async () => {
+    const { prisma, update } = makeDocPrisma({
+      id: 'TD_CI_1',
+      documentNumber: `CI-${YEAR}-0001`,
+      type: 'CommercialInvoice',
+      sourceInvoiceId: 'INV_9',
+      deletedAt: null,
+    });
+    const result = await generateTradeDocumentFile(prisma, {
+      id: 'TD_CI_1',
+      html: '<!doctype html><html>前端伪造模板</html>', // 应被忽略——单一真源防双模板漂移
+      version: 2,
+      actorId: 'user_1',
+    });
+    expect(invoiceHtmlMock).toHaveBeenCalledWith(prisma, 'INV_9');
+    expect(pdfMock).toHaveBeenCalledWith(
+      '<!doctype html><html>COMMERCIAL INVOICE FROM FINANCE</html>',
+      { format: 'A4' },
+    );
+    expect(fsMock.writeFileSync).toHaveBeenCalledTimes(1);
+    expect(result.fileName).toBe(`CI-${YEAR}-0001-v2.pdf`);
+    expect(result.filePath).toContain('trade-documents/TD_CI_1-CI');
+    expect(result.fileSize).toBe(20);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'TD_CI_1' }, data: expect.objectContaining({ fileName: `CI-${YEAR}-0001-v2.pdf` }) }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'TRADE_DOCUMENT_FILE_GENERATED', targetId: 'TD_CI_1' }) }),
+    );
+  });
+
+  it('非 CI（前端模板真源）→ 用入参 html 渲染落盘', async () => {
+    const { prisma, update } = makeDocPrisma({
+      id: 'TD_PL_1',
+      documentNumber: `PL-${YEAR}-0003`,
+      type: 'PackingList',
+      sourceInvoiceId: null,
+      deletedAt: null,
+    });
+    const result = await generateTradeDocumentFile(prisma, { id: 'TD_PL_1', html: DOC_HTML, version: 1, actorId: 'user_1' });
+    expect(invoiceHtmlMock).not.toHaveBeenCalled();
+    expect(pdfMock).toHaveBeenCalledWith(DOC_HTML, { format: 'A4' });
+    expect(result.fileName).toBe(`PL-${YEAR}-0003-v1.pdf`);
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('版本号缺省 → 兜底最新版本；单据不存在/无渲染内容 → 抛错', async () => {
+    const { prisma } = makeDocPrisma({
+      id: 'TD_PL_2',
+      documentNumber: `PL-${YEAR}-0004`,
+      type: 'PackingList',
+      sourceInvoiceId: null,
+      deletedAt: null,
+    });
+    const r = await generateTradeDocumentFile(prisma, { id: 'TD_PL_2', html: DOC_HTML, actorId: 'u' });
+    expect(r.fileName).toBe(`PL-${YEAR}-0004-v2.pdf`); // verFindFirst 兜底 version=2
+
+    const missing = makePrisma({ docFindFirst: vi.fn().mockResolvedValue(null) });
+    await expect(generateTradeDocumentFile(missing, { id: 'TD_X', html: DOC_HTML, actorId: 'u' })).rejects.toThrow('不存在');
+
+    const noHtml = makeDocPrisma({ id: 'TD_PL_3', documentNumber: 'PL-1', type: 'PackingList', sourceInvoiceId: null, deletedAt: null });
+    await expect(generateTradeDocumentFile(noHtml.prisma, { id: 'TD_PL_3', html: '', actorId: 'u' })).rejects.toThrow('无可渲染内容');
   });
 });

@@ -6,7 +6,12 @@
 
 import { bdsToast } from '../ui/bdsToast';
 
-const BASE_PRINT_STYLES = `
+/**
+ * 全站单据打印样式基座（doc-* 类体系）。
+ * ⚠️ 双端同步纪律：与服务端 finance/route.ts DOC_PRINT_BASE_STYLES 同源副本，
+ *    任一侧修改必须同步另一侧。发票/合同/装箱单/CI 全部单据统一此气质。
+ */
+export const BASE_PRINT_STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -208,6 +213,51 @@ ${htmlBody}
 </body>
 </html>`);
   win.document.close();
+}
+
+/**
+ * 组装完整打印文档（body 片段 + 基座样式 → 完整 HTML 文档）。
+ * 与财务发票 preview.html（服务端自组装）同构：单据中心「生成文件」
+ * 把组装结果交服务端 renderHtmlToPdf 落盘归档（模板真源在前端渲染器）。
+ *
+ * screen=true → 打印预览模式（与财务 preview.html screenShell 同构）：
+ * 灰底画布 + A4 纸张（.paper 210mm 固定纸宽 + 阴影 + @media print 还原），
+ * 所见即所得——预览排版与落盘 PDF 一致。
+ */
+export function buildFullPrintDocument(htmlBody: string, extraStyles = '', opts: { screen?: boolean } = {}): string {
+  const screenStyles = opts.screen
+    ? `
+    body { background: #525659; display: block; padding: 24px 0; text-align: center; }
+    .paper {
+      width: 210mm; min-height: 297mm; padding: 40px 48px;
+      background: #fff; color: #1a202c; margin: 0 auto; text-align: left;
+      box-shadow: 0 2px 12px rgba(0,0,0,.35);
+      display: inline-block;
+      break-after: page;
+    }
+    .paper + .paper { margin-top: 16px; }
+    @media print { body { background: #fff; padding: 0; } .paper { box-shadow: none; display: block; margin: 0; } }
+  `
+    : '';
+  const paperOpen = opts.screen ? '<div class="paper">' : '';
+  const paperClose = opts.screen ? '</div>' : '';
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_PRINT_STYLES}${extraStyles}${screenStyles}${opts.screen ? 'body { padding: 0 !important; }' : ''}</style></head><body>${paperOpen}${htmlBody}${paperClose}</body></html>`;
+}
+
+/**
+ * 打印一份完整的 HTML 文档（自带 <!doctype>/<style> 的服务端同源模板，
+ * 如财务发票 preview.html）。与 printHtmlDocument（body 片段 + 基座样式）互补。
+ */
+export function printFullHtmlDocument(html: string, title: string): void {
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) {
+    bdsToast.danger('无法打开打印窗口，请检查浏览器弹窗拦截设置。');
+    return;
+  }
+  const doc = html.replace(/<\/head>/i, `<title>${title}</title></head>`);
+  win.document.write(doc);
+  win.document.close();
+  win.onload = () => { setTimeout(() => { try { win.print(); } catch { /* 窗口已被用户关闭 */ } }, 300); };
 }
 
 /** 格式化日期为 YYYY-MM-DD */

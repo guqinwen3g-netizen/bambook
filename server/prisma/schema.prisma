@@ -5045,6 +5045,9 @@ model TradeDocument {
   declarationId String? // 关联报关单
   orderId       String? // 关联订单
   relationId    String? // 关联客户
+  /// 财务发票回链（2026-08-21 架构裁决：财务 Invoice 为商业发票唯一真源，
+  /// 单据中心 CommercialInvoice 引用不复制——交单号=财务发票号，改金额只改财务侧）
+  sourceInvoiceId String?
 
   // ─── 单据信息 ───
   issueDate       String? // 签发日期
@@ -5074,6 +5077,7 @@ model TradeDocument {
   @@index([relationId])
   @@index([type])
   @@index([status])
+  @@index([sourceInvoiceId])
 }
 
 // ════════════════════════════════════════════════════════════════════

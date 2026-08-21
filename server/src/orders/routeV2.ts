@@ -25,8 +25,9 @@ import { extractPdfText } from '../import/extractText';
 import { parseTechPackText } from './techPackParser';
 import { createOrderServiceV2 } from './orderServiceV2';
 
-/** 上传根目录（与 index.ts UPLOAD_DIR 同源约定：BAMBOOK_UPLOAD_DIR 或 server/../uploads） */
-const UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../uploads');
+/** 上传根目录（与静态服务根同源：BAMBOOK_UPLOAD_DIR 或 apps/Bambook/uploads——
+ *  index.ts 静态服务 /api/uploads 的根；本文件在 server/src/orders/ 下需三级回溯） */
+const UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../../uploads');
 
 export interface OrdersV2RouterOptions {
   prisma: PrismaClient;

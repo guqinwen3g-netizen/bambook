@@ -7,7 +7,7 @@ import { outwardRemittanceService } from '../services/outwardRemittanceService';
 import { vatInvoiceService } from '../services/vatInvoiceService';
 import { apiService } from '../services/apiService';
 import { financeV2Service } from '../services/financeV2Service';
-import { BadgeCheck, Ban, CalendarClock, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3, Upload, Download, Paperclip } from 'lucide-react';
+import { BadgeCheck, Ban, CalendarClock, ClipboardList, CreditCard, FileText, Landmark, Link2, Pencil, Plus, Receipt, RotateCcw, Search, Send, ShieldCheck, Trash2, Loader2, AlertCircle, BarChart3, Upload, Download, Paperclip, Eye } from 'lucide-react';
 import { FinanceReportsPanel } from './finance/FinanceReportsPanel';
 import { CashCalendarPanel } from './finance/CashCalendarPanel';
 import { FinancePaymentRequestsPanel } from './finance/FinancePaymentRequestsPanel';
@@ -31,6 +31,8 @@ import type {
   InvoiceOrderAllocation,
   InvoiceAttachment,
   Order as OrderEntity,
+  TradeDocument,
+  TradeDocumentStatus,
 } from '../types';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { PageHeader } from './ui/PageHeader';
@@ -52,6 +54,8 @@ export interface FinanceInvoicePrime {
   currency?: string;
   amount?: number;
   notes?: string;
+  /** 定位模式（单据中心 CI 回链跳转用）：只选中该发票，不打开新建弹窗 */
+  focusInvoiceId?: string;
 }
 
 export const primeFinanceInvoiceCreate = (prime: FinanceInvoicePrime) => {
@@ -61,6 +65,11 @@ export const primeFinanceInvoiceCreate = (prime: FinanceInvoicePrime) => {
   } catch {
     // Cross-module continuity only; ignore storage failures.
   }
+};
+
+/** 单据中心「财务发票」回链直达（App.tsx 调用）：跳财务发票 tab 并选中目标发票 */
+export const primeFinanceInvoiceFocus = (invoiceId: string) => {
+  primeFinanceInvoiceCreate({ focusInvoiceId: invoiceId });
 };
 
 const readFinanceInvoicePrime = (): FinanceInvoicePrime | null => {
@@ -211,6 +220,8 @@ interface FinanceManagerProps {
   setVouchers: React.Dispatch<React.SetStateAction<VoucherEntity[]>>;
   /** 跨模块导航：单据详情「关联业务」入口页面切换 */
   onNavigate?: (view: import('../types').View) => void;
+  /** 交单回链直达：发票详情「查看交单」→ 单据中心定位目标单据（App.tsx 实现 prime 写入 + 视图切换） */
+  onOpenTradeDocument?: (docId: string) => void;
 }
 
 // ── Small shared render helpers ───────────────────────────────────────────
@@ -273,6 +284,16 @@ const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
   Cancelled: '已作废',
 };
 
+/** 交单状态中文映射（镜像单据中心 DOC_STATUSES，发票详情「交单状态」区块用） */
+const TRADE_DOC_STATUS_LABEL: Record<TradeDocumentStatus, string> = {
+  Draft: '草稿',
+  Issued: '已签发',
+  Submitted: '已提交',
+  Accepted: '已接受',
+  Rejected: '已拒绝',
+  Cancelled: '已取消',
+};
+
 const voucherStatusLabel = (status: string | undefined): string =>
   VOUCHER_STATUS_GUIDE[(status || 'unreconciled') as VoucherStatus]?.label ?? (status || 'unreconciled');
 
@@ -332,6 +353,7 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   vouchers,
   setVouchers,
   onNavigate,
+  onOpenTradeDocument,
 }) => {
   // ── View switching ───
   const [activeTab, setActiveTab] = useState<FinanceTabId>(initialTab);
@@ -679,6 +701,8 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
   const [invoiceUpFile, setInvoiceUpFile] = useState<File | null>(null);
   const [invoiceUploading, setInvoiceUploading] = useState(false);
   const [invoiceAttachmentErr, setInvoiceAttachmentErr] = useState<string | null>(null);
+  // 交单回链（发票 → 单据中心 CommercialInvoice 引用，sourceInvoiceId 反查）
+  const [invoiceTradeDoc, setInvoiceTradeDoc] = useState<TradeDocument | null>(null);
 
   // ── 跨模块 prime 消费：采购单 → 生成应付发票（预填供应商/币种/金额并直接开新建 modal）───
   useEffect(() => {
@@ -686,6 +710,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     if (!prime) return;
     clearFinanceInvoicePrime();
     setActiveTab('invoices');
+    // 定位模式（单据中心 CI 回链）：选中目标发票，不打开新建弹窗
+    if (prime.focusInvoiceId) {
+      setSelectedId(prime.focusInvoiceId);
+      return;
+    }
     setEditingInvoice(null);
     setInvoiceForm({
       invoiceNumber: '', type: 'Payable', status: 'Draft',
@@ -1287,6 +1316,16 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     return () => { cancelled = true; };
   }, [selectedItem?.id, activeTab, invoices]);
 
+  // 交单回链：sourceInvoiceId 反查单据中心 CommercialInvoice（交单号=记账号，双向跳转用）
+  useEffect(() => {
+    if (activeTab !== 'invoices' || !selectedItem?.id) { setInvoiceTradeDoc(null); return; }
+    let cancelled = false;
+    apiService.listTradeDocuments({ sourceInvoiceId: selectedItem.id, type: 'CommercialInvoice', limit: 5 })
+      .then(r => { if (!cancelled) setInvoiceTradeDoc(r.items[0] ?? null); })
+      .catch(() => { if (!cancelled) setInvoiceTradeDoc(null); });
+    return () => { cancelled = true; };
+  }, [selectedItem?.id, activeTab]);
+
   // 导出发票 PDF（GET /:id/render.pdf → 浏览器下载）
   const handleExportInvoicePdf = async (invoice: InvoiceEntity) => {
     try {
@@ -1294,6 +1333,42 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
       bdsToast.success(`已导出发票 ${invoice.invoiceNumber} 的 PDF`);
     } catch (e: any) {
       setInvoiceAttachmentErr(`导出 PDF 失败：${e?.message ?? e}`);
+    }
+  };
+
+  // 发票预览弹窗（GET /:id/preview.html——与 render.pdf 同源渲染，所见即所得）
+  const [previewingInvoice, setPreviewingInvoice] = useState<InvoiceEntity | null>(null);
+  const [invoicePreviewHtml, setInvoicePreviewHtml] = useState<string | null>(null);
+  const [invoicePreviewLoading, setInvoicePreviewLoading] = useState(false);
+  const [invoicePreviewErr, setInvoicePreviewErr] = useState<string | null>(null);
+  // A4 纸张等比缩放：视窗宽 / 794px（96dpi 下 210mm），封顶 1（放大超出纸宽无意义）
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  useEffect(() => {
+    const el = previewViewportRef.current;
+    if (!el || !previewingInvoice) return;
+    const compute = () => {
+      // 视窗左右各留 24px 呼吸边
+      setPreviewScale(Math.min(1, Math.max(0.3, (el.clientWidth - 48) / 794)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [previewingInvoice, invoicePreviewLoading]);
+
+  const handlePreviewInvoice = async (invoice: InvoiceEntity) => {
+    setPreviewingInvoice(invoice);
+    setInvoicePreviewHtml(null);
+    setInvoicePreviewErr(null);
+    setInvoicePreviewLoading(true);
+    try {
+      const html = await invoiceService.getInvoicePreviewHtml(invoice.id);
+      setInvoicePreviewHtml(html);
+    } catch (e: any) {
+      setInvoicePreviewErr(`加载预览失败：${e?.message ?? e}`);
+    } finally {
+      setInvoicePreviewLoading(false);
     }
   };
 
@@ -1766,6 +1841,17 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                   转为应收
                 </button>
               )}
+              {/* 发票预览（与导出 PDF 同源渲染，所见即所得） */}
+              {isInvoice && invoice && (
+                <button
+                  type="button"
+                  onClick={() => handlePreviewInvoice(invoice)}
+                  className="bds-btn bds-btn-secondary"
+                >
+                  <Eye size={16} strokeWidth={1.75} />
+                  预览
+                </button>
+              )}
               {/* 导出发票 PDF */}
               {isInvoice && invoice && (
                 <button
@@ -1960,6 +2046,39 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* 交单回链：sourceInvoiceId 反查单据中心 CI（交单号=记账号），双向跳转的财务侧入口 */}
+          {isInvoice && invoice && (
+            <div className="mt-4">
+              <div className="rounded-inset p-4 bds-inset">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>交单状态（单据中心）</div>
+                  {invoiceTradeDoc && onOpenTradeDocument && (
+                    <button type="button" onClick={() => onOpenTradeDocument(invoiceTradeDoc.id)} className="bds-btn bds-btn-secondary">
+                      <FileText size={14} strokeWidth={1.75} />
+                      查看交单
+                    </button>
+                  )}
+                </div>
+                {invoiceTradeDoc ? (
+                  <div className="rdl-data-row mt-2 min-h-0 justify-between px-2.5 py-1.5">
+                    <div className="min-w-0">
+                      <div className={cx('truncate text-[11px] font-light', textPrimaryClass)}>
+                        交单 {invoiceTradeDoc.documentNumber}（与记账号同号）
+                      </div>
+                      <div className={cx('mt-0.5 text-[10px] font-light', textSecondaryClass)}>
+                        状态：{TRADE_DOC_STATUS_LABEL[invoiceTradeDoc.status] ?? invoiceTradeDoc.status}
+                        {invoiceTradeDoc.issueDate ? ` · 签发日 ${invoiceTradeDoc.issueDate}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={cx('mt-2 text-[11px] font-light leading-relaxed', textSecondaryClass)}>
+                    尚未在单据中心登记交单。出货后可在单据中心「从运单生成」批量建档，商业发票将自动回链本发票（交单号=记账号）。
                   </div>
                 )}
               </div>
@@ -2361,6 +2480,85 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
                 className="bds-btn bds-btn-primary">
                 {voucherCreating ? '保存中...' : editingVoucher ? '保存' : '创建'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 发票预览弹窗——A4 纸张查看器：固定 210mm 纸宽，按视窗等比缩放（transform scale），
+          纸张比例恒定不随容器拉伸（与导出 PDF 尺寸一致）；iframe 渲染 GET /:id/preview.html 同源模板 */}
+      {previewingInvoice && (
+        <div className="bds-modal-mask" onClick={() => !invoicePreviewLoading && setPreviewingInvoice(null)}>
+          <div
+            className="bds-modal flex h-[92vh] max-h-[92vh] w-[min(68rem,94vw)] flex-col !p-0"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-c-default)] px-6 py-4">
+              <div className="min-w-0">
+                <h2 className={cx('truncate text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
+                  发票预览 · {previewingInvoice.invoiceNumber}
+                </h2>
+                <div className={cx('mt-1 text-[10px] font-light', textSecondaryClass)}>
+                  A4 · 与导出 PDF 同源渲染，所见即所得
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  disabled={invoicePreviewLoading}
+                  onClick={() => handleExportInvoicePdf(previewingInvoice)}
+                  className="bds-btn bds-btn-primary"
+                >
+                  <Download size={14} strokeWidth={1.75} />
+                  导出 PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewingInvoice(null)}
+                  className="bds-btn bds-btn-secondary"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+            <div
+              ref={previewViewportRef}
+              className="relative min-h-0 flex-1 overflow-auto rounded-b-[var(--r-modal)] bg-[var(--recessed-bg)]"
+            >
+              {invoicePreviewLoading ? (
+                <div className={cx('flex h-full items-center justify-center gap-2 text-xs font-light', textSecondaryClass)}>
+                  <Loader2 size={16} className="animate-spin" />
+                  正在生成预览...
+                </div>
+              ) : invoicePreviewErr ? (
+                <div className="flex h-full items-center justify-center p-4">
+                  <div className="bds-alert danger w-full">{invoicePreviewErr}</div>
+                </div>
+              ) : (
+                <div className="flex justify-center px-6 py-5">
+                  {/* A4 逻辑宽 794px（96dpi 下 210mm）；scale 由视窗宽等比计算，纸张比例恒定 */}
+                  <div style={{ width: 794 * previewScale, height: 0 }} aria-hidden />
+                  <div
+                    style={{
+                      width: 794,
+                      transform: `scale(${previewScale})`,
+                      transformOrigin: 'top center',
+                    }}
+                  >
+                    <iframe
+                      title={`发票预览 ${previewingInvoice.invoiceNumber}`}
+                      srcDoc={invoicePreviewHtml ?? ''}
+                      sandbox=""
+                      className="block border-0 bg-white"
+                      style={{ width: 794, height: Math.ceil(1123 / Math.max(previewScale, 0.01)) }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className={cx('flex shrink-0 items-center justify-between border-t border-[var(--border-c-default)] px-6 py-2.5 text-[10px] font-light', textSecondaryClass)}>
+              <span>A4 · 210 × 297 mm</span>
+              <span>{Math.round(previewScale * 100)}%</span>
             </div>
           </div>
         </div>

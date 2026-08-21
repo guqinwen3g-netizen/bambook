@@ -118,15 +118,15 @@ function resolveOrderAllocations(input: any): { ok: true; orderIds?: string[] } 
 /**
  * 事务内写入发票↔订单分配（发票 ↔ 订单多对多）。
  * create：直接插入分配行；update：先软删该发票既有分配再插入新分配（replace 语义）。
- * 订单号/PO 从 Order 快照带回。
+ * 订单号快照取 Order.code（SO-xxx 业务编号，由 SequenceRegister 分配），PO 取 Order.poNumber。
  */
 async function syncInvoiceOrderAllocations(tx: any, invoiceId: string, orderIds: string[] | undefined): Promise<void> {
   if (!orderIds || orderIds.length === 0) return;
   const now = BigInt(Date.now());
-  const rows: Array<{ id: string; orderNumber: string | null; poNumber: string | null }> =
+  const rows: Array<{ id: string; code: string | null; poNumber: string | null }> =
     await tx.order.findMany({
       where: { id: { in: orderIds }, deletedAt: null },
-      select: { id: true, orderNumber: true, poNumber: true },
+      select: { id: true, code: true, poNumber: true },
     }) || [];
   const byId = new Map(rows.map((o) => [o.id, o]));
   for (const orderId of orderIds) {
@@ -136,7 +136,7 @@ async function syncInvoiceOrderAllocations(tx: any, invoiceId: string, orderIds:
         id: generateId('IOA'),
         invoiceId,
         orderId,
-        orderNumber: o?.orderNumber ?? null,
+        orderNumber: o?.code ?? null,
         poNumber: o?.poNumber ?? null,
         allocatedAmount: null,
         createdAt: now,

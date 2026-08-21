@@ -804,6 +804,17 @@ export const apiService = {
     URL.revokeObjectURL(objectUrl);
   },
 
+  /** 发票预览 HTML——GET /v1/finance/:id/preview.html（与 render.pdf 同源渲染 + screen 页边距，所见即所得） */
+  async getInvoicePreviewHtml(id: string, endpoint?: string): Promise<string> {
+    const url = buildApiUrl(`/v1/finance/${encodeURIComponent(id)}/preview.html`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error?.message || data?.error?.code || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
   /** 上传发票真实文件——POST /v1/finance/:id/attachments（multipart form，字段名 file） */
   async uploadInvoiceAttachment(id: string, file: File, endpoint?: string): Promise<InvoiceAttachment> {
     const formData = new FormData();
@@ -3251,7 +3262,7 @@ export const apiService = {
   },
 
   // TradeDocument（贸易单据）
-  async listTradeDocuments(params?: { type?: string; status?: string; shipmentId?: string; declarationId?: string; orderId?: string; relationId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: TradeDocument[]; total: number }> {
+  async listTradeDocuments(params?: { type?: string; status?: string; shipmentId?: string; declarationId?: string; orderId?: string; relationId?: string; sourceInvoiceId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: TradeDocument[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.type) query.set('type', params.type);
     if (params?.status) query.set('status', params.status);
@@ -3259,6 +3270,7 @@ export const apiService = {
     if (params?.declarationId) query.set('declarationId', params.declarationId);
     if (params?.orderId) query.set('orderId', params.orderId);
     if (params?.relationId) query.set('relationId', params.relationId);
+    if (params?.sourceInvoiceId) query.set('sourceInvoiceId', params.sourceInvoiceId);
     if (params?.search) query.set('search', params.search);
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
@@ -3303,6 +3315,11 @@ export const apiService = {
 
   async generateTradeDocumentsFromShipment(params: { shipmentId: string; types: TradeDocumentType[] }, endpoint?: string): Promise<GenerateTradeDocumentsResult> {
     return requestJson<GenerateTradeDocumentsResult>(`/v1/customs/trade-documents/generate-from-shipment`, { endpoint, method: 'POST', body: JSON.stringify(params) });
+  },
+
+  /** 一键生成文件：版本快照渲染 HTML → 服务端转 PDF 落盘归档（回写 filePath/fileName）；CI 带财务回链时 html 可省（服务端真源模板自渲染） */
+  async generateTradeDocumentFile(id: string, params: { html?: string; version?: number }, endpoint?: string): Promise<{ filePath: string; fileName: string; fileSize: number }> {
+    return requestJson<{ filePath: string; fileName: string; fileSize: number }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}/generate-file`, { endpoint, method: 'POST', body: JSON.stringify(params) });
   },
 
   async packTradeDocumentsByOrder(orderId: string, endpoint?: string): Promise<{ items: TradeDocumentPackItem[]; total: number }> {

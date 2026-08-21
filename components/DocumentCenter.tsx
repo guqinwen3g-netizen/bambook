@@ -13,12 +13,13 @@
  * 无装配快照的单据（手工创建）降级为字段视图，不伪造预览。
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  Download,
   Eye,
   FileOutput,
   History,
@@ -27,12 +28,14 @@ import {
   PackageOpen,
   Plus,
   Printer,
+  Receipt,
   RefreshCw,
   Search,
   Trash2,
   X,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { invoiceService } from '../services/invoiceService';
 import {
   DocumentSetData,
   DocumentVersionRecord,
@@ -50,7 +53,7 @@ import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBu
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { EXPORT_DOC_RENDERERS, ExportDocKind } from './tools/exportDocs/exportDocumentTemplates';
-import { printHtmlDocument } from './tools/printDocument';
+import { buildFullPrintDocument, printFullHtmlDocument, printHtmlDocument } from './tools/printDocument';
 
 // ==================== 常量 ====================
 
@@ -143,6 +146,45 @@ const clearGeneratePrime = () => {
   }
 };
 
+// ==================== Focus Prime（跨模块联动：财务发票详情 → 定位交单单据） ====================
+
+const FOCUS_PRIME_KEY = 'bambook_document_center_focus_prime';
+
+export interface DocumentCenterFocusPrime {
+  docId: string;
+}
+
+/** 财务侧「查看交单」入口写入（App.tsx 调用），本组件挂载时消费并展开目标单据 */
+export const primeDocumentCenterFocus = (prime: DocumentCenterFocusPrime) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(FOCUS_PRIME_KEY, JSON.stringify(prime));
+  } catch {
+    // ignore
+  }
+};
+
+const readFocusPrime = (): DocumentCenterFocusPrime | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(FOCUS_PRIME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DocumentCenterFocusPrime>;
+    return typeof parsed.docId === 'string' && parsed.docId ? (parsed as DocumentCenterFocusPrime) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearFocusPrime = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(FOCUS_PRIME_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 // ==================== 工具 ====================
 
 const docTypeLabel = (t: string) => DOC_TYPES.find(d => d.id === t)?.label || t;
@@ -173,9 +215,11 @@ const extractDocumentSet = (content: Record<string, unknown> | null | undefined)
 
 interface DocumentCenterProps {
   isDarkMode: boolean;
+  /** 跨模块导航：CI 财务发票回链 → 财务发票详情（App.tsx 实现 prime 写入 + 视图切换） */
+  onOpenInvoice?: (invoiceId: string) => void;
 }
 
-const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
+const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoice }) => {
   const [docs, setDocs] = useState<TradeDocument[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -189,7 +233,12 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
   // 详情：版本时间线（展开时懒加载）
   const [versionsByDoc, setVersionsByDoc] = useState<Record<string, DocumentVersionRecord[]>>({});
   const [versionsLoadingId, setVersionsLoadingId] = useState<string | null>(null);
-  const [previewByKey, setPreviewByKey] = useState<Record<string, string>>({}); // `${docId}:v${n}` → html
+  // A4 预览弹窗（版本快照 → 纸张查看器）
+  const [previewingDoc, setPreviewingDoc] = useState<TradeDocument | null>(null);
+  const [previewingVersion, setPreviewingVersion] = useState<DocumentVersionRecord | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewErr, setPreviewErr] = useState<string | null>(null);
 
   // 弹窗
   const [showForm, setShowForm] = useState(false);
@@ -233,6 +282,18 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
     }
   }, []);
 
+  // focus prime 消费：财务发票详情「查看交单」跳转 → 展开目标单据详情
+  useEffect(() => {
+    const prime = readFocusPrime();
+    if (prime) {
+      clearFocusPrime();
+      setExpandedId(prime.docId);
+      void apiService.listTradeDocumentVersions(prime.docId)
+        .then(result => setVersionsByDoc(prev => ({ ...prev, [prime.docId]: result.items })))
+        .catch(() => { /* 版本懒加载失败不阻断定位 */ });
+    }
+  }, []);
+
   // ── 展开详情 → 懒加载版本 ──
   const toggleExpand = useCallback(async (doc: TradeDocument) => {
     const next = expandedId === doc.id ? null : doc.id;
@@ -250,29 +311,106 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
     }
   }, [expandedId, versionsByDoc]);
 
-  // ── 预览（版本快照 → 渲染 HTML）──
-  const togglePreview = useCallback((doc: TradeDocument, version: DocumentVersionRecord) => {
-    const key = `${doc.id}:v${version.version}`;
-    if (previewByKey[key]) {
-      setPreviewByKey(prev => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
+  // ── 预览（A4 纸张查看器弹窗，与财务发票预览同款体验）──
+  // CommercialInvoice 且带财务发票回链 → 服务端同源模板（与财务预览/PDF 完全一致）；
+  // 其余类型走前端 EXPORT_DOC_RENDERERS + doc-* 基座，screen 画布模式组装
+  // （灰底 + A4 纸张 + 阴影，所见即所得——预览排版与生成文件 PDF 一致）
+  const openPreview = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
+    setPreviewingDoc(doc);
+    setPreviewingVersion(version);
+    setPreviewHtml(null);
+    setPreviewErr(null);
+    setPreviewLoading(true);
+    try {
+      if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
+        const html = await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId);
+        setPreviewHtml(html);
+      } else {
+        const kind = TYPE_TO_EXPORT_KIND[doc.type];
+        const ds = extractDocumentSet(version.content);
+        if (!kind || !ds) throw new Error('该单据无可渲染的版本快照');
+        setPreviewHtml(buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds), '', { screen: true }));
+      }
+    } catch (e: any) {
+      setPreviewErr(`预览加载失败：${e?.message || e}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  // A4 纸张等比缩放：视窗宽 / 794px（96dpi 下 210mm），封顶 1（与财务发票预览同算法）
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  useEffect(() => {
+    const el = previewViewportRef.current;
+    if (!el || !previewingDoc) return;
+    const compute = () => {
+      setPreviewScale(Math.min(1, Math.max(0.3, (el.clientWidth - 48) / 794)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [previewingDoc, previewLoading]);
+
+  const printVersion = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
+    // CI 带财务回链 → 服务端同源模板打印（与预览/PDF 完全一致，单一真源不双渲染）
+    if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
+      try {
+        const html = await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId);
+        printFullHtmlDocument(html, `${doc.documentNumber} v${version.version}`);
+      } catch (e: any) {
+        setError(`财务发票打印加载失败：${e?.message || e}`);
+      }
       return;
     }
     const kind = TYPE_TO_EXPORT_KIND[doc.type];
     const ds = extractDocumentSet(version.content);
     if (!kind || !ds) return;
-    const html = EXPORT_DOC_RENDERERS[kind].render(ds);
-    setPreviewByKey(prev => ({ ...prev, [key]: html }));
-  }, [previewByKey]);
-
-  const printVersion = useCallback((doc: TradeDocument, version: DocumentVersionRecord) => {
-    const kind = TYPE_TO_EXPORT_KIND[doc.type];
-    const ds = extractDocumentSet(version.content);
-    if (!kind || !ds) return;
     printHtmlDocument({ title: `${doc.documentNumber} v${version.version}`, htmlBody: EXPORT_DOC_RENDERERS[kind].render(ds) });
+  }, []);
+
+  // ── 一键生成文件：版本快照 → 服务端转 PDF 落盘归档（CI 带回链时服务端财务真源模板自渲染）──
+  const handleGenerateFile = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
+    setActionLoading(doc.id);
+    setError(null);
+    try {
+      let html: string | undefined;
+      if (!(doc.type === 'CommercialInvoice' && doc.sourceInvoiceId)) {
+        const kind = TYPE_TO_EXPORT_KIND[doc.type];
+        const ds = extractDocumentSet(version.content);
+        if (!kind || !ds) throw new Error('该单据无可渲染的版本快照（先「从运单生成」或编辑补充内容）');
+        html = buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds));
+      }
+      const result = await apiService.generateTradeDocumentFile(doc.id, { html, version: version.version });
+      await fetchDocs();
+      setAlertMessage(`已生成单据文件 ${result.fileName}（${Math.round(result.fileSize / 1024)} KB），归档至本单据`);
+    } catch (e: any) {
+      setAlertMessage(`生成文件失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [fetchDocs]);
+
+  // ── 下载已归档单据文件（uploads/trade-documents/ 静态资源）──
+  const handleDownloadDocFile = useCallback(async (doc: TradeDocument) => {
+    if (!doc.filePath) return;
+    try {
+      const url = apiService.buildApiUrl(`/api/uploads/${doc.filePath}`, undefined);
+      const res = await fetch(url, { headers: apiService.getAuthHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = doc.fileName || `${doc.documentNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e: any) {
+      setAlertMessage(`下载单据文件失败：${e?.message || e}`);
+    }
   }, []);
 
   // ── 状态流转 ──
@@ -410,16 +548,34 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                             {docTypeLabel(doc.type)}
                           </span>
+                          {/* 财务发票回链：CI 引用财务 Invoice 真源（交单号=记账号），点击直达财务详情 */}
+                          {doc.type === 'CommercialInvoice' && doc.sourceInvoiceId && onOpenInvoice && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onOpenInvoice(doc.sourceInvoiceId!); }}
+                              className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-bds-sm border border-[var(--border-c-subtle)] text-[var(--text-link)] hover:bg-[var(--hover-darken)] transition-colors"
+                              title="本单引用财务发票（唯一真源），点击查看财务发票详情"
+                            >
+                              <Receipt size={14} strokeWidth={1.75} />财务发票
+                            </button>
+                          )}
                         </div>
                         <div className={`text-xs text-[var(--text-tertiary)]`}>
                           {doc.consignor || '—'} → {doc.consignee || '—'}
                           {doc.portOfLoading && ` · ${doc.portOfLoading} → ${doc.portOfDischarge || '—'}`}
                         </div>
-                        <div className={`text-xs mt-0.5 text-[var(--text-tertiary)]`}>
-                          签发日: {doc.issueDate || '—'}
-                          {doc.shipmentId && ` · 运单 ${doc.shipmentId}`}
-                          {doc.orderId && ` · 订单 ${doc.orderId}`}
-                          {doc.fileName && ` · 附件 ${doc.fileName}`}
+                        <div className={`text-xs mt-0.5 text-[var(--text-tertiary)] flex items-center gap-1 flex-wrap`}>
+                          <span>签发日: {doc.issueDate || '—'}</span>
+                          {doc.shipmentId && <span>· 运单 {doc.shipmentId}</span>}
+                          {doc.orderId && <span>· 订单 {doc.orderId}</span>}
+                          {doc.fileName && doc.filePath && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); void handleDownloadDocFile(doc); }}
+                              className="inline-flex items-center gap-1 text-[var(--text-link)] hover:underline"
+                              title={`下载已归档单据文件 ${doc.fileName}`}
+                            >
+                              <Download size={14} strokeWidth={1.75} />{doc.fileName}
+                            </button>
+                          )}
                         </div>
                       </div>
                       {doc.totalAmount && (
@@ -490,9 +646,9 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                           ) : (
                             <div className="space-y-1.5">
                               {versions.map(v => {
-                                const key = `${doc.id}:v${v.version}`;
-                                const previewHtml = previewByKey[key];
-                                const renderable = !!TYPE_TO_EXPORT_KIND[doc.type] && !!extractDocumentSet(v.content);
+                                // CI 带财务回链：无本地快照也可预览/打印（走服务端同源模板）
+                                const isLinkedCi = doc.type === 'CommercialInvoice' && !!doc.sourceInvoiceId;
+                                const renderable = isLinkedCi || (!!TYPE_TO_EXPORT_KIND[doc.type] && !!extractDocumentSet(v.content));
                                 return (
                                   <div key={v.id} className={`rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                                     <div className="flex items-center justify-between gap-2 px-3 py-2">
@@ -503,23 +659,23 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
                                       </div>
                                       {renderable && (
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                          <button onClick={() => togglePreview(doc, v)} className="bds-btn bds-btn-outline">
-                                            <Eye size={14} />{previewHtml ? '收起预览' : '预览'}
+                                          <button onClick={() => void openPreview(doc, v)} className="bds-btn bds-btn-outline">
+                                            <Eye size={14} />预览
                                           </button>
-                                          <button onClick={() => printVersion(doc, v)} className="bds-btn bds-btn-outline">
+                                          <button onClick={() => void printVersion(doc, v)} className="bds-btn bds-btn-outline">
                                             <Printer size={14} />打印/PDF
+                                          </button>
+                                          <button
+                                            onClick={() => void handleGenerateFile(doc, v)}
+                                            disabled={!!actionLoading}
+                                            className="bds-btn bds-btn-primary"
+                                            title="按本版本快照渲染 → 生成 PDF 文件归档至本单据（CI 带财务回链时用财务发票真源模板）"
+                                          >
+                                            <FileOutput size={14} />{actionLoading === doc.id ? '生成中...' : '生成文件'}
                                           </button>
                                         </div>
                                       )}
                                     </div>
-                                    {previewHtml && (
-                                      <iframe
-                                        title={`${doc.documentNumber}-v${v.version}`}
-                                        sandbox=""
-                                        srcDoc={previewHtml}
-                                        className={`w-full h-[420px] border-t border-[var(--border-c-subtle)] bg-[var(--bg-card)]`}
-                                      />
-                                    )}
                                   </div>
                                 );
                               })}
@@ -535,6 +691,86 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode }) => {
           )}
         </div>
       </div>
+
+      {/* 单据预览弹窗——A4 纸张查看器（与财务发票预览同款）：固定 210mm 纸宽，
+          按视窗等比缩放（transform scale），纸张比例恒定不随容器拉伸；
+          CI 带回链渲染服务端财务同源模板，其余走前端渲染器 + doc-* 基座 screen 画布 */}
+      {previewingDoc && previewingVersion && (
+        <div className="bds-modal-mask" onClick={() => !previewLoading && setPreviewingDoc(null)}>
+          <div
+            className="bds-modal flex h-[92vh] max-h-[92vh] w-[min(68rem,94vw)] flex-col !p-0"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-c-default)] px-6 py-4">
+              <div className="min-w-0">
+                <h2 className="truncate text-[13px] font-light tracking-[0.02em] text-[var(--text-primary)]">
+                  单据预览 · {previewingDoc.documentNumber} v{previewingVersion.version}
+                </h2>
+                <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">
+                  A4 · {docTypeLabel(previewingDoc.type)} · 预览与生成文件 PDF 同源排版
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  disabled={previewLoading}
+                  onClick={() => void printVersion(previewingDoc, previewingVersion)}
+                  className="bds-btn bds-btn-primary"
+                >
+                  <Printer size={14} strokeWidth={1.75} />
+                  打印
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewingDoc(null)}
+                  className="bds-btn bds-btn-secondary"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+            <div
+              ref={previewViewportRef}
+              className="relative min-h-0 flex-1 overflow-auto rounded-b-[var(--r-modal)] bg-[var(--recessed-bg)]"
+            >
+              {previewLoading ? (
+                <div className="flex h-full items-center justify-center gap-2 text-xs font-light text-[var(--text-secondary)]">
+                  <Loader2 size={16} className="animate-spin" />
+                  正在生成预览...
+                </div>
+              ) : previewErr ? (
+                <div className="flex h-full items-center justify-center p-4">
+                  <div className="bds-alert danger w-full">{previewErr}</div>
+                </div>
+              ) : (
+                <div className="flex justify-center px-6 py-5">
+                  {/* A4 逻辑宽 794px（96dpi 下 210mm）；scale 由视窗宽等比计算，纸张比例恒定 */}
+                  <div style={{ width: 794 * previewScale, height: 0 }} aria-hidden />
+                  <div
+                    style={{
+                      width: 794,
+                      transform: `scale(${previewScale})`,
+                      transformOrigin: 'top center',
+                    }}
+                  >
+                    <iframe
+                      title={`单据预览 ${previewingDoc.documentNumber}-v${previewingVersion.version}`}
+                      srcDoc={previewHtml ?? ''}
+                      sandbox=""
+                      className="block border-0 bg-white"
+                      style={{ width: 794, height: Math.ceil(1123 / Math.max(previewScale, 0.01)) }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center justify-between border-t border-[var(--border-c-default)] px-6 py-2.5 text-[10px] font-light text-[var(--text-secondary)]">
+              <span>A4 · 210 × 297 mm</span>
+              <span>{Math.round(previewScale * 100)}%</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 创建/编辑弹窗 */}
       {showForm && (

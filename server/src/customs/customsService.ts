@@ -1674,6 +1674,8 @@ export function createCustomsService(prisma: PrismaClient) {
     declarationId?: string;
     orderId?: string;
     relationId?: string;
+    /** 财务发票回链反查（CI 引用财务 Invoice 真源，发票详情查交单状态用） */
+    sourceInvoiceId?: string;
     search?: string;
     limit?: number;
     offset?: number;
@@ -1685,6 +1687,7 @@ export function createCustomsService(prisma: PrismaClient) {
     if (params.declarationId) where.declarationId = params.declarationId;
     if (params.orderId) where.orderId = params.orderId;
     if (params.relationId) where.relationId = params.relationId;
+    if (params.sourceInvoiceId) where.sourceInvoiceId = params.sourceInvoiceId;
     if (params.search) {
       where.OR = [
         { documentNumber: { contains: params.search, mode: 'insensitive' } },

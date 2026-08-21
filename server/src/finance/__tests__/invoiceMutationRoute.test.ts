@@ -14,11 +14,22 @@ function makeApp(opts: { invoice?: any; syncFail?: boolean; auditFail?: boolean;
   const entityReferenceUpsert = opts.syncFail ? vi.fn().mockRejectedValue(new Error('SYNC_REJECT')) : vi.fn().mockResolvedValue({});
   const entityLinkUpsert = vi.fn().mockResolvedValue({});
   const orderFindMany = vi.fn().mockResolvedValue([
-      { id: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1' },
-      { id: 'O2', orderNumber: 'ORD-2', poNumber: null },
+      { id: 'O1', code: 'SO-202608-001', poNumber: 'PO-1' },
+      { id: 'O2', code: 'SO-202608-002', poNumber: null },
     ]);
   const orderAllocCreate = vi.fn().mockResolvedValue({});
   const orderAllocUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
+  // CI 级模板数据源 mock：出口商档案（SystemConfig 未配置 → 默认档案）/ 交易对手 / 订单 / 订单行明细 / 出运单
+  const systemConfigFindUnique = vi.fn().mockResolvedValue(null);
+  const relationFindUnique = vi.fn().mockResolvedValue(null);
+  const orderLinesFindMany = vi.fn().mockResolvedValue([
+    { orderId: 'O1', lineNumber: 1, itemNo: 'ART-001', description: 'Navy Wool Twill', quantity: new Prisma.Decimal('100'), unit: 'M', unitPrice: new Prisma.Decimal('0.5'), netValue: new Prisma.Decimal('50') },
+  ]);
+  const ordersFindMany = vi.fn().mockResolvedValue([
+    { id: 'O1', code: 'SO-202608-001', poNumber: 'PO-1', deliveryTerms: 'FOB SHANGHAI', paymentTerms: 'T/T 30% DEPOSIT', shipToName: null },
+    { id: 'O2', code: 'SO-202608-002', poNumber: null, deliveryTerms: null, paymentTerms: null, shipToName: null },
+  ]);
+  const shipmentFindFirst = vi.fn().mockResolvedValue(null);
   const tx = {
     invoice: { create: invoiceCreate, update: invoiceUpdate, findUnique: invoiceFindUnique },
     paymentVoucher: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -34,6 +45,11 @@ function makeApp(opts: { invoice?: any; syncFail?: boolean; auditFail?: boolean;
     paymentVoucher: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn() },
     invoiceAllocation: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
     invoiceOrderAllocation: { findMany: vi.fn().mockResolvedValue([{ id: 'IOA__1', orderId: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1', allocatedAmount: new Prisma.Decimal('50.0000'), note: null }]) },
+    systemConfig: { findUnique: systemConfigFindUnique },
+    relation: { findUnique: relationFindUnique },
+    order: { findMany: ordersFindMany },
+    orderLine: { findMany: orderLinesFindMany },
+    shipment: { findFirst: shipmentFindFirst },
     $transaction: vi.fn(async (fn: any) => fn(tx)),
   } as any;
   const onDataChange = opts.onDataChange || vi.fn();
@@ -63,13 +79,13 @@ describe('invoiceMutationService route POST /finance', () => {
     const { app, orderAllocCreate, orderFindMany } = makeApp();
     const res = await request(app).post('/api/v1/finance').set(authHeader()).send({ invoiceNumber: 'INV-2', type: 'Receivable', amount: '100', currency: 'USD', issueDate: '2026-07-02', status: 'Draft', orderIds: ['O1', 'O2'] });
     expect(res.status).toBe(201);
-    // orderFindMany 用分配订单做快照（orderNumber/poNumber）
-    expect(orderFindMany).toHaveBeenCalledWith({ where: { id: { in: ['O1', 'O2'] }, deletedAt: null }, select: { id: true, orderNumber: true, poNumber: true } });
+    // orderFindMany 用分配订单做快照（订单号取 Order.code，PO 取 poNumber）
+    expect(orderFindMany).toHaveBeenCalledWith({ where: { id: { in: ['O1', 'O2'] }, deletedAt: null }, select: { id: true, code: true, poNumber: true } });
     expect(orderAllocCreate).toHaveBeenCalledTimes(2);
     const callData = orderAllocCreate.mock.calls.map((c: any) => c[0].data);
     expect(callData.map((d: any) => d.orderId)).toEqual(expect.arrayContaining(['O1', 'O2']));
-    expect(callData.find((d: any) => d.orderId === 'O1')).toMatchObject({ invoiceId: 'INV__NEW', orderId: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1' });
-    expect(callData.find((d: any) => d.orderId === 'O2')).toMatchObject({ orderNumber: 'ORD-2', poNumber: null });
+    expect(callData.find((d: any) => d.orderId === 'O1')).toMatchObject({ invoiceId: 'INV__NEW', orderId: 'O1', orderNumber: 'SO-202608-001', poNumber: 'PO-1' });
+    expect(callData.find((d: any) => d.orderId === 'O2')).toMatchObject({ orderNumber: 'SO-202608-002', poNumber: null });
   });
 
   it('GET /:id → returns orderAllocations alongside invoice', async () => {
@@ -79,6 +95,66 @@ describe('invoiceMutationService route POST /finance', () => {
     expect(prisma.invoiceOrderAllocation.findMany).toHaveBeenCalledWith({ where: { invoiceId: 'INV__1', deletedAt: null }, orderBy: { createdAt: 'asc' } });
     expect(Array.isArray(res.body.orderAllocations)).toBe(true);
     expect(res.body.orderAllocations[0]).toMatchObject({ orderId: 'O1', orderNumber: 'ORD-1', poNumber: 'PO-1', allocatedAmount: 50 });
+  });
+
+  it('GET /:id/preview.html → text/html CI 级同源渲染（信头/双方/条款组/行明细/金额大写 + A4 画布）', async () => {
+    const { app } = makeApp();
+    const res = await request(app).get('/api/v1/finance/INV__1/preview.html').set(authHeader());
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    // CI 抬头与公司信头 + 单据标识（内部 Status 字段不出现）
+    expect(res.text).toContain('COMMERCIAL INVOICE');
+    expect(res.text).toContain('商业发票');
+    expect(res.text).toContain('INV-1');
+    expect(res.text).toContain('ORIGINAL');
+    // doc-* 基座结构标记（2026-08-21 统一裁决：与合同/装箱单同一版式基因，无旧 letterhead 类）
+    expect(res.text).toContain('doc-header');
+    expect(res.text).toContain('doc-party-grid');
+    // 卖方 = 出口商档案默认值（SystemConfig 未配置 → DEFAULT_EXPORTER_PROFILE）
+    expect(res.text).toContain('JIANGSU PANDA CLOTHING CO.,LTD.');
+    // 运输与条款组（订单 deliveryTerms/paymentTerms + 原产国）
+    expect(res.text).toContain('Shipment &amp; Terms');
+    expect(res.text).toContain('FOB SHANGHAI');
+    expect(res.text).toContain('T/T 30% DEPOSIT');
+    expect(res.text).toContain('Country of Origin');
+    // 订单分配行 + 订单行明细分组（Order ORD-1 · P/O PO-1 + 货号/品名/数量/金额）
+    expect(res.text).toContain('Order ORD-1');
+    expect(res.text).toContain('PO-1');
+    expect(res.text).toContain('ART-001');
+    expect(res.text).toContain('Navy Wool Twill');
+    expect(res.text).toContain('50.00');
+    // 合计 + 金额大写（invoice.amount = 100 USD）
+    expect(res.text).toContain('SAY TOTAL US DOLLARS ONE HUNDRED ONLY');
+    // 收款银行块（应收发票展示受益人银行）
+    expect(res.text).toContain('Beneficiary Bank');
+    expect(res.text).toContain('BKCHCNBJ95L');
+    // 签字 + 盖章区 + 页脚（E&OE）——doc-* 基座双签章三段式（sig-label/sig-line/sig-name）
+    expect(res.text).toContain('(签章)');
+    expect(res.text).toContain('Authorized Signature / Date');
+    expect(res.text).toContain('E. &amp; O. E.');
+    // screen 预览 = A4 纸张画布（210mm 固定纸宽 + 纸内边距，不随容器自适应）
+    expect(res.text).toContain('width: 210mm');
+    expect(res.text).toContain('min-height: 297mm');
+    expect(res.text).toContain('padding: 40px 48px');
+  });
+
+  it('GET /:id/preview.html → 空分配渲染空态占位行（TOTAL 不悬空）', async () => {
+    // makeApp 闭包不便覆写——重建 app 用空分配 mock 验证空态分支
+    const base = makeApp();
+    const prisma = base.prisma;
+    prisma.invoiceOrderAllocation.findMany.mockResolvedValueOnce([]);
+    const res = await request(base.app).get('/api/v1/finance/INV__1/preview.html').set(authHeader());
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('No order lines allocated');
+    // 空态下不渲染运输与条款组（无订单 → 无条款数据）
+    expect(res.text).not.toContain('FOB SHANGHAI');
+  });
+
+  it('GET /:id/preview.html → 404 for missing/deleted invoice', async () => {
+    const { app } = makeApp({ invoice: null });
+    const res = await request(app).get('/api/v1/finance/INV__NONE/preview.html').set(authHeader());
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
   it('invalid status → 400 INVALID_STATUS before tx', async () => {

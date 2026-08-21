@@ -74,7 +74,7 @@ import {
   TradeDocumentType,
 } from './customsService';
 import { createDocumentTemplateService } from './documentTemplateService';
-import { generateTradeDocumentsFromShipment, packTradeDocumentsByOrder } from './tradeDocumentLifecycleService';
+import { generateTradeDocumentsFromShipment, generateTradeDocumentFile, packTradeDocumentsByOrder } from './tradeDocumentLifecycleService';
 
 export interface CustomsRouterOptions {
   prisma: PrismaClient;
@@ -507,6 +507,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
         declarationId: req.query.declarationId as string | undefined,
         orderId: req.query.orderId as string | undefined,
         relationId: req.query.relationId as string | undefined,
+        sourceInvoiceId: req.query.sourceInvoiceId as string | undefined,
         search: req.query.search as string | undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         offset: req.query.offset ? Number(req.query.offset) : undefined,
@@ -558,6 +559,25 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[CustomsRoute] POST trade-documents generate-from-shipment failed', { error: e?.message });
       res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to generate trade-documents' });
+    }
+  });
+
+  // 一键生成文件：版本快照渲染 HTML（前端模板真源；CI 带回链走财务 preview.html 同源模板）
+  // → 服务端 Puppeteer 转 PDF 落盘 uploads/trade-documents/ → 回写 filePath/fileName
+  router.post('/trade-documents/:id/generate-file', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const { html, version } = req.body as { html?: string; version?: number };
+      const result = await generateTradeDocumentFile(prisma, {
+        id: req.params.id,
+        html: html ?? '',
+        version: typeof version === 'number' ? version : undefined,
+        actorId: actorOf(req),
+      });
+      onDataChange?.({ entity: 'TradeDocument', action: 'update', ids: [req.params.id] });
+      res.status(201).json(result);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] POST trade-documents generate-file failed', { error: e?.message });
+      res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to generate trade-document file' });
     }
   });
 

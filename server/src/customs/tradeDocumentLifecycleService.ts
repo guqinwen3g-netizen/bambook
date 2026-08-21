@@ -15,9 +15,13 @@
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
+import path from 'path';
+import fs from 'fs';
 import { logger } from '../lib/logger';
 import { assembleDocumentSetData } from '../shipping/documentSetService';
 import { nextBusinessNumber } from '../shared/businessNumberService';
+import { renderHtmlToPdf } from '../templates/pdf';
+import { renderInvoiceDocumentHtml } from '../finance/route';
 import type { TradeDocumentType } from './customsService';
 
 // ────────────────────────────────────────────────────────────────
@@ -182,6 +186,28 @@ export async function generateTradeDocumentsFromShipment(
   const created: GenerateFromShipmentResult['created'] = [];
   const skipped: GenerateFromShipmentResult['skipped'] = [];
 
+  // 财务发票回链（2026-08-21 架构裁决：财务 Invoice 为商业发票唯一真源）：
+  // CommercialInvoice 类型生成时按订单分配匹配现有财务发票（Receivable/Proforma 优先），
+  // 命中 → sourceInvoiceId 回链 + 单据号直接采用财务发票号（同号裁决：交单号=记账号）。
+  let linkedInvoice: { id: string; invoiceNumber: string } | null = null;
+  if (types.includes('CommercialInvoice' as TradeDocumentType) && data.order?.id) {
+    try {
+      const allocs = await (prisma as any).invoiceOrderAllocation.findMany({
+        where: { orderId: data.order.id, deletedAt: null },
+        select: { invoiceId: true },
+      });
+      const invoiceIds = allocs.map((a: any) => a.invoiceId);
+      if (invoiceIds.length) {
+        const inv = await (prisma as any).invoice.findFirst({
+          where: { id: { in: invoiceIds }, deletedAt: null, status: { not: 'Cancelled' } },
+          orderBy: [{ type: 'asc' }, { createdAt: 'desc' }], // Proforma < Receivable 字典序，取正式应收优先
+          select: { id: true, invoiceNumber: true },
+        });
+        if (inv) linkedInvoice = inv;
+      }
+    } catch { /* 回链匹配失败退化为独立取号，不阻断生成 */ }
+  }
+
   for (const type of types) {
     const existing = await prisma.tradeDocument.findFirst({
       where: { shipmentId, type, deletedAt: null },
@@ -194,7 +220,10 @@ export async function generateTradeDocumentsFromShipment(
 
     const ts = now();
     const doc = await prisma.$transaction(async (tx) => {
-      const documentNumber = await generateTradeDocumentNumber(tx, type);
+      // 商业发票：已回链财务发票 → 单据号=财务发票号（同号裁决）；否则独立 CI- 取号
+      const documentNumber = (type === 'CommercialInvoice' && linkedInvoice)
+        ? linkedInvoice.invoiceNumber
+        : await generateTradeDocumentNumber(tx, type);
       const document = await tx.tradeDocument.create({
         data: {
           id: generateId('TD'),
@@ -205,6 +234,7 @@ export async function generateTradeDocumentsFromShipment(
           declarationId: null,
           orderId: data.order?.id ?? null,
           relationId,
+          sourceInvoiceId: (type === 'CommercialInvoice' && linkedInvoice) ? linkedInvoice.id : null,
           issueDate: localToday(),
           expiryDate: null,
           issuedBy: null,
@@ -305,4 +335,84 @@ export async function packTradeDocumentsByOrder(
     });
   }
   return { items, total: items.length };
+}
+
+// ────────────────────────────────────────────────────────────────
+// 5. 一键生成文件（版本快照 → PDF 落盘归档，TradeDocument.filePath/fileName 回写）
+// ────────────────────────────────────────────────────────────────
+
+/** 单据文件落盘根目录（与静态服务根同源：BAMBOOK_UPLOAD_DIR 或 apps/Bambook/uploads——
+ *  index.ts 静态服务 /api/uploads 的根；本文件在 server/src/customs/ 下需三级回溯） */
+const TRADE_DOC_UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../../uploads');
+
+/**
+ * 生成单据文件 → 服务端 Puppeteer 转 PDF → 落盘 uploads/trade-documents/ →
+ * 回写 TradeDocument.filePath/fileName。
+ *
+ * HTML 来源（按模板真源归属二选一）：
+ *   - CI 带财务回链：服务端自渲染（finance renderInvoiceDocumentHtml，
+ *     与财务导出 PDF 同一份——发票模板真源在服务端，前端无需传 html）
+ *   - 其余类型：前端渲染的完整 HTML（模板真源在前端 EXPORT_DOC_RENDERERS，
+ *     版本快照 + doc-* 基座样式）
+ *
+ * 文件命名 `{documentNumber}-v{version}.pdf`：同版本重复生成覆盖（版本快照不变
+ * 则文件理应一致，幂等）；跨版本各自留档，与版本留痕语义对齐。
+ */
+export async function generateTradeDocumentFile(
+  prisma: PrismaClient,
+  params: { id: string; html?: string; version?: number; actorId: string },
+): Promise<{ filePath: string; fileName: string; fileSize: number }> {
+  const { id, actorId } = params;
+  const html = typeof params.html === 'string' ? params.html : '';
+  if (!id) throw new Error('id 必填');
+
+  const doc = await prisma.tradeDocument.findFirst({ where: { id, deletedAt: null } });
+  if (!doc) throw new Error(`贸易单据 ${id} 不存在`);
+
+  // CI 带财务回链 → 服务端真源模板自渲染（忽略入参 html，防模板双源漂移）
+  let renderHtml = html;
+  if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
+    renderHtml = (await renderInvoiceDocumentHtml(prisma, doc.sourceInvoiceId)) || '';
+  }
+  if (!renderHtml || renderHtml.length < 50) throw new Error('无可渲染内容（版本快照缺失或 html 无效）');
+  if (renderHtml.length > 2 * 1024 * 1024) throw new Error('渲染内容过大（>2MB），拒绝执行');
+
+  // 版本号：优先入参（前端点的是具体版本行），兜底最新版本
+  let version = params.version;
+  if (version == null) {
+    const latest = await prisma.documentVersion.findFirst({
+      where: { documentId: id },
+      orderBy: { version: 'desc' },
+      select: { version: true },
+    });
+    version = latest?.version ?? 1;
+  }
+
+  const pdf = await renderHtmlToPdf(renderHtml, { format: 'A4' });
+  const dir = path.join(TRADE_DOC_UPLOAD_DIR, 'trade-documents');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const sanitizedNo = doc.documentNumber.replace(/[^\w.-]/g, '_');
+  const fileName = `${sanitizedNo}-v${version}.pdf`;
+  const physicalName = `${doc.id}-${fileName}`;
+  fs.writeFileSync(path.join(dir, physicalName), pdf.pdf);
+
+  const filePath = `trade-documents/${physicalName}`;
+  const ts = BigInt(Date.now());
+  await prisma.tradeDocument.update({
+    where: { id },
+    data: { filePath, fileName, updatedAt: ts },
+  });
+  await prisma.auditLog.create({
+    data: {
+      id: generateId('AUD'),
+      action: 'TRADE_DOCUMENT_FILE_GENERATED',
+      actorId,
+      targetType: 'TradeDocument',
+      targetId: id,
+      detail: { version, fileName, fileSize: pdf.bytes, sha: pdf.sha },
+    },
+  });
+
+  logger.info('[TradeDocumentLifecycle] generate-file', { id, version, fileName, actorId });
+  return { filePath, fileName, fileSize: pdf.bytes };
 }

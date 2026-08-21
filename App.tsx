@@ -168,7 +168,7 @@ import ProductsManager, {
 import { BAMBOOK_OS } from './components/ui/bambookOsTokens';
 import { OS_MATERIAL } from './components/ui/osMaterial';
 import DevelopmentManager from './components/DevelopmentManager';
-import FinanceManager, { type FinanceTabId } from './components/FinanceManager';
+import FinanceManager, { type FinanceTabId, primeFinanceInvoiceFocus } from './components/FinanceManager';
 import ReportCenter from './components/ReportCenter';
 import ShipmentManager from './components/ShipmentManager';
 import QuotationManager from './components/QuotationManager';
@@ -184,7 +184,7 @@ import PricingManager, { type PricingTabId } from './components/PricingManager';
 import MarketingManager from './components/MarketingManager';
 import MesManager from './components/MesManager';
 import CustomsManager, { type CustomsTabId } from './components/CustomsManager';
-import DocumentCenter from './components/DocumentCenter';
+import DocumentCenter, { primeDocumentCenterFocus } from './components/DocumentCenter';
 import ProductionBoard from './components/ProductionBoard';
 import type { GlobeQualityMode, GlobeViewportCenter } from './components/ProductionGlobe';
 import {
@@ -1137,6 +1137,15 @@ const App: React.FC = () => {
     setCurrentView(canAccessView(view) ? view : View.Dashboard);
     setModuleTabOverrides(tab ? { [view]: tab } : {});
   };
+  // 财务发票 ↔ 单据中心 CI 双向直达（回链跳转：prime 定位目标记录，2026-08-21 唯一真源裁决配套）
+  const handleOpenInvoiceById = (invoiceId: string) => {
+    primeFinanceInvoiceFocus(invoiceId);
+    handleViewChange(View.Invoices);
+  };
+  const handleOpenTradeDocById = (docId: string) => {
+    primeDocumentCenterFocus({ docId });
+    handleViewChange(View.DocumentCenter);
+  };
 
   // 阶段 IA-3：报价转订单/开发案转订单后「查看订单」直达 —— 切订单页 → 刷新列表 → 选中目标订单
   const handleOpenOrderById = useCallback(async (orderId: string) => {
@@ -1538,6 +1547,7 @@ const App: React.FC = () => {
                 vouchers={paymentVouchers}
                 setVouchers={setPaymentVouchers}
                 onNavigate={handleViewChange}
+                onOpenTradeDocument={handleOpenTradeDocById}
               />
             )}
             {activeView === View.Reports && (
@@ -1586,7 +1596,7 @@ const App: React.FC = () => {
               <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} onOpenDocumentCenter={() => handleViewChange(View.DocumentCenter)} onNavigate={handleViewChange} />
             )}
             {activeView === View.DocumentCenter && (
-              <DocumentCenter isDarkMode={isDarkMode} />
+              <DocumentCenter isDarkMode={isDarkMode} onOpenInvoice={handleOpenInvoiceById} />
             )}
             {activeView === View.ProductionBoard && (
               <ProductionBoard isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} />
