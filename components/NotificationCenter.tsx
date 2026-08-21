@@ -16,7 +16,7 @@ import {
   Bell, X, Check, CheckCheck, Trash2,
   PackageCheck, Package, Factory, Truck, FileText, FileX,
   Receipt, DollarSign, CheckCircle, AlertTriangle, Clock,
-  MessageSquare, ClipboardList, Info, Settings2, ArrowLeft, UserPlus,
+  MessageSquare, ClipboardList, Info, Settings2, ArrowLeft, ArrowRight, UserPlus,
   Stamp, Loader2, AlertCircle, BellOff,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -179,9 +179,15 @@ export interface NotificationCenterProps {
   isDarkMode?: boolean;
   endpoint?: string;
   children?: React.ReactNode;
+  /**
+   * 通知 link 打开回调（App 层路由）：点击带 link 的通知项 / D2 桌面推送回跳时触发。
+   * App 侧解析 link（parseNotificationLink）后切视图 + 定位 tab / 直达单据详情。
+   * 未提供时降级为写 window.location.hash（保留旧行为，无消费者时不产生导航）。
+   */
+  onOpenLink?: (link: string) => void;
 }
 
-export function NotificationCenter({ isDarkMode = false, endpoint, children }: NotificationCenterProps) {
+export function NotificationCenter({ isDarkMode = false, endpoint, children, onOpenLink }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -296,11 +302,15 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
     return unsubscribe;
   }, [endpoint]);
 
-  // ── D2 原生推送点击回跳：主进程聚焦窗口后回发 link，此处执行路由跳转 ──
+  // ── D2 原生推送点击回跳：主进程聚焦窗口后回发 link，经 onOpenLink 走 App 路由 ──
+  const onOpenLinkRef = useRef(onOpenLink);
+  onOpenLinkRef.current = onOpenLink;
   useEffect(() => {
     if (typeof window === 'undefined' || !window.bambookNotification) return;
     return window.bambookNotification.onOpenLink((link) => {
-      if (link) window.location.hash = link;
+      if (!link) return;
+      if (onOpenLinkRef.current) onOpenLinkRef.current(link);
+      else window.location.hash = link;
     });
   }, []);
 
@@ -366,11 +376,13 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
   const handleItemClick = useCallback((item: NotificationItem) => {
     if (!item.readAt) handleMarkAsRead(item.id);
     if (item.link) {
-      // 通过 hash 路由跳转
-      window.location.hash = item.link;
+      // 跳转经 onOpenLink 走 App 层 React 路由（切视图 + tab/详情定位）；
+      // 未提供回调时降级写 hash（旧链路，App 不消费 hash 时不产生导航）
+      if (onOpenLink) onOpenLink(item.link);
+      else window.location.hash = item.link;
       setIsOpen(false);
     }
-  }, [handleMarkAsRead]);
+  }, [handleMarkAsRead, onOpenLink]);
 
   // ── D2 偏好面板：进入时加载类型目录 ──
   useEffect(() => {
@@ -895,8 +907,15 @@ export function NotificationCenter({ isDarkMode = false, endpoint, children }: N
                           <div className={`mt-1 line-clamp-2 text-xs leading-relaxed ${isUnread ? ui.body : ui.readBody}`}>
                             {item.body}
                           </div>
-                          <div className={`mt-1.5 text-[10px] font-light ${ui.ghost}`}>
+                          <div className={`mt-1.5 flex items-center gap-1.5 text-[10px] font-light ${ui.ghost}`}>
                             {formatRelativeTime(item.createdAt)}
+                            {/* 可跳转提示：点击整行跳转目标模块（onOpenLink → App 路由） */}
+                            {item.link && (
+                              <span className="flex items-center gap-0.5 text-link/80">
+                                <ArrowRight size={14} strokeWidth={1.5} />
+                                前往
+                              </span>
+                            )}
                           </div>
                           {/* D2 转跟进行内反馈 */}
                           {followUpFeedback[item.id] && (

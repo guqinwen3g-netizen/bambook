@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { View, KnowledgeItem, Order, Email, SystemConfig, Insight, Relation, ProductAsset, ProductSubCategory, MainCategory, Invoice, PaymentVoucher, Shipment, DevelopmentCase } from './types';
+import { parseNotificationLink } from './services/crossModuleNav';
 import type { OrderViewType } from './lib/orderSchema';
 
 // Global error listeners — DEV only; in production, errors are handled by React ErrorBoundary.
@@ -22,6 +23,16 @@ const AUTH_TOKEN_KEY = 'bambook_auth_token';
 export const DESIGN_TUNER_TOGGLE_SHORTCUT = 'mod+shift+t';
 
 const PRODUCT_MAIN_CATEGORIES: MainCategory[] = ['Garment', 'Fabric', 'Accessories', 'Trimmings', 'Merchandise', 'Other'];
+
+// v0.8 未交付模块的装修遮挡清单：页面 → 提示文案（由开发者选项「装修遮挡」开关统一控制显隐）
+const COMING_SOON_PAGES: Partial<Record<View, string>> = {
+  [View.Dashboard]: '工作台开发中 · 即将上线',
+  [View.Assistant]: 'AI 助手开发中 · 即将上线',
+  [View.Emails]: '智能邮箱开发中 · 即将上线',
+  [View.DataCenter]: '数据中心开发中 · 即将上线',
+  [View.Seasons]: '季节性与趋势开发中 · 即将上线',
+  [View.Marketing]: '营销推广开发中 · 即将上线',
+};
 const PRODUCT_MAIN_CATEGORY_ALIASES: Record<string, MainCategory> = {
   garment: 'Garment',
   garments: 'Garment',
@@ -122,6 +133,7 @@ import { dataHubService, DataHubMode, DataHubSnapshot } from './services/dataHub
 import { llmService } from './services/llmService';
 import { deleteOrder } from './services/importService';
 import { subscribe, checkAuth, getAuthState, canAccessView, AuthState } from './services/authService';
+import { getDevOptions, subscribe as subscribeDevOptions, type DevOptions } from './services/devOptionsService';
 import { resolveInitialDarkMode } from './appTheme';
 import type { StoredThemePreference } from './appTheme';
 import { resolvePublicAssetUrl } from './utils/publicAssets';
@@ -134,6 +146,7 @@ import {
   type WallpaperAccentPalette,
 } from './utils/wallpaperAccent';
 import Sidebar from './components/Sidebar';
+import { ComingSoonOverlay } from './components/ui/ComingSoonOverlay';
 import { NotificationCenter } from './components/NotificationCenter';
 
 import Dashboard from './components/Dashboard';
@@ -356,6 +369,9 @@ const App: React.FC = () => {
 
   // D1 全局工作台：命令面板开关（Cmd/Ctrl+K）
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // 开发者选项（装修遮挡等），跨页面共享、实时响应设置页开关
+  const [devOptions, setDevOptions] = useState<DevOptions>(() => getDevOptions());
+  useEffect(() => subscribeDevOptions(setDevOptions), []);
   const [orderFullscreenOpen, setOrderFullscreenOpen] = useState(false);
   const [renderGlobe, setRenderGlobe] = useState(false);
   const [orderType, setOrderType] = useState<OrderViewType>('fabric'); // All/Fabric/Garment/Other 切换
@@ -374,15 +390,6 @@ const App: React.FC = () => {
   const lastWriteTimeRef = useRef<number>(0);
   const syncStatusRef = useRef<'idle' | 'pushing' | 'pulling' | 'repairing' | 'blocked'>('idle');
   const isProductionGlobeEnabled = config.enableProductionGlobe !== false;
-  const isLightEffectsEnabled = config.enableLightEffects !== false;
-  useEffect(() => {
-    const cls = 'bambook-light-effects-disabled';
-    if (isLightEffectsEnabled) {
-      document.body.classList.remove(cls);
-    } else {
-      document.body.classList.add(cls);
-    }
-  }, [isLightEffectsEnabled]);
   const productModuleRuntimeSettings = React.useMemo(() => ({
     defaultListDisplayMode: productModuleSettings.defaultListDisplayMode,
     defaultTableSort: parseProductModuleSortValue(productModuleSettings.defaultSortValue),
@@ -1157,6 +1164,20 @@ const App: React.FC = () => {
     }
   }, [orders, config.cloudEndpoint]);
 
+  // 通知跳转：通知中心点击通知项 / D2 桌面推送回跳 → 解析后端 link 模板
+  // （/orders?id=x&tab=y 等）→ 切目标视图；订单类带 id 时直达订单详情。
+  // 修复断链：原实现只写 window.location.hash，而本应用为 React state 路由，
+  // hash 无消费者，点击通知不产生任何导航。
+  const handleNotificationOpenLink = (link: string) => {
+    const target = parseNotificationLink(link);
+    if (!target) return;
+    if (target.view === View.Orders && target.id) {
+      void handleOpenOrderById(target.id);
+      return;
+    }
+    handleReportNavigate(target.view, target.tab);
+  };
+
   const settingsMode = resolveSettingsMode(activeView);
   const isFullBleedView = activeView === View.Dashboard || activeView === View.Cockpit || activeView === View.Reports || activeView === View.Relations || activeView === View.Products || activeView === View.Orders || activeView === View.ProductionBoard || activeView === View.Quotations || activeView === View.Procurement || activeView === View.Inventory || activeView === View.BOM || activeView === View.CRM || activeView === View.Suppliers || activeView === View.Seasons || activeView === View.Risks || activeView === View.MES || activeView === View.Customs || activeView === View.DocumentCenter || activeView === View.Invoices || activeView === View.PaymentVouchers || activeView === View.Shipments || activeView === View.Development || activeView === View.Assistant || activeView === View.Emails || activeView === View.DataCenter || activeView === View.Settings || activeView === View.AccountSettings || activeView === View.SystemSettings || activeView === View.BusinessTools || activeView === View.AdminPanel || activeView === View.HR || activeView === View.QcWorkbench || activeView === View.Pricing || activeView === View.Marketing;
 
@@ -1424,7 +1445,7 @@ const App: React.FC = () => {
           dialogs use `absolute inset-0` (not `fixed`) so they're confined
           to main's box rather than spanning the viewport. */}
       {/* 业务事件通知中心 — Provider 包裹 main，使 PageHeader 中的 Trigger 可通过 Context 获取状态 */}
-      <NotificationCenter isDarkMode={isDarkMode}>
+      <NotificationCenter isDarkMode={isDarkMode} onOpenLink={handleNotificationOpenLink}>
       <main className={`app-main app-main-cover app-main-cover-flush flex flex-col min-w-0 overflow-hidden opacity-100 ${isGlobeUnderlay ? 'pointer-events-none' : ''}`}>
         <div ref={mainViewportRef} className={`app-main-viewport flex-1 min-h-0 relative ${isFullBleedView ? 'overflow-visible' : ((activeView as string) === View.Emails ? 'overflow-hidden flex flex-col p-6' : 'overflow-y-auto scroll-smooth p-6')} ${isGlobeUnderlay ? 'pointer-events-none' : ''}`}>
           <MainContentShell isFullBleedView={isFullBleedView} isEmails={(activeView as string) === View.Emails} isGlobeUnderlay={isGlobeUnderlay}>
@@ -1486,6 +1507,7 @@ const App: React.FC = () => {
                     cloudEndpoint={config.cloudEndpoint}
                     isDarkMode={isDarkMode}
                     moduleSettings={productModuleRuntimeSettings}
+                    onNavigate={handleViewChange}
                   />
                 )
             )}
@@ -1515,16 +1537,17 @@ const App: React.FC = () => {
                 setInvoices={setInvoices}
                 vouchers={paymentVouchers}
                 setVouchers={setPaymentVouchers}
+                onNavigate={handleViewChange}
               />
             )}
             {activeView === View.Reports && (
               <ReportCenter isDarkMode={isDarkMode} onNavigate={handleReportNavigate} />
             )}
             {activeView === View.Shipments && (
-              <ShipmentManager isDarkMode={isDarkMode} shipments={shipments} setShipments={setShipments} />
+              <ShipmentManager isDarkMode={isDarkMode} shipments={shipments} setShipments={setShipments} onNavigate={handleViewChange} />
             )}
             {activeView === View.Quotations && (
-              <QuotationManager isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} />
+              <QuotationManager isDarkMode={isDarkMode} onOpenOrder={handleOpenOrderById} onNavigate={handleViewChange} />
             )}
             {activeView === View.Procurement && (
               <ProcurementManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
@@ -1533,7 +1556,7 @@ const App: React.FC = () => {
               <InventoryManager isDarkMode={isDarkMode} />
             )}
             {activeView === View.BOM && (
-              <BomManager isDarkMode={isDarkMode} />
+              <BomManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
             )}
             {activeView === View.CRM && (
               <CrmManager isDarkMode={isDarkMode} onNavigate={handleViewChange} />
@@ -1560,7 +1583,7 @@ const App: React.FC = () => {
               <MesManager isDarkMode={isDarkMode} />
             )}
             {activeView === View.Customs && (
-              <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} onOpenDocumentCenter={() => handleViewChange(View.DocumentCenter)} />
+              <CustomsManager isDarkMode={isDarkMode} initialTab={moduleTabOverrides[View.Customs] as CustomsTabId | undefined} onOpenDocumentCenter={() => handleViewChange(View.DocumentCenter)} onNavigate={handleViewChange} />
             )}
             {activeView === View.DocumentCenter && (
               <DocumentCenter isDarkMode={isDarkMode} />
@@ -1637,6 +1660,14 @@ const App: React.FC = () => {
               <CockpitManager isDarkMode={isDarkMode} />
             )}
           </MainContentShell>
+
+          {/* v0.8 未交付模块装修遮挡：磨砂面板覆盖整页（含页面标题栏），由开发者选项「装修遮挡」统一控制 */}
+          {devOptions.comingSoonOverlay && COMING_SOON_PAGES[activeView] && (
+            <ComingSoonOverlay
+              text={COMING_SOON_PAGES[activeView]}
+              className="absolute inset-0 z-50"
+            />
+          )}
         </div>
       </main>
       </NotificationCenter>
