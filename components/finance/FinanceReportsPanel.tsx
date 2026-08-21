@@ -1109,8 +1109,11 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
     );
   };
 
+  // 根因修复（2026-08-21）：报表页最外层容器加 overflow-x-hidden，
+  // 防止内部宽表格 grid（gridCls 多为多列 minmax 且含 auto 轨道）在窄视口下
+  // 横向溢出、压到并排 card（"bar 容器重叠"同源问题）。
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2.5">
+    <div className="flex h-full min-h-0 flex-col gap-2.5 overflow-x-hidden">
       {/* 子 tab + 过滤器 */}
       <div className="flex min-h-0 shrink-0 items-center gap-2">
         <RdlToolbar density="compact">

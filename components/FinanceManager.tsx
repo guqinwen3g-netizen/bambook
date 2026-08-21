@@ -1455,16 +1455,22 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
         )}
         <div className="shrink-0 px-5 py-5">
-          <div className="flex min-w-0 items-start justify-between gap-3">
+          {/* 根因修复（2026-08-21）：头部行必须 flex-wrap，否则窄 panel 下右侧按钮簇
+              被左侧标题挤破、向右戳出被 overflow-hidden 裁切（"编辑/导出PDF 仍溢出"）。
+              加 flex-wrap 后空间不足时按钮簇整块落到标题下方，而非顶破。 */}
+          <div className="flex flex-wrap min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>当前增值税发票</div>
               <div className={cx('mt-2 truncate text-base font-light', textPrimaryClass)}>{vat.vatNumber}</div>
               <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{vatDirectionLabel(vat.direction)}{vatTypeLabel(vat.invoiceType)} · {vat.currency || 'CNY'}</div>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              <span className={cx('mt-0.5', vatStatusBadge(vat.status))}>
+              {/* 状态徽章归到标题信息区，与动作按钮分离，避免混排显得杂乱 */}
+              <div className="mt-2"><span className={vatStatusBadge(vat.status)}>
                 {VAT_STATUS_LABELS[vat.status] || vat.status}
-              </span>
+              </span></div>
+            </div>
+            {/* 按钮簇只放纯动作按钮；状态徽章已上移到标题块。
+               flex-wrap + justify-start：窄 panel 下可换行且左对齐整齐。 */}
+            <div className="flex flex-wrap items-center justify-start gap-2">
               {canEdit && (
                 <button type="button" onClick={() => openEditVat(vat)} className="bds-btn bds-btn-secondary">
                   <Pencil size={16} strokeWidth={1.75} />
@@ -1610,14 +1616,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
         )}
         <div className="shrink-0 px-5 py-5">
-          <div className="flex min-w-0 items-start justify-between gap-3">
+          {/* 与发票/凭证详情头部一致（2026-08-21）：头部行 flex-wrap + 按钮簇去 shrink-0，
+              窄 panel 下按钮簇整块落到标题下方而非顶破。 */}
+          <div className="flex flex-wrap min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>{headerLabel}</div>
               <div className={cx('mt-2 truncate text-base font-light', textPrimaryClass)}>{headerValue}</div>
               <div className={cx('mt-1 truncate text-[11px]', textSecondaryClass)}>{headerMeta}</div>
+              {/* 状态徽章归到标题信息区，与动作按钮分离，避免混排显得杂乱 */}
+              <div className="mt-2"><span className={statusChipClassApplied}>{statusLabel}</span></div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span className={cx('mt-0.5', statusChipClassApplied)}>{statusLabel}</span>
+            {/* 按钮簇只放纯动作按钮；状态徽章已上移到标题块。
+               flex-wrap + justify-start：窄 panel 下可换行且左对齐整齐，不再顶破 panel。 */}
+            <div className="flex flex-wrap items-center justify-start gap-2">
               {/* P0 invoice manual UI: 编辑发票入口 */}
               {isInvoice && invoice && (
                 <button
@@ -1802,7 +1813,9 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           {/* P1 payment reconcile manual UI: 核销明细 + 手动核销入口 */}
           <div className="mt-4">
             <div className="rounded-inset p-4 bds-inset">
-              <div className="flex items-center justify-between">
+              {/* 根因修复（2026-08-21）：窄 panel 下 justify-between 单行若标题+按钮
+                  同时较宽会挤爆，统一 flex-wrap 兜底。 */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className={cx('text-[10px] font-light tracking-[0.18em]', textSecondaryClass)}>核销明细（{allocations.length}）</div>
                 <button
                   type="button"
@@ -2010,9 +2023,11 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
           </div>
 
           {/* Table + side panel */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_340px]" data-finance-layout="rdl-flush-table-canvas">
-            <div className="bds-surface flex h-full min-h-0 flex-col rounded-panel p-3">
-                <div className={cx(TABLE_GRID_CLASS, 'px-4 pb-2 pt-1 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>
+          {/* 侧栏宽改为响应式 minmax(320px,360px)：原硬锁 340px 在窄 xl 视口下过小，
+              配合按钮簇 flex-wrap 后留有余量，避免详情 panel 被挤压到内容溢出。 */}
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]" data-finance-layout="rdl-flush-table-canvas">
+            <div className="bds-surface flex h-full min-h-0 flex-col overflow-hidden rounded-panel p-3">
+                <div className={cx(TABLE_GRID_CLASS, 'min-w-0 px-4 pb-2 pt-1 text-[10px] font-light tracking-[0.14em]', textSecondaryClass)}>
                   {columnHeaders.map(column => (
                     <div key={column.key} className="min-w-0">{column.label}</div>
                   ))}

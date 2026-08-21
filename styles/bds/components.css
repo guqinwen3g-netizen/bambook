@@ -725,6 +725,7 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
 /* ============ 21. Filterbar 筛选条 — pill 工具条（主容器玻璃面，与 bds-card 同材质） ============ */
 .bds-filterbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   padding: 6px;
@@ -732,6 +733,12 @@ select.bds-select.sm { height: var(--h-input-sm); font-size: var(--text-xs); }
   backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
   -webkit-backdrop-filter: blur(var(--frosted-blur)) saturate(var(--frosted-saturate));
   border-radius: var(--radius-pill);
+}
+/* 根因修复（2026-08-21）：filterbar 内控件此前既无换行也无收缩保障，
+   窄视口下整条工具条横向溢出、撞到下方 card（资金日历/报表等页"bar 重叠"）。
+   子项统一 min-width:0，保证可被压缩并在必要时内部滚动而非撑破容器。 */
+.bds-filterbar > * {
+  min-width: 0;
 }
 /* Filterbar 使用纪律（2026-08-16 用户裁决 — 搜索框两范式）：
    1. 单层搜索框（默认）：搜索独立存在时，.bds-search + .bds-input 自身即容器，

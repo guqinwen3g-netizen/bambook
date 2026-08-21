@@ -85,7 +85,7 @@ export function CashCalendarPanel({ isDarkMode, endpoint }: CashCalendarPanelPro
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto px-7 pb-5">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overflow-x-hidden px-7 pb-5">
       {/* 工具条：基准日 + 预测窗口 + 查询 */}
       <div className="flex shrink-0 items-center gap-2">
         <div className="bds-filterbar">
