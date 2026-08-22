@@ -19,7 +19,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle, Plus, X, Mail } from 'lucide-react';
+import { BarChart3, FileText, ArrowLeftRight, Loader2, AlertCircle, Plus, X, Mail, Eye, Download } from 'lucide-react';
 import { apiService } from '../../services/apiService';
 import { fxSettlementService } from '../../services/fxSettlementService';
 import { shipmentService } from '../../services/shipmentService';
@@ -38,6 +38,7 @@ import type {
 } from '../../services/internalTradeService';
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
+import A4DocumentPreviewModal from '../ui/A4DocumentPreviewModal';
 import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Order, Relation, Shipment, StatementSection, SupplierStatement } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -122,6 +123,12 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   const [stmtFrom, setStmtFrom] = useState(firstDayOfMonth());
   const [stmtTo, setStmtTo] = useState(today());
   const [statement, setStatement] = useState<CustomerStatement | null>(null);
+  // B9：对账单 A4 预览（STMT 服务端模板）+ 报表导出进行态
+  const [stmtPreviewOpen, setStmtPreviewOpen] = useState(false);
+  const [stmtPreviewHtml, setStmtPreviewHtml] = useState('');
+  const [stmtPreviewLoading, setStmtPreviewLoading] = useState(false);
+  const [stmtPreviewErr, setStmtPreviewErr] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
 
   // ── 供应商对账单（应付侧镜像）──
   const [supplierRelations, setSupplierRelations] = useState<Relation[]>([]);
@@ -217,6 +224,36 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
       setLoading(false);
     }
   }, [supplierId, supFrom, supTo, endpoint]);
+
+  // ── B9 报表文档化：对账单 A4 预览 + 三报表 Excel 导出 ──
+
+  const handlePreviewStatement = useCallback(async () => {
+    if (!customerId) return;
+    setStmtPreviewOpen(true);
+    setStmtPreviewHtml('');
+    setStmtPreviewErr(null);
+    setStmtPreviewLoading(true);
+    try {
+      const html = await apiService.getStatementPreviewHtml({ customerRelationId: customerId, from: stmtFrom || undefined, to: stmtTo || undefined }, endpoint);
+      setStmtPreviewHtml(html);
+    } catch (e: any) {
+      setStmtPreviewErr(`对账单预览加载失败：${e?.message || e}`);
+    } finally {
+      setStmtPreviewLoading(false);
+    }
+  }, [customerId, stmtFrom, stmtTo, endpoint]);
+
+  const runExport = useCallback(async (key: string, fn: () => Promise<void>) => {
+    setExporting(key);
+    setError(null);
+    try {
+      await fn();
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setExporting(null);
+    }
+  }, []);
 
   const loadFx = useCallback(async () => {
     setLoading(true);
@@ -1129,6 +1166,9 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <RdlPill type="button" active={agingType === 'Receivable'} onClick={() => setAgingType('Receivable')} className="min-h-8 px-3 text-[11px]">应收</RdlPill>
               <RdlPill type="button" active={agingType === 'Payable'} onClick={() => setAgingType('Payable')} className="min-h-8 px-3 text-[11px]">应付</RdlPill>
               <RdlPill type="button" active tone="accent" onClick={loadAging} className="min-h-8 px-3 text-[11px]">刷新</RdlPill>
+              <RdlPill type="button" onClick={() => void runExport('aging', () => apiService.exportAgingReportXlsx(agingType, undefined, endpoint))} className="min-h-8 px-3 text-[11px]">
+                {exporting === 'aging' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
+              </RdlPill>
             </>
           )}
           {tab === 'statement' && (
@@ -1141,6 +1181,12 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={stmtTo} onChange={setStmtTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
               <RdlPill type="button" active tone="accent" onClick={loadStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
+              <RdlPill type="button" onClick={() => void handlePreviewStatement()} className="min-h-8 px-3 text-[11px]">
+                <Eye size={14} /> 预览 A4
+              </RdlPill>
+              <RdlPill type="button" onClick={() => void runExport('stmt', () => apiService.exportCustomerStatementXlsx({ customerRelationId: customerId, from: stmtFrom || undefined, to: stmtTo || undefined }, endpoint))} className="min-h-8 px-3 text-[11px]">
+                {exporting === 'stmt' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
+              </RdlPill>
             </>
           )}
           {tab === 'supplier-statement' && (
@@ -1153,6 +1199,9 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
               <span className={cx('text-[10px]', textFaint)}>至</span>
               <CapsuleDateInput value={supTo} onChange={setSupTo} isDarkMode={isDarkMode} className={inputCls} placeholder="结束日期" />
               <RdlPill type="button" active tone="accent" onClick={loadSupplierStatement} className="min-h-8 px-3 text-[11px]">查询</RdlPill>
+              <RdlPill type="button" onClick={() => void runExport('supStmt', () => apiService.exportSupplierStatementXlsx({ supplierRelationId: supplierId, from: supFrom || undefined, to: supTo || undefined }, endpoint))} className="min-h-8 px-3 text-[11px]">
+                {exporting === 'supStmt' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 导出 Excel
+              </RdlPill>
             </>
           )}
           {tab === 'fx' && (
@@ -1484,6 +1533,20 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
           currency={dunningRow.currency}
           asOf={aging?.asOf}
           endpoint={endpoint}
+        />
+      )}
+
+      {/* B9 客户对账单 A4 预览（STMT 服务端模板，多币种分节；确认按钮直达 Excel 导出） */}
+      {stmtPreviewOpen && (
+        <A4DocumentPreviewModal
+          title={`客户对账单预览 · ${statement?.customerName ?? customerId}`}
+          subtitle="A4 · Statement of Account · 与导出 Excel 同数据形状"
+          html={stmtPreviewHtml}
+          loading={stmtPreviewLoading}
+          error={stmtPreviewErr}
+          onClose={() => setStmtPreviewOpen(false)}
+          onPrint={() => void runExport('stmt', () => apiService.exportCustomerStatementXlsx({ customerRelationId: customerId, from: stmtFrom || undefined, to: stmtTo || undefined }, endpoint))}
+          printLabel="导出 Excel"
         />
       )}
     </div>

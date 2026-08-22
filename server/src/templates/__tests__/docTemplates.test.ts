@@ -674,3 +674,63 @@ describe('B8 CONTRACT（多订单合并合同）', () => {
     expect(data.totals.amount).toBe(150.5); // 行级 netValue 求和
   });
 });
+
+// ── B9 客户对账单模板（STMT：财务域报表，多币种分节） ──
+
+import { renderStatementBody } from '../docTemplates/statement';
+
+const STMT_DATA = {
+  customerRelationId: 'REL_001',
+  customerName: 'ACME GmbH',
+  from: '2026-08-01',
+  to: '2026-08-31',
+  sections: [
+    {
+      currency: 'USD',
+      openingBalance: 12000,
+      closingBalance: 14400,
+      transactions: [
+        { date: '2026-08-05', kind: 'invoice', number: 'INV-2026-001', debit: 14400, credit: 0, balance: 26400 },
+        { date: '2026-08-20', kind: 'receipt', number: 'RCP-2026-009', debit: 0, credit: 12000, balance: 14400 },
+      ],
+    },
+    {
+      currency: 'EUR',
+      openingBalance: 0,
+      closingBalance: 0,
+      transactions: [],
+    },
+  ],
+};
+
+describe('B9 renderStatementBody', () => {
+  it('渲染对账单标题/客户/期间/多币种分节/期初期末/流水/双签', () => {
+    const html = renderStatementBody(STMT_DATA as any, EXPORTER);
+    expect(html).toContain('STATEMENT OF ACCOUNT');
+    expect(html).toContain('客户对账单');
+    expect(html).toContain('ACME GmbH');
+    expect(html).toContain('2026-08-01 ~ 2026-08-31');
+    expect(html).toContain('USD');
+    expect(html).toContain('EUR');
+    expect(html).toContain('Opening Balance 期初余额');
+    expect(html).toContain('Closing Balance 期末余额');
+    expect(html).toContain('INV-2026-001');
+    expect(html).toContain('RCP-2026-009');
+    expect(html).toContain('Invoice 发票');
+    expect(html).toContain('Receipt 收款');
+    expect(html).toContain('14,400.00 USD');
+    expect(html).toContain('Customer Confirmation 客户确认');
+  });
+
+  it('空期间流水 → 「本期间无交易」占位；全空 sections → 无账务记录占位', () => {
+    const html = renderStatementBody(STMT_DATA as any, EXPORTER);
+    expect(html).toContain('No transactions in period 本期间无交易');
+    const empty = { ...STMT_DATA, sections: [] };
+    const html2 = renderStatementBody(empty as any, EXPORTER);
+    expect(html2).toContain('无账务记录');
+  });
+
+  it('STMT 注册表登记（周期性报表，finance 路由直喂数据）', () => {
+    expect(SERVER_DOC_TEMPLATES.STMT.title).toContain('客户对账单');
+  });
+});

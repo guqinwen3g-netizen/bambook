@@ -35,6 +35,7 @@ import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteV
 import { getSystemConfigService } from '../config/systemConfigService';
 import { DEFAULT_EXPORTER_PROFILE, EXPORTER_PROFILE_CONFIG_KEY } from '../config/systemConfigRoute';
 import { agingToSheets, customerStatementToSheets, supplierStatementToSheets, fxGainLossToSheets, cashCalendarToSheets, consolidatedProfitToSheets } from './reportExportService';
+import { renderServerDocument } from '../templates/docTemplates/registry';
 import { buildXlsx, xlsxDownloadHeaders } from '../templates/xlsxExport';
 
 /** 发票附件上传根目录（与静态服务根同源：BAMBOOK_UPLOAD_DIR 或 apps/Bambook/uploads——
@@ -1120,6 +1121,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/reports/statement?customerRelationId=xx&from=YYYY-MM-DD&to=YYYY-MM-DD
+  // B9：format=xlsx → Excel 下载（与供应商对账单同款多币种分节 sheet）
   router.get('/reports/statement', async (req: Request, res: Response) => {
     try {
       const customerRelationId = String(req.query.customerRelationId ?? '');
@@ -1131,9 +1133,35 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
         from: req.query.from ? String(req.query.from) : undefined,
         to: req.query.to ? String(req.query.to) : undefined,
       });
+      if (req.query.format === 'xlsx') {
+        return sendXlsx(res, `客户对账单_${report.customerName ?? customerRelationId}_${report.to ?? '全部'}.xlsx`, customerStatementToSheets(report));
+      }
       res.json(report);
     } catch (err: any) {
       logger.error('[finance] GET /reports/statement failed', { error: err?.message || String(err) });
+      res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /api/v1/finance/reports/statement/preview.html — 客户对账单 A4 预览（B9：
+  // STMT 服务端模板与 xlsx 同数据形状；与发票 preview.html 同模式，不登记 TradeDocument）
+  router.get('/reports/statement/preview.html', async (req: Request, res: Response) => {
+    try {
+      const customerRelationId = String(req.query.customerRelationId ?? '');
+      if (!customerRelationId) {
+        return res.status(400).json({ error: { code: 'MISSING_CUSTOMER', message: 'customerRelationId is required' } });
+      }
+      const report = await getCustomerStatement(prisma, {
+        customerRelationId,
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
+      });
+      const html = await renderServerDocument(prisma, 'STMT', report, { screen: true });
+      if (!html) return res.status(500).json({ error: { code: 'RENDER_FAILED', message: 'STMT 模板渲染失败' } });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (err: any) {
+      logger.error('[finance] GET /reports/statement/preview.html failed', { error: err?.message || String(err) });
       res.status(500).json({ error: { code: 'REPORT_FAILED', message: err.message } });
     }
   });

@@ -871,6 +871,85 @@ export const apiService = {
     return requestJson<SupplierStatement>(`/v1/finance/reports/supplier-statement?${query.toString()}`, { endpoint, method: 'GET' });
   },
 
+  /** 客户对账单 A4 预览——GET /v1/finance/reports/statement/preview.html（B9：STMT 服务端模板） */
+  async getStatementPreviewHtml(params: { customerRelationId: string; from?: string; to?: string }, endpoint?: string): Promise<string> {
+    const query = new URLSearchParams({ customerRelationId: params.customerRelationId });
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    const url = buildApiUrl(`/v1/finance/reports/statement/preview.html?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
+  /** 客户对账单 Excel 导出——GET /v1/finance/reports/statement?format=xlsx（B9：多币种分节 sheet） */
+  async exportCustomerStatementXlsx(params: { customerRelationId: string; from?: string; to?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ customerRelationId: params.customerRelationId, format: 'xlsx' });
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    const url = buildApiUrl(`/v1/finance/reports/statement?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`客户对账单导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `客户对账单_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** 供应商对账单 Excel 导出——GET /v1/finance/reports/supplier-statement?format=xlsx */
+  async exportSupplierStatementXlsx(params: { supplierRelationId: string; from?: string; to?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ supplierRelationId: params.supplierRelationId, format: 'xlsx' });
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    const url = buildApiUrl(`/v1/finance/reports/supplier-statement?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`供应商对账单导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `供应商对账单_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** 账龄分析 Excel 导出——GET /v1/finance/reports/aging?format=xlsx */
+  async exportAgingReportXlsx(type: 'Receivable' | 'Payable', asOf?: string, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ type, format: 'xlsx' });
+    if (asOf) query.set('asOf', asOf);
+    const url = buildApiUrl(`/v1/finance/reports/aging?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`账龄分析导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `账龄分析_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
   async getFxGainLoss(params?: { from?: string; to?: string }, endpoint?: string): Promise<FxGainLossReport> {
     const query = new URLSearchParams();
     if (params?.from) query.set('from', params.from);

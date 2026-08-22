@@ -26,6 +26,7 @@ import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsuranceP
 import { renderQuotationBody, loadQuotationDocData } from './quotation';
 import { renderOrderConfirmationBody, loadOrderConfirmationDocData } from './orderConfirmation';
 import { renderContractBody } from './contract';
+import { renderStatementBody } from './statement';
 import type { ServerDocumentSetData } from './types';
 
 /** 注册表渲染上下文：单据定位信息（loadData 按各自真源装配） */
@@ -98,6 +99,8 @@ export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
   MERGED_PL: { kind: 'MERGED_PL', title: 'Consolidated Packing List 合并装箱单', loadData: async () => null, renderBody: renderMergedPackingListBody },
   MERGED_IR: { kind: 'MERGED_IR', title: 'Consolidated Inspection Summary 合并验货汇总', loadData: async () => null, renderBody: renderMergedInspectionSummaryBody },
   CONTRACT: { kind: 'CONTRACT', title: 'Sales Contract 销售合同（多订单合并）', loadData: async () => null, renderBody: renderContractBody },
+  // B9 财务域报表模板：数据由 finance 路由实时装配直喂（周期性报表，非 TradeDocument 归档体系）
+  STMT: { kind: 'STMT', title: 'Statement of Account 客户对账单', loadData: async () => null, renderBody: renderStatementBody },
 };
 
 /**
