@@ -1948,15 +1948,19 @@ interface ChunkedUpload {
   totalChunks: number;
   receivedChunks: number;
   createdAt: number;
+  /** 最后一次收到块的时刻——GC 按此滑动过期（上传总时长可超 TTL，只要不空闲超时即保留） */
+  lastActivityAt: number;
   /** 部署目标（webapp | webapp-root），首块记录、finalize 时透传 */
   target?: string;
 }
 const webappChunkedUploads = new Map<string, ChunkedUpload>();
-// 每 5 分钟清理超过 10 分钟的未完成上传
+// 每 5 分钟清理「空闲」超过 10 分钟的上传（滑动过期：按 lastActivityAt 起算，
+// 而非 createdAt——慢隧道下大包分块上传总时长可达 15 分钟+，固定 TTL 会在
+// 中途清掉整条记录导致 finalize INCOMPLETE_UPLOAD）
 setInterval(() => {
   const now = Date.now();
   for (const [id, upload] of webappChunkedUploads) {
-    if (now - upload.createdAt > 10 * 60 * 1000) {
+    if (now - upload.lastActivityAt > 10 * 60 * 1000) {
       webappChunkedUploads.delete(id);
     }
   }
@@ -1980,6 +1984,7 @@ app.post('/api/admin/deploy-webapp-chunk', auth, express.raw({ type: ['applicati
       totalChunks,
       receivedChunks: 0,
       createdAt: Date.now(),
+      lastActivityAt: Date.now(),
       target: String(req.headers['x-deploy-target'] || 'webapp'),
     });
   }
@@ -1992,6 +1997,8 @@ app.post('/api/admin/deploy-webapp-chunk', auth, express.raw({ type: ['applicati
     upload.chunks[chunkIndex] = req.body;
     upload.receivedChunks++;
   }
+  // 滑动过期：任何块到达（含重复块）都刷新活跃时刻，防止慢上传中途被 GC
+  upload.lastActivityAt = Date.now();
 
   return res.json({ ok: true, uploadId, chunkIndex, receivedChunks: upload.receivedChunks, totalChunks: upload.totalChunks });
 });
