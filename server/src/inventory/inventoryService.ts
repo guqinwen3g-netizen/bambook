@@ -346,6 +346,8 @@ export function createInventoryService(prisma: PrismaClient) {
     lowStockOnly?: boolean;
     limit?: number;
     offset?: number;
+    /** Excel 台账导出=true：忽略分页上限全量导出（route 层 format=xlsx 专用） */
+    exportAll?: boolean;
   }): Promise<{ items: InventoryItemDetail[]; total: number }> {
     const where: any = { deletedAt: null };
     if (params.warehouseId) where.warehouseId = params.warehouseId;
@@ -364,16 +366,15 @@ export function createInventoryService(prisma: PrismaClient) {
       // Prisma 无法直接做跨字段比较，用 raw filter
     }
 
-    const limit = Math.min(params.limit ?? 100, 500);
-    const offset = params.offset ?? 0;
+    const limit = params.exportAll ? undefined : Math.min(params.limit ?? 100, 500);
+    const offset = params.exportAll ? 0 : (params.offset ?? 0);
 
     const [items, total] = await Promise.all([
       prisma.inventoryItem.findMany({
         where,
         include: { warehouse: true },
         orderBy: { updatedAt: 'desc' },
-        take: limit,
-        skip: offset,
+        ...(limit != null ? { take: limit, skip: offset } : {}),
       }),
       prisma.inventoryItem.count({ where }),
     ]);

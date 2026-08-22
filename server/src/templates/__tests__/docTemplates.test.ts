@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import { renderPurchaseOrderBody, loadPurchaseOrderDocData } from '../docTemplates/purchaseOrder';
 import { renderInspectionReportBody, loadInspectionReportDocData } from '../docTemplates/inspectionReport';
+import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody } from '../docTemplates/customsDocs';
 import { serverKindForType, SERVER_DOC_TEMPLATES } from '../docTemplates/registry';
 
 const EXPORTER = {
@@ -224,18 +225,107 @@ describe('loadPurchaseOrderDocData', () => {
 // ── 注册表映射 ──
 
 describe('serverKindForType / SERVER_DOC_TEMPLATES', () => {
-  it('PO/IR/PL 类型映射正确且模板已注册', () => {
+  it('PO/IR/PL/CO/BL/INS 类型映射正确且模板已注册', () => {
     expect(serverKindForType('PurchaseOrder')).toBe('PO');
     expect(serverKindForType('InspectionReport')).toBe('IR');
     expect(serverKindForType('PackingList')).toBe('PL');
-    expect(serverKindForType('BillOfLading')).toBeNull(); // 未迁移类型 → 前端本地渲染兜底
+    expect(serverKindForType('CertificateOfOrigin')).toBe('CO');
+    expect(serverKindForType('BillOfLading')).toBe('BL');
+    expect(serverKindForType('InsuranceCert')).toBe('INS');
+    expect(serverKindForType('AirWaybill')).toBeNull(); // 未迁移类型 → 前端本地渲染兜底
     expect(SERVER_DOC_TEMPLATES.PO.title).toContain('Purchase Order');
     expect(SERVER_DOC_TEMPLATES.IR.title).toContain('Inspection Report');
+    expect(SERVER_DOC_TEMPLATES.CO.title).toContain('原产地证');
+    expect(SERVER_DOC_TEMPLATES.BL.title).toContain('提单');
+    expect(SERVER_DOC_TEMPLATES.INS.title).toContain('保险单');
   });
 
   it('PO/IR loadData 无 sourceRef → null（fail-closed，无业务真源不渲染）', async () => {
     const prisma = {} as PrismaClient;
     expect(await SERVER_DOC_TEMPLATES.PO.loadData(prisma, { id: 'TD_1', type: 'PurchaseOrder', sourceRef: null })).toBeNull();
     expect(await SERVER_DOC_TEMPLATES.IR.loadData(prisma, { id: 'TD_2', type: 'InspectionReport', sourceRef: null })).toBeNull();
+  });
+});
+
+// ── B5 customs 域模板（CO / BL / INS）──
+
+function makeCustomsDocSet(overrides: Record<string, any> = {}) {
+  return {
+    shipment: {
+      id: 'SHP_1', shipmentNumber: 'SHP-2026-0001', status: 'Shipped',
+      shippingMethod: 'SEA', vesselOrFlight: 'MSC ANNA', voyageNumber: '023W',
+      portOfLoading: 'SHANGHAI', portOfDischarge: 'HAMBURG',
+      containerNumber: 'MSCU1234567', sealNumber: 'S1234',
+      bookingDate: '2026-08-01', etd: '2026-08-10', atd: '2026-08-11', eta: null,
+      totalPackages: 100, grossWeight: 1000, netWeight: 900, volume: 2.5,
+      notes: 'Handle with care', type: 'Sea', hsCode: null, customsDeclarationNumber: 'CD-1',
+    },
+    order: { id: 'ord_1', poNumber: 'CUS-PO-77', customer: 'ACME GmbH', currency: 'USD', deliveryTerms: 'CIF HAMBURG', paymentTerms: 'T/T', salesContractNumber: 'SC-1', finalContractNumber: null, invoiceNumber: 'INV-2026-001', invoiceDate: '2026-08-10' },
+    customs: { declarationNumber: 'CD-1', declarationDate: '2026-08-09', declarationPort: 'SHANGHAI', tradeTerms: 'CIF HAMBURG', totalValue: 20000, currency: 'USD', originCountry: 'CHINA', destinationCountry: 'GERMANY', consignee: 'ACME', consignor: 'BAMBOOK' },
+    parties: { customer: { name: 'ACME GmbH' }, consignee: { name: 'ACME GmbH', address: 'Hamburg, Germany' }, carrier: { name: 'MSC' } },
+    lines: [
+      { lineNumber: 1, description: 'Men Cotton Shirt', productCode: 'SHIRT-01', hsCode: '6205.20', quantity: 5000, unit: 'PCS', unitPrice: 4, amount: 20000, cartons: 100, grossWeight: 1000, netWeight: 900, volume: 2.5, originCountry: 'CHINA' },
+    ],
+    totals: { quantity: 5000, amount: 20000, cartons: 100, grossWeight: 1000, netWeight: 900, volume: 2.5, currency: 'USD' },
+    missing: [],
+    extras: {
+      originCriterion: 'P',
+      insurance: { insurer: 'PICC', insuredAmount: 22000, currency: 'USD', premium: null, premiumCurrency: null, coverage: 'ALL RISKS' },
+      letterOfCredit: { lcNumber: 'LC-2026-88', issueBank: 'Deutsche Bank', issueDate: '2026-07-01', applicant: 'ACME GmbH' },
+    },
+    ...overrides,
+  };
+}
+
+describe('B5 customs 域模板（CO / BL / INS，版本快照数据）', () => {
+  it('CO 原产地证：标题/出口商/运输路线/HS Code/声明/原产国', () => {
+    const html = renderCertificateOfOriginBody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain('CERTIFICATE OF ORIGIN');
+    expect(html).toContain('原产地证明书');
+    expect(html).toContain('BAMBOOK TRADING CO., LTD.');
+    expect(html).toContain('FROM SHANGHAI TO HAMBURG');
+    expect(html).toContain('6205.20');
+    expect(html).toContain('CHINA');
+    expect(html).toContain('中华人民共和国');
+    expect(html).toContain('Declaration by the Exporter 出口商声明');
+  });
+
+  it('BL 提单补料：CIF → FREIGHT PREPAID；柜号封号/唛头/合计/双签', () => {
+    const html = renderBillOfLadingBody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain('BILL OF LADING');
+    expect(html).toContain("Shipper's Draft / SI");
+    expect(html).toContain('FREIGHT PREPAID 运费预付'); // CIF 条款推断
+    expect(html).toContain('MSCU1234567');
+    expect(html).toContain('S1234');
+    expect(html).toContain('TOTAL 合计');
+    expect(html).toContain('SHIPPER\'S LOAD, COUNT AND SEAL');
+    expect(html).toContain('For the Carrier');
+  });
+
+  it('BL FOB → FREIGHT COLLECT（运费条款推断反向）', () => {
+    const data = makeCustomsDocSet();
+    data.order.deliveryTerms = 'FOB SHANGHAI';
+    data.customs.tradeTerms = 'FOB SHANGHAI';
+    const html = renderBillOfLadingBody(data as any, EXPORTER);
+    expect(html).toContain('FREIGHT COLLECT 运费到付');
+  });
+
+  it('INS 保险单：保额/险别/信用证引用/被保险人', () => {
+    const html = renderInsurancePolicyBody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain('INSURANCE POLICY / CERTIFICATE');
+    expect(html).toContain('货物运输保险单');
+    expect(html).toContain('22,000.00 USD'); // 保险金额（货值 110%）
+    expect(html).toContain('PICC');
+    expect(html).toContain('ALL RISKS');
+    expect(html).toContain('LC-2026-88');
+    expect(html).toContain('Deutsche Bank');
+    expect(html).toContain('Insured / Beneficiary 被保险人'); // 被保险人=出口商 beneficiary
+  });
+
+  it('INS extras 缺失 → 默认险别兜底不报错', () => {
+    const data = makeCustomsDocSet({ extras: {} });
+    const html = renderInsurancePolicyBody(data as any, EXPORTER);
+    expect(html).toContain('INSURANCE POLICY');
+    expect(html).toContain('ALL RISKS'); // 默认险别
   });
 });

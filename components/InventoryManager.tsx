@@ -33,6 +33,7 @@ import {
   Unlock,
   X,
   AlertTriangle,
+  FileDown,
   Warehouse as WarehouseIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -90,6 +91,25 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movementsByItem, setMovementsByItem] = useState<Record<string, StockMovement[]>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // B5 运营域报表：库存台账 Excel 导出（当前筛选全量）
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+
+  const handleExportXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    setError(null);
+    try {
+      await apiService.exportInventoryItemsXlsx({
+        ...(warehouseFilter ? { warehouseId: warehouseFilter } : {}),
+        ...(categoryFilter ? { category: categoryFilter } : {}),
+        ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+        ...(lowStockOnly ? { lowStockOnly: true } : {}),
+      });
+    } catch (e: any) {
+      setError(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
+    }
+  }, [warehouseFilter, categoryFilter, searchQuery, lowStockOnly]);
 
   // 创建仓库表单
   const [showWarehouseForm, setShowWarehouseForm] = useState(false);
@@ -330,6 +350,11 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode }) => {
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                 </div>
+                {/* B5 运营域报表：库存台账 Excel 导出（当前筛选全量） */}
+                <button onClick={() => void handleExportXlsx()} disabled={exportingXlsx} className="bds-btn bds-btn-secondary">
+                  {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                  <span>导出台账</span>
+                </button>
               </div>
 
               {/* 列表 */}

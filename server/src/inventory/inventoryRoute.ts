@@ -27,6 +27,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import {
   createInventoryService,
   WarehouseInput,
@@ -34,6 +35,11 @@ import {
   StockMovementInput,
   VALID_MOVEMENT_TYPES,
 } from './inventoryService';
+
+/** 库存类别 → 台账中文标签 */
+const INVENTORY_CATEGORY_LABEL: Record<string, string> = {
+  Fabric: '面料', Trimmings: '辅料', Accessories: '配件', Garment: '成衣', Other: '其他',
+};
 
 export interface InventoryRouterOptions {
   prisma: PrismaClient;
@@ -128,6 +134,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     if (!authenticate(req, res)) return;
     try {
       const { warehouseId, category, materialCode, search, lowStockOnly, limit, offset } = req.query;
+      const exportAll = req.query.format === 'xlsx';
       const result = await service.listInventoryItems({
         warehouseId: warehouseId as string | undefined,
         category: category as string | undefined,
@@ -136,7 +143,37 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
         lowStockOnly: lowStockOnly === 'true',
         limit: limit ? parseInt(limit as string, 10) : undefined,
         offset: offset ? parseInt(offset as string, 10) : undefined,
+        ...(exportAll ? { exportAll: true } : {}),
       });
+      if (exportAll) {
+        const sheet: XlsxSheet = {
+          name: '库存台账',
+          columnLabels: ['物料编码', '品名描述', '类别', '规格', '批次号', '库位', '仓库', '库存数量', '锁定数量', '可用数量', '单位', '单位成本', '币种', '最低库存', '最后入库', '最后出库', '备注'],
+          columns: ['materialCode', 'description', 'category', 'specification', 'batchNumber', 'locationCode', 'warehouseName', 'quantity', 'lockedQuantity', 'available', 'unit', 'unitCost', 'currency', 'minStock', 'lastInDate', 'lastOutDate', 'notes'],
+          rows: result.items.map((it: any) => ({
+            materialCode: it.materialCode ?? '',
+            description: it.description,
+            category: it.category ? INVENTORY_CATEGORY_LABEL[it.category] ?? it.category : '',
+            specification: it.specification ?? '',
+            batchNumber: it.batchNumber ?? '',
+            locationCode: it.locationCode ?? '',
+            warehouseName: it.warehouse?.name ?? '',
+            quantity: Number(it.quantity),
+            lockedQuantity: Number(it.lockedQuantity),
+            available: Number(it.quantity) - Number(it.lockedQuantity),
+            unit: it.unit,
+            unitCost: it.unitCost != null ? Number(it.unitCost) : null,
+            currency: it.currency,
+            minStock: it.minStock != null ? Number(it.minStock) : null,
+            lastInDate: it.lastInDate ?? '',
+            lastOutDate: it.lastOutDate ?? '',
+            notes: it.notes ?? '',
+          })),
+        };
+        const today = new Date().toISOString().slice(0, 10);
+        res.set(xlsxDownloadHeaders(`库存台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+        return;
+      }
       res.json(result);
     } catch (e: any) {
       logger.error('[InventoryRoute] GET items failed', { error: e?.message });
