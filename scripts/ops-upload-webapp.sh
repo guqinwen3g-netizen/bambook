@@ -104,17 +104,19 @@ MANIFEST_HTTP=$(curl --http1.1 -sS -m 30 -o "$MANIFEST_RESP" -w '%{http_code}' \
   -H "X-Bambook-Ops-Token: $OPS_TOKEN" \
   "$OPS_URL/api/admin/webapp-manifest?target=$DEPLOY_TARGET" 2>/dev/null || echo "000")
 if [[ "$MANIFEST_HTTP" == "200" ]] && command -v python3 >/dev/null 2>&1; then
-  # 远端清单一次性转成 "path<TAB>size" 行表（逐文件 grep 查，避免每文件起 python 进程）
-  MANIFEST_TABLE=$(python3 -c "
+  # 远端清单一次性转成 "path<TAB>size" 行表文件（awk 直读文件查表——避免每文件起 python 进程；
+  # 也避免 printf 大表管道喂 awk 早退触发 SIGPIPE：pipefail 下 141 会终止整个脚本）
+  MANIFEST_TABLE_FILE=$(mktemp)
+  python3 -c "
 import json
 try:
     m = json.load(open('$MANIFEST_RESP')).get('files', {})
     print('\n'.join('%s\t%d' % (k, v) for k, v in m.items()))
 except Exception:
     pass
-" 2>/dev/null || true)
+" > "$MANIFEST_TABLE_FILE" 2>/dev/null || true
   # 远端清单 → 逐文件排除（本地 dist 中同名且同 size 的文件视为未变，跳过打包）
-  # 注意：查表用 awk（无匹配返回 0）——grep 无匹配返回 1 会被 set -e 直接终止脚本
+  # 注意：查表用 awk 直读文件 + 无匹配返回空串（grep 无匹配返回 1 会被 set -e 终止脚本）
   DIFF_EXCLUDES_FILE=$(mktemp)
   SKIP_COUNT=0
   SKIP_BYTES=0
@@ -123,7 +125,7 @@ except Exception:
     TOTAL_COUNT=$((TOTAL_COUNT + 1))
     rel="${f#dist/}"
     [[ "$rel" == "index.html" ]] && continue  # 入口文件永不跳过
-    remote_size=$(printf '%s\n' "$MANIFEST_TABLE" | awk -F'\t' -v k="$rel" '$1==k{print $2; exit}')
+    remote_size=$(awk -F'\t' -v k="$rel" '$1==k{print $2; exit}' "$MANIFEST_TABLE_FILE")
     if [[ -n "$remote_size" ]]; then
       local_size=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f")
       if [[ "$local_size" == "$remote_size" ]]; then
@@ -142,7 +144,7 @@ except Exception:
   else
     echo "==> 增量模式：无已存在的远端文件（首次部署或全部变化），全量打包"
   fi
-  rm -f "$DIFF_EXCLUDES_FILE"
+  rm -f "$DIFF_EXCLUDES_FILE" "$MANIFEST_TABLE_FILE"
 else
   echo "==> 增量模式不可用（manifest HTTP $MANIFEST_HTTP），回退全量打包"
 fi
