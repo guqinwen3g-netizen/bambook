@@ -37,6 +37,7 @@ import type {
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
@@ -1336,26 +1337,12 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
     }
   };
 
-  // 发票预览弹窗（GET /:id/preview.html——与 render.pdf 同源渲染，所见即所得）
+  // 发票预览弹窗（GET /:id/preview.html——与 render.pdf 同源渲染，所见即所得）；
+  // 弹窗 UI 用全站共享组件 A4DocumentPreviewModal（B1 架构底座）
   const [previewingInvoice, setPreviewingInvoice] = useState<InvoiceEntity | null>(null);
   const [invoicePreviewHtml, setInvoicePreviewHtml] = useState<string | null>(null);
   const [invoicePreviewLoading, setInvoicePreviewLoading] = useState(false);
   const [invoicePreviewErr, setInvoicePreviewErr] = useState<string | null>(null);
-  // A4 纸张等比缩放：视窗宽 / 794px（96dpi 下 210mm），封顶 1（放大超出纸宽无意义）
-  const previewViewportRef = useRef<HTMLDivElement>(null);
-  const [previewScale, setPreviewScale] = useState(1);
-  useEffect(() => {
-    const el = previewViewportRef.current;
-    if (!el || !previewingInvoice) return;
-    const compute = () => {
-      // 视窗左右各留 24px 呼吸边
-      setPreviewScale(Math.min(1, Math.max(0.3, (el.clientWidth - 48) / 794)));
-    };
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [previewingInvoice, invoicePreviewLoading]);
 
   const handlePreviewInvoice = async (invoice: InvoiceEntity) => {
     setPreviewingInvoice(invoice);
@@ -2485,83 +2472,19 @@ const FinanceManager: React.FC<FinanceManagerProps> = ({
         </div>
       )}
 
-      {/* 发票预览弹窗——A4 纸张查看器：固定 210mm 纸宽，按视窗等比缩放（transform scale），
-          纸张比例恒定不随容器拉伸（与导出 PDF 尺寸一致）；iframe 渲染 GET /:id/preview.html 同源模板 */}
+      {/* 发票预览弹窗——全站共享 A4 纸张查看器（B1 架构底座）：
+          iframe 渲染 GET /:id/preview.html 同源模板，与导出 PDF 同源所见即所得 */}
       {previewingInvoice && (
-        <div className="bds-modal-mask" onClick={() => !invoicePreviewLoading && setPreviewingInvoice(null)}>
-          <div
-            className="bds-modal flex h-[92vh] max-h-[92vh] w-[min(68rem,94vw)] flex-col !p-0"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-c-default)] px-6 py-4">
-              <div className="min-w-0">
-                <h2 className={cx('truncate text-[13px] font-light tracking-[0.02em]', textPrimaryClass)}>
-                  发票预览 · {previewingInvoice.invoiceNumber}
-                </h2>
-                <div className={cx('mt-1 text-[10px] font-light', textSecondaryClass)}>
-                  A4 · 与导出 PDF 同源渲染，所见即所得
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  disabled={invoicePreviewLoading}
-                  onClick={() => handleExportInvoicePdf(previewingInvoice)}
-                  className="bds-btn bds-btn-primary"
-                >
-                  <Download size={14} strokeWidth={1.75} />
-                  导出 PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewingInvoice(null)}
-                  className="bds-btn bds-btn-secondary"
-                >
-                  关闭
-                </button>
-              </div>
-            </div>
-            <div
-              ref={previewViewportRef}
-              className="relative min-h-0 flex-1 overflow-auto rounded-b-[var(--r-modal)] bg-[var(--recessed-bg)]"
-            >
-              {invoicePreviewLoading ? (
-                <div className={cx('flex h-full items-center justify-center gap-2 text-xs font-light', textSecondaryClass)}>
-                  <Loader2 size={16} className="animate-spin" />
-                  正在生成预览...
-                </div>
-              ) : invoicePreviewErr ? (
-                <div className="flex h-full items-center justify-center p-4">
-                  <div className="bds-alert danger w-full">{invoicePreviewErr}</div>
-                </div>
-              ) : (
-                <div className="flex justify-center px-6 py-5">
-                  {/* A4 逻辑宽 794px（96dpi 下 210mm）；scale 由视窗宽等比计算，纸张比例恒定 */}
-                  <div style={{ width: 794 * previewScale, height: 0 }} aria-hidden />
-                  <div
-                    style={{
-                      width: 794,
-                      transform: `scale(${previewScale})`,
-                      transformOrigin: 'top center',
-                    }}
-                  >
-                    <iframe
-                      title={`发票预览 ${previewingInvoice.invoiceNumber}`}
-                      srcDoc={invoicePreviewHtml ?? ''}
-                      sandbox=""
-                      className="block border-0 bg-white"
-                      style={{ width: 794, height: Math.ceil(1123 / Math.max(previewScale, 0.01)) }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className={cx('flex shrink-0 items-center justify-between border-t border-[var(--border-c-default)] px-6 py-2.5 text-[10px] font-light', textSecondaryClass)}>
-              <span>A4 · 210 × 297 mm</span>
-              <span>{Math.round(previewScale * 100)}%</span>
-            </div>
-          </div>
-        </div>
+        <A4DocumentPreviewModal
+          title={`发票预览 · ${previewingInvoice.invoiceNumber}`}
+          subtitle="A4 · 与导出 PDF 同源渲染，所见即所得"
+          html={invoicePreviewHtml}
+          loading={invoicePreviewLoading}
+          error={invoicePreviewErr}
+          onClose={() => setPreviewingInvoice(null)}
+          onPrint={() => void handleExportInvoicePdf(previewingInvoice)}
+          printLabel="导出 PDF"
+        />
       )}
 
       {/* P0 invoice manual UI: 创建/编辑发票 modal */}

@@ -21,6 +21,7 @@ import { logger } from '../lib/logger';
 import { assembleDocumentSetData } from '../shipping/documentSetService';
 import { nextBusinessNumber } from '../shared/businessNumberService';
 import { renderHtmlToPdf } from '../templates/pdf';
+import { renderServerDocument } from '../templates/docTemplates/registry';
 import { renderInvoiceDocumentHtml } from '../finance/route';
 import type { TradeDocumentType } from './customsService';
 
@@ -345,15 +346,58 @@ export async function packTradeDocumentsByOrder(
  *  index.ts 静态服务 /api/uploads 的根；本文件在 server/src/customs/ 下需三级回溯） */
 const TRADE_DOC_UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../../uploads');
 
+/** TradeDocumentType → 服务端模板注册表 kind 映射（B1 起逐类迁移：PL 已服务端真源） */
+const TRADE_DOC_TYPE_TO_SERVER_KIND: Partial<Record<string, string>> = {
+  PackingList: 'PL',
+};
+
+/**
+ * 读取单据最新版本快照的 documentSet 装配数据（服务端模板渲染数据源）。
+ * 无快照（手工登记）或无 documentSet 返回 null。
+ */
+async function loadTradeDocumentSetData(prisma: PrismaClient, docId: string): Promise<any | null> {
+  const latest = await prisma.documentVersion.findFirst({
+    where: { documentId: docId },
+    orderBy: { version: 'desc' },
+    select: { content: true },
+  });
+  const ds = (latest?.content as Record<string, unknown> | null | undefined)?.documentSet;
+  return ds && typeof ds === 'object' ? ds : null;
+}
+
+/**
+ * 服务端渲染单据文档 HTML（统一入口，2026-08-22 B1 架构底座）：
+ *   - CI 带财务回链 → 财务真源模板（renderInvoiceDocumentHtml）
+ *   - 类型映射进服务端注册表（PL 等）→ docTemplates/registry 渲染（版本快照装配数据）
+ *   - 其余类型 → null（模板真源暂在前端，前端渲染 html 传入）
+ * screen=true → preview.html 预览模式（A4 纸张画布）。
+ */
+export async function renderTradeDocumentServerHtml(
+  prisma: PrismaClient,
+  doc: { id: string; type: string; sourceInvoiceId: string | null },
+  opts: { screen?: boolean } = {},
+): Promise<string | null> {
+  // CI 带财务回链 → 财务真源模板（screen 与财务 preview.html 同一份渲染）
+  if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
+    return renderInvoiceDocumentHtml(prisma, doc.sourceInvoiceId, opts);
+  }
+  // 服务端注册表类型（PL 等）
+  const kind = TRADE_DOC_TYPE_TO_SERVER_KIND[doc.type];
+  if (kind) {
+    const data = await loadTradeDocumentSetData(prisma, doc.id);
+    if (!data) return null;
+    return renderServerDocument(prisma, kind, data, opts);
+  }
+  return null;
+}
+
 /**
  * 生成单据文件 → 服务端 Puppeteer 转 PDF → 落盘 uploads/trade-documents/ →
  * 回写 TradeDocument.filePath/fileName。
  *
- * HTML 来源（按模板真源归属二选一）：
- *   - CI 带财务回链：服务端自渲染（finance renderInvoiceDocumentHtml，
- *     与财务导出 PDF 同一份——发票模板真源在服务端，前端无需传 html）
- *   - 其余类型：前端渲染的完整 HTML（模板真源在前端 EXPORT_DOC_RENDERERS，
- *     版本快照 + doc-* 基座样式）
+ * HTML 来源（按模板真源归属，2026-08-22 B1 起三级优先）：
+ *   1. 服务端模板（CI 财务回链 / 注册表类型 PL…）：服务端自渲染（忽略入参 html，防双源漂移）
+ *   2. 其余类型：前端渲染的完整 HTML（模板真源暂在前端 EXPORT_DOC_RENDERERS，B6 迁移收尾）
  *
  * 文件命名 `{documentNumber}-v{version}.pdf`：同版本重复生成覆盖（版本快照不变
  * 则文件理应一致，幂等）；跨版本各自留档，与版本留痕语义对齐。
@@ -369,11 +413,10 @@ export async function generateTradeDocumentFile(
   const doc = await prisma.tradeDocument.findFirst({ where: { id, deletedAt: null } });
   if (!doc) throw new Error(`贸易单据 ${id} 不存在`);
 
-  // CI 带财务回链 → 服务端真源模板自渲染（忽略入参 html，防模板双源漂移）
+  // 服务端模板优先（CI 财务回链 / 注册表 PL 等）——忽略入参 html 防双源漂移
   let renderHtml = html;
-  if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
-    renderHtml = (await renderInvoiceDocumentHtml(prisma, doc.sourceInvoiceId)) || '';
-  }
+  const serverHtml = await renderTradeDocumentServerHtml(prisma, doc);
+  if (serverHtml) renderHtml = serverHtml;
   if (!renderHtml || renderHtml.length < 50) throw new Error('无可渲染内容（版本快照缺失或 html 无效）');
   if (renderHtml.length > 2 * 1024 * 1024) throw new Error('渲染内容过大（>2MB），拒绝执行');
 

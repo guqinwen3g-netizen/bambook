@@ -34,6 +34,8 @@ import { createOutwardRemittance, deleteOutwardRemittance, getVoucherRemittanceS
 import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteVatInvoice, listVatInvoices, getVatInvoice } from './vatInvoiceService';
 import { getSystemConfigService } from '../config/systemConfigService';
 import { DEFAULT_EXPORTER_PROFILE, EXPORTER_PROFILE_CONFIG_KEY } from '../config/systemConfigRoute';
+import { agingToSheets, customerStatementToSheets, supplierStatementToSheets, fxGainLossToSheets, cashCalendarToSheets, consolidatedProfitToSheets } from './reportExportService';
+import { buildXlsx, xlsxDownloadHeaders } from '../templates/xlsxExport';
 
 /** 发票附件上传根目录（与静态服务根同源：BAMBOOK_UPLOAD_DIR 或 apps/Bambook/uploads——
  *  index.ts 静态服务 /api/uploads 的根；本文件在 server/src/finance/ 下需三级回溯） */
@@ -41,8 +43,9 @@ const FINANCE_UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname
 
 function ensureDir(p: string): void { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); }
 
-const money = (v: any, currency: string | null = '') => `${v == null ? '0.00' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ''}`;
-const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+// doc-* 打印基座与工具函数（2026-08-22 B1 架构底座：提取至 templates/docPrintBase.ts 共享，
+// 全站服务端单据模板统一真源——对账单/PO/QC 报告等后续模板同用此基座）
+import { DOC_PRINT_BASE_STYLES, esc, money } from '../templates/docPrintBase';
 
 /** 发票单据渲染上下文（loadInvoiceDoc 装配） */
 interface InvoiceDoc {
@@ -87,41 +90,10 @@ function amountInWords(amount: number, currency: string | null): string {
 }
 
 /**
- * 全站单据打印样式基座（2026-08-21 架构裁决：一份样式，所有单据）。
- * ⚠️ 双端同步纪律：与前端 components/tools/printDocument.ts BASE_PRINT_STYLES 同源副本，
- *    任一侧修改必须同步另一侧。发票/合同/装箱单/CI 全部单据统一此气质。
+ * 全站单据打印样式基座——已提取至 templates/docPrintBase.ts（2026-08-22 B1 架构底座）。
+ * 此处经顶部 import 引用 DOC_PRINT_BASE_STYLES；发票模板与后续对账单/PO/QC 报告
+ * 等服务端模板共用同一基座（一份样式，所有单据）。
  */
-const DOC_PRINT_BASE_STYLES = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #1a202c; background: #fff; padding: 40px; font-size: 12px; line-height: 1.6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1a202c; padding-bottom: 16px; margin-bottom: 24px; }
-  .doc-title-block h1 { font-size: 22px; font-weight: 600; letter-spacing: 0.5px; }
-  .doc-title-block .subtitle { font-size: 11px; color: #718096; margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
-  .doc-meta { text-align: right; font-size: 11px; color: #4a5568; line-height: 1.7; }
-  .doc-meta .doc-no { font-size: 13px; font-weight: 600; color: #1a202c; }
-  .doc-party-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-  .doc-party { font-size: 11px; }
-  .doc-party .label { font-size: 9px; text-transform: uppercase; color: #a0aec0; letter-spacing: 1px; margin-bottom: 4px; }
-  .doc-party .name { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
-  .doc-party .detail { color: #4a5568; line-height: 1.5; }
-  table.doc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
-  table.doc-table thead th { background: #f7fafc; color: #4a5568; font-weight: 600; text-align: left; padding: 8px 10px; border-bottom: 2px solid #cbd5e0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-  table.doc-table tbody td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #2d3748; }
-  table.doc-table tbody tr:nth-child(even) { background: #fafafa; }
-  table.doc-table tfoot td { padding: 10px; border-top: 2px solid #cbd5e0; font-weight: 600; text-align: right; }
-  .doc-section { margin-bottom: 20px; }
-  .doc-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #a0aec0; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
-  .doc-totals { margin-left: auto; width: 280px; font-size: 11px; }
-  .doc-totals .total-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e2e8f0; }
-  .doc-totals .total-row.grand { font-size: 14px; font-weight: 700; border-top: 2px solid #1a202c; border-bottom: none; padding-top: 10px; margin-top: 4px; }
-  .doc-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-  .doc-signature { font-size: 11px; }
-  .doc-signature .sig-label { color: #718096; margin-bottom: 24px; }
-  .doc-signature .sig-line { border-top: 1px solid #4a5568; padding-top: 4px; }
-  .doc-signature .sig-name { font-weight: 600; margin-top: 2px; }
-  .doc-notes { font-size: 10px; color: #718096; margin-top: 16px; line-height: 1.6; }
-  .doc-notes .notes-title { text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; color: #a0aec0; }
-`;
 
 /**
  * 发票单据模板——doc-* 基座体系（2026-08-21 统一裁决：与合同/装箱单/出运 CI 同一版式基因）。
@@ -392,13 +364,13 @@ async function loadInvoiceDoc(prisma: PrismaClient, id: string): Promise<Invoice
 }
 
 /**
- * 供单据中心 generate-file 复用：财务发票单据 HTML（CI 唯一真源模板，
- * 非 screen 裸文档——与 GET /:id/render.pdf 同一份渲染）。
- * 发票不存在/已删返回 null。
+ * 供单据中心 generate-file / preview 复用：财务发票单据 HTML（CI 唯一真源模板）。
+ * screen=true → A4 纸张画布预览模式（与 GET /:id/preview.html 同一份渲染）；
+ * 默认裸文档（与 GET /:id/render.pdf 同一份）。发票不存在/已删返回 null。
  */
-export async function renderInvoiceDocumentHtml(prisma: PrismaClient, invoiceId: string): Promise<string | null> {
+export async function renderInvoiceDocumentHtml(prisma: PrismaClient, invoiceId: string, opts: { screen?: boolean } = {}): Promise<string | null> {
   const doc = await loadInvoiceDoc(prisma, invoiceId);
-  return doc ? invoicePdfHtml(doc) : null;
+  return doc ? invoicePdfHtml(doc, opts) : null;
 }
 
 export interface FinanceRouterOptions {
@@ -1123,6 +1095,13 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   // ────────────────────────────────────────────────────────────────
 
   // GET /api/v1/finance/reports/aging?type=Receivable|Payable&asOf=YYYY-MM-DD
+  // 报表导出公用：format=xlsx → Excel 下载（2026-08-22 全系统文档体系——对内分析出 Excel）
+  const sendXlsx = (res: Response, fileName: string, sheets: Array<Parameters<typeof buildXlsx>[0][number]>): void => {
+    const buffer = buildXlsx(sheets);
+    for (const [k, v] of Object.entries(xlsxDownloadHeaders(fileName))) res.setHeader(k, v);
+    res.send(buffer);
+  };
+
   router.get('/reports/aging', async (req: Request, res: Response) => {
     try {
       const type = String(req.query.type ?? 'Receivable');
@@ -1130,6 +1109,9 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
         return res.status(400).json({ error: { code: 'INVALID_TYPE', message: 'type 必须为 Receivable 或 Payable' } });
       }
       const report = await getAgingReport(prisma, { type, asOf: req.query.asOf ? String(req.query.asOf) : undefined });
+      if (req.query.format === 'xlsx') {
+        return sendXlsx(res, `账龄分析_${report.type === 'Receivable' ? '应收' : '应付'}_${report.asOf}.xlsx`, agingToSheets(report));
+      }
       res.json(report);
     } catch (err: any) {
       logger.error('[finance] GET /reports/aging failed', { error: err?.message || String(err) });
@@ -1168,6 +1150,9 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
         from: req.query.from ? String(req.query.from) : undefined,
         to: req.query.to ? String(req.query.to) : undefined,
       });
+      if (req.query.format === 'xlsx') {
+        return sendXlsx(res, `供应商对账单_${report.supplierName ?? supplierRelationId}_${report.to ?? '全部'}.xlsx`, supplierStatementToSheets(report));
+      }
       res.json(report);
     } catch (err: any) {
       logger.error('[finance] GET /reports/supplier-statement failed', { error: err?.message || String(err) });
@@ -1210,6 +1195,9 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       const from = typeof req.query.from === 'string' && req.query.from.trim() ? req.query.from.trim() : undefined;
       const to = typeof req.query.to === 'string' && req.query.to.trim() ? req.query.to.trim() : undefined;
       const report = await getConsolidatedProfitReport(prisma, { from, to });
+      if (req.query.format === 'xlsx') {
+        return sendXlsx(res, `合并利润_${to ?? '全部'}.xlsx`, consolidatedProfitToSheets(report));
+      }
       res.json(report);
     } catch (err: any) {
       logger.error('[finance] GET /reports/consolidated-profit failed', { error: err?.message || String(err) });

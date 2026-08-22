@@ -54,6 +54,7 @@ import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { EXPORT_DOC_RENDERERS, ExportDocKind } from './tools/exportDocs/exportDocumentTemplates';
 import { buildFullPrintDocument, printFullHtmlDocument, printHtmlDocument } from './tools/printDocument';
+import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 
 // ==================== 常量 ====================
 
@@ -338,23 +339,10 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
     }
   }, []);
 
-  // A4 纸张等比缩放：视窗宽 / 794px（96dpi 下 210mm），封顶 1（与财务发票预览同算法）
-  const previewViewportRef = useRef<HTMLDivElement>(null);
-  const [previewScale, setPreviewScale] = useState(1);
-  useEffect(() => {
-    const el = previewViewportRef.current;
-    if (!el || !previewingDoc) return;
-    const compute = () => {
-      setPreviewScale(Math.min(1, Math.max(0.3, (el.clientWidth - 48) / 794)));
-    };
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [previewingDoc, previewLoading]);
+  // A4 预览弹窗：数据加载逻辑（弹窗 UI 用全站共享组件 A4DocumentPreviewModal——B1 架构底座）
 
   const printVersion = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
-    // CI 带财务回链 → 服务端同源模板打印（与预览/PDF 完全一致，单一真源不双渲染）
+    // 服务端模板类型（CI 财务回链）→ 服务端同源模板打印（与预览/PDF 完全一致，单一真源不双渲染）
     if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
       try {
         const html = await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId);
@@ -692,84 +680,18 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
         </div>
       </div>
 
-      {/* 单据预览弹窗——A4 纸张查看器（与财务发票预览同款）：固定 210mm 纸宽，
-          按视窗等比缩放（transform scale），纸张比例恒定不随容器拉伸；
+      {/* 单据预览弹窗——全站共享 A4 纸张查看器（B1 架构底座）：
           CI 带回链渲染服务端财务同源模板，其余走前端渲染器 + doc-* 基座 screen 画布 */}
       {previewingDoc && previewingVersion && (
-        <div className="bds-modal-mask" onClick={() => !previewLoading && setPreviewingDoc(null)}>
-          <div
-            className="bds-modal flex h-[92vh] max-h-[92vh] w-[min(68rem,94vw)] flex-col !p-0"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-c-default)] px-6 py-4">
-              <div className="min-w-0">
-                <h2 className="truncate text-[13px] font-light tracking-[0.02em] text-[var(--text-primary)]">
-                  单据预览 · {previewingDoc.documentNumber} v{previewingVersion.version}
-                </h2>
-                <div className="mt-1 text-[10px] font-light text-[var(--text-tertiary)]">
-                  A4 · {docTypeLabel(previewingDoc.type)} · 预览与生成文件 PDF 同源排版
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  disabled={previewLoading}
-                  onClick={() => void printVersion(previewingDoc, previewingVersion)}
-                  className="bds-btn bds-btn-primary"
-                >
-                  <Printer size={14} strokeWidth={1.75} />
-                  打印
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewingDoc(null)}
-                  className="bds-btn bds-btn-secondary"
-                >
-                  关闭
-                </button>
-              </div>
-            </div>
-            <div
-              ref={previewViewportRef}
-              className="relative min-h-0 flex-1 overflow-auto rounded-b-[var(--r-modal)] bg-[var(--recessed-bg)]"
-            >
-              {previewLoading ? (
-                <div className="flex h-full items-center justify-center gap-2 text-xs font-light text-[var(--text-secondary)]">
-                  <Loader2 size={16} className="animate-spin" />
-                  正在生成预览...
-                </div>
-              ) : previewErr ? (
-                <div className="flex h-full items-center justify-center p-4">
-                  <div className="bds-alert danger w-full">{previewErr}</div>
-                </div>
-              ) : (
-                <div className="flex justify-center px-6 py-5">
-                  {/* A4 逻辑宽 794px（96dpi 下 210mm）；scale 由视窗宽等比计算，纸张比例恒定 */}
-                  <div style={{ width: 794 * previewScale, height: 0 }} aria-hidden />
-                  <div
-                    style={{
-                      width: 794,
-                      transform: `scale(${previewScale})`,
-                      transformOrigin: 'top center',
-                    }}
-                  >
-                    <iframe
-                      title={`单据预览 ${previewingDoc.documentNumber}-v${previewingVersion.version}`}
-                      srcDoc={previewHtml ?? ''}
-                      sandbox=""
-                      className="block border-0 bg-white"
-                      style={{ width: 794, height: Math.ceil(1123 / Math.max(previewScale, 0.01)) }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center justify-between border-t border-[var(--border-c-default)] px-6 py-2.5 text-[10px] font-light text-[var(--text-secondary)]">
-              <span>A4 · 210 × 297 mm</span>
-              <span>{Math.round(previewScale * 100)}%</span>
-            </div>
-          </div>
-        </div>
+        <A4DocumentPreviewModal
+          title={`单据预览 · ${previewingDoc.documentNumber} v${previewingVersion.version}`}
+          subtitle={`A4 · ${docTypeLabel(previewingDoc.type)} · 预览与生成文件 PDF 同源排版`}
+          html={previewHtml}
+          loading={previewLoading}
+          error={previewErr}
+          onClose={() => setPreviewingDoc(null)}
+          onPrint={() => void printVersion(previewingDoc, previewingVersion)}
+        />
       )}
 
       {/* 创建/编辑弹窗 */}

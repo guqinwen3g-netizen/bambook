@@ -4269,6 +4269,11 @@ export type LetterOfCreditStatus = 'Issued' | 'Presented' | 'Accepted' | 'Discre
 export type TaxRefundStatus = 'Draft' | 'Submitted' | 'Reviewing' | 'Approved' | 'Rejected' | 'Refunded' | 'Cancelled';
 export type TradeDocumentType = 'CommercialInvoice' | 'PackingList' | 'CertificateOfOrigin' | 'BillOfLading' | 'AirWaybill' | 'InsuranceCert' | 'InspectionCert' | 'PhytosanitaryCert' | 'Other';
 export type TradeDocumentStatus = 'Draft' | 'Issued' | 'Submitted' | 'Accepted' | 'Rejected' | 'Cancelled';
+/**
+ * 单据业务域（2026-08-22 全系统单据枢纽裁决）：单据中心从贸易单据台账升级为
+ * 全系统文件枢纽——各业务域单据就地生成后统一登记归档，domain 决定编号前缀与状态机。
+ */
+export type TradeDocumentDomain = 'customs' | 'procurement' | 'qc' | 'contract' | 'finance';
 
 // ── 报关单 CustomsDeclaration ──
 
@@ -4547,6 +4552,8 @@ export interface TaxRefundReviewInput {
 export interface TradeDocument {
   id: string;
   documentNumber: string;
+  /** 业务域（全系统单据枢纽：customs/procurement/qc/contract/finance，决定编号前缀与状态机） */
+  domain?: TradeDocumentDomain | string;
   type: TradeDocumentType;
   status: TradeDocumentStatus;
   shipmentId?: string | null;

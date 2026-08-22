@@ -358,7 +358,8 @@ describe('generateTradeDocumentFile', () => {
       version: 2,
       actorId: 'user_1',
     });
-    expect(invoiceHtmlMock).toHaveBeenCalledWith(prisma, 'INV_9');
+    // B1 起 renderInvoiceDocumentHtml 带 opts 参数（generate 路径 = {} 非 screen；preview.html = { screen: true }）
+    expect(invoiceHtmlMock).toHaveBeenCalledWith(prisma, 'INV_9', {});
     expect(pdfMock).toHaveBeenCalledWith(
       '<!doctype html><html>COMMERCIAL INVOICE FROM FINANCE</html>',
       { format: 'A4' },

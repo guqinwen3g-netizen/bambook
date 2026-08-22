@@ -74,7 +74,7 @@ import {
   TradeDocumentType,
 } from './customsService';
 import { createDocumentTemplateService } from './documentTemplateService';
-import { generateTradeDocumentsFromShipment, generateTradeDocumentFile, packTradeDocumentsByOrder } from './tradeDocumentLifecycleService';
+import { generateTradeDocumentsFromShipment, generateTradeDocumentFile, packTradeDocumentsByOrder, renderTradeDocumentServerHtml } from './tradeDocumentLifecycleService';
 
 export interface CustomsRouterOptions {
   prisma: PrismaClient;
@@ -562,7 +562,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     }
   });
 
-  // 一键生成文件：版本快照渲染 HTML（前端模板真源；CI 带回链走财务 preview.html 同源模板）
+  // 一键生成文件：服务端模板优先（CI 财务回链/注册表 PL 等），其余前端渲染 HTML 传入
   // → 服务端 Puppeteer 转 PDF 落盘 uploads/trade-documents/ → 回写 filePath/fileName
   router.post('/trade-documents/:id/generate-file', requireWrite, async (req: Request, res: Response) => {
     try {
@@ -578,6 +578,23 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[CustomsRoute] POST trade-documents generate-file failed', { error: e?.message });
       res.status(errStatus(e?.message ?? '')).json({ error: e?.message || 'failed to generate trade-document file' });
+    }
+  });
+
+  // 单据服务端预览（2026-08-22 B1 架构底座）：服务端模板类型（CI 财务回链 / PL 注册表）
+  // 返回 screen 模式 A4 纸张画布 HTML（与 generate-file PDF 同源渲染，所见即所得）；
+  // 其余类型（模板真源暂在前端）返回 501——前端走本地渲染器
+  router.get('/trade-documents/:id/preview.html', async (req: Request, res: Response) => {
+    try {
+      const doc = await prisma.tradeDocument.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!doc) return res.status(404).json({ error: `贸易单据 ${req.params.id} 不存在` });
+      const html = await renderTradeDocumentServerHtml(prisma, doc, { screen: true });
+      if (!html) return res.status(501).json({ error: 'SERVER_TEMPLATE_NOT_AVAILABLE', message: '该单据类型暂无服务端模板（前端本地渲染）' });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] GET trade-documents preview.html failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to preview trade-document' });
     }
   });
 
