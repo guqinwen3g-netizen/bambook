@@ -888,6 +888,10 @@ function productAssetInclude() {
 
 function serializeBigInts<T>(value: T): T {
   if (typeof value === 'bigint') return Number(value) as T;
+  // Prisma Decimal 是带 s/e/d 的 object，直接 JSON 化会变成 {s,e,d} 结构——
+  // 前端 String(percentage) 会得到 "[object Object]"（成分合计 NaN → 保存按钮禁用）。
+  // 统一转 number（与 finance 序列化口径一致）。
+  if (value instanceof Prisma.Decimal) return Number(value) as T;
   if (Array.isArray(value)) return value.map(serializeBigInts) as T;
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as QRCode from 'qrcode';
 import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory } from '../types';
@@ -659,6 +660,19 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const [deleteProdId, setDeleteProdId] = useState<string | null>(null);
   const [showOptionsSheet, setShowOptionsSheet] = useState<ProductAsset | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProductAsset | null>(null);
+  // 详情相册：当前主图 index（selectedProduct 切换时重置为 0=主图）
+  const [detailImageIndex, setDetailImageIndex] = useState(0);
+  // 灯箱：点击主图全屏放大查看（ESC / 遮罩点击关闭，左右箭头翻看与相册同一 index）
+  const [detailLightboxOpen, setDetailLightboxOpen] = useState(false);
+  useEffect(() => { setDetailImageIndex(0); setDetailLightboxOpen(false); }, [selectedProduct?.id]);
+  useEffect(() => {
+    if (!detailLightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDetailLightboxOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detailLightboxOpen]);
   const [pdmlRawFabrics, setPdmlRawFabrics] = useState<PdmlRawFabric[]>([]);
   const [pdmlRawLoading, setPdmlRawLoading] = useState(false);
   const [pdmlRawSyncing, setPdmlRawSyncing] = useState(false);
@@ -893,7 +907,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       (editingProd?.compositionLines || []).length > 0
         ? (editingProd?.compositionLines || []).map((line, index) => ({
           id: line.id || `composition-${index}`,
-          percentage: line.percentage ? String(line.percentage) : '',
+          // 防御旧缓存里的 Prisma Decimal 对象形态 {s,e,d}（直接 String 会得到 "[object Object]"）
+          percentage: normalizeDecimalLike(line.percentage) != null ? String(normalizeDecimalLike(line.percentage)) : '',
           abbreviation: line.term?.abbreviation || '',
           chineseName: line.term?.chineseName || line.termId || '',
           englishName: line.term?.englishName || '',
@@ -1516,9 +1531,28 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     .map(item => item.trim())
     .filter(Boolean);
 
+  /**
+   * 数字或 Prisma Decimal 序列化形态 {s,e,d}（符号×尾数数字数组×10^指数）→ number；
+   * 无法解析返回 null。旧缓存/旧接口响应可能出现 Decimal 对象形态，直接 String 会
+   * 得到 "[object Object]"（成分合计 NaN → 保存按钮禁用的历史根因）。
+   */
+  const normalizeDecimalLike = (value: unknown): number | null => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value === 'string' && value.trim() !== '') {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+    if (value && typeof value === 'object' && Array.isArray((value as any).d)) {
+      const { s, e, d } = value as { s?: number; e?: number; d: number[] };
+      const n = Number(`${s === -1 ? '-' : ''}${d.join('')}e${(e ?? 0) - d.length + 1}`);
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
+
   const compositionText = (product?: ProductAsset | null) => {
     return (product?.compositionLines || [])
-      .map(line => `${line.percentage}% ${line.term?.chineseName || line.term?.englishName || line.termId}`)
+      .map(line => `${normalizeDecimalLike(line.percentage) ?? line.percentage}% ${line.term?.chineseName || line.term?.englishName || line.termId}`)
       .join(' + ');
   };
 
@@ -2710,7 +2744,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               >
               <button
                 onClick={() => {
-                  if (navLevel === 'list') {
+                  if (navLevel === 'detail') {
+                    // 详情返回列表层（清 selectedProduct，防 navLevel 残留 'detail' 渲染空白页）
+                    setNavLevel('list');
+                    setSelectedProduct(null);
+                  } else if (navLevel === 'list') {
                     setNavLevel('sub');
                     setSelectedSubId(id => (id === ALL_PRODUCTS_CATEGORY_ID ? null : id));
                   } else {
@@ -3380,7 +3418,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               <div className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${BAMBOOK_OS.tone.divider.panel}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <button
-                    onClick={() => setSelectedProduct(null)}
+                    onClick={() => { setNavLevel('list'); setSelectedProduct(null); }}
                     className={`shrink-0 w-8 h-8 rounded-control flex items-center justify-center transition-colors ${'text-[var(--text-secondary)] hover:bg-[var(--recessed-bg-hover)]'}`}
                   >
                     <ChevronLeft size={18} strokeWidth={1.5} />
@@ -3425,12 +3463,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
               >
                 <div className="max-w-[720px] mx-auto space-y-6">
                   
-                  {/* 图片相册区域 (Image Gallery) */}
+                  {/* 图片相册区域 (Image Gallery)：主图 + 左右翻看 + 缩略图条 */}
                   {(() => {
                     const displayImages = getDisplayImages(selectedProduct);
                     if (displayImages.length === 0) {
                       return (
-                        <div className="w-full flex gap-3 pb-4">
+                        <div className="w-full pb-4">
                           <div className={`w-[20rem] h-[20rem] sm:w-[22.5rem] sm:h-[22.5rem] rounded-card border border-dashed flex flex-col items-center justify-center gap-4 border-[var(--border-c-subtle)] text-[var(--text-tertiary)] bg-[var(--recessed-bg)]`}>
                             <ImageIcon size={24} strokeWidth={1.5} />
                             <div className="text-sm font-light tracking-wide">暂无产品图片</div>
@@ -3438,16 +3476,74 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                         </div>
                       );
                     }
+                    const safeIndex = Math.min(detailImageIndex, displayImages.length - 1);
+                    const currentSrc = getProductImageSrc(displayImages[safeIndex]);
                     return (
-                      <div className="w-full flex gap-4 overflow-x-auto pb-6 snap-x hide-scrollbar">
-                        {displayImages.map((img, idx) => {
-                          const src = getProductImageSrc(img);
-                          return (
-                            <div key={img.id} className={`shrink-0 snap-start ${idx === 0 ? 'w-[20rem] h-[20rem] sm:w-[22.5rem] sm:h-[22.5rem]' : 'w-[12.5rem] h-[12.5rem] mt-auto'} rounded-card overflow-hidden border shadow-none border-[var(--border-c-subtle)] ${OS_MATERIAL.insetSurface}`}>
-                              {src && <img src={src} className="w-full h-full object-cover transition-transform hover:scale-105 duration-300" alt={img.fileName || 'Product Image'} />}
+                      <div className="w-full pb-4">
+                        {/* 主图舞台：白底 inset 承载 object-contain 图像，点击进灯箱大图，左右箭头翻看 */}
+                        <div className={`relative w-full h-[20rem] sm:h-[22.5rem] rounded-card overflow-hidden border border-[var(--border-c-subtle)] ${OS_MATERIAL.insetSurface} bg-white`}>
+                          {currentSrc && (
+                            <button
+                              type="button"
+                              onClick={() => setDetailLightboxOpen(true)}
+                              title="点击查看大图"
+                              className="h-full w-full cursor-zoom-in"
+                            >
+                              <img
+                                src={currentSrc}
+                                className="w-full h-full object-contain select-none"
+                                draggable={false}
+                                alt={displayImages[safeIndex].fileName || 'Product Image'}
+                              />
+                            </button>
+                          )}
+                          {/* 计数指示 */}
+                          {displayImages.length > 1 && (
+                            <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-light tabular-nums text-[var(--text-secondary)] bg-[var(--recessed-bg)]/90 backdrop-blur-sm">
+                              {safeIndex + 1} / {displayImages.length}
                             </div>
-                          );
-                        })}
+                          )}
+                          {/* 左右翻看箭头（多图时显示；半透明玻璃底悬浮） */}
+                          {displayImages.length > 1 && safeIndex > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setDetailImageIndex(safeIndex - 1)}
+                              aria-label="上一张"
+                              className={`absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-c-subtle)] text-[var(--text-secondary)] bg-[var(--recessed-bg)]/90 backdrop-blur-sm transition-all hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]`}
+                            >
+                              <ChevronLeft size={16} strokeWidth={1.75} />
+                            </button>
+                          )}
+                          {displayImages.length > 1 && safeIndex < displayImages.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setDetailImageIndex(safeIndex + 1)}
+                              aria-label="下一张"
+                              className={`absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-c-subtle)] text-[var(--text-secondary)] bg-[var(--recessed-bg)]/90 backdrop-blur-sm transition-all hover:bg-[var(--hover-darken)] hover:text-[var(--text-primary)]`}
+                            >
+                              <ChevronRight size={16} strokeWidth={1.75} />
+                            </button>
+                          )}
+                        </div>
+                        {/* 缩略图条：点击切换主图，当前选中 brand 描边 */}
+                        {displayImages.length > 1 && (
+                          <div className="mt-3 flex gap-2.5 overflow-x-auto hide-scrollbar pb-1">
+                            {displayImages.map((img, idx) => {
+                              const src = getProductImageSrc(img);
+                              return (
+                                <button
+                                  key={img.id}
+                                  type="button"
+                                  onClick={() => setDetailImageIndex(idx)}
+                                  aria-label={`查看第 ${idx + 1} 张`}
+                                  className={`shrink-0 h-[4.5rem] w-[4.5rem] rounded-control overflow-hidden border transition-all ${idx === safeIndex ? 'border-[var(--os-vnext-brand-blue)] shadow-none' : 'border-[var(--border-c-subtle)] opacity-70 hover:opacity-100'}`}
+                                >
+                                  {src && <img src={src} className="h-full w-full object-cover" alt={img.fileName || `缩略图 ${idx + 1}`} draggable={false} />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -4271,6 +4367,64 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           </div>
         </div>
       )}
+
+      {/* 灯箱大图（Portal 挂 document.body）：详情面板祖先链有 transform/backdrop-filter，
+          fixed 定位会被 CSS 规范钳制到该容器内（铺满容器而非全屏）——Portal 脱离祖先链才是真全屏。
+          深遮罩 token（--lightbox-bg）+ 居中大图 + 左右翻看（与相册共用 index）+ ESC/遮罩关闭 */}
+      {selectedProduct && detailLightboxOpen && (() => {
+        const displayImages = getDisplayImages(selectedProduct);
+        if (displayImages.length === 0) return null;
+        const safeIndex = Math.min(detailImageIndex, displayImages.length - 1);
+        const currentSrc = getProductImageSrc(displayImages[safeIndex]);
+        return createPortal(
+          <div
+            className="fixed inset-0 z-[300] flex items-center justify-center"
+            style={{ background: 'var(--lightbox-bg)' }}
+            onClick={() => setDetailLightboxOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setDetailLightboxOpen(false)}
+              aria-label="关闭大图"
+              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--lightbox-chip-border)] text-[var(--lightbox-fg)] bg-[var(--lightbox-chip-bg)] backdrop-blur-sm transition-colors hover:bg-[var(--lightbox-chip-bg-hover)] hover:text-[var(--lightbox-fg-hover)]"
+            >
+              <X size={18} strokeWidth={1.75} />
+            </button>
+            <div className="absolute left-1/2 top-5 -translate-x-1/2 text-[11px] font-light tracking-wide text-[var(--lightbox-fg-muted)] tabular-nums">
+              {safeIndex + 1} / {displayImages.length}
+              {displayImages[safeIndex].fileName ? ` · ${displayImages[safeIndex].fileName}` : ''}
+            </div>
+            {displayImages.length > 1 && safeIndex > 0 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setDetailImageIndex(safeIndex - 1); }}
+                aria-label="上一张"
+                className="absolute left-5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--lightbox-chip-border)] text-[var(--lightbox-fg)] bg-[var(--lightbox-chip-bg)] backdrop-blur-sm transition-colors hover:bg-[var(--lightbox-chip-bg-hover)] hover:text-[var(--lightbox-fg-hover)]"
+              >
+                <ChevronLeft size={20} strokeWidth={1.75} />
+              </button>
+            )}
+            <img
+              src={currentSrc}
+              className="max-h-[86vh] max-w-[92vw] object-contain select-none"
+              draggable={false}
+              alt={displayImages[safeIndex].fileName || 'Product Image'}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {displayImages.length > 1 && safeIndex < displayImages.length - 1 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setDetailImageIndex(safeIndex + 1); }}
+                aria-label="下一张"
+                className="absolute right-5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--lightbox-chip-border)] text-[var(--lightbox-fg)] bg-[var(--lightbox-chip-bg)] backdrop-blur-sm transition-colors hover:bg-[var(--lightbox-chip-bg-hover)] hover:text-[var(--lightbox-fg-hover)]"
+              >
+                <ChevronRight size={20} strokeWidth={1.75} />
+              </button>
+            )}
+          </div>,
+          document.body,
+        );
+      })()}
 
     </div>
   );

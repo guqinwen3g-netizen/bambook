@@ -212,6 +212,14 @@
   /* ═══════════ 7. 浮层/纹理通用材质 ═══════════ */
   --skeleton-shine: rgba(255,255,255,0.45);
   --mask-bg: rgba(11,12,11,0.30);    /* 全系统唯一遮罩入口（modal/cmdk 共用） */
+  /* 灯箱（媒体查看器）：遮罩恒定深色不随主题切换——前景/控件底纹固定白系（light/dark 同值） */
+  --lightbox-bg: rgba(4,6,8,0.86);
+  --lightbox-fg: rgba(255,255,255,0.8);
+  --lightbox-fg-muted: rgba(255,255,255,0.7);
+  --lightbox-fg-hover: #ffffff;
+  --lightbox-chip-bg: rgba(255,255,255,0.1);
+  --lightbox-chip-border: rgba(255,255,255,0.2);
+  --lightbox-chip-bg-hover: rgba(255,255,255,0.2);
   --dz-line: rgba(0,0,0,0.14);       /* dropzone 虚线框 */
 
   /* ═══════════ 8. 圆角 — 同心层级刻度 · 11 档 5 层（v2.2 实战校准） ═══════════
@@ -604,6 +612,13 @@
   /* 浮层材质暗色适配 */
   --skeleton-shine: rgba(255,255,255,0.08);
   --mask-bg: rgba(6,10,13,0.55);
+  --lightbox-bg: rgba(4,6,8,0.86);
+  --lightbox-fg: rgba(255,255,255,0.8);
+  --lightbox-fg-muted: rgba(255,255,255,0.7);
+  --lightbox-fg-hover: #ffffff;
+  --lightbox-chip-bg: rgba(255,255,255,0.1);
+  --lightbox-chip-border: rgba(255,255,255,0.2);
+  --lightbox-chip-bg-hover: rgba(255,255,255,0.2);
   --dz-line: rgba(255,255,255,0.24);
 
   /* 页面氛围暗色适配：深夜雾池（雾蓝/雾青/紫藤在深底上弥散，浓度可感知） */
