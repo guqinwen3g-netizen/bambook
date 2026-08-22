@@ -511,7 +511,9 @@ describe('主链 E2E [step 10]: 信用占用 + 客户详情联动', () => {
     expect(DETAIL_PANEL).toContain("import { FinanceCreditPanel } from '../finance/FinanceCreditPanel'");
     expect(DETAIL_PANEL).toContain('信用控制 Credit Control');
     expect(DETAIL_PANEL).toContain('customerId={data.id}');
-    expect(DETAIL_PANEL).toContain("data.category === 'Customer' || data.type === 'Customer'");
+    // 分类感知配置裁决信用面板可见性（Customer 专属）；type='Customer' 为旧数据兼容兜底
+    expect(DETAIL_PANEL).toContain("categoryConfig.creditControl || data.type === 'Customer'");
+    expect(DETAIL_PANEL).toContain('RELATION_CATEGORY_DETAIL_CONFIG');
   });
 
   it('FinanceManager 接线：独立信用 tab 与内嵌模式并存（非受控回退不破坏）', () => {

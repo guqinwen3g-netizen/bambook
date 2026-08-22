@@ -1619,10 +1619,12 @@ describe('RelationsManager 验收补充：排序全模式与搜索/更新路径'
     expect(saveSource).toContain("category: formData.get('category') as RelationCategory");
     expect(saveSource).toContain("rating: Number(formData.get('rating') || editingItem?.rating || 3)");
     expect(saveSource).toContain("tags: formData.getAll('tags').map(value => String(value).trim()).filter(Boolean)");
-    // 组织分支：五段式（基础/联系/地址/财务/备注）
+    // 组织分支：五段式（基础/联系/地址/财务/备注）——财务字段分类感知兜底
+    // （Government/Internal 表单隐藏财务区，保存保留旧值不清空）
     expect(saveSource).toContain('...(isOrg ? {');
-    expect(saveSource).toContain("paymentTerms: formData.get('paymentTerms') as string || undefined");
-    expect(saveSource).toContain("creditLimit: formData.get('creditLimit') ? Number(formData.get('creditLimit')) : undefined");
+    expect(saveSource).toContain("paymentTerms: formData.get('paymentTerms') as string || financeFallback('paymentTerms')");
+    expect(saveSource).toContain("creditLimit: formData.get('creditLimit') ? Number(formData.get('creditLimit')) : financeFallback('creditLimit')");
+    expect(saveSource).toContain('const financeFallback =');
     expect(saveSource).toContain('shipToAddresses: shipToAddressesFromRows()');
     expect(saveSource).toContain('backupContacts: backupContactsFromRows()');
     // 联系人分支：个人信息/联系方式

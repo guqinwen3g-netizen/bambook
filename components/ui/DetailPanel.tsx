@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Relation, FollowUpRecord, BrandLine, CommunicationLog, CommunicationType } from '../../types';
+import { Relation, RelationCategory, FollowUpRecord, BrandLine, CommunicationLog, CommunicationType } from '../../types';
 import { apiService } from '../../services/apiService';
 import {
     Building2, User, Globe, Mail, Phone, MapPin,
@@ -39,6 +39,35 @@ interface DetailPanelProps {
     /** 跨模块导航（关联业务入口 → 目标模块自动筛选为该档案数据） */
     onNavigate?: (view: import('../../types').View) => void;
 }
+
+// ═══ 分类感知详情布局（2026-08-22 全览评审裁决）═══
+// 不同类别的组织只看自己语义正确的区块——政府机构没有付款条款/信用额度，
+// 供应商没有品牌线（PRD 6.2 品牌线为客户 360° 专属），代理商/伙伴不是
+// 销售漏斗对象。详情页与新建/编辑表单（RelationsManager）共用此配置。
+export interface RelationCategoryDetailConfig {
+    /** 财务信息区块（付款条款/币种/税号/信用额度）——商业交易对手才有 */
+    finance: boolean;
+    /** CRM 通用区块（联系人名片 + 跟进管理）——有业务往来的对象都适用 */
+    crmCore: boolean;
+    /** CRM 销售漏斗区块（商机/信用额度/客户分层）——客户专属 */
+    crmSales: boolean;
+    /** 品牌线（客户 360° 品牌档案，PRD 6.2）——客户专属 */
+    brandLines: boolean;
+    /** 信用控制面板（Track F 额度/冻结门禁）——客户专属 */
+    creditControl: boolean;
+    /** 关联业务跳转角色：按供需语义筛目标模块数据；null = 不显示入口 */
+    workspaceRole: 'customer' | 'supplier' | null;
+}
+
+export const RELATION_CATEGORY_DETAIL_CONFIG: Record<RelationCategory, RelationCategoryDetailConfig> = {
+    Customer:   { finance: true,  crmCore: true,  crmSales: true,  brandLines: true,  creditControl: true,  workspaceRole: 'customer' },
+    Supplier:   { finance: true,  crmCore: true,  crmSales: false, brandLines: false, creditControl: false, workspaceRole: 'supplier' },
+    Agent:      { finance: true,  crmCore: true,  crmSales: false, brandLines: false, creditControl: false, workspaceRole: null },
+    Partner:    { finance: true,  crmCore: true,  crmSales: false, brandLines: false, creditControl: false, workspaceRole: null },
+    Government: { finance: false, crmCore: false, crmSales: false, brandLines: false, creditControl: false, workspaceRole: null },
+    Internal:   { finance: false, crmCore: true,  crmSales: false, brandLines: false, creditControl: false, workspaceRole: null },
+    Other:      { finance: true,  crmCore: true,  crmSales: false, brandLines: false, creditControl: false, workspaceRole: null },
+};
 
 // 信息项组件
 const InfoItem: React.FC<{
@@ -173,16 +202,17 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
         return () => { cancelled = true; };
     }, [data.id]);
 
-    // 品牌线：仅组织布局拉取（PRD 6.2，客户 360° 品牌线档案）
+    // 品牌线：仅组织布局且分类配置开启时拉取（PRD 6.2 客户 360° 品牌线档案——
+    // 供应商/政府等无品牌线语义，不渲染也不发请求）
     useEffect(() => {
-        if (!isOrg) return;
+        if (!isOrg || !RELATION_CATEGORY_DETAIL_CONFIG[data.category]?.brandLines) return;
         let cancelled = false;
         setBrandLines(null);
         apiService.listBrandLines(data.id)
             .then(items => { if (!cancelled) setBrandLines(items); })
             .catch(() => { if (!cancelled) setBrandLines([]); });
         return () => { cancelled = true; };
-    }, [data.id, isOrg]);
+    }, [data.id, isOrg, data.category]);
 
     // 沟通日志：relation 级全渠道流水（PRD 12.3），组织/联系人布局共用
     useEffect(() => {
@@ -428,17 +458,24 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
         <p className="text-xs text-os-adaptive-danger">{p3bError}</p>
     ) : null;
 
+    // 分类感知布局配置（2026-08-22 全览评审：不同类别只看语义正确的区块）
+    const categoryConfig = RELATION_CATEGORY_DETAIL_CONFIG[data.category] ?? RELATION_CATEGORY_DETAIL_CONFIG.Other;
+
     // 跨模块关联（产品化 Links）：
     //   组织 → 关联业务导航枢纽（点击跳目标模块并自动筛选为该客户/供应商的数据）；
-    //   联系人 → 保留图谱关联视图（联系人的业务踪迹经组织聚合，导航入口在组织侧）
+    //   联系人 → 保留图谱关联视图（联系人的业务踪迹经组织聚合，导航入口在组织侧）。
+    //   workspaceRole=null（代理商/伙伴/政府/内部）无供需语义——不显示跳转入口，
+    //   避免按错误角色（此前一律按 customer）筛选目标模块数据。
     const relatedEntitiesSection = isOrg ? (
-        <RelatedWorkspacesSection
-            relationId={data.id}
-            relationName={data.chineseName || data.englishName || data.name}
-            relationRole={data.category === 'Supplier' ? 'supplier' : 'customer'}
-            onNavigate={onNavigate}
-            isDarkMode={isDarkMode}
-        />
+        categoryConfig.workspaceRole ? (
+            <RelatedWorkspacesSection
+                relationId={data.id}
+                relationName={data.chineseName || data.englishName || data.name}
+                relationRole={categoryConfig.workspaceRole}
+                onNavigate={onNavigate}
+                isDarkMode={isDarkMode}
+            />
+        ) : null
     ) : (
         <RelatedEntitiesPanel
             type="relation.contact"
@@ -603,21 +640,23 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             )}
                         </InfoSection>
 
-                        {/* 财务信息 */}
-                        <InfoSection title="财务信息" icon={<DollarSign size={14} />} isDarkMode={isDarkMode}>
-                            <InfoItem icon={<CreditCard size={14} />} label="付款条款" value={data.paymentTerms} isDarkMode={isDarkMode} />
-                            <InfoItem icon={<Banknote size={14} />} label="付款偏好" value={data.paymentPreference} isDarkMode={isDarkMode} />
-                            <InfoItem icon={<DollarSign size={14} />} label="交易币种" value={data.currency} isDarkMode={isDarkMode} />
-                            <InfoItem icon={<Hash size={14} />} label="税号" value={data.taxId} isDarkMode={isDarkMode} />
-                            {data.creditLimit !== undefined && data.creditLimit > 0 && (
-                                <InfoItem
-                                    icon={<CreditCard size={14} />}
-                                    label="信用额度"
-                                    value={`$${data.creditLimit.toLocaleString()}`}
-                                    isDarkMode={isDarkMode}
-                                />
-                            )}
-                        </InfoSection>
+                        {/* 财务信息（分类感知：商业交易对手专属——政府机构/内部组织无付款条款语义） */}
+                        {categoryConfig.finance && (
+                            <InfoSection title="财务信息" icon={<DollarSign size={14} />} isDarkMode={isDarkMode}>
+                                <InfoItem icon={<CreditCard size={14} />} label="付款条款" value={data.paymentTerms} isDarkMode={isDarkMode} />
+                                <InfoItem icon={<Banknote size={14} />} label="付款偏好" value={data.paymentPreference} isDarkMode={isDarkMode} />
+                                <InfoItem icon={<DollarSign size={14} />} label="交易币种" value={data.currency} isDarkMode={isDarkMode} />
+                                <InfoItem icon={<Hash size={14} />} label="税号" value={data.taxId} isDarkMode={isDarkMode} />
+                                {data.creditLimit !== undefined && data.creditLimit > 0 && (
+                                    <InfoItem
+                                        icon={<CreditCard size={14} />}
+                                        label="信用额度"
+                                        value={`$${data.creditLimit.toLocaleString()}`}
+                                        isDarkMode={isDarkMode}
+                                    />
+                                )}
+                            </InfoSection>
+                        )}
 
                         {/* 备注与偏好 */}
                         {data.preferences && (
@@ -628,15 +667,27 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             </InfoSection>
                         )}
 
-                        {/* 阶段 C1：结构化 CRM 区块（组织布局）— 联系人名片 / 跟进管理 / 商机 / 信用额度 / 客户分层 */}
-                        <CrmContactsSection relationId={data.id} isDarkMode={isDarkMode} />
-                        <CrmFollowUpsSection relationId={data.id} isDarkMode={isDarkMode} />
-                        <CrmOpportunitiesSection relationId={data.id} isDarkMode={isDarkMode} />
-                        <CrmCreditLimitSection relationId={data.id} isDarkMode={isDarkMode} />
-                        <CrmCustomerTierSection relationId={data.id} isDarkMode={isDarkMode} />
+                        {/* 阶段 C1：结构化 CRM 区块（组织布局，分类感知）—
+                            crmCore（联系人名片/跟进）：有业务往来的对象通用；
+                            crmSales（商机/信用额度/客户分层）：销售漏斗语义，客户专属 */}
+                        {categoryConfig.crmCore && (
+                            <CrmContactsSection relationId={data.id} isDarkMode={isDarkMode} />
+                        )}
+                        {categoryConfig.crmCore && (
+                            <CrmFollowUpsSection relationId={data.id} isDarkMode={isDarkMode} />
+                        )}
+                        {categoryConfig.crmSales && (
+                            <CrmOpportunitiesSection relationId={data.id} isDarkMode={isDarkMode} />
+                        )}
+                        {categoryConfig.crmSales && (
+                            <CrmCreditLimitSection relationId={data.id} isDarkMode={isDarkMode} />
+                        )}
+                        {categoryConfig.crmSales && (
+                            <CrmCustomerTierSection relationId={data.id} isDarkMode={isDarkMode} />
+                        )}
 
-                        {/* 信用控制联动（Track F）：客户档案详情内嵌信用面板 —— 额度/占用/冻结门禁/CreditLimitHistory 时间线 */}
-                        {(data.category === 'Customer' || data.type === 'Customer') && (
+                        {/* 信用控制联动（Track F，分类感知）：客户档案详情内嵌信用面板 —— 额度/占用/冻结门禁/CreditLimitHistory 时间线 */}
+                        {(categoryConfig.creditControl || data.type === 'Customer') && (
                             <InfoSection title="信用控制 Credit Control" icon={<ShieldCheck size={14} />} isDarkMode={isDarkMode}>
                                 <FinanceCreditPanel
                                     embedded
@@ -647,8 +698,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                             </InfoSection>
                         )}
 
-                        {/* 阶段 P3b：品牌线（PRD 6.2，组织专属） */}
-                        {brandLinesSection}
+                        {/* 阶段 P3b：品牌线（PRD 6.2 客户 360° 专属，分类感知：供应商/政府等无品牌线语义） */}
+                        {categoryConfig.brandLines && brandLinesSection}
 
                         {/* 阶段 P3b：沟通日志（PRD 12.3 全渠道流水） */}
                         {commLogsSection}

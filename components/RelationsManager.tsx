@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
 import ContactList from './ui/ContactList';
-import DetailPanel from './ui/DetailPanel';
+import DetailPanel, { RELATION_CATEGORY_DETAIL_CONFIG } from './ui/DetailPanel';
 import OrgChart, { isDescendantContact } from './ui/OrgChart';
 import CustomSelect from './ui/CustomSelect';
 import CapsuleDateInput from './ui/CapsuleDateInput';
@@ -72,6 +72,8 @@ export const RELATION_CATEGORY_DEFINITIONS: RelationCategoryDefinition[] = [
   { id: 'Partner', label: '合作伙伴', icon: Handshake, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '技术、物流及联合研发战略伙伴。' },
   { id: 'Government', label: '政府/机构', icon: Landmark, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '监管部门、行业协会与标准组织。' },
   { id: 'Other', label: '其他', icon: Globe2, color: 'text-[var(--text-secondary)] bg-[var(--recessed-bg)]', desc: '媒体、咨询机构及其他利益相关方。' },
+  // 注：Internal（内部组织）不在关系智库首页——内部公司/员工归 HR 模块；
+  // 数据层保留 Internal 类型供订单「内部关联方」FK 等消费方使用（OrderFieldInput.ROLE_TO_CATEGORIES）。
 ];
 
 type RelationsPreviewState = {
@@ -798,11 +800,20 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
 
   // --- Handlers ---
 
+  // 表单分类（分类感知表单）：编辑以数据为准，新增以当前所在分类为准——
+  // Government/Internal 下财务表单区不渲染，Form Map 同步去掉对应导航项
+  const relationFormCategory: RelationCategory = (editingItem?.category as RelationCategory) || selectedCategory || 'Other';
+  const relationFormCategoryConfig = RELATION_CATEGORY_DETAIL_CONFIG[relationFormCategory] ?? RELATION_CATEGORY_DETAIL_CONFIG.Other;
+
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (relationBusy) return;
     const formData = new FormData(e.currentTarget);
     const isOrg = formData.get('isOrganization') === 'on';
+    // 分类感知表单兜底：财务区被隐藏（Government/Internal）时 formData 无对应字段，
+    // 保留 editingItem 旧值——防止保存把已有财务数据清空
+    const financeFallback = <K extends 'financialNotes' | 'paymentTerms' | 'paymentPreference' | 'currency' | 'taxId' | 'creditLimit'>(key: K): Relation[K] | undefined =>
+      (isOrg && !relationFormCategoryConfig.finance ? editingItem?.[key] : undefined);
 
     const item: Relation = {
       id: editingItem?.id || `REL-${Date.now()}`,
@@ -831,12 +842,12 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         primaryContactPhone: formData.get('primaryContactPhone') as string || undefined,
         backupContacts: backupContactsFromRows(),
         shipToAddresses: shipToAddressesFromRows(),
-        financialNotes: formData.get('financialNotes') as string || undefined,
-        paymentTerms: formData.get('paymentTerms') as string || undefined,
-        paymentPreference: formData.get('paymentPreference') as string || undefined,
-        currency: formData.get('currency') as string || undefined,
-        taxId: formData.get('taxId') as string || undefined,
-        creditLimit: formData.get('creditLimit') ? Number(formData.get('creditLimit')) : undefined,
+        financialNotes: formData.get('financialNotes') as string || financeFallback('financialNotes'),
+        paymentTerms: formData.get('paymentTerms') as string || financeFallback('paymentTerms'),
+        paymentPreference: formData.get('paymentPreference') as string || financeFallback('paymentPreference'),
+        currency: formData.get('currency') as string || financeFallback('currency'),
+        taxId: formData.get('taxId') as string || financeFallback('taxId'),
+        creditLimit: formData.get('creditLimit') ? Number(formData.get('creditLimit')) : financeFallback('creditLimit'),
         officialAddress: formData.get('officialAddress') as string || undefined,
         billingAddress: formData.get('billingAddress') as string || undefined,
         shippingAddress: formData.get('shippingAddress') as string || undefined,
@@ -944,7 +955,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   };
 
   const relationFormIsOrganization = editingItem?.isOrganization ?? navLevel !== 'detail';
-  const relationFormSections = relationFormIsOrganization ? organizationFormSections : contactFormSections;
+  const relationFormSections = (relationFormIsOrganization
+    ? (relationFormCategoryConfig.finance ? organizationFormSections : organizationFormSections.filter(s => s.id !== 'finance'))
+    : contactFormSections);
   const fullscreenFormOpen = showAddModal;
   const relationsContentCanvasClass = isMobile ? 'w-full' : BAMBOOK_OS.layout.desktopPageCanvasClass;
   const relationsMainBottomEdgeClass = isMobile ? 'bottom-0' : BAMBOOK_OS.layout.desktopMainPanelBottomEdgeClass;
@@ -1926,7 +1939,9 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                       </div>
                     </CompiledSurfacePanel>
 
-                    {/* 财务信息 */}
+                    {/* 财务信息（分类感知：Government/Internal 无付款条款语义，不渲染表单区——
+                        Form Map 同步隐藏导航项；保存时旧值兜底不清空，见 handleSave financeFallback） */}
+                    {relationFormCategoryConfig.finance && (
                     <CompiledSurfacePanel materialRole="raisedCard" edgeFadeItem spotlight as="section" id="relation-form-finance" isDarkMode={isDarkMode} className={RELATIONS_FORM_PANEL_CLASS} spotlightSizing={RELATIONS_FORM_PANEL_SPOTLIGHT_SIZING}>
                       <h4 className={`text-xs font-light tracking-wide mb-4 ${relationFormSectionTitleClass}`}>
                         财务信息
@@ -1976,6 +1991,7 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         </div>
                       </div>
                     </CompiledSurfacePanel>
+                    )}
                   </>
                 )}
 
