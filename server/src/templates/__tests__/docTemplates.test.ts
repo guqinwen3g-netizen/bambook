@@ -399,3 +399,121 @@ describe('B6 前端模板退役（CI / FORMA / BC 服务端迁移）', () => {
     expect(serverKindForType('CommercialInvoice')).toBe('CI');
   });
 });
+
+// ── B7 报价单模板（QUOT：真源回链式，业务实时装配） ──
+
+import { renderQuotationBody, loadQuotationDocData } from '../docTemplates/quotation';
+
+const QT_DATA = {
+  qt: {
+    id: 'QT_1',
+    quotationNumber: 'QT-20260822-001',
+    status: 'Sent',
+    currency: 'USD',
+    totalAmount: 14400,
+    issueDate: '2026-08-22',
+    validUntil: '2026-09-21',
+    deliveryTerms: 'FOB Shanghai',
+    paymentTerms: 'T/T 30% deposit',
+    salesperson: 'Wen',
+    inquiryRef: 'INQ-88',
+    notes: '含 3% 佣金',
+    customerName: 'ACME GmbH',
+    customerCode: 'CUS-0001',
+  },
+  lines: [
+    { lineNumber: 1, fabricCode: 'FAB-001', description: 'Cotton Poplin 40x40', quantity: 12000, unit: 'YD', unitPrice: 1.2, amount: 14400, notes: '色卡 202', imageUrl: 'http://127.0.0.1:8081/api/uploads/quotations/qt-a.jpg' },
+    { lineNumber: 2, fabricCode: null, description: 'Sewing Thread', quantity: 100, unit: 'PC', unitPrice: null, amount: null, notes: null, imageUrl: null },
+  ],
+};
+
+describe('B7 renderQuotationBody', () => {
+  it('渲染报价单标题/单号/双抬头/条款/行明细/合计/双签区', () => {
+    const html = renderQuotationBody(QT_DATA as any, EXPORTER);
+    expect(html).toContain('QUOTATION');
+    expect(html).toContain('报 价 单');
+    expect(html).toContain('QT-20260822-001');
+    expect(html).toContain(EXPORTER.nameEn);
+    expect(html).toContain('ACME GmbH');
+    expect(html).toContain('CUS-0001');
+    expect(html).toContain('Cotton Poplin 40x40');
+    expect(html).toContain('FAB-001');
+    expect(html).toContain('FOB Shanghai');
+    expect(html).toContain('T/T 30% deposit');
+    expect(html).toContain('TOTAL 总计 (USD)');
+    expect(html).toContain("Seller's Signature 卖方签章");
+    expect(html).toContain("Buyer's Confirmation 买方确认");
+  });
+
+  it('有图行渲染图片列与缩略图；无价行 → 单价/金额破折号占位', () => {
+    const html = renderQuotationBody(QT_DATA as any, EXPORTER);
+    expect(html).toContain('Photo 图片');
+    expect(html).toContain('/api/uploads/quotations/qt-a.jpg');
+    // 无价行（unitPrice null）不渲染数字，破折号占位
+    expect(html).toContain('—');
+  });
+
+  it('全部行无图 → 不渲染图片列（版式向后兼容）', () => {
+    const noImage = { qt: QT_DATA.qt, lines: QT_DATA.lines.map(l => ({ ...l, imageUrl: null })) };
+    const html = renderQuotationBody(noImage as any, EXPORTER);
+    expect(html).not.toContain('Photo 图片');
+  });
+
+  it('条款/备注/有效期缺失 → 条款区块保留标题但内容行不渲染；备注区不渲染', () => {
+    const minimal = {
+      qt: { ...QT_DATA.qt, validUntil: null, deliveryTerms: null, paymentTerms: null, notes: null, inquiryRef: null, salesperson: null, customerCode: null },
+      lines: [],
+    };
+    const html = renderQuotationBody(minimal as any, EXPORTER);
+    // 条款区标题与前端原版一致始终渲染（版式稳定），但内容行全部缺席
+    expect(html).toContain('Terms &amp; Conditions');
+    expect(html).not.toContain('Delivery 交货');
+    expect(html).not.toContain('Payment 付款');
+    expect(html).not.toContain('Validity 有效期');
+    expect(html).not.toContain('Valid Until');
+    expect(html).not.toContain('Remarks 备注');
+    expect(html).not.toContain('Inquiry Ref');
+  });
+});
+
+describe('B7 loadQuotationDocData', () => {
+  function makePrisma(overrides: Record<string, any> = {}): PrismaClient {
+    return {
+      quotation: { findUnique: vi.fn().mockResolvedValue(overrides.qt ?? null) },
+    } as any;
+  }
+
+  it('装配报价头 + 行明细（Decimal→number；相对图片 URL → 绝对 URL）', async () => {
+    const prisma = makePrisma({
+      qt: {
+        id: 'QT_1', quotationNumber: 'QT-20260822-001', status: 'Sent', deletedAt: null,
+        currency: 'USD', totalAmount: 14400, issueDate: '2026-08-22', validUntil: null,
+        deliveryTerms: null, paymentTerms: null, salesperson: null, inquiryRef: null, notes: null,
+        customerName: 'ACME GmbH', customerCode: null, customerRelationId: 'rel_1',
+        lines: [
+          { lineNumber: 1, fabricCode: 'FAB-001', description: 'Poplin', quantity: 12000, unit: 'YD', unitPrice: 1.2, amount: 14400, notes: null, imageUrl: '/api/uploads/quotations/qt-a.jpg' },
+          { lineNumber: 2, fabricCode: null, description: 'Thread', quantity: 100, unit: 'PC', unitPrice: 0.5, amount: 50, notes: null, imageUrl: 'https://cdn.example.com/img.jpg' },
+        ],
+      },
+    });
+    const data = await loadQuotationDocData(prisma, 'QT_1');
+    expect(data).not.toBeNull();
+    expect(data!.qt.quotationNumber).toBe('QT-20260822-001');
+    expect(data!.lines).toHaveLength(2);
+    // 相对路径 → 绝对 URL（PDF 管线 page.setContent 无基址）
+    expect(data!.lines[0].imageUrl).toMatch(/^https?:\/\/.+\/api\/uploads\/quotations\/qt-a\.jpg$/);
+    // 外链保持原样
+    expect(data!.lines[1].imageUrl).toBe('https://cdn.example.com/img.jpg');
+  });
+
+  it('报价单不存在/软删 → null（调用方 404）', async () => {
+    expect(await loadQuotationDocData(makePrisma({ qt: null }), 'QT_missing')).toBeNull();
+    expect(await loadQuotationDocData(makePrisma({ qt: { id: 'QT_1', deletedAt: 1 } }), 'QT_1')).toBeNull();
+  });
+
+  it('QUOT 注册表映射 + loadData 无 sourceRef fail-closed', async () => {
+    expect(serverKindForType('Quotation')).toBe('QUOT');
+    expect(SERVER_DOC_TEMPLATES.QUOT.title).toContain('报价单');
+    expect(await SERVER_DOC_TEMPLATES.QUOT.loadData({} as PrismaClient, { id: 'TD_1', type: 'Quotation', sourceRef: null })).toBeNull();
+  });
+});

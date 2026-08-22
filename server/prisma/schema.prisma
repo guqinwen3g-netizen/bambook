@@ -5039,7 +5039,7 @@ model TradeDocument {
 
   /// 业务域（2026-08-22 全系统单据枢纽裁决：单据中心从贸易单据台账升级为全系统
   /// 文件枢纽——各业务域单据就地生成后统一登记归档于此，domain 决定编号前缀与状态机）。
-  /// customs=外贸单据（交单状态机）| procurement=采购 | qc=质检 | contract=合同 | finance=财务
+  /// customs=外贸单据（交单状态机）| procurement=采购 | qc=质检 | contract=合同 | finance=财务 | quotation=报价
   domain String @default("customs")
 
   type   String // CommercialInvoice | PackingList | CertificateOfOrigin | BillOfLading | AirWaybill | InsuranceCert | InspectionCert | PhytosanitaryCert | Other | PurchaseOrder | InspectionReport | Contract ...

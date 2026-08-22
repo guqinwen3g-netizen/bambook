@@ -1135,6 +1135,26 @@ export const apiService = {
     return { documentNumber: data.document.documentNumber, fileName: data.file.fileName, fileSize: data.file.fileSize };
   },
 
+  /** 报价单服务端模板预览——GET /v1/quotations/:id/preview.html（B7：与生成 PDF 同源排版） */
+  async getQuotationPreviewHtml(id: string, endpoint?: string): Promise<string> {
+    const url = buildApiUrl(`/v1/quotations/${encodeURIComponent(id)}/preview.html`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
+  /** 报价单生成文档——POST /v1/quotations/:id/generate-document（B7：登记域单据 domain=quotation +
+   *  服务端渲染 PDF 落盘归档），生成后浏览器下载归档文件 */
+  async generateQuotationDocument(id: string, endpoint?: string): Promise<{ documentNumber: string; fileName: string; fileSize: number }> {
+    const data = await requestJson<{ document: { documentNumber: string }; file: { filePath: string; fileName: string; fileSize: number } }>(
+      `/v1/quotations/${encodeURIComponent(id)}/generate-document`, { endpoint, method: 'POST' });
+    await this.downloadArchiveFile(data.file.filePath, data.file.fileName, endpoint);
+    return { documentNumber: data.document.documentNumber, fileName: data.file.fileName, fileSize: data.file.fileSize };
+  },
+
   /** 采购台账 Excel 导出——GET /v1/procurement?format=xlsx（当前筛选条件全量导出） */
   async exportPurchaseOrdersXlsx(params?: { status?: string; supplierRelationId?: string; dateFrom?: string; dateTo?: string; search?: string }, endpoint?: string): Promise<void> {
     const query = new URLSearchParams({ format: 'xlsx' });

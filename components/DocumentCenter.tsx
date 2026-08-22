@@ -69,13 +69,14 @@ const DOC_TYPES: Array<{ id: TradeDocumentType; label: string }> = [
   { id: 'Other', label: '其他' },
 ];
 
-/** B4 域视图选项（TradeDocumentDomain：customs 主体 + B2 起各运营域就地归档） */
+/** B4 域视图选项（TradeDocumentDomain：customs 主体 + B2 起各运营域就地归档；B7 增报价域） */
 const DOMAIN_OPTIONS: Array<{ id: string; label: string; badge: string }> = [
   { id: 'customs', label: '外贸单据', badge: '外贸' },
   { id: 'procurement', label: '采购', badge: '采购' },
   { id: 'qc', label: '质检', badge: '质检' },
   { id: 'contract', label: '合同', badge: '合同' },
   { id: 'finance', label: '财务', badge: '财务' },
+  { id: 'quotation', label: '报价', badge: '报价' },
 ];
 
 const DOC_STATUSES: Array<{ id: TradeDocumentStatus; label: string; semantic: StatusSemantic }> = [
@@ -1206,11 +1207,12 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-[600px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]"
+        className="bds-modal custom-scrollbar"
+        style={{ width: '40rem', maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-base font-light flex items-center gap-2"><Layers size={15} />组合生成（多选叠加）</h3>
+          <h3 className="text-base font-light flex items-center gap-2"><Layers size={16} />组合生成（多选叠加）</h3>
           <button onClick={onClose} className="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"><X size={16} /></button>
         </div>
         <p className="text-xs mb-4 text-[var(--text-tertiary)]">

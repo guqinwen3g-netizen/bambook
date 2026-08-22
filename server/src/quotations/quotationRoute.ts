@@ -26,6 +26,9 @@ import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { createQuotationService, CreateQuotationInput, UpdateQuotationInput } from './quotationService';
 import { createQuotationImportService, HistoricalQuotationRow } from './quotationImportService';
+import { renderServerDocument } from '../templates/docTemplates/registry';
+import { loadQuotationDocData } from '../templates/docTemplates/quotation';
+import { upsertDomainTradeDocument, generateTradeDocumentFile } from '../customs/tradeDocumentLifecycleService';
 
 export interface QuotationRouterOptions {
   prisma: PrismaClient;
@@ -122,6 +125,50 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
     } catch (e: any) {
       logger.error('[QuotationRoute] GET detail failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to get quotation' });
+    }
+  });
+
+  // ── GET /:id/preview.html — 报价单服务端模板预览（B7：实时装配渲染，与生成 PDF
+  //    同源排版——所见即所得，无需先登记文档；前端 buildQuotationPrintHtml 同构退役） ──
+  router.get('/:id/preview.html', async (req: Request, res: Response) => {
+    try {
+      const data = await loadQuotationDocData(prisma, req.params.id);
+      if (!data) return res.status(404).json({ error: '报价单不存在' });
+      const html = await renderServerDocument(prisma, 'QUOT', data, { screen: true });
+      if (!html) return res.status(500).json({ error: 'QUOT 模板渲染失败' });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e: any) {
+      logger.error('[QuotationRoute] GET preview.html failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to preview quotation' });
+    }
+  });
+
+  // ── POST /:id/generate-document — 登记域单据 + 服务端渲染 PDF 落盘归档（B7）
+  //    幂等：domain+type+sourceRef 唯一定位；重复生成刷新头字段并覆盖 PDF（真源实时渲染） ──
+  router.post('/:id/generate-document', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const actorId = actorIdFromRequest(req);
+      const qt = await prisma.quotation.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!qt) return res.status(404).json({ error: '报价单不存在' });
+
+      const reg = await upsertDomainTradeDocument(prisma, {
+        domain: 'quotation',
+        type: 'Quotation',
+        sourceRef: qt.id,
+        documentNumber: qt.quotationNumber, // 文档号=业务单号裁决（与 PO/CI 财务回链同语义）
+        relationId: qt.customerRelationId,
+        totalAmount: qt.totalAmount != null ? Number(qt.totalAmount) : null,
+        currency: qt.currency,
+        issueDate: qt.issueDate,
+        actorId,
+      });
+      const file = await generateTradeDocumentFile(prisma, { id: reg.documentId, actorId });
+      res.json({ document: reg, file });
+    } catch (e: any) {
+      logger.error('[QuotationRoute] POST generate-document failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : 500;
+      res.status(status).json({ error: e?.message || 'failed to generate quotation document' });
     }
   });
 

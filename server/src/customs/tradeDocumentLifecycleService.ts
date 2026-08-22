@@ -43,6 +43,7 @@ export const TRADE_DOC_NUMBER_PREFIX: Record<TradeDocumentType, string> = {
   // B2 运营域（PO 文档号=poNumber 业务单号直用，此映射供 IR 等域取号）
   PurchaseOrder: 'PO',
   InspectionReport: 'IR',
+  Quotation: 'QT', // B7：报价单文档号=quotationNumber 业务单号直用，此映射供兜底取号
   Contract: 'CT',
 };
 
@@ -383,9 +384,9 @@ export async function renderTradeDocumentServerHtml(
 // 4b. 域单据登记（B2 运营域：各业务模块就地生成 → 单据中心统一归档）
 // ────────────────────────────────────────────────────────────────
 
-/** 域单据登记入参（PO/IR 等业务模块生成入口） */
+/** 域单据登记入参（PO/IR/QUOT 等业务模块生成入口） */
 export interface UpsertDomainTradeDocumentInput {
-  domain: string;                 // procurement | qc | contract | finance
+  domain: string;                 // procurement | qc | contract | finance | quotation
   type: TradeDocumentType;        // PurchaseOrder | InspectionReport | Contract ...
   sourceRef: string;              // 业务真源 id（PurchaseOrder.id / InspectionReport.id）
   /** 文档号（缺省自动取号 {前缀}-YYYY-NNNN；采购单裁决=poNumber 直用） */

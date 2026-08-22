@@ -23,6 +23,7 @@ import { renderInspectionReportBody, loadInspectionReportDocData } from './inspe
 import { renderMergedPackingListBody } from './mergedPackingList';
 import { renderMergedInspectionSummaryBody } from './mergedInspectionSummary';
 import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody, renderCommercialInvoiceBody, renderFormABody, renderBeneficiaryCertificateBody } from './customsDocs';
+import { renderQuotationBody, loadQuotationDocData } from './quotation';
 import type { ServerDocumentSetData } from './types';
 
 /** 注册表渲染上下文：单据定位信息（loadData 按各自真源装配） */
@@ -51,6 +52,7 @@ const TRADE_DOC_TYPE_TO_KIND: Partial<Record<string, string>> = {
   InsuranceCert: 'INS',
   PurchaseOrder: 'PO',
   InspectionReport: 'IR',
+  Quotation: 'QUOT',
 };
 
 /** 出运制单 kind 集合（ShipmentDocumentGenerator 按运单渲染入口用——B6 前端模板退役） */
@@ -87,6 +89,7 @@ export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
   BC: { kind: 'BC', title: "Beneficiary's Certificate 受益人证明", loadData: loadDocumentSetSnapshot, renderBody: renderBeneficiaryCertificateBody },
   PO: { kind: 'PO', title: 'Purchase Order 采购订单', loadData: async (prisma, doc) => (doc.sourceRef ? loadPurchaseOrderDocData(prisma, doc.sourceRef) : null), renderBody: renderPurchaseOrderBody },
   IR: { kind: 'IR', title: 'Inspection Report 验货报告', loadData: async (prisma, doc) => (doc.sourceRef ? loadInspectionReportDocData(prisma, doc.sourceRef) : null), renderBody: renderInspectionReportBody },
+  QUOT: { kind: 'QUOT', title: 'Quotation 报价单', loadData: async (prisma, doc) => (doc.sourceRef ? loadQuotationDocData(prisma, doc.sourceRef) : null), renderBody: renderQuotationBody },
   // B3 组合文档（多对一聚合）：loadData 无单据级装配——数据由 compositeDocumentService 聚合后直喂 renderServerDocument
   MERGED_PL: { kind: 'MERGED_PL', title: 'Consolidated Packing List 合并装箱单', loadData: async () => null, renderBody: renderMergedPackingListBody },
   MERGED_IR: { kind: 'MERGED_IR', title: 'Consolidated Inspection Summary 合并验货汇总', loadData: async () => null, renderBody: renderMergedInspectionSummaryBody },

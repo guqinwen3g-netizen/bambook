@@ -15,7 +15,7 @@ import {
   Plus,
   Trash2,
   Send,
-  Printer,
+  Eye,
   CheckCircle2,
   XCircle,
   Clock,
@@ -42,7 +42,6 @@ import { bdsConfirm } from './ui/BdsDialog';
 import { bdsToast } from './ui/bdsToast';
 import { financeV2Service, type QuotationPricingResult } from '../services/financeV2Service';
 import { TraceabilityPanel } from './TraceabilityPanel';
-import { getExporterProfile } from './tools/exportDocs/exporterProfile';
 import { Quotation, QuotationLine, QuotationStatus, QuotationInput, Relation, ProductAsset, FabricPriceHistory, TrackBResult, TrackAInput, View } from '../types';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
@@ -50,7 +49,7 @@ import QuotationImportWizard from './import/QuotationImportWizard';
 import { TrackAPanel } from './pricing/TrackAPanel';
 import { TrackBPanel, type TrackBValidInputs } from './pricing/TrackBPanel';
 import { DeviationBadge } from './pricing/DeviationBadge';
-import { printHtmlDocument, escapeHtml } from './tools/printDocument';
+import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
@@ -175,99 +174,7 @@ const sentDaysPending = (qt: Quotation): number | null => {
   return days >= SENT_FOLLOW_UP_DAYS ? days : null;
 };
 
-// ── 中英文报价单打印（复用共享 printHtmlDocument 版式；双轨快照属内部信息不打印）──
-const buildQuotationPrintHtml = (qt: Quotation): string => {
-  const lines = qt.lines ?? [];
-  const currency = qt.currency || 'USD';
-  // REQ2-12 DR-053-③：有图行嵌入缩略图（54px）；无图行不渲染——版式向后兼容
-  const hasAnyImage = lines.some(l => l.imageUrl);
-  const imageCell = (url?: string) => url
-    ? `<img src="${escapeHtml(url)}" alt="" style="width:54px;height:54px;object-fit:contain;border:1px solid #e2e8f0;border-radius:4px" />`
-    : '<span style="display:inline-block;width:54px;height:54px"></span>';
-  const rows = lines.map((l, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      ${hasAnyImage ? `<td>${imageCell(l.imageUrl)}</td>` : ''}
-      <td>${escapeHtml([l.fabricCode, l.description].filter(Boolean).join(' · '))}${l.notes ? `<div style="color:#718096;font-size:10px">${escapeHtml(l.notes)}</div>` : ''}</td>
-      <td style="text-align:right">${Number(l.quantity).toLocaleString('en-US')}</td>
-      <td>${escapeHtml(l.unit)}</td>
-      <td style="text-align:right">${Number(l.unitPrice).toFixed(4)}</td>
-      <td style="text-align:right">${Number(l.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-    </tr>`).join('');
-  return `
-  <div class="doc-header">
-    <div class="doc-title-block">
-      <h1>QUOTATION</h1>
-      <div class="subtitle">报 价 单</div>
-    </div>
-    <div class="doc-meta">
-      <div class="doc-no">${escapeHtml(qt.quotationNumber)}</div>
-      <div>Date 报价日期: ${escapeHtml(qt.issueDate)}</div>
-      ${qt.validUntil ? `<div>Valid Until 有效期至: ${escapeHtml(qt.validUntil)}</div>` : ''}
-      ${qt.inquiryRef ? `<div>Inquiry Ref 询价参考: ${escapeHtml(qt.inquiryRef)}</div>` : ''}
-    </div>
-  </div>
-
-  <div class="doc-party-grid">
-    <div class="doc-party">
-      <div class="label">From 报价方</div>
-      <div class="name">${escapeHtml(getExporterProfile().nameEn)}</div>
-      ${qt.salesperson ? `<div class="detail">Sales 业务员: ${escapeHtml(qt.salesperson)}</div>` : ''}
-    </div>
-    <div class="doc-party">
-      <div class="label">To 致客户</div>
-      <div class="name">${escapeHtml(qt.customerName || '—')}</div>
-      ${qt.customerCode ? `<div class="detail">Code 客户编码: ${escapeHtml(qt.customerCode)}</div>` : ''}
-    </div>
-  </div>
-
-  <table class="doc-table">
-    <thead>
-      <tr>
-        <th style="width:36px">No.<br/>序号</th>
-        ${hasAnyImage ? '<th style="width:62px">Photo 图片</th>' : ''}
-        <th>Description 品名描述</th>
-        <th style="width:90px;text-align:right">Qty 数量</th>
-        <th style="width:60px">Unit 单位</th>
-        <th style="width:100px;text-align:right">Unit Price 单价 (${escapeHtml(currency)})</th>
-        <th style="width:110px;text-align:right">Amount 金额 (${escapeHtml(currency)})</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="${hasAnyImage ? 6 : 5}">TOTAL 总计 (${escapeHtml(currency)})</td>
-        <td style="text-align:right">${Number(qt.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <div class="doc-section">
-    <div class="doc-section-title">Terms &amp; Conditions 条款</div>
-    <div style="font-size:11px;line-height:1.8">
-      ${qt.deliveryTerms ? `<div><strong>Delivery 交货:</strong> ${escapeHtml(qt.deliveryTerms)}</div>` : ''}
-      ${qt.paymentTerms ? `<div><strong>Payment 付款:</strong> ${escapeHtml(qt.paymentTerms)}</div>` : ''}
-      ${qt.validUntil ? `<div><strong>Validity 有效期:</strong> ${escapeHtml(qt.issueDate)} ~ ${escapeHtml(qt.validUntil)}</div>` : ''}
-    </div>
-  </div>
-
-  ${qt.notes ? `
-  <div class="doc-notes">
-    <div class="notes-title">Remarks 备注</div>
-    ${escapeHtml(qt.notes)}
-  </div>` : ''}
-
-  <div class="doc-footer">
-    <div class="doc-signature">
-      <div class="sig-label">Seller's Signature 卖方签章</div>
-      <div class="sig-line"></div>
-    </div>
-    <div class="doc-signature">
-      <div class="sig-label">Buyer's Confirmation 买方确认</div>
-      <div class="sig-line"></div>
-    </div>
-  </div>`;
-};
+// ── B7 报价单服务端化：渲染真源统一服务端（QUOT 模板注册表），前端打印模板已退役 ──
 
 const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenOrder, onNavigate }) => {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -284,6 +191,13 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [traceQuoteId, setTraceQuoteId] = useState<string | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
+
+  // ── B7 报价单服务端单据：A4 预览（服务端模板实时渲染，与生成 PDF 同源排版）──
+  const [previewQt, setPreviewQt] = useState<Quotation | null>(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewErr, setPreviewErr] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [docGeneratedMsg, setDocGeneratedMsg] = useState<string | null>(null);
 
   // 创建表单状态（validUntil 默认报价日 +30 天）
   const [form, setForm] = useState(() => {
@@ -361,6 +275,38 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
   useEffect(() => {
     apiService.listRelations().then(setRelations).catch(() => {});
+  }, []);
+
+  // ── B7 报价单服务端单据：预览 / 生成 PDF ──
+
+  /** 预览报价单（服务端模板实时渲染，A4 纸张画布——与生成 PDF 同源排版） */
+  const handlePreviewQt = useCallback(async (qt: Quotation) => {
+    setPreviewQt(qt);
+    setPreviewHtml('');
+    setPreviewErr(null);
+    setPreviewLoading(true);
+    try {
+      const html = await apiService.getQuotationPreviewHtml(qt.id);
+      setPreviewHtml(html);
+    } catch (e: any) {
+      setPreviewErr(`报价单预览加载失败：${e?.message || e}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  /** 生成报价单 PDF（登记域单据 domain=quotation → 单据中心归档 → 下载） */
+  const handleGenerateQtDocument = useCallback(async (qt: Quotation) => {
+    setActionLoading(`${qt.id}_gendoc`);
+    setError(null);
+    try {
+      const result = await apiService.generateQuotationDocument(qt.id);
+      setDocGeneratedMsg(`已生成 ${result.documentNumber}（${Math.round(result.fileSize / 1024)} KB），归档至单据中心`);
+    } catch (e: any) {
+      setError(`生成报价单文档失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
   }, []);
 
   // 跨模块导航筛选（关系智库档案「关联业务 → 报价」入口）：挂载时消费一次，
@@ -947,6 +893,22 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                   </div>
                 )}
 
+                {/* B7：报价单 PDF 生成成功提示（归档单据中心） */}
+                {docGeneratedMsg && (
+                  <div className="bds-alert success mb-3">
+                    <CheckCircle2 size={16} />
+                    <span className="flex-1 min-w-0 truncate">{docGeneratedMsg}</span>
+                    <button
+                      type="button"
+                      onClick={() => setDocGeneratedMsg(null)}
+                      className="flex items-center shrink-0 hover:opacity-70"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
                 {/* 阶段 IA-3：转单成功横幅 —— 「查看订单」直达跳转 */}
                 {convertedOrderId && (
                   <div className="bds-alert success mb-3">
@@ -1226,14 +1188,23 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                       )}
                                     </>
                                   )}
-                                  {/* 打印中英文报价单（全状态可用；复用共享打印版式） */}
+                                  {/* B7 报价单服务端单据：预览 / 生成 PDF（服务端模板，归档单据中心） */}
                                   <button
                                     type="button"
-                                    onClick={() => printHtmlDocument({ title: `Quotation ${qt.quotationNumber}`, htmlBody: buildQuotationPrintHtml(qt) })}
+                                    onClick={() => void handlePreviewQt(qt)}
                                     className="bds-btn bds-btn-ghost"
                                   >
-                                    <Printer size={14} />
-                                    <span>打印报价单</span>
+                                    <Eye size={14} />
+                                    <span>预览单据</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleGenerateQtDocument(qt)}
+                                    disabled={actionLoading === `${qt.id}_gendoc`}
+                                    className="bds-btn bds-btn-ghost"
+                                  >
+                                    {actionLoading === `${qt.id}_gendoc` ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                                    <span>生成 PDF</span>
                                   </button>
                                 </div>
                                 {qt.customerRelationId && (
@@ -1448,6 +1419,20 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
             ))}
           </div>
         </BottomSheet>
+      )}
+
+      {/* B7 报价单服务端单据：A4 预览（与生成 PDF 同源排版，所见即所得） */}
+      {previewQt && (
+        <A4DocumentPreviewModal
+          title={`报价单预览 · ${previewQt.quotationNumber}`}
+          subtitle={`A4 · Quotation · 与生成 PDF 同源排版`}
+          html={previewHtml}
+          loading={previewLoading}
+          error={previewErr}
+          onClose={() => setPreviewQt(null)}
+          onPrint={() => void handleGenerateQtDocument(previewQt)}
+          printLabel="生成 PDF"
+        />
       )}
     </div>
   );
