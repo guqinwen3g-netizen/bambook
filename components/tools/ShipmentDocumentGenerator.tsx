@@ -2,8 +2,9 @@
  * 出运制单引擎 ShipmentDocumentGenerator
  * 阶段 A-P0：Shipment + Order + CustomsDeclaration → CI/PL/CO/BL 成套生成
  *
- * 数据流：选择运单 → GET /v1/shipping/:id/document-set（服务端多源装配）
- *        → 勾选单据类型 → printHtmlDocument 输出 PDF
+ * 数据流：选择运单 → GET /v1/shipping/:id/document-set（服务端多源装配，摘要/智能预勾选）
+ *        → 勾选单据类型 → POST render-by-shipment（服务端模板真源渲染，B6 前端模板退役）
+ *        → printFullHtmlDocument 输出 PDF
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -27,8 +28,10 @@ import {
 import { apiService } from '../../services/apiService';
 import { Shipment, DocumentSetData } from '../../types';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
-import { printHtmlDocument } from './printDocument';
-import { EXPORT_DOC_RENDERERS, ExportDocKind } from './exportDocs/exportDocumentTemplates';
+import { printFullHtmlDocument } from './printDocument';
+
+/** 出运制单类型（服务端 render-by-shipment 支持集合——B6 起渲染真源统一服务端） */
+type ExportDocKind = 'CI' | 'PL' | 'CO' | 'BL' | 'FORMA' | 'INS' | 'BC';
 
 interface ShipmentDocumentGeneratorProps {
   isDarkMode: boolean;
@@ -105,26 +108,29 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
     }
   }, []);
 
-  // ── 生成打印 ──
-  const handleGenerate = useCallback(() => {
-    if (!docSet) return;
+  // ── 生成打印（B6：服务端模板真源渲染——render-by-shipment 逐份获取完整 HTML 打印） ──
+  const handleGenerate = useCallback(async () => {
+    if (!docSet || !selectedId) return;
     setGenerating(true);
+    setError(null);
     try {
       const kinds = (Object.keys(selectedDocs) as ExportDocKind[]).filter(k => selectedDocs[k]);
-      kinds.forEach((kind, i) => {
-        const { title, render } = EXPORT_DOC_RENDERERS[kind];
-        // 多文档连续打开窗口，错开避免浏览器合并弹窗
-        setTimeout(() => {
-          printHtmlDocument({
-            title: `${title} - ${docSet.shipment.shipmentNumber}`,
-            htmlBody: render(docSet),
-          });
-        }, i * 350);
-      });
+      for (let i = 0; i < kinds.length; i++) {
+        const kind = kinds[i];
+        try {
+          const html = await apiService.renderShipmentDocument(selectedId, kind);
+          // 多文档连续打开窗口，错开避免浏览器合并弹窗
+          window.setTimeout(() => {
+            printFullHtmlDocument(html, `${kind} - ${docSet.shipment.shipmentNumber}`);
+          }, i * 350);
+        } catch (e: any) {
+          setError(`单据 ${kind} 生成失败：${e?.message || e}`);
+        }
+      }
     } finally {
       setGenerating(false);
     }
-  }, [docSet, selectedDocs]);
+  }, [docSet, selectedDocs, selectedId]);
 
   const selectedCount = (Object.keys(selectedDocs) as ExportDocKind[]).filter(k => selectedDocs[k]).length;
 
@@ -263,7 +269,7 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
               </div>
 
               <button
-                onClick={handleGenerate}
+                onClick={() => void handleGenerate()}
                 disabled={selectedCount === 0 || generating}
                 className="bds-btn bds-btn-primary mt-4"
               >

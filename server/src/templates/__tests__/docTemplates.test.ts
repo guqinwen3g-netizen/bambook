@@ -12,8 +12,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import { renderPurchaseOrderBody, loadPurchaseOrderDocData } from '../docTemplates/purchaseOrder';
 import { renderInspectionReportBody, loadInspectionReportDocData } from '../docTemplates/inspectionReport';
-import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody } from '../docTemplates/customsDocs';
-import { serverKindForType, SERVER_DOC_TEMPLATES } from '../docTemplates/registry';
+import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody, renderCommercialInvoiceBody, renderFormABody, renderBeneficiaryCertificateBody, amountInWords } from '../docTemplates/customsDocs';
+import { serverKindForType, SERVER_DOC_TEMPLATES, isShipmentDocKind } from '../docTemplates/registry';
 
 const EXPORTER = {
   nameEn: 'BAMBOOK TRADING CO., LTD.',
@@ -327,5 +327,75 @@ describe('B5 customs 域模板（CO / BL / INS，版本快照数据）', () => {
     const html = renderInsurancePolicyBody(data as any, EXPORTER);
     expect(html).toContain('INSURANCE POLICY');
     expect(html).toContain('ALL RISKS'); // 默认险别
+  });
+});
+
+// ── B6 模板迁移收尾（CI 快照版 / FORMA / BC + 出运制单 kind 集合） ──
+
+describe('B6 前端模板退役（CI / FORMA / BC 服务端迁移）', () => {
+  it('CI documentSet 快照版：标题/买卖方/收款银行/金额大写/合计', () => {
+    const html = renderCommercialInvoiceBody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain('COMMERCIAL INVOICE');
+    expect(html).toContain('商业发票');
+    expect(html).toContain('INV-2026-001'); // resolvedInvoiceNo
+    expect(html).toContain('CIF HAMBURG');
+    expect(html).toContain('Men Cotton Shirt');
+    expect(html).toContain('TOTAL 合计');
+    expect(html).toContain('20,000.00');
+    expect(html).toContain('Amount in Words');
+    expect(html).toContain('SAY TOTAL US DOLLARS');
+    expect(html).toContain('Beneficiary Bank 收款银行');
+    expect(html).toContain('Bank of Shanghai');
+  });
+
+  it('amountInWords 英文大写金额（整数/小数/零）', () => {
+    expect(amountInWords(20000, 'USD')).toContain('TWENTY THOUSAND');
+    expect(amountInWords(12345.67, 'USD')).toContain('TWELVE THOUSAND THREE HUNDRED AND FORTY-FIVE AND CENTS SIXTY-SEVEN');
+    expect(amountInWords(0, 'EUR')).toContain('ZERO');
+    expect(amountInWords(20000, 'CNY')).toContain('CHINESE YUAN');
+  });
+
+  it('FORMA 普惠制产地证：12 栏结构/签发地/原产地标准/运输路线', () => {
+    const html = renderFormABody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain('GENERALIZED SYSTEM OF PREFERENCES');
+    expect(html).toContain('FORM A');
+    expect(html).toContain('REPUBLIC OF CHINA'); // esc 后撇号为 &#39;
+    expect(html).toContain('Origin criterion');
+    expect(html).toContain('Declaration by the exporter');
+    expect(html).toContain('FROM SHANGHAI, CHINA TO HAMBURG');
+  });
+
+  it('BC 受益人证明：信用证引用/申请人/声明双语/签章', () => {
+    const html = renderBeneficiaryCertificateBody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain("BENEFICIARY'S CERTIFICATE");
+    expect(html).toContain('受益人证明');
+    expect(html).toContain('LC-2026-88 issued by Deutsche Bank dated 2026-07-01');
+    expect(html).toContain('ACME GmbH'); // lc.applicant
+    expect(html).toContain('HEREBY CERTIFY');
+    expect(html).toContain('全套副本装运单据');
+    expect(html).toContain("Beneficiary's Authorized Signature");
+  });
+
+  it('BC 无信用证 → 退回客户名兜底', () => {
+    const data = makeCustomsDocSet({ extras: { originCriterion: 'P', insurance: (makeCustomsDocSet() as any).extras.insurance } });
+    const html = renderBeneficiaryCertificateBody(data as any, EXPORTER);
+    expect(html).toContain('ACME GmbH'); // parties.customer.name
+    expect(html).not.toContain('LC-2026-88');
+  });
+
+  it('isShipmentDocKind 出运制单集合（CI/PL/CO/BL/FORMA/INS/BC）', () => {
+    for (const k of ['CI', 'PL', 'CO', 'BL', 'FORMA', 'INS', 'BC'] as const) {
+      expect(isShipmentDocKind(k)).toBe(true);
+    }
+    expect(isShipmentDocKind('IR')).toBe(false);
+    expect(isShipmentDocKind('MERGED_PL')).toBe(false);
+    // 注册表全量可用（render-by-shipment 端点直接渲染）
+    expect(SERVER_DOC_TEMPLATES.CI.title).toContain('商业发票');
+    expect(SERVER_DOC_TEMPLATES.FORMA.title).toContain('普惠制');
+    expect(SERVER_DOC_TEMPLATES.BC.title).toContain('受益人证明');
+  });
+
+  it('serverKindForType：CommercialInvoice → CI（快照版；财务回链优先级由 lifecycleService 决定）', () => {
+    expect(serverKindForType('CommercialInvoice')).toBe('CI');
   });
 });

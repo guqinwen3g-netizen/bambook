@@ -2,15 +2,16 @@
  * 单据中心 DocumentCenter — Wave A1（PRD 19.14 / 11.2 / 5.6）
  *
  * 贸易单据的登记台账与生命周期枢纽（ canonical TradeDocument UI ）：
- *   - 列表：类型/状态/关键词过滤 + 搜索（编号/收发货人/港口）
+ *   - 列表：类型/状态/业务域/关键词过滤 + 搜索（编号/收发货人/港口）
  *   - 详情展开：字段快照 + 版本时间线（服务端强制留痕）+ 单据预览/打印
  *   - 创建/编辑：编号留空自动取号（{前缀}-YYYY-NNNN 作废不回收）；编辑强制版本快照
  *   - 状态机：Draft→Issued→Submitted→Accepted/Rejected（Rejected 可退回 Draft）
  *   - 从运单生成：装配运单数据批量登记 Draft 单据（同 shipmentId+type 幂等）
- *   - 订单打包：订单全单据说最新版本快照逐个渲染打印（L/C 交单场景）
+ *   - 组合生成：多对一数据聚合（合并装箱单/合并验货汇总，B3）
+ *   - 批量操作：多选批量生成文件 / ZIP 打包下载（B4）
  *
- * 预览渲染复用 EXPORT_DOC_RENDERERS（v1 快照 content.documentSet 直接消费）；
- * 无装配快照的单据（手工创建）降级为字段视图，不伪造预览。
+ * 渲染真源（B6 起统一服务端，前端 EXPORT_DOC_RENDERERS 已退役）：
+ * CI 带财务回链 → 财务真源模板；其余类型 → 服务端模板注册表（preview.html 同源渲染）。
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -37,7 +38,6 @@ import {
 import { apiService } from '../services/apiService';
 import { invoiceService } from '../services/invoiceService';
 import {
-  DocumentSetData,
   DocumentVersionRecord,
   GenerateTradeDocumentsResult,
   TradeDocument,
@@ -52,8 +52,7 @@ import CapsuleDateInput from './ui/CapsuleDateInput';
 import { statusSemanticClass, statusSemanticText, StatusSemantic } from './rdlBusinessStatusTokens';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
-import { EXPORT_DOC_RENDERERS, ExportDocKind } from './tools/exportDocs/exportDocumentTemplates';
-import { buildFullPrintDocument, printFullHtmlDocument, printHtmlDocument } from './tools/printDocument';
+import { printFullHtmlDocument } from './tools/printDocument';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 
 // ==================== 常量 ====================
@@ -88,14 +87,12 @@ const DOC_STATUSES: Array<{ id: TradeDocumentStatus; label: string; semantic: St
   { id: 'Cancelled', label: '已取消', semantic: 'neutral' },
 ];
 
-/** 单据类型 → 外贸单据渲染器（有 documentSet 快照时可预览/打印） */
-const TYPE_TO_EXPORT_KIND: Partial<Record<TradeDocumentType, ExportDocKind>> = {
-  CommercialInvoice: 'CI',
-  PackingList: 'PL',
-  CertificateOfOrigin: 'CO',
-  BillOfLading: 'BL',
-  InsuranceCert: 'INS',
-};
+/** 服务端可渲染类型（B6：渲染真源统一服务端——注册表 TRADE_DOC_TYPE_TO_KIND 的 UI 提示镜像，
+ *  仅用于版本行"可预览"按钮显隐；点击后由服务端 501 兜底报错，不存在渲染双源） */
+const SERVER_RENDERABLE_TYPES: ReadonlySet<string> = new Set([
+  'CommercialInvoice', 'PackingList', 'CertificateOfOrigin', 'BillOfLading',
+  'InsuranceCert', 'PurchaseOrder', 'InspectionReport',
+]);
 
 /** 状态机（镜像服务端 DOC_TRANSITIONS，fail-closed 不在前端放行非法流转） */
 const DOC_TRANSITIONS: Record<TradeDocumentStatus, TradeDocumentStatus[]> = {
@@ -215,12 +212,6 @@ const fmtTs = (ts?: number | null) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-/** 版本快照 → 可渲染的 documentSet（无则 null，不伪造预览） */
-const extractDocumentSet = (content: Record<string, unknown> | null | undefined): DocumentSetData | null => {
-  const ds = (content as any)?.documentSet;
-  return ds && typeof ds === 'object' ? (ds as DocumentSetData) : null;
-};
-
 // ==================== 主组件 ====================
 
 interface DocumentCenterProps {
@@ -336,11 +327,9 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   }, [expandedId, versionsByDoc]);
 
   // ── 预览（A4 纸张查看器弹窗，与财务发票预览同款体验）──
-  // 渲染真源优先级（B2 起三级）：
+  // 渲染真源（B6 起统一服务端，前端渲染器已退役）：
   //   1. CI 带财务发票回链 → 财务真源模板（与财务预览/PDF 完全一致）
-  //   2. 服务端模板注册表（PL / PO / IR 域单据…）→ preview.html 同源渲染
-  //   3. 501（暂无服务端模板）→ 前端 EXPORT_DOC_RENDERERS + doc-* 基座 screen 画布
-  // （灰底 + A4 纸张 + 阴影，所见即所得——预览排版与生成文件 PDF 一致）
+  //   2. 服务端模板注册表（CI 快照 / PL / CO / BL / INS / PO / IR…）→ preview.html 同源渲染
   const openPreview = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
     setPreviewingDoc(doc);
     setPreviewingVersion(version);
@@ -352,17 +341,8 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
         const html = await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId);
         setPreviewHtml(html);
       } else {
-        // 服务端模板类型优先（PL / PO / IR…——与生成 PDF 同一份渲染）；501 回退前端渲染器
-        try {
-          const serverHtml = await apiService.getTradeDocumentPreviewHtml(doc.id);
-          setPreviewHtml(serverHtml);
-        } catch (serverErr: any) {
-          if (serverErr?.code !== 'SERVER_TEMPLATE_NOT_AVAILABLE') throw serverErr;
-          const kind = TYPE_TO_EXPORT_KIND[doc.type];
-          const ds = extractDocumentSet(version.content);
-          if (!kind || !ds) throw new Error('该单据无可渲染的版本快照');
-          setPreviewHtml(buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds), '', { screen: true }));
-        }
+        const serverHtml = await apiService.getTradeDocumentPreviewHtml(doc.id);
+        setPreviewHtml(serverHtml);
       }
     } catch (e: any) {
       setPreviewErr(`预览加载失败：${e?.message || e}`);
@@ -374,56 +354,23 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   // A4 预览弹窗：数据加载逻辑（弹窗 UI 用全站共享组件 A4DocumentPreviewModal——B1 架构底座）
 
   const printVersion = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
-    // 服务端模板类型（CI 财务回链 / PL / PO / IR）→ 服务端同源模板打印（与预览/PDF 完全一致，单一真源不双渲染）
-    if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
-      try {
-        const html = await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId);
-        printFullHtmlDocument(html, `${doc.documentNumber} v${version.version}`);
-      } catch (e: any) {
-        setError(`财务发票打印加载失败：${e?.message || e}`);
-      }
-      return;
-    }
+    // B6：服务端同源模板打印（CI 财务回链 → 财务真源；其余 → preview.html 注册表模板）
     try {
-      const serverHtml = await apiService.getTradeDocumentPreviewHtml(doc.id);
-      printFullHtmlDocument(serverHtml, `${doc.documentNumber} v${version.version}`);
-      return;
-    } catch (serverErr: any) {
-      if (serverErr?.code !== 'SERVER_TEMPLATE_NOT_AVAILABLE') {
-        setError(`打印加载失败：${serverErr?.message || serverErr}`);
-        return;
-      }
+      const html = doc.type === 'CommercialInvoice' && doc.sourceInvoiceId
+        ? await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId)
+        : await apiService.getTradeDocumentPreviewHtml(doc.id);
+      printFullHtmlDocument(html, `${doc.documentNumber} v${version.version}`);
+    } catch (e: any) {
+      setError(`打印加载失败：${e?.message || e}`);
     }
-    const kind = TYPE_TO_EXPORT_KIND[doc.type];
-    const ds = extractDocumentSet(version.content);
-    if (!kind || !ds) return;
-    printHtmlDocument({ title: `${doc.documentNumber} v${version.version}`, htmlBody: EXPORT_DOC_RENDERERS[kind].render(ds) });
   }, []);
 
-  // ── 一键生成文件：服务端模板优先渲染 → 服务端转 PDF 落盘归档（无服务端模板时前端渲染 html 传入）──
+  // ── 一键生成文件：服务端模板自渲染 → 服务端转 PDF 落盘归档（B6：渲染真源统一服务端）──
   const handleGenerateFile = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
     setActionLoading(doc.id);
     setError(null);
     try {
-      let html: string | undefined;
-      let hasServerTemplate = false;
-      if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
-        hasServerTemplate = true; // CI 财务回链 → 服务端财务真源模板自渲染
-      } else {
-        try {
-          await apiService.getTradeDocumentPreviewHtml(doc.id);
-          hasServerTemplate = true; // PL / PO / IR 等注册表类型 → 服务端自渲染
-        } catch (serverErr: any) {
-          if (serverErr?.code !== 'SERVER_TEMPLATE_NOT_AVAILABLE') throw serverErr;
-        }
-      }
-      if (!hasServerTemplate) {
-        const kind = TYPE_TO_EXPORT_KIND[doc.type];
-        const ds = extractDocumentSet(version.content);
-        if (!kind || !ds) throw new Error('该单据无可渲染的版本快照（先「从运单生成」或编辑补充内容）');
-        html = buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds));
-      }
-      const result = await apiService.generateTradeDocumentFile(doc.id, { html, version: version.version });
+      const result = await apiService.generateTradeDocumentFile(doc.id, { version: version.version });
       await fetchDocs();
       setAlertMessage(`已生成单据文件 ${result.fileName}（${Math.round(result.fileSize / 1024)} KB），归档至本单据`);
     } catch (e: any) {
@@ -445,29 +392,16 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
     return new Set(docs.map(d => d.id));
   });
 
-  /** 批量生成文件：逐条调 generate-file（服务端模板优先 + 幂等覆盖），完成后刷新 */
+  /** 批量生成文件：逐条调 generate-file（服务端模板自渲染 + 幂等覆盖），完成后刷新 */
   const handleBatchGenerate = async () => {
     if (selectedIds.size === 0) return;
     setBatchLoading('generate');
     setAlertMessage(null);
     let ok = 0;
     let failed = 0;
-    const docsById = new Map(docs.map(d => [d.id, d]));
     for (const id of selectedIds) {
-      const doc = docsById.get(id);
-      if (!doc) continue;
       try {
-        // 批量场景统一走服务端优先（无前端渲染负担）；version 不传走最新版本兜底
-        let html: string | undefined;
-        try {
-          await apiService.getTradeDocumentPreviewHtml(id);
-        } catch {
-          const kind = TYPE_TO_EXPORT_KIND[doc.type];
-          const latest = versionsByDoc[id]?.[0];
-          const ds = latest ? extractDocumentSet(latest.content) : null;
-          if (kind && ds) html = buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds));
-        }
-        await apiService.generateTradeDocumentFile(id, { html });
+        await apiService.generateTradeDocumentFile(id, {});
         ok += 1;
       } catch {
         failed += 1;
@@ -814,7 +748,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                               {versions.map(v => {
                                 // CI 带财务回链：无本地快照也可预览/打印（走服务端同源模板）
                                 const isLinkedCi = doc.type === 'CommercialInvoice' && !!doc.sourceInvoiceId;
-                                const renderable = isLinkedCi || (!!TYPE_TO_EXPORT_KIND[doc.type] && !!extractDocumentSet(v.content));
+                                const renderable = isLinkedCi || SERVER_RENDERABLE_TYPES.has(doc.type);
                                 return (
                                   <div key={v.id} className={`rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                                     <div className="flex items-center justify-between gap-2 px-3 py-2">
@@ -1398,11 +1332,14 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
     }
   };
 
-  const printItem = (item: TradeDocumentPackItem) => {
-    const kind = TYPE_TO_EXPORT_KIND[item.type as TradeDocumentType];
-    const ds = extractDocumentSet(item.content);
-    if (!kind || !ds) return;
-    printHtmlDocument({ title: item.documentNumber, htmlBody: EXPORT_DOC_RENDERERS[kind].render(ds) });
+  const printItem = async (item: TradeDocumentPackItem) => {
+    try {
+      // B6：服务端模板真源打印（preview.html 与预览/PDF 同源；CI 财务回链由服务端优先处理）
+      const html = await apiService.getTradeDocumentPreviewHtml(item.id);
+      printFullHtmlDocument(html, item.documentNumber);
+    } catch (e: any) {
+      setError(`打印 ${item.documentNumber} 失败：${e?.message || e}`);
+    }
   };
 
   return (
@@ -1444,7 +1381,7 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
             <div className="space-y-1.5">
               {items.map(item => {
                 const si = docStatusInfo(item.status as TradeDocumentStatus);
-                const renderable = !!TYPE_TO_EXPORT_KIND[item.type as TradeDocumentType] && !!extractDocumentSet(item.content);
+                const renderable = SERVER_RENDERABLE_TYPES.has(item.type);
                 return (
                   <div key={item.id} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                     <div className="flex items-center gap-2 min-w-0 text-xs flex-wrap">
@@ -1454,9 +1391,9 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
                       <span className="opacity-50">{item.latestVersion != null ? `v${item.latestVersion}` : '无版本'}</span>
                     </div>
                     <button
-                      onClick={() => printItem(item)}
+                      onClick={() => void printItem(item)}
                       disabled={!renderable}
-                      title={renderable ? '渲染最新快照并打印' : '无可渲染快照（手工登记单据请先补录/生成）'}
+                      title={renderable ? '服务端模板渲染并打印' : '该类型暂无服务端模板'}
                       className="bds-btn bds-btn-outline shrink-0"
                     >
                       <Printer size={14} />打印/PDF

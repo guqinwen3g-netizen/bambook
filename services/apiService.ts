@@ -3458,6 +3458,22 @@ export const apiService = {
 
   // ── B3 组合文档（多对一数据聚合：MERGED_PL 多运单合并装箱单 / MERGED_IR 多报告合并汇总） ──
 
+  /** 按运单渲染出运单据——POST /v1/customs/trade-documents/render-by-shipment（B6 出运制单引擎唯一渲染入口，
+   *  服务端模板真源；kind ∈ CI/PL/CO/BL/FORMA/INS/BC，不登记 TradeDocument） */
+  async renderShipmentDocument(shipmentId: string, kind: 'CI' | 'PL' | 'CO' | 'BL' | 'FORMA' | 'INS' | 'BC', endpoint?: string): Promise<string> {
+    const url = buildApiUrl('/v1/customs/trade-documents/render-by-shipment', endpoint);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shipmentId, kind }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
   /** 组合文档预览 HTML——POST /v1/customs/trade-documents/composite/preview.html（A4 画布，与生成 PDF 同源） */
   async getCompositeDocumentPreviewHtml(kind: 'MERGED_PL' | 'MERGED_IR', sourceIds: string[], endpoint?: string): Promise<string> {
     const url = buildApiUrl('/v1/customs/trade-documents/composite/preview.html', endpoint);

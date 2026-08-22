@@ -307,6 +307,340 @@ export function renderBillOfLadingBody(data: ServerDocumentSetData, exporter: Do
 }
 
 // ────────────────────────────────────────────────────────────────
+// CI — Commercial Invoice 商业发票（documentSet 快照版——运单制单/无财务回链场景；
+// 带财务回链的 CI 走 renderInvoiceDocumentHtml 财务真源模板，优先级见 lifecycleService）
+// ────────────────────────────────────────────────────────────────
+
+/** 英文金额大写（CI "SAY TOTAL" 行；支持到 billion，两位小数） */
+export function amountInWords(amount: number, currency: string | null): string {
+  const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE',
+    'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
+  const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+  const scales: Array<[number, string]> = [[1e9, 'BILLION'], [1e6, 'MILLION'], [1e3, 'THOUSAND']];
+
+  const twoDigits = (n: number): string => (n < 20 ? ones[n] : `${tens[Math.floor(n / 10)]}${n % 10 ? '-' + ones[n % 10] : ''}`);
+  const threeDigits = (n: number): string => {
+    const h = Math.floor(n / 100);
+    const rest = n % 100;
+    return `${h ? ones[h] + ' HUNDRED' : ''}${h && rest ? ' AND ' : ''}${rest ? twoDigits(rest) : ''}`.trim();
+  };
+
+  let intPart = Math.floor(amount);
+  const cents = Math.round((amount - intPart) * 100);
+  const parts: string[] = [];
+  for (const [scale, label] of scales) {
+    if (intPart >= scale) {
+      const chunk = Math.floor(intPart / scale);
+      parts.push(`${threeDigits(chunk)} ${label}`);
+      intPart %= scale;
+    }
+  }
+  if (intPart > 0) parts.push(threeDigits(intPart));
+  const intWords = parts.join(' ').replace(/\s+/g, ' ').trim() || 'ZERO';
+
+  const currencyName = currency === 'USD' ? 'US DOLLARS' : currency === 'EUR' ? 'EUROS' : currency === 'CNY' ? 'CHINESE YUAN' : (currency || '');
+  const centsWords = cents > 0 ? ` AND CENTS ${twoDigits(cents)}` : '';
+  return `SAY TOTAL ${currencyName} ${intWords}${centsWords} ONLY`.replace(/\s+/g, ' ').trim();
+}
+
+const fmtUnitPrice = (n: number | null | undefined): string => {
+  if (n === null || n === undefined) return '—';
+  const fixed = n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '.00');
+  return Number(fixed).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+};
+
+export function renderCommercialInvoiceBody(data: ServerDocumentSetData, exporter: DocExporterProfile): string {
+  const currency = data.totals.currency || data.order?.currency || 'USD';
+  const invoiceNo = resolvedInvoiceNo(data);
+  const invoiceDate = resolvedInvoiceDate(data);
+
+  const rows = data.lines.map((l: ServerDocumentSetLine) => `
+    <tr>
+      <td>${esc(l.description)}${l.hsCode ? `<br><span style="color:#718096;font-size:10px">HS: ${esc(l.hsCode)}</span>` : ''}</td>
+      <td style="text-align:right">${fmtQty(l.quantity)}${l.unit ? ' ' + esc(l.unit) : ''}</td>
+      <td style="text-align:right">${fmtUnitPrice(l.unitPrice)}</td>
+      <td style="text-align:right">${fmtMoney(l.amount, null)}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>COMMERCIAL INVOICE</h1>
+      <div class="subtitle">商业发票</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">${esc(invoiceNo)}</div>
+      <div>Date: ${esc(invoiceDate)}</div>
+      ${data.order?.poNumber ? `<div>P/O No.: ${esc(data.order.poNumber)}</div>` : ''}
+      ${data.order?.finalContractNumber || data.order?.salesContractNumber ? `<div>S/C No.: ${esc(data.order.finalContractNumber || data.order.salesContractNumber || '')}</div>` : ''}
+    </div>
+  </div>
+
+  <div class="doc-party-grid">
+    ${exporterBlock('Seller / Exporter 卖方', exporter)}
+    ${partyBlock('Buyer / Consignee 买方', data.parties.customer?.name, data.parties.customer?.address, data.parties.customer?.contact)}
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Shipment 运输信息</div>
+    <table class="doc-table">
+      <tbody>
+        <tr>
+          <td style="width:25%"><strong>From 起运港</strong></td>
+          <td style="width:25%">${dash(data.shipment.portOfLoading)}</td>
+          <td style="width:25%"><strong>To 目的港</strong></td>
+          <td style="width:25%">${dash(data.shipment.portOfDischarge)}</td>
+        </tr>
+        <tr>
+          <td><strong>Vessel/Voyage 船名航次</strong></td>
+          <td>${dash(data.shipment.vesselOrFlight)}${data.shipment.voyageNumber ? ' ' + esc(data.shipment.voyageNumber) : ''}</td>
+          <td><strong>ETD 离港日</strong></td>
+          <td>${dash(data.shipment.atd || data.shipment.etd)}</td>
+        </tr>
+        <tr>
+          <td><strong>Terms of Delivery 贸易条款</strong></td>
+          <td>${esc(tradeTerms(data))}</td>
+          <td><strong>Terms of Payment 付款方式</strong></td>
+          <td>${dash(data.order?.paymentTerms)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Goods 货物明细</div>
+    <table class="doc-table">
+      <thead>
+        <tr>
+          <th>Marks &amp; Nos.</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>${shippingMarks(data)}</td></tr>
+      </tbody>
+    </table>
+    <table class="doc-table">
+      <thead>
+        <tr>
+          <th>Description of Goods 品名</th>
+          <th style="text-align:right">Quantity 数量</th>
+          <th style="text-align:right">Unit Price 单价 (${esc(currency)})</th>
+          <th style="text-align:right">Amount 金额 (${esc(currency)})</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">TOTAL 合计</td>
+          <td style="text-align:right">${fmtMoney(data.totals.amount, null)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    ${data.totals.amount != null ? `<div class="doc-notes"><div class="notes-title">Amount in Words</div>${esc(amountInWords(data.totals.amount, currency))}</div>` : ''}
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Beneficiary Bank 收款银行</div>
+    <div class="doc-party">
+      <div class="detail">
+        Beneficiary: ${esc(exporter.beneficiary || exporter.nameEn)}<br>
+        Bank: ${esc(exporter.bankName || '')}<br>
+        Address: ${esc(exporter.bankAddress || '')}<br>
+        SWIFT: ${esc(exporter.swiftCode || '')}<br>
+        A/C No.: ${esc(exporter.usdAccountNumber || '')}
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div class="doc-signature">
+      <div class="sig-label">For and on behalf of ${esc(exporter.nameEn)} (签章)</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">Authorized Signature</div>
+    </div>
+  </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// FORMA — GSP 普惠制原产地证（官方 12 栏格式草稿）
+// ────────────────────────────────────────────────────────────────
+
+export function renderFormABody(data: ServerDocumentSetData, exporter: DocExporterProfile): string {
+  const origin = data.customs?.originCountry || data.lines.find(l => l.originCountry)?.originCountry || 'CHINA';
+  const transport = [
+    data.shipment.vesselOrFlight ? esc(data.shipment.vesselOrFlight) + (data.shipment.voyageNumber ? ' ' + esc(data.shipment.voyageNumber) : '') : null,
+    data.shipment.etd || data.shipment.atd ? `ON/ABOUT ${esc(data.shipment.atd || data.shipment.etd || '')}` : null,
+    data.shipment.portOfLoading && data.shipment.portOfDischarge ? `FROM ${esc(data.shipment.portOfLoading)}, CHINA TO ${esc(data.shipment.portOfDischarge)}` : null,
+    data.shipment.shippingMethod ? `BY ${data.shipment.shippingMethod.toUpperCase() === 'SEA' ? 'SEA' : esc(data.shipment.shippingMethod.toUpperCase())}` : null,
+  ].filter(Boolean).join('<br>') || '—';
+
+  const originCriterion = String((data.extras as Record<string, unknown> | undefined)?.originCriterion ?? '');
+
+  const rows = data.lines.map((l: ServerDocumentSetLine, i: number) => `
+    <tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${i === 0 ? shippingMarks(data) : ''}</td>
+      <td>${l.cartons ?? '—'} CTNS<br>${esc(l.description)}</td>
+      <td style="text-align:center">${esc(originCriterion)}</td>
+      <td style="text-align:right">${fmtW(l.grossWeight)} KGS</td>
+      <td>${i === 0 ? esc(resolvedInvoiceNo(data)) + '<br>' + esc(resolvedInvoiceDate(data)) : ''}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>GENERALIZED SYSTEM OF PREFERENCES<br>CERTIFICATE OF ORIGIN</h1>
+      <div class="subtitle">FORM A · 普惠制原产地证 (Combined declaration and certificate)</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">FA-${esc(data.shipment.shipmentNumber)}</div>
+      <div>Issued in ${esc(origin === 'CHINA' ? "THE PEOPLE'S REPUBLIC OF CHINA" : origin)}</div>
+      <div>Country of destination: ${dash(data.customs?.destinationCountry)}</div>
+    </div>
+  </div>
+
+  <table class="doc-table">
+    <tbody>
+      <tr>
+        <td style="width:50%;vertical-align:top">
+          <strong>1. Goods consigned from (Exporter's business name, address, country)</strong><br><br>
+          ${esc(exporter.nameEn)}<br>${linesToHtml(exporter.addressEn)}
+        </td>
+        <td style="width:50%;vertical-align:top">
+          <strong>Reference No.</strong><br>
+          FA-${esc(data.shipment.shipmentNumber)}
+        </td>
+      </tr>
+      <tr>
+        <td style="vertical-align:top">
+          <strong>2. Goods consigned to (Consignee's name, address, country)</strong><br><br>
+          ${data.parties.consignee?.name ? esc(data.parties.consignee.name) : '—'}<br>
+          ${data.parties.consignee?.address ? linesToHtml(data.parties.consignee.address) : ''}
+        </td>
+        <td style="vertical-align:top;color:#4a5568">
+          <strong>4. For official use</strong><br><br>
+          &nbsp;
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="vertical-align:top">
+          <strong>3. Means of transport and route (as far as known)</strong><br><br>
+          ${transport}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="doc-section">
+    <table class="doc-table">
+      <thead>
+        <tr>
+          <th style="width:6%">5. Item No.</th>
+          <th style="width:16%">6. Marks &amp; Nos.</th>
+          <th>7. No. &amp; kind of packages; description of goods</th>
+          <th style="width:8%">8. Origin criterion</th>
+          <th style="width:14%;text-align:right">9. Gross weight</th>
+          <th style="width:14%">10. No. &amp; date of invoices</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+
+  <table class="doc-table">
+    <tbody>
+      <tr>
+        <td style="width:50%;vertical-align:top">
+          <strong>11. Certification</strong><br>
+          It is hereby certified, on the basis of control carried out, that the declaration by the exporter is correct.
+          <br><br><br><br>
+          <div style="color:#4a5568">Place and date, signature and stamp of certifying authority</div>
+        </td>
+        <td style="width:50%;vertical-align:top">
+          <strong>12. Declaration by the exporter</strong><br>
+          The undersigned hereby declares that the above details and statements are correct; that all the goods were produced in
+          <strong>${esc(origin === 'CHINA' ? 'CHINA' : origin)}</strong> and that they comply with the origin requirements
+          specified for those goods in the Generalized System of Preferences for goods exported to the importing country.
+          <br><br><br><br>
+          <div style="color:#4a5568">Place and date, signature of authorized signatory</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// BC — Beneficiary's Certificate 受益人证明
+// ────────────────────────────────────────────────────────────────
+
+export function renderBeneficiaryCertificateBody(data: ServerDocumentSetData, exporter: DocExporterProfile): string {
+  const lc = data.extras?.letterOfCredit as LetterOfCreditExtras | undefined;
+  const today = localToday();
+
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>BENEFICIARY'S CERTIFICATE</h1>
+      <div class="subtitle">受益人证明</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">BC-${esc(data.shipment.shipmentNumber)}</div>
+      <div>Date: ${esc(today)}</div>
+      <div>Invoice No.: ${esc(resolvedInvoiceNo(data))}</div>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <table class="doc-table">
+      <tbody>
+        <tr>
+          <td style="width:25%"><strong>To 致</strong></td>
+          <td style="width:75%">${lc?.applicant ? esc(lc.applicant) : data.parties.customer?.name ? esc(data.parties.customer.name) : '—'}</td>
+        </tr>
+        ${lc ? `
+        <tr>
+          <td><strong>L/C No. 信用证号</strong></td>
+          <td>${esc(lc.lcNumber)}${lc.issueBank ? ` issued by ${esc(lc.issueBank)}` : ''}${lc.issueDate ? ` dated ${esc(lc.issueDate)}` : ''}</td>
+        </tr>` : ''}
+        <tr>
+          <td><strong>S/C or P/O No. 合同/订单号</strong></td>
+          <td>${esc(data.order?.finalContractNumber || data.order?.salesContractNumber || data.order?.poNumber || '—')}</td>
+        </tr>
+        <tr>
+          <td><strong>B/L or Shipment 运单号</strong></td>
+          <td>${esc(data.shipment.shipmentNumber)}${data.shipment.vesselOrFlight ? ` per ${esc(data.shipment.vesselOrFlight)}` : ''}${data.shipment.voyageNumber ? ' ' + esc(data.shipment.voyageNumber) : ''}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Certification 声明</div>
+    <div class="doc-notes" style="color:#2d3748;font-size:12px;line-height:1.9">
+      WE, ${esc(exporter.beneficiary || exporter.nameEn)}, HEREBY CERTIFY THAT:
+      <br><br>
+      1. ONE FULL SET OF NON-NEGOTIABLE SHIPPING DOCUMENTS (INCLUDING COPY OF BILL OF LADING,
+      COMMERCIAL INVOICE AND PACKING LIST) HAS BEEN SENT DIRECTLY TO THE APPLICANT BY COURIER
+      IMMEDIATELY AFTER SHIPMENT.
+      <br>
+      2. ALL DOCUMENTS PRESENTED CONFORM TO THE TERMS AND CONDITIONS OF THE RELATIVE LETTER OF CREDIT
+      AND THE GOODS SHIPPED ARE IN STRICT ACCORDANCE WITH THE CONTRACT SPECIFICATIONS.
+      <br><br>
+      我司兹证明：船运后已立即以快递方式向开证申请人直接寄送全套副本装运单据（含提单副本、商业发票与装箱单），
+      且所提交单据均符合相关信用证条款，所装货物与合同规格严格相符。
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div class="doc-signature">
+      <div class="sig-label">For and on behalf of ${esc(exporter.nameEn)} (签章)</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">Beneficiary's Authorized Signature · ${esc(today)}</div>
+    </div>
+  </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────
 // INS — Insurance Policy / Certificate 保险单
 // ────────────────────────────────────────────────────────────────
 

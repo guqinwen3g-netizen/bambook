@@ -76,8 +76,9 @@ import {
 import { createDocumentTemplateService } from './documentTemplateService';
 import { generateTradeDocumentsFromShipment, generateTradeDocumentFile, packTradeDocumentsByOrder, renderTradeDocumentServerHtml } from './tradeDocumentLifecycleService';
 import { assembleCompositeDocument, isCompositeDocKind } from './compositeDocumentService';
-import { renderServerDocument } from '../templates/docTemplates/registry';
+import { renderServerDocument, isShipmentDocKind } from '../templates/docTemplates/registry';
 import { renderHtmlToPdf } from '../templates/pdf';
+import { assembleDocumentSetData } from '../shipping/documentSetService';
 import JSZip from 'jszip';
 import path from 'path';
 import fs from 'fs';
@@ -657,6 +658,28 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[CustomsRoute] POST batch-download failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to batch download trade-documents' });
+    }
+  });
+
+  // POST /trade-documents/render-by-shipment — 按运单渲染出运单据（B6 前端模板退役）：
+  // 出运制单引擎（ShipmentDocumentGenerator）唯一渲染入口——运单装配 + 服务端模板，
+  // kind ∈ CI/PL/CO/BL/FORMA/INS/BC。不登记 TradeDocument（打印场景与登记归档分离）。
+  router.post('/trade-documents/render-by-shipment', async (req: Request, res: Response) => {
+    try {
+      const { shipmentId, kind } = req.body ?? {};
+      if (!shipmentId || typeof shipmentId !== 'string') return res.status(400).json({ error: 'shipmentId 必填' });
+      if (!isShipmentDocKind(kind)) return res.status(400).json({ error: `非法单据类型: ${kind}` });
+      const result = await assembleDocumentSetData(prisma, shipmentId);
+      if (!result.ok || !result.data) {
+        return res.status(404).json({ error: result.error?.message || '运单制单数据装配失败' });
+      }
+      const html = await renderServerDocument(prisma, kind, result.data);
+      if (!html) return res.status(500).json({ error: `单据 ${kind} 渲染失败` });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] POST render-by-shipment failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to render shipment document' });
     }
   });
 

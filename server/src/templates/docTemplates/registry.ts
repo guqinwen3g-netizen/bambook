@@ -22,7 +22,7 @@ import { renderPurchaseOrderBody, loadPurchaseOrderDocData } from './purchaseOrd
 import { renderInspectionReportBody, loadInspectionReportDocData } from './inspectionReport';
 import { renderMergedPackingListBody } from './mergedPackingList';
 import { renderMergedInspectionSummaryBody } from './mergedInspectionSummary';
-import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody } from './customsDocs';
+import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody, renderCommercialInvoiceBody, renderFormABody, renderBeneficiaryCertificateBody } from './customsDocs';
 import type { ServerDocumentSetData } from './types';
 
 /** 注册表渲染上下文：单据定位信息（loadData 按各自真源装配） */
@@ -44,6 +44,7 @@ export interface ServerDocTemplate {
 
 /** TradeDocumentType → 服务端模板 kind（模板注册地即映射真源） */
 const TRADE_DOC_TYPE_TO_KIND: Partial<Record<string, string>> = {
+  CommercialInvoice: 'CI', // documentSet 快照版（带财务回链的 CI 在 lifecycleService 优先走财务真源模板）
   PackingList: 'PL',
   CertificateOfOrigin: 'CO',
   BillOfLading: 'BL',
@@ -51,6 +52,14 @@ const TRADE_DOC_TYPE_TO_KIND: Partial<Record<string, string>> = {
   PurchaseOrder: 'PO',
   InspectionReport: 'IR',
 };
+
+/** 出运制单 kind 集合（ShipmentDocumentGenerator 按运单渲染入口用——B6 前端模板退役） */
+export const SHIPMENT_DOC_KINDS = ['CI', 'PL', 'CO', 'BL', 'FORMA', 'INS', 'BC'] as const;
+export type ShipmentDocKind = (typeof SHIPMENT_DOC_KINDS)[number];
+
+export function isShipmentDocKind(kind: string): kind is ShipmentDocKind {
+  return (SHIPMENT_DOC_KINDS as readonly string[]).includes(kind);
+}
 
 /** 按单据类型查服务端模板 kind（未迁移类型返回 null——前端本地渲染兜底） */
 export function serverKindForType(type: string): string | null {
@@ -69,10 +78,13 @@ async function loadDocumentSetSnapshot(prisma: PrismaClient, doc: ServerDocConte
 }
 
 export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
+  CI: { kind: 'CI', title: 'Commercial Invoice 商业发票', loadData: loadDocumentSetSnapshot, renderBody: renderCommercialInvoiceBody },
   PL: { kind: 'PL', title: 'Packing List 装箱单', loadData: loadDocumentSetSnapshot, renderBody: renderPackingListBody },
   CO: { kind: 'CO', title: 'Certificate of Origin 原产地证', loadData: loadDocumentSetSnapshot, renderBody: renderCertificateOfOriginBody },
   BL: { kind: 'BL', title: 'Bill of Lading 提单补料', loadData: loadDocumentSetSnapshot, renderBody: renderBillOfLadingBody },
   INS: { kind: 'INS', title: 'Insurance Policy 保险单', loadData: loadDocumentSetSnapshot, renderBody: renderInsurancePolicyBody },
+  FORMA: { kind: 'FORMA', title: 'GSP Form A 普惠制原产地证', loadData: loadDocumentSetSnapshot, renderBody: renderFormABody },
+  BC: { kind: 'BC', title: "Beneficiary's Certificate 受益人证明", loadData: loadDocumentSetSnapshot, renderBody: renderBeneficiaryCertificateBody },
   PO: { kind: 'PO', title: 'Purchase Order 采购订单', loadData: async (prisma, doc) => (doc.sourceRef ? loadPurchaseOrderDocData(prisma, doc.sourceRef) : null), renderBody: renderPurchaseOrderBody },
   IR: { kind: 'IR', title: 'Inspection Report 验货报告', loadData: async (prisma, doc) => (doc.sourceRef ? loadInspectionReportDocData(prisma, doc.sourceRef) : null), renderBody: renderInspectionReportBody },
   // B3 组合文档（多对一聚合）：loadData 无单据级装配——数据由 compositeDocumentService 聚合后直喂 renderServerDocument
