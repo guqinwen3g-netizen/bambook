@@ -757,3 +757,115 @@ export function renderInsurancePolicyBody(data: ServerDocumentSetData, exporter:
     </div>
   </div>`;
 }
+
+/**
+ * AWB 空运单（Air Waybill 补料版）— B11 注册（schema TradeDocumentType 枚举已留位）。
+ * 空运版式：Shipper/Consignee/Notify/Issuing Carrier 四方 + 航班日期 + 起降机场 +
+ * 件数/毛重/体积分计合计；运费条款推断与 BL 同规则（CIF/CIP... → PREPAID）。
+ */
+export function renderAirWaybillBody(data: ServerDocumentSetData, exporter: DocExporterProfile): string {
+  const terms = (tradeTerms(data) || '').toUpperCase();
+  const freightPrepaid = /CIF|CIP|CFR|CPT|DDP|DAP|DPU/.test(terms);
+  const isAir = (data.shipment.shippingMethod || '').toUpperCase() === 'AIR';
+
+  const rows = data.lines.map((l: ServerDocumentSetLine) => `
+    <tr>
+      <td>${l.cartons ?? '—'} PCS</td>
+      <td>${esc(l.description)}</td>
+      <td style="text-align:right">${fmtW(l.grossWeight)}</td>
+      <td style="text-align:right">${fmtVol(l.volume)}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="doc-header">
+    <div class="doc-title-block">
+      <h1>AIR WAYBILL</h1>
+      <div class="subtitle">空运单补料 (AWB Draft)</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-no">AWB DRAFT-${esc(data.shipment.shipmentNumber)}</div>
+      <div>Booking Date: ${dash(data.shipment.bookingDate)}</div>
+      <div>Flight Date: ${dash(data.shipment.atd || data.shipment.etd)}</div>
+    </div>
+  </div>
+
+  <div class="doc-party-grid">
+    ${exporterBlock('Shipper 托运人', exporter)}
+    ${partyBlock('Consignee 收货人', data.parties.consignee?.name, data.parties.consignee?.address, data.parties.consignee?.contact)}
+  </div>
+  <div class="doc-party-grid">
+    ${partyBlock('Notify Party 通知方', data.parties.consignee?.name, data.parties.consignee?.address, data.parties.consignee?.contact)}
+    ${partyBlock('Issuing Carrier 签发承运人', data.parties.carrier?.name)}
+  </div>
+
+  <div class="doc-section">
+    <table class="doc-table">
+      <tbody>
+        <tr>
+          <td style="width:25%"><strong>Flight No. 航班号</strong></td>
+          <td style="width:25%">${dash(data.shipment.vesselOrFlight)}</td>
+          <td style="width:25%"><strong>Freight 运费条款</strong></td>
+          <td style="width:25%"><strong>${freightPrepaid ? 'FREIGHT PREPAID 运费预付' : 'FREIGHT COLLECT 运费到付'}</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Airport of Departure 起运机场</strong></td>
+          <td>${dash(data.shipment.portOfLoading)}</td>
+          <td><strong>Airport of Destination 到达机场</strong></td>
+          <td>${dash(data.shipment.portOfDischarge)}</td>
+        </tr>
+        <tr>
+          <td><strong>MAWB No. 主单号</strong></td>
+          <td>${dash(data.shipment.containerNumber)}</td>
+          <td><strong>HAWB No. 分单号</strong></td>
+          <td>${dash(data.shipment.sealNumber)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Handling Information 处理信息${isAir ? '' : '<span style="color:#718096;font-weight:400">（提示：该运单运输方式非 AIR，请核对）</span>'}</div>
+    <div class="doc-party"><div class="detail">${shippingMarks(data)}</div></div>
+  </div>
+
+  <div class="doc-section">
+    <div class="doc-section-title">Cargo Particulars 货物明细</div>
+    <table class="doc-table">
+      <thead>
+        <tr>
+          <th>No. of Packages 件数</th>
+          <th>Description of Goods 货名</th>
+          <th style="text-align:right">Gross Weight (KGS)</th>
+          <th style="text-align:right">Measurement (CBM)</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr>
+          <td>${data.totals.cartons ?? data.shipment.totalPackages ?? '—'} PCS</td>
+          <td>TOTAL 合计</td>
+          <td style="text-align:right">${fmtW(data.totals.grossWeight)}</td>
+          <td style="text-align:right">${fmtVol(data.totals.volume)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="doc-notes">
+      <div class="notes-title">Remarks 备注</div>
+      SHIPPER'S LOAD AND COUNT. SAID TO CONTAIN. 托运人自装、自点。
+      ${data.shipment.notes ? '<br>' + linesToHtml(data.shipment.notes) : ''}
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div class="doc-signature">
+      <div class="sig-label">For and on behalf of ${esc(exporter.nameEn)} (Shipper 托运人签章)</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">Authorized Signature</div>
+    </div>
+    <div class="doc-signature">
+      <div class="sig-label">Issuing Carrier 签发承运人</div>
+      <div class="sig-line">&nbsp;</div>
+      <div class="sig-name">Authorized Signature</div>
+    </div>
+  </div>`;
+}

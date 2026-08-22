@@ -3711,7 +3711,7 @@ export const apiService = {
 
   /** 按运单渲染出运单据——POST /v1/customs/trade-documents/render-by-shipment（B6 出运制单引擎唯一渲染入口，
    *  服务端模板真源；kind ∈ CI/PL/CO/BL/FORMA/INS/BC，不登记 TradeDocument） */
-  async renderShipmentDocument(shipmentId: string, kind: 'CI' | 'PL' | 'CO' | 'BL' | 'FORMA' | 'INS' | 'BC', endpoint?: string): Promise<string> {
+  async renderShipmentDocument(shipmentId: string, kind: 'CI' | 'PL' | 'CO' | 'BL' | 'AWB' | 'FORMA' | 'INS' | 'BC', endpoint?: string): Promise<string> {
     const url = buildApiUrl('/v1/customs/trade-documents/render-by-shipment', endpoint);
     const res = await fetch(url, {
       method: 'POST',

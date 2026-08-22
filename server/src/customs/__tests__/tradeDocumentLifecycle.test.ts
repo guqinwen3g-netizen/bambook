@@ -43,8 +43,9 @@ vi.mock('../../lib/logger', () => ({
 vi.mock('../../templates/pdf', () => ({
   renderHtmlToPdf: (...args: any[]) => pdfMock(...args),
 }));
-vi.mock('../../finance/route', () => ({
-  renderInvoiceDocumentHtml: (...args: any[]) => invoiceHtmlMock(...args),
+vi.mock('../../templates/docTemplates/financeInvoice', () => ({
+  // B11 收编：财务发票模板从 finance/route.ts 提取至 docTemplates/financeInvoice.ts
+  renderFinanceInvoiceDocument: (...args: any[]) => invoiceHtmlMock(...args),
 }));
 vi.mock('fs', () => ({ ...fsMock, default: fsMock }));
 

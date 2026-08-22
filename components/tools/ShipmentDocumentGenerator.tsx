@@ -14,6 +14,7 @@ import {
   Package,
   ScrollText,
   Ship,
+  Plane,
   Award,
   ShieldCheck,
   BadgeCheck,
@@ -30,8 +31,8 @@ import { Shipment, DocumentSetData } from '../../types';
 import { BAMBOOK_OS } from '../ui/bambookOsTokens';
 import { printFullHtmlDocument } from './printDocument';
 
-/** 出运制单类型（服务端 render-by-shipment 支持集合——B6 起渲染真源统一服务端） */
-type ExportDocKind = 'CI' | 'PL' | 'CO' | 'BL' | 'FORMA' | 'INS' | 'BC';
+/** 出运制单类型（服务端 render-by-shipment 支持集合——B6 起渲染真源统一服务端；B11 增 AWB） */
+type ExportDocKind = 'CI' | 'PL' | 'CO' | 'BL' | 'AWB' | 'FORMA' | 'INS' | 'BC';
 
 interface ShipmentDocumentGeneratorProps {
   isDarkMode: boolean;
@@ -42,6 +43,7 @@ const DOC_OPTIONS: Array<{ kind: ExportDocKind; label: string; sub: string; icon
   { kind: 'PL', label: '装箱单', sub: 'Packing List', icon: Package },
   { kind: 'CO', label: '原产地证', sub: 'Certificate of Origin', icon: ScrollText },
   { kind: 'BL', label: '提单补料', sub: 'Bill of Lading Draft', icon: Ship },
+  { kind: 'AWB', label: '空运单', sub: 'Air Waybill Draft', icon: Plane },
   // 阶段 D / D4：按需单据（GSP 目的国 / CIF 投保 / LC 交单时勾选）
   { kind: 'FORMA', label: '普惠制产地证', sub: 'GSP Form A', icon: Award },
   { kind: 'INS', label: '保险单', sub: 'Insurance Policy', icon: ShieldCheck },
@@ -56,8 +58,8 @@ const ShipmentDocumentGenerator: React.FC<ShipmentDocumentGeneratorProps> = ({ i
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [docSet, setDocSet] = useState<DocumentSetData | null>(null);
   const [loadingDocSet, setLoadingDocSet] = useState(false);
-  // 阶段 D / D4：CI/PL/CO/BL 常规默认勾选；FORMA/INS/BC 按需（GSP/CIF/LC 场景）
-  const [selectedDocs, setSelectedDocs] = useState<Record<ExportDocKind, boolean>>({ CI: true, PL: true, CO: true, BL: true, FORMA: false, INS: false, BC: false });
+  // 阶段 D / D4：CI/PL/CO/BL 常规默认勾选；AWB/FORMA/INS/BC 按需（空运/GSP/CIF/LC 场景）
+  const [selectedDocs, setSelectedDocs] = useState<Record<ExportDocKind, boolean>>({ CI: true, PL: true, CO: true, BL: true, AWB: false, FORMA: false, INS: false, BC: false });
   const [generating, setGenerating] = useState(false);
 
   // ── 运单列表 ──

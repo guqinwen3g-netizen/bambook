@@ -22,7 +22,7 @@ import { assembleDocumentSetData } from '../shipping/documentSetService';
 import { nextBusinessNumber } from '../shared/businessNumberService';
 import { renderHtmlToPdf } from '../templates/pdf';
 import { renderServerDocument, SERVER_DOC_TEMPLATES, serverKindForType } from '../templates/docTemplates/registry';
-import { renderInvoiceDocumentHtml } from '../finance/route';
+import { renderFinanceInvoiceDocument } from '../templates/docTemplates/financeInvoice';
 import type { TradeDocumentType } from './customsService';
 
 // ────────────────────────────────────────────────────────────────
@@ -366,9 +366,10 @@ export async function renderTradeDocumentServerHtml(
   doc: { id: string; type: string; sourceInvoiceId: string | null; sourceRef: string | null },
   opts: { screen?: boolean } = {},
 ): Promise<string | null> {
-  // CI 带财务回链 → 财务真源模板（screen 与财务 preview.html 同一份渲染）
+  // CI 带财务回链 → 财务真源模板（screen 与财务 preview.html 同一份渲染；
+  // B11 收编：模板提取至 templates/docTemplates/financeInvoice.ts 注册表体系）
   if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
-    return renderInvoiceDocumentHtml(prisma, doc.sourceInvoiceId, opts);
+    return renderFinanceInvoiceDocument(prisma, doc.sourceInvoiceId, opts);
   }
   // 服务端注册表类型（PL / PO / IR ...）——数据装配真源由各模板 loadData 决定
   const kind = serverKindForType(doc.type);

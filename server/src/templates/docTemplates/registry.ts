@@ -5,12 +5,13 @@
  *   - 模板真源统一服务端（前端 EXPORT_DOC_RENDERERS 逐类退役，B6 收尾）
  *   - 每个 docKind 一个注册项：loadData（数据装配）+ renderBody（渲染）
  *     · PL：版本快照 documentSet（customs 域，生成时快照冻结）
- *     · PO/IR：业务真源实时装配（B2 运营域——sourceRef 回链，改业务侧即改文档）
+ *     · PO/IR/QUOT/OC：业务真源实时装配（运营域——sourceRef 回链，改业务侧即改文档）
+ *     · FIN_CI/STMT：完整文档形态（renderDocument，自带 doc-* 头部样式）——
+ *       B11 收编：财务发票从 finance/route.ts 原位提取入注册表，此处为全站模板唯一目录
  *   - 组装统一走 buildServerDocument（doc-* 基座），preview.html 用 screen 模式
  *
- * 已注册：PL（B1）/ PO、IR（B2）；后续逐批注册：
- *   Statement 对账单 / Contract / CI（财务真源已就位，此处注册统一入口）/
- *   CO / BL / INS / FORMA / BC / AWB ...
+ * 已注册（B1-B9）：PL/PO/IR/CI/CO/BL/INS/FORMA/BC/QUOT/OC/CONTRACT/MERGED_PL/MERGED_IR/STMT/FIN_CI
+ * 待注册：AWB 空运单（B11+，schema 枚举已留位）
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -22,11 +23,12 @@ import { renderPurchaseOrderBody, loadPurchaseOrderDocData } from './purchaseOrd
 import { renderInspectionReportBody, loadInspectionReportDocData } from './inspectionReport';
 import { renderMergedPackingListBody } from './mergedPackingList';
 import { renderMergedInspectionSummaryBody } from './mergedInspectionSummary';
-import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody, renderCommercialInvoiceBody, renderFormABody, renderBeneficiaryCertificateBody } from './customsDocs';
+import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody, renderCommercialInvoiceBody, renderFormABody, renderBeneficiaryCertificateBody, renderAirWaybillBody } from './customsDocs';
 import { renderQuotationBody, loadQuotationDocData } from './quotation';
 import { renderOrderConfirmationBody, loadOrderConfirmationDocData } from './orderConfirmation';
 import { renderContractBody } from './contract';
 import { renderStatementBody } from './statement';
+import { renderFinanceInvoiceDocument } from './financeInvoice';
 import type { ServerDocumentSetData } from './types';
 
 /** 注册表渲染上下文：单据定位信息（loadData 按各自真源装配） */
@@ -44,6 +46,12 @@ export interface ServerDocTemplate {
   loadData: (prisma: PrismaClient, doc: ServerDocContext) => Promise<any | null>;
   /** data → HTML body 片段（经 buildServerDocument 组装） */
   renderBody: (data: any, exporter: DocExporterProfile) => string;
+  /**
+   * 完整文档渲染器（自带 doc-* 头部样式 + screen 画布壳的模板，如财务发票）——
+   * 设置后 renderServerDocument 直接返回其输出，不走 renderBody 片段路径。
+   * B11 收编：财务发票从 finance/route.ts 原位提取，注册表成为全站模板唯一目录。
+   */
+  renderDocument?: (prisma: PrismaClient, ctx: ServerDocContext, opts: { screen?: boolean }) => Promise<string | null>;
 }
 
 /** TradeDocumentType → 服务端模板 kind（模板注册地即映射真源） */
@@ -52,6 +60,7 @@ const TRADE_DOC_TYPE_TO_KIND: Partial<Record<string, string>> = {
   PackingList: 'PL',
   CertificateOfOrigin: 'CO',
   BillOfLading: 'BL',
+  AirWaybill: 'AWB',
   InsuranceCert: 'INS',
   PurchaseOrder: 'PO',
   InspectionReport: 'IR',
@@ -59,8 +68,8 @@ const TRADE_DOC_TYPE_TO_KIND: Partial<Record<string, string>> = {
   OrderConfirmation: 'OC',
 };
 
-/** 出运制单 kind 集合（ShipmentDocumentGenerator 按运单渲染入口用——B6 前端模板退役） */
-export const SHIPMENT_DOC_KINDS = ['CI', 'PL', 'CO', 'BL', 'FORMA', 'INS', 'BC'] as const;
+/** 出运制单 kind 集合（ShipmentDocumentGenerator 按运单渲染入口用——B6 前端模板退役；B11 增 AWB） */
+export const SHIPMENT_DOC_KINDS = ['CI', 'PL', 'CO', 'BL', 'AWB', 'FORMA', 'INS', 'BC'] as const;
 export type ShipmentDocKind = (typeof SHIPMENT_DOC_KINDS)[number];
 
 export function isShipmentDocKind(kind: string): kind is ShipmentDocKind {
@@ -88,6 +97,7 @@ export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
   PL: { kind: 'PL', title: 'Packing List 装箱单', loadData: loadDocumentSetSnapshot, renderBody: renderPackingListBody },
   CO: { kind: 'CO', title: 'Certificate of Origin 原产地证', loadData: loadDocumentSetSnapshot, renderBody: renderCertificateOfOriginBody },
   BL: { kind: 'BL', title: 'Bill of Lading 提单补料', loadData: loadDocumentSetSnapshot, renderBody: renderBillOfLadingBody },
+  AWB: { kind: 'AWB', title: 'Air Waybill 空运单', loadData: loadDocumentSetSnapshot, renderBody: renderAirWaybillBody },
   INS: { kind: 'INS', title: 'Insurance Policy 保险单', loadData: loadDocumentSetSnapshot, renderBody: renderInsurancePolicyBody },
   FORMA: { kind: 'FORMA', title: 'GSP Form A 普惠制原产地证', loadData: loadDocumentSetSnapshot, renderBody: renderFormABody },
   BC: { kind: 'BC', title: "Beneficiary's Certificate 受益人证明", loadData: loadDocumentSetSnapshot, renderBody: renderBeneficiaryCertificateBody },
@@ -101,6 +111,15 @@ export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
   CONTRACT: { kind: 'CONTRACT', title: 'Sales Contract 销售合同（多订单合并）', loadData: async () => null, renderBody: renderContractBody },
   // B9 财务域报表模板：数据由 finance 路由实时装配直喂（周期性报表，非 TradeDocument 归档体系）
   STMT: { kind: 'STMT', title: 'Statement of Account 客户对账单', loadData: async () => null, renderBody: renderStatementBody },
+  // B11 结构收编：财务发票（商业发票唯一真源）入注册表——完整文档模板形态
+  // （sourceRef=Invoice.id；lifecycleService 的 CI 财务回链分支等价于此入口）
+  FIN_CI: {
+    kind: 'FIN_CI',
+    title: 'Commercial Invoice 商业发票（财务真源）',
+    loadData: async () => null, // 数据装配在 renderDocument 内完成（loadInvoiceDoc）
+    renderBody: () => '',
+    renderDocument: async (_prisma, ctx, opts) => (ctx.sourceRef ? renderFinanceInvoiceDocument(_prisma, ctx.sourceRef, opts) : null),
+  },
 };
 
 /**
@@ -120,6 +139,7 @@ export async function loadExporterProfile(prisma: PrismaClient): Promise<DocExpo
 /**
  * 按模板标识渲染完整单据文档（服务端统一入口）。
  * screen=true → preview.html 预览模式（灰底 A4 纸张画布）；false → 裸打印（renderHtmlToPdf 用）。
+ * 完整文档模板（renderDocument 形态，如 FIN_CI）自带头部样式，ctx.sourceRef 定位业务真源。
  * 未知模板返回 null（fail-closed，调用方 404）。
  */
 export async function renderServerDocument(
@@ -127,9 +147,13 @@ export async function renderServerDocument(
   kind: string,
   data: any,
   opts: { screen?: boolean } = {},
+  ctx?: ServerDocContext,
 ): Promise<string | null> {
   const template = SERVER_DOC_TEMPLATES[kind];
   if (!template) return null;
+  if (template.renderDocument) {
+    return template.renderDocument(prisma, ctx ?? { id: '', type: '', sourceRef: null }, opts);
+  }
   const exporter = await loadExporterProfile(prisma);
   const body = template.renderBody(data as ServerDocumentSetData, exporter);
   return buildServerDocument(body, opts);

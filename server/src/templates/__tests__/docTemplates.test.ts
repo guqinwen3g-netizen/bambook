@@ -225,18 +225,19 @@ describe('loadPurchaseOrderDocData', () => {
 // ── 注册表映射 ──
 
 describe('serverKindForType / SERVER_DOC_TEMPLATES', () => {
-  it('PO/IR/PL/CO/BL/INS 类型映射正确且模板已注册', () => {
+  it('PO/IR/PL/CO/BL/AWB/INS 类型映射正确且模板已注册', () => {
     expect(serverKindForType('PurchaseOrder')).toBe('PO');
     expect(serverKindForType('InspectionReport')).toBe('IR');
     expect(serverKindForType('PackingList')).toBe('PL');
     expect(serverKindForType('CertificateOfOrigin')).toBe('CO');
     expect(serverKindForType('BillOfLading')).toBe('BL');
     expect(serverKindForType('InsuranceCert')).toBe('INS');
-    expect(serverKindForType('AirWaybill')).toBeNull(); // 未迁移类型 → 前端本地渲染兜底
+    expect(serverKindForType('AirWaybill')).toBe('AWB'); // B11 注册（此前前端兜底）
     expect(SERVER_DOC_TEMPLATES.PO.title).toContain('Purchase Order');
     expect(SERVER_DOC_TEMPLATES.IR.title).toContain('Inspection Report');
     expect(SERVER_DOC_TEMPLATES.CO.title).toContain('原产地证');
     expect(SERVER_DOC_TEMPLATES.BL.title).toContain('提单');
+    expect(SERVER_DOC_TEMPLATES.AWB.title).toContain('空运单');
     expect(SERVER_DOC_TEMPLATES.INS.title).toContain('保险单');
   });
 
@@ -732,5 +733,53 @@ describe('B9 renderStatementBody', () => {
 
   it('STMT 注册表登记（周期性报表，finance 路由直喂数据）', () => {
     expect(SERVER_DOC_TEMPLATES.STMT.title).toContain('客户对账单');
+  });
+});
+
+// ── B11 结构收编：AWB 空运单 + FIN_CI 财务真源注册 ──
+
+import { renderAirWaybillBody } from '../docTemplates/customsDocs';
+
+describe('B11 renderAirWaybillBody', () => {
+  it('渲染空运单标题/航班/起降机场/主分单号/明细合计/双签；CIF → PREPAID', () => {
+    const data = makeCustomsDocSet({});
+    data.shipment.shippingMethod = 'AIR';
+    data.shipment.vesselOrFlight = 'CA1234';
+    const html = renderAirWaybillBody(data, EXPORTER);
+    expect(html).toContain('AIR WAYBILL');
+    expect(html).toContain('空运单补料');
+    expect(html).toContain('AWB DRAFT-SHP-2026-0001');
+    expect(html).toContain('CA1234');
+    expect(html).toContain('Flight No. 航班号');
+    expect(html).toContain('Airport of Departure 起运机场');
+    expect(html).toContain('SHANGHAI');
+    expect(html).toContain('Airport of Destination 到达机场');
+    expect(html).toContain('HAMBURG');
+    expect(html).toContain('MAWB No. 主单号');
+    expect(html).toContain('FREIGHT PREPAID'); // customs 基线 CIF 条款
+    expect(html).toContain('Issuing Carrier 签发承运人');
+  });
+
+  it('非 AIR 运单 → 处理信息区附核对提示（不误拦跨方式打印）', () => {
+    const data = makeCustomsDocSet({});
+    data.shipment.shippingMethod = 'SEA';
+    const html = renderAirWaybillBody(data, EXPORTER);
+    expect(html).toContain('运输方式非 AIR');
+  });
+
+  it('AWB 入出运制单集合（render-by-shipment 可渲染）', () => {
+    expect(isShipmentDocKind('AWB')).toBe(true);
+  });
+});
+
+describe('B11 FIN_CI 注册（财务真源完整文档模板）', () => {
+  it('FIN_CI 已注册且走 renderDocument 形态（无 sourceRef → null fail-closed）', async () => {
+    expect(SERVER_DOC_TEMPLATES.FIN_CI.title).toContain('财务真源');
+    const html = await SERVER_DOC_TEMPLATES.FIN_CI.renderDocument!(
+      {} as any,
+      { id: 'TD_1', type: 'CommercialInvoice', sourceRef: null },
+      {},
+    );
+    expect(html).toBeNull();
   });
 });

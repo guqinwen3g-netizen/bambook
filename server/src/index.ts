@@ -12,8 +12,8 @@ import cookieParser from 'cookie-parser';
 import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import * as cheerio from 'cheerio';
-import XLSX from 'xlsx';
 import fs from 'fs';
+import { buildXlsx, type XlsxSheet } from './templates/xlsxExport';
 import { createImportRouter } from './import/route';
 import { createOrdersRouter } from './orders/route';
 import { createOrdersV2Router } from './orders/routeV2';
@@ -1304,43 +1304,50 @@ const getPaymentTerms = (customerName?: string | null): string => {
 };
 
 const createShippingNoticeExcel = (shippingData: any, filename: string): string => {
-    const rows = [
-        ['Shipping Notice'],
-        ['Contract No.', shippingData.contractNo || ''],
-        ['PO Numbers', (shippingData.poNumbers || []).join(', ')],
-        ['Supplier', shippingData.supplier || ''],
-        ['Payer', shippingData.payer?.name || ''],
-        ['Payment Terms', shippingData.paymentTerms || ''],
-        ['Departure Port', shippingData.departurePort || ''],
-        ['Destination Port', shippingData.destinationPort || ''],
-        ['Shipping Method', shippingData.shippingMethod || ''],
-        ['Shipment Date', shippingData.shipmentDate || ''],
-        ['Forwarder', shippingData.forwarder || ''],
-        ['Customs Docs', shippingData.customsDocs || ''],
-        ['B/L Requirement', shippingData.blRequirement || ''],
-        ['Packaging', shippingData.packaging || ''],
-        ['Remarks', shippingData.remarks || ''],
-        [],
-        ['PO', 'ZROH', 'Fabric Code', 'Quantity', 'Composition', 'Weight', 'Unit Price', 'Marks', 'Category', 'Purchase Price', 'Supplier'],
-        ...((shippingData.items || []) as any[]).map(item => [
-            item.poNumber || '',
-            item.zroh || '',
-            item.fabricCode || '',
-            item.quantity || '',
-            item.composition || '',
-            item.weight || '',
-            item.unitPrice || '',
-            item.marks || '',
-            item.category || '',
-            item.purchasePrice || '',
-            item.supplier || '',
-        ]),
-    ];
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Shipping Notice');
+    // B11 收编：发货通知改走 xlsxExport 通用基建（双 sheet——通知头键值表 + 明细表），
+    // 消除直接 XLSX 库调用的孤点；落盘路径与下载 URL 契约不变。
+    const headerSheet: XlsxSheet = {
+        name: 'Shipping Notice',
+        columnLabels: ['项目 Item', '内容 Content'],
+        columns: ['item', 'content'],
+        rows: [
+            { item: 'Contract No.', content: shippingData.contractNo || '' },
+            { item: 'PO Numbers', content: (shippingData.poNumbers || []).join(', ') },
+            { item: 'Supplier', content: shippingData.supplier || '' },
+            { item: 'Payer', content: shippingData.payer?.name || '' },
+            { item: 'Payment Terms', content: shippingData.paymentTerms || '' },
+            { item: 'Departure Port', content: shippingData.departurePort || '' },
+            { item: 'Destination Port', content: shippingData.destinationPort || '' },
+            { item: 'Shipping Method', content: shippingData.shippingMethod || '' },
+            { item: 'Shipment Date', content: shippingData.shipmentDate || '' },
+            { item: 'Forwarder', content: shippingData.forwarder || '' },
+            { item: 'Customs Docs', content: shippingData.customsDocs || '' },
+            { item: 'B/L Requirement', content: shippingData.blRequirement || '' },
+            { item: 'Packaging', content: shippingData.packaging || '' },
+            { item: 'Remarks', content: shippingData.remarks || '' },
+        ],
+    };
+    const lineSheet: XlsxSheet = {
+        name: 'Lines 明细',
+        columnLabels: ['PO', 'ZROH', 'Fabric Code', 'Quantity', 'Composition', 'Weight', 'Unit Price', 'Marks', 'Category', 'Purchase Price', 'Supplier'],
+        columns: ['po', 'zroh', 'fabricCode', 'quantity', 'composition', 'weight', 'unitPrice', 'marks', 'category', 'purchasePrice', 'supplier'],
+        rows: ((shippingData.items || []) as any[]).map(item => ({
+            po: item.poNumber || '',
+            zroh: item.zroh || '',
+            fabricCode: item.fabricCode || '',
+            quantity: item.quantity || '',
+            composition: item.composition || '',
+            weight: item.weight || '',
+            unitPrice: item.unitPrice || '',
+            marks: item.marks || '',
+            category: item.category || '',
+            purchasePrice: item.purchasePrice || '',
+            supplier: item.supplier || '',
+        })),
+    };
+    const buffer = buildXlsx([headerSheet, lineSheet]);
     const outputPath = path.join(OUTPUT_DIR, path.basename(filename));
-    XLSX.writeFile(workbook, outputPath);
+    fs.writeFileSync(outputPath, buffer);
     return outputPath;
 };
 
