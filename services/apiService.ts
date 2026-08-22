@@ -1113,6 +1113,69 @@ export const apiService = {
     return data.purchaseOrder;
   },
 
+  // ── B2 运营域单据：采购 PO 文档（服务端模板真源，单据中心统一归档） ──
+
+  /** PO 预览 HTML——GET /v1/procurement/:id/preview.html（服务端模板实时装配渲染，与生成 PDF 同源排版） */
+  async getPurchaseOrderPreviewHtml(id: string, endpoint?: string): Promise<string> {
+    const url = buildApiUrl(`/v1/procurement/${encodeURIComponent(id)}/preview.html`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
+  /** PO 生成文档——POST /v1/procurement/:id/generate-document（登记域单据 domain=procurement +
+   *  服务端渲染 PDF 落盘归档），生成后浏览器下载归档文件 */
+  async generatePurchaseOrderDocument(id: string, endpoint?: string): Promise<{ documentNumber: string; fileName: string; fileSize: number }> {
+    const data = await requestJson<{ document: { documentNumber: string }; file: { filePath: string; fileName: string; fileSize: number } }>(
+      `/v1/procurement/${encodeURIComponent(id)}/generate-document`, { endpoint, method: 'POST' });
+    await this.downloadArchiveFile(data.file.filePath, data.file.fileName, endpoint);
+    return { documentNumber: data.document.documentNumber, fileName: data.file.fileName, fileSize: data.file.fileSize };
+  },
+
+  /** 采购台账 Excel 导出——GET /v1/procurement?format=xlsx（当前筛选条件全量导出） */
+  async exportPurchaseOrdersXlsx(params?: { status?: string; supplierRelationId?: string; dateFrom?: string; dateTo?: string; search?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.status) query.set('status', params.status);
+    if (params?.supplierRelationId) query.set('supplierRelationId', params.supplierRelationId);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    if (params?.search) query.set('search', params.search);
+    const url = buildApiUrl(`/v1/procurement?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`采购台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `采购台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** 下载 uploads/ 归档文件（静态资源 → 浏览器保存；单据中心与各域单据生成共用） */
+  async downloadArchiveFile(filePath: string, fileName: string, endpoint?: string): Promise<void> {
+    const url = buildApiUrl(`/api/uploads/${filePath.replace(/^\//, '')}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`文件下载失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
   async listMaterialReceipts(purchaseOrderId: string, endpoint?: string): Promise<MaterialReceipt[]> {
     const data = await requestJson<{ receipts: MaterialReceipt[] }>(`/v1/procurement/${encodeURIComponent(purchaseOrderId)}/receipts`, { endpoint, method: 'GET' });
     return Array.isArray(data.receipts) ? data.receipts : [];
@@ -3320,6 +3383,24 @@ export const apiService = {
   /** 一键生成文件：版本快照渲染 HTML → 服务端转 PDF 落盘归档（回写 filePath/fileName）；CI 带财务回链时 html 可省（服务端真源模板自渲染） */
   async generateTradeDocumentFile(id: string, params: { html?: string; version?: number }, endpoint?: string): Promise<{ filePath: string; fileName: string; fileSize: number }> {
     return requestJson<{ filePath: string; fileName: string; fileSize: number }>(`/v1/customs/trade-documents/${encodeURIComponent(id)}/generate-file`, { endpoint, method: 'POST', body: JSON.stringify(params) });
+  },
+
+  /**
+   * 单据服务端模板预览 HTML——GET /v1/customs/trade-documents/:id/preview.html。
+   * 服务端模板类型（CI 财务回链 / PL / PO / IR）返回 screen 模式 A4 画布（与 PDF 同源）；
+   * 其余类型 501 SERVER_TEMPLATE_NOT_AVAILABLE → 调用方回退前端本地渲染器。
+   */
+  async getTradeDocumentPreviewHtml(id: string, endpoint?: string): Promise<string> {
+    const url = buildApiUrl(`/v1/customs/trade-documents/${encodeURIComponent(id)}/preview.html`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const err: any = new Error(data?.error?.message || data?.error || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.code = data?.error === 'SERVER_TEMPLATE_NOT_AVAILABLE' ? 'SERVER_TEMPLATE_NOT_AVAILABLE' : data?.error?.code;
+      throw err;
+    }
+    return res.text();
   },
 
   async packTradeDocumentsByOrder(orderId: string, endpoint?: string): Promise<{ items: TradeDocumentPackItem[]; total: number }> {

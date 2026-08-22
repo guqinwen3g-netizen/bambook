@@ -313,8 +313,10 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   }, [expandedId, versionsByDoc]);
 
   // ── 预览（A4 纸张查看器弹窗，与财务发票预览同款体验）──
-  // CommercialInvoice 且带财务发票回链 → 服务端同源模板（与财务预览/PDF 完全一致）；
-  // 其余类型走前端 EXPORT_DOC_RENDERERS + doc-* 基座，screen 画布模式组装
+  // 渲染真源优先级（B2 起三级）：
+  //   1. CI 带财务发票回链 → 财务真源模板（与财务预览/PDF 完全一致）
+  //   2. 服务端模板注册表（PL / PO / IR 域单据…）→ preview.html 同源渲染
+  //   3. 501（暂无服务端模板）→ 前端 EXPORT_DOC_RENDERERS + doc-* 基座 screen 画布
   // （灰底 + A4 纸张 + 阴影，所见即所得——预览排版与生成文件 PDF 一致）
   const openPreview = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
     setPreviewingDoc(doc);
@@ -327,10 +329,17 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
         const html = await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId);
         setPreviewHtml(html);
       } else {
-        const kind = TYPE_TO_EXPORT_KIND[doc.type];
-        const ds = extractDocumentSet(version.content);
-        if (!kind || !ds) throw new Error('该单据无可渲染的版本快照');
-        setPreviewHtml(buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds), '', { screen: true }));
+        // 服务端模板类型优先（PL / PO / IR…——与生成 PDF 同一份渲染）；501 回退前端渲染器
+        try {
+          const serverHtml = await apiService.getTradeDocumentPreviewHtml(doc.id);
+          setPreviewHtml(serverHtml);
+        } catch (serverErr: any) {
+          if (serverErr?.code !== 'SERVER_TEMPLATE_NOT_AVAILABLE') throw serverErr;
+          const kind = TYPE_TO_EXPORT_KIND[doc.type];
+          const ds = extractDocumentSet(version.content);
+          if (!kind || !ds) throw new Error('该单据无可渲染的版本快照');
+          setPreviewHtml(buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds), '', { screen: true }));
+        }
       }
     } catch (e: any) {
       setPreviewErr(`预览加载失败：${e?.message || e}`);
@@ -342,7 +351,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   // A4 预览弹窗：数据加载逻辑（弹窗 UI 用全站共享组件 A4DocumentPreviewModal——B1 架构底座）
 
   const printVersion = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
-    // 服务端模板类型（CI 财务回链）→ 服务端同源模板打印（与预览/PDF 完全一致，单一真源不双渲染）
+    // 服务端模板类型（CI 财务回链 / PL / PO / IR）→ 服务端同源模板打印（与预览/PDF 完全一致，单一真源不双渲染）
     if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
       try {
         const html = await invoiceService.getInvoicePreviewHtml(doc.sourceInvoiceId);
@@ -352,19 +361,40 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
       }
       return;
     }
+    try {
+      const serverHtml = await apiService.getTradeDocumentPreviewHtml(doc.id);
+      printFullHtmlDocument(serverHtml, `${doc.documentNumber} v${version.version}`);
+      return;
+    } catch (serverErr: any) {
+      if (serverErr?.code !== 'SERVER_TEMPLATE_NOT_AVAILABLE') {
+        setError(`打印加载失败：${serverErr?.message || serverErr}`);
+        return;
+      }
+    }
     const kind = TYPE_TO_EXPORT_KIND[doc.type];
     const ds = extractDocumentSet(version.content);
     if (!kind || !ds) return;
     printHtmlDocument({ title: `${doc.documentNumber} v${version.version}`, htmlBody: EXPORT_DOC_RENDERERS[kind].render(ds) });
   }, []);
 
-  // ── 一键生成文件：版本快照 → 服务端转 PDF 落盘归档（CI 带回链时服务端财务真源模板自渲染）──
+  // ── 一键生成文件：服务端模板优先渲染 → 服务端转 PDF 落盘归档（无服务端模板时前端渲染 html 传入）──
   const handleGenerateFile = useCallback(async (doc: TradeDocument, version: DocumentVersionRecord) => {
     setActionLoading(doc.id);
     setError(null);
     try {
       let html: string | undefined;
-      if (!(doc.type === 'CommercialInvoice' && doc.sourceInvoiceId)) {
+      let hasServerTemplate = false;
+      if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
+        hasServerTemplate = true; // CI 财务回链 → 服务端财务真源模板自渲染
+      } else {
+        try {
+          await apiService.getTradeDocumentPreviewHtml(doc.id);
+          hasServerTemplate = true; // PL / PO / IR 等注册表类型 → 服务端自渲染
+        } catch (serverErr: any) {
+          if (serverErr?.code !== 'SERVER_TEMPLATE_NOT_AVAILABLE') throw serverErr;
+        }
+      }
+      if (!hasServerTemplate) {
         const kind = TYPE_TO_EXPORT_KIND[doc.type];
         const ds = extractDocumentSet(version.content);
         if (!kind || !ds) throw new Error('该单据无可渲染的版本快照（先「从运单生成」或编辑补充内容）');

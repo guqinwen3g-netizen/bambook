@@ -47,7 +47,11 @@ export type TradeDocumentType =
   | 'InsuranceCert'
   | 'InspectionCert'
   | 'PhytosanitaryCert'
-  | 'Other';
+  | 'Other'
+  // ── B2 运营域单据类型（2026-08-22 全系统单据枢纽：各业务域就地生成，非手动入口可建）──
+  | 'PurchaseOrder'    // 采购订单（procurement 域，sourceRef=PurchaseOrder.id）
+  | 'InspectionReport' // 验货报告（qc 域，sourceRef=InspectionReport.id）
+  | 'Contract';        // 合同（contract 域，占位——B3+ 合同域接入）
 export type TradeDocumentStatus = 'Draft' | 'Issued' | 'Submitted' | 'Accepted' | 'Rejected' | 'Cancelled';
 
 // ─── Input 类型 ───
@@ -205,7 +209,10 @@ const VALID_HS_CATEGORIES: HsCodeCategory[] = ['Textile', 'Garment', 'Accessory'
 const VALID_LC_TYPES: LetterOfCreditType[] = ['Irrevocable', 'Revocable', 'Standby', 'Transferable'];
 const VALID_LC_STATUSES: LetterOfCreditStatus[] = ['Issued', 'Presented', 'Accepted', 'Discrepant', 'Settled', 'Expired', 'Cancelled'];
 const VALID_TAX_REFUND_STATUSES: TaxRefundStatus[] = ['Draft', 'Submitted', 'Reviewing', 'Approved', 'Rejected', 'Refunded', 'Cancelled'];
-const VALID_DOC_TYPES: TradeDocumentType[] = ['CommercialInvoice', 'PackingList', 'CertificateOfOrigin', 'BillOfLading', 'AirWaybill', 'InsuranceCert', 'InspectionCert', 'PhytosanitaryCert', 'Other'];
+const VALID_DOC_TYPES: TradeDocumentType[] = ['CommercialInvoice', 'PackingList', 'CertificateOfOrigin', 'BillOfLading', 'AirWaybill', 'InsuranceCert', 'InspectionCert', 'PhytosanitaryCert', 'Other', 'PurchaseOrder', 'InspectionReport', 'Contract'];
+/** 手动可创建类型（单据中心 UI 创建入口）：仅 customs 交单类型——域单据（PO/IR/Contract）
+ * 由各业务模块带 sourceRef 就地生成，手动建域单据无业务真源可引用，fail-closed 拒绝 */
+const MANUALLY_CREATABLE_DOC_TYPES: TradeDocumentType[] = ['CommercialInvoice', 'PackingList', 'CertificateOfOrigin', 'BillOfLading', 'AirWaybill', 'InsuranceCert', 'InspectionCert', 'PhytosanitaryCert', 'Other'];
 const VALID_DOC_STATUSES: TradeDocumentStatus[] = ['Draft', 'Issued', 'Submitted', 'Accepted', 'Rejected', 'Cancelled'];
 
 function validateCustomsType(type: string): asserts type is CustomsType {
@@ -273,6 +280,32 @@ const DOC_TRANSITIONS: Record<string, string[]> = {
   Rejected: ['Draft'],
   Cancelled: [],
 };
+
+/** 非 customs 域（procurement/qc/contract/finance）文档生命周期状态机：
+ * 简化 Draft → Issued → Cancelled——域单据内容随业务真源实时渲染，
+ * 无交单流转语义（customs 交单状态机不适用）。 */
+const SIMPLE_DOC_TRANSITIONS: Record<string, string[]> = {
+  Draft: ['Issued', 'Cancelled'],
+  Issued: ['Cancelled'],
+  Cancelled: [],
+};
+
+/** 按业务域的单据状态机（schema TradeDocument.status 注释引用的真源）：
+ * customs=交单状态机；其余域=简化文档生命周期。未知 domain fail-closed 拒绝。 */
+export const DOC_DOMAIN_STATUS_TRANSITIONS: Record<string, Record<string, string[]>> = {
+  customs: DOC_TRANSITIONS,
+  procurement: SIMPLE_DOC_TRANSITIONS,
+  qc: SIMPLE_DOC_TRANSITIONS,
+  contract: SIMPLE_DOC_TRANSITIONS,
+  finance: SIMPLE_DOC_TRANSITIONS,
+};
+
+/** 按域取状态机（未知域 fail-closed——不允许无状态机的域建单据） */
+export function docStatusTransitionsFor(domain: string): Record<string, string[]> {
+  const transitions = DOC_DOMAIN_STATUS_TRANSITIONS[domain];
+  if (!transitions) throw new Error(`非法单据业务域: ${domain}`);
+  return transitions;
+}
 
 function validateTransition(transitions: Record<string, string[]>, from: string, to: string, entityName: string): void {
   const allowed = transitions[from] || [];
@@ -1506,6 +1539,10 @@ export function createCustomsService(prisma: PrismaClient) {
 
   async function createTradeDocument(input: TradeDocumentInput, actorId: string) {
     validateDocType(input.type);
+    // 手动入口仅允许 customs 交单类型——域单据（PO/IR/Contract）由业务模块带 sourceRef 就地生成
+    if (!MANUALLY_CREATABLE_DOC_TYPES.includes(input.type)) {
+      throw new Error(`单据类型 ${input.type} 由业务模块就地生成，不支持手动创建`);
+    }
 
     const manualNumber = input.documentNumber?.trim() || '';
     if (manualNumber) {

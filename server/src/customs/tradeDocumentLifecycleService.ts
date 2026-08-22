@@ -21,7 +21,7 @@ import { logger } from '../lib/logger';
 import { assembleDocumentSetData } from '../shipping/documentSetService';
 import { nextBusinessNumber } from '../shared/businessNumberService';
 import { renderHtmlToPdf } from '../templates/pdf';
-import { renderServerDocument } from '../templates/docTemplates/registry';
+import { renderServerDocument, SERVER_DOC_TEMPLATES, serverKindForType } from '../templates/docTemplates/registry';
 import { renderInvoiceDocumentHtml } from '../finance/route';
 import type { TradeDocumentType } from './customsService';
 
@@ -29,7 +29,7 @@ import type { TradeDocumentType } from './customsService';
 // 1. 自动取号
 // ────────────────────────────────────────────────────────────────
 
-/** 单据类型 → 编号前缀（5.6 风格：前缀-年-序号） */
+/** 单据类型 → 编号前缀（5.6 风格：前缀-年-序号；B2 起含运营域类型） */
 export const TRADE_DOC_NUMBER_PREFIX: Record<TradeDocumentType, string> = {
   CommercialInvoice: 'CI',
   PackingList: 'PL',
@@ -40,6 +40,10 @@ export const TRADE_DOC_NUMBER_PREFIX: Record<TradeDocumentType, string> = {
   InspectionCert: 'IC',
   PhytosanitaryCert: 'PC',
   Other: 'DOC',
+  // B2 运营域（PO 文档号=poNumber 业务单号直用，此映射供 IR 等域取号）
+  PurchaseOrder: 'PO',
+  InspectionReport: 'IR',
+  Contract: 'CT',
 };
 
 const VALID_TYPES = Object.keys(TRADE_DOC_NUMBER_PREFIX) as TradeDocumentType[];
@@ -346,49 +350,153 @@ export async function packTradeDocumentsByOrder(
  *  index.ts 静态服务 /api/uploads 的根；本文件在 server/src/customs/ 下需三级回溯） */
 const TRADE_DOC_UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../../uploads');
 
-/** TradeDocumentType → 服务端模板注册表 kind 映射（B1 起逐类迁移：PL 已服务端真源） */
-const TRADE_DOC_TYPE_TO_SERVER_KIND: Partial<Record<string, string>> = {
-  PackingList: 'PL',
-};
-
 /**
- * 读取单据最新版本快照的 documentSet 装配数据（服务端模板渲染数据源）。
- * 无快照（手工登记）或无 documentSet 返回 null。
- */
-async function loadTradeDocumentSetData(prisma: PrismaClient, docId: string): Promise<any | null> {
-  const latest = await prisma.documentVersion.findFirst({
-    where: { documentId: docId },
-    orderBy: { version: 'desc' },
-    select: { content: true },
-  });
-  const ds = (latest?.content as Record<string, unknown> | null | undefined)?.documentSet;
-  return ds && typeof ds === 'object' ? ds : null;
-}
-
-/**
- * 服务端渲染单据文档 HTML（统一入口，2026-08-22 B1 架构底座）：
+ * 服务端渲染单据文档 HTML（统一入口，2026-08-22 B1 架构底座 / B2 运营域扩展）：
  *   - CI 带财务回链 → 财务真源模板（renderInvoiceDocumentHtml）
- *   - 类型映射进服务端注册表（PL 等）→ docTemplates/registry 渲染（版本快照装配数据）
+ *   - 类型映射进服务端注册表 → registry 渲染：
+ *     · PL（customs）：版本快照 documentSet 装配
+ *     · PO/IR（运营域）：sourceRef 业务真源实时装配（改业务侧即改文档）
  *   - 其余类型 → null（模板真源暂在前端，前端渲染 html 传入）
  * screen=true → preview.html 预览模式（A4 纸张画布）。
  */
 export async function renderTradeDocumentServerHtml(
   prisma: PrismaClient,
-  doc: { id: string; type: string; sourceInvoiceId: string | null },
+  doc: { id: string; type: string; sourceInvoiceId: string | null; sourceRef: string | null },
   opts: { screen?: boolean } = {},
 ): Promise<string | null> {
   // CI 带财务回链 → 财务真源模板（screen 与财务 preview.html 同一份渲染）
   if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
     return renderInvoiceDocumentHtml(prisma, doc.sourceInvoiceId, opts);
   }
-  // 服务端注册表类型（PL 等）
-  const kind = TRADE_DOC_TYPE_TO_SERVER_KIND[doc.type];
+  // 服务端注册表类型（PL / PO / IR ...）——数据装配真源由各模板 loadData 决定
+  const kind = serverKindForType(doc.type);
   if (kind) {
-    const data = await loadTradeDocumentSetData(prisma, doc.id);
+    const template = SERVER_DOC_TEMPLATES[kind];
+    const data = await template.loadData(prisma, { id: doc.id, type: doc.type, sourceRef: doc.sourceRef ?? null });
     if (!data) return null;
     return renderServerDocument(prisma, kind, data, opts);
   }
   return null;
+}
+
+// ────────────────────────────────────────────────────────────────
+// 4b. 域单据登记（B2 运营域：各业务模块就地生成 → 单据中心统一归档）
+// ────────────────────────────────────────────────────────────────
+
+/** 域单据登记入参（PO/IR 等业务模块生成入口） */
+export interface UpsertDomainTradeDocumentInput {
+  domain: string;                 // procurement | qc | contract | finance
+  type: TradeDocumentType;        // PurchaseOrder | InspectionReport | Contract ...
+  sourceRef: string;              // 业务真源 id（PurchaseOrder.id / InspectionReport.id）
+  /** 文档号（缺省自动取号 {前缀}-YYYY-NNNN；采购单裁决=poNumber 直用） */
+  documentNumber?: string;
+  orderId?: string | null;
+  relationId?: string | null;
+  totalAmount?: number | null;
+  currency?: string | null;
+  issueDate?: string | null;
+  actorId: string;
+}
+
+export interface UpsertDomainTradeDocumentResult {
+  documentId: string;
+  documentNumber: string;
+  /** created=首次登记（含 v1 快照）；updated=已存在刷新头字段（金额/日期回写真源） */
+  outcome: 'created' | 'updated';
+}
+
+/**
+ * 域单据登记（幂等）：domain+type+sourceRef 定位唯一文档。
+ *   - 首次：创建 TradeDocument（domain 状态机初始 Draft）+ v1 轻量快照
+ *     （content 记 sourceRef 元数据，不复制业务内容——渲染走真源实时装配，与 CI 财务回链同模式）
+ *   - 已存在：刷新头字段（totalAmount/currency/issueDate 随业务侧更新），不追加版本
+ *   - 软删后重新生成：旧文档保持软删（审计留痕），新建新文档接续取号
+ * 域校验 fail-closed：未知 domain / 手动入口类型（customs 交单类）直接拒绝。
+ */
+export async function upsertDomainTradeDocument(
+  prisma: PrismaClient,
+  input: UpsertDomainTradeDocumentInput,
+): Promise<UpsertDomainTradeDocumentResult> {
+  const { docStatusTransitionsFor } = await import('./customsService');
+  docStatusTransitionsFor(input.domain); // fail-closed：未知域直接抛错
+
+  const existing = await prisma.tradeDocument.findFirst({
+    where: { domain: input.domain, type: input.type, sourceRef: input.sourceRef, deletedAt: null },
+    select: { id: true, documentNumber: true },
+  });
+
+  if (existing) {
+    await prisma.$transaction(async (tx) => {
+      await tx.tradeDocument.update({
+        where: { id: existing.id },
+        data: {
+          totalAmount: input.totalAmount != null ? new Prisma.Decimal(input.totalAmount) : undefined,
+          currency: input.currency ?? undefined,
+          issueDate: input.issueDate ?? undefined,
+          updatedAt: now(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          id: generateId('AUD'),
+          actorId: input.actorId,
+          action: 'TRADE_DOCUMENT_DOMAIN_REFRESH',
+          targetType: 'TradeDocument',
+          targetId: existing.id,
+          detail: { domain: input.domain, type: input.type, sourceRef: input.sourceRef } as any,
+          ip: null,
+          operationType: 'update',
+          fieldPath: null,
+          beforeValue: null as any,
+          afterValue: null as any,
+          transactionId: null,
+        },
+      });
+    });
+    return { documentId: existing.id, documentNumber: existing.documentNumber, outcome: 'updated' };
+  }
+
+  const documentNumber = input.documentNumber?.trim() || await generateTradeDocumentNumber(prisma, input.type);
+  const documentId = generateId('TD');
+  await prisma.$transaction(async (tx) => {
+    await tx.tradeDocument.create({
+      data: {
+        id: documentId,
+        documentNumber,
+        domain: input.domain,
+        type: input.type,
+        status: 'Draft',
+        orderId: input.orderId ?? null,
+        relationId: input.relationId ?? null,
+        sourceRef: input.sourceRef,
+        totalAmount: input.totalAmount != null ? new Prisma.Decimal(input.totalAmount) : null,
+        currency: input.currency ?? null,
+        issueDate: input.issueDate ?? localToday(),
+        createdAt: now(),
+        updatedAt: now(),
+      },
+    });
+    // v1 轻量快照：记录真源外链元数据（版本行可在单据中心展开；渲染不依赖快照）
+    await appendTradeDocumentVersion(tx, {
+      documentId,
+      content: { source: 'domain', domain: input.domain, type: input.type, sourceRef: input.sourceRef },
+      actorId: input.actorId,
+      changeReason: `${input.domain} 域单据登记`,
+    });
+  });
+  return { documentId, documentNumber, outcome: 'created' };
+}
+
+/** 按域外链查找单据（预览/生成文件入口用：sourceRef 一跳定位文档） */
+export async function findDomainTradeDocument(
+  prisma: PrismaClient,
+  params: { domain: string; type: string; sourceRef: string },
+): Promise<{ id: string; documentNumber: string; status: string; filePath: string | null; fileName: string | null } | null> {
+  const doc = await prisma.tradeDocument.findFirst({
+    where: { domain: params.domain, type: params.type, sourceRef: params.sourceRef, deletedAt: null },
+    select: { id: true, documentNumber: true, status: true, filePath: true, fileName: true },
+  });
+  return doc ?? null;
 }
 
 /**

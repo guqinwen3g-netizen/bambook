@@ -1,14 +1,16 @@
 /**
- * 服务端单据模板注册表（2026-08-22 全系统文档体系 B1 架构底座）。
+ * 服务端单据模板注册表（2026-08-22 全系统文档体系 B1 架构底座 / B2 运营域扩展）。
  *
  * 架构裁决：
  *   - 模板真源统一服务端（前端 EXPORT_DOC_RENDERERS 逐类退役，B6 收尾）
- *   - 每个 docKind 一个渲染函数：data（装配器输出）+ exporter（出口方档案）→ HTML body
+ *   - 每个 docKind 一个注册项：loadData（数据装配）+ renderBody（渲染）
+ *     · PL：版本快照 documentSet（customs 域，生成时快照冻结）
+ *     · PO/IR：业务真源实时装配（B2 运营域——sourceRef 回链，改业务侧即改文档）
  *   - 组装统一走 buildServerDocument（doc-* 基座），preview.html 用 screen 模式
  *
- * 已注册：PL（首个迁移样板，B1）；后续 B2-B6 逐批注册：
- *   Statement 对账单 / PurchaseOrder / InspectionReport / Contract /
- *   CI（财务真源已就位，此处注册统一入口）/ CO / BL / INS / FORMA / BC / AWB ...
+ * 已注册：PL（B1）/ PO、IR（B2）；后续逐批注册：
+ *   Statement 对账单 / Contract / CI（财务真源已就位，此处注册统一入口）/
+ *   CO / BL / INS / FORMA / BC / AWB ...
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -16,18 +18,54 @@ import { getSystemConfigService } from '../../config/systemConfigService';
 import { DEFAULT_EXPORTER_PROFILE, EXPORTER_PROFILE_CONFIG_KEY } from '../../config/systemConfigRoute';
 import { buildServerDocument } from '../docPrintBase';
 import { renderPackingListBody, type DocExporterProfile } from './packingList';
+import { renderPurchaseOrderBody, loadPurchaseOrderDocData } from './purchaseOrder';
+import { renderInspectionReportBody, loadInspectionReportDocData } from './inspectionReport';
 import type { ServerDocumentSetData } from './types';
+
+/** 注册表渲染上下文：单据定位信息（loadData 按各自真源装配） */
+export interface ServerDocContext {
+  id: string;
+  type: string;
+  sourceRef: string | null;
+}
 
 export interface ServerDocTemplate {
   /** 模板标识（与 TradeDocumentType 对齐或扩展） */
   kind: string;
   title: string;
+  /** 数据装配：按模板各自真源（版本快照 / 业务外链）读取，失败返回 null（调用方 404） */
+  loadData: (prisma: PrismaClient, doc: ServerDocContext) => Promise<any | null>;
   /** data → HTML body 片段（经 buildServerDocument 组装） */
   renderBody: (data: any, exporter: DocExporterProfile) => string;
 }
 
+/** TradeDocumentType → 服务端模板 kind（模板注册地即映射真源） */
+const TRADE_DOC_TYPE_TO_KIND: Partial<Record<string, string>> = {
+  PackingList: 'PL',
+  PurchaseOrder: 'PO',
+  InspectionReport: 'IR',
+};
+
+/** 按单据类型查服务端模板 kind（未迁移类型返回 null——前端本地渲染兜底） */
+export function serverKindForType(type: string): string | null {
+  return TRADE_DOC_TYPE_TO_KIND[type] ?? null;
+}
+
+/** PL 数据装配：最新版本快照的 documentSet（customs 域——生成时快照冻结，无快照返回 null） */
+async function loadDocumentSetSnapshot(prisma: PrismaClient, doc: ServerDocContext): Promise<any | null> {
+  const latest = await prisma.documentVersion.findFirst({
+    where: { documentId: doc.id },
+    orderBy: { version: 'desc' },
+    select: { content: true },
+  });
+  const ds = (latest?.content as Record<string, unknown> | null | undefined)?.documentSet;
+  return ds && typeof ds === 'object' ? ds : null;
+}
+
 export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
-  PL: { kind: 'PL', title: 'Packing List 装箱单', renderBody: renderPackingListBody },
+  PL: { kind: 'PL', title: 'Packing List 装箱单', loadData: loadDocumentSetSnapshot, renderBody: renderPackingListBody },
+  PO: { kind: 'PO', title: 'Purchase Order 采购订单', loadData: async (prisma, doc) => (doc.sourceRef ? loadPurchaseOrderDocData(prisma, doc.sourceRef) : null), renderBody: renderPurchaseOrderBody },
+  IR: { kind: 'IR', title: 'Inspection Report 验货报告', loadData: async (prisma, doc) => (doc.sourceRef ? loadInspectionReportDocData(prisma, doc.sourceRef) : null), renderBody: renderInspectionReportBody },
 };
 
 /**

@@ -76,6 +76,8 @@ export interface AssignmentListQuery {
   dueBefore?: string; // YYYY-MM-DD，dueDate <= dueBefore
   limit?: number;
   offset?: number;
+  /** Excel 台账导出=true：忽略分页上限全量导出（route 层 format=xlsx 专用） */
+  exportAll?: boolean;
 }
 
 const INSPECTION_TYPES = ['midline', 'final'] as const;
@@ -447,15 +449,14 @@ export function createQcService(prisma: PrismaClient) {
     if (query.orderId) where.orderId = query.orderId;
     if (query.locationId) where.locationId = query.locationId;
     if (query.dueBefore) where.dueDate = { lte: query.dueBefore };
-    const take = Math.min(query.limit || 50, 200);
-    const skip = query.offset || 0;
+    const take = query.exportAll ? undefined : Math.min(query.limit || 50, 200);
+    const skip = query.exportAll ? 0 : (query.offset || 0);
     const [rows, total] = await Promise.all([
       db.qCAssignment.findMany({
         where,
         include: { location: true },
         orderBy: { assignedAt: 'desc' },
-        take,
-        skip,
+        ...(take != null ? { take, skip } : {}),
       }),
       db.qCAssignment.count({ where }),
     ]);

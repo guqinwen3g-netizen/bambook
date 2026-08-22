@@ -371,6 +371,8 @@ export function createProcurementService(prisma: PrismaClient) {
     search?: string;
     limit?: number;
     offset?: number;
+    /** Excel 台账导出=true：忽略分页上限全量导出（route 层 format=xlsx 专用） */
+    exportAll?: boolean;
   }): Promise<{ items: PurchaseOrder[]; total: number }> {
     const where: any = { deletedAt: null };
     if (params.status) where.status = params.status;
@@ -388,15 +390,13 @@ export function createProcurementService(prisma: PrismaClient) {
       ];
     }
 
-    const limit = Math.min(params.limit ?? 50, 200);
-    const offset = params.offset ?? 0;
-
+    const limit = params.exportAll ? undefined : Math.min(params.limit ?? 50, 200);
+    const offset = params.exportAll ? 0 : (params.offset ?? 0);
     const [items, total] = await Promise.all([
       prisma.purchaseOrder.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset,
+        ...(limit != null ? { take: limit, skip: offset } : {}),
       }),
       prisma.purchaseOrder.count({ where }),
     ]);

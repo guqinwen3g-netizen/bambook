@@ -28,6 +28,8 @@ import {
   AlertCircle,
   Package,
   FileText,
+  FileDown,
+  Eye,
   X,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -48,6 +50,7 @@ import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
+import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 
 // ==================== 常量 ====================
 
@@ -193,6 +196,14 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   const [receiptsByPo, setReceiptsByPo] = useState<Record<string, MaterialReceipt[]>>({});
   const [showReceiptForm, setShowReceiptForm] = useState<string | null>(null);
 
+  // ── B2 运营域单据：PO 文档预览/生成（服务端模板真源，与单据中心归档同源） ──
+  const [previewPo, setPreviewPo] = useState<PurchaseOrder | null>(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewErr, setPreviewErr] = useState<string | null>(null);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [docGeneratedMsg, setDocGeneratedMsg] = useState<string | null>(null);
+
   // 创建表单状态
   const [form, setForm] = useState({
     poNumber: '',
@@ -321,6 +332,58 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
       setActionLoading(null);
     }
   }, [fetchPurchaseOrders]);
+
+  // ── B2 运营域单据：PO 预览 / 生成 PDF / 台账导出 ──
+
+  /** 预览 PO 单据（服务端模板实时渲染，A4 纸张画布——与生成 PDF 同源排版） */
+  const handlePreviewPo = useCallback(async (po: PurchaseOrder) => {
+    setPreviewPo(po);
+    setPreviewHtml('');
+    setPreviewErr(null);
+    setPreviewLoading(true);
+    try {
+      const html = await apiService.getPurchaseOrderPreviewHtml(po.id);
+      setPreviewHtml(html);
+    } catch (e: any) {
+      setPreviewErr(`PO 预览加载失败：${e?.message || e}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  /** 生成 PO PDF（登记域单据 domain=procurement → 单据中心归档 → 下载） */
+  const handleGeneratePoDocument = useCallback(async (po: PurchaseOrder) => {
+    setActionLoading(`${po.id}_gendoc`);
+    setError(null);
+    try {
+      const result = await apiService.generatePurchaseOrderDocument(po.id);
+      setError(null);
+      setPreviewErr(null);
+      window.setTimeout(() => setError(null), 0);
+      // 成功提示走轻量 alert（模块内无全局 toast；与生成应付发票成功路径一致的静默策略）
+      setDocGeneratedMsg(`已生成 ${result.documentNumber}（${Math.round(result.fileSize / 1024)} KB），归档至单据中心`);
+    } catch (e: any) {
+      setError(`生成 PO 文档失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, []);
+
+  /** 采购台账 Excel 导出（当前筛选条件全量） */
+  const handleExportXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    try {
+      await apiService.exportPurchaseOrdersXlsx({
+        ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+        ...(navRelationFilter?.relationId ? { supplierRelationId: navRelationFilter.relationId } : {}),
+      });
+    } catch (e: any) {
+      setError(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
+    }
+  }, [statusFilter, searchQuery, navRelationFilter]);
 
   // ── 拉取来料记录 ──
   const fetchReceipts = useCallback(async (poId: string) => {
@@ -623,6 +686,11 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                   <button onClick={fetchPurchaseOrders} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }} title="刷新">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
+                  {/* B2 运营域报表：采购台账 Excel 导出（当前筛选全量） */}
+                  <button onClick={handleExportXlsx} disabled={exportingXlsx} className="bds-btn bds-btn-secondary">
+                    {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                    <span>导出台账</span>
+                  </button>
                 </div>
 
                 {/* 状态过滤 */}
@@ -640,6 +708,17 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                     <AlertCircle size={16} />
                     <span>{error}</span>
                     <button onClick={() => setError(null)} className="ml-auto p-0.5" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'inline-flex' }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* B2 文档生成成功提示 */}
+                {docGeneratedMsg && (
+                  <div className="bds-alert success mb-3">
+                    <CheckCircle2 size={16} />
+                    <span>{docGeneratedMsg}</span>
+                    <button onClick={() => setDocGeneratedMsg(null)} className="ml-auto p-0.5" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'inline-flex' }}>
                       <X size={14} />
                     </button>
                   </div>
@@ -872,6 +951,15 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                         <span>关闭采购单</span>
                                       </button>
                                     )}
+                                    {/* B2 运营域单据：PO 预览 / 生成 PDF（服务端模板，归档单据中心） */}
+                                    <button onClick={() => void handlePreviewPo(po)} className="bds-btn bds-btn-secondary">
+                                      <Eye size={14} />
+                                      <span>预览单据</span>
+                                    </button>
+                                    <button onClick={() => void handleGeneratePoDocument(po)} disabled={actionLoading === `${po.id}_gendoc`} className="bds-btn bds-btn-secondary">
+                                      {actionLoading === `${po.id}_gendoc` ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                                      <span>生成 PDF</span>
+                                    </button>
                                     {/* 采购 → 财务联动：采购事实成立后即可生成应付发票（prime+navigate，预填供应商/币种/金额） */}
                                     {onNavigate && ['Confirmed', 'PartiallyReceived', 'Received', 'Closed'].includes(po.status) && (
                                       <button
@@ -930,6 +1018,20 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
           </AnimatePresence>
         </div>
       </div>
+
+      {/* B2 运营域单据：PO 服务端模板 A4 预览（与生成 PDF 同源排版，所见即所得） */}
+      {previewPo && (
+        <A4DocumentPreviewModal
+          title={`采购单预览 · ${previewPo.poNumber}`}
+          subtitle={`A4 · Purchase Order · 与生成 PDF 同源排版`}
+          html={previewHtml}
+          loading={previewLoading}
+          error={previewErr}
+          onClose={() => setPreviewPo(null)}
+          onPrint={() => void handleGeneratePoDocument(previewPo)}
+          printLabel="生成 PDF"
+        />
+      )}
     </div>
   );
 };

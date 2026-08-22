@@ -37,6 +37,9 @@ import {
   ShieldCheck,
   PenLine,
   Truck,
+  Eye,
+  FileText,
+  FileDown,
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -73,6 +76,7 @@ import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
 import { bdsToast } from './ui/bdsToast';
 import { bdsConfirm } from './ui/BdsDialog';
+import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 
 // ==================== 常量 ====================
 
@@ -297,6 +301,13 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
   const [showForm, setShowForm] = useState(false);
   const [completingAssignment, setCompletingAssignment] = useState<QCAssignment | null>(null);
 
+  // ── B2 运营域单据：验货报告文档预览/生成（服务端模板真源，与单据中心归档同源） ──
+  const [previewReport, setPreviewReport] = useState<{ reportId: string; poNumber: string } | null>(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewErr, setPreviewErr] = useState<string | null>(null);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+
   // 阶段 IA-3：订单详情「发起验货」prime —— 挂载时自动打开新建任务表单并预选订单
   const [primedOrderId, setPrimedOrderId] = useState<string | null>(() => {
     const orderId = readQcAssignmentPrime();
@@ -415,6 +426,53 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
     }
   };
 
+  // ── B2 运营域单据：验货报告预览 / 生成 PDF / 任务台账导出 ──
+
+  /** 预览验货报告（服务端模板实时渲染，A4 纸张画布——与生成 PDF 同源排版） */
+  const handlePreviewReport = useCallback(async (a: QCAssignment) => {
+    if (!a.reportId) return;
+    setPreviewReport({ reportId: a.reportId, poNumber: a.order?.poNumber || a.orderId });
+    setPreviewHtml('');
+    setPreviewErr(null);
+    setPreviewLoading(true);
+    try {
+      const html = await qcService.getReportPreviewHtml(a.reportId);
+      setPreviewHtml(html);
+    } catch (e: any) {
+      setPreviewErr(`报告预览加载失败：${e?.message || e}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  /** 生成验货报告 PDF（登记域单据 domain=qc，文档号 IR-YYYY-NNNN → 单据中心归档 → 下载） */
+  const handleGenerateReportDocument = useCallback(async (a: QCAssignment) => {
+    if (!a.reportId) return;
+    setUpdatingId(a.id);
+    try {
+      const result = await qcService.generateReportDocument(a.reportId);
+      bdsToast.success(`已生成 ${result.documentNumber}（${Math.round(result.fileSize / 1024)} KB），归档至单据中心`);
+    } catch (e: any) {
+      bdsToast.danger(`生成报告文档失败：${e?.message || e}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  }, []);
+
+  /** QC 任务台账 Excel 导出（当前 QC 人员筛选全量） */
+  const handleExportXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    try {
+      await qcService.exportAssignmentsXlsx({
+        ...(qcUserFilter ? { qcUserId: qcUserFilter } : {}),
+      });
+    } catch (e: any) {
+      bdsToast.danger(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
+    }
+  }, [qcUserFilter]);
+
   const columns: Array<{ status: QCAssignmentStatus; items: QCAssignment[] }> = [
     { status: 'Assigned', items: workbench.assigned },
     { status: 'InProgress', items: workbench.inProgress },
@@ -447,6 +505,11 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
           title="刷新"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
+        {/* B2 运营域报表：QC 任务台账 Excel 导出（当前筛选全量） */}
+        <button onClick={handleExportXlsx} disabled={exportingXlsx} className="bds-btn bds-btn-secondary">
+          {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+          <span>导出台账</span>
         </button>
         <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>共 {totalCount} 项任务</span>
       </div>
@@ -537,6 +600,19 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
                               <span>取消</span>
                             </button>
                           )}
+                          {/* B2 运营域单据：已完成的验货报告可预览/生成 PDF（服务端模板，归档单据中心） */}
+                          {a.status === 'Completed' && a.reportId && (
+                            <>
+                              <button onClick={() => void handlePreviewReport(a)} className="bds-btn bds-btn-secondary">
+                                <Eye size={14} />
+                                <span>报告预览</span>
+                              </button>
+                              <button onClick={() => void handleGenerateReportDocument(a)} disabled={updatingId === a.id} className="bds-btn bds-btn-secondary">
+                                {updatingId === a.id ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                                <span>生成 PDF</span>
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={() => handleDelete(a)}
                             className="bds-btn bds-btn-ghost bds-btn-icon ml-auto"
@@ -575,6 +651,29 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
           />
         )}
       </AnimatePresence>
+
+      {/* B2 运营域单据：验货报告服务端模板 A4 预览（与生成 PDF 同源排版，所见即所得） */}
+      {previewReport && (
+        <A4DocumentPreviewModal
+          title={`验货报告预览 · ${previewReport.poNumber}`}
+          subtitle="A4 · Inspection Report · 与生成 PDF 同源排版"
+          html={previewHtml}
+          loading={previewLoading}
+          error={previewErr}
+          onClose={() => setPreviewReport(null)}
+          onPrint={() => {
+            void (async () => {
+              try {
+                const result = await qcService.generateReportDocument(previewReport.reportId);
+                bdsToast.success(`已生成 ${result.documentNumber}（${Math.round(result.fileSize / 1024)} KB），归档至单据中心`);
+              } catch (e: any) {
+                bdsToast.danger(`生成报告文档失败：${e?.message || e}`);
+              }
+            })();
+          }}
+          printLabel="生成 PDF"
+        />
+      )}
     </div>
   );
 }

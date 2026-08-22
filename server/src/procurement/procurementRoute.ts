@@ -2,8 +2,10 @@
  * 采购管理 API — /api/v1/procurement
  *
  * 端点：
- *   GET    /                          — 采购单列表（支持 status/supplier/date/search 过滤）
+ *   GET    /                          — 采购单列表（支持 status/supplier/date/search 过滤；format=xlsx 全量台账导出）
  *   GET    /:id                       — 采购单详情（含行明细 + 收料记录）
+ *   GET    /:id/preview.html          — PO 服务端模板预览（A4 纸张画布，与生成 PDF 同源排版）
+ *   POST   /:id/generate-document     — 登记域单据（domain=procurement）+ 服务端渲染 PDF 落盘归档
  *   POST   /                          — 创建采购单（Draft 状态）
  *   PUT    /:id                       — 更新采购单（仅 Draft）
  *   DELETE /:id                       — 软删除采购单（仅 Draft）
@@ -20,6 +22,16 @@ import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
 import { createProcurementService, CreatePurchaseOrderInput, UpdatePurchaseOrderInput, MaterialReceiptInput } from './procurementService';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
+import { renderServerDocument } from '../templates/docTemplates/registry';
+import { loadPurchaseOrderDocData } from '../templates/docTemplates/purchaseOrder';
+import { upsertDomainTradeDocument, generateTradeDocumentFile } from '../customs/tradeDocumentLifecycleService';
+
+/** PO 状态 → 台账中文标签（与 ProcurementManager 展示口径一致） */
+const PO_STATUS_LABEL: Record<string, string> = {
+  Draft: '草稿', Sent: '已发送', Confirmed: '已确认', PartiallyReceived: '部分收料',
+  Received: '已收料', Closed: '已关闭', Cancelled: '已取消',
+};
 
 export interface ProcurementRouterOptions {
   prisma: PrismaClient;
@@ -43,7 +55,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
     return false;
   };
 
-  // ── GET / — 列表 ──
+  // ── GET / — 列表（format=xlsx → 全量台账 Excel 导出） ──
   router.get('/', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
@@ -56,7 +68,32 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
         search: search as string | undefined,
         limit: limit ? parseInt(limit as string, 10) : undefined,
         offset: offset ? parseInt(offset as string, 10) : undefined,
+        ...(req.query.format === 'xlsx' ? { exportAll: true } : {}),
       });
+      if (req.query.format === 'xlsx') {
+        const sheet: XlsxSheet = {
+          name: '采购台账',
+          columnLabels: ['采购单号', '供应商', '状态', '币种', '金额', '下单日期', '预计交期', '实际交期', '采购员', '交货条款', '付款条款', '备注'],
+          columns: ['poNumber', 'supplierName', 'status', 'currency', 'totalAmount', 'orderDate', 'expectedDeliveryDate', 'actualDeliveryDate', 'buyer', 'deliveryTerms', 'paymentTerms', 'notes'],
+          rows: result.items.map(po => ({
+            poNumber: po.poNumber,
+            supplierName: po.supplierName,
+            status: PO_STATUS_LABEL[po.status] ?? po.status,
+            currency: po.currency,
+            totalAmount: po.totalAmount != null ? Number(po.totalAmount) : null,
+            orderDate: po.orderDate,
+            expectedDeliveryDate: po.expectedDeliveryDate,
+            actualDeliveryDate: po.actualDeliveryDate,
+            buyer: po.buyer,
+            deliveryTerms: po.deliveryTerms,
+            paymentTerms: po.paymentTerms,
+            notes: po.notes,
+          })),
+        };
+        const today = new Date().toISOString().slice(0, 10);
+        res.set(xlsxDownloadHeaders(`采购台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+        return;
+      }
       res.json(result);
     } catch (e: any) {
       logger.error('[ProcurementRoute] GET list failed', { error: e?.message });
@@ -76,6 +113,54 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
     } catch (e: any) {
       logger.error('[ProcurementRoute] GET detail failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to get purchase order' });
+    }
+  });
+
+  // ── GET /:id/preview.html — PO 服务端模板预览（B2 运营域单据：实时装配渲染，
+  //    与生成 PDF 同源排版——所见即所得，无需先登记文档） ──
+  router.get('/:id/preview.html', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const data = await loadPurchaseOrderDocData(prisma, req.params.id);
+      if (!data) return res.status(404).json({ error: '采购单不存在' });
+      const html = await renderServerDocument(prisma, 'PO', data, { screen: true });
+      if (!html) return res.status(500).json({ error: 'PO 模板渲染失败' });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] GET preview.html failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to preview purchase order' });
+    }
+  });
+
+  // ── POST /:id/generate-document — 登记域单据 + 服务端渲染 PDF 落盘归档
+  //    幂等：domain+type+sourceRef 唯一定位；重复生成刷新头字段并覆盖 PDF（真源实时渲染） ──
+  router.post('/:id/generate-document', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const po = await prisma.purchaseOrder.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!po) return res.status(404).json({ error: '采购单不存在' });
+
+      const actorId = actor?.userId || 'system';
+      const reg = await upsertDomainTradeDocument(prisma, {
+        domain: 'procurement',
+        type: 'PurchaseOrder',
+        sourceRef: po.id,
+        documentNumber: po.poNumber, // 文档号=业务单号裁决（与 CI 财务回链同号语义一致）
+        orderId: po.orderId,
+        relationId: po.supplierRelationId,
+        totalAmount: po.totalAmount != null ? Number(po.totalAmount) : null,
+        currency: po.currency,
+        issueDate: po.orderDate,
+        actorId,
+      });
+      const file = await generateTradeDocumentFile(prisma, { id: reg.documentId, actorId });
+      res.json({ document: reg, file });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] POST generate-document failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : 500;
+      res.status(status).json({ error: e?.message || 'failed to generate purchase order document' });
     }
   });
 

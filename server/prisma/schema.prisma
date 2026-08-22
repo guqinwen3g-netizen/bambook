@@ -5054,6 +5054,10 @@ model TradeDocument {
   /// 单据中心 CommercialInvoice 引用不复制——交单号=财务发票号，改金额只改财务侧）
   sourceInvoiceId String?
 
+  /// 业务真源外链（2026-08-22 B2 运营域单据：各业务域单据实时引用各自真源渲染，
+  /// 不复制内容——procurement=PurchaseOrder.id，qc=InspectionReport.id，与 sourceInvoiceId 同语义）
+  sourceRef String?
+
   // ─── 单据信息 ───
   issueDate       String? // 签发日期
   expiryDate      String? // 有效期
@@ -5083,6 +5087,7 @@ model TradeDocument {
   @@index([type])
   @@index([status])
   @@index([sourceInvoiceId])
+  @@index([sourceRef])
   @@index([domain])
 }
 

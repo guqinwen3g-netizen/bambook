@@ -4562,6 +4562,8 @@ export interface TradeDocument {
   relationId?: string | null;
   /** 财务发票回链（CommercialInvoice 引用财务 Invoice 真源——交单号=记账号，双向跳转用） */
   sourceInvoiceId?: string | null;
+  /** 业务真源外链（B2 运营域单据：procurement=PurchaseOrder.id / qc=InspectionReport.id，实时引用真源渲染不复制） */
+  sourceRef?: string | null;
   issueDate?: string | null;
   expiryDate?: string | null;
   issuedBy?: string | null;

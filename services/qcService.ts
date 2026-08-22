@@ -321,6 +321,52 @@ export const qcService = {
     return data.item;
   },
 
+  // ── B2 运营域单据：验货报告文档（服务端模板真源，单据中心统一归档） ──
+
+  /** 验货报告预览 HTML——GET /reports/:id/preview.html（服务端模板实时装配渲染，与生成 PDF 同源排版） */
+  async getReportPreviewHtml(reportId: string, endpoint?: string): Promise<string> {
+    const res = await fetch(qcUrl(`/reports/${encodeURIComponent(reportId)}/preview.html`, endpoint), {
+      headers: apiService.getAuthHeaders(),
+    });
+    if (!res.ok) await parseError(res, 'getReportPreviewHtml failed');
+    return res.text();
+  },
+
+  /** 验货报告生成文档——POST /reports/:id/generate-document（登记域单据 domain=qc + 服务端渲染
+   *  PDF 落盘归档，文档号 IR-YYYY-NNNN），生成后浏览器下载归档文件 */
+  async generateReportDocument(reportId: string, endpoint?: string): Promise<{ documentNumber: string; fileName: string; fileSize: number }> {
+    const data = await postJson<{ ok: boolean; document: { documentNumber: string }; file: { filePath: string; fileName: string; fileSize: number } }>(
+      `/reports/${encodeURIComponent(reportId)}/generate-document`, {}, endpoint, 'generateReportDocument failed');
+    await apiService.downloadArchiveFile(data.file.filePath, data.file.fileName, endpoint);
+    return { documentNumber: data.document.documentNumber, fileName: data.file.fileName, fileSize: data.file.fileSize };
+  },
+
+  /** QC 任务台账 Excel 导出——GET /assignments?format=xlsx（当前筛选条件全量导出） */
+  async exportAssignmentsXlsx(params?: { qcUserId?: string; status?: string; orderId?: string; locationId?: string; dueBefore?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.qcUserId) query.set('qcUserId', params.qcUserId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.locationId) query.set('locationId', params.locationId);
+    if (params?.dueBefore) query.set('dueBefore', params.dueBefore);
+    const res = await fetch(qcUrl(`/assignments?${query.toString()}`, endpoint), {
+      headers: apiService.getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`QC 任务台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `QC任务台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
   // ── REQ2-04 第三方测试管理 ──
 
   /** 登记测试委托 {orderId, testItems[], agency, sentDate?, expectedDate?, notes?} */

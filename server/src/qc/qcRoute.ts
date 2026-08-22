@@ -65,6 +65,10 @@ import {
   ChainResult,
 } from './qcChainService';
 import { createTestRequestService, TestRequestResult } from './testRequestService';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
+import { renderServerDocument } from '../templates/docTemplates/registry';
+import { loadInspectionReportDocData } from '../templates/docTemplates/inspectionReport';
+import { upsertDomainTradeDocument, generateTradeDocumentFile } from '../customs/tradeDocumentLifecycleService';
 
 export interface QcRouterOptions {
   prisma: PrismaClient;
@@ -161,6 +165,7 @@ export function createQcRouter(options: QcRouterOptions): Router {
 
   router.get('/assignments', async (req: Request, res: Response) => {
     try {
+      const exportAll = req.query.format === 'xlsx';
       const result = await service.listAssignments({
         qcUserId: req.query.qcUserId ? String(req.query.qcUserId) : undefined,
         status: req.query.status ? String(req.query.status) : undefined,
@@ -169,7 +174,30 @@ export function createQcRouter(options: QcRouterOptions): Router {
         dueBefore: req.query.dueBefore ? String(req.query.dueBefore) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         offset: req.query.offset ? Number(req.query.offset) : undefined,
+        ...(exportAll ? { exportAll: true } : {}),
       });
+      if (exportAll) {
+        const sheet: XlsxSheet = {
+          name: 'QC任务台账',
+          columnLabels: ['客户单号', '客户', '品名', '验货类型', '驻地', '状态', '要求完成日', '分派时间', '完成时间', '报告ID'],
+          columns: ['poNumber', 'customer', 'product', 'inspectionType', 'locationName', 'status', 'dueDate', 'assignedAt', 'completedAt', 'reportId'],
+          rows: result.items.map((a: any) => ({
+            poNumber: a.order?.poNumber ?? '',
+            customer: a.order?.customer ?? '',
+            product: a.order?.product ?? '',
+            inspectionType: a.inspectionType === 'final' ? '最终验货' : '中期验货',
+            locationName: a.location?.name ?? '',
+            status: a.status,
+            dueDate: a.dueDate,
+            assignedAt: a.assignedAt != null ? new Date(Number(a.assignedAt)).toISOString().slice(0, 10) : '',
+            completedAt: a.completedAt != null ? new Date(Number(a.completedAt)).toISOString().slice(0, 10) : '',
+            reportId: a.reportId ?? '',
+          })),
+        };
+        const today = new Date().toISOString().slice(0, 10);
+        res.set(xlsxDownloadHeaders(`QC任务台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+        return;
+      }
       res.json(serializeValue(result));
     } catch (e: any) {
       handleError(res, e, 'QC_ASSIGNMENT_LIST_FAILED');
@@ -404,6 +432,59 @@ export function createQcRouter(options: QcRouterOptions): Router {
         res.json(serializeValue({ ok: true, item: report }));
       } catch (e: any) {
         handleError(res, e, 'QC_REPORT_SIGN_FAILED');
+      }
+    },
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // B2 运营域单据：验货报告文档（模板真源服务端，单据中心统一归档）
+  // ══════════════════════════════════════════════════════════════
+
+  // GET /reports/:reportId/preview.html — IR 服务端模板预览（实时装配渲染，
+  // 与生成 PDF 同源排版——所见即所得，无需先登记文档）
+  router.get(
+    '/reports/:reportId/preview.html',
+    requirePermission('qc:read'),
+    async (req: Request, res: Response) => {
+      try {
+        const data = await loadInspectionReportDocData(prisma, req.params.reportId);
+        if (!data) return res.status(404).json({ error: { code: 'QC_REPORT_NOT_FOUND', message: '验货报告不存在' } });
+        const html = await renderServerDocument(prisma, 'IR', data, { screen: true });
+        if (!html) return res.status(500).json({ error: { code: 'QC_IR_RENDER_FAILED', message: '验货报告模板渲染失败' } });
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+      } catch (e: any) {
+        handleError(res, e, 'QC_REPORT_PREVIEW_FAILED');
+      }
+    },
+  );
+
+  // POST /reports/:reportId/generate-document — 登记域单据（domain=qc）+
+  // 服务端渲染 PDF 落盘归档。幂等：domain+type+sourceRef 唯一定位；重复生成
+  // 刷新头字段并覆盖 PDF（真源实时渲染）。文档号 IR-YYYY-NNNN 自动取号。
+  router.post(
+    '/reports/:reportId/generate-document',
+    requireWrite,
+    requirePermission('qc:write'),
+    async (req: Request, res: Response) => {
+      try {
+        const report = await prisma.inspectionReport.findUnique({ where: { id: req.params.reportId } });
+        if (!report) return res.status(404).json({ error: { code: 'QC_REPORT_NOT_FOUND', message: '验货报告不存在' } });
+
+        const actorId = actorIdFromRequest(req) || 'system';
+        const reg = await upsertDomainTradeDocument(prisma, {
+          domain: 'qc',
+          type: 'InspectionReport',
+          sourceRef: report.id,
+          orderId: report.orderId,
+          issueDate: report.inspectionDate,
+          actorId,
+        });
+        const file = await generateTradeDocumentFile(prisma, { id: reg.documentId, actorId });
+        notify('generate_report_document', [reg.documentId]);
+        res.json(serializeValue({ ok: true, document: reg, file }));
+      } catch (e: any) {
+        handleError(res, e, 'QC_REPORT_DOCUMENT_GENERATE_FAILED');
       }
     },
   );

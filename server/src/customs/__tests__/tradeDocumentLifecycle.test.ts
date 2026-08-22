@@ -18,6 +18,7 @@ import {
   generateTradeDocumentsFromShipment,
   packTradeDocumentsByOrder,
   toTradeDocumentSnapshot,
+  upsertDomainTradeDocument,
   TRADE_DOC_NUMBER_PREFIX,
 } from '../tradeDocumentLifecycleService';
 
@@ -47,6 +48,17 @@ vi.mock('../../finance/route', () => ({
 }));
 vi.mock('fs', () => ({ ...fsMock, default: fsMock }));
 
+// ── Mock customsService（upsertDomainTradeDocument 动态 import 的域校验；真实语义副本）──
+vi.mock('../customsService', () => ({
+  docStatusTransitionsFor: (domain: string) => {
+    const transitions: Record<string, Record<string, string[]>> = {
+      customs: {}, procurement: {}, qc: {}, contract: {}, finance: {},
+    };
+    if (!transitions[domain]) throw new Error(`非法单据业务域: ${domain}`);
+    return transitions[domain];
+  },
+}));
+
 const YEAR = new Date().getFullYear();
 
 function makeAssembled(overrides: Record<string, any> = {}) {
@@ -68,6 +80,7 @@ function makePrisma(overrides: Record<string, any> = {}) {
   const tx: any = {
     tradeDocument: {
       create: vi.fn().mockImplementation(async ({ data }: any) => ({ ...data, deletedAt: null })),
+      update: vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
       findMany: overrides.docFindMany ?? vi.fn().mockResolvedValue([]),
       findFirst: overrides.docFindFirst ?? vi.fn().mockResolvedValue(null),
     },
@@ -136,9 +149,12 @@ describe('generateTradeDocumentNumber', () => {
     await expect(generateTradeDocumentNumber(prisma, 'Nope' as any)).rejects.toThrow('非法单据类型');
   });
 
-  it('9 类前缀映射齐备', () => {
-    expect(Object.keys(TRADE_DOC_NUMBER_PREFIX)).toHaveLength(9);
+  it('12 类前缀映射齐备（customs 9 类 + B2 运营域 PO/IR/CT）', () => {
+    expect(Object.keys(TRADE_DOC_NUMBER_PREFIX)).toHaveLength(12);
     expect(TRADE_DOC_NUMBER_PREFIX.BillOfLading).toBe('BL');
+    expect(TRADE_DOC_NUMBER_PREFIX.PurchaseOrder).toBe('PO');
+    expect(TRADE_DOC_NUMBER_PREFIX.InspectionReport).toBe('IR');
+    expect(TRADE_DOC_NUMBER_PREFIX.Contract).toBe('CT');
   });
 });
 
@@ -407,5 +423,82 @@ describe('generateTradeDocumentFile', () => {
 
     const noHtml = makeDocPrisma({ id: 'TD_PL_3', documentNumber: 'PL-1', type: 'PackingList', sourceInvoiceId: null, deletedAt: null });
     await expect(generateTradeDocumentFile(noHtml.prisma, { id: 'TD_PL_3', html: '', actorId: 'u' })).rejects.toThrow('无可渲染内容');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// B2 运营域单据登记（upsertDomainTradeDocument）
+// ══════════════════════════════════════════════════════════════
+
+describe('upsertDomainTradeDocument', () => {
+  it('首次登记 → created：文档号=入参业务单号 + v1 轻量快照（sourceRef 元数据）', async () => {
+    const prisma = makePrisma();
+    const result = await upsertDomainTradeDocument(prisma, {
+      domain: 'procurement',
+      type: 'PurchaseOrder',
+      sourceRef: 'PO_abc123',
+      documentNumber: 'PO-20260806-001',
+      orderId: 'ord_1',
+      totalAmount: 12345.67,
+      currency: 'USD',
+      issueDate: '2026-08-06',
+      actorId: 'user_1',
+    });
+    expect(result).toEqual({ documentId: expect.any(String), documentNumber: 'PO-20260806-001', outcome: 'created' });
+
+    const create = prisma._tx.tradeDocument.create.mock.calls[0][0].data;
+    expect(create.domain).toBe('procurement');
+    expect(create.type).toBe('PurchaseOrder');
+    expect(create.sourceRef).toBe('PO_abc123');
+    expect(create.status).toBe('Draft');
+    expect(create.totalAmount.toString()).toBe('12345.67');
+    // v1 快照记录真源外链（渲染走业务真源实时装配，不复制内容）
+    const verCreate = prisma._tx.documentVersion.create.mock.calls[0][0].data;
+    expect(verCreate.version).toBe(1);
+    expect(verCreate.content).toMatchObject({ source: 'domain', domain: 'procurement', sourceRef: 'PO_abc123' });
+  });
+
+  it('文档号缺省 → 自动取号（IR 前缀）', async () => {
+    const prisma = makePrisma();
+    const result = await upsertDomainTradeDocument(prisma, {
+      domain: 'qc',
+      type: 'InspectionReport',
+      sourceRef: 'INR__ord_1',
+      actorId: 'user_1',
+    });
+    expect(result.outcome).toBe('created');
+    expect(result.documentNumber).toBe(`IR-${YEAR}-0001`);
+  });
+
+  it('重复登记 → updated：不新建文档，刷新头字段 + 审计', async () => {
+    const prisma = makePrisma({
+      docFindFirst: vi.fn().mockResolvedValue({ id: 'TD_EXIST', documentNumber: 'PO-20260806-001' }),
+    });
+    const result = await upsertDomainTradeDocument(prisma, {
+      domain: 'procurement',
+      type: 'PurchaseOrder',
+      sourceRef: 'PO_abc123',
+      documentNumber: 'PO-20260806-001',
+      totalAmount: 9999,
+      currency: 'USD',
+      actorId: 'user_1',
+    });
+    expect(result).toMatchObject({ documentId: 'TD_EXIST', outcome: 'updated' });
+    expect(prisma._tx.tradeDocument.create).not.toHaveBeenCalled();
+    expect(prisma._tx.tradeDocument.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'TD_EXIST' }, data: expect.objectContaining({ currency: 'USD' }) }),
+    );
+    const audit = prisma._tx.auditLog.create.mock.calls[0][0].data;
+    expect(audit.action).toBe('TRADE_DOCUMENT_DOMAIN_REFRESH');
+  });
+
+  it('未知 domain → fail-closed 抛错（域状态机未注册）', async () => {
+    const prisma = makePrisma();
+    await expect(upsertDomainTradeDocument(prisma, {
+      domain: 'unknown_domain',
+      type: 'PurchaseOrder',
+      sourceRef: 'PO_x',
+      actorId: 'user_1',
+    })).rejects.toThrow('非法单据业务域');
   });
 });
