@@ -3403,6 +3403,49 @@ export const apiService = {
     return res.text();
   },
 
+  // ── B3 组合文档（多对一数据聚合：MERGED_PL 多运单合并装箱单 / MERGED_IR 多报告合并汇总） ──
+
+  /** 组合文档预览 HTML——POST /v1/customs/trade-documents/composite/preview.html（A4 画布，与生成 PDF 同源） */
+  async getCompositeDocumentPreviewHtml(kind: 'MERGED_PL' | 'MERGED_IR', sourceIds: string[], endpoint?: string): Promise<string> {
+    const url = buildApiUrl('/v1/customs/trade-documents/composite/preview.html', endpoint);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, sourceIds }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
+  /** 组合文档生成 PDF——POST /v1/customs/trade-documents/composite/generate.pdf（流式下载，不归档） */
+  async generateCompositeDocumentPdf(kind: 'MERGED_PL' | 'MERGED_IR', sourceIds: string[], endpoint?: string): Promise<void> {
+    const url = buildApiUrl('/v1/customs/trade-documents/composite/generate.pdf', endpoint);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, sourceIds }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `composite-${Date.now()}.pdf`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
   async packTradeDocumentsByOrder(orderId: string, endpoint?: string): Promise<{ items: TradeDocumentPackItem[]; total: number }> {
     return requestJson<{ items: TradeDocumentPackItem[]; total: number }>(`/v1/customs/trade-documents/pack?orderId=${encodeURIComponent(orderId)}`, { endpoint, method: 'GET' });
   },

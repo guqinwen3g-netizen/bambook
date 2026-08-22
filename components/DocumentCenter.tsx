@@ -247,6 +247,8 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   const [showGenerate, setShowGenerate] = useState(false);
   const [generateShipmentId, setGenerateShipmentId] = useState('');
   const [showPack, setShowPack] = useState(false);
+  // B3 组合生成弹窗（多对一数据聚合：合并装箱单 / 合并验货汇总）
+  const [showComposite, setShowComposite] = useState(false);
   // BdsDialog 状态（替代 window.alert / window.confirm）
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TradeDocument | null>(null);
@@ -479,6 +481,12 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
               className="bds-btn bds-btn-outline"
             >
               <FileOutput size={14} /><span>从运单生成</span>
+            </button>
+            <button
+              onClick={() => setShowComposite(true)}
+              className="bds-btn bds-btn-outline"
+            >
+              <Layers size={14} /><span>组合生成</span>
             </button>
             <button
               onClick={() => setShowPack(true)}
@@ -747,6 +755,11 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
       {/* 订单打包弹窗 */}
       {showPack && (
         <PackDialog isDarkMode={isDarkMode} onClose={() => setShowPack(false)} />
+      )}
+
+      {/* B3 组合生成弹窗（多对一数据聚合：合并装箱单 / 合并验货汇总） */}
+      {showComposite && (
+        <CompositeDialog isDarkMode={isDarkMode} onClose={() => setShowComposite(false)} />
       )}
 
       {/* BdsDialog：操作失败提示（替代 window.alert） */}
@@ -1026,6 +1039,192 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ==================== B3 组合生成（多对一数据聚合） ====================
+
+interface CompositeDialogProps {
+  isDarkMode: boolean;
+  onClose: () => void;
+}
+
+const COMPOSITE_KIND_OPTIONS: Array<{ id: 'MERGED_PL' | 'MERGED_IR'; label: string; hint: string }> = [
+  { id: 'MERGED_PL', label: '合并装箱单', hint: '多运单数据聚合为一份 PL（合票出运：明细合并 + 跨运单合计重算）' },
+  { id: 'MERGED_IR', label: '合并验货汇总', hint: '多份验货报告合并一份汇总（跨报告合计统计 + 每报告一节）' },
+];
+
+const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }) => {
+  const [kind, setKind] = useState<'MERGED_PL' | 'MERGED_IR'>('MERGED_PL');
+  const [shipments, setShipments] = useState<Array<{ id: string; shipmentNumber: string; status: string }>>([]);
+  const [shipmentsLoading, setShipmentsLoading] = useState(true);
+  const [selectedShipmentIds, setSelectedShipmentIds] = useState<Set<string>>(new Set());
+  const [reportIdsText, setReportIdsText] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // 组合文档 A4 预览（与生成 PDF 同源渲染）
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewErr, setPreviewErr] = useState<string | null>(null);
+
+  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listShipments();
+        if (!cancelled) setShipments(list.map((s: any) => ({ id: s.id, shipmentNumber: s.shipmentNumber, status: s.status })));
+      } catch {
+        // 运单列表加载失败不阻断——用户仍可通过提示排查
+      } finally {
+        if (!cancelled) setShipmentsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const sourceIds = useMemo((): string[] => {
+    if (kind === 'MERGED_PL') return Array.from(selectedShipmentIds);
+    return reportIdsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  }, [kind, selectedShipmentIds, reportIdsText]);
+
+  const toggleShipment = (id: string) => setSelectedShipmentIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const handlePreview = async () => {
+    setError(null);
+    if (sourceIds.length < 2) { setError('组合生成至少选择 2 条记录'); return; }
+    setPreviewOpen(true);
+    setPreviewHtml('');
+    setPreviewErr(null);
+    setPreviewLoading(true);
+    try {
+      const html = await apiService.getCompositeDocumentPreviewHtml(kind, sourceIds);
+      setPreviewHtml(html);
+    } catch (e: any) {
+      setPreviewErr(`组合文档预览失败：${e?.message || e}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleGeneratePdf = async () => {
+    setError(null);
+    if (sourceIds.length < 2) { setError('组合生成至少选择 2 条记录'); return; }
+    setGenerating(true);
+    try {
+      await apiService.generateCompositeDocumentPdf(kind, sourceIds);
+    } catch (e: any) {
+      setError(`生成 PDF 失败：${e?.message || e}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const kindOption = COMPOSITE_KIND_OPTIONS.find(k => k.id === kind);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mask-bg)] backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-[600px] max-w-[94vw] max-h-[88vh] overflow-y-auto custom-scrollbar rounded-card-lg border p-6 bg-[var(--bg-card)] border-[var(--border-c-subtle)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-light flex items-center gap-2"><Layers size={15} />组合生成（多选叠加）</h3>
+          <button onClick={onClose} className="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"><X size={16} /></button>
+        </div>
+        <p className="text-xs mb-4 text-[var(--text-tertiary)]">
+          多条业务记录在数据层聚合为一份文档（非 PDF 拼页）；即时汇总产物不登记归档，可预览后下载。
+          多订单合票 CI 走财务管理创建发票时勾选多订单（已有能力）。
+        </p>
+
+        <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">组合类型 *</label>
+        <div className="bds-toggle-group mb-2">
+          {COMPOSITE_KIND_OPTIONS.map(k => (
+            <button key={k.id} onClick={() => setKind(k.id)} className={`bds-toggle${kind === k.id ? ' active' : ''}`}>
+              {k.label}
+            </button>
+          ))}
+        </div>
+        {kindOption && <p className="text-[11px] mb-4 text-[var(--text-quaternary)]">{kindOption.hint}</p>}
+
+        {kind === 'MERGED_PL' ? (
+          <>
+            <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">选择运单 *（≥2，合票出运）</label>
+            <div className="max-h-52 overflow-y-auto custom-scrollbar rounded-inset border border-[var(--border-c-subtle)] mb-4 p-2 space-y-1">
+              {shipmentsLoading ? (
+                <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-[var(--text-quaternary)]" /></div>
+              ) : shipments.length === 0 ? (
+                <div className="text-center text-xs py-6 text-[var(--text-quaternary)]">暂无运单</div>
+              ) : shipments.map(s => (
+                <label
+                  key={s.id}
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-control cursor-pointer hover:bg-[var(--hover-darken)] text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedShipmentIds.has(s.id)}
+                    onChange={() => toggleShipment(s.id)}
+                    className="bds-checkbox"
+                  />
+                  <span className="bds-mono text-[var(--text-primary)]">{s.shipmentNumber}</span>
+                  <span className="text-[10px] text-[var(--text-quaternary)]">{s.status}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已选 {selectedShipmentIds.size} 个运单</p>
+          </>
+        ) : (
+          <>
+            <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">验货报告 ID *（≥2，每行一个）</label>
+            <textarea
+              className={`${fieldClass} mb-2 font-mono text-xs`}
+              rows={6}
+              value={reportIdsText}
+              onChange={(e) => setReportIdsText(e.target.value)}
+              placeholder={'INR__ord_1001\nINR__ord_1002__mid\n（报告 ID 可从订单详情验货报告 / QC 工作台复制）'}
+            />
+            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已识别 {sourceIds.length} 份报告</p>
+          </>
+        )}
+
+        {error && (
+          <div className="p-3 rounded-inset border flex items-center gap-2 mb-3 border-[var(--border-c-default)] bg-[var(--hover-darken)]">
+            <AlertCircle size={14} className="text-[var(--danger-text)]" />
+            <span className="text-xs">{error}</span>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 mt-2">
+          <button onClick={onClose} className="bds-btn bds-btn-ghost">关闭</button>
+          <button onClick={() => void handlePreview()} disabled={previewLoading} className="bds-btn bds-btn-secondary">
+            {previewLoading ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}<span>预览</span>
+          </button>
+          <button onClick={() => void handleGeneratePdf()} disabled={generating} className="bds-btn bds-btn-primary">
+            {generating ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}<span>生成 PDF</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 组合文档 A4 预览（与生成 PDF 同源渲染） */}
+      {previewOpen && (
+        <A4DocumentPreviewModal
+          title={`组合文档预览 · ${kindOption?.label ?? kind}`}
+          subtitle="A4 · Consolidated · 与生成 PDF 同源排版"
+          html={previewHtml}
+          loading={previewLoading}
+          error={previewErr}
+          onClose={() => setPreviewOpen(false)}
+          onPrint={() => { setPreviewOpen(false); void handleGeneratePdf(); }}
+          printLabel="生成 PDF"
+        />
+      )}
     </div>
   );
 };

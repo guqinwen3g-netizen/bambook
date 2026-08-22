@@ -20,6 +20,8 @@ import { buildServerDocument } from '../docPrintBase';
 import { renderPackingListBody, type DocExporterProfile } from './packingList';
 import { renderPurchaseOrderBody, loadPurchaseOrderDocData } from './purchaseOrder';
 import { renderInspectionReportBody, loadInspectionReportDocData } from './inspectionReport';
+import { renderMergedPackingListBody } from './mergedPackingList';
+import { renderMergedInspectionSummaryBody } from './mergedInspectionSummary';
 import type { ServerDocumentSetData } from './types';
 
 /** 注册表渲染上下文：单据定位信息（loadData 按各自真源装配） */
@@ -66,6 +68,9 @@ export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
   PL: { kind: 'PL', title: 'Packing List 装箱单', loadData: loadDocumentSetSnapshot, renderBody: renderPackingListBody },
   PO: { kind: 'PO', title: 'Purchase Order 采购订单', loadData: async (prisma, doc) => (doc.sourceRef ? loadPurchaseOrderDocData(prisma, doc.sourceRef) : null), renderBody: renderPurchaseOrderBody },
   IR: { kind: 'IR', title: 'Inspection Report 验货报告', loadData: async (prisma, doc) => (doc.sourceRef ? loadInspectionReportDocData(prisma, doc.sourceRef) : null), renderBody: renderInspectionReportBody },
+  // B3 组合文档（多对一聚合）：loadData 无单据级装配——数据由 compositeDocumentService 聚合后直喂 renderServerDocument
+  MERGED_PL: { kind: 'MERGED_PL', title: 'Consolidated Packing List 合并装箱单', loadData: async () => null, renderBody: renderMergedPackingListBody },
+  MERGED_IR: { kind: 'MERGED_IR', title: 'Consolidated Inspection Summary 合并验货汇总', loadData: async () => null, renderBody: renderMergedInspectionSummaryBody },
 };
 
 /**

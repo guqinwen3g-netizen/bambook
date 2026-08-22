@@ -75,6 +75,9 @@ import {
 } from './customsService';
 import { createDocumentTemplateService } from './documentTemplateService';
 import { generateTradeDocumentsFromShipment, generateTradeDocumentFile, packTradeDocumentsByOrder, renderTradeDocumentServerHtml } from './tradeDocumentLifecycleService';
+import { assembleCompositeDocument, isCompositeDocKind } from './compositeDocumentService';
+import { renderServerDocument } from '../templates/docTemplates/registry';
+import { renderHtmlToPdf } from '../templates/pdf';
 
 export interface CustomsRouterOptions {
   prisma: PrismaClient;
@@ -595,6 +598,51 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[CustomsRoute] GET trade-documents preview.html failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to preview trade-document' });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // B3 组合文档（多对一数据聚合：多运单合并 PL / 多报告合并 IR 汇总）
+  // 即时性汇总产物——不登记 TradeDocument，预览/生成流式输出
+  // ══════════════════════════════════════════════════════════════
+
+  // POST /trade-documents/composite/preview.html — 组合文档 A4 预览（与生成 PDF 同源渲染）
+  router.post('/trade-documents/composite/preview.html', async (req: Request, res: Response) => {
+    try {
+      const { kind, sourceIds } = req.body ?? {};
+      if (!isCompositeDocKind(kind)) return res.status(400).json({ error: `非法组合文档类型: ${kind}` });
+      const { kind: resolvedKind, data } = await assembleCompositeDocument(prisma, { kind, sourceIds });
+      const html = await renderServerDocument(prisma, resolvedKind, data, { screen: true });
+      if (!html) return res.status(500).json({ error: '组合文档渲染失败' });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] POST composite preview.html failed', { error: e?.message });
+      const status = e?.message?.includes('至少需要') || e?.message?.includes('不存在') || e?.message?.includes('装配失败') ? 400 : 500;
+      res.status(status).json({ error: e?.message || 'failed to preview composite document' });
+    }
+  });
+
+  // POST /trade-documents/composite/generate.pdf — 组合文档生成 PDF（流式下载，不落盘归档）
+  router.post('/trade-documents/composite/generate.pdf', async (req: Request, res: Response) => {
+    try {
+      const { kind, sourceIds } = req.body ?? {};
+      if (!isCompositeDocKind(kind)) return res.status(400).json({ error: `非法组合文档类型: ${kind}` });
+      const { kind: resolvedKind, data } = await assembleCompositeDocument(prisma, { kind, sourceIds });
+      const html = await renderServerDocument(prisma, resolvedKind, data);
+      if (!html) return res.status(500).json({ error: '组合文档渲染失败' });
+      const pdf = await renderHtmlToPdf(html, { format: 'A4' });
+      const label = resolvedKind === 'MERGED_PL' ? 'Consolidated-Packing-List' : 'Consolidated-Inspection-Summary';
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `${label}_${today}.pdf`;
+      const encoded = encodeURIComponent(fileName);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+      res.send(pdf.pdf);
+    } catch (e: any) {
+      logger.error('[CustomsRoute] POST composite generate.pdf failed', { error: e?.message });
+      const status = e?.message?.includes('至少需要') || e?.message?.includes('不存在') || e?.message?.includes('装配失败') ? 400 : 500;
+      res.status(status).json({ error: e?.message || 'failed to generate composite document pdf' });
     }
   });
 
