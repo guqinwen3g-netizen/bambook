@@ -35,6 +35,7 @@ import {
   Image as ImageIcon,
   History,
   TrendingDown,
+  Download,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import BottomSheet from './ui/BottomSheet';
@@ -191,6 +192,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [traceQuoteId, setTraceQuoteId] = useState<string | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   // ── B7 报价单服务端单据：A4 预览（服务端模板实时渲染，与生成 PDF 同源排版）──
   const [previewQt, setPreviewQt] = useState<Quotation | null>(null);
@@ -268,6 +270,21 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setError(String(e?.message || e || '加载失败'));
     } finally {
       setLoading(false);
+    }
+  }, [statusFilter, searchQuery]);
+
+  /** 报价台账 Excel 导出（当前筛选条件全量） */
+  const handleExportXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    try {
+      await apiService.exportQuotationsXlsx({
+        ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+      });
+    } catch (e: any) {
+      setError(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
     }
   }, [statusFilter, searchQuery]);
 
@@ -624,6 +641,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
           <>
             <button onClick={() => setShowImportWizard(true)} className="bds-btn bds-btn-secondary">
               <FileSpreadsheet size={14} /><span>导入历史报价</span>
+            </button>
+            {/* B10 运营域报表：报价台账 Excel 导出（当前筛选全量） */}
+            <button onClick={() => void handleExportXlsx()} disabled={exportingXlsx} className="bds-btn bds-btn-secondary">
+              {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              <span>导出台账</span>
             </button>
             <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
               <Plus size={14} /><span>新建报价单</span>

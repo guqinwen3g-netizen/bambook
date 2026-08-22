@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Truck, Plus, Search, X, Pencil, Trash2, ChevronLeft, Save, Loader2, Package, ExternalLink, RefreshCw, Box, Download } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { bdsConfirm } from './ui/BdsDialog';
 import {
@@ -13,6 +13,7 @@ import {
 import type { Shipment as ShipmentType, ShipmentStatus, ShipmentEvent, ShipmentLine, ShipmentCarton } from '../types';
 import { shipmentService } from '../services/shipmentService';
 import type { OnTimeStats, MethodStats } from '../services/shipmentService';
+import { apiService } from '../services/apiService';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
@@ -263,6 +264,7 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   // 阶段 IA-3：订单详情「创建出运」prime —— 挂载时自动打开新建运单并预填订单/客户
   useEffect(() => {
@@ -324,6 +326,21 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
     return result;
   }, [shipments, selectedStatus, searchTerm, navRelationFilter]);
   const selectedShipment = filteredShipments.find(item => item.id === selectedId) || filteredShipments[0];
+
+  /** 运单台账 Excel 导出（当前筛选条件全量：状态/搜索镜像到服务端过滤） */
+  const handleExportXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    try {
+      await apiService.exportShipmentsXlsx({
+        ...(selectedStatus !== 'all' ? { status: selectedStatus } : {}),
+        ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
+      });
+    } catch (e: any) {
+      setErrorMessage(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
+    }
+  }, [selectedStatus, searchTerm]);
 
   // F3 — 物流节点时间轴（选中运单时拉取；状态变更后随 selectedShipment.status 联动刷新）
   const [shipmentEvents, setShipmentEvents] = useState<ShipmentEvent[]>([]);
@@ -573,14 +590,27 @@ const ShipmentManager: React.FC<ShipmentManagerProps> = ({ isDarkMode, shipments
         contextLabel="Shipment Desk"
         hidden={showFormModal}
         actions={(
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="bds-btn bds-btn-primary"
-          >
-            <Plus size={14} />
-            新建运单
-          </button>
+          <>
+            {/* B10 运营域报表：运单台账 Excel 导出（当前筛选全量） */}
+            <button
+              type="button"
+              onClick={() => void handleExportXlsx()}
+              disabled={exportingXlsx}
+              className="bds-btn bds-btn-secondary"
+              title="运单台账 Excel 导出（当前筛选全量）"
+            >
+              {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              导出台账
+            </button>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="bds-btn bds-btn-primary"
+            >
+              <Plus size={14} />
+              新建运单
+            </button>
+          </>
         )}
       />
 

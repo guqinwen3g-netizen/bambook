@@ -65,12 +65,31 @@ import {
   OutsourcingStatus,
 } from './mesService';
 import { createProcessChainService, ProcessChainResult } from './processChainService';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 
 export interface MesRouterOptions {
   prisma: PrismaClient;
   requireAuth: boolean;
   apiKeys: Set<string>;
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
+}
+
+/** 排产状态 → 台账中文标签（与 MesManager 展示口径一致） */
+const PLAN_STATUS_LABEL: Record<string, string> = {
+  Draft: '草稿', Confirmed: '已确认', InProgress: '进行中', Completed: '已完成', Cancelled: '已取消',
+};
+
+/** 工序类型 → 台账中文标签（ProductionPlan.processType 枚举） */
+const PROCESS_TYPE_LABEL: Record<string, string> = {
+  Sewing: '缝制', Cutting: '裁剪', Printing: '印花', Embroidery: '绣花', Packing: '包装', QC: '质检', Other: '其他',
+};
+
+/** BigInt 毫秒时间戳 → YYYY-MM-DD（台账展示口径） */
+function tsToDate(v: unknown): string | null {
+  if (v == null) return null;
+  const n = typeof v === 'bigint' ? Number(v) : Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return new Date(n).toISOString().slice(0, 10);
 }
 
 const VALID_PLAN_STATUSES: ProductionPlanStatus[] = ['Draft', 'Confirmed', 'InProgress', 'Completed', 'Cancelled'];
@@ -209,6 +228,34 @@ export function createMesRouter(options: MesRouterOptions): Router {
         dateFrom: dateFrom as string | undefined,
         dateTo: dateTo as string | undefined,
       });
+      if (req.query.format === 'xlsx') {
+        const sheet: XlsxSheet = {
+          name: '生产计划台账',
+          columnLabels: ['排产单号', '关联订单', '工序', '工序顺序', '工位', '状态', '优先级', '计划数量', '实际数量', '单位', '计划开工', '计划完工', '实际开工', '实际完工', '负责人', '创建时间'],
+          columns: ['planNumber', 'orderId', 'processType', 'processSeq', 'workStation', 'status', 'priority', 'plannedQuantity', 'actualQuantity', 'unit', 'plannedStartDate', 'plannedEndDate', 'actualStartDate', 'actualEndDate', 'assignedTo', 'createdAt'],
+          rows: items.map((p: any) => ({
+            planNumber: p.planNumber,
+            orderId: p.orderId,
+            processType: PROCESS_TYPE_LABEL[p.processType] ?? p.processType,
+            processSeq: p.processSeq,
+            workStation: p.workStation ? `${p.workStation.name}（${p.workStation.code}）` : null,
+            status: PLAN_STATUS_LABEL[p.status] ?? p.status,
+            priority: p.priority,
+            plannedQuantity: p.plannedQuantity != null ? Number(p.plannedQuantity) : null,
+            actualQuantity: p.actualQuantity != null ? Number(p.actualQuantity) : null,
+            unit: p.unit,
+            plannedStartDate: p.plannedStartDate,
+            plannedEndDate: p.plannedEndDate,
+            actualStartDate: p.actualStartDate,
+            actualEndDate: p.actualEndDate,
+            assignedTo: p.assignedTo,
+            createdAt: tsToDate(p.createdAt),
+          })),
+        };
+        const today = new Date().toISOString().slice(0, 10);
+        res.set(xlsxDownloadHeaders(`生产计划台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+        return;
+      }
       res.json({ items, total: items.length });
     } catch (e: any) {
       logger.error('[MesRoute] GET plans failed', { error: e?.message });

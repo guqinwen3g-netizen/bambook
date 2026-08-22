@@ -10,7 +10,7 @@ import {
   AlertTriangle,
   Globe, List,
   Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, GitBranch,
-  Search, ArrowLeft, Eye, FileText, Loader2
+  Search, ArrowLeft, Eye, FileText, Loader2, Download
 } from 'lucide-react';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 import { TraceabilityPanel } from './TraceabilityPanel';
@@ -308,6 +308,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   const [ocPreviewLoading, setOcPreviewLoading] = useState(false);
   const [ocPreviewErr, setOcPreviewErr] = useState<string | null>(null);
   const [ocGenerating, setOcGenerating] = useState(false);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   const handlePreviewOc = useCallback(async (orderId: string) => {
     setOcPreviewOpen(true);
@@ -535,6 +536,23 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   );
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [orderFilterStatus, setOrderFilterStatus] = useState<string>('all');
+
+  /** 订单台账 Excel 导出（当前列表筛选全量：类型/状态/搜索/Capsule 透镜镜像到服务端过滤） */
+  const handleExportXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    try {
+      await apiService.exportOrdersXlsx({
+        ...(currentDbType ? { type: currentDbType } : {}),
+        ...(orderFilterStatus !== 'all' ? { status: orderFilterStatus } : {}),
+        ...(capsuleActive ? { businessLine: 'capsule' } : {}),
+        ...(orderSearchTerm.trim() ? { search: orderSearchTerm.trim() } : {}),
+      });
+    } catch (e: any) {
+      bdsToast.danger(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
+    }
+  }, [currentDbType, orderFilterStatus, capsuleActive, orderSearchTerm]);
 
   const lineItems = useMemo(() => {
     let items = flattenOrderLines(orders).filter(item => isAllType || item.order?.type === currentDbType);
@@ -1089,6 +1107,17 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                 </button>
               </>
             )}
+            {/* B10 运营域报表：订单台账 Excel 导出（当前筛选全量） */}
+            <button
+              type="button"
+              onClick={() => void handleExportXlsx()}
+              disabled={exportingXlsx}
+              className="bds-btn bds-btn-secondary"
+              title="订单台账 Excel 导出（当前筛选全量）"
+            >
+              {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {!isMobile && '导出台账'}
+            </button>
           </>
         )}
       />

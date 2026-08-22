@@ -26,6 +26,7 @@ import {
   X,
   TrendingUp,
   TrendingDown,
+  Download,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import {
@@ -109,6 +110,7 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
   const [detailCache, setDetailCache] = useState<Record<string, BOM>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── 加载 BOM 列表 ──
@@ -126,6 +128,21 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
       setError(e?.message || '加载 BOM 列表失败');
     } finally {
       setLoading(false);
+    }
+  }, [statusFilter, searchQuery]);
+
+  /** BOM 台账 Excel 导出（当前筛选条件全量） */
+  const handleExportXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    try {
+      await apiService.exportBomListXlsx({
+        ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+      });
+    } catch (e: any) {
+      setError(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
     }
   }, [statusFilter, searchQuery]);
 
@@ -256,6 +273,11 @@ const BomManager: React.FC<BomManagerProps> = ({ isDarkMode, onNavigate }) => {
           <button onClick={loadBOMs} className="bds-btn bds-btn-ghost">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             <span>刷新</span>
+          </button>
+          {/* B10 运营域报表：BOM 台账 Excel 导出（当前筛选全量） */}
+          <button onClick={() => void handleExportXlsx()} disabled={exportingXlsx} className="bds-btn bds-btn-secondary">
+            {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            <span>导出台账</span>
           </button>
         </div>
 

@@ -26,7 +26,14 @@ import { parseTechPackText } from './techPackParser';
 import { createOrderServiceV2 } from './orderServiceV2';
 import { renderServerDocument } from '../templates/docTemplates/registry';
 import { loadOrderConfirmationDocData } from '../templates/docTemplates/orderConfirmation';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { upsertDomainTradeDocument, generateTradeDocumentFile } from '../customs/tradeDocumentLifecycleService';
+
+/** 订单状态 → 台账中文标签（与 OrderManager 展示口径一致，枚举镜像 orderLifecycleService） */
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  Pending: '待确认', Confirmed: '已确认', Production: '生产中',
+  Shipping: '出运中', Delivered: '已交付', Alert: '异常',
+};
 
 /** 上传根目录（与静态服务根同源：BAMBOOK_UPLOAD_DIR 或 apps/Bambook/uploads——
  *  index.ts 静态服务 /api/uploads 的根；本文件在 server/src/orders/ 下需三级回溯） */
@@ -51,9 +58,10 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
     return extractActorFromRequest(req);
   }
 
-  // ── GET / 列表 ──
+  // ── GET / 列表（format=xlsx → 全量台账 Excel 导出） ──
   router.get('/', requirePermission('orders:read'), async (req, res) => {
     const actor = actorOf(req);
+    const exportAll = req.query.format === 'xlsx';
     const filter = {
       status: typeof req.query.status === 'string' ? req.query.status : undefined,
       type: typeof req.query.type === 'string' ? req.query.type : undefined,
@@ -63,12 +71,35 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
       customerRelationId: typeof req.query.customerRelationId === 'string' ? req.query.customerRelationId : undefined,
       businessLine: typeof req.query.businessLine === 'string' ? req.query.businessLine : undefined,
       search: typeof req.query.search === 'string' ? req.query.search : undefined,
-      limit: req.query.limit ? Number(req.query.limit) : undefined,
-      offset: req.query.offset ? Number(req.query.offset) : undefined,
+      limit: exportAll || !req.query.limit ? undefined : Number(req.query.limit),
+      offset: exportAll || !req.query.offset ? undefined : Number(req.query.offset),
       sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
+      ...(exportAll ? { exportAll: true } : {}),
     };
     const result = await svc.listOrders(actor, filter);
     if (!result.ok) return res.status(500).json({ error: result.error!.code, message: result.error!.message });
+    if (exportAll) {
+      const sheet: XlsxSheet = {
+        name: '订单台账',
+        columnLabels: ['订单号', '客户', '品名', '类型', '状态', '数量', '单位', '金额', '币种', '交期', '负责人'],
+        columns: ['poNumber', 'customer', 'product', 'type', 'status', 'quantity', 'unit', 'quoteAmount', 'currency', 'dueDate', 'ownerId'],
+        rows: (result.data?.items ?? []).map((o: any) => ({
+          poNumber: o.poNumber,
+          customer: o.customer,
+          product: o.product,
+          type: o.type,
+          status: ORDER_STATUS_LABEL[o.status] ?? o.status,
+          quantity: o.quantity,
+          unit: o.lines?.[0]?.unit ?? null,
+          quoteAmount: o.quoteAmount != null ? Number(o.quoteAmount) : null,
+          currency: o.currency || o.salesCurrency || null,
+          dueDate: o.dueDate,
+          ownerId: o.ownerId,
+        })),
+      };
+      const today = new Date().toISOString().slice(0, 10);
+      return res.set(xlsxDownloadHeaders(`订单台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+    }
     return res.json({ ok: true, ...result.data });
   });
 

@@ -70,6 +70,8 @@ export interface OrderListFilter {
   limit?: number;
   offset?: number;
   sort?: string;            // createdAt / dueDate / status / quoteAmount
+  /** Excel 台账导出=true：忽略分页上限全量导出（route 层 format=xlsx 专用） */
+  exportAll?: boolean;
 }
 
 export interface OrderListResult {
@@ -273,8 +275,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         }
       }
 
-      const limit = Math.min(Math.max(filter.limit ?? 50, 1), 500);
-      const offset = Math.max(filter.offset ?? 0, 0);
+      const limit = filter.exportAll ? undefined : Math.min(Math.max(filter.limit ?? 50, 1), 500);
+      const offset = filter.exportAll ? 0 : Math.max(filter.offset ?? 0, 0);
       const orderBy: any[] = [];
       const sortMap: Record<string, string> = {
         createdAt: 'createdAt',
@@ -292,8 +294,7 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         (prisma as any).order.findMany({
           where,
           orderBy,
-          take: limit,
-          skip: offset,
+          ...(limit != null ? { take: limit, skip: offset } : {}),
           include: { lines: true },
         }),
         (prisma as any).order.count({ where }),
@@ -304,9 +305,9 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         data: {
           items: items.map(serializeOrder),
           total,
-          limit,
+          limit: limit ?? items.length,
           offset,
-          hasMore: offset + items.length < total,
+          hasMore: limit != null ? offset + items.length < total : false,
         },
       };
     } catch (e: any) {

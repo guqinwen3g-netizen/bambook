@@ -29,7 +29,24 @@ import {
 import { createAllocationService } from './allocationService';
 import { createBookingLeadTimeService } from './bookingLeadTimeService';
 import { serializeValue } from '../lib/serializeValue';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { logger } from '../lib/logger';
+
+/** 运单状态 → 台账中文标签（与 ShipmentManager 展示口径一致，枚举镜像 VALID_SHIPMENT_STATUSES） */
+const SHIPMENT_STATUS_LABEL: Record<string, string> = {
+  Draft: '草稿', Booked: '已订舱', Loading: '装货中', Shipped: '已发运',
+  Arrived: '已到港', Cleared: '已清关', Delivered: '已交付', Cancelled: '已取消',
+};
+
+/** 运单类型 → 台账中文标签（Shipment.type 枚举） */
+const SHIPMENT_TYPE_LABEL: Record<string, string> = {
+  Export: '出口', Import: '进口', Domestic: '内贸',
+};
+
+/** 运输方式 → 台账中文标签（Shipment.shippingMethod 枚举） */
+const SHIPMENT_METHOD_LABEL: Record<string, string> = {
+  Sea: '海运', Air: '空运', Land: '陆运', Rail: '铁运', Courier: '快递',
+};
 
 export interface ShippingRouterOptions {
   prisma: PrismaClient;
@@ -156,11 +173,12 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     }
   });
 
-  // GET /api/v1/shipping — list / search
+  // GET /api/v1/shipping — list / search（format=xlsx → 全量台账 Excel 导出）
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const limit = Math.min(Number(req.query.limit) || 50, 200);
-      const offset = Number(req.query.offset) || 0;
+      const exportAll = req.query.format === 'xlsx';
+      const limit = exportAll ? undefined : Math.min(Number(req.query.limit) || 50, 200);
+      const offset = exportAll ? 0 : (Number(req.query.offset) || 0);
 
       const where: any = { deletedAt: null };
       if (req.query.type) where.type = String(req.query.type);
@@ -177,9 +195,39 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
       }
 
       const [items, total] = await Promise.all([
-        (prisma as any).shipment.findMany({ where, take: limit, skip: offset, orderBy: { createdAt: 'desc' } }),
+        (prisma as any).shipment.findMany({ where, ...(limit != null ? { take: limit, skip: offset } : {}), orderBy: { createdAt: 'desc' } }),
         (prisma as any).shipment.count({ where }),
       ]);
+      if (exportAll) {
+        const sheet: XlsxSheet = {
+          name: '运单台账',
+          columnLabels: ['运单号', '类型', '状态', '运输方式', '客户', '承运方', '船名/航班', '航次', '起运港', '目的港', 'ETD', 'ETA', '件数', '毛重(kg)', '净重(kg)', '体积(CBM)', '运费', '运费币种', '备注'],
+          columns: ['shipmentNumber', 'type', 'status', 'shippingMethod', 'customerName', 'carrierName', 'vesselOrFlight', 'voyageNumber', 'portOfLoading', 'portOfDischarge', 'etd', 'eta', 'totalPackages', 'grossWeight', 'netWeight', 'volume', 'freightAmount', 'freightCurrency', 'notes'],
+          rows: items.map((s: any) => ({
+            shipmentNumber: s.shipmentNumber,
+            type: SHIPMENT_TYPE_LABEL[s.type] ?? s.type,
+            status: SHIPMENT_STATUS_LABEL[s.status] ?? s.status,
+            shippingMethod: SHIPMENT_METHOD_LABEL[s.shippingMethod] ?? s.shippingMethod,
+            customerName: s.customerName,
+            carrierName: s.carrierName,
+            vesselOrFlight: s.vesselOrFlight,
+            voyageNumber: s.voyageNumber,
+            portOfLoading: s.portOfLoading,
+            portOfDischarge: s.portOfDischarge,
+            etd: s.etd,
+            eta: s.eta,
+            totalPackages: s.totalPackages,
+            grossWeight: s.grossWeight != null ? Number(s.grossWeight) : null,
+            netWeight: s.netWeight != null ? Number(s.netWeight) : null,
+            volume: s.volume != null ? Number(s.volume) : null,
+            freightAmount: s.freightAmount != null ? Number(s.freightAmount) : null,
+            freightCurrency: s.freightCurrency,
+            notes: s.notes,
+          })),
+        };
+        const today = new Date().toISOString().slice(0, 10);
+        return res.set(xlsxDownloadHeaders(`运单台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+      }
       res.json({ items, total });
     } catch (err: any) {
       res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });

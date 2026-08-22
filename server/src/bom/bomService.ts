@@ -346,6 +346,8 @@ export function createBOMService(prisma: PrismaClient) {
     search?: string;
     limit?: number;
     offset?: number;
+    /** Excel 台账导出=true：忽略分页上限全量导出（route 层 format=xlsx 专用） */
+    exportAll?: boolean;
   }): Promise<{ items: BOM[]; total: number }> {
     const where: any = { deletedAt: null };
     if (params.status) where.status = params.status;
@@ -359,16 +361,15 @@ export function createBOMService(prisma: PrismaClient) {
       ];
     }
 
-    const limit = Math.min(params.limit ?? 100, 500);
-    const offset = params.offset ?? 0;
+    const limit = params.exportAll ? undefined : Math.min(params.limit ?? 100, 500);
+    const offset = params.exportAll ? 0 : (params.offset ?? 0);
 
     const [items, total] = await Promise.all([
       prisma.bOM.findMany({
         where,
         include: { lines: { select: { id: true } } },
         orderBy: { updatedAt: 'desc' },
-        take: limit,
-        skip: offset,
+        ...(limit != null ? { take: limit, skip: offset } : {}),
       }),
       prisma.bOM.count({ where }),
     ]);

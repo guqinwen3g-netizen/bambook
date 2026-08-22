@@ -34,6 +34,7 @@ import {
   PlayCircle,
   StopCircle,
   PackageCheck,
+  Download,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import {
@@ -155,6 +156,7 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 样式分支（仅透传 PageHeader/ScrollEdgeFades） ──
 
@@ -164,6 +166,18 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
       const data = await apiService.listProductionPlans();
       setPlans(data);
     } catch (e: any) { setError(e?.message || '加载排产失败'); }
+  }, []);
+
+  /** 生产计划台账 Excel 导出（全量，与列表口径一致） */
+  const handleExportPlansXlsx = useCallback(async () => {
+    setExportingXlsx(true);
+    try {
+      await apiService.exportMesPlansXlsx();
+    } catch (e: any) {
+      setError(`台账导出失败：${e?.message || e}`);
+    } finally {
+      setExportingXlsx(false);
+    }
   }, []);
 
   const fetchWorkStations = useCallback(async () => {
@@ -451,6 +465,13 @@ const MesManager: React.FC<MesManagerProps> = ({ isDarkMode }) => {
             {activeTab === 'plans' && (
               <button onClick={() => setShowPlanForm(true)} className="bds-btn bds-btn-primary">
                 <Plus size={14} /><span>新增排产</span>
+              </button>
+            )}
+            {/* B10 运营域报表：生产计划台账 Excel 导出（全量） */}
+            {activeTab === 'plans' && (
+              <button onClick={() => void handleExportPlansXlsx()} disabled={exportingXlsx} className="bds-btn bds-btn-secondary">
+                {exportingXlsx ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                <span>导出台账</span>
               </button>
             )}
             {activeTab === 'workStations' && (

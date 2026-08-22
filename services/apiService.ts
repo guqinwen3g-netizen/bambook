@@ -1279,6 +1279,138 @@ export const apiService = {
     URL.revokeObjectURL(objectUrl);
   },
 
+  /** 订单台账 Excel 导出——GET /v2/orders?format=xlsx（当前筛选条件全量导出） */
+  async exportOrdersXlsx(params?: { status?: string; type?: string; ownerId?: string; departmentId?: string; customerCode?: string; customerRelationId?: string; businessLine?: string; search?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.status) query.set('status', params.status);
+    if (params?.type) query.set('type', params.type);
+    if (params?.ownerId) query.set('ownerId', params.ownerId);
+    if (params?.departmentId) query.set('departmentId', params.departmentId);
+    if (params?.customerCode) query.set('customerCode', params.customerCode);
+    if (params?.customerRelationId) query.set('customerRelationId', params.customerRelationId);
+    if (params?.businessLine) query.set('businessLine', params.businessLine);
+    if (params?.search) query.set('search', params.search);
+    const url = buildApiUrl(`/v2/orders?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`订单台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `订单台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** BOM 台账 Excel 导出——GET /v1/bom?format=xlsx（当前筛选条件全量导出） */
+  async exportBomListXlsx(params?: { status?: string; productAssetId?: string; orderId?: string; quotationId?: string; search?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.status) query.set('status', params.status);
+    if (params?.productAssetId) query.set('productAssetId', params.productAssetId);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.quotationId) query.set('quotationId', params.quotationId);
+    if (params?.search) query.set('search', params.search);
+    const url = buildApiUrl(`/v1/bom?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`BOM台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `BOM台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** 生产计划台账 Excel 导出——GET /v1/mes/plans?format=xlsx（当前筛选条件全量导出） */
+  async exportMesPlansXlsx(params?: { orderId?: string; workStationId?: string; status?: string; processType?: string; dateFrom?: string; dateTo?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.workStationId) query.set('workStationId', params.workStationId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.processType) query.set('processType', params.processType);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    const url = buildApiUrl(`/v1/mes/plans?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`生产计划台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `生产计划台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** 报价台账 Excel 导出——GET /v1/quotations?format=xlsx（当前筛选条件全量导出） */
+  async exportQuotationsXlsx(params?: { status?: string; customerRelationId?: string; dateFrom?: string; dateTo?: string; search?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.status) query.set('status', params.status);
+    if (params?.customerRelationId) query.set('customerRelationId', params.customerRelationId);
+    if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) query.set('dateTo', params.dateTo);
+    if (params?.search) query.set('search', params.search);
+    const url = buildApiUrl(`/v1/quotations?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`报价台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `报价台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  /** 运单台账 Excel 导出——GET /v1/shipping?format=xlsx（当前筛选条件全量导出） */
+  async exportShipmentsXlsx(params?: { type?: string; status?: string; orderId?: string; customerRelationId?: string; carrierRelationId?: string; carrierName?: string; shipmentNumber?: string; search?: string }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.type) query.set('type', params.type);
+    if (params?.status) query.set('status', params.status);
+    if (params?.orderId) query.set('orderId', params.orderId);
+    if (params?.customerRelationId) query.set('customerRelationId', params.customerRelationId);
+    if (params?.carrierRelationId) query.set('carrierRelationId', params.carrierRelationId);
+    if (params?.carrierName) query.set('carrierName', params.carrierName);
+    if (params?.shipmentNumber) query.set('shipmentNumber', params.shipmentNumber);
+    if (params?.search) query.set('search', params.search);
+    const url = buildApiUrl(`/v1/shipping?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`运单台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `运单台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
   /** 下载 uploads/ 归档文件（静态资源 → 浏览器保存；单据中心与各域单据生成共用） */
   async downloadArchiveFile(filePath: string, fileName: string, endpoint?: string): Promise<void> {
     const url = buildApiUrl(`/api/uploads/${filePath.replace(/^\//, '')}`, endpoint);

@@ -28,7 +28,13 @@ import { createQuotationService, CreateQuotationInput, UpdateQuotationInput } fr
 import { createQuotationImportService, HistoricalQuotationRow } from './quotationImportService';
 import { renderServerDocument } from '../templates/docTemplates/registry';
 import { loadQuotationDocData } from '../templates/docTemplates/quotation';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { upsertDomainTradeDocument, generateTradeDocumentFile } from '../customs/tradeDocumentLifecycleService';
+
+/** 报价状态 → 台账中文标签（与 QuotationManager 展示口径一致） */
+const QUOTATION_STATUS_LABEL: Record<string, string> = {
+  Draft: '草稿', Sent: '已发客户', Accepted: '客户已接受', Rejected: '客户已拒绝', Expired: '已过期',
+};
 
 export interface QuotationRouterOptions {
   prisma: PrismaClient;
@@ -78,19 +84,42 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
     res.status(201).json({ ok: true, url });
   });
 
-  // ── GET / — 列表 ──
+  // ── GET / — 列表（format=xlsx → 全量台账 Excel 导出） ──
   router.get('/', async (req: Request, res: Response) => {
     try {
       const { status, customerRelationId, dateFrom, dateTo, search, limit, offset } = req.query;
+      const exportAll = req.query.format === 'xlsx';
       const result = await service.listQuotations({
         status: status as string | undefined,
         customerRelationId: customerRelationId as string | undefined,
         dateFrom: dateFrom as string | undefined,
         dateTo: dateTo as string | undefined,
         search: search as string | undefined,
-        limit: limit ? parseInt(limit as string, 10) : undefined,
-        offset: offset ? parseInt(offset as string, 10) : undefined,
+        limit: exportAll || !limit ? undefined : parseInt(limit as string, 10),
+        offset: exportAll || !offset ? undefined : parseInt(offset as string, 10),
+        ...(exportAll ? { exportAll: true } : {}),
       });
+      if (exportAll) {
+        const sheet: XlsxSheet = {
+          name: '报价台账',
+          columnLabels: ['报价号', '客户', '状态', '币种', '金额', '版本', '报价日期', '有效期至', '业务员'],
+          columns: ['quotationNumber', 'customerName', 'status', 'currency', 'totalAmount', 'version', 'issueDate', 'validUntil', 'salesperson'],
+          rows: result.items.map(q => ({
+            quotationNumber: q.quotationNumber,
+            customerName: q.customerName,
+            status: QUOTATION_STATUS_LABEL[q.status] ?? q.status,
+            currency: q.currency,
+            totalAmount: q.totalAmount != null ? Number(q.totalAmount) : null,
+            version: q.version,
+            issueDate: q.issueDate,
+            validUntil: q.validUntil,
+            salesperson: q.salesperson,
+          })),
+        };
+        const today = new Date().toISOString().slice(0, 10);
+        res.set(xlsxDownloadHeaders(`报价台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+        return;
+      }
       res.json(result);
     } catch (e: any) {
       logger.error('[QuotationRoute] GET list failed', { error: e?.message });

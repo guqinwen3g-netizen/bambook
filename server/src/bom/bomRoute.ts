@@ -16,7 +16,21 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
+import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { createBOMService, CreateBOMInput, UpdateBOMInput } from './bomService';
+
+/** BOM 状态 → 台账中文标签（与 BomManager 展示口径一致，枚举镜像 bomService BOMStatus） */
+const BOM_STATUS_LABEL: Record<string, string> = {
+  Draft: '草稿', Confirmed: '已确认', Archived: '已归档',
+};
+
+/** BigInt 毫秒时间戳 → YYYY-MM-DD（台账展示口径） */
+function tsToDate(v: unknown): string | null {
+  if (v == null) return null;
+  const n = typeof v === 'bigint' ? Number(v) : Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return new Date(n).toISOString().slice(0, 10);
+}
 
 export interface BOMRouterOptions {
   prisma: PrismaClient;
@@ -40,20 +54,46 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
     return false;
   };
 
-  // ── GET / — 列表 ──
+  // ── GET / — 列表（format=xlsx → 全量台账 Excel 导出） ──
   router.get('/', async (req: Request, res: Response) => {
     if (!authenticate(req, res)) return;
     try {
       const { status, productAssetId, orderId, quotationId, search, limit, offset } = req.query;
+      const exportAll = req.query.format === 'xlsx';
       const result = await service.listBOMs({
         status: status as string | undefined,
         productAssetId: productAssetId as string | undefined,
         orderId: orderId as string | undefined,
         quotationId: quotationId as string | undefined,
         search: search as string | undefined,
-        limit: limit ? parseInt(limit as string, 10) : undefined,
-        offset: offset ? parseInt(offset as string, 10) : undefined,
+        limit: exportAll || !limit ? undefined : parseInt(limit as string, 10),
+        offset: exportAll || !offset ? undefined : parseInt(offset as string, 10),
+        ...(exportAll ? { exportAll: true } : {}),
       });
+      if (exportAll) {
+        const sheet: XlsxSheet = {
+          name: 'BOM台账',
+          columnLabels: ['BOM 编号', '描述/款式', '状态', '版本', '物料行数', '物料成本', '人工成本', '制造费用', '总成本', '币种', '创建时间', '更新时间'],
+          columns: ['bomNumber', 'description', 'status', 'version', 'lineCount', 'totalMaterialCost', 'totalLaborCost', 'totalOverheadCost', 'totalCost', 'currency', 'createdAt', 'updatedAt'],
+          rows: result.items.map(b => ({
+            bomNumber: b.bomNumber,
+            description: b.description,
+            status: BOM_STATUS_LABEL[b.status] ?? b.status,
+            version: b.version,
+            lineCount: (b as any).lines?.length ?? 0,
+            totalMaterialCost: b.totalMaterialCost != null ? Number(b.totalMaterialCost) : null,
+            totalLaborCost: b.totalLaborCost != null ? Number(b.totalLaborCost) : null,
+            totalOverheadCost: b.totalOverheadCost != null ? Number(b.totalOverheadCost) : null,
+            totalCost: b.totalCost != null ? Number(b.totalCost) : null,
+            currency: b.currency,
+            createdAt: tsToDate(b.createdAt),
+            updatedAt: tsToDate(b.updatedAt),
+          })),
+        };
+        const today = new Date().toISOString().slice(0, 10);
+        res.set(xlsxDownloadHeaders(`BOM台账_${today}.xlsx`)).send(buildXlsx([sheet]));
+        return;
+      }
       res.json(result);
     } catch (e: any) {
       logger.error('[BOMRoute] GET list failed', { error: e?.message });
