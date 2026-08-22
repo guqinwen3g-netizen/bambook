@@ -783,3 +783,22 @@ describe('B11 FIN_CI 注册（财务真源完整文档模板）', () => {
     expect(html).toBeNull();
   });
 });
+
+// ── B12 收尾：xlsxExport 空工作簿兜底（生产验证发现：对账单无账务记录 → buildXlsx([]) 500） ──
+
+import { buildXlsx } from '../xlsxExport';
+
+describe('buildXlsx 空数据兜底', () => {
+  it('sheets 为空 → 合成「无数据」占位 sheet（不再抛 Workbook is empty）', () => {
+    const buffer = buildXlsx([]);
+    expect(buffer.length).toBeGreaterThan(100); // 合法 xlsx zip 包
+  });
+
+  it('正常多 sheet 构建不受影响', () => {
+    const buffer = buildXlsx([
+      { name: 'S1', columnLabels: ['A'], columns: ['a'], rows: [{ a: 1 }] },
+      { name: 'S2', columnLabels: ['B'], columns: ['b'], rows: [{ b: 'x' }] },
+    ]);
+    expect(buffer.length).toBeGreaterThan(100);
+  });
+});

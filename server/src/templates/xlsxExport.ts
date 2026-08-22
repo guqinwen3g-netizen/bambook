@@ -41,11 +41,16 @@ function cellValue(v: unknown): string | number | null {
  * 构建 Excel 工作簿 Buffer（多 sheet）。
  * 每个表头行加粗由 Excel 默认样式承担（SheetJS 社区版不支持单元格样式，
  * 用 freeze 表头行保证可读性）。
+ * 空数据兜底：sheets 为空（如对账单无账务记录）时合成「无数据」占位 sheet，
+ * 保证工作簿始终合法（SheetJS 空工作簿会抛 "Workbook is empty"）。
  */
 export function buildXlsx(sheets: XlsxSheet[]): Buffer {
   const wb = XLSX.utils.book_new();
   const usedNames = new Set<string>();
-  for (const sheet of sheets) {
+  const list: XlsxSheet[] = sheets.length > 0
+    ? sheets
+    : [{ name: 'No Data 无数据', columnLabels: ['提示 Note'], columns: ['note'], rows: [{ note: '当前筛选条件下无数据 No data under current filters' }] }];
+  for (const sheet of list) {
     // sheet 名去重 + 31 字符截断（Excel 硬限制）
     let name = (sheet.name || 'Sheet').slice(0, 31);
     let i = 2;
