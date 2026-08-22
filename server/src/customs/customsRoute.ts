@@ -78,6 +78,9 @@ import { generateTradeDocumentsFromShipment, generateTradeDocumentFile, packTrad
 import { assembleCompositeDocument, isCompositeDocKind } from './compositeDocumentService';
 import { renderServerDocument } from '../templates/docTemplates/registry';
 import { renderHtmlToPdf } from '../templates/pdf';
+import JSZip from 'jszip';
+import path from 'path';
+import fs from 'fs';
 
 export interface CustomsRouterOptions {
   prisma: PrismaClient;
@@ -506,6 +509,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
       const result = await service.listTradeDocuments({
         type: req.query.type as string | undefined,
         status: req.query.status as string | undefined,
+        domain: req.query.domain as string | undefined,
         shipmentId: req.query.shipmentId as string | undefined,
         declarationId: req.query.declarationId as string | undefined,
         orderId: req.query.orderId as string | undefined,
@@ -598,6 +602,61 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[CustomsRoute] GET trade-documents preview.html failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to preview trade-document' });
+    }
+  });
+
+  // POST /trade-documents/batch-download — 多选单据 ZIP 打包下载（B4 批量操作）：
+  // 已归档文件直读；filePath 缺失的单据现场生成（幂等覆盖）保证打包完整。
+  router.post('/trade-documents/batch-download', requireWrite, async (req: Request, res: Response) => {
+    try {
+      const ids: string[] = Array.isArray(req.body?.ids) ? req.body.ids.filter((v: unknown) => typeof v === 'string' && v) : [];
+      if (ids.length === 0) return res.status(400).json({ error: 'ids 必填（至少一个单据）' });
+
+      const actorId = (req as any).user?.userId || 'system';
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+      const skipped: Array<{ id: string; reason: string }> = [];
+      let packed = 0;
+
+      for (const id of ids) {
+        const doc = await prisma.tradeDocument.findFirst({ where: { id, deletedAt: null } });
+        if (!doc) { skipped.push({ id, reason: '不存在' }); continue; }
+        try {
+          // filePath 缺失 → 现场生成（服务端模板优先，幂等覆盖）；已有归档直读
+          if (!doc.filePath) {
+            await generateTradeDocumentFile(prisma, { id: doc.id, actorId });
+          }
+          const fresh = await prisma.tradeDocument.findUnique({ where: { id: doc.id }, select: { filePath: true, fileName: true } });
+          if (!fresh?.filePath) { skipped.push({ id, reason: '生成失败' }); continue; }
+          const absPath = path.join(process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirname, '../../../uploads'), fresh.filePath);
+          if (!fs.existsSync(absPath)) { skipped.push({ id, reason: '归档文件缺失' }); continue; }
+          // zip 内文件名去重（同号多版本场景加序号后缀）
+          let entryName = fresh.fileName || `${doc.documentNumber}.pdf`;
+          let i = 2;
+          while (usedNames.has(entryName)) entryName = entryName.replace(/(\.[^.]+)$/, `_${i++}$1`);
+          usedNames.add(entryName);
+          zip.file(entryName, fs.readFileSync(absPath));
+          packed += 1;
+        } catch (e: any) {
+          skipped.push({ id, reason: e?.message || '生成失败' });
+        }
+      }
+
+      if (packed === 0) {
+        return res.status(404).json({ error: `无文件可打包（${skipped.length} 条失败：${skipped.map(s => `${s.id}:${s.reason}`).join('；')}）` });
+      }
+
+      const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `trade-documents_${today}.zip`;
+      const encoded = encodeURIComponent(fileName);
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+      res.send(buffer);
+      logger.info('[CustomsRoute] batch-download zip packed', { packed, skipped: skipped.length, ids: ids.length });
+    } catch (e: any) {
+      logger.error('[CustomsRoute] POST batch-download failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to batch download trade-documents' });
     }
   });
 

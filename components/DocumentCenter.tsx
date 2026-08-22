@@ -70,6 +70,15 @@ const DOC_TYPES: Array<{ id: TradeDocumentType; label: string }> = [
   { id: 'Other', label: '其他' },
 ];
 
+/** B4 域视图选项（TradeDocumentDomain：customs 主体 + B2 起各运营域就地归档） */
+const DOMAIN_OPTIONS: Array<{ id: string; label: string; badge: string }> = [
+  { id: 'customs', label: '外贸单据', badge: '外贸' },
+  { id: 'procurement', label: '采购', badge: '采购' },
+  { id: 'qc', label: '质检', badge: '质检' },
+  { id: 'contract', label: '合同', badge: '合同' },
+  { id: 'finance', label: '财务', badge: '财务' },
+];
+
 const DOC_STATUSES: Array<{ id: TradeDocumentStatus; label: string; semantic: StatusSemantic }> = [
   { id: 'Draft', label: '草稿', semantic: 'neutral' },
   { id: 'Issued', label: '已签发', semantic: 'info' },
@@ -228,8 +237,13 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  // B4 域视图：单据中心 = 全系统文件枢纽，按业务域过滤（customs 主体 + B2 起各运营域归档）
+  const [domainFilter, setDomainFilter] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // B4 多选批量：行 checkbox + 批量生成文件 / ZIP 打包下载
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchLoading, setBatchLoading] = useState<'generate' | 'zip' | null>(null);
 
   // 详情：版本时间线（展开时懒加载）
   const [versionsByDoc, setVersionsByDoc] = useState<Record<string, DocumentVersionRecord[]>>({});
@@ -261,17 +275,24 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
       const result = await apiService.listTradeDocuments({
         type: typeFilter || undefined,
         status: statusFilter || undefined,
+        domain: domainFilter || undefined,
         search: searchQuery || undefined,
         limit: 200,
       });
       setDocs(result.items);
       setTotal(result.total);
+      // 筛选切换后清掉不在当前列表的选中项（选择集与列表保持一致）
+      setSelectedIds(prev => {
+        const visible = new Set(result.items.map(d => d.id));
+        const next = new Set([...prev].filter(id => visible.has(id)));
+        return next.size === prev.size ? prev : next;
+      });
     } catch (e: any) {
       setError(`加载失败：${e?.message || e}`);
     } finally {
       setLoading(false);
     }
-  }, [typeFilter, statusFilter, searchQuery]);
+  }, [typeFilter, statusFilter, domainFilter, searchQuery]);
 
   useEffect(() => { void fetchDocs(); }, [fetchDocs]);
 
@@ -412,6 +433,65 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
     }
   }, [fetchDocs]);
 
+  // ── B4 多选批量：生成文件 / ZIP 打包下载 ──
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const toggleSelectAll = () => setSelectedIds(prev => {
+    if (prev.size === docs.length) return new Set();
+    return new Set(docs.map(d => d.id));
+  });
+
+  /** 批量生成文件：逐条调 generate-file（服务端模板优先 + 幂等覆盖），完成后刷新 */
+  const handleBatchGenerate = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading('generate');
+    setAlertMessage(null);
+    let ok = 0;
+    let failed = 0;
+    const docsById = new Map(docs.map(d => [d.id, d]));
+    for (const id of selectedIds) {
+      const doc = docsById.get(id);
+      if (!doc) continue;
+      try {
+        // 批量场景统一走服务端优先（无前端渲染负担）；version 不传走最新版本兜底
+        let html: string | undefined;
+        try {
+          await apiService.getTradeDocumentPreviewHtml(id);
+        } catch {
+          const kind = TYPE_TO_EXPORT_KIND[doc.type];
+          const latest = versionsByDoc[id]?.[0];
+          const ds = latest ? extractDocumentSet(latest.content) : null;
+          if (kind && ds) html = buildFullPrintDocument(EXPORT_DOC_RENDERERS[kind].render(ds));
+        }
+        await apiService.generateTradeDocumentFile(id, { html });
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    await fetchDocs();
+    setBatchLoading(null);
+    setAlertMessage(`批量生成完成：成功 ${ok} 份${failed > 0 ? `，失败 ${failed} 份` : ''}`);
+  };
+
+  /** ZIP 打包下载：服务端缺文件的单据现场生成后打包（batch-download 端点） */
+  const handleBatchZip = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading('zip');
+    setAlertMessage(null);
+    try {
+      await apiService.batchDownloadTradeDocumentsZip(Array.from(selectedIds));
+    } catch (e: any) {
+      setAlertMessage(`打包下载失败：${e?.message || e}`);
+    } finally {
+      setBatchLoading(null);
+    }
+  };
+
   // ── 下载已归档单据文件（uploads/trade-documents/ 静态资源）──
   const handleDownloadDocFile = useCallback(async (doc: TradeDocument) => {
     if (!doc.filePath) return;
@@ -528,6 +608,11 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
               <option value="">全部状态</option>
               {DOC_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
+            {/* B4 域视图：全系统文件枢纽按业务域过滤（外贸主体 + 采购/质检等运营域归档） */}
+            <select className="bds-select w-auto min-w-[116px]" value={domainFilter} onChange={(e) => setDomainFilter(e.target.value)}>
+              <option value="">全部业务域</option>
+              {DOMAIN_OPTIONS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
             <button
               onClick={() => void fetchDocs()}
               className="bds-btn bds-btn-ghost"
@@ -536,6 +621,45 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
             </button>
             <span className="text-xs text-[var(--text-tertiary)] px-2">共 {total} 份</span>
           </div>
+
+          {/* B4 批量操作栏：多选单据后出现（全选/批量生成文件 / ZIP 打包下载） */}
+          {docs.length > 0 && (
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <label className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === docs.length && docs.length > 0}
+                  onChange={toggleSelectAll}
+                  className="bds-checkbox"
+                />
+                全选
+              </label>
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="text-xs text-[var(--text-tertiary)]">已选 {selectedIds.size} 份</span>
+                  <button
+                    onClick={() => void handleBatchGenerate()}
+                    disabled={batchLoading !== null}
+                    className="bds-btn bds-btn-secondary"
+                  >
+                    {batchLoading === 'generate' ? <Loader2 size={14} className="animate-spin" /> : <FileOutput size={14} />}
+                    <span>批量生成文件</span>
+                  </button>
+                  <button
+                    onClick={() => void handleBatchZip()}
+                    disabled={batchLoading !== null}
+                    className="bds-btn bds-btn-secondary"
+                  >
+                    {batchLoading === 'zip' ? <Loader2 size={14} className="animate-spin" /> : <PackageOpen size={14} />}
+                    <span>ZIP 打包下载</span>
+                  </button>
+                  <button onClick={() => setSelectedIds(new Set())} className="bds-btn bds-btn-ghost">
+                    <X size={14} /><span>清除</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className={`p-3 rounded-inset border flex items-center gap-2 mb-3 ${statusSemanticClass('danger', isDarkMode)}`}>
@@ -566,7 +690,16 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                   <div key={doc.id} className={`${cardClass} p-3`}>
                     {/* 行概要 */}
                     <div className="flex items-start justify-between gap-3 cursor-pointer" onClick={() => void toggleExpand(doc)}>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                        {/* B4 多选 checkbox（不触发行展开） */}
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(doc.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleSelect(doc.id)}
+                          className="bds-checkbox mt-1 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           {isExpanded ? <ChevronDown size={13} className="shrink-0 opacity-60" /> : <ChevronRight size={13} className="shrink-0 opacity-60" />}
                           <span className="text-sm font-light">{doc.documentNumber}</span>
@@ -574,6 +707,12 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-tertiary)]`}>
                             {docTypeLabel(doc.type)}
                           </span>
+                          {/* B4 域徽章：非 customs 运营域单据标注来源域（采购/质检…） */}
+                          {doc.domain && doc.domain !== 'customs' && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-bds-sm border border-[var(--border-c-subtle)] text-[var(--text-link)]`}>
+                              {DOMAIN_OPTIONS.find(d => d.id === doc.domain)?.badge ?? doc.domain}
+                            </span>
+                          )}
                           {/* 财务发票回链：CI 引用财务 Invoice 真源（交单号=记账号），点击直达财务详情 */}
                           {doc.type === 'CommercialInvoice' && doc.sourceInvoiceId && onOpenInvoice && (
                             <button
@@ -602,6 +741,7 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                               <Download size={14} strokeWidth={1.75} />{doc.fileName}
                             </button>
                           )}
+                        </div>
                         </div>
                       </div>
                       {doc.totalAmount && (

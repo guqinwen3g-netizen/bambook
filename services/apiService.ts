@@ -1176,6 +1176,31 @@ export const apiService = {
     URL.revokeObjectURL(objectUrl);
   },
 
+  /** 库存台账 Excel 导出——GET /v1/inventory/items?format=xlsx（当前筛选条件全量导出） */
+  async exportInventoryItemsXlsx(params?: { warehouseId?: string; category?: string; materialCode?: string; search?: string; lowStockOnly?: boolean }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams({ format: 'xlsx' });
+    if (params?.warehouseId) query.set('warehouseId', params.warehouseId);
+    if (params?.category) query.set('category', params.category);
+    if (params?.materialCode) query.set('materialCode', params.materialCode);
+    if (params?.search) query.set('search', params.search);
+    if (params?.lowStockOnly) query.set('lowStockOnly', 'true');
+    const url = buildApiUrl(`/v1/inventory/items?${query.toString()}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) throw new Error(`库存台账导出失败：HTTP ${res.status}`);
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `库存台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
   async listMaterialReceipts(purchaseOrderId: string, endpoint?: string): Promise<MaterialReceipt[]> {
     const data = await requestJson<{ receipts: MaterialReceipt[] }>(`/v1/procurement/${encodeURIComponent(purchaseOrderId)}/receipts`, { endpoint, method: 'GET' });
     return Array.isArray(data.receipts) ? data.receipts : [];
@@ -3325,10 +3350,11 @@ export const apiService = {
   },
 
   // TradeDocument（贸易单据）
-  async listTradeDocuments(params?: { type?: string; status?: string; shipmentId?: string; declarationId?: string; orderId?: string; relationId?: string; sourceInvoiceId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: TradeDocument[]; total: number }> {
+  async listTradeDocuments(params?: { type?: string; status?: string; domain?: string; shipmentId?: string; declarationId?: string; orderId?: string; relationId?: string; sourceInvoiceId?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: TradeDocument[]; total: number }> {
     const query = new URLSearchParams();
     if (params?.type) query.set('type', params.type);
     if (params?.status) query.set('status', params.status);
+    if (params?.domain) query.set('domain', params.domain);
     if (params?.shipmentId) query.set('shipmentId', params.shipmentId);
     if (params?.declarationId) query.set('declarationId', params.declarationId);
     if (params?.orderId) query.set('orderId', params.orderId);
@@ -3339,6 +3365,33 @@ export const apiService = {
     if (params?.offset) query.set('offset', String(params.offset));
     const qs = query.toString();
     return requestJson<{ items: TradeDocument[]; total: number }>(`/v1/customs/trade-documents${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  /** B4 多选单据 ZIP 打包下载——POST /v1/customs/trade-documents/batch-download
+   *  已归档文件直读，缺文件的单据服务端现场生成（幂等）保证打包完整 */
+  async batchDownloadTradeDocumentsZip(ids: string[], endpoint?: string): Promise<void> {
+    const url = buildApiUrl('/v1/customs/trade-documents/batch-download', endpoint);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `trade-documents_${new Date().toISOString().slice(0, 10)}.zip`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
   },
 
   async getTradeDocument(id: string, endpoint?: string): Promise<TradeDocument> {

@@ -556,6 +556,47 @@ describe('CustomsService', () => {
       const result = await service.deleteTradeDocument('td_1', 'user_1');
       expect(result.deleted).toBe(true);
     });
+
+    // ── B2/B4 域单据：手动入口守卫 + 域状态机 + domain 过滤 ──
+
+    it('手动创建域类型（PurchaseOrder）→ fail-closed 拒绝（域单据由业务模块带 sourceRef 生成）', async () => {
+      const service = createCustomsService(prisma);
+      await expect(
+        service.createTradeDocument({ documentNumber: 'PO-1', type: 'PurchaseOrder' as any }, 'user_1'),
+      ).rejects.toThrow('不支持手动创建');
+    });
+
+    it('qc 域状态机：Draft→Issued 合法；Draft→Submitted 拒绝（简化文档生命周期无交单流转）', async () => {
+      const service = createCustomsService(prisma);
+      prisma.tradeDocument.findFirst.mockResolvedValueOnce({ id: 'td_qc', status: 'Draft', domain: 'qc', deletedAt: null });
+      const r = await service.transitionTradeDocumentStatus('td_qc', 'Issued', 'user_1');
+      expect(r.status).toBe('Issued');
+
+      prisma.tradeDocument.findFirst.mockResolvedValueOnce({ id: 'td_qc', status: 'Draft', domain: 'qc', deletedAt: null });
+      await expect(service.transitionTradeDocumentStatus('td_qc', 'Submitted', 'user_1')).rejects.toThrow('非法单据状态转换');
+    });
+
+    it('未知域状态机查询 → fail-closed；customs 域保持交单状态机', async () => {
+      const service = createCustomsService(prisma);
+      // 未知 domain 的状态转换 → 拒绝
+      prisma.tradeDocument.findFirst.mockResolvedValueOnce({ id: 'td_x', status: 'Draft', domain: 'unknown', deletedAt: null });
+      await expect(service.transitionTradeDocumentStatus('td_x', 'Issued', 'user_1')).rejects.toThrow('非法单据业务域');
+      // customs 域：Issued→Submitted 合法（交单状态机）
+      prisma.tradeDocument.findFirst.mockResolvedValueOnce({ id: 'td_c', status: 'Issued', domain: 'customs', deletedAt: null });
+      const r = await service.transitionTradeDocumentStatus('td_c', 'Submitted', 'user_1');
+      expect(r.status).toBe('Submitted');
+    });
+
+    it('listTradeDocuments 按 domain 过滤（B4 域视图：where.domain 透传）', async () => {
+      const service = createCustomsService(prisma);
+      prisma.tradeDocument.findMany.mockResolvedValueOnce([{ id: 'td_1', domain: 'qc' }]);
+      prisma.tradeDocument.count.mockResolvedValueOnce(1);
+      const result = await service.listTradeDocuments({ domain: 'qc' });
+      expect(result.total).toBe(1);
+      expect(prisma.tradeDocument.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ domain: 'qc' }) }),
+      );
+    });
   });
 
   // ══════════════════════════════════════════════════════════════

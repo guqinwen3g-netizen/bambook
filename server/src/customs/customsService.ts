@@ -1707,6 +1707,8 @@ export function createCustomsService(prisma: PrismaClient) {
   async function listTradeDocuments(params: {
     type?: string;
     status?: string;
+    /** 业务域过滤（B4：customs/procurement/qc/contract/finance——单据中心域视图） */
+    domain?: string;
     shipmentId?: string;
     declarationId?: string;
     orderId?: string;
@@ -1720,6 +1722,7 @@ export function createCustomsService(prisma: PrismaClient) {
     const where: Prisma.TradeDocumentWhereInput = { deletedAt: null };
     if (params.type) where.type = params.type;
     if (params.status) where.status = params.status;
+    if (params.domain) where.domain = params.domain;
     if (params.shipmentId) where.shipmentId = params.shipmentId;
     if (params.declarationId) where.declarationId = params.declarationId;
     if (params.orderId) where.orderId = params.orderId;
@@ -1764,7 +1767,9 @@ export function createCustomsService(prisma: PrismaClient) {
     });
     if (!existing) throw new Error(`贸易单据 ${id} 不存在`);
 
-    validateTransition(DOC_TRANSITIONS, existing.status, toStatus, '单据');
+    // 按业务域选状态机（B2：customs 交单状态机 / 其余域简化文档生命周期；
+    // domain 空值回退 customs——schema default 保证非空，此为历史行防御）
+    validateTransition(docStatusTransitionsFor(existing.domain || 'customs'), existing.status, toStatus, '单据');
 
     const ts = now();
     const updated = await prisma.$transaction(async (tx) => {
