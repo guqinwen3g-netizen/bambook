@@ -44,6 +44,7 @@ export const TRADE_DOC_NUMBER_PREFIX: Record<TradeDocumentType, string> = {
   PurchaseOrder: 'PO',
   InspectionReport: 'IR',
   Quotation: 'QT', // B7：报价单文档号=quotationNumber 业务单号直用，此映射供兜底取号
+  OrderConfirmation: 'OC', // B8：订单确认书文档号=poNumber 业务单号直用，此映射供兜底取号
   Contract: 'CT',
 };
 

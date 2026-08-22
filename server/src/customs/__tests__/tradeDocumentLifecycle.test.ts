@@ -149,12 +149,13 @@ describe('generateTradeDocumentNumber', () => {
     await expect(generateTradeDocumentNumber(prisma, 'Nope' as any)).rejects.toThrow('非法单据类型');
   });
 
-  it('13 类前缀映射齐备（customs 9 类 + 运营域 PO/IR/QT/CT）', () => {
-    expect(Object.keys(TRADE_DOC_NUMBER_PREFIX)).toHaveLength(13);
+  it('14 类前缀映射齐备（customs 9 类 + 运营域 PO/IR/QT/OC/CT）', () => {
+    expect(Object.keys(TRADE_DOC_NUMBER_PREFIX)).toHaveLength(14);
     expect(TRADE_DOC_NUMBER_PREFIX.BillOfLading).toBe('BL');
     expect(TRADE_DOC_NUMBER_PREFIX.PurchaseOrder).toBe('PO');
     expect(TRADE_DOC_NUMBER_PREFIX.InspectionReport).toBe('IR');
     expect(TRADE_DOC_NUMBER_PREFIX.Quotation).toBe('QT');
+    expect(TRADE_DOC_NUMBER_PREFIX.OrderConfirmation).toBe('OC');
     expect(TRADE_DOC_NUMBER_PREFIX.Contract).toBe('CT');
   });
 });

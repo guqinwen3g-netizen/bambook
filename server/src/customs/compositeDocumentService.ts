@@ -1,5 +1,5 @@
 /**
- * 组合文档服务（2026-08-22 B3 多选叠加生成）—— 多对一数据层聚合。
+ * 组合文档服务（2026-08-22 B3 多选叠加生成 / B8 扩展 CONTRACT）—— 多对一数据层聚合。
  *
  * 架构裁决：
  *   - 叠加 = 数据聚合而非 PDF 拼页：多业务记录合并为单一数据集 → 单张文档呈现
@@ -11,6 +11,7 @@
  * 已支持组合类型：
  *   MERGED_PL — 多运单合并装箱单（合票出运场景：lines 重编行号 + 跨运单 totals 重算）
  *   MERGED_IR — 多验货报告合并汇总（跨报告合计 + 每报告一节）
+ *   CONTRACT — 多订单合并销售合同（B8：订单一览 + 合并明细 + 通用条款；单订单确认走 OC 域单据）
  *   （CI 多订单合票走财务发票 orderIds[] 真源，已有能力，不在此重复）
  */
 
@@ -19,14 +20,15 @@ import { assembleDocumentSetData } from '../shipping/documentSetService';
 import { loadInspectionReportDocData } from '../templates/docTemplates/inspectionReport';
 import type { MergedDocumentSetData, MergedDocumentSetLine } from '../templates/docTemplates/mergedPackingList';
 import type { MergedInspectionSummaryData } from '../templates/docTemplates/mergedInspectionSummary';
+import type { ContractDocData, ContractDocLine, ContractOrderInfo } from '../templates/docTemplates/contract';
 
 /** 组合文档类型（COMPOSITE 注册表 kind——前端组合生成入口按此选择） */
-export const COMPOSITE_DOC_KINDS = ['MERGED_PL', 'MERGED_IR'] as const;
+export const COMPOSITE_DOC_KINDS = ['MERGED_PL', 'MERGED_IR', 'CONTRACT'] as const;
 export type CompositeDocKind = (typeof COMPOSITE_DOC_KINDS)[number];
 
 export interface CompositeDocInput {
   kind: CompositeDocKind;
-  /** MERGED_PL：运单 id 列表（≥2）；MERGED_IR：验货报告 id 列表（≥2） */
+  /** MERGED_PL：运单 id 列表（≥2）；MERGED_IR：验货报告 id 列表（≥2）；CONTRACT：订单 id 列表（≥2） */
   sourceIds: string[];
 }
 
@@ -156,6 +158,103 @@ export async function loadMergedInspectionSummary(
   };
 }
 
+// ────────────────────────────────────────────────────────────────
+// 3. CONTRACT：多订单合并销售合同装配（B8）
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * 多订单合并合同装配：
+ *   - 逐订单读取 Order + lines（真源实时装配），订单一览 + 合并明细（行标订单序号）
+ *   - 合同号：首个非空 finalContractNumber / salesContractNumber（跨订单同号场景），
+ *     否则 SC-YYYYMMDD-N 临时编号（仅展示用）
+ *   - totals：行级 netValue 求和，缺失时订单级 quoteAmount 兜底相加；币种取首个非空
+ *   - 客户档案：首个非空 customerRelationId 的 Relation；缺档案回落冗余 customer 名
+ * 任一订单不存在/软删抛错整体失败（fail-closed，不生成半份合同）。
+ */
+export async function assembleContractData(
+  prisma: PrismaClient,
+  orderIds: string[],
+): Promise<ContractDocData> {
+  if (!Array.isArray(orderIds) || orderIds.length < 2) {
+    throw new Error('合并合同至少需要 2 个订单（单订单确认请用订单确认书）');
+  }
+
+  const orders = await Promise.all(
+    orderIds.map(async (id) => {
+      const o = await prisma.order.findUnique({
+        where: { id },
+        include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      });
+      if (!o || o.deletedAt) throw new Error(`订单 ${id} 不存在`);
+      return o;
+    }),
+  );
+
+  const contractDate = new Date().toISOString().split('T')[0];
+  const contractNumber =
+    orders.map(o => o.finalContractNumber).find(Boolean) ||
+    orders.map(o => o.salesContractNumber).find(Boolean) ||
+    `SC-${contractDate.replace(/-/g, '')}-${orders.length}`;
+
+  // 客户档案：首个非空 customerRelationId
+  const firstRelationId = orders.map(o => o.customerRelationId).find(Boolean) ?? null;
+  const relation = firstRelationId
+    ? await prisma.relation.findUnique({ where: { id: firstRelationId } })
+    : null;
+
+  const orderInfos: ContractOrderInfo[] = orders.map((o, i) => ({
+    index: i + 1,
+    orderId: o.id,
+    poNumber: o.poNumber,
+    customer: o.customer,
+    currency: String(o.currency || o.salesCurrency || 'USD'),
+    quoteAmount: o.quoteAmount != null ? Number(o.quoteAmount) : null,
+    dueDate: o.dueDate,
+    deliveryTerms: o.deliveryTerms,
+    paymentTerms: o.paymentTerms,
+    salesContractNumber: o.salesContractNumber,
+    finalContractNumber: o.finalContractNumber,
+    lineCount: o.lines.length,
+  }));
+
+  const lines: ContractDocLine[] = [];
+  orders.forEach((o, orderIdx) => {
+    for (const l of o.lines) {
+      lines.push({
+        lineNumber: lines.length + 1,
+        orderIndex: orderIdx + 1,
+        itemNo: l.itemNo,
+        description: l.description,
+        quantity: l.quantity != null ? Number(l.quantity) : null,
+        unit: l.unit,
+        unitPrice: l.unitPrice != null ? Number(l.unitPrice) : null,
+        netValue: l.netValue != null ? Number(l.netValue) : null,
+      });
+    }
+  });
+
+  const sumNullable = (vals: Array<number | null>): number | null =>
+    vals.reduce<number | null>((acc, v) => (v == null ? acc : (acc ?? 0) + v), null);
+
+  const currencies = orderInfos.map(o => o.currency).filter(Boolean);
+  const amount = sumNullable(lines.map(l => l.netValue)) ?? sumNullable(orderInfos.map(o => o.quoteAmount));
+
+  return {
+    contractNumber,
+    contractDate,
+    customer: relation
+      ? { name: relation.name, englishName: relation.englishName, chineseName: relation.chineseName, contactInfo: relation.contactInfo }
+      : null,
+    orders: orderInfos,
+    lines,
+    totals: {
+      currency: currencies[0] ?? 'USD',
+      amount: amount != null ? Math.round(amount * 10000) / 10000 : null,
+      quantity: sumNullable(lines.map(l => l.quantity)),
+    },
+  };
+}
+
 /**
  * 组合文档装配统一入口（route 层用）：
  * 按 kind 分发到对应聚合器，输出直接可喂 renderServerDocument 的数据。
@@ -167,6 +266,9 @@ export async function assembleCompositeDocument(
   if (!isCompositeDocKind(input.kind)) throw new Error(`未知组合文档类型: ${input.kind}`);
   if (input.kind === 'MERGED_PL') {
     return { kind: input.kind, data: await assembleMergedDocumentSet(prisma, input.sourceIds) };
+  }
+  if (input.kind === 'CONTRACT') {
+    return { kind: input.kind, data: await assembleContractData(prisma, input.sourceIds) };
   }
   return { kind: input.kind, data: await loadMergedInspectionSummary(prisma, input.sourceIds) };
 }

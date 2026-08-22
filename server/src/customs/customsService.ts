@@ -49,10 +49,11 @@ export type TradeDocumentType =
   | 'PhytosanitaryCert'
   | 'Other'
   // ── B2 运营域单据类型（2026-08-22 全系统单据枢纽：各业务域就地生成，非手动入口可建）──
-  | 'PurchaseOrder'    // 采购订单（procurement 域，sourceRef=PurchaseOrder.id）
-  | 'InspectionReport' // 验货报告（qc 域，sourceRef=InspectionReport.id）
-  | 'Quotation'        // 报价单（quotation 域，B7 sourceRef=Quotation.id）
-  | 'Contract';        // 合同（contract 域，占位——B3+ 合同域接入）
+  | 'PurchaseOrder'      // 采购订单（procurement 域，sourceRef=PurchaseOrder.id）
+  | 'InspectionReport'   // 验货报告（qc 域，sourceRef=InspectionReport.id）
+  | 'Quotation'          // 报价单（quotation 域，B7 sourceRef=Quotation.id）
+  | 'OrderConfirmation'  // 订单确认书（orders 域，B8 sourceRef=Order.id）
+  | 'Contract';          // 合同（contract 域，占位——多订单合并合同走 CONTRACT 组合文档即时生成）
 export type TradeDocumentStatus = 'Draft' | 'Issued' | 'Submitted' | 'Accepted' | 'Rejected' | 'Cancelled';
 
 // ─── Input 类型 ───
@@ -300,6 +301,7 @@ export const DOC_DOMAIN_STATUS_TRANSITIONS: Record<string, Record<string, string
   contract: SIMPLE_DOC_TRANSITIONS,
   finance: SIMPLE_DOC_TRANSITIONS,
   quotation: SIMPLE_DOC_TRANSITIONS,
+  orders: SIMPLE_DOC_TRANSITIONS,
 };
 
 /** 按域取状态机（未知域 fail-closed——不允许无状态机的域建单据） */

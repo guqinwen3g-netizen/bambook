@@ -24,6 +24,9 @@ import { writeRouteAuditLog } from '../audit/routeAudit';
 import { extractPdfText } from '../import/extractText';
 import { parseTechPackText } from './techPackParser';
 import { createOrderServiceV2 } from './orderServiceV2';
+import { renderServerDocument } from '../templates/docTemplates/registry';
+import { loadOrderConfirmationDocData } from '../templates/docTemplates/orderConfirmation';
+import { upsertDomainTradeDocument, generateTradeDocumentFile } from '../customs/tradeDocumentLifecycleService';
 
 /** 上传根目录（与静态服务根同源：BAMBOOK_UPLOAD_DIR 或 apps/Bambook/uploads——
  *  index.ts 静态服务 /api/uploads 的根；本文件在 server/src/orders/ 下需三级回溯） */
@@ -90,6 +93,50 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
       return res.status(status).json({ error: result.error!.code, message: result.error!.message });
     }
     return res.json({ ok: true, order: result.data });
+  });
+
+  // ── GET /:id/preview.html — 订单确认书服务端模板预览（B8：实时装配渲染，与生成
+  //    PDF 同源排版——所见即所得，无需先登记文档） ──
+  router.get('/:id/preview.html', requirePermission('orders:read'), async (req, res) => {
+    try {
+      const data = await loadOrderConfirmationDocData(opts.prisma, req.params.id);
+      if (!data) return res.status(404).json({ error: 'NOT_FOUND', message: '订单不存在' });
+      const html = await renderServerDocument(opts.prisma, 'OC', data, { screen: true });
+      if (!html) return res.status(500).json({ error: 'RENDER_FAILED', message: 'OC 模板渲染失败' });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e: any) {
+      res.status(500).json({ error: 'OC_PREVIEW_FAILED', message: e?.message || 'failed to preview order confirmation' });
+    }
+  });
+
+  // ── POST /:id/generate-document — 登记域单据 + 服务端渲染 PDF 落盘归档（B8）
+  //    幂等：domain+type+sourceRef 唯一定位；重复生成刷新头字段并覆盖 PDF（真源实时渲染） ──
+  router.post('/:id/generate-document', requireWrite, requirePermission('orders:write'), async (req, res) => {
+    try {
+      const actor = actorOf(req);
+      const order = await opts.prisma.order.findFirst({ where: { id: req.params.id, deletedAt: null } });
+      if (!order) return res.status(404).json({ error: 'NOT_FOUND', message: '订单不存在' });
+
+      const actorId = actor?.userId || 'system';
+      const reg = await upsertDomainTradeDocument(opts.prisma, {
+        domain: 'orders',
+        type: 'OrderConfirmation',
+        sourceRef: order.id,
+        documentNumber: order.poNumber || undefined, // 文档号=客户 PO 业务单号（缺省 OC- 前缀自动取号）
+        orderId: order.id,
+        relationId: order.customerRelationId,
+        totalAmount: order.quoteAmount != null ? Number(order.quoteAmount) : null,
+        currency: order.currency || order.salesCurrency,
+        issueDate: order.createdAt ? new Date(Number(order.createdAt)).toISOString().split('T')[0] : undefined,
+        actorId,
+      });
+      const file = await generateTradeDocumentFile(opts.prisma, { id: reg.documentId, actorId });
+      return res.json({ ok: true, document: reg, file });
+    } catch (e: any) {
+      const status = e?.message?.includes('不存在') ? 404 : 500;
+      return res.status(status).json({ error: 'OC_GENERATE_FAILED', message: e?.message || 'failed to generate order confirmation document' });
+    }
   });
 
   // ── POST / 创建 ──

@@ -517,3 +517,160 @@ describe('B7 loadQuotationDocData', () => {
     expect(await SERVER_DOC_TEMPLATES.QUOT.loadData({} as PrismaClient, { id: 'TD_1', type: 'Quotation', sourceRef: null })).toBeNull();
   });
 });
+
+// ── B8 订单确认书 + 合同模板（OC 真源回链 / CONTRACT 多订单组合） ──
+
+import { renderOrderConfirmationBody, loadOrderConfirmationDocData } from '../docTemplates/orderConfirmation';
+import { renderContractBody } from '../docTemplates/contract';
+import { assembleContractData, COMPOSITE_DOC_KINDS, isCompositeDocKind } from '../../customs/compositeDocumentService';
+
+const OC_DATA = {
+  order: {
+    id: 'ord_1', poNumber: 'CUS-PO-2026-77', customer: 'ACME GmbH', status: 'Confirmed',
+    dueDate: '2026-09-30', currency: 'USD', quoteAmount: 16850.5,
+    deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T 30% deposit',
+    salesContractNumber: 'SC-2026-018', finalContractNumber: null,
+    shipToAddress: 'Hamburg Warehouse, Germany', createdAt: Date.UTC(2026, 7, 22),
+  },
+  customer: { name: 'ACME', englishName: 'ACME GmbH', chineseName: '艾克米', contactInfo: 'Tel: +49 40 123456' },
+  lines: [
+    { lineNumber: 1, itemNo: 'ITEM-1', description: 'Cotton Poplin 40x40', quantity: 12000, unit: 'YD', unitPrice: 1.2, netValue: 14400, deliveryDate: '2026-09-15', tolerancePercent: 5 },
+    { lineNumber: 2, itemNo: 'ITEM-2', description: 'Sewing Thread', quantity: 500, unit: 'PC', unitPrice: 4.9, netValue: 2450.5, deliveryDate: null, tolerancePercent: 0 },
+  ],
+};
+
+describe('B8 renderOrderConfirmationBody', () => {
+  it('渲染 OC 标题/PO 号/合同号/双抬头/条款/明细/合计/双签区', () => {
+    const html = renderOrderConfirmationBody(OC_DATA as any, EXPORTER);
+    expect(html).toContain('ORDER CONFIRMATION');
+    expect(html).toContain('订单确认书');
+    expect(html).toContain('CUS-PO-2026-77');
+    expect(html).toContain('SC-2026-018');
+    expect(html).toContain(EXPORTER.nameEn);
+    expect(html).toContain('ACME GmbH');
+    expect(html).toContain('FOB Shanghai');
+    expect(html).toContain('T/T 30% deposit');
+    expect(html).toContain('Cotton Poplin 40x40');
+    expect(html).toContain('±5%'); // 溢短装容差
+    expect(html).toContain('TOTAL 合计');
+    expect(html).toContain('Seller 卖方签章');
+  });
+
+  it('无 poNumber → 合同号回落，仍可渲染', () => {
+    const noPo = { ...OC_DATA, order: { ...OC_DATA.order, poNumber: null, salesContractNumber: 'SC-2026-019' } };
+    const html = renderOrderConfirmationBody(noPo as any, EXPORTER);
+    expect(html).toContain('SC-2026-019');
+  });
+});
+
+describe('B8 loadOrderConfirmationDocData', () => {
+  function makePrisma(overrides: Record<string, any> = {}): PrismaClient {
+    return {
+      order: { findUnique: vi.fn().mockResolvedValue(overrides.order ?? null) },
+      relation: { findUnique: vi.fn().mockResolvedValue(overrides.relation ?? null) },
+    } as any;
+  }
+
+  it('装配订单头 + 行明细 + 客户档案（createdAt 毫秒时间戳 → 确认日期）', async () => {
+    const prisma = makePrisma({
+      order: {
+        id: 'ord_1', poNumber: 'CUS-PO-77', customer: 'ACME', status: 'Confirmed', deletedAt: null,
+        dueDate: '2026-09-30', currency: 'USD', salesCurrency: null, quoteAmount: 16850.5,
+        deliveryTerms: 'FOB', paymentTerms: null, salesContractNumber: 'SC-1', finalContractNumber: null,
+        shipToName: 'Hamburg WH', shipToAddress1: 'Street 1', shipToAddress2: null, shipToCountry: 'DE',
+        customerRelationId: 'rel_1', createdAt: BigInt(Date.UTC(2026, 7, 22)),
+        lines: [
+          { lineNumber: 1, itemNo: 'A', description: 'Poplin', quantity: 100, unit: 'YD', unitPrice: 1.2, netValue: 120, deliveryDate: null, tolerancePercent: 5 },
+        ],
+      },
+      relation: { name: 'ACME', englishName: 'ACME GmbH', chineseName: null, contactInfo: null },
+    });
+    const data = await loadOrderConfirmationDocData(prisma, 'ord_1');
+    expect(data).not.toBeNull();
+    expect(data!.order.currency).toBe('USD');
+    expect(data!.order.shipToAddress).toBe('Hamburg WH, Street 1, DE');
+    expect(data!.customer?.englishName).toBe('ACME GmbH');
+    expect(data!.lines[0].netValue).toBe(120);
+  });
+
+  it('订单不存在/软删 → null（调用方 404）', async () => {
+    expect(await loadOrderConfirmationDocData(makePrisma({ order: null }), 'ord_missing')).toBeNull();
+    expect(await loadOrderConfirmationDocData(makePrisma({ order: { id: 'ord_1', deletedAt: 1 } }), 'ord_1')).toBeNull();
+  });
+
+  it('OC 注册表映射 + loadData 无 sourceRef fail-closed', async () => {
+    expect(serverKindForType('OrderConfirmation')).toBe('OC');
+    expect(SERVER_DOC_TEMPLATES.OC.title).toContain('订单确认书');
+    expect(await SERVER_DOC_TEMPLATES.OC.loadData({} as PrismaClient, { id: 'TD_1', type: 'OrderConfirmation', sourceRef: null })).toBeNull();
+  });
+});
+
+describe('B8 CONTRACT（多订单合并合同）', () => {
+  const CONTRACT_DATA = {
+    contractNumber: 'SC-20260822-2',
+    contractDate: '2026-08-22',
+    customer: { name: 'ACME', englishName: 'ACME GmbH', chineseName: null, contactInfo: null },
+    orders: [
+      { index: 1, orderId: 'ord_1', poNumber: 'PO-A', customer: 'ACME GmbH', currency: 'USD', quoteAmount: 14400, dueDate: '2026-09-30', deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T', salesContractNumber: null, finalContractNumber: 'SC-88', lineCount: 1 },
+      { index: 2, orderId: 'ord_2', poNumber: 'PO-B', customer: 'ACME GmbH', currency: 'USD', quoteAmount: 2450.5, dueDate: '2026-10-15', deliveryTerms: 'FOB Shanghai', paymentTerms: 'T/T', salesContractNumber: null, finalContractNumber: null, lineCount: 1 },
+    ],
+    lines: [
+      { lineNumber: 1, orderIndex: 1, itemNo: 'ITEM-1', description: 'Poplin', quantity: 12000, unit: 'YD', unitPrice: 1.2, netValue: 14400 },
+      { lineNumber: 2, orderIndex: 2, itemNo: 'ITEM-2', description: 'Thread', quantity: 500, unit: 'PC', unitPrice: 4.9, netValue: 2450.5 },
+    ],
+    totals: { currency: 'USD', amount: 16850.5, quantity: 12500 },
+  };
+
+  it('渲染合同标题/合同号/订单一览/合并明细（O# 来源标注）/合计/双签', () => {
+    const html = renderContractBody(CONTRACT_DATA as any, EXPORTER);
+    expect(html).toContain('SALES CONTRACT');
+    expect(html).toContain('销售合同');
+    expect(html).toContain('SC-20260822-2');
+    expect(html).toContain('Order Summary 订单一览');
+    expect(html).toContain('PO-A');
+    expect(html).toContain('PO-B');
+    expect(html).toContain('Contract Lines 合并明细');
+    expect(html).toContain('>O1<');
+    expect(html).toContain('>O2<');
+    expect(html).toContain('TOTAL 合计');
+    expect(html).toContain('16,850.50 USD');
+    expect(html).toContain('Seller 卖方签章');
+    expect(html).toContain('Buyer 买方签章');
+  });
+
+  it('CONTRACT 入组合类型集合 + 注册表', () => {
+    expect(isCompositeDocKind('CONTRACT')).toBe(true);
+    expect(COMPOSITE_DOC_KINDS).toContain('CONTRACT');
+    expect(SERVER_DOC_TEMPLATES.CONTRACT.title).toContain('销售合同');
+  });
+
+  it('assembleContractData：≥2 校验 + 合同号取首个 finalContractNumber + 行级金额求和', async () => {
+    const makeOrder = (id: string, poNumber: string, finalContractNumber: string | null, netValues: number[]) => ({
+      id, poNumber, customer: 'ACME', deletedAt: null,
+      currency: null, salesCurrency: 'USD', quoteAmount: netValues.reduce((a, b) => a + b, 0),
+      dueDate: null, deliveryTerms: 'FOB', paymentTerms: null,
+      salesContractNumber: null, finalContractNumber, customerRelationId: null,
+      lines: netValues.map((nv, i) => ({ lineNumber: i + 1, itemNo: `I${i + 1}`, description: 'X', quantity: 1, unit: 'PC', unitPrice: nv, netValue: nv })),
+    });
+    const prisma = {
+      order: { findUnique: vi.fn().mockImplementation(async ({ where }: any) => {
+        if (where.id === 'ord_1') return makeOrder('ord_1', 'PO-A', 'SC-88', [100]);
+        if (where.id === 'ord_2') return makeOrder('ord_2', 'PO-B', null, [50.5]);
+        return null;
+      }) },
+      relation: { findUnique: vi.fn().mockResolvedValue(null) },
+    } as any;
+
+    // 单订单 → 拒绝（引导走 OC）
+    await expect(assembleContractData(prisma, ['ord_1'])).rejects.toThrow('至少需要 2 个订单');
+    // 任一订单不存在 → fail-closed
+    await expect(assembleContractData(prisma, ['ord_1', 'missing'])).rejects.toThrow('不存在');
+
+    const data = await assembleContractData(prisma, ['ord_1', 'ord_2']);
+    expect(data.contractNumber).toBe('SC-88'); // 首个非空 finalContractNumber
+    expect(data.orders).toHaveLength(2);
+    expect(data.lines).toHaveLength(2);
+    expect(data.lines[1].orderIndex).toBe(2); // 来源订单序号标注
+    expect(data.totals.amount).toBe(150.5); // 行级 netValue 求和
+  });
+});

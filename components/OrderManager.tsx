@@ -10,8 +10,9 @@ import {
   AlertTriangle,
   Globe, List,
   Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, GitBranch,
-  Search, ArrowLeft
+  Search, ArrowLeft, Eye, FileText, Loader2
 } from 'lucide-react';
+import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 import { TraceabilityPanel } from './TraceabilityPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import { TestRequestPanel } from './qc/TestRequestPanel';
@@ -300,6 +301,40 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   // REQ2-03：行保存（shipmentQuantity/tolerancePercent 变更）后自增，驱动溢短装视图重取
   const [toleranceRefreshKey, setToleranceRefreshKey] = useState(0);
   const [statusTimeline, setStatusTimeline] = useState<OrderStatusTransition[]>([]);
+
+  // ── B8 订单确认书（OC）：A4 预览 + 生成 PDF（服务端模板，与采购/报价同款体验） ──
+  const [ocPreviewOpen, setOcPreviewOpen] = useState(false);
+  const [ocPreviewHtml, setOcPreviewHtml] = useState('');
+  const [ocPreviewLoading, setOcPreviewLoading] = useState(false);
+  const [ocPreviewErr, setOcPreviewErr] = useState<string | null>(null);
+  const [ocGenerating, setOcGenerating] = useState(false);
+
+  const handlePreviewOc = useCallback(async (orderId: string) => {
+    setOcPreviewOpen(true);
+    setOcPreviewHtml('');
+    setOcPreviewErr(null);
+    setOcPreviewLoading(true);
+    try {
+      const html = await apiService.getOrderConfirmationPreviewHtml(orderId);
+      setOcPreviewHtml(html);
+    } catch (e: any) {
+      setOcPreviewErr(`订单确认书预览加载失败：${e?.message || e}`);
+    } finally {
+      setOcPreviewLoading(false);
+    }
+  }, []);
+
+  const handleGenerateOc = useCallback(async (orderId: string) => {
+    setOcGenerating(true);
+    try {
+      const result = await apiService.generateOrderConfirmationDocument(orderId);
+      bdsToast.success(`已生成 ${result.documentNumber}（${Math.round(result.fileSize / 1024)} KB），归档至单据中心`);
+    } catch (e: any) {
+      bdsToast.danger(`生成订单确认书失败：${e?.message || e}`);
+    } finally {
+      setOcGenerating(false);
+    }
+  }, []);
   // DR-010 编辑门禁：已批准订单受控字段直改被拦截后，预填并引导到变更申请表单
   const [changeGatePrefill, setChangeGatePrefill] = useState<ChangeRequestGatePrefill | null>(null);
   const orderDetailScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1031,6 +1066,28 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
               >
                 <GitBranch size={16} strokeWidth={1.5} /> {!isMobile && '溯源'}
               </button>
+            )}
+            {selectedOrder?.id && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handlePreviewOc(selectedOrder.id)}
+                  className="bds-btn bds-btn-secondary"
+                  title="订单确认书 A4 预览（与生成 PDF 同源排版）"
+                >
+                  <Eye size={16} strokeWidth={1.5} /> {!isMobile && '确认书'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleGenerateOc(selectedOrder.id)}
+                  disabled={ocGenerating}
+                  className="bds-btn bds-btn-secondary"
+                  title="生成订单确认书 PDF 并归档单据中心"
+                >
+                  {ocGenerating ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <FileText size={16} strokeWidth={1.5} />}
+                  {!isMobile && '生成 PDF'}
+                </button>
+              </>
             )}
           </>
         )}
@@ -2205,6 +2262,20 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
             />
           </div>
         </div>
+      )}
+
+      {/* B8 订单确认书 A4 预览（服务端模板，与生成 PDF 同源排版） */}
+      {ocPreviewOpen && selectedOrder?.id && (
+        <A4DocumentPreviewModal
+          title={`订单确认书预览 · ${selectedOrder.poNumber || selectedOrder.customer}`}
+          subtitle="A4 · Order Confirmation · 与生成 PDF 同源排版"
+          html={ocPreviewHtml}
+          loading={ocPreviewLoading}
+          error={ocPreviewErr}
+          onClose={() => setOcPreviewOpen(false)}
+          onPrint={() => void handleGenerateOc(selectedOrder.id)}
+          printLabel="生成 PDF"
+        />
       )}
     </div>
   );

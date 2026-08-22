@@ -1125,16 +1125,20 @@ interface CompositeDialogProps {
   onClose: () => void;
 }
 
-const COMPOSITE_KIND_OPTIONS: Array<{ id: 'MERGED_PL' | 'MERGED_IR'; label: string; hint: string }> = [
+const COMPOSITE_KIND_OPTIONS: Array<{ id: 'MERGED_PL' | 'MERGED_IR' | 'CONTRACT'; label: string; hint: string }> = [
   { id: 'MERGED_PL', label: '合并装箱单', hint: '多运单数据聚合为一份 PL（合票出运：明细合并 + 跨运单合计重算）' },
   { id: 'MERGED_IR', label: '合并验货汇总', hint: '多份验货报告合并一份汇总（跨报告合计统计 + 每报告一节）' },
+  { id: 'CONTRACT', label: '合并销售合同', hint: '多订单数据聚合为一份合同（订单一览 + 合并明细 + 通用条款；单订单确认走订单确认书）' },
 ];
 
 const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }) => {
-  const [kind, setKind] = useState<'MERGED_PL' | 'MERGED_IR'>('MERGED_PL');
+  const [kind, setKind] = useState<'MERGED_PL' | 'MERGED_IR' | 'CONTRACT'>('MERGED_PL');
   const [shipments, setShipments] = useState<Array<{ id: string; shipmentNumber: string; status: string }>>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(true);
   const [selectedShipmentIds, setSelectedShipmentIds] = useState<Set<string>>(new Set());
+  const [orders, setOrders] = useState<Array<{ id: string; label: string; status: string }>>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [reportIdsText, setReportIdsText] = useState('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1161,12 +1165,41 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
     return () => { cancelled = true; };
   }, []);
 
+  // B8 合并合同：订单多选列表（poNumber 优先展示，缺省客户名兜底）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listOrders();
+        if (!cancelled) {
+          setOrders((list as any[]).map(o => ({
+            id: o.id,
+            label: o.poNumber || o.customer || o.id,
+            status: o.status,
+          })));
+        }
+      } catch {
+        // 订单列表加载失败不阻断
+      } finally {
+        if (!cancelled) setOrdersLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const sourceIds = useMemo((): string[] => {
     if (kind === 'MERGED_PL') return Array.from(selectedShipmentIds);
+    if (kind === 'CONTRACT') return Array.from(selectedOrderIds);
     return reportIdsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  }, [kind, selectedShipmentIds, reportIdsText]);
+  }, [kind, selectedShipmentIds, selectedOrderIds, reportIdsText]);
 
   const toggleShipment = (id: string) => setSelectedShipmentIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const toggleOrder = (id: string) => setSelectedOrderIds(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
@@ -1255,6 +1288,32 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
               ))}
             </div>
             <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已选 {selectedShipmentIds.size} 个运单</p>
+          </>
+        ) : kind === 'CONTRACT' ? (
+          <>
+            <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">选择订单 *（≥2，合并合同）</label>
+            <div className="max-h-52 overflow-y-auto custom-scrollbar rounded-inset border border-[var(--border-c-subtle)] mb-4 p-2 space-y-1">
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-[var(--text-quaternary)]" /></div>
+              ) : orders.length === 0 ? (
+                <div className="text-center text-xs py-6 text-[var(--text-quaternary)]">暂无订单</div>
+              ) : orders.map(o => (
+                <label
+                  key={o.id}
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-control cursor-pointer hover:bg-[var(--hover-darken)] text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedOrderIds.has(o.id)}
+                    onChange={() => toggleOrder(o.id)}
+                    className="bds-checkbox"
+                  />
+                  <span className="bds-mono text-[var(--text-primary)]">{o.label}</span>
+                  <span className="text-[10px] text-[var(--text-quaternary)]">{o.status}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已选 {selectedOrderIds.size} 个订单</p>
           </>
         ) : (
           <>

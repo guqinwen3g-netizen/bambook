@@ -1155,6 +1155,26 @@ export const apiService = {
     return { documentNumber: data.document.documentNumber, fileName: data.file.fileName, fileSize: data.file.fileSize };
   },
 
+  /** 订单确认书服务端模板预览——GET /v2/orders/:id/preview.html（B8：与生成 PDF 同源排版） */
+  async getOrderConfirmationPreviewHtml(id: string, endpoint?: string): Promise<string> {
+    const url = buildApiUrl(`/v2/orders/${encodeURIComponent(id)}/preview.html`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
+  /** 订单确认书生成文档——POST /v2/orders/:id/generate-document（B8：登记域单据 domain=orders +
+   *  服务端渲染 PDF 落盘归档），生成后浏览器下载归档文件 */
+  async generateOrderConfirmationDocument(id: string, endpoint?: string): Promise<{ documentNumber: string; fileName: string; fileSize: number }> {
+    const data = await requestJson<{ document: { documentNumber: string }; file: { filePath: string; fileName: string; fileSize: number } }>(
+      `/v2/orders/${encodeURIComponent(id)}/generate-document`, { endpoint, method: 'POST' });
+    await this.downloadArchiveFile(data.file.filePath, data.file.fileName, endpoint);
+    return { documentNumber: data.document.documentNumber, fileName: data.file.fileName, fileSize: data.file.fileSize };
+  },
+
   /** 采购台账 Excel 导出——GET /v1/procurement?format=xlsx（当前筛选条件全量导出） */
   async exportPurchaseOrdersXlsx(params?: { status?: string; supplierRelationId?: string; dateFrom?: string; dateTo?: string; search?: string }, endpoint?: string): Promise<void> {
     const query = new URLSearchParams({ format: 'xlsx' });
@@ -3495,7 +3515,7 @@ export const apiService = {
   },
 
   /** 组合文档预览 HTML——POST /v1/customs/trade-documents/composite/preview.html（A4 画布，与生成 PDF 同源） */
-  async getCompositeDocumentPreviewHtml(kind: 'MERGED_PL' | 'MERGED_IR', sourceIds: string[], endpoint?: string): Promise<string> {
+  async getCompositeDocumentPreviewHtml(kind: 'MERGED_PL' | 'MERGED_IR' | 'CONTRACT', sourceIds: string[], endpoint?: string): Promise<string> {
     const url = buildApiUrl('/v1/customs/trade-documents/composite/preview.html', endpoint);
     const res = await fetch(url, {
       method: 'POST',
@@ -3510,7 +3530,7 @@ export const apiService = {
   },
 
   /** 组合文档生成 PDF——POST /v1/customs/trade-documents/composite/generate.pdf（流式下载，不归档） */
-  async generateCompositeDocumentPdf(kind: 'MERGED_PL' | 'MERGED_IR', sourceIds: string[], endpoint?: string): Promise<void> {
+  async generateCompositeDocumentPdf(kind: 'MERGED_PL' | 'MERGED_IR' | 'CONTRACT', sourceIds: string[], endpoint?: string): Promise<void> {
     const url = buildApiUrl('/v1/customs/trade-documents/composite/generate.pdf', endpoint);
     const res = await fetch(url, {
       method: 'POST',
