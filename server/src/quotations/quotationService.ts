@@ -26,6 +26,7 @@ import { createMoqResolutionService, isValidSnapshot } from '../moq/moqResolutio
 import { createMoqValidationService } from '../moq/moqValidationService';
 import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
 import { createApprovalCreateService } from '../approvals/approvalCreateService';
+import { assertFabricAllowed } from '../products/fabricExclusivityService';
 import {
   createPriceDeviationRuleService,
   PRICE_APPROVAL_POLICY_KEY,
@@ -260,6 +261,31 @@ export function createQuotationService(prisma: PrismaClient) {
       lines: input.lines.map((l) => ({ fabricCode: l.fabricCode ?? null, unitPrice: l.unitPrice, unit: l.unit })),
     });
 
+    // ── P1-3 客户专属面料校验（fail-closed：行面料命中他人独占面料 → 409，违规尝试留痕）──
+    for (const line of input.lines) {
+      const fabricCode = line.fabricCode?.trim();
+      if (!fabricCode) continue;
+      const exclusive = await assertFabricAllowed(prisma, {
+        customer: { customerRelationId: input.customerRelationId ?? null, customerName: input.customerName ?? null },
+        productKeys: {
+          // fabricCode 语义宽泛（sku/厂号/品色号/客供品号皆可）：多键并集解析；
+          // clientCode 侧仅认「本客户登记 + 无绑定通用码」，不做全局兜底（防异义碰撞误报）
+          sku: fabricCode,
+          articleNo: fabricCode,
+          millQuality: fabricCode,
+          clientCode: fabricCode,
+          clientCodeCustomerHint: input.customerRelationId ?? null,
+          clientCodeGlobalFallback: false,
+        },
+        context: 'quotation:create',
+        actorId,
+        documentRef: { quotationNumber: input.quotationNumber ?? 'auto', fabricCode, description: line.description },
+      });
+      if (!exclusive.ok) {
+        throw Object.assign(new Error(exclusive.error.message), { statusCode: exclusive.error.status, code: exclusive.error.code });
+      }
+    }
+
     // ── 决策点 3-A 合并：多条件命中 → 单条 ApprovalRequest，hitConditions 数组标注全部命中编号 ──
     const hitConditions: string[] = [...ruleEval.hitConditions];
     if (deviation && deviation.level !== 'ok') hitConditions.push(PRICE_RULE_CONDITION.DUAL_TRACK_DEVIATION);
@@ -450,6 +476,35 @@ export function createQuotationService(prisma: PrismaClient) {
     const now = Date.now();
     const lines = input.lines;
     const totalAmount = lines ? calcTotalAmount(lines) : Number(existing.totalAmount);
+
+    // ── P1-3 客户专属面料校验（行重建时逐行校验；fail-closed 409 + 违规尝试留痕）──
+    if (lines && lines.length > 0) {
+      const customer = {
+        customerRelationId: input.customerRelationId ?? existing.customerRelationId ?? null,
+        customerName: input.customerName ?? existing.customerName ?? null,
+      };
+      for (const line of lines) {
+        const fabricCode = line.fabricCode?.trim();
+        if (!fabricCode) continue;
+        const exclusive = await assertFabricAllowed(prisma, {
+          customer,
+          productKeys: {
+            sku: fabricCode,
+            articleNo: fabricCode,
+            millQuality: fabricCode,
+            clientCode: fabricCode,
+            clientCodeCustomerHint: customer.customerRelationId,
+            clientCodeGlobalFallback: false,
+          },
+          context: 'quotation:update',
+          actorId,
+          documentRef: { quotationId: id, quotationNumber: existing.quotationNumber, fabricCode },
+        });
+        if (!exclusive.ok) {
+          throw Object.assign(new Error(exclusive.error.message), { statusCode: exclusive.error.status, code: exclusive.error.code });
+        }
+      }
+    }
 
     // REQ2-19（DR-060-①）：金额或行变化 → 自动快照旧版（append-only 版本链）
     const amountChanged = Math.abs(Number(totalAmount) - Number(existing.totalAmount)) > 1e-9;

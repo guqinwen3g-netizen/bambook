@@ -14,6 +14,7 @@ import {
   ProductAsset,
   ProductAssetDetail,
   ProductSubCategory,
+  FabricExclusivityViolation,
   Invoice,
   InvoiceAttachment,
   InvoiceOrderAllocation,
@@ -2950,6 +2951,24 @@ export const apiService = {
       { endpoint, method: 'GET' },
     );
     return data.asset;
+  },
+
+  /** P1-3 客户专属面料预检（只读；行级警示用——写路径校验由服务端四入口 fail-closed 承担） */
+  async checkFabricExclusivity(params: {
+    customerRelationId?: string | null;
+    customerName?: string | null;
+    fabricCode?: string;
+    clientCode?: string;
+    millQuality?: string;
+    sku?: string;
+    articleNo?: string;
+    productAssetId?: string;
+  }, endpoint?: string): Promise<{ allowed: boolean; violations: FabricExclusivityViolation[] }> {
+    const data = await requestJson<{ ok: boolean; allowed: boolean; violations: FabricExclusivityViolation[] }>(
+      '/v1/products/fabric-exclusivity/check',
+      { endpoint, method: 'POST', body: JSON.stringify(params) },
+    );
+    return { allowed: data.allowed !== false, violations: data.violations ?? [] };
   },
 
   async createProductAsset(input: CreateProductAssetInput, endpoint?: string): Promise<ProductAssetDetail> {

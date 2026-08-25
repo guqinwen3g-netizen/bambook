@@ -1688,6 +1688,16 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const buildFabricRelatedDataFromForm = (formData: FormData, productId: string, existing?: ProductAsset): Pick<ProductAsset, 'fabricCustomerCodes' | 'fabricPrices' | 'fabricCertifications' | 'compositionLines'> => {
     const now = Date.now();
     const clientCodes = splitList(formData.get('clientCodes'));
+
+    // ── P1-3 客户专属面料（owner fabric）：表单属主客户非空 → 生成/保留专属行 ──
+    const exclusiveOwnerRelationId = String(formData.get('exclusiveOwnerRelationId') || '').trim();
+    const exclusiveOwnerName = String(formData.get('exclusiveOwnerName') || '').trim();
+    const exclusiveClientCodeRaw = String(formData.get('exclusiveClientCode') || '').trim();
+    const hasExclusiveOwner = Boolean(exclusiveOwnerRelationId || exclusiveOwnerName);
+    const existingExclusive = existing?.fabricCustomerCodes?.find(item => item.isExclusive && !item.deletedAt);
+    const exclusiveClientCode = exclusiveClientCodeRaw || clientCodes[0] || `EXCL-${productId}`;
+    // 专属行的客供品号不再重复登记为普通行（同码双行会让 Client Code 列表翻倍）
+    const plainClientCodes = hasExclusiveOwner ? clientCodes.filter(code => code !== exclusiveClientCode) : clientCodes;
     const certifications = splitList(formData.get('certifications'));
     const factoryPrice = Number(formData.get('factoryPrice') || 0);
     const salesPrice = Number(formData.get('salesPrice') || 0);
@@ -1724,12 +1734,27 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     };
 
     return {
-      fabricCustomerCodes: clientCodes.map((clientCode, index) => ({
-        id: existing?.fabricCustomerCodes?.[index]?.id || `FCC-${productId}-${index}`,
-        productAssetId: productId,
-        clientCode,
-        updatedAt: now,
-      })),
+      fabricCustomerCodes: [
+        // 普通行（Client Code 列表；专属行客供品号去重）
+        ...plainClientCodes.map((clientCode, index) => ({
+          id: existing?.fabricCustomerCodes?.[index]?.id || `FCC-${productId}-${index}`,
+          productAssetId: productId,
+          clientCode,
+          isExclusive: false,
+          updatedAt: now,
+        })),
+        // P1-3 专属行（属主客户 + isExclusive；保留既有行 id 使服务端 replace 稳定）
+        ...(hasExclusiveOwner ? [{
+          id: existingExclusive?.id || `FCC-${productId}-EXCL`,
+          productAssetId: productId,
+          clientCode: exclusiveClientCode,
+          customerOrganizationId: exclusiveOwnerRelationId || null,
+          customerNameSnapshot: exclusiveOwnerName || null,
+          isExclusive: true,
+          note: existingExclusive?.note ?? null,
+          updatedAt: now,
+        }] : []),
+      ],
       fabricCertifications: certifications.map((certification, index) => ({
         id: existing?.fabricCertifications?.[index]?.id || `FCERT-${productId}-${index}`,
         productAssetId: productId,
@@ -2271,6 +2296,31 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           <div className="space-y-2">
             <label className={productLabelClass}>Client Code（逗号/换行分隔）</label>
             <input defaultValue={(product?.fabricCustomerCodes || []).map(item => item.clientCode).join(', ')} name="clientCodes" className={productInputClass} />
+          </div>
+          {/* P1-3 客户专属面料（owner fabric）：选择属主客户即标记独家——他人报价/订单/样品/出运引用该面料将被 fail-closed 阻断 */}
+          <ProductRelationField
+            label="专属属主客户（出资开发独占）"
+            name="exclusiveOwnerName"
+            fkName="exclusiveOwnerRelationId"
+            defaultValue={product?.fabricCustomerCodes?.find(item => item.isExclusive)?.customerNameSnapshot ?? null}
+            defaultRelationId={product?.fabricCustomerCodes?.find(item => item.isExclusive)?.customerOrganizationId ?? null}
+            relations={relations}
+            filterCategories={['Customer']}
+            placeholder="留空 = 非专属面料；选择客户 = 该面料为其独家开发"
+            isDarkMode={isDarkMode}
+            labelClass={productLabelClass}
+          />
+          <div className="space-y-2">
+            <label className={productLabelClass}>专属客供品号（可选）</label>
+            <input
+              defaultValue={product?.fabricCustomerCodes?.find(item => item.isExclusive)?.clientCode || ''}
+              name="exclusiveClientCode"
+              className={productInputClass}
+              placeholder="缺省沿用 Client Code 首个 / SKU"
+            />
+          </div>
+          <div className={`text-[10px] font-light leading-relaxed ${BAMBOOK_OS.tone.text.quiet}`}>
+            专属规则：属主客户之外的报价单 / 订单 / 面料样品 / 出运引用本面料将被系统阻断（EXCLUSIVE_FABRIC_BLOCKED），违规尝试写入审计日志。清除属主客户即解除专属。
           </div>
           <div className="space-y-2">
             <label className={productLabelClass}>工厂价格</label>
@@ -3704,7 +3754,21 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                        <DetailItem label="Mill Quality" value={selectedProduct.fabricProfile?.millQuality} />
 	                        <DetailItem label="Col." value={selectedProduct.fabricProfile?.millColorCode} />
 	                        <DetailItem label="Description" value={selectedProduct.fabricProfile?.colorDescription} wide />
-	                        <DetailItem label="Client Code" value={(selectedProduct.fabricCustomerCodes || []).map(item => item.clientCode).join(', ')} wide />
+	                        <DetailItem label="Client Code" value={(selectedProduct.fabricCustomerCodes || []).filter(item => !item.isExclusive).map(item => item.clientCode).join(', ')} wide />
+                        {/* P1-3 客户专属面料标识：属主客户 + 客供品号（他人引用被 fail-closed 阻断） */}
+                        {(() => {
+                          const exclusive = (selectedProduct.fabricCustomerCodes || []).find(item => item.isExclusive);
+                          if (!exclusive) return null;
+                          const ownerLabel = exclusive.customerNameSnapshot || exclusive.customerOrganizationId || '未锚定属主';
+                          return (
+                            <div className="flex items-center gap-2 md:col-span-2">
+                              <span className="bds-badge sm danger">专属面料</span>
+                              <span className="text-[11px] font-light text-[var(--text-secondary)]">
+                                属主 {ownerLabel}{exclusive.clientCode ? ` · 客供品号 ${exclusive.clientCode}` : ''} —— 其他客户的报价 / 订单 / 样品 / 出运引用将被系统阻断
+                              </span>
+                            </div>
+                          );
+                        })()}
 	                      </DetailSection>
 	                      <DetailSection title="规格参数" icon={<Layers size={14} />}>
 	                        <DetailItem label="成分" value={(selectedProduct.compositionLines || []).map(line => `${line.percentage}% ${line.term?.chineseName || line.term?.englishName || line.termId}`).join(' + ')} wide />

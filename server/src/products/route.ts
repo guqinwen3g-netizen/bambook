@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { writeRouteAuditLog, actorIdFromRequest } from '../audit/routeAudit';
 import { createProductAsset, updateProductAsset, deleteProductAsset } from './productAssetMutationService';
+import { resolveProductAssets, checkExclusivityForAssets, validateExclusiveCodes } from './fabricExclusivityService';
 import { syncProductAssetReferences } from '../entities/sync';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { logger } from '../lib/logger';
@@ -124,12 +125,19 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       }
     };
 
+    // P1-3 专属标记校验：isExclusive 行必须有属主锚（fail-closed 400）
+    const exclusiveOwnerError = validateExclusiveCodes(body.fabricCustomerCodes ?? []);
+    if (exclusiveOwnerError) {
+      throw Object.assign(new Error(exclusiveOwnerError), { code: 'EXCLUSIVE_OWNER_REQUIRED', statusCode: 400 });
+    }
+
     await saveCollection('fabricCustomerCode', body.fabricCustomerCodes, (c: any, i: number) => ({
       id: c.id || `FCC-${productAssetId}-${i}`,
       productAssetId,
       clientCode: c.clientCode ?? '',
       customerOrganizationId: c.customerOrganizationId || null,
       customerNameSnapshot: c.customerNameSnapshot || null,
+      isExclusive: c.isExclusive === true,
       note: c.note || null,
       updatedAt: BigInt(now),
       deletedAt: null,
@@ -262,6 +270,33 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
     } catch (e: any) {
       logger.error('[products/list] failed', { error: e?.message || String(e) });
       return res.status(500).json({ error: 'LIST_FAILED', message: String(e?.message ?? e) });
+    }
+  });
+
+  // ── P1-3 客户专属面料预检（只读；前端行级警示用，写路径校验走 fabricExclusivityService） ──
+  router.post('/fabric-exclusivity/check', async (req, res) => {
+    try {
+      const body = req.body || {};
+      const fabricCode = String(body.fabricCode ?? '').trim();
+      const keys: any = {
+        productAssetId: body.productAssetId ?? null,
+        sku: fabricCode || (body.sku ?? null),
+        articleNo: fabricCode || (body.articleNo ?? null),
+        millQuality: body.millQuality ?? null,
+        clientCode: body.clientCode ?? (fabricCode || null),
+        clientCodeCustomerHint: body.customerRelationId ?? null,
+        clientCodeGlobalFallback: false, // 预检宽语义：不做全局客供品号兜底，防异义碰撞误报
+      };
+      const assets = await resolveProductAssets(opts.prisma, keys);
+      const violations = await checkExclusivityForAssets(
+        opts.prisma,
+        assets.map((a: any) => a.id),
+        { customerRelationId: body.customerRelationId ?? null, customerName: body.customerName ?? null },
+      );
+      return res.json({ ok: true, allowed: violations.length === 0, violations, matchedAssets: serializeBigInts(assets) });
+    } catch (e: any) {
+      logger.error('[products/fabric-exclusivity/check] failed', { error: e?.message || String(e) });
+      return res.status(500).json({ error: 'CHECK_FAILED', message: String(e?.message ?? e) });
     }
   });
 
@@ -415,7 +450,8 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       return res.status(201).json({ ok: true, asset: serializeBigInts(asset) });
     } catch (e: any) {
       logger.error('[products/create] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'CREATE_FAILED', message: String(e?.message ?? e) });
+      // P1-3 专属属主缺失等业务校验 → 透传 statusCode（默认 500）
+      return res.status(e?.statusCode ?? 500).json({ error: e?.code ?? 'CREATE_FAILED', message: String(e?.message ?? e) });
     }
   });
 
@@ -553,7 +589,8 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
       return res.json({ ok: true, asset: serializeBigInts(refreshed) });
     } catch (e: any) {
       logger.error('[products/update] failed', { error: e?.message || String(e) });
-      return res.status(500).json({ error: 'UPDATE_FAILED', message: String(e?.message ?? e) });
+      // P1-3 专属属主缺失等业务校验 → 透传 statusCode（默认 500）
+      return res.status(e?.statusCode ?? 500).json({ error: e?.code ?? 'UPDATE_FAILED', message: String(e?.message ?? e) });
     }
   });
 

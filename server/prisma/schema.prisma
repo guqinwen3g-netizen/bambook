@@ -927,6 +927,12 @@ model FabricCustomerCode {
   customerOrganizationId String?
   customerNameSnapshot   String?
   clientCode             String
+  // ─── P1-3 客户专属面料规则（缺口 18）───
+  // isExclusive=true：本行客户为该面料出资开发的独家属主——其他客户的
+  // 报价/订单/样品/出运引用该面料将被 fail-closed 阻断（EXCLUSIVE_FABRIC_BLOCKED）。
+  // 专属行强制要求 customerOrganizationId 非空（服务层校验，属主必须可锚定）。
+  // 校验单一真源：products/fabricExclusivityService.assertFabricAllowed（四入口共用）。
+  isExclusive            Boolean @default(false)
   note                   String?
   updatedAt              BigInt
   deletedAt              BigInt?
@@ -936,6 +942,7 @@ model FabricCustomerCode {
   @@index([productAssetId])
   @@index([customerOrganizationId])
   @@index([clientCode])
+  @@index([isExclusive])
 }
 
 model FabricPriceHistory {

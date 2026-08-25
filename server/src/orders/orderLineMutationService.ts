@@ -11,6 +11,7 @@ import { writeRouteAuditLog } from '../audit/routeAudit';
 import { syncOrderLineEntityReferences, deactivateEntityLinks } from '../entities/sync';
 import { advanceStage } from '../production/stageService';
 import { nextItemNo } from './orderLineItems';
+import { assertFabricAllowed } from '../products/fabricExclusivityService';
 
 export type OrderLineMutationErrorCode =
   | 'INVALID_INPUT'
@@ -56,6 +57,22 @@ export async function createOrderLine(params: CreateOrderLineParams): Promise<Cr
       const order = await tx.order.findUnique({ where: { id: orderId } });
       if (!order || order.deletedAt) {
         throw Object.assign(new Error(`Order ${orderId} not found or deleted`), { code: 'ORDER_NOT_FOUND', statusCode: 404 });
+      }
+
+      // P1-3 客户专属面料校验（fail-closed：行客供品号/品色号命中他人独占面料 → 409，违规尝试留痕）
+      const exclusive = await assertFabricAllowed(tx, {
+        customer: { customerRelationId: order.customerRelationId, customerName: order.customer },
+        productKeys: {
+          clientCode: materialCode ?? null,
+          millQuality: (extra?.millQuality as string | undefined) ?? null,
+          clientCodeCustomerHint: order.customerRelationId,
+        },
+        context: 'order-line:create',
+        actorId,
+        documentRef: { orderId, itemNo: itemNo || 'auto' },
+      });
+      if (!exclusive.ok) {
+        throw Object.assign(new Error(exclusive.error.message), { code: exclusive.error.code, statusCode: exclusive.error.status });
       }
 
       // 事务内计算 lineNumber + itemNo（基于 tx.orderLine.findMany，避免 route/service contract drift）
@@ -136,6 +153,24 @@ export async function updateOrderLine(params: UpdateOrderLineParams): Promise<Up
       const order = await tx.order.findUnique({ where: { id: existing.orderId } });
       if (!order || order.deletedAt) {
         throw Object.assign(new Error(`Parent Order ${existing.orderId} not found or deleted`), { code: 'ORDER_NOT_FOUND', statusCode: 404 });
+      }
+
+      // P1-3 客户专属面料校验：仅 patch 触碰产品锚（materialCode/millQuality）时执行
+      if ('materialCode' in patch || 'millQuality' in patch) {
+        const exclusive = await assertFabricAllowed(tx, {
+          customer: { customerRelationId: order.customerRelationId, customerName: order.customer },
+          productKeys: {
+            clientCode: (patch.materialCode as string | undefined) ?? existing.materialCode ?? null,
+            millQuality: (patch.millQuality as string | undefined) ?? existing.millQuality ?? null,
+            clientCodeCustomerHint: order.customerRelationId,
+          },
+          context: 'order-line:update',
+          actorId,
+          documentRef: { orderId: existing.orderId, lineId },
+        });
+        if (!exclusive.ok) {
+          throw Object.assign(new Error(exclusive.error.message), { code: exclusive.error.code, statusCode: exclusive.error.status });
+        }
       }
 
       const updated = await tx.orderLine.update({

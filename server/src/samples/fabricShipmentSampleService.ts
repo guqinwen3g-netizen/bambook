@@ -28,6 +28,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
+import { assertFabricAllowed, productAssetIdOfFabricProfile } from '../products/fabricExclusivityService';
 import {
   assertGateOrThrow,
   bindExceptionChecker,
@@ -223,6 +224,7 @@ export interface RegisterSampleShipmentInput {
   trackingNumber: string;           // 必填：快递单号
   recipientName: string;            // 必填：收件方
   recipientContact?: string;
+  shippingFee?: number;             // 邮寄费（DR-057 v2.1：非负，币种随客户合同）
   documents?: any[];                // 随附单据：样品发票/快递运费凭证等（DR-039）
   // 允许寄送时补齐样品基础信息（RC 启用时未剪样的场景）
   sampleQuantity?: number;
@@ -260,6 +262,17 @@ export function createFabricShipmentSampleService(opts: { prisma: PrismaClient; 
 
     const orderR = await resolveFabricOrder(prisma, orderId);
     if (!orderR.ok) return orderR;
+
+    // P1-3 客户专属面料校验（fabricProfileId → 产品档案直锚；fail-closed 409 + 违规尝试留痕）
+    const ssProductAssetId = await productAssetIdOfFabricProfile(prisma, input.fabricProfileId);
+    const ssExclusive = await assertFabricAllowed(prisma, {
+      customer: { customerRelationId: orderR.data.order.customerRelationId, customerName: orderR.data.order.customer },
+      productKeys: ssProductAssetId ? { productAssetId: ssProductAssetId } : {},
+      context: 'fabric-shipment-sample:register-ss',
+      actorId,
+      documentRef: { orderId, fabricProfileId: input.fabricProfileId ?? null },
+    });
+    if (!ssExclusive.ok) return fail(ssExclusive.error.code, ssExclusive.error.message, ssExclusive.error.status);
 
     try {
       const created = await (prisma as any).$transaction(async (tx: any) => {
@@ -328,6 +341,17 @@ export function createFabricShipmentSampleService(opts: { prisma: PrismaClient; 
 
     const orderR = await resolveFabricOrder(prisma, orderId);
     if (!orderR.ok) return orderR;
+
+    // P1-3 客户专属面料校验（fabricProfileId → 产品档案直锚；fail-closed 409 + 违规尝试留痕）
+    const rcProductAssetId = await productAssetIdOfFabricProfile(prisma, input.fabricProfileId);
+    const rcExclusive = await assertFabricAllowed(prisma, {
+      customer: { customerRelationId: orderR.data.order.customerRelationId, customerName: orderR.data.order.customer },
+      productKeys: rcProductAssetId ? { productAssetId: rcProductAssetId } : {},
+      context: 'fabric-shipment-sample:enable-rc',
+      actorId,
+      documentRef: { orderId, fabricProfileId: input.fabricProfileId ?? null },
+    });
+    if (!rcExclusive.ok) return fail(rcExclusive.error.code, rcExclusive.error.message, rcExclusive.error.status);
 
     const existing = await prisma.fabricShipmentSample.findMany({ where: { orderId, deletedAt: null } });
     if (existing.some((s: any) => sampleKindOf(s) === 'RC')) {
@@ -409,6 +433,9 @@ export function createFabricShipmentSampleService(opts: { prisma: PrismaClient; 
     if (input.sentDate !== undefined && input.sentDate !== '' && !isYmd(input.sentDate)) {
       return fail('INVALID_INPUT', 'sentDate 格式须为 YYYY-MM-DD');
     }
+    if (input.shippingFee !== undefined && input.shippingFee !== null && (!Number.isFinite(input.shippingFee) || input.shippingFee < 0)) {
+      return fail('INVALID_INPUT', 'shippingFee（邮寄费）须为非负数值');
+    }
 
     const sample = await prisma.fabricShipmentSample.findFirst({ where: { id: sampleId, deletedAt: null } });
     if (!sample) return fail('NOT_FOUND', `样品 ${sampleId} 不存在`, 404);
@@ -428,6 +455,7 @@ export function createFabricShipmentSampleService(opts: { prisma: PrismaClient; 
             trackingNumber: String(input.trackingNumber),
             recipientName: String(input.recipientName),
             recipientContact: input.recipientContact ?? null,
+            shippingFee: input.shippingFee ?? null,
             shippedBy: actorId,
             shippedAt: now,
           },
@@ -441,6 +469,7 @@ export function createFabricShipmentSampleService(opts: { prisma: PrismaClient; 
             trackingNumber: String(input.trackingNumber),
             recipientName: String(input.recipientName),
             recipientContact: input.recipientContact ?? null,
+            shippingFee: input.shippingFee ?? null,
             // 重寄（needs_revision/rejected 后再寄）→ 回到待客户确认
             customerStatus: 'pending',
             ...(input.sampleQuantity !== undefined ? { sampleQuantity: input.sampleQuantity } : {}),

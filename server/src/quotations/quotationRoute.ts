@@ -235,7 +235,8 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
       res.status(201).json({ quotation });
     } catch (e: any) {
       logger.error('[QuotationRoute] POST create failed', { error: e?.message });
-      res.status(500).json({ error: e?.message || 'failed to create quotation' });
+      // P1-3 专属面料阻断等业务冲突 → 透传 statusCode（默认 500）
+      res.status(e?.statusCode ?? 500).json({ error: e?.message || 'failed to create quotation' });
     }
   });
 
@@ -274,7 +275,8 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
       res.json({ quotation });
     } catch (e: any) {
       logger.error('[QuotationRoute] PUT update failed', { error: e?.message });
-      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('仅 Draft') ? 409 : 400;
+      // P1-3 专属面料阻断等显式 statusCode 优先；否则按既有语义映射
+      const status = e?.statusCode ?? (e?.message?.includes('不存在') ? 404 : e?.message?.includes('仅 Draft') ? 409 : 400);
       res.status(status).json({ error: e?.message || 'failed to update quotation' });
     }
   });

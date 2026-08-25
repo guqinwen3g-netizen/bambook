@@ -31,6 +31,10 @@ function makeStore() {
     cartonItems: [] as any[],
     order: null as any,
     auditLogs: [] as any[],
+    // P1-3 专属面料校验依赖的产品档案侧数据（默认空 = 无专属规则命中）
+    fabricCustomerCodes: [] as any[],
+    fabricProfiles: [] as any[],
+    productAssets: [] as any[],
   };
 }
 
@@ -94,6 +98,31 @@ function makePrisma(store: ReturnType<typeof makeStore>) {
     },
     order: {
       findUnique: async ({ where }: any) => (store.order?.id === where.id ? store.order : null),
+    },
+    orderLine: {
+      findMany: async ({ where }: any) =>
+        (store.order?.lines ?? []).filter((l: any) => (where?.id?.in ? where.id.in.includes(l.id) : true)),
+    },
+    // P1-3 专属面料校验：产品档案侧模型（clientCode 精确匹配 + productAssetId 反查）
+    fabricCustomerCode: {
+      findMany: async ({ where }: any) => {
+        let rows = store.fabricCustomerCodes.filter((c) => c.deletedAt == null);
+        if (where?.clientCode !== undefined) rows = rows.filter((c) => c.clientCode === where.clientCode);
+        if (where?.productAssetId?.in) rows = rows.filter((c) => where.productAssetId.in.includes(c.productAssetId));
+        if (where?.isExclusive !== undefined) rows = rows.filter((c) => c.isExclusive === where.isExclusive);
+        if (Array.isArray(where?.OR)) {
+          rows = rows.filter((c) => (where.OR as any[]).some((sub: any) =>
+            sub.customerOrganizationId === null ? c.customerOrganizationId == null : sub.customerOrganizationId === c.customerOrganizationId));
+        }
+        return rows;
+      },
+    },
+    fabricProfile: {
+      findMany: async () => store.fabricProfiles,
+    },
+    productAsset: {
+      findMany: async ({ where }: any) =>
+        store.productAssets.filter((a) => (where?.id?.in ? where.id.in.includes(a.id) : true)),
     },
     auditLog: {
       create: async ({ data }: any) => {
@@ -313,6 +342,48 @@ describe('shipmentPackingService · 从订单带出装运行', () => {
     expect(result.ok).toBe(true);
     expect(store.lines).toHaveLength(1);
     expect(store.lines[0].orderLineId).toBe('OL1');
+  });
+
+  it('P1-3 专属面料：装运行引用他人独占面料 → EXCLUSIVE_FABRIC_BLOCKED（fail-closed）', async () => {
+    const store = makeStore();
+    store.shipment = draftShipment({ orderId: 'O1', customerRelationId: 'REL-B', customerName: '客户B' });
+    store.order = {
+      id: 'O1', deletedAt: null,
+      lines: [{ id: 'OL1', materialCode: 'A-100', itemNo: null, description: '独家开发面料 X', quantity: 800, unit: 'm', lineNumber: 1 }],
+    };
+    // 面料 X 为客户 A 独占（客供品号 A-100）
+    store.productAssets = [{ id: 'PA__X', sku: 'FAB-X', name: '独家开发面料 X', deletedAt: null }];
+    store.fabricCustomerCodes = [{
+      id: 'FCC-1', productAssetId: 'PA__X', clientCode: 'A-100',
+      customerOrganizationId: 'REL-A', customerNameSnapshot: '客户A', isExclusive: true, deletedAt: null,
+    }];
+    const prisma = makePrisma(store);
+
+    const result = await pullLinesFromOrder(prisma, 'SH1', 'tester');
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe('EXCLUSIVE_FABRIC_BLOCKED');
+    expect(result.error?.message).toContain('客户A');
+    // 违规尝试已留痕
+    expect(store.auditLogs.some((log: any) => log.action === 'exclusive_fabric_violation_attempt')).toBe(true);
+  });
+
+  it('P1-3 专属面料：属主客户运单 → 放行带出', async () => {
+    const store = makeStore();
+    store.shipment = draftShipment({ orderId: 'O1', customerRelationId: 'REL-A', customerName: '客户A' });
+    store.order = {
+      id: 'O1', deletedAt: null,
+      lines: [{ id: 'OL1', materialCode: 'A-100', itemNo: null, description: '独家开发面料 X', quantity: 800, unit: 'm', lineNumber: 1 }],
+    };
+    store.productAssets = [{ id: 'PA__X', sku: 'FAB-X', name: '独家开发面料 X', deletedAt: null }];
+    store.fabricCustomerCodes = [{
+      id: 'FCC-1', productAssetId: 'PA__X', clientCode: 'A-100',
+      customerOrganizationId: 'REL-A', customerNameSnapshot: '客户A', isExclusive: true, deletedAt: null,
+    }];
+    const prisma = makePrisma(store);
+
+    const result = await pullLinesFromOrder(prisma, 'SH1', 'tester');
+    expect(result.ok).toBe(true);
+    expect(store.lines).toHaveLength(1);
   });
 
   it('未关联订单 / 订单不存在分别报 VALIDATION_FAILED / ORDER_NOT_FOUND', async () => {

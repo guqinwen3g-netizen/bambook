@@ -582,9 +582,21 @@ export interface FabricCustomerCode {
   customerOrganizationId?: string | null;
   customerNameSnapshot?: string | null;
   clientCode: string;
+  /** P1-3：本行客户为该面料出资开发的独家属主（他人报价/订单/样品/出运引用 → fail-closed 阻断） */
+  isExclusive?: boolean;
   note?: string | null;
   updatedAt: number;
   deletedAt?: number | null;
+}
+
+/** P1-3 专属面料预检违规项（POST /v1/products/fabric-exclusivity/check 响应） */
+export interface FabricExclusivityViolation {
+  productAssetId: string;
+  sku: string | null;
+  productName: string | null;
+  ownerCustomerName: string | null;
+  ownerRelationId: string | null;
+  clientCode: string | null;
 }
 
 export interface FabricPriceHistory {

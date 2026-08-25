@@ -17,12 +17,14 @@
 
 import { PrismaClient, Prisma } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
+import { assertFabricAllowed } from '../products/fabricExclusivityService';
 
 export type PackingErrorCode =
   | 'NOT_FOUND'
   | 'INVALID_CURRENT_STATUS'
   | 'VALIDATION_FAILED'
   | 'ORDER_NOT_FOUND'
+  | 'EXCLUSIVE_FABRIC_BLOCKED'
   | 'SAVE_FAILED';
 
 export interface PackingResult<T = any> {
@@ -168,7 +170,7 @@ async function loadEditableShipment(t: any, shipmentId: string) {
 }
 
 function toPackingError(e: any): { code: PackingErrorCode; message: string } {
-  if (e?.code === 'NOT_FOUND' || e?.code === 'INVALID_CURRENT_STATUS' || e?.code === 'VALIDATION_FAILED' || e?.code === 'ORDER_NOT_FOUND') {
+  if (e?.code === 'NOT_FOUND' || e?.code === 'INVALID_CURRENT_STATUS' || e?.code === 'VALIDATION_FAILED' || e?.code === 'ORDER_NOT_FOUND' || e?.code === 'EXCLUSIVE_FABRIC_BLOCKED') {
     return { code: e.code, message: String(e.message ?? e) };
   }
   return { code: 'SAVE_FAILED', message: String(e?.message ?? e) };
@@ -199,6 +201,35 @@ export async function replaceShipmentLinesTx(
       throw Object.assign(new Error(`第 ${i + 1} 行箱数必须为非负整数`), { code: 'VALIDATION_FAILED' });
     }
   });
+
+  // P1-3 客户专属面料校验（fail-closed：行产品锚命中他人独占面料 → 409，违规尝试留痕）
+  // 锚解析：orderLineId → OrderLine（客供品号/品色号）；无 orderLineId 行按 productCode 兜底为客供品号。
+  const exclusiveLineIds = lines.map(l => l.orderLineId).filter((x): x is string => !!x);
+  const orderLinesById = new Map<string, any>(
+    exclusiveLineIds.length > 0
+      ? (await t.orderLine.findMany({ where: { id: { in: exclusiveLineIds } }, select: { id: true, materialCode: true, millQuality: true } })).map((ol: any) => [ol.id, ol])
+      : [],
+  );
+  const shipmentForExclusive = await t.shipment.findUnique({
+    where: { id: shipmentId },
+    select: { customerRelationId: true, customerName: true },
+  });
+  for (const l of lines) {
+    const ol = l.orderLineId ? orderLinesById.get(l.orderLineId) : null;
+    const clientCode = ol?.materialCode ?? l.productCode ?? null;
+    const millQuality = ol?.millQuality ?? null;
+    if (!clientCode && !millQuality) continue;
+    const exclusive = await assertFabricAllowed(t, {
+      customer: { customerRelationId: shipmentForExclusive?.customerRelationId ?? null, customerName: shipmentForExclusive?.customerName ?? null },
+      productKeys: { clientCode, millQuality, clientCodeCustomerHint: shipmentForExclusive?.customerRelationId ?? null },
+      context: 'shipment-lines:replace',
+      actorId,
+      documentRef: { shipmentId, orderLineId: l.orderLineId ?? null, productCode: l.productCode ?? null },
+    });
+    if (!exclusive.ok) {
+      throw Object.assign(new Error(exclusive.error.message), { code: exclusive.error.code, statusCode: exclusive.error.status });
+    }
+  }
 
   const ts = BigInt(Date.now());
   // 级联：被移除的行需清理箱内分配（snapshot FK 无数据库级联）
