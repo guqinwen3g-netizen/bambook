@@ -376,15 +376,23 @@ export function createCustomsService(prisma: PrismaClient) {
     validateCustomsType(input.type);
 
     // PRD 5.6：服务端自动生成报关单号（CD-YYYY-NNNN），传入时优先使用传入值并校验唯一性
-    const declarationNumber = input.declarationNumber || await nextBusinessNumber(prisma, 'CD');
-    const existing = await prisma.customsDeclaration.findFirst({
-      where: { declarationNumber, deletedAt: null },
-      select: { id: true },
-    });
-    if (existing) throw new Error(`报关单号 ${declarationNumber} 已存在`);
+    // QA-SEC-5：自动生成走序号占用原子追平（含软删行，防并发/历史冲突）；显式传入单号仍校验唯一
+    const duplicateCheck = input.declarationNumber
+      ? await prisma.customsDeclaration.findFirst({
+          where: { declarationNumber: input.declarationNumber, deletedAt: null },
+          select: { id: true },
+        })
+      : null;
+    if (duplicateCheck) throw new Error(`报关单号 ${input.declarationNumber} 已存在`);
 
     const ts = now();
     const declaration = await prisma.$transaction(async (tx) => {
+      const declarationNumber = input.declarationNumber || await nextBusinessNumber(tx, 'CD', undefined, {
+        occupied: async (num) => {
+          const dup = await tx.customsDeclaration.findFirst({ where: { declarationNumber: num, deletedAt: null }, select: { id: true } });
+          return dup != null;
+        },
+      });
       const decl = await tx.customsDeclaration.create({
         data: {
           id: generateId('CD'),
@@ -848,15 +856,24 @@ export function createCustomsService(prisma: PrismaClient) {
     validateLcType(input.type);
 
     // PRD 5.6：服务端自动生成信用证号（LC-YYYY-NNNN），传入时优先使用传入值并校验唯一性
-    const lcNumber = input.lcNumber || await nextBusinessNumber(prisma, 'LC');
-    const existing = await prisma.letterOfCredit.findFirst({
-      where: { lcNumber, deletedAt: null },
-      select: { id: true },
-    });
-    if (existing) throw new Error(`信用证号 ${lcNumber} 已存在`);
+    // QA-SEC-5：自动生成走序号占用原子追平（含软删行，防并发/历史冲突）；显式传入单号仍校验唯一
+    const duplicateCheck = input.lcNumber
+      ? await prisma.letterOfCredit.findFirst({
+          where: { lcNumber: input.lcNumber, deletedAt: null },
+          select: { id: true },
+        })
+      : null;
+    if (duplicateCheck) throw new Error(`信用证号 ${input.lcNumber} 已存在`);
 
+    let lcNumber = input.lcNumber ?? '';
     const ts = now();
     const lc = await prisma.$transaction(async (tx) => {
+      lcNumber = input.lcNumber || await nextBusinessNumber(tx, 'LC', undefined, {
+        occupied: async (num) => {
+          const dup = await tx.letterOfCredit.findFirst({ where: { lcNumber: num, deletedAt: null }, select: { id: true } });
+          return dup != null;
+        },
+      });
       const letterOfCredit = await tx.letterOfCredit.create({
         data: {
           id: generateId('LC'),
@@ -1152,12 +1169,14 @@ export function createCustomsService(prisma: PrismaClient) {
 
   async function createTaxRefund(input: TaxRefundInput, actorId: string) {
     // PRD 5.6：服务端自动生成退税编号（TR-YYYY-NNNN），传入时优先使用传入值并校验唯一性
-    const refundNumber = input.refundNumber || await nextBusinessNumber(prisma, 'TR');
-    const existing = await prisma.taxRefund.findFirst({
-      where: { refundNumber, deletedAt: null },
-      select: { id: true },
-    });
-    if (existing) throw new Error(`退税编号 ${refundNumber} 已存在`);
+    // QA-SEC-5：自动生成走序号占用原子追平（含软删行，防并发/历史冲突）；显式传入单号仍校验唯一
+    const duplicateCheck = input.refundNumber
+      ? await prisma.taxRefund.findFirst({
+          where: { refundNumber: input.refundNumber, deletedAt: null },
+          select: { id: true },
+        })
+      : null;
+    if (duplicateCheck) throw new Error(`退税编号 ${input.refundNumber} 已存在`);
 
     // 自动计算退税额：refundAmount = exportAmountCny × refundableRate
     let refundAmount = input.refundAmount;
@@ -1167,6 +1186,12 @@ export function createCustomsService(prisma: PrismaClient) {
 
     const ts = now();
     const refund = await prisma.$transaction(async (tx) => {
+      const refundNumber = input.refundNumber || await nextBusinessNumber(tx, 'TR', undefined, {
+        occupied: async (num) => {
+          const dup = await tx.taxRefund.findFirst({ where: { refundNumber: num, deletedAt: null }, select: { id: true } });
+          return dup != null;
+        },
+      });
       const tr = await tx.taxRefund.create({
         data: {
           id: generateId('TR'),

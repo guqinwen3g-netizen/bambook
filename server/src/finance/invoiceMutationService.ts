@@ -161,7 +161,13 @@ export async function createInvoice(params: { prisma: PrismaClient; input: Invoi
       const now = BigInt(Date.now());
       const id = generateId('INV');
       // PRD 5.6：服务端自动生成发票号（INV-YYYY-NNNN），传入时优先使用传入值
-      const invoiceNumber = input.invoiceNumber || await nextBusinessNumber(tx, 'INV');
+      // QA-SEC-5：必须以 occupied 占用校验追平（含软删行），避免与历史/种子发票号冲突（Unique 约束 500）
+      const invoiceNumber = input.invoiceNumber || await nextBusinessNumber(tx, 'INV', undefined, {
+        occupied: async (num) => {
+          const dup = await tx.invoice.findFirst({ where: { invoiceNumber: num }, select: { id: true } });
+          return dup != null;
+        },
+      });
       const data = { id, ...normalized.data, invoiceNumber, createdAt: now, updatedAt: now };
       const invoice = await tx.invoice.create({ data });
       await syncInvoiceReferences(prisma, invoice, { source: 'route:invoice:create' }, tx);

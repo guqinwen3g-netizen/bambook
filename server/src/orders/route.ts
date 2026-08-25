@@ -219,7 +219,13 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
       // if AuditLog write fails, the order create rolls back.
       const created = await opts.prisma.$transaction(async (tx) => {
         // PRD 5.6：服务端自动生成订单号（ORD-YYYY-NNNN），传入时优先使用传入值
-        const poNumber = (writableInput as any).poNumber || await nextBusinessNumber(tx, 'ORD');
+        // QA-SEC-5：occupied 占用校验追平（含软删行），避免与历史订单号冲突
+        const poNumber = (writableInput as any).poNumber || await nextBusinessNumber(tx, 'ORD', undefined, {
+          occupied: async (num) => {
+            const dup = await tx.order.findFirst({ where: { poNumber: num }, select: { id: true } });
+            return dup != null;
+          },
+        });
         const order = await tx.order.create({
           data: {
             ...(writableInput as any),
