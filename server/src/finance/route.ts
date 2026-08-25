@@ -29,6 +29,7 @@ import { createPaymentVoucher, updatePaymentVoucher } from './paymentVoucherMuta
 import { createInvoice, updateInvoice } from './invoiceMutationService';
 import { getAgingReport, getCustomerStatement, getSupplierStatement, getFxGainLoss, getConsolidatedProfitReport, getCashCalendar } from './reportService';
 import { createDunningService } from './dunningService';
+import { createDunningStageService } from './dunningStageService';
 import { createFxSettlement, deleteFxSettlement, getFxLedger, getVoucherSettlementSummary } from './fxSettlementService';
 import { createOutwardRemittance, deleteOutwardRemittance, getVoucherRemittanceSummary, listOutwardRemittances } from './outwardRemittanceService';
 import { createVatInvoice, updateVatInvoice, transitionVatInvoiceStatus, deleteVatInvoice, listVatInvoices, getVatInvoice } from './vatInvoiceService';
@@ -174,6 +175,8 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager', 'finance'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
   const dunningService = createDunningService(prisma);
+  // P0-2：催款分级状态机（提醒→催款→严催→法务准备；auto 定级 + manual 钉住合成）
+  const dunningStageService = createDunningStageService(prisma);
 
   // High-risk role guard: owner/admin/manager only
 
@@ -762,6 +765,49 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
       return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
     }
     return res.json({ ok: true, ...result.data });
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // P0-2 催款分级状态机 — /api/v1/finance/dunning/stages
+  // 字面路由须在参数路由 /:id 之前注册（同 /dunning 家族）。
+  // ────────────────────────────────────────────────────────────────
+
+  // GET /api/v1/finance/dunning/stages — 分级看板（账龄行×P0-1尾款喂入×生效分级，只读零副作用）
+  router.get('/dunning/stages', async (req: Request, res: Response) => {
+    try {
+      const result = await dunningStageService.listBoard({
+        asOf: req.query.asOf ? String(req.query.asOf) : undefined,
+      });
+      if (!result.ok) {
+        return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+      }
+      return res.json({ ok: true, ...result.data });
+    } catch (err: any) {
+      logger.error('[finance] GET /dunning/stages failed', { error: err?.message || String(err) });
+      return res.status(500).json({ ok: false, error: { code: 'BOARD_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /api/v1/finance/dunning/stages/manual — 人工升降级（留痕 routeAudit；stage=none 解除钉住）
+  router.post('/dunning/stages/manual', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    try {
+      const result = await dunningStageService.setStageManual({
+        customerRelationId: req.body?.customerRelationId ?? null,
+        customerName: req.body?.customerName,
+        currency: req.body?.currency,
+        stage: req.body?.stage,
+        reason: req.body?.reason,
+        ownerName: req.body?.ownerName ?? null,
+        actorId: actorIdFromRequest(req),
+      });
+      if (!result.ok) {
+        return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+      }
+      return res.json({ ok: true, profile: result.data.profile });
+    } catch (err: any) {
+      logger.error('[finance] POST /dunning/stages/manual failed', { error: err?.message || String(err) });
+      return res.status(500).json({ ok: false, error: { code: 'SET_STAGE_FAILED', message: err.message } });
+    }
   });
 
   // ────────────────────────────────────────────────────────────────

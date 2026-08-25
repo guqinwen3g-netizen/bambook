@@ -24,6 +24,7 @@ import { apiService } from '../../services/apiService';
 import { fxSettlementService } from '../../services/fxSettlementService';
 import { shipmentService } from '../../services/shipmentService';
 import DunningSheet from './DunningSheet';
+import DunningStageBoardPanel from './DunningStageBoardPanel';
 import MonthlyCloseSection from './MonthlyCloseSection';
 import {
   INTERNAL_TRANSFER_STATUSES,
@@ -39,7 +40,7 @@ import type {
 import { RdlMetricCard, RdlPill, RdlSurface, RdlToolbar } from '../ui/RDLPrimitives';
 import CapsuleDateInput from '../ui/CapsuleDateInput';
 import A4DocumentPreviewModal from '../ui/A4DocumentPreviewModal';
-import type { AgingBuckets, AgingReport, CustomerStatement, FxGainLossReport, FxLedger, Order, Relation, Shipment, StatementSection, SupplierStatement } from '../../types';
+import type { AgingBuckets, AgingReport, CustomerStatement, DunningStage, FxGainLossReport, FxLedger, Order, Relation, Shipment, StatementSection, SupplierStatement } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -114,8 +115,8 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
   // ── 账龄 ──
   const [agingType, setAgingType] = useState<'Receivable' | 'Payable'>('Receivable');
   const [aging, setAging] = useState<AgingReport | null>(null);
-  // ── 催款（REQ2-08，DR-050-③：一键发起挂账龄行，选中即上下文）──
-  const [dunningRow, setDunningRow] = useState<{ customerRelationId: string | null; customerName: string; currency: string } | null>(null);
+  // ── 催款（REQ2-08，DR-050-③：一键发起挂账龄行，选中即上下文；P0-2 带分级档位）──
+  const [dunningRow, setDunningRow] = useState<{ customerRelationId: string | null; customerName: string; currency: string; stage?: DunningStage } | null>(null);
 
   // ── 对账单 ──
   const [relations, setRelations] = useState<Relation[]>([]);
@@ -533,6 +534,15 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
             <div className={cx('col-span-full py-6 text-center text-xs font-light', textFaint)}>暂无未核销{agingType === 'Receivable' ? '应收' : '应付'}账款</div>
           )}
         </div>
+
+        {/* P0-2 催款分级看板（仅应收侧：账龄行×P0-1尾款喂入×生效分级四列；升降级留痕） */}
+        {agingType === 'Receivable' && (
+          <DunningStageBoardPanel
+            endpoint={endpoint}
+            refreshKey={0}
+            onDun={(row) => setDunningRow(row)}
+          />
+        )}
 
         {/* 明细表 */}
         <RdlSurface tone="panel" padding="compact" className="flex min-h-0 flex-1 flex-col">
@@ -1523,14 +1533,16 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
         </div>
       )}
 
-      {/* ── REQ2-08 催款函 BottomSheet（DR-050：中英函预览/打印/登记/历史）── */}
+      {/* ── REQ2-08 催款函 BottomSheet（DR-050：中英函预览/打印/登记/历史；P0-2 分级档位）── */}
       {dunningRow && (
         <DunningSheet
+          key={`${dunningRow.customerName}-${dunningRow.currency}-${dunningRow.stage ?? 'auto'}`}
           open={!!dunningRow}
           onClose={() => setDunningRow(null)}
           customerRelationId={dunningRow.customerRelationId}
           customerName={dunningRow.customerName}
           currency={dunningRow.currency}
+          stage={dunningRow.stage}
           asOf={aging?.asOf}
           endpoint={endpoint}
         />

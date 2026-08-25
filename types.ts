@@ -2476,7 +2476,46 @@ export interface DunningLetterSummary {
 export interface DunningLetter {
   zh: { subject: string; body: string };
   en: { subject: string; body: string };
+  stage?: DunningStage; // P0-2：函分级档位（缺省 = 生成时生效分级）
   summary: DunningLetterSummary;
+}
+
+// ── P0-2 催款分级状态机（提醒→催款→严催→法务准备；auto 定级 + manual 钉住合成）──
+export type DunningStage = 'none' | 'reminder' | 'firm' | 'urgent' | 'legal';
+export type DunningStageSource = 'auto' | 'manual';
+
+export const DUNNING_STAGE_LABELS: Record<DunningStage, string> = {
+  none: '未分级', reminder: '提醒', firm: '催款', urgent: '严催', legal: '法务准备',
+};
+export const DUNNING_STAGE_AGING_DESC: Record<DunningStage, string> = {
+  none: '—', reminder: '逾期 1-30 天', firm: '逾期 31-60 天', urgent: '逾期 61-90 天', legal: '逾期 90 天以上',
+};
+
+/** 分级看板行（客户×币种；GET /v1/finance/dunning/stages） */
+export interface DunningStageBoardRow {
+  scopeKey: string;
+  customerRelationId: string | null;
+  customerName: string;
+  currency: string;
+  invoiceCount: number;
+  buckets: { current: number; d1_30: number; d31_60: number; d61_90: number; d90plus: number; total: number };
+  totalOverdue: number;
+  finalPaymentOverdue: boolean;
+  finalPaymentOutstanding: number;
+  autoStage: DunningStage;
+  stage: DunningStage;
+  stageSource: DunningStageSource;
+  stageSince: string | number | null;
+  stageDays: number | null;
+  escalatedAt: string | number | null;
+  downgradedAt: string | number | null;
+  ownerName: string | null;
+}
+
+export interface DunningStageBoard {
+  asOf: string;
+  rows: DunningStageBoardRow[];
+  summary: Record<string, { count: number; amount: number }>;
 }
 
 export type DunningChannel = 'email' | 'phone' | 'visit' | 'other';
@@ -2492,6 +2531,7 @@ export interface DunningRecord {
   agingBuckets: Record<string, number>;
   channel: DunningChannel;
   result: DunningResultStatus;
+  stage?: DunningStage | null; // P0-2：记录发生时的分级快照（P0-2 前历史为 null）
   note: string | null;
   operator: string | null;
   createdAt: string;

@@ -193,11 +193,13 @@ import {
   SupplierStatement,
   FxGainLossReport,
   BusinessCockpit,
-  // 催款函套件（REQ2-08，DR-050）
+  // 催款函套件（REQ2-08，DR-050）+ P0-2 分级状态机
   DunningLetter,
   DunningChannel,
   DunningResultStatus,
   DunningRecord,
+  DunningStage,
+  DunningStageBoard,
   // 定价与利润（阶段 P1）
   TaxRefundRate,
   TaxRefundRateInput,
@@ -958,12 +960,13 @@ export const apiService = {
     return requestJson<FxGainLossReport>(`/v1/finance/reports/fx-gain-loss${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
   },
 
-  // ── REQ2-08 催款函套件（DR-050：中英函生成 / 登记留痕 / 历史）──
+  // ── REQ2-08 催款函套件（DR-050：中英函生成 / 登记留痕 / 历史）+ P0-2 分级状态机 ──
   async buildDunningLetter(params: {
     customerRelationId?: string;
     customerName?: string;
     currency: string;
     asOf?: string;
+    stage?: DunningStage; // P0-2：分级档位（缺省按「DunningProfile 钉住 × 账龄自动定级」合成）
   }, endpoint?: string): Promise<DunningLetter> {
     return requestJson<DunningLetter>('/v1/finance/dunning/letter', {
       endpoint,
@@ -982,6 +985,7 @@ export const apiService = {
     agingBuckets?: Record<string, number>;
     channel: DunningChannel;
     result: DunningResultStatus;
+    stage?: DunningStage; // P0-2：分级快照（记录发生时的档位）
     note?: string;
     operator?: string;
   }, endpoint?: string): Promise<DunningRecord> {
@@ -996,6 +1000,35 @@ export const apiService = {
     );
     if (!data.ok || !data.record) throw new Error(data.error?.message || '催款记录登记失败');
     return data.record;
+  },
+
+  /** P0-2 分级看板：账龄行 × P0-1 尾款喂入 × 生效分级（只读） */
+  async getDunningStageBoard(params?: { asOf?: string }, endpoint?: string): Promise<DunningStageBoard> {
+    const query = new URLSearchParams();
+    if (params?.asOf) query.set('asOf', params.asOf);
+    const qs = query.toString();
+    return requestJson<DunningStageBoard>(`/v1/finance/dunning/stages${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+  },
+
+  /** P0-2 人工升降级（留痕 routeAudit；stage='none' 解除钉住回退自动定级） */
+  async setDunningStageManual(params: {
+    customerRelationId?: string | null;
+    customerName: string;
+    currency: string;
+    stage: DunningStage;
+    reason?: string;
+    ownerName?: string | null;
+  }, endpoint?: string): Promise<void> {
+    const data = await requestJson<{ ok?: boolean; error?: { code?: string; message?: string } }>(
+      '/v1/finance/dunning/stages/manual',
+      {
+        endpoint,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+    );
+    if ((data as any).ok === false || data.error) throw new Error(data.error?.message || '催款分级调整失败');
   },
 
   async listDunningHistory(params: { customerRelationId?: string; customerName?: string; limit?: number } = {}, endpoint?: string): Promise<DunningRecord[]> {

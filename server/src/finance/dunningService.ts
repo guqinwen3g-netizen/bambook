@@ -2,6 +2,8 @@
  * dunningService.ts — REQ2-08 催款函套件（账龄明细注入的中英双语函 + 记录留痕）
  *
  * 设计真源：docs/design/04-模块设计/05-财务与结算/催款函套件.md
+ * P0-2 扩展：催款函分级（stage 参数四档语气模板：提醒/催款/严催/法务准备）+
+ *           催款记录登记 stage 快照（记录发生时的分级，历史不失真）。
  *
  * DR-050 三决策：
  *   ① 函生成即时组装（不落模板表）——账龄明细是逐发票动态行，模板变量表达不了表格；
@@ -14,6 +16,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { resolveEffectiveStage, scopeKeyOf, stageOfBuckets } from './dunningStageService';
 
 // ────────────────────────────────────────────────────────────────────
 // 常量
@@ -27,6 +30,39 @@ export const CHANNEL_LABELS: Record<string, string> = {
 };
 export const RESULT_LABELS: Record<string, string> = {
   sent: '已送达', promised: '承诺付款', paid: '已付款', disputed: '有争议', no_response: '未回应',
+};
+
+// ── P0-2 分级函语气模板（共享账龄明细注入，四档 subject/收尾差异）──
+const LETTER_STAGES = ['reminder', 'firm', 'urgent', 'legal'] as const;
+type LetterStage = (typeof LETTER_STAGES)[number];
+
+const STAGE_TONES: Record<LetterStage, {
+  zhSubject: string; zhClosing: string[]; enSubject: string; enClosing: string[];
+}> = {
+  reminder: {
+    zhSubject: '【付款提醒】',
+    zhClosing: ['烦请贵司核对以上明细并尽快安排付款。如已付款或对金额有疑问，请及时与我们联系核对。', '顺祝商祺！'],
+    enSubject: 'Payment Reminder',
+    enClosing: ['We would appreciate your prompt arrangement of the outstanding payment. If payment has already been made or you have any questions, please contact us for reconciliation.', 'Best regards,'],
+  },
+  firm: {
+    zhSubject: '【催款通知】',
+    zhClosing: ['请贵司于收到本函后 7 个工作日内安排付款；如已付款，烦请提供付款水单以便我司核销入账。', '顺祝商祺！'],
+    enSubject: 'Payment Demand Notice',
+    enClosing: ['Please arrange payment within 7 working days of receipt of this notice. If payment has already been made, kindly provide the remittance advice for our reconciliation.', 'Best regards,'],
+  },
+  urgent: {
+    zhSubject: '【严催函】',
+    zhClosing: ['该账款已严重逾期。请贵司于收到本函后 5 个工作日内付清全部欠款；逾期未付，我司将暂停新订单的生产与发运安排，并保留按合同约定主张逾期损失的权利。', '顺祝商祺！'],
+    enSubject: 'Urgent Payment Demand',
+    enClosing: ['The above balance is now seriously overdue. Please settle it in full within 5 working days of receipt of this letter. Otherwise, we will suspend production and shipment of new orders, and reserve the right to claim overdue losses as stipulated in the contract.', 'Best regards,'],
+  },
+  legal: {
+    zhSubject: '【最后通知 · 法务准备】',
+    zhClosing: ['该账款已逾期超过 90 天。请贵司于收到本函后 3 个工作日内付清全部欠款；否则我司将把本案移交外部律师采取法律行动（由此产生的诉讼费、律师费等费用将由贵司承担），并终止一切商业合作。', '顺祝商祺！'],
+    enSubject: 'Final Notice Before Legal Action',
+    enClosing: ['The above balance has been overdue for more than 90 days. Please settle it in full within 3 working days of receipt of this notice. Otherwise, we will refer this matter to external counsel for legal action (all litigation costs and attorney fees to be borne by your company) and terminate all business cooperation.', 'Best regards,'],
+  },
 };
 
 /** 账龄分段（与 reportService.bucketOf 同口径） */
@@ -96,7 +132,7 @@ export function createDunningService(prisma: PrismaClient) {
     }
     const invoices = await db.invoice.findMany({
       where,
-      select: { id: true, invoiceNumber: true, amount: true, currency: true, issueDate: true, dueDate: true, customerName: true },
+      select: { id: true, invoiceNumber: true, amount: true, currency: true, issueDate: true, dueDate: true, customerName: true, customerRelationId: true },
       orderBy: { dueDate: 'asc' },
     });
 
@@ -131,6 +167,8 @@ export function createDunningService(prisma: PrismaClient) {
       ?? (items.length > 0 ? String(invoices[0].customerName ?? params.customerName) : params.customerName);
     return {
       customerName: customerName ?? '',
+      customerRelationId: params.customerRelationId
+        ?? (items.length > 0 ? (invoices[0].customerRelationId ?? null) : null),
       currency: params.currency,
       asOf: params.asOf,
       items,
@@ -139,12 +177,14 @@ export function createDunningService(prisma: PrismaClient) {
     };
   }
 
-  // ── 中英双语催款函生成（DR-050-①：即时组装，账龄明细注入） ──
+  // ── 中英双语催款函生成（DR-050-①：即时组装，账龄明细注入；P0-2：stage 四档语气） ──
   async function buildLetter(input: {
     customerRelationId?: string;
     customerName?: string;
     currency: string;
     asOf?: string;
+    /** P0-2 分级档位：缺省按「DunningProfile 钉住 × 账龄自动定级」合成生效分级 */
+    stage?: string;
   }): Promise<DunningResult<any>> {
     try {
       const currency = String(input.currency ?? '').trim().toUpperCase();
@@ -157,6 +197,23 @@ export function createDunningService(prisma: PrismaClient) {
       if (ctx.items.length === 0) {
         return fail('NO_OVERDUE', `该客户 ${currency} 无逾期未结清发票（asOf=${asOf}）`, 409);
       }
+
+      // 分级合成：显式 stage（预览他档）> DunningProfile 钉住 × 账龄自动定级（与看板同口径）
+      let stage: LetterStage;
+      if (input.stage != null && String(input.stage).trim() !== '') {
+        const requested = String(input.stage).trim();
+        if (!(LETTER_STAGES as readonly string[]).includes(requested)) {
+          return fail('INVALID_STAGE', `stage 须为 ${LETTER_STAGES.join(' | ')}`);
+        }
+        stage = requested as LetterStage;
+      } else {
+        const profile = await db.dunningProfile.findUnique({
+          where: { scopeKey: scopeKeyOf(ctx.customerRelationId ?? input.customerRelationId ?? null, ctx.customerName || input.customerName || '', currency) },
+        });
+        const autoStage = stageOfBuckets(ctx.buckets);
+        stage = resolveEffectiveStage(profile, autoStage).stage as LetterStage;
+      }
+      const tone = STAGE_TONES[stage];
 
       const name = ctx.customerName || input.customerName || '客户';
       const detailZh = ctx.items.map((x: DunningLetterItem) =>
@@ -172,7 +229,7 @@ export function createDunningService(prisma: PrismaClient) {
         .map(([k, v]) => `${BUCKET_LABELS_EN[k]}: ${fmtMoney(v as number, currency)}`);
 
       const zh = {
-        subject: `【付款提醒】${name} 逾期账款 ${fmtMoney(ctx.totalOverdue, currency)}（截至 ${asOf}）`,
+        subject: `${tone.zhSubject}${name} 逾期账款 ${fmtMoney(ctx.totalOverdue, currency)}（截至 ${asOf}）`,
         body: [
           `${name}：`,
           '',
@@ -184,13 +241,11 @@ export function createDunningService(prisma: PrismaClient) {
           '账龄汇总：',
           ...summaryZh,
           '',
-          '烦请贵司核对以上明细并尽快安排付款。如已付款或对金额有疑问，请及时与我们联系核对。',
-          '',
-          '顺祝商祺！',
+          ...tone.zhClosing,
         ].join('\n'),
       };
       const en = {
-        subject: `Payment Reminder — Overdue Balance ${fmtMoney(ctx.totalOverdue, currency)} (as of ${asOf})`,
+        subject: `${tone.enSubject} — Overdue Balance ${fmtMoney(ctx.totalOverdue, currency)} (as of ${asOf})`,
         body: [
           `Dear ${name},`,
           '',
@@ -202,17 +257,15 @@ export function createDunningService(prisma: PrismaClient) {
           'Aging Summary:',
           ...summaryEn,
           '',
-          'We would appreciate your prompt arrangement of the outstanding payment. If payment has already been made or you have any questions, please contact us for reconciliation.',
-          '',
-          'Best regards,',
+          ...tone.enClosing,
         ].join('\n'),
       };
 
-      logger.info('[Dunning] letter built', { customer: name, currency, invoices: ctx.items.length, total: ctx.totalOverdue });
+      logger.info('[Dunning] letter built', { customer: name, currency, stage, invoices: ctx.items.length, total: ctx.totalOverdue });
       return {
         ok: true,
         data: {
-          zh, en,
+          zh, en, stage,
           summary: {
             customerName: name,
             currency,
@@ -245,6 +298,11 @@ export function createDunningService(prisma: PrismaClient) {
       if (!(DUNNING_RESULTS as readonly string[]).includes(result)) {
         return fail('INVALID_RESULT', `result 须为 ${DUNNING_RESULTS.join(' | ')}`);
       }
+      // P0-2：分级快照（记录发生时的档位；缺省 null = 未分级）
+      const stage = input.stage != null && String(input.stage).trim() !== '' ? String(input.stage).trim() : null;
+      if (stage != null && !(LETTER_STAGES as readonly string[]).includes(stage)) {
+        return fail('INVALID_STAGE', `stage 须为 ${LETTER_STAGES.join(' | ')}`);
+      }
       const totalOverdue = Number(input.totalOverdue);
       if (!Number.isFinite(totalOverdue) || totalOverdue < 0) return fail('INVALID_AMOUNT', 'totalOverdue 须为非负数');
 
@@ -261,6 +319,7 @@ export function createDunningService(prisma: PrismaClient) {
           agingBuckets: (input.agingBuckets ?? {}) as any,
           channel,
           result,
+          stage,
           note: input.note != null ? String(input.note).trim() || null : null,
           operator: input.operator != null ? String(input.operator).trim() || null : null,
           createdAt: BigInt(ts),

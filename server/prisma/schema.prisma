@@ -2193,12 +2193,63 @@ model DunningRecord {
   agingBuckets       Json // 五桶快照 {current,d1_30,d31_60,d61_90,d90plus}
   channel            String // email | phone | visit | other
   result             String // sent | promised | paid | disputed | no_response
+  stage              String? // 记录发生时的催款分级快照（reminder|firm|urgent|legal；P0-2 前历史为 null）
   note               String?
   operator           String? // 跟进人
   createdAt          BigInt
 
   @@index([customerRelationId])
   @@index([createdAt])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// P0-2 催款分级状态机（缺口 15 · 中度缺失）
+// ════════════════════════════════════════════════════════════════════
+// 业务语义：逾期账款按账龄分级推进——提醒（d1-30）→ 催款（d31-60）→
+//           严催（d61-90）→ 法务准备（d90+），每级对应不同催款函模板、
+//           升级动作与责任人（watchdog 自动升级 + 人工升降级留痕）。
+// 设计决策：
+//   ① 粒度 = 账龄行（客户×币种），scopeKey 锚点与 getAgingReport row key
+//     同构（rel:{relationId} 或 name:{customerName} + 币种），升降级/看板
+//     均以账龄行为上下文（DR-050-③ 同范式）。
+//   ② 双来源合成：stage 为当前生效分级，stageSource 标记来源——
+//     auto = watchdog 按账龄五桶自动定级（可升可降，还款后自动回落 none）；
+//     manual = 人工钉住（升级=提前严催，降级=客户已承诺还款）。
+//     合成规则：manual 钉住期间，账龄自动定级只能向上穿透（aging 证据
+//     压过人工降级），避免「账已烂到 90+ 但仍停在提醒档」的失真。
+//   ③ DunningRecord.stage 记录动作发生时的分级快照（历史不失真），
+//     本表只承载当前态 + 升降级时间戳（留痕走 routeAudit）。
+//   ④ P0-1 尾款喂入：末批 finalPaymentDueDate 逾期未结清 → 自动保底
+//     reminder 档（watchdog 扫描 OrderShipmentBatch，同一状态机收口）。
+// snapshot FK 风格（与全库一致，不加 @relation）。
+// 设计真源：docs/design/10-评审与决策/2026-08-25-中度与严重缺失功能开发优先级规划.md P0-2
+model DunningProfile {
+  id                 String  @id // 格式：DNP__${shortId}
+  scopeKey           String // 账龄行锚点：rel:{relationId}:{currency} | name:{customerName}:{currency}
+  customerRelationId String? // 客户关联（快照 FK；无 relation 客户为 null）
+  customerName       String // 冗余快照
+  currency           String // 币种（账龄行粒度）
+
+  // ─── 分级状态机（当前生效态） ───
+  stage       String @default("none") // none | reminder(提醒) | firm(催款) | urgent(严催) | legal(法务准备)
+  stageSource String @default("auto") // auto（账龄自动定级） | manual（人工钉住）
+  stageSince  BigInt // 当前分级生效时间（分级停留时长计时锚点）
+  autoStage   String @default("none") // 账龄自动定级快照（watchdog/看板刷新；与 stage 分离避免覆盖人工态）
+
+  // ─── 升降级留痕时间戳（审计明细走 routeAudit） ───
+  escalatedAt  BigInt? // 最近一次升级时间
+  downgradedAt BigInt? // 最近一次降级时间
+  lastScanAt   BigInt? // watchdog 最近扫描时间（扫描轨迹）
+
+  // ─── 责任人（快照；升级通知对象） ───
+  ownerName String? // 跟进责任人（人工维护；watchdog 升级通知收件人）
+
+  createdAt BigInt
+  updatedAt BigInt
+
+  @@unique([scopeKey]) // 一客户×币种一条主档
+  @@index([customerRelationId])
+  @@index([stage]) // 分级看板按档归列
 }
 
 // ════════════════════════════════════════════════════════════════════

@@ -3,11 +3,12 @@
  *
  * 四区（设计真源：docs/design/04-模块设计/05-财务与结算/催款函套件.md §6）：
  *   1. 函预览 — 中/英双 tab（账龄明细注入：发票号/金额/到期日/逾期天数/分段 + 五桶汇总）
+ *      P0-2 分级：四档语气（提醒/催款/严催/法务准备）chips 切换预览，缺省 = 生效分级
  *   2. 打印 — printHtmlDocument 中英合版（新窗口 → 打印/另存 PDF）
- *   3. 登记 — 渠道 chips + 结果 chips + 备注 + 跟进人 → POST /dunning（快照留痕）
- *   4. 历史 — 该客户催款记录时间线（渠道/结果/金额/日期）
+ *   3. 登记 — 渠道 chips + 结果 chips + 备注 + 跟进人 → POST /dunning（快照留痕 + P0-2 stage 分级快照）
+ *   4. 历史 — 该客户催款记录时间线（渠道/结果/金额/日期/分级）
  *
- * 全链 ≤5min 锚点：账龄行点「催款」（1 击）→ 函即时生成 → 登记（1 击）。
+ * 全链 ≤5min 锚点：账龄行/分级看板点「催款」（1 击）→ 函即时生成 → 登记（1 击）。
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -16,11 +17,13 @@ import { apiService } from '../../services/apiService';
 import { bdsToast } from '../ui/bdsToast';
 import { printHtmlDocument, escapeHtml } from '../tools/printDocument';
 import { RdlPill, RdlSurface } from '../ui/RDLPrimitives';
-import type {
-  DunningLetter,
-  DunningChannel,
-  DunningResultStatus,
-  DunningRecord,
+import {
+  DUNNING_STAGE_LABELS,
+  type DunningLetter,
+  type DunningChannel,
+  type DunningResultStatus,
+  type DunningRecord,
+  type DunningStage,
 } from '../../types';
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
@@ -39,6 +42,9 @@ const RESULT_OPTIONS: Array<{ value: DunningResultStatus; label: string }> = [
   { value: 'disputed', label: '有争议' },
   { value: 'no_response', label: '未回应' },
 ];
+
+/** P0-2 分级函预览档位（四档语气；缺省 = 上下文生效分级） */
+const LETTER_STAGE_OPTIONS: Array<DunningStage> = ['reminder', 'firm', 'urgent', 'legal'];
 
 const CHANNEL_LABELS: Record<string, string> = Object.fromEntries(CHANNEL_OPTIONS.map(c => [c.value, c.label]));
 const RESULT_LABELS: Record<string, string> = Object.fromEntries(RESULT_OPTIONS.map(r => [r.value, r.label]));
@@ -67,6 +73,8 @@ export interface DunningSheetProps {
   customerRelationId: string | null;
   customerName: string;
   currency: string;
+  /** P0-2 分级档位上下文（分级看板行打开时传入；缺省 = 后端合成生效分级） */
+  stage?: DunningStage;
   asOf?: string;
   endpoint?: string;
 }
@@ -77,6 +85,7 @@ export default function DunningSheet({
   customerRelationId,
   customerName,
   currency,
+  stage,
   asOf,
   endpoint,
 }: DunningSheetProps) {
@@ -84,6 +93,8 @@ export default function DunningSheet({
   const [loading, setLoading] = useState(false);
   const [letterError, setLetterError] = useState<string | null>(null);
   const [langTab, setLangTab] = useState<'zh' | 'en'>('zh');
+  /** P0-2：当前预览/登记的分级档位（chips 切换重取函；登记随 stage 快照） */
+  const [letterStage, setLetterStage] = useState<DunningStage | null>(stage ?? null);
 
   const [history, setHistory] = useState<DunningRecord[] | null>(null);
 
@@ -98,6 +109,7 @@ export default function DunningSheet({
     setLetterError(null);
     setLetter(null);
     setHistory(null);
+    setLetterStage(stage ?? null);
     try {
       const [letterData, historyData] = await Promise.all([
         apiService.buildDunningLetter({
@@ -105,6 +117,7 @@ export default function DunningSheet({
           customerName,
           currency,
           asOf,
+          ...(stage ? { stage } : {}),
         }, endpoint),
         apiService.listDunningHistory({
           customerRelationId: customerRelationId ?? undefined,
@@ -113,17 +126,40 @@ export default function DunningSheet({
         }, endpoint).catch(() => [] as DunningRecord[]),
       ]);
       setLetter(letterData);
+      setLetterStage(letterData.stage ?? stage ?? null);
       setHistory(historyData);
     } catch (e: any) {
       setLetterError(String(e?.message || e));
     } finally {
       setLoading(false);
     }
-  }, [customerRelationId, customerName, currency, asOf, endpoint]);
+  }, [customerRelationId, customerName, currency, stage, asOf, endpoint]);
 
   useEffect(() => {
     if (open) loadAll();
   }, [open, loadAll]);
+
+  /** P0-2：切档预览（重取该档语气函；登记将随当前档位快照） */
+  const switchStage = useCallback(async (next: DunningStage) => {
+    if (loading || next === letterStage) return;
+    setLoading(true);
+    setLetterError(null);
+    try {
+      const letterData = await apiService.buildDunningLetter({
+        customerRelationId: customerRelationId ?? undefined,
+        customerName,
+        currency,
+        asOf,
+        stage: next,
+      }, endpoint);
+      setLetter(letterData);
+      setLetterStage(next);
+    } catch (e: any) {
+      setLetterError(String(e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, letterStage, customerRelationId, customerName, currency, asOf, endpoint]);
 
   const handlePrint = () => {
     if (!letter) return;
@@ -167,6 +203,7 @@ export default function DunningSheet({
         agingBuckets: s.buckets,
         channel,
         result,
+        ...(letterStage ? { stage: letterStage } : {}), // P0-2：分级快照
         note: note.trim() || undefined,
         operator: operator.trim() || undefined,
       }, endpoint);
@@ -248,7 +285,7 @@ export default function DunningSheet({
 
           {!loading && !letterError && letter && (
             <>
-              {/* ① 函预览 + 打印 */}
+              {/* ① 函预览 + 打印（P0-2 分级档位 chips 切档预览） */}
               <RdlSurface tone="panel" padding="compact" className="flex flex-col">
                 <div className="flex items-center justify-between border-b px-3 pb-2 pt-1">
                   <div className="flex items-center gap-1.5">
@@ -261,6 +298,25 @@ export default function DunningSheet({
                   >
                     <Printer size={14} /> 打印 / PDF（中英合版）
                   </button>
+                </div>
+                {/* P0-2 分级档位：四档语气切换（登记随当前档位快照） */}
+                <div className={cx('flex flex-wrap items-center gap-1.5 border-b px-3 pb-2 pt-2', divider)}>
+                  <span className={cx('text-[10px] font-light tracking-[0.14em]', textSecondary)}>催款分级</span>
+                  {LETTER_STAGE_OPTIONS.map(s => (
+                    <RdlPill
+                      key={s}
+                      type="button"
+                      active={letterStage === s}
+                      onClick={() => switchStage(s)}
+                      disabled={loading}
+                      className="min-h-7 px-2.5 text-[11px]"
+                    >
+                      {DUNNING_STAGE_LABELS[s]}
+                    </RdlPill>
+                  ))}
+                  <span className={cx('ml-auto text-[10px] font-light', textFaint)}>
+                    {letterStage ? `当前按「${DUNNING_STAGE_LABELS[letterStage]}」档生成` : '按生效分级生成'}
+                  </span>
                 </div>
                 <div className="px-3 pb-2 pt-2">
                   <div className={cx('text-[11px] font-light', textSecondary)}>主题 Subject</div>
@@ -338,9 +394,10 @@ export default function DunningSheet({
                   {history != null && history.map(rec => (
                     <div key={rec.id} className={cx('flex items-center justify-between rounded-control px-2.5 py-2', 'bg-[var(--recessed-bg-strong)]')}>
                       <div className="min-w-0">
-                        <div className={cx('text-xs font-light', textPrimary)}>
-                          {CHANNEL_LABELS[rec.channel] ?? rec.channel} · {RESULT_LABELS[rec.result] ?? rec.result}
-                          <span className={cx('ml-2 tabular-nums', textSecondary)}>{formatMoney(Number(rec.totalOverdue), rec.currency)}</span>
+                        <div className={cx('flex flex-wrap items-center gap-1.5 text-xs font-light', textPrimary)}>
+                          <span>{CHANNEL_LABELS[rec.channel] ?? rec.channel} · {RESULT_LABELS[rec.result] ?? rec.result}</span>
+                          {rec.stage && <span className="bds-badge sm neutral">{DUNNING_STAGE_LABELS[rec.stage] ?? rec.stage}</span>}
+                          <span className={cx('tabular-nums', textSecondary)}>{formatMoney(Number(rec.totalOverdue), rec.currency)}</span>
                         </div>
                         <div className={cx('mt-0.5 truncate text-[10px] font-light', textFaint)}>
                           {formatTs(rec.createdAt)} · {rec.invoiceCount} 张{rec.operator ? ` · ${rec.operator}` : ''}{rec.note ? ` · ${rec.note}` : ''}
