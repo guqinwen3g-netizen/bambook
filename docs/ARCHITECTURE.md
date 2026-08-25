@@ -1,6 +1,8 @@
-# Bambook (竹衍) v3.0 System Architecture
+# Bambook (竹衍) v0.8 System Architecture
 
 > "竹衍风吟，智慧蔓延。"
+
+> **版本口径更正**：标题原标注 "v3.0" 系早期过度自信标注，已更正。当前推进版本为 **v0.8**（2026-08-21 当周交付目标，验收范围权威源见 [MILESTONE_v0.8.md](./MILESTONE_v0.8.md)）。
 
 > **注意**: 本文档部分内容已过时。当前单一事实源为 [BUSINESS_CAPABILITY_MATRIX.md](./BUSINESS_CAPABILITY_MATRIX.md)。
 
@@ -20,7 +22,7 @@
 
 ## 1. 系统概览
 
-Bambook v3.0 是为 Panda Clothing 打造的「**桌面客户端 + Mac Mini 数据中心**」两端分离架构 —— 业务真源全部在公司数据中心，客户端只负责展示、交互与本地语音输入：
+Bambook v0.8 是为 Panda Clothing 打造的「**桌面客户端 + Mac Mini 数据中心**」两端分离架构 —— 业务真源全部在公司数据中心，客户端只负责展示、交互与本地语音输入：
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐

@@ -12,10 +12,10 @@
 - Build: `npx electron-vite build`
 - Design token 防回退: `npm run check:tokens`
 
-## 渲染路径铁律
-- Relations/Products/Settings 有 compiled 双路径: 改 UI 只改 compiled 版本
-- 其他页面 Manager 文件即实际渲染源
-- `CompiledMainModuleSlot` className="contents" 是透明包裹器
+## 渲染路径铁律（2026-08-25 更新：compiled 双路径已删除）
+- **compiled 双路径已于 2026-08-18 UI 纪律重建中删除**：`App.tsx` 已无 `CompiledMainModuleSlot` / `Compiled*Page` 渲染分支（`App.test.ts` 断言废弃透明包裹器）
+- **所有业务页面渲染源统一为各 Manager 文件本身**（RelationsManager.tsx / ProductsManager.tsx / Settings.tsx 即实际渲染源）
+- `moduleRegistry.ts` 中残留的 `compiler` 字段仅作元数据记录，不参与渲染选择
 
 ## 设计系统
 - **权威 token 源**：`styles/os-vnext.css`（320 个 CSS 变量）

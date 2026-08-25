@@ -750,7 +750,7 @@ const Settings: React.FC<SettingsProps> = ({ mode = 'system', config, onUpdateCo
               );
             })}
             <div className="mt-auto pt-3 px-2 pb-1 text-[10px] text-[var(--text-tertiary)]">
-              <div>Bambook Hub v3.0</div>
+              <div>Bambook Hub v0.8</div>
               <button
                 type="button"
                 onClick={() => setDevOption('developerMode', !devOptions.developerMode)}

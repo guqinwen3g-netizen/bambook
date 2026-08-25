@@ -2,7 +2,7 @@
 
 > **注意**: 本文档部分内容已过时。当前单一事实源为 [BUSINESS_CAPABILITY_MATRIX.md](./BUSINESS_CAPABILITY_MATRIX.md)。
 
-> **版本**: V3.0 (2026-06-15 版)  
+> **版本**: v0.8（2026-08 当前交付口径；原标注 "V3.0" 系早期过度自信标注，已更正。npm 工程版本号 `0.8.0` 与产品版本 v0.8 对齐）  
 > **定位**: 本文档为 Bambook 全栈架构设计、视觉标准、业务规范和开发流程的**终极权威单一源 (Single Source of Truth)**。
 
 > ⚠️ **2026-06-15 架构事实修订（§1.1 已重写）**
@@ -67,13 +67,13 @@ Bambook 是一个面向 AI Agent 时代设计的「**桌面客户端 + Mac Mini 
 │  Mac Mini 数据中心 (公司机房, jiangsupanda.com)                            │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  Bambook Agent OS (manifest / defaults / toolRuntime / planner)          │
-│  - MCP 2.0 工具集 (44 seeds: orders / development / finance /            │
+│  - MCP 2.0 工具集 (manifest 111+ seeds: orders / development / finance / │
 │                    shipping / email / relations / products / …)          │
 │  - Sandbox Approval / RBAC                                               │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  主数据 API (Express + Prisma) ─ launchctl com.bambook.main-data-api     │
 │  PostgreSQL (panda_hub_local) ─ 业务真源；ops-backup-postgres.sh 备份    │
-│  Ops Panel (ops.jiangsupanda.com, 独立 launchctl) ─ 21 个白名单脚本      │
+│  Ops Panel (ops.jiangsupanda.com, 独立 launchctl) ─ 20 白名单动作+DevJob │
 │  TTS Engine: melo-tts / Edge-TTS                                         │
 └──────────────────────────────────────────┬───────────────────────────────┘
                                            │ HTTPS
@@ -98,7 +98,7 @@ Bambook 内置了完整的 Agent 运行时，基于 **MCP 2.0 (Model Context Pro
 ```
 
 1. **LLM Planner (智能路由规划)**:
-   在 [llmPlanner.ts](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/src/agent/llmPlanner.ts) 和 [planner.ts](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/src/agent/mcp/planner.ts) 中实现，利用正则和强逻辑将用户的意图分类映射 to 具体的 domain 域，输出工具序列；
+   在 [llmPlanner.ts](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/src/agent/llmPlanner.ts) 中实现，利用提示词与迭代循环将用户的意图分类映射 to 具体的 domain 域，输出工具序列（多步 ReAct 主循环见 [agentLoop.ts](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/src/agent/agentLoop.ts)）；
 2. **MCP Manifest (单一能力源)**:
    在 [manifest.ts](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/src/agent/mcp/manifest.ts) 中声明全部工具（ID/描述/入参规范/安全性）。
 3. **ToolRuntime (能力 dispatch 与执行)**:
@@ -223,7 +223,7 @@ Bambook 采用了前沿的 **磨砂玻璃态 (Glassmorphism)** 视觉语言，�
   * 开发轮次从 `S1` 自动迭代升级，目标寄样日期受目标日（`targetDate`）倒计时报警约束；
   * **一键大货联动**: 当开发样被客户确认后，可以在面板上一键点击“转为大货订单”，后端会自动派生 `Order` 和 `OrderLine` 实例，并将阶段（`stage`）同步更新为 `approved`。
 
-## 3.5 财务管理 (Finance) [计划实施 - 后端及MCP工具已实装，前端页面待开发]
+## 3.5 财务管理 (Finance) [已实装 - 后端/MCP 工具/前端页面均已交付]
 
 * **概念**: 财务应收（`Receivable`）与应付（`Payable`）发票与实际收付款动作的核销。
 * **业务规则**:
