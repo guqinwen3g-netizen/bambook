@@ -2029,6 +2029,40 @@ export interface MaterialReceipt {
   createdAt: string;
 }
 
+// ── P1-4 物料退换货（退货/换货/索赔）──
+export type MaterialReturnType = 'return' | 'exchange' | 'claim';
+export type MaterialReturnStatus = 'pending' | 'shipped' | 'confirmed' | 'settled' | 'cancelled';
+
+export const MATERIAL_RETURN_TYPE_LABELS: Record<MaterialReturnType, string> = {
+  return: '退货', exchange: '换货', claim: '索赔',
+};
+export const MATERIAL_RETURN_STATUS_LABELS: Record<MaterialReturnStatus, string> = {
+  pending: '待退回', shipped: '已退回', confirmed: '供应商已确认', settled: '结算完成', cancelled: '已取消',
+};
+
+export interface MaterialReturn {
+  id: string;
+  returnNumber: string;
+  receiptId: string;
+  purchaseOrderId: string;
+  supplierRelationId?: string | null;
+  supplierName?: string | null;
+  type: MaterialReturnType;
+  materialCode?: string | null;
+  materialName?: string | null;
+  quantity: number;
+  unit?: string | null;
+  amount?: number | null;
+  currency: string;
+  status: MaterialReturnStatus;
+  stockItemId?: string | null;
+  claimInvoiceId?: string | null;
+  reason?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PurchaseOrder {
   id: string;
   poNumber: string;

@@ -31,6 +31,7 @@ import {
   FileDown,
   Eye,
   X,
+  Undo2,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import {
@@ -40,6 +41,10 @@ import {
   PurchaseOrderInput,
   MaterialReceipt,
   MaterialReceiptInput,
+  MaterialReturn,
+  MaterialReturnType,
+  MATERIAL_RETURN_TYPE_LABELS,
+  MATERIAL_RETURN_STATUS_LABELS,
   Relation,
   View,
 } from '../types';
@@ -51,6 +56,8 @@ import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
+import { bdsConfirm } from './ui/BdsDialog';
+import { bdsToast } from './ui/bdsToast';
 
 // ==================== 常量 ====================
 
@@ -150,6 +157,20 @@ const RECEIPT_STATUS_BADGE_VARIANT: Record<MaterialReceipt['status'], 'neutral' 
   PartiallyAccepted: 'warning',
 };
 
+// ── P1-4 物料退换货：类型/状态徽章变体 ──
+const RETURN_TYPE_BADGE_VARIANT: Record<MaterialReturnType, 'neutral' | 'info' | 'warning' | 'danger'> = {
+  return: 'warning',
+  exchange: 'info',
+  claim: 'danger',
+};
+const RETURN_STATUS_BADGE_VARIANT: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = {
+  pending: 'warning',
+  shipped: 'info',
+  confirmed: 'success',
+  settled: 'success',
+  cancelled: 'neutral',
+};
+
 interface ProcurementManagerProps {
   isDarkMode: boolean;
   /** 跨模块跳转（如「生成应付发票」→ 财务发票模块） */
@@ -195,6 +216,20 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   const [relations, setRelations] = useState<Relation[]>([]);
   const [receiptsByPo, setReceiptsByPo] = useState<Record<string, MaterialReceipt[]>>({});
   const [showReceiptForm, setShowReceiptForm] = useState<string | null>(null);
+  // ── P1-4 物料退换货（退货/换货/索赔）──
+  const [returnsByPo, setReturnsByPo] = useState<Record<string, MaterialReturn[]>>({});
+  const [showReturnForm, setShowReturnForm] = useState<{ receipt: MaterialReceipt; po: PurchaseOrder } | null>(null);
+  const [returnForm, setReturnForm] = useState({
+    type: 'return' as MaterialReturnType,
+    materialCode: '',
+    quantity: '',
+    unit: '',
+    amount: '',
+    reason: '',
+    notes: '',
+  });
+  const [returnError, setReturnError] = useState<string | null>(null);
+  const [returnActing, setReturnActing] = useState<string | null>(null);
 
   // ── B2 运营域单据：PO 文档预览/生成（服务端模板真源，与单据中心归档同源） ──
   const [previewPo, setPreviewPo] = useState<PurchaseOrder | null>(null);
@@ -395,14 +430,25 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
     }
   }, []);
 
+  // ── P1-4：拉取退换货记录（展开采购单时随来料记录一并加载）──
+  const fetchMaterialReturns = useCallback(async (poId: string) => {
+    try {
+      const items = await apiService.listMaterialReturns({ purchaseOrderId: poId });
+      setReturnsByPo(prev => ({ ...prev, [poId]: items }));
+    } catch {
+      // 静默失败，不影响主列表
+    }
+  }, []);
+
   const handleExpand = useCallback((poId: string) => {
     if (expandedId === poId) {
       setExpandedId(null);
     } else {
       setExpandedId(poId);
       fetchReceipts(poId);
+      fetchMaterialReturns(poId);
     }
-  }, [expandedId, fetchReceipts]);
+  }, [expandedId, fetchReceipts, fetchMaterialReturns]);
 
   // ── 创建采购单 ──
   const handleCreate = useCallback(async () => {
@@ -495,6 +541,77 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
       setActionLoading(null);
     }
   }, [receiptForm, fetchReceipts, fetchPurchaseOrders]);
+
+  // ── P1-4：登记退换货/索赔 ──
+  const handleCreateReturn = useCallback(async () => {
+    if (!showReturnForm) return;
+    setReturnError(null);
+    const type = returnForm.type;
+    const quantity = returnForm.quantity === '' ? 0 : Number(returnForm.quantity);
+    if (type !== 'claim' && !(quantity > 0)) { setReturnError('退货/换货数量必须大于 0'); return; }
+    if (type !== 'claim' && !returnForm.materialCode.trim()) { setReturnError('请填写退货物料编码（库存联动锚点）'); return; }
+    if (type === 'claim' && (returnForm.amount === '' || !(Number(returnForm.amount) > 0))) {
+      setReturnError('索赔必须填写索赔金额（正数）'); return;
+    }
+    setReturnActing('create');
+    try {
+      await apiService.createMaterialReturn({
+        receiptId: showReturnForm.receipt.id,
+        type,
+        materialCode: returnForm.materialCode.trim() || undefined,
+        quantity,
+        unit: returnForm.unit.trim() || undefined,
+        amount: returnForm.amount === '' ? undefined : Number(returnForm.amount),
+        reason: returnForm.reason.trim() || undefined,
+        notes: returnForm.notes.trim() || undefined,
+      });
+      bdsToast.success('退换货已登记（待退回）。');
+      setShowReturnForm(null);
+      await fetchMaterialReturns(showReturnForm.po.id);
+    } catch (e: any) {
+      setReturnError(`登记失败：${e?.message ?? e}`);
+    } finally {
+      setReturnActing(null);
+    }
+  }, [showReturnForm, returnForm, fetchMaterialReturns]);
+
+  // ── P1-4：退换货状态推进（发运确认 / 供应商确认 / 结算 / 取消）──
+  const handleReturnAction = useCallback(async (poId: string, ret: MaterialReturn, action: 'mark-shipped' | 'confirm' | 'settle' | 'cancel') => {
+    if (returnActing) return;
+    if (action === 'cancel') {
+      const ok = await bdsConfirm({
+        title: `取消退换单 ${ret.returnNumber}`,
+        body: '仅待退回状态可取消；确认取消该退换货登记？',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setReturnActing(`${ret.id}_${action}`);
+    try {
+      if (action === 'mark-shipped') {
+        const r = await apiService.markMaterialReturnShipped(ret.id);
+        bdsToast.success(r.skipStockReason
+          ? `已发运确认（注：${r.skipStockReason}）。`
+          : `退换单 ${ret.returnNumber} 已发运确认${ret.type === 'exchange' ? '（库存已冲减，供应商确认后回冲）' : '（库存已冲减）'}。`);
+      } else if (action === 'confirm') {
+        const r = await apiService.confirmMaterialReturn(ret.id);
+        bdsToast.success(r.claimInvoiceId
+          ? '供应商已确认；索赔贷项发票已生成（冲减应付余额，可在供应商对账单查看）。'
+          : `供应商已确认 ${ret.returnNumber}。`);
+      } else if (action === 'settle') {
+        await apiService.settleMaterialReturn(ret.id);
+        bdsToast.success(`退换单 ${ret.returnNumber} 结算完成。`);
+      } else {
+        await apiService.cancelMaterialReturn(ret.id);
+        bdsToast.success(`退换单 ${ret.returnNumber} 已取消。`);
+      }
+      await fetchMaterialReturns(poId);
+    } catch (e: any) {
+      bdsToast.danger(`操作失败：${e?.message ?? e}`);
+    } finally {
+      setReturnActing(null);
+    }
+  }, [returnActing, fetchMaterialReturns]);
 
   const updateFormLine = (key: string, field: keyof DraftLine, value: string) => {
     setFormLines(prev => prev.map(l => (l.key === key ? { ...l, [field]: value } : l)));
@@ -852,17 +969,95 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                               {RECEIPT_STATUS_LABELS[rc.status] || rc.status}
                                             </span>
                                             <span style={{ color: 'var(--text-tertiary)' }}>{formatDate(rc.receivedDate)}</span>
-                                            <span className="ml-auto bds-tnum" style={{ color: 'var(--text-primary)' }}>
+                                            <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>
                                               合格 {Number(rc.totalAccepted).toLocaleString('en-US')} / 不合格 {Number(rc.totalRejected).toLocaleString('en-US')}
                                             </span>
                                             {rc.warehouseName && (
                                               <span style={{ color: 'var(--text-quaternary)' }}>· {rc.warehouseName}</span>
+                                            )}
+                                            {/* P1-4：有不合格数量 → 退换/索赔入口 */}
+                                            {Number(rc.totalRejected) > 0 && (
+                                              <button
+                                                type="button"
+                                                className="bds-btn bds-btn-ghost"
+                                                onClick={() => {
+                                                  setShowReturnForm({ receipt: rc, po });
+                                                  const firstLine = po.lines?.[0];
+                                                  setReturnForm({
+                                                    type: 'return',
+                                                    materialCode: firstLine?.materialCode ?? '',
+                                                    quantity: String(Number(rc.totalRejected)),
+                                                    unit: firstLine?.unit ?? '',
+                                                    amount: '',
+                                                    reason: rc.rejectionReason ?? '',
+                                                    notes: '',
+                                                  });
+                                                  setReturnError(null);
+                                                }}
+                                              >
+                                                <Undo2 size={13} /> 退换/索赔
+                                              </button>
                                             )}
                                           </div>
                                         ))}
                                       </div>
                                     </div>
                                   )}
+
+                                  {/* P1-4 退换货 / 索赔记录（状态机推进 + 索赔贷项标识） */}
+                                  {(() => {
+                                    const returns = returnsByPo[po.id] || [];
+                                    if (returns.length === 0) return null;
+                                    return (
+                                      <div>
+                                        <h4 className="bds-overline mb-2" style={{ color: 'var(--text-tertiary)' }}>退换货 / 索赔</h4>
+                                        <div className="space-y-1.5">
+                                          {returns.map(ret => (
+                                            <div key={ret.id} className="p-2.5 rounded-inset flex flex-wrap items-center gap-2 text-xs bds-inset">
+                                              <Undo2 size={14} style={{ color: 'var(--text-quaternary)' }} />
+                                              <span className="bds-mono" style={{ color: 'var(--text-primary)' }}>{ret.returnNumber}</span>
+                                              <span className={`bds-badge sm ${RETURN_TYPE_BADGE_VARIANT[ret.type] ?? 'neutral'}`}>
+                                                {MATERIAL_RETURN_TYPE_LABELS[ret.type] ?? ret.type}
+                                              </span>
+                                              <span className={`bds-badge sm ${RETURN_STATUS_BADGE_VARIANT[ret.status] ?? 'neutral'}`}>
+                                                {MATERIAL_RETURN_STATUS_LABELS[ret.status] ?? ret.status}
+                                              </span>
+                                              <span className="bds-tnum" style={{ color: 'var(--text-tertiary)' }}>
+                                                {Number(ret.quantity).toLocaleString('en-US')}{ret.unit ? ` ${ret.unit}` : ''}
+                                                {ret.amount != null ? ` · ${ret.currency} ${Number(ret.amount).toLocaleString('en-US')}` : ''}
+                                              </span>
+                                              {ret.materialCode && (
+                                                <span style={{ color: 'var(--text-quaternary)' }}>{ret.materialCode}</span>
+                                              )}
+                                              {ret.claimInvoiceId && <span className="bds-badge sm info">索赔贷项已生成</span>}
+                                              <div className="ml-auto flex items-center gap-1.5">
+                                                {ret.status === 'pending' && (
+                                                  <>
+                                                    <button type="button" className="bds-btn bds-btn-ghost" disabled={returnActing !== null} onClick={() => handleReturnAction(po.id, ret, 'mark-shipped')}>
+                                                      {returnActing === `${ret.id}_mark-shipped` ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}发运确认
+                                                    </button>
+                                                    <button type="button" className="bds-btn bds-btn-ghost" disabled={returnActing !== null} onClick={() => handleReturnAction(po.id, ret, 'cancel')}>
+                                                      取消
+                                                    </button>
+                                                  </>
+                                                )}
+                                                {ret.status === 'shipped' && (
+                                                  <button type="button" className="bds-btn bds-btn-ghost" disabled={returnActing !== null} onClick={() => handleReturnAction(po.id, ret, 'confirm')}>
+                                                    {returnActing === `${ret.id}_confirm` ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}供应商确认
+                                                  </button>
+                                                )}
+                                                {ret.status === 'confirmed' && (
+                                                  <button type="button" className="bds-btn bds-btn-ghost" disabled={returnActing !== null} onClick={() => handleReturnAction(po.id, ret, 'settle')}>
+                                                    结算完成
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* 来料检验表单 */}
                                   <AnimatePresence>
@@ -894,6 +1089,59 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                             </button>
                                             <button onClick={() => handleCreateReceipt(po.id)} disabled={actionLoading === `receipt_${po.id}`} className="bds-btn bds-btn-primary">
                                               {actionLoading === `receipt_${po.id}` ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                              <span>登记</span>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+
+                                  {/* P1-4 退换货/索赔登记表单（锚定不合格来料检验单） */}
+                                  <AnimatePresence>
+                                    {showReturnForm?.po.id === po.id && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="p-3 rounded-inset bds-inset">
+                                          <h4 className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                                            登记退换货 / 索赔 · {showReturnForm.receipt.receiptNumber}（不合格 {Number(showReturnForm.receipt.totalRejected).toLocaleString('en-US')}）
+                                          </h4>
+                                          <p className="text-[10px] mb-2" style={{ color: 'var(--text-quaternary)' }}>
+                                            退货/换货发运确认时冲减库存；换货供应商确认后回冲；索赔确认时生成贷项发票冲减应付并计入供应商绩效。
+                                          </p>
+                                          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                            {(['return', 'exchange', 'claim'] as const).map(t => (
+                                              <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => setReturnForm({ ...returnForm, type: t })}
+                                                className={`bds-badge sm cursor-pointer ${returnForm.type === t ? RETURN_TYPE_BADGE_VARIANT[t] : 'neutral'}`}
+                                              >
+                                                {MATERIAL_RETURN_TYPE_LABELS[t]}
+                                              </button>
+                                            ))}
+                                          </div>
+                                          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-2">
+                                            <input type="text" value={returnForm.materialCode} onChange={(e) => setReturnForm({ ...returnForm, materialCode: e.target.value })} placeholder={returnForm.type === 'claim' ? '物料编码（可选）' : '退货物料编码 *'} className="bds-input sm" />
+                                            <input type="number" value={returnForm.quantity} onChange={(e) => setReturnForm({ ...returnForm, quantity: e.target.value })} placeholder={returnForm.type === 'claim' ? '数量（索赔可 0）' : '退货/换货数量 *'} className="bds-input sm" />
+                                            <input type="text" value={returnForm.unit} onChange={(e) => setReturnForm({ ...returnForm, unit: e.target.value })} placeholder="单位" className="bds-input sm" />
+                                            <input type="number" value={returnForm.amount} onChange={(e) => setReturnForm({ ...returnForm, amount: e.target.value })} placeholder={returnForm.type === 'claim' ? '索赔金额 *' : '折让金额（可选）'} className="bds-input sm" />
+                                            <input type="text" value={returnForm.reason} onChange={(e) => setReturnForm({ ...returnForm, reason: e.target.value })} placeholder="原因（缺省取不合格原因）" className="bds-input sm" />
+                                            <input type="text" value={returnForm.notes} onChange={(e) => setReturnForm({ ...returnForm, notes: e.target.value })} placeholder="备注" className="bds-input sm" />
+                                          </div>
+                                          {returnError && (
+                                            <div className="text-xs mb-2" style={{ color: 'var(--danger-text)' }}>{returnError}</div>
+                                          )}
+                                          <div className="flex items-center justify-end gap-2">
+                                            <button onClick={() => { setShowReturnForm(null); setReturnError(null); }} className="bds-btn bds-btn-ghost">
+                                              取消
+                                            </button>
+                                            <button onClick={handleCreateReturn} disabled={returnActing !== null} className="bds-btn bds-btn-primary">
+                                              {returnActing === 'create' ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
                                               <span>登记</span>
                                             </button>
                                           </div>

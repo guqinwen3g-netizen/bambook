@@ -36,6 +36,8 @@ import {
   PurchaseOrderInput,
   MaterialReceipt,
   MaterialReceiptInput,
+  MaterialReturn,
+  MaterialReturnType,
   Warehouse,
   WarehouseInput,
   InventoryItem,
@@ -1494,6 +1496,66 @@ export const apiService = {
   async createMaterialReceipt(purchaseOrderId: string, input: MaterialReceiptInput, endpoint?: string): Promise<MaterialReceipt> {
     const data = await requestJson<{ receipt: MaterialReceipt }>(`/v1/procurement/${encodeURIComponent(purchaseOrderId)}/receipts`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.receipt;
+  },
+
+  // ── P1-4 物料退换货 API（退货/换货/索赔；/v1/procurement/material-returns）──
+  async listMaterialReturns(params?: {
+    purchaseOrderId?: string; receiptId?: string; supplierRelationId?: string; status?: string; limit?: number;
+  }, endpoint?: string): Promise<MaterialReturn[]> {
+    const qs = new URLSearchParams();
+    if (params?.purchaseOrderId) qs.set('purchaseOrderId', params.purchaseOrderId);
+    if (params?.receiptId) qs.set('receiptId', params.receiptId);
+    if (params?.supplierRelationId) qs.set('supplierRelationId', params.supplierRelationId);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.limit != null) qs.set('limit', String(params.limit));
+    const path = `/v1/procurement/material-returns${qs.toString() ? '?' + qs.toString() : ''}`;
+    const data = await requestJson<{ items: MaterialReturn[] }>(path, { endpoint, method: 'GET' });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async createMaterialReturn(input: {
+    receiptId: string; type: MaterialReturnType; materialCode?: string; materialName?: string;
+    quantity: number; unit?: string; amount?: number; currency?: string; reason?: string; notes?: string;
+  }, endpoint?: string): Promise<MaterialReturn> {
+    const data = await requestJson<{ materialReturn: MaterialReturn; error?: { code?: string; message?: string } }>(
+      '/v1/procurement/material-returns',
+      { endpoint, method: 'POST', body: JSON.stringify(input) },
+    );
+    if (!data.materialReturn) throw new Error((data as any).error?.message || '退换货登记失败');
+    return data.materialReturn;
+  },
+
+  async markMaterialReturnShipped(id: string, endpoint?: string): Promise<{ materialReturn: MaterialReturn; skipStockReason?: string | null }> {
+    const data = await requestJson<{ materialReturn: MaterialReturn; skipStockReason?: string | null }>(
+      `/v1/procurement/material-returns/${encodeURIComponent(id)}/mark-shipped`,
+      { endpoint, method: 'POST', body: JSON.stringify({}) },
+    );
+    return { materialReturn: data.materialReturn, skipStockReason: (data as any).skipStockReason ?? null };
+  },
+
+  async confirmMaterialReturn(id: string, endpoint?: string): Promise<{ materialReturn: MaterialReturn; claimInvoiceId?: string | null }> {
+    const data = await requestJson<{ materialReturn: MaterialReturn; claimInvoiceId?: string | null; error?: { message?: string } }>(
+      `/v1/procurement/material-returns/${encodeURIComponent(id)}/confirm`,
+      { endpoint, method: 'POST', body: JSON.stringify({}) },
+    );
+    if (!data.materialReturn) throw new Error((data as any).error?.message || '供应商确认失败');
+    return { materialReturn: data.materialReturn, claimInvoiceId: data.claimInvoiceId ?? null };
+  },
+
+  async settleMaterialReturn(id: string, endpoint?: string): Promise<MaterialReturn> {
+    const data = await requestJson<{ materialReturn: MaterialReturn }>(
+      `/v1/procurement/material-returns/${encodeURIComponent(id)}/settle`,
+      { endpoint, method: 'POST', body: JSON.stringify({}) },
+    );
+    return data.materialReturn;
+  },
+
+  async cancelMaterialReturn(id: string, endpoint?: string): Promise<MaterialReturn> {
+    const data = await requestJson<{ materialReturn: MaterialReturn }>(
+      `/v1/procurement/material-returns/${encodeURIComponent(id)}/cancel`,
+      { endpoint, method: 'POST', body: JSON.stringify({}) },
+    );
+    return data.materialReturn;
   },
 
   // ── Phase 2 B2: 库存管理 API ──

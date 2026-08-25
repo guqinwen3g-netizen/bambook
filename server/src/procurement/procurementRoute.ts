@@ -22,6 +22,7 @@ import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
 import { createProcurementService, CreatePurchaseOrderInput, UpdatePurchaseOrderInput, MaterialReceiptInput } from './procurementService';
+import { createMaterialReturnService } from './materialReturnService';
 import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { renderServerDocument } from '../templates/docTemplates/registry';
 import { loadPurchaseOrderDocData } from '../templates/docTemplates/purchaseOrder';
@@ -99,6 +100,85 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
       logger.error('[ProcurementRoute] GET list failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list purchase orders' });
     }
+  });
+
+  // ════════════════════════════════════════════════════════════════
+  // P1-4 物料退换货 — /api/v1/procurement/material-returns
+  // 字面路由：须在参数路由 /:id 之前注册（同 /inquiries 家族）。
+  // ════════════════════════════════════════════════════════════════
+  const materialReturnService = createMaterialReturnService(prisma);
+  const mrRespond = (res: Response, result: any) => {
+    if (!result.ok) {
+      res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
+      return;
+    }
+    res.json({ ok: true, ...serializeMr(result.data) });
+  };
+  const serializeMr = (data: any) => {
+    if (data == null || typeof data !== 'object') return { data };
+    if (Array.isArray(data.items)) return { items: data.items };
+    return { ...data };
+  };
+
+  // GET /material-returns — 退换货列表（采购单/检验单/供应商/状态过滤）
+  router.get('/material-returns', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const result = await materialReturnService.listReturns({
+      purchaseOrderId: req.query.purchaseOrderId ? String(req.query.purchaseOrderId) : undefined,
+      receiptId: req.query.receiptId ? String(req.query.receiptId) : undefined,
+      supplierRelationId: req.query.supplierRelationId ? String(req.query.supplierRelationId) : undefined,
+      status: req.query.status ? String(req.query.status) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+    });
+    mrRespond(res, result);
+  });
+
+  // POST /material-returns — 登记退换货/索赔（pending）
+  router.post('/material-returns', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const actor = extractActorFromRequest(req);
+    const result = await materialReturnService.createReturn((req.body ?? {}) as any, actor?.userId);
+    if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'create', ids: [result.data.materialReturn.id] });
+    mrRespond(res, result);
+  });
+
+  // POST /material-returns/:id/mark-shipped — 发运确认（库存 Outbound 冲减）
+  router.post('/material-returns/:id/mark-shipped', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const actor = extractActorFromRequest(req);
+    const result = await materialReturnService.markShipped(req.params.id, actor?.userId);
+    if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'update', ids: [req.params.id] });
+    mrRespond(res, result);
+  });
+
+  // POST /material-returns/:id/confirm — 供应商确认（exchange 回冲 / claim 负向应付发票 / 绩效评分）
+  router.post('/material-returns/:id/confirm', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const actor = extractActorFromRequest(req);
+    const result = await materialReturnService.confirmReturn(req.params.id, actor?.userId);
+    if (result.ok) {
+      onDataChange?.({ entity: 'MaterialReturn', action: 'update', ids: [req.params.id] });
+      if (result.data.claimInvoiceId) onDataChange?.({ entity: 'Invoice', action: 'create', ids: [result.data.claimInvoiceId] });
+    }
+    mrRespond(res, result);
+  });
+
+  // POST /material-returns/:id/settle — 结算完成（confirmed → settled）
+  router.post('/material-returns/:id/settle', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const actor = extractActorFromRequest(req);
+    const result = await materialReturnService.settleReturn(req.params.id, actor?.userId);
+    if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'update', ids: [req.params.id] });
+    mrRespond(res, result);
+  });
+
+  // POST /material-returns/:id/cancel — 取消（仅 pending）
+  router.post('/material-returns/:id/cancel', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    const actor = extractActorFromRequest(req);
+    const result = await materialReturnService.cancelReturn(req.params.id, actor?.userId);
+    if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'update', ids: [req.params.id] });
+    mrRespond(res, result);
   });
 
   // ── GET /:id — 详情 ──

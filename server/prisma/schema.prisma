@@ -3625,6 +3625,72 @@ model MaterialReceipt {
   @@index([receivedDate])
 }
 
+// ════════════════════════════════════════════════════════════════════
+// P1-4 物料退换货（缺口 2 · 中度缺失）
+// ════════════════════════════════════════════════════════════════════
+// 业务语义：来料质检发现色差/克重不符/破洞 → 向供应商退回（return）、
+//           要求换货（exchange）或索赔扣款（claim）。
+// 设计决策：
+//   ① 锚定 MaterialReceipt（PO 级汇总口径）：退货实物上限 =
+//     receipt.totalRejected − 同 receipt 非 cancelled 的 return/exchange
+//     已占数量（claim 纯金额索赔不占实物额度）；行级收货明细（设计文档
+//     7.3 节）为独立债务，不在本模型强行补建。
+//   ② 状态机：pending(待退回) → shipped(已退回) → confirmed(供应商确认)
+//     → settled(结算完成)；pending → cancelled。库存联动：
+//     return/exchange 于 shipped 执行 Outbound 冲减；exchange 于 confirmed
+//     Inbound 回冲（供应商确认后换新到货）；claim 不动物料库存。
+//   ③ 索赔应付冲减 = 负向 Payable 发票（type=Payable，amount 为负，
+//     单号 CLM-YYYY-NNNN，customerRelationId 承载供应商）——复用既有
+//     供应商对账单/核销体系自然冲减余额（CreditNote 最小实现，
+//     对账文档 §6.3 设计落地）。
+//   ④ 绩效联动：confirm 时按拒收率分级评分写入 FactoryEvaluation
+//     （kind=inspection，sourceType='materialReturn'，幂等）。
+// snapshot FK 风格（与全库一致，不加 @relation），软删。
+// 设计真源：docs/design/10-评审与决策/2026-08-25-中度与严重缺失功能开发优先级规划.md P1-4
+model MaterialReturn {
+  id           String  @id // 格式：MATRET_${shortId}
+  returnNumber String  @unique // 业务退货单号（RT-YYYY-NNNN，nextBusinessNumber 生成）
+  receiptId    String  // 来源来料检验单（snapshot FK → MaterialReceipt.id）
+  purchaseOrderId String // 关联采购单（冗余快照，追溯/列表免 join）
+  supplierRelationId String? // 供应商（snapshot FK → Relation.id）
+  supplierName String? // 供应商名冗余快照
+
+  // ─── 退换货类型 ───
+  type String // return(退货) | exchange(换货) | claim(索赔)
+
+  // ─── 实物（return/exchange；claim 纯金额索赔可为 0）───
+  materialCode String? // 退货物料编码（库存 Outbound/回冲锚点；从 PO 行带出）
+  materialName String? // 物料名快照
+  quantity     Decimal @db.Decimal(18, 4) // 退货/换货数量（claim=0）
+  unit         String?
+
+  // ─── 金额（claim 必填；return/exchange 可选折让）───
+  amount   Decimal? @db.Decimal(18, 4) // 索赔/折让金额（正数；claim 时生成负向应付发票）
+  currency String   @default("CNY")
+
+  // ─── 状态机 ───
+  status String @default("pending") // pending | shipped | confirmed | settled | cancelled
+
+  // ─── 库存联动（shipped 时回填；null = 次品未入库跳过联动）───
+  stockItemId String? // Outbound 冲减的库存项（snapshot FK → InventoryItem.id；exchange confirmed 回冲同一项保对称）
+
+  // ─── 索赔应付调整（claim confirm 后回填）───
+  claimInvoiceId String? // 负向 Payable 发票（snapshot FK → Invoice.id）
+
+  reason String? // 退货/索赔原因（缺省快照自 receipt.rejectionReason）
+  notes  String?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([receiptId])
+  @@index([purchaseOrderId])
+  @@index([supplierRelationId])
+  @@index([status])
+  @@index([type])
+}
+
 // ============ 阶段 H H1: 供应商管理 Supplier Management（PRD 13 / 19.18） ============
 // 身份真源在 Relation（category=Supplier），FactoryProfile 1:1 承载工厂属性；
 // 评分为事务内重算缓存（真源在 FactoryEvaluation 明细），禁止客户端直改。
