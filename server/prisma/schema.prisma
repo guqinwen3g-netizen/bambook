@@ -2157,6 +2157,7 @@ model InvoiceOrderAllocation {
   orderNumber     String? // 冗余快照：订单号
   poNumber        String? // 冗余快照：客户 PO
   allocatedAmount Decimal? @db.Decimal(18, 4) // 本订单在发票中的分摊金额（可空=整单）
+  batchId         String? // 归属出运批次（snapshot FK → OrderShipmentBatch.id；P0-1：分批开票时指定，null=整单/预开票等非批次场景）
   note            String?
 
   createdAt BigInt
@@ -2166,6 +2167,7 @@ model InvoiceOrderAllocation {
   @@unique([invoiceId, orderId])
   @@index([invoiceId])
   @@index([orderId])
+  @@index([batchId]) // P0-1：批次已开票金额聚合锚点
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2636,6 +2638,75 @@ model ShipmentOrderAllocation {
   @@index([orderId])
   @@index([orderLineId])
   @@index([status])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 订单出运批次·财务结算主档（P0-1 分批出运与尾款结算）
+// ════════════════════════════════════════════════════════════════════
+// 业务语义：大货订单按船期分 2~N 批出运（如首批 60% + 末批 40%），每批独立
+//           开票、独立收款、末批挂钩尾款结算。本模型是「订单视角的批次」：
+//           接单后即建计划（此时未排船），排船后回填 shipmentId，开票经
+//           InvoiceOrderAllocation.batchId 归属到批，收款经 InvoiceAllocation
+//           联聚出批次结算进度。
+// 设计决策：
+//   ① 与 ShipmentOrderAllocation 的分工：物理侧（一票运了哪些单多少货，票视角）
+//     已由 DR-016 承载不动；本模型补财务侧（一批结算多少钱、开票归属、尾款状态），
+//     计划期先于排船存在，shipmentId 可空。
+//   ② 双状态机正交：status = 出运维度生命周期（planned→shipped→cancelled）；
+//     settleStatus = 财务维度（unsettled→partially_settled→settled），互不覆盖。
+//   ③ 结算进度快照（invoicedAmount/paidAmount）由服务层从分配/核销表聚合回写，
+//     供列表与尾款 watchdog 免聚合查询（快照留痕与 DunningRecord 同范式）。
+//   ④ 尾款锚点：isFinalBatch 标记末批；finalPaymentDueDate = 末批发运日 + 账期
+//     （账期优先取本批覆盖值，缺省推导自订单 paymentTerms），watchdog 按此扫描。
+// snapshot FK 风格（与全库一致，不加 @relation），软删。
+// 设计真源：docs/design/10-评审与决策/2026-08-25-中度与严重缺失功能开发优先级规划.md P0-1
+model OrderShipmentBatch {
+  id        String @id // 格式：OSB__${shortId}
+  orderId   String // 所属订单（snapshot FK → Order.id）
+  shipmentId String? // 排船后回填（snapshot FK → Shipment.id；计划期未排船为 null）
+  batchNo   Int // 批次序号（订单内 1,2,3…，与 orderId 联合唯一）
+
+  // ─── 批次计划（接单后即可建立） ───
+  plannedRatio Decimal? @db.Decimal(5, 2) // 计划占比 %（如 60.00；与 plannedQty/amount 可只填其一）
+  plannedQty   Decimal? @db.Decimal(18, 4) // 计划数量快照（米/码/件；实际出运以 ShipmentOrderAllocation 为真源）
+  unit         String? // 单位快照（m/yd/kg/pcs）
+  amount       Decimal? @db.Decimal(18, 4) // 本批计划结算金额（缺省由订单额 × plannedRatio 推导，手工可覆盖）
+  currency     String // 币种快照（随订单销售币种，如 USD）
+
+  // ─── 客户快照（watchdog 催款联动免 join） ───
+  customerRelationId String? // 结算客户（snapshot FK → Relation.id）
+  customerName       String? // 冗余快照
+
+  // ─── 出运维度生命周期 ───
+  status String @default("planned") // planned(计划) | shipped(已出运) | cancelled(已取消)
+  shippedAt BigInt? // 本批发运时间（回填自 Shipment.atd/updatedAt）
+
+  // ─── 财务维度结算状态机 ───
+  settleStatus    String   @default("unsettled") // unsettled(未结算) | partially_settled(部分结算) | settled(已结清)
+  invoicedAmount  Decimal? @db.Decimal(18, 4) // 已开票金额快照（服务层从 InvoiceOrderAllocation.batchId 聚合回写）
+  paidAmount      Decimal? @db.Decimal(18, 4) // 已收款金额快照（服务层经 InvoiceAllocation 联聚回写）
+  settledAt       BigInt? // 批次金额全额结清时间戳
+
+  // ─── 尾款（末批锚点） ───
+  isFinalBatch        Boolean  @default(false) // 末批标记（尾款结算锚点；同订单至多一批为 true，服务层校验）
+  finalPaymentDueDays Int? // 尾款账期天数覆盖值（缺省推导自订单 paymentTerms）
+  finalPaymentDueDate String? // 尾款到期日 YYYY-MM-DD（末批发运日 + 账期，服务层计算；watchdog 扫描锚点）
+
+  // ─── 备注 ───
+  notes String?
+
+  // ─── 时间戳 + 软删 ───
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@unique([orderId, batchNo]) // 同订单批次序号不重复
+  @@index([orderId])
+  @@index([shipmentId])
+  @@index([status])
+  @@index([settleStatus])
+  @@index([customerRelationId])
+  @@index([finalPaymentDueDate]) // 尾款 watchdog 扫描
 }
 
 // ShipmentEvent：运单物流节点事件（F3 lifecycle 深化）

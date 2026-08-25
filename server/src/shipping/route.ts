@@ -28,6 +28,7 @@ import {
 } from './shipmentPackingService';
 import { createAllocationService } from './allocationService';
 import { createBookingLeadTimeService } from './bookingLeadTimeService';
+import { createOrderShipmentBatchService } from './orderShipmentBatchService';
 import { serializeValue } from '../lib/serializeValue';
 import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { logger } from '../lib/logger';
@@ -157,9 +158,117 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   // REQ2-20：旺季舱位提醒（订舱提前期规则扫描）
   const bookingLeadTimeService = createBookingLeadTimeService(prisma);
 
+  // P0-1：订单分批出运与尾款结算（财务侧批次主档）
+  const batchService = createOrderShipmentBatchService(prisma);
+
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
 
+
+  // ═══ P0-1：订单出运批次（字面路由，须在参数路由 /:id 之前注册） ═══
+  const batchRespond = (res: Response, result: any) => {
+    if (!result.ok) {
+      res.status(result.error.status).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json({ ok: true, ...(result.data instanceof Array ? { batches: serializeValue(result.data) } : { ...serializeValue(result.data) }) });
+  };
+
+  // GET /order-batches?orderId=… — 订单批次全景（批次列表 + 计划/出运/结算汇总）
+  router.get('/order-batches', async (req: Request, res: Response) => {
+    try {
+      const orderId = String(req.query.orderId || '');
+      if (!orderId) {
+        res.status(400).json({ ok: false, error: { code: 'VALIDATION_FAILED', message: 'orderId 必填' } });
+        return;
+      }
+      batchRespond(res, await batchService.listByOrder(orderId));
+    } catch (err: any) {
+      logger.error('[ShippingRoute] list order batches failed', { error: err?.message });
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // GET /order-batches/overdue-final — 尾款到期未结清末批清单（watchdog/看板扫描源）
+  router.get('/order-batches/overdue-final', async (req: Request, res: Response) => {
+    try {
+      const result = await batchService.listOverdueFinalBatches(Number(req.query.limit) || 100);
+      batchRespond(res, result);
+    } catch (err: any) {
+      logger.error('[ShippingRoute] overdue final batches failed', { error: err?.message });
+      res.status(500).json({ error: { code: 'LIST_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /order-batches — 批次登记（计划期；batchNo 自动递增；单批自动末批）
+  router.post('/order-batches', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    try {
+      const { orderId, shipmentId, plannedRatio, plannedQty, unit, amount, currency, isFinalBatch, finalPaymentDueDays, notes } = req.body || {};
+      if (!orderId) {
+        res.status(400).json({ ok: false, error: { code: 'VALIDATION_FAILED', message: 'orderId 必填' } });
+        return;
+      }
+      const result = await batchService.createBatch({
+        orderId, shipmentId, plannedRatio, plannedQty, unit, amount, currency, isFinalBatch, finalPaymentDueDays, notes,
+      }, actorIdFromRequest(req));
+      if (!result.ok) {
+        res.status(result.error.status).json({ ok: false, error: result.error });
+        return;
+      }
+      onDataChange?.({ entity: 'order-shipment-batch', action: 'create', ids: [result.data.id] });
+      res.status(201).json({ ok: true, batch: serializeValue(result.data) });
+    } catch (err: any) {
+      logger.error('[ShippingRoute] create order batch failed', { error: err?.message });
+      res.status(500).json({ error: { code: 'CREATE_FAILED', message: err.message } });
+    }
+  });
+
+  // PUT /order-batches/:batchId — 批次更新（计划字段仅计划期可改；status 仅允许 planned→cancelled）
+  router.put('/order-batches/:batchId', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    try {
+      const result = await batchService.updateBatch(req.params.batchId, req.body || {}, actorIdFromRequest(req));
+      if (!result.ok) {
+        res.status(result.error.status).json({ ok: false, error: result.error });
+        return;
+      }
+      onDataChange?.({ entity: 'order-shipment-batch', action: 'update', ids: [req.params.batchId] });
+      res.json({ ok: true, batch: serializeValue(result.data) });
+    } catch (err: any) {
+      logger.error('[ShippingRoute] update order batch failed', { error: err?.message });
+      res.status(500).json({ error: { code: 'UPDATE_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /order-batches/:batchId/mark-shipped — 批次发运确认（排船回填 + 尾款到期日计算 + 末批收款门禁）
+  router.post('/order-batches/:batchId/mark-shipped', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    try {
+      const result = await batchService.markShipped(req.params.batchId, req.body || {}, actorIdFromRequest(req));
+      if (!result.ok) {
+        res.status(result.error.status).json({ ok: false, error: result.error });
+        return;
+      }
+      onDataChange?.({ entity: 'order-shipment-batch', action: 'update', ids: [req.params.batchId] });
+      res.json({ ok: true, batch: serializeValue(result.data) });
+    } catch (err: any) {
+      logger.error('[ShippingRoute] mark batch shipped failed', { error: err?.message });
+      res.status(500).json({ error: { code: 'SHIP_FAILED', message: err.message } });
+    }
+  });
+
+  // POST /order-batches/:batchId/recalc — 结算进度重算（发票分配/核销变动后手动触发；自动触发点二期接入）
+  router.post('/order-batches/:batchId/recalc', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+    try {
+      const result = await batchService.recalcSettlement(req.params.batchId);
+      if (!result.ok) {
+        res.status(result.error.status).json({ ok: false, error: result.error });
+        return;
+      }
+      res.json({ ok: true, batch: serializeValue(result.data) });
+    } catch (err: any) {
+      logger.error('[ShippingRoute] recalc batch settlement failed', { error: err?.message });
+      res.status(500).json({ error: { code: 'RECALC_FAILED', message: err.message } });
+    }
+  });
 
   // ── REQ2-20（DR-061）：GET /booking-reminders — 旺季舱位预警清单（订舱提前期规则扫描，只读零写） ──
   // 字面路由：须在参数路由 /:id 之前注册
@@ -304,7 +413,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
     if (!lines) return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'body.lines must be an array' } });
     const result = await replaceShipmentLines(prisma, req.params.id, lines, actorIdFromRequest(req), req.ip || null);
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400 };
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400, EXCLUSIVE_FABRIC_BLOCKED: 409 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
       return;
     }
@@ -316,7 +425,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   router.post('/:id/lines/pull-from-order', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
     const result = await pullLinesFromOrder(prisma, req.params.id, actorIdFromRequest(req), req.ip || null);
     if (!result.ok) {
-      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, ORDER_NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400 };
+      const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, ORDER_NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400, EXCLUSIVE_FABRIC_BLOCKED: 409 };
       res.status(statusCodeMap[result.error!.code] || 500).json({ error: result.error });
       return;
     }

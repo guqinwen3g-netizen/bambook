@@ -17,6 +17,7 @@ import { TraceabilityPanel } from './TraceabilityPanel';
 import { SampleColorBatchPanel } from './development/SampleColorBatchPanel';
 import { TestRequestPanel } from './qc/TestRequestPanel';
 import { OrderProcessChainPanel } from './mes/OrderProcessChainPanel';
+import { OrderShipmentBatchPanel } from './orders/OrderShipmentBatchPanel';
 import { TechPackPanel } from './orders/TechPackPanel';
 import { TcChainPanel } from './suppliers/TcChainPanel';
 import BottomSheet from './ui/BottomSheet';
@@ -1873,6 +1874,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                     <div id="order-detail-test-requests" className="mb-6">
                       <TestRequestPanel
                         key={`tr-${selectedOrder.id}`}
+                        orderId={selectedOrder.id}
+                        isDarkMode={isDarkMode}
+                      />
+                    </div>
+
+                    {/* P0-1 分批出运与尾款结算（全订单类型：批次计划登记 → 排船回填 → 发运确认 → 尾款门禁与结算聚合） */}
+                    <div id="order-detail-batches" className="mb-6">
+                      <OrderShipmentBatchPanel
+                        key={`osb-${selectedOrder.id}`}
                         orderId={selectedOrder.id}
                         isDarkMode={isDarkMode}
                       />
