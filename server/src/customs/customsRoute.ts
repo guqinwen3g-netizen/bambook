@@ -1,6 +1,10 @@
 /**
  * 外贸与报关 API — /api/v1/customs
  *
+ * @deprecated（G6 新旧接口收敛，2026-08-28）前端四大域（报关单/HS 编码/信用证/出口退税）已统一走
+ *   /api/v2/customs（带 customs:read/customs:write 细粒度权限守卫），本路由对应端点逐步废弃、新代码请勿调用。
+ *   注意：trade-documents 系列端点（单据中心/出运制单在用）暂未迁移，仍由本路由服务。
+ *
  * 端点：
  *   ── 报关单 CustomsDeclaration ──
  *   GET    /declarations              — 报关单列表（支持 type/status/shipmentId/orderId/relationId/search 过滤）
@@ -488,9 +492,7 @@ export function createCustomsRouter(options: CustomsRouterOptions): Router {
       if (!input.decision || !['Approved', 'Rejected'].includes(input.decision)) {
         return res.status(400).json({ error: 'decision must be Approved or Rejected' });
       }
-      if (!input.reviewedBy) {
-        return res.status(400).json({ error: 'reviewedBy is required' });
-      }
+      // G3：reviewedBy 不再要求请求体传入——审核人取真实登录人（actorOf 解析 JWT 身份），由 service 层落留痕
       const item = await service.reviewTaxRefund(req.params.id, input, actorOf(req));
       onDataChange?.({ entity: 'TaxRefund', action: 'review', ids: [item.id] });
       res.json({ item });

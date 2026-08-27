@@ -355,6 +355,8 @@ const TRADE_DOC_UPLOAD_DIR = process.env.BAMBOOK_UPLOAD_DIR || path.join(__dirna
 /**
  * 服务端渲染单据文档 HTML（统一入口，2026-08-22 B1 架构底座 / B2 运营域扩展）：
  *   - CI 带财务回链 → 财务真源模板（renderInvoiceDocumentHtml）
+ *   - 批次 H3 组合单据（sourceRef=composite:{kind}:{ids}）→ 实时重装配渲染；
+ *     真源记录被删装配失败时回落最新版本快照的冻结数据（归档语义）
  *   - 类型映射进服务端注册表 → registry 渲染：
  *     · PL（customs）：版本快照 documentSet 装配
  *     · PO/IR（运营域）：sourceRef 业务真源实时装配（改业务侧即改文档）
@@ -370,6 +372,30 @@ export async function renderTradeDocumentServerHtml(
   // B11 收编：模板提取至 templates/docTemplates/financeInvoice.ts 注册表体系）
   if (doc.type === 'CommercialInvoice' && doc.sourceInvoiceId) {
     return renderFinanceInvoiceDocument(prisma, doc.sourceInvoiceId, opts);
+  }
+  // 批次 H3 组合单据（合并装箱单/合并合同台账记录）：sourceRef 回链实时重装配
+  // （register:false 防登记回环）；真源缺失回落 v1 快照冻结数据
+  if (doc.sourceRef?.startsWith('composite:')) {
+    const { parseCompositeSourceRef, assembleCompositeDocument } = await import('./compositeDocumentService');
+    const parsed = parseCompositeSourceRef(doc.sourceRef);
+    if (!parsed) return null;
+    try {
+      const { kind, data } = await assembleCompositeDocument(
+        prisma,
+        { kind: parsed.kind, sourceIds: parsed.sourceIds },
+        { register: false },
+      );
+      return await renderServerDocument(prisma, kind, data, opts);
+    } catch {
+      const latest = await prisma.documentVersion.findFirst({
+        where: { documentId: doc.id },
+        orderBy: { version: 'desc' },
+        select: { content: true },
+      });
+      const snapshotData = (latest?.content as Record<string, unknown> | null | undefined)?.data;
+      if (!snapshotData || typeof snapshotData !== 'object') return null;
+      return renderServerDocument(prisma, parsed.kind, snapshotData, opts);
+    }
   }
   // 服务端注册表类型（PL / PO / IR ...）——数据装配真源由各模板 loadData 决定
   const kind = serverKindForType(doc.type);

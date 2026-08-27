@@ -802,3 +802,104 @@ describe('buildXlsx 空数据兜底', () => {
     expect(buffer.length).toBeGreaterThan(100);
   });
 });
+
+// ── 批次 H2：IC 检验证书 / PC 植检证书 / OTHER 通用单据模板（此前三类只能登记壳出不了文件） ──
+
+import { renderInspectionCertificateBody, renderPhytosanitaryCertBody, renderOtherTradeDocumentBody } from '../docTemplates/customsDocs';
+
+describe('批次 H2 检验证书 / 植检证书 / 通用单据模板', () => {
+  it('类型映射：InspectionCert→IC / PhytosanitaryCert→PC / Other→OTHER 且模板已注册', () => {
+    expect(serverKindForType('InspectionCert')).toBe('IC');
+    expect(serverKindForType('PhytosanitaryCert')).toBe('PC');
+    expect(serverKindForType('Other')).toBe('OTHER');
+    expect(SERVER_DOC_TEMPLATES.IC.title).toContain('检验证书');
+    expect(SERVER_DOC_TEMPLATES.PC.title).toContain('植检证书');
+    expect(SERVER_DOC_TEMPLATES.OTHER.title).toContain('通用');
+  });
+
+  it('IC 检验证书：标题/双方/受检货物/证明声明/原产国', () => {
+    const html = renderInspectionCertificateBody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain('INSPECTION CERTIFICATE');
+    expect(html).toContain('检验证书');
+    expect(html).toContain('IC-SHP-2026-0001');
+    expect(html).toContain('INV-2026-001');
+    expect(html).toContain('BAMBOOK TRADING CO., LTD.');
+    expect(html).toContain('ACME GmbH');
+    expect(html).toContain('Men Cotton Shirt');
+    expect(html).toContain('6205.20');
+    expect(html).toContain('WE HEREBY CERTIFY');
+    expect(html).toContain('CHINA');
+    expect(html).toContain('Inspector 检验人');
+  });
+
+  it('PC 植检证书：IPPC 声明/出口商/入境口岸/产地/除害处理占位', () => {
+    const html = renderPhytosanitaryCertBody(makeCustomsDocSet() as any, EXPORTER);
+    expect(html).toContain('PHYTOSANITARY CERTIFICATE');
+    expect(html).toContain('植物检疫证书');
+    expect(html).toContain('PC-SHP-2026-0001');
+    expect(html).toContain('BAMBOOK TRADING CO., LTD.');
+    expect(html).toContain('ACME GmbH');
+    expect(html).toContain('quarantine pests');
+    expect(html).toContain('GERMANY'); // customs.destinationCountry → 入境口岸
+    expect(html).toContain('Place of origin 产地');
+    expect(html).toContain('REPUBLIC OF CHINA'); // esc 转义撇号，不断言完整串
+    expect(html).toContain('除害处理');
+    expect(html).toContain('Men Cotton Shirt');
+  });
+
+  it('OTHER 运单快照版：通用版式含双方/运输/货物/合计', () => {
+    const html = renderOtherTradeDocumentBody({ source: 'set', set: makeCustomsDocSet() as any }, EXPORTER);
+    expect(html).toContain('TRADE DOCUMENT');
+    expect(html).toContain('外贸单据（通用）');
+    expect(html).toContain('DOC-SHP-2026-0001');
+    expect(html).toContain('SHANGHAI');
+    expect(html).toContain('HAMBURG');
+    expect(html).toContain('Men Cotton Shirt');
+    expect(html).toContain('20,000.00');
+    expect(html).toContain('Handle with care'); // shipment.notes
+  });
+
+  it('OTHER 手工登记壳版：登记字段渲染（无快照也能出文件）', () => {
+    const html = renderOtherTradeDocumentBody({
+      source: 'doc',
+      doc: {
+        documentNumber: 'DOC-2026-0001', issueDate: '2026-08-28', expiryDate: null,
+        consignor: 'BAMBOOK', consignee: 'ACME GmbH',
+        portOfLoading: 'SHANGHAI', portOfDischarge: 'HAMBURG',
+        totalAmount: 1234.5, currency: 'USD', issuedBy: null, notes: 'Test note 换行\n第二行',
+      },
+    }, EXPORTER);
+    expect(html).toContain('TRADE DOCUMENT');
+    expect(html).toContain('DOC-2026-0001');
+    expect(html).toContain('ACME GmbH');
+    expect(html).toContain('1,234.50 USD');
+    expect(html).toContain('Test note 换行<br>第二行');
+  });
+
+  it('OTHER loadData：无快照 → 回落 TradeDocument 行（BigInt/Decimal 转 number）；行不存在 → null', async () => {
+    const prisma: any = {
+      documentVersion: { findFirst: async () => null },
+      tradeDocument: {
+        findFirst: async ({ where }: any) => (where.id === 'TD_1'
+          ? { id: 'TD_1', documentNumber: 'DOC-2026-0002', totalAmount: 100n, createdAt: 1n }
+          : null),
+      },
+    };
+    const data = await SERVER_DOC_TEMPLATES.OTHER.loadData(prisma, { id: 'TD_1', type: 'Other', sourceRef: null });
+    expect(data.source).toBe('doc');
+    expect(data.doc.documentNumber).toBe('DOC-2026-0002');
+    expect(typeof data.doc.totalAmount).toBe('number');
+    expect(typeof data.doc.createdAt).toBe('number');
+    expect(await SERVER_DOC_TEMPLATES.OTHER.loadData(prisma, { id: 'TD_NOPE', type: 'Other', sourceRef: null })).toBeNull();
+  });
+
+  it('OTHER loadData：有 documentSet 快照 → 优先快照版式（与 IC/PC 同口径）', async () => {
+    const prisma: any = {
+      documentVersion: { findFirst: async () => ({ content: { documentSet: { shipment: { shipmentNumber: 'SHP-1' } } } }) },
+      tradeDocument: { findFirst: async () => null },
+    };
+    const data = await SERVER_DOC_TEMPLATES.OTHER.loadData(prisma, { id: 'TD_2', type: 'Other', sourceRef: null });
+    expect(data.source).toBe('set');
+    expect(data.set.shipment.shipmentNumber).toBe('SHP-1');
+  });
+});

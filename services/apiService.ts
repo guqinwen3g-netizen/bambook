@@ -2579,6 +2579,15 @@ export const apiService = {
     return data.item;
   },
 
+  /** M7：禁运国清单读取（source=config 数据库配置 / default 内置默认回退） */
+  async getSanctionedCountries(endpoint?: string): Promise<{ items: string[]; source: 'config' | 'default' }> {
+    return requestJson<{ items: string[]; source: 'config' | 'default' }>(`/v1/risk/sanctioned-countries`, { endpoint, method: 'GET' });
+  },
+  /** M7：禁运国清单更新（risk:write；变更落 SystemConfigHistory） */
+  async updateSanctionedCountries(items: string[], reason?: string, endpoint?: string): Promise<{ items: string[]; source: 'config' | 'default' }> {
+    return requestJson<{ items: string[]; source: 'config' | 'default' }>(`/v1/risk/sanctioned-countries`, { endpoint, method: 'PUT', body: JSON.stringify({ items, reason }) });
+  },
+
   // FxRateLock 汇率锁定
   async listFxLocks(orderId?: string, endpoint?: string): Promise<FxRateLock[]> {
     const qs = orderId ? `?orderId=${encodeURIComponent(orderId)}` : '';
@@ -3787,35 +3796,41 @@ export const apiService = {
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
     const qs = query.toString();
-    return requestJson<{ items: TaxRefund[]; total: number }>(`/v1/customs/tax-refunds${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
+    return requestJson<{ items: TaxRefund[]; total: number }>(`/v2/customs/tax-refunds${qs ? '?' + qs : ''}`, { endpoint, method: 'GET' });
   },
 
   async getTaxRefund(id: string, endpoint?: string): Promise<TaxRefund> {
-    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+    const data = await requestJson<{ item: TaxRefund }>(`/v2/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
     return data.item;
   },
 
   async createTaxRefund(input: TaxRefundInput, endpoint?: string): Promise<TaxRefund> {
-    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    const data = await requestJson<{ item: TaxRefund }>(`/v2/customs/tax-refunds`, { endpoint, method: 'POST', body: JSON.stringify(input) });
     return data.item;
   },
 
   async updateTaxRefund(id: string, input: Partial<TaxRefundInput>, endpoint?: string): Promise<TaxRefund> {
-    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    const data = await requestJson<{ item: TaxRefund }>(`/v2/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
     return data.item;
   },
 
   async deleteTaxRefund(id: string, endpoint?: string): Promise<void> {
-    await requestJson<{ ok: boolean }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+    await requestJson<{ ok: boolean }>(`/v2/customs/tax-refunds/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
   },
 
   async transitionTaxRefundStatus(id: string, toStatus: TaxRefundStatus, endpoint?: string): Promise<TaxRefund> {
-    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
+    const data = await requestJson<{ item: TaxRefund }>(`/v2/customs/tax-refunds/${encodeURIComponent(id)}/transition`, { endpoint, method: 'POST', body: JSON.stringify({ toStatus }) });
     return data.item;
   },
 
   async reviewTaxRefund(id: string, input: TaxRefundReviewInput, endpoint?: string): Promise<TaxRefund> {
-    const data = await requestJson<{ item: TaxRefund }>(`/v1/customs/tax-refunds/${encodeURIComponent(id)}/review`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    const data = await requestJson<{ item: TaxRefund }>(`/v2/customs/tax-refunds/${encodeURIComponent(id)}/review`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.item;
+  },
+
+  /** G4：从报关单一键核算生成退税草稿（幂等，重复生成由后端拦截） */
+  async createTaxRefundFromDeclaration(declarationId: string, endpoint?: string): Promise<TaxRefund> {
+    const data = await requestJson<{ item: TaxRefund }>(`/v2/customs/tax-refunds/from-declaration/${encodeURIComponent(declarationId)}`, { endpoint, method: 'POST' });
     return data.item;
   },
 

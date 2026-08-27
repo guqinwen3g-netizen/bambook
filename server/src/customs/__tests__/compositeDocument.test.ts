@@ -13,9 +13,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
 // ── Mock 装配器（组合聚合的单运单/单报告真源）──
-const { assembleMock, inspectionLoadMock } = vi.hoisted(() => ({
+const { assembleMock, inspectionLoadMock, genNumberMock, appendVersionMock } = vi.hoisted(() => ({
   assembleMock: vi.fn(),
   inspectionLoadMock: vi.fn(),
+  genNumberMock: vi.fn(),
+  appendVersionMock: vi.fn(),
 }));
 
 vi.mock('../../shipping/documentSetService', () => ({
@@ -27,6 +29,12 @@ vi.mock('../../templates/docTemplates/inspectionReport', async (importOriginal) 
   return { ...actual, loadInspectionReportDocData: (...args: any[]) => inspectionLoadMock(...args) };
 });
 
+// 批次 H3：登记口径依赖 lifecycleService 的取号/版本留痕——mock 隔离（真机语义由 tradeDocumentLifecycle.test.ts 覆盖）
+vi.mock('../tradeDocumentLifecycleService', () => ({
+  generateTradeDocumentNumber: (...args: any[]) => genNumberMock(...args),
+  appendTradeDocumentVersion: (...args: any[]) => appendVersionMock(...args),
+}));
+
 vi.mock('../../lib/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 import {
@@ -34,6 +42,10 @@ import {
   loadMergedInspectionSummary,
   assembleCompositeDocument,
   isCompositeDocKind,
+  buildCompositeSourceRef,
+  parseCompositeSourceRef,
+  registerCompositeTradeDocument,
+  COMPOSITE_TRADE_DOC_TYPE,
 } from '../compositeDocumentService';
 import { renderMergedPackingListBody } from '../../templates/docTemplates/mergedPackingList';
 import { renderMergedInspectionSummaryBody } from '../../templates/docTemplates/mergedInspectionSummary';
@@ -228,5 +240,130 @@ describe('组合模板渲染', () => {
     expect(html).toContain('PASS');
     expect(html).toContain('Signed 2026-08-21');
     expect(html).toContain('Pending');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// 批次 H3：组合生成留档（登记 TradeDocument 台账）
+// ────────────────────────────────────────────────────────────────
+
+/** 登记测试用 prisma mock：tx 与本体同形（$transaction 同步执行），记录 create/update/audit 调用 */
+function makeRegisterPrisma(existing: { id: string; documentNumber: string } | null = null) {
+  const calls: { create: any[]; update: any[]; audit: any[] } = { create: [], update: [], audit: [] };
+  const tx: any = {
+    tradeDocument: {
+      create: vi.fn(async ({ data }: any) => { calls.create.push(data); return { ...data }; }),
+      update: vi.fn(async ({ where, data }: any) => { calls.update.push({ where, data }); return { id: where.id, ...data }; }),
+      findFirst: vi.fn(async () => existing),
+    },
+    auditLog: { create: vi.fn(async ({ data }: any) => { calls.audit.push(data); return {}; }) },
+  };
+  const prisma: any = { ...tx, $transaction: vi.fn(async (fn: any) => fn(tx)), _calls: calls, _tx: tx };
+  return prisma;
+}
+
+describe('批次 H3 sourceRef 构建/解析', () => {
+  it('buildCompositeSourceRef：sourceIds 排序拼接（任意顺序同组合同 ref）', () => {
+    expect(buildCompositeSourceRef('MERGED_PL', ['SHP_B', 'SHP_A'])).toBe('composite:MERGED_PL:SHP_A,SHP_B');
+    expect(buildCompositeSourceRef('MERGED_PL', ['SHP_A', 'SHP_B'])).toBe('composite:MERGED_PL:SHP_A,SHP_B');
+    expect(buildCompositeSourceRef('CONTRACT', ['ord2', 'ord1'])).toBe('composite:CONTRACT:ord1,ord2');
+  });
+
+  it('parseCompositeSourceRef：roundtrip + 非法输入 fail-closed null', () => {
+    expect(parseCompositeSourceRef('composite:MERGED_PL:SHP_A,SHP_B')).toEqual({ kind: 'MERGED_PL', sourceIds: ['SHP_A', 'SHP_B'] });
+    expect(parseCompositeSourceRef(null)).toBeNull();
+    expect(parseCompositeSourceRef('PO_123')).toBeNull();
+    expect(parseCompositeSourceRef('composite:NOPE:a,b')).toBeNull();
+    expect(parseCompositeSourceRef('composite:MERGED_PL:ONLY_ONE')).toBeNull(); // <2 源不合法
+  });
+
+  it('COMPOSITE_TRADE_DOC_TYPE：MERGED_PL→PackingList / CONTRACT→Contract / MERGED_IR 不登记', () => {
+    expect(COMPOSITE_TRADE_DOC_TYPE.MERGED_PL).toBe('PackingList');
+    expect(COMPOSITE_TRADE_DOC_TYPE.CONTRACT).toBe('Contract');
+    expect(COMPOSITE_TRADE_DOC_TYPE.MERGED_IR).toBeUndefined();
+  });
+});
+
+describe('批次 H3 registerCompositeTradeDocument', () => {
+  it('首次登记：自动取号 + Draft + sourceRef + v1 快照（装配数据冻结）+ 双审计', async () => {
+    genNumberMock.mockResolvedValue('PL-2026-0009');
+    appendVersionMock.mockResolvedValue(undefined);
+    const prisma = makeRegisterPrisma(null);
+    const data = { totals: { amount: 12000, currency: 'USD' }, lines: [] };
+
+    const result = await registerCompositeTradeDocument(prisma, {
+      kind: 'MERGED_PL', sourceIds: ['SHP_B', 'SHP_A'], data, actorId: 'user-1',
+    });
+
+    expect(result.outcome).toBe('created');
+    expect(result.documentNumber).toBe('PL-2026-0009');
+    const created = prisma._calls.create[0];
+    expect(created.domain).toBe('customs');
+    expect(created.type).toBe('PackingList');
+    expect(created.status).toBe('Draft');
+    expect(created.sourceRef).toBe('composite:MERGED_PL:SHP_A,SHP_B');
+    expect(Number(created.totalAmount)).toBe(12000);
+    expect(created.currency).toBe('USD');
+    // v1 快照携带装配数据（归档语义）
+    expect(appendVersionMock).toHaveBeenCalledTimes(1);
+    const versionArgs = appendVersionMock.mock.calls[0][1];
+    expect(versionArgs.content.source).toBe('composite');
+    expect(versionArgs.content.kind).toBe('MERGED_PL');
+    expect(versionArgs.content.sourceIds).toEqual(['SHP_B', 'SHP_A']);
+    expect(versionArgs.content.data).toEqual(data);
+    // 审计：版本留痕（append 内部）+ TRADE_DOCUMENT_CREATE
+    expect(prisma._calls.audit.some((a: any) => a.action === 'TRADE_DOCUMENT_CREATE' && a.detail.source === 'composite')).toBe(true);
+  });
+
+  it('同组合重复登记：幂等 updated（刷新头字段，不追加版本、不重复建档）', async () => {
+    appendVersionMock.mockClear();
+    const prisma = makeRegisterPrisma({ id: 'TD_exist', documentNumber: 'PL-2026-0001' });
+    const result = await registerCompositeTradeDocument(prisma, {
+      kind: 'MERGED_PL', sourceIds: ['SHP_A', 'SHP_B'], data: { totals: { amount: 8000, currency: 'USD' } },
+    });
+
+    expect(result.outcome).toBe('updated');
+    expect(result.documentId).toBe('TD_exist');
+    expect(prisma._calls.create).toHaveLength(0);
+    expect(prisma._calls.update).toHaveLength(1);
+    expect(Number(prisma._calls.update[0].data.totalAmount)).toBe(8000);
+    expect(appendVersionMock).not.toHaveBeenCalled();
+    expect(prisma._calls.audit.some((a: any) => a.action === 'TRADE_DOCUMENT_DOMAIN_REFRESH')).toBe(true);
+  });
+
+  it('MERGED_IR 不登记（任务包口径保持即时产物）；无 tradeDocument 模型降级 skipped', async () => {
+    const prisma = makeRegisterPrisma(null);
+    const r1 = await registerCompositeTradeDocument(prisma, { kind: 'MERGED_IR', sourceIds: ['INR__1', 'INR__2'], data: {} });
+    expect(r1.outcome).toBe('skipped');
+    expect(prisma._calls.create).toHaveLength(0);
+
+    const r2 = await registerCompositeTradeDocument({} as PrismaClient, { kind: 'MERGED_PL', sourceIds: ['A', 'B'], data: {} });
+    expect(r2.outcome).toBe('skipped');
+  });
+
+  it('assembleCompositeDocument 默认触发登记（CONTRACT 之外的 MERGED_PL 走通全链）；register:false 跳过', async () => {
+    genNumberMock.mockResolvedValue('PL-2026-0010');
+    appendVersionMock.mockResolvedValue(undefined);
+    assembleMock.mockImplementation(async (_p: any, id: string) => makeDocSet(id));
+
+    const prisma = makeRegisterPrisma(null);
+    const r = await assembleCompositeDocument(prisma, { kind: 'MERGED_PL', sourceIds: ['SHP_B', 'SHP_A'] });
+    expect(r.kind).toBe('MERGED_PL');
+    expect(prisma._calls.create).toHaveLength(1);
+    expect(prisma._calls.create[0].sourceRef).toBe('composite:MERGED_PL:SHP_A,SHP_B');
+
+    const prisma2 = makeRegisterPrisma(null);
+    await assembleCompositeDocument(prisma2, { kind: 'MERGED_PL', sourceIds: ['SHP_A', 'SHP_B'] }, { register: false });
+    expect(prisma2._calls.create).toHaveLength(0);
+  });
+
+  it('登记失败 warn 不阻断装配输出（fail-open，输出语义优先）', async () => {
+    assembleMock.mockImplementation(async (_p: any, id: string) => makeDocSet(id));
+    const prisma: any = {
+      tradeDocument: { findFirst: vi.fn(async () => { throw new Error('DB down'); }) },
+    };
+    const r = await assembleCompositeDocument(prisma, { kind: 'MERGED_PL', sourceIds: ['SHP_A', 'SHP_B'] });
+    expect(r.kind).toBe('MERGED_PL'); // 装配结果照常返回
+    expect((r.data as any).totals.quantity).toBe(1200);
   });
 });

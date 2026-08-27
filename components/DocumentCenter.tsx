@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { invoiceService } from '../services/invoiceService';
+import { qcService, QcInspectionReport } from '../services/qcService';
 import {
   DocumentVersionRecord,
   GenerateTradeDocumentsResult,
@@ -89,11 +90,19 @@ const DOC_STATUSES: Array<{ id: TradeDocumentStatus; label: string; semantic: St
 ];
 
 /** 服务端可渲染类型（B6：渲染真源统一服务端——注册表 TRADE_DOC_TYPE_TO_KIND 的 UI 提示镜像，
- *  仅用于版本行"可预览"按钮显隐；点击后由服务端 501 兜底报错，不存在渲染双源） */
+ *  仅用于版本行"可预览"按钮显隐；点击后由服务端 501 兜底报错，不存在渲染双源。
+ *  批次 H2 镜像补齐：AWB 空运单（B11 已注册漏镜像）+ 检验证书/植检证书/其他三类新模板） */
 const SERVER_RENDERABLE_TYPES: ReadonlySet<string> = new Set([
-  'CommercialInvoice', 'PackingList', 'CertificateOfOrigin', 'BillOfLading',
-  'InsuranceCert', 'PurchaseOrder', 'InspectionReport',
+  'CommercialInvoice', 'PackingList', 'CertificateOfOrigin', 'BillOfLading', 'AirWaybill',
+  'InsuranceCert', 'InspectionCert', 'PhytosanitaryCert', 'Other',
+  'PurchaseOrder', 'InspectionReport',
 ]);
+
+/** 版本行「可预览」判定：CI 财务回链 / 服务端注册表类型 / 批次 H3 组合单据（sourceRef 回链实时重装配） */
+const isDocServerRenderable = (doc: TradeDocument): boolean =>
+  (doc.type === 'CommercialInvoice' && !!doc.sourceInvoiceId)
+  || SERVER_RENDERABLE_TYPES.has(doc.type)
+  || (doc.sourceRef ?? '').startsWith('composite:');
 
 /** 状态机（镜像服务端 DOC_TRANSITIONS，fail-closed 不在前端放行非法流转） */
 const DOC_TRANSITIONS: Record<TradeDocumentStatus, TradeDocumentStatus[]> = {
@@ -747,9 +756,9 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
                           ) : (
                             <div className="space-y-1.5">
                               {versions.map(v => {
-                                // CI 带财务回链：无本地快照也可预览/打印（走服务端同源模板）
-                                const isLinkedCi = doc.type === 'CommercialInvoice' && !!doc.sourceInvoiceId;
-                                const renderable = isLinkedCi || SERVER_RENDERABLE_TYPES.has(doc.type);
+                                // CI 带财务回链：无本地快照也可预览/打印（走服务端同源模板）；
+                                // 批次 H3 组合单据：sourceRef 回链实时重装配渲染
+                                const renderable = isDocServerRenderable(doc);
                                 return (
                                   <div key={v.id} className={`rounded-inset border border-[var(--border-c-subtle)] bg-[var(--hover-darken)]`}>
                                     <div className="flex items-center justify-between gap-2 px-3 py-2">
@@ -832,9 +841,13 @@ const DocumentCenter: React.FC<DocumentCenterProps> = ({ isDarkMode, onOpenInvoi
         <PackDialog isDarkMode={isDarkMode} onClose={() => setShowPack(false)} />
       )}
 
-      {/* B3 组合生成弹窗（多对一数据聚合：合并装箱单 / 合并验货汇总） */}
+      {/* B3 组合生成弹窗（多对一数据聚合：合并装箱单 / 合并验货汇总 / 合并合同） */}
       {showComposite && (
-        <CompositeDialog isDarkMode={isDarkMode} onClose={() => setShowComposite(false)} />
+        <CompositeDialog
+          isDarkMode={isDarkMode}
+          onClose={() => setShowComposite(false)}
+          onGenerated={() => { setVersionsByDoc({}); void fetchDocs(); }}
+        />
       )}
 
       {/* BdsDialog：操作失败提示（替代 window.alert） */}
@@ -893,6 +906,29 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   } : { type: 'CommercialInvoice', currency: 'USD' });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // 批次 H1：关联运单/订单/档案手输 ID 改下拉（列表加载失败不阻断表单，仅无可选项）
+  const [shipmentOptions, setShipmentOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [orderOptions, setOrderOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [relationOptions, setRelationOptions] = useState<Array<{ id: string; label: string }>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listShipments();
+        if (!cancelled) setShipmentOptions(list.map((s: any) => ({ id: s.id, label: s.shipmentNumber || s.id })));
+      } catch { /* 下拉数据源加载失败不阻断 */ }
+      try {
+        const list = await apiService.listOrders();
+        if (!cancelled) setOrderOptions((list as any[]).map(o => ({ id: o.id, label: o.poNumber || o.customer || o.id })));
+      } catch { /* 下拉数据源加载失败不阻断 */ }
+      try {
+        const list = await apiService.listRelationsV2();
+        if (!cancelled) setRelationOptions(list.map(r => ({ id: r.id, label: r.code ? `${r.name}（${r.code}）` : r.name })));
+      } catch { /* 下拉数据源加载失败不阻断 */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
   const inputCls = `${fieldClass} py-1.5`;
@@ -901,6 +937,19 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
   const set = (patch: Partial<TradeDocumentInput>) => setForm(prev => ({ ...prev, ...patch }));
   const setStr = (key: keyof TradeDocumentInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     set({ [key]: e.target.value.trim() === '' ? undefined : e.target.value } as Partial<TradeDocumentInput>);
+
+  /** 关联下拉（批次 H1）：空值=不关联；编辑态当前值不在列表时补「当前值」选项防丢失 */
+  const renderLinkSelect = (key: 'shipmentId' | 'orderId' | 'relationId', options: Array<{ id: string; label: string }>) => {
+    const current = form[key] ?? '';
+    const missing = current && !options.some(o => o.id === current);
+    return (
+      <select className="bds-select" value={current} onChange={setStr(key)}>
+        <option value="">—（不关联）</option>
+        {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        {missing && <option value={current}>{current}（当前值）</option>}
+      </select>
+    );
+  };
 
   const handleSubmit = async () => {
     setFormError(null);
@@ -972,10 +1021,10 @@ const DocFormModal: React.FC<DocFormModalProps> = ({ isDarkMode, doc, onClose, o
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div><label className={labelClass}>关联运单 ID</label><input className={inputCls} value={form.shipmentId ?? ''} onChange={setStr('shipmentId')} placeholder="选填" /></div>
-          <div><label className={labelClass}>关联订单 ID</label><input className={inputCls} value={form.orderId ?? ''} onChange={setStr('orderId')} placeholder="选填" /></div>
+          <div><label className={labelClass}>关联运单</label>{renderLinkSelect('shipmentId', shipmentOptions)}</div>
+          <div><label className={labelClass}>关联订单</label>{renderLinkSelect('orderId', orderOptions)}</div>
           <div><label className={labelClass}>签发人</label><input className={inputCls} value={form.issuedBy ?? ''} onChange={setStr('issuedBy')} /></div>
-          <div><label className={labelClass}>关联档案 ID</label><input className={inputCls} value={form.relationId ?? ''} onChange={setStr('relationId')} placeholder="选填" /></div>
+          <div><label className={labelClass}>关联档案</label>{renderLinkSelect('relationId', relationOptions)}</div>
           {isEdit && (
             <div className="col-span-2">
               <label className={labelClass}>变更原因（写入版本留痕）</label>
@@ -1019,8 +1068,24 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateTradeDocumentsResult | null>(null);
+  // 批次 H1：运单手输 ID 改下拉（prime 带入的运单不在列表时补「当前运单」选项）
+  const [shipments, setShipments] = useState<Array<{ id: string; shipmentNumber: string; status: string }>>([]);
+  const [shipmentsLoading, setShipmentsLoading] = useState(true);
 
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listShipments();
+        if (!cancelled) setShipments(list.map((s: any) => ({ id: s.id, shipmentNumber: s.shipmentNumber, status: s.status })));
+      } catch {
+        // 运单列表加载失败不阻断——下拉为空时用户可返回运单页跳转
+      } finally {
+        if (!cancelled) setShipmentsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const toggle = (t: TradeDocumentType) => setSelected(prev => {
     const next = new Set(prev);
@@ -1030,11 +1095,11 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
 
   const handleSubmit = async () => {
     setError(null);
-    if (!shipmentId.trim()) { setError('运单 ID 必填'); return; }
+    if (!shipmentId) { setError('请选择运单'); return; }
     if (selected.size === 0) { setError('至少选择一种单据类型'); return; }
     setSubmitting(true);
     try {
-      const res = await apiService.generateTradeDocumentsFromShipment({ shipmentId: shipmentId.trim(), types: Array.from(selected) });
+      const res = await apiService.generateTradeDocumentsFromShipment({ shipmentId, types: Array.from(selected) });
       setResult(res);
       if (res.created.length > 0) onGenerated();
     } catch (e: any) {
@@ -1058,8 +1123,21 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
           装配运单数据批量登记 Draft 草稿（自动取号 + v1 快照）；同运单同类型已存在则跳过不重复建档。
         </p>
 
-        <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>运单 ID *</label>
-        <input className={`${fieldClass} py-1.5 mb-4`} value={shipmentId} onChange={(e) => setShipmentId(e.target.value)} placeholder="SHP_..." />
+        <label className={`block text-xs mb-1 text-[var(--text-tertiary)]`}>选择运单 *</label>
+        <div className="mb-4">
+          <select
+            className="bds-select"
+            value={shipmentId}
+            disabled={shipmentsLoading}
+            onChange={(e) => setShipmentId(e.target.value)}
+          >
+            <option value="">{shipmentsLoading ? '加载运单中...' : '—（请选择运单）'}</option>
+            {shipments.map(s => <option key={s.id} value={s.id}>{s.shipmentNumber}（{s.status}）</option>)}
+            {shipmentId && !shipments.some(s => s.id === shipmentId) && (
+              <option value={shipmentId}>{shipmentId}（当前运单）</option>
+            )}
+          </select>
+        </div>
 
         <label className={`block text-xs mb-1.5 text-[var(--text-tertiary)]`}>单据类型 *</label>
         <div className="bds-toggle-group mb-4">
@@ -1123,6 +1201,8 @@ const GenerateDialog: React.FC<GenerateDialogProps> = ({ isDarkMode, initialShip
 interface CompositeDialogProps {
   isDarkMode: boolean;
   onClose: () => void;
+  /** 批次 H3：合并装箱单/合并合同生成 PDF 后回调（台账已登记 → 刷新单据列表） */
+  onGenerated?: () => void;
 }
 
 const COMPOSITE_KIND_OPTIONS: Array<{ id: 'MERGED_PL' | 'MERGED_IR' | 'CONTRACT'; label: string; hint: string }> = [
@@ -1131,7 +1211,7 @@ const COMPOSITE_KIND_OPTIONS: Array<{ id: 'MERGED_PL' | 'MERGED_IR' | 'CONTRACT'
   { id: 'CONTRACT', label: '合并销售合同', hint: '多订单数据聚合为一份合同（订单一览 + 合并明细 + 通用条款；单订单确认走订单确认书）' },
 ];
 
-const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }) => {
+const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose, onGenerated }) => {
   const [kind, setKind] = useState<'MERGED_PL' | 'MERGED_IR' | 'CONTRACT'>('MERGED_PL');
   const [shipments, setShipments] = useState<Array<{ id: string; shipmentNumber: string; status: string }>>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(true);
@@ -1139,7 +1219,11 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
   const [orders, setOrders] = useState<Array<{ id: string; label: string; status: string }>>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
-  const [reportIdsText, setReportIdsText] = useState('');
+  // 批次 H1：验货报告手输 ID 改级联选择（选订单 → 勾选其报告，跨订单累计）
+  const [reportOrderId, setReportOrderId] = useState('');
+  const [orderReports, setOrderReports] = useState<QcInspectionReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [selectedReports, setSelectedReports] = useState<Map<string, string>>(new Map());
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 组合文档 A4 预览（与生成 PDF 同源渲染）
@@ -1147,8 +1231,6 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewErr, setPreviewErr] = useState<string | null>(null);
-
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
 
   useEffect(() => {
     let cancelled = false;
@@ -1187,11 +1269,29 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
     return () => { cancelled = true; };
   }, []);
 
+  // 批次 H1：MERGED_IR 级联加载——选中订单后拉取其验货报告列表（勾选跨订单累计）
+  useEffect(() => {
+    if (!reportOrderId) { setOrderReports([]); return; }
+    let cancelled = false;
+    setReportsLoading(true);
+    (async () => {
+      try {
+        const list = await qcService.listOrderReports(reportOrderId);
+        if (!cancelled) setOrderReports(list);
+      } catch {
+        if (!cancelled) setOrderReports([]);
+      } finally {
+        if (!cancelled) setReportsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [reportOrderId]);
+
   const sourceIds = useMemo((): string[] => {
     if (kind === 'MERGED_PL') return Array.from(selectedShipmentIds);
     if (kind === 'CONTRACT') return Array.from(selectedOrderIds);
-    return reportIdsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  }, [kind, selectedShipmentIds, selectedOrderIds, reportIdsText]);
+    return Array.from(selectedReports.keys());
+  }, [kind, selectedShipmentIds, selectedOrderIds, selectedReports]);
 
   const toggleShipment = (id: string) => setSelectedShipmentIds(prev => {
     const next = new Set(prev);
@@ -1202,6 +1302,13 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
   const toggleOrder = (id: string) => setSelectedOrderIds(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const toggleReport = (report: QcInspectionReport, orderLabel: string) => setSelectedReports(prev => {
+    const next = new Map(prev);
+    if (next.has(report.id)) next.delete(report.id);
+    else next.set(report.id, `${report.id}（${orderLabel}）`);
     return next;
   });
 
@@ -1249,8 +1356,8 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
           <button onClick={onClose} className="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"><X size={16} /></button>
         </div>
         <p className="text-xs mb-4 text-[var(--text-tertiary)]">
-          多条业务记录在数据层聚合为一份文档（非 PDF 拼页）；即时汇总产物不登记归档，可预览后下载。
-          多订单合票 CI 走财务管理创建发票时勾选多订单（已有能力）。
+          多条业务记录在数据层聚合为一份文档（非 PDF 拼页）；合并装箱单/合并合同装配即登记单据台账（同组合不重复建档），
+          合并验货汇总为即时产物不登记。多订单合票 CI 走财务管理创建发票时勾选多订单（已有能力）。
         </p>
 
         <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">组合类型 *</label>
@@ -1317,15 +1424,50 @@ const CompositeDialog: React.FC<CompositeDialogProps> = ({ isDarkMode, onClose }
           </>
         ) : (
           <>
-            <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">验货报告 ID *（≥2，每行一个）</label>
-            <textarea
-              className={`${fieldClass} mb-2 font-mono text-xs`}
-              rows={6}
-              value={reportIdsText}
-              onChange={(e) => setReportIdsText(e.target.value)}
-              placeholder={'INR__ord_1001\nINR__ord_1002__mid\n（报告 ID 可从订单详情验货报告 / QC 工作台复制）'}
-            />
-            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已识别 {sourceIds.length} 份报告</p>
+            <label className="block text-xs mb-1.5 text-[var(--text-tertiary)]">选择订单查看验货报告 *（≥2 份报告，可跨订单勾选）</label>
+            <select
+              className="bds-select mb-2"
+              value={reportOrderId}
+              disabled={ordersLoading}
+              onChange={(e) => setReportOrderId(e.target.value)}
+            >
+              <option value="">{ordersLoading ? '加载订单中...' : '—（请选择订单）'}</option>
+              {orders.map(o => <option key={o.id} value={o.id}>{o.label}（{o.status}）</option>)}
+            </select>
+            {reportOrderId && (
+              <div className="max-h-52 overflow-y-auto custom-scrollbar rounded-inset border border-[var(--border-c-subtle)] mb-2 p-2 space-y-1">
+                {reportsLoading ? (
+                  <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-[var(--text-quaternary)]" /></div>
+                ) : orderReports.length === 0 ? (
+                  <div className="text-center text-xs py-6 text-[var(--text-quaternary)]">该订单暂无验货报告</div>
+                ) : orderReports.map(r => {
+                  const orderLabel = orders.find(o => o.id === reportOrderId)?.label ?? reportOrderId;
+                  return (
+                    <label
+                      key={r.id}
+                      className="flex items-center gap-2.5 px-2 py-1.5 rounded-control cursor-pointer hover:bg-[var(--hover-darken)] text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedReports.has(r.id)}
+                        onChange={() => toggleReport(r, orderLabel)}
+                        className="bds-checkbox"
+                      />
+                      <span className="bds-mono text-[var(--text-primary)]">{r.id}</span>
+                      <span className="text-[10px] text-[var(--text-quaternary)]">{r.inspectionType}{r.result ? ` · ${r.result}` : ''}{r.inspectionDate ? ` · ${r.inspectionDate}` : ''}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {selectedReports.size > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {Array.from(selectedReports.values()).map(label => (
+                  <span key={label} className="text-[10px] px-1.5 py-0.5 rounded-bds-sm bg-[var(--recessed-bg)] text-[var(--text-tertiary)]">{label}</span>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] mb-3 text-[var(--text-quaternary)]">已选 {selectedReports.size} 份报告</p>
           </>
         )}
 
@@ -1376,15 +1518,31 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<TradeDocumentPackItem[] | null>(null);
+  // 批次 H1：订单手输 ID 改下拉（选择即加载打包清单）
+  const [orders, setOrders] = useState<Array<{ id: string; label: string; status: string }>>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
-  const fieldClass = 'w-full px-3 py-2 rounded-control text-sm outline-none border transition-colors focus:border-[var(--os-vnext-brand-blue)] bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]';
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listOrders();
+        if (!cancelled) setOrders((list as any[]).map(o => ({ id: o.id, label: o.poNumber || o.customer || o.id, status: o.status })));
+      } catch {
+        // 订单列表加载失败不阻断——下拉为空时提示
+      } finally {
+        if (!cancelled) setOrdersLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const handleLoad = async () => {
+  const handleLoad = async (id: string) => {
     setError(null);
-    if (!orderId.trim()) { setError('订单 ID 必填'); return; }
+    if (!id) { setItems(null); return; }
     setLoading(true);
     try {
-      const res = await apiService.packTradeDocumentsByOrder(orderId.trim());
+      const res = await apiService.packTradeDocumentsByOrder(id);
       setItems(res.items);
     } catch (e: any) {
       setError(e?.message || '加载失败');
@@ -1418,14 +1576,16 @@ const PackDialog: React.FC<PackDialogProps> = ({ isDarkMode, onClose }) => {
         </p>
 
         <div className="flex items-center gap-2 mb-4">
-          <input className={`${fieldClass} py-1.5`} value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="订单 ID" onKeyDown={(e) => { if (e.key === 'Enter') void handleLoad(); }} />
-          <button
-            onClick={() => void handleLoad()}
-            disabled={loading}
-            className="bds-btn bds-btn-primary shrink-0"
+          <select
+            className="bds-select"
+            value={orderId}
+            disabled={ordersLoading}
+            onChange={(e) => { setOrderId(e.target.value); void handleLoad(e.target.value); }}
           >
-            {loading && <Loader2 size={14} className="animate-spin" />}加载
-          </button>
+            <option value="">{ordersLoading ? '加载订单中...' : '—（请选择订单）'}</option>
+            {orders.map(o => <option key={o.id} value={o.id}>{o.label}（{o.status}）</option>)}
+          </select>
+          {loading && <Loader2 size={14} className="animate-spin shrink-0 text-[var(--text-tertiary)]" />}
         </div>
 
         {error && (

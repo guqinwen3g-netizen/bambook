@@ -165,7 +165,8 @@ export interface TaxRefundInput {
 }
 
 export interface TaxRefundReviewInput {
-  reviewedBy: string;
+  /** @deprecated 审核留痕取真实登录人（actorId 来自路由层认证身份），请求体 reviewedBy 仅作无身份时的兜底，不再受信 */
+  reviewedBy?: string;
   decision: 'Approved' | 'Rejected';
   reviewNotes?: string;
   refundAmount?: number;
@@ -1420,13 +1421,15 @@ export function createCustomsService(prisma: PrismaClient) {
     if (existing.status !== 'Reviewing') throw new Error(`退税状态 ${existing.status} 不可审核（仅 Reviewing 可审核）`);
 
     const toStatus = input.decision === 'Approved' ? 'Approved' : 'Rejected';
+    // G3：审核留痕取真实登录人——actorId 由路由层从认证身份（JWT）解析，请求体 reviewedBy 不再受信，仅作无身份兜底
+    const reviewedBy = actorId?.trim() || input.reviewedBy?.trim() || 'system';
     const ts = now();
     const updated = await prisma.$transaction(async (tx) => {
       const tr = await tx.taxRefund.update({
         where: { id },
         data: {
           status: toStatus,
-          reviewedBy: input.reviewedBy,
+          reviewedBy,
           reviewedAt: ts,
           reviewNotes: input.reviewNotes ?? null,
           ...(input.refundAmount != null ? { refundAmount: new Prisma.Decimal(input.refundAmount) } : {}),
@@ -1440,13 +1443,13 @@ export function createCustomsService(prisma: PrismaClient) {
           actorId,
           targetType: 'TaxRefund',
           targetId: id,
-          detail: { decision: input.decision, reviewedBy: input.reviewedBy },
+          detail: { decision: input.decision, reviewedBy },
         },
       });
       return tr;
     });
 
-    logger.info('[CustomsService] taxRefund reviewed', { id, decision: input.decision, actorId });
+    logger.info('[CustomsService] taxRefund reviewed', { id, decision: input.decision, actorId, reviewedBy });
     return updated;
   }
 

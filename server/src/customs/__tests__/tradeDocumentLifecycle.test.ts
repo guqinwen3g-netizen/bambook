@@ -17,6 +17,7 @@ import {
   generateTradeDocumentFile,
   generateTradeDocumentsFromShipment,
   packTradeDocumentsByOrder,
+  renderTradeDocumentServerHtml,
   toTradeDocumentSnapshot,
   upsertDomainTradeDocument,
   TRADE_DOC_NUMBER_PREFIX,
@@ -503,5 +504,87 @@ describe('upsertDomainTradeDocument', () => {
       sourceRef: 'PO_x',
       actorId: 'user_1',
     })).rejects.toThrow('非法单据业务域');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// 批次 H3：组合单据渲染分支（sourceRef=composite:{kind}:{ids} 实时重装配 + 快照回落）
+// ────────────────────────────────────────────────────────────────
+
+/** 组合渲染测试用单运单 documentSet（assembleMergedDocumentSet 逐运单聚合） */
+function makeCompositeDocSet(shipmentNumber: string) {
+  return {
+    ok: true,
+    data: {
+      shipment: {
+        id: shipmentNumber, shipmentNumber, status: 'Shipped',
+        vesselOrFlight: 'MSC ANNA', voyageNumber: null,
+        portOfLoading: 'SHANGHAI', portOfDischarge: 'HAMBURG',
+        containerNumber: null, sealNumber: null,
+        totalPackages: 100, grossWeight: 1000, netWeight: 900, volume: 2.5,
+      },
+      order: { id: `ord_${shipmentNumber}`, poNumber: `PO-${shipmentNumber}`, customer: 'ACME', currency: 'USD' },
+      customs: null,
+      parties: { customer: { name: 'ACME GmbH' }, consignee: { name: 'ACME GmbH', address: 'Hamburg' }, carrier: { name: 'MSC' } },
+      lines: [
+        { lineNumber: 1, description: `Goods ${shipmentNumber}`, quantity: 500, unit: 'PCS', cartons: 100, grossWeight: 1000, netWeight: 900, volume: 2.5, amount: 6000 },
+      ],
+      totals: { quantity: 500, amount: 6000, cartons: 100, grossWeight: 1000, netWeight: 900, volume: 2.5, currency: 'USD' },
+      missing: [],
+      extras: {},
+    },
+  };
+}
+
+describe('renderTradeDocumentServerHtml（批次 H3 组合单据分支）', () => {
+  it('composite sourceRef → 实时重装配渲染合并装箱单（register:false 不触发登记）', async () => {
+    assembleMock.mockImplementation(async (_p: any, id: string) => makeCompositeDocSet(id));
+    const prisma = makePrisma();
+    const html = await renderTradeDocumentServerHtml(prisma, {
+      id: 'TD_c1', type: 'PackingList', sourceInvoiceId: null,
+      sourceRef: 'composite:MERGED_PL:SHP_A,SHP_B',
+    });
+    expect(html).toContain('PACKING LIST');
+    expect(html).toContain('Consolidated');
+    expect(html).toContain('SHP_A');
+    expect(html).toContain('SHP_B');
+    // 渲染路径不登记台账（防回环）
+    expect(prisma._tx.tradeDocument.create).not.toHaveBeenCalled();
+  });
+
+  it('真源装配失败 → 回落最新版本快照的冻结数据渲染（归档语义）', async () => {
+    assembleMock.mockResolvedValue({ ok: false, error: { code: 'NOT_FOUND', message: '运单不存在' } });
+    const snapshotData = {
+      shipments: [makeCompositeDocSet('SHP_A').data.shipment, makeCompositeDocSet('SHP_B').data.shipment],
+      orders: [{ id: 'ord_A', poNumber: 'PO-A', customer: 'ACME' }],
+      parties: { customer: { name: 'ACME GmbH' }, consignee: { name: 'ACME GmbH' }, carrier: null },
+      lines: [{ lineNumber: 1, shipmentIndex: 1, description: 'Frozen Goods', quantity: 500, unit: 'PCS', cartons: 100, grossWeight: 1000, netWeight: 900, volume: 2.5 }],
+      totals: { quantity: 500, amount: 6000, cartons: 100, grossWeight: 1000, netWeight: 900, volume: 2.5, currency: 'USD' },
+      missing: [],
+    };
+    const prisma = makePrisma({
+      verFindFirst: vi.fn().mockResolvedValue({
+        version: 1,
+        content: { source: 'composite', kind: 'MERGED_PL', sourceIds: ['SHP_A', 'SHP_B'], data: snapshotData },
+      }),
+    });
+    const html = await renderTradeDocumentServerHtml(prisma, {
+      id: 'TD_c2', type: 'PackingList', sourceInvoiceId: null,
+      sourceRef: 'composite:MERGED_PL:SHP_A,SHP_B',
+    });
+    expect(html).toContain('PACKING LIST');
+    expect(html).toContain('Frozen Goods');
+  });
+
+  it('非法 composite ref / 快照缺失 → null（fail-closed）', async () => {
+    const prisma = makePrisma();
+    expect(await renderTradeDocumentServerHtml(prisma, {
+      id: 'TD_c3', type: 'PackingList', sourceInvoiceId: null, sourceRef: 'composite:NOPE:x',
+    })).toBeNull();
+
+    assembleMock.mockResolvedValue({ ok: false, error: { code: 'NOT_FOUND', message: '运单不存在' } });
+    expect(await renderTradeDocumentServerHtml(prisma, {
+      id: 'TD_c4', type: 'PackingList', sourceInvoiceId: null, sourceRef: 'composite:MERGED_PL:SHP_A,SHP_B',
+    })).toBeNull(); // 无版本快照可回落
   });
 });

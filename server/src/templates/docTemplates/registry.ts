@@ -10,8 +10,8 @@
  *       B11 收编：财务发票从 finance/route.ts 原位提取入注册表，此处为全站模板唯一目录
  *   - 组装统一走 buildServerDocument（doc-* 基座），preview.html 用 screen 模式
  *
- * 已注册（B1-B9）：PL/PO/IR/CI/CO/BL/INS/FORMA/BC/QUOT/OC/CONTRACT/MERGED_PL/MERGED_IR/STMT/FIN_CI
- * 待注册：AWB 空运单（B11+，schema 枚举已留位）
+ * 已注册（B1-B11 + 批次 H2）：PL/PO/IR/CI/CO/BL/AWB/INS/FORMA/BC/QUOT/OC/CONTRACT/MERGED_PL/MERGED_IR/STMT/FIN_CI/IC/PC/OTHER
+ * （批次 H2 补齐 InspectionCert/PhytosanitaryCert/Other 三类打印模板——此前只能登记壳出不了文件）
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -23,7 +23,7 @@ import { renderPurchaseOrderBody, loadPurchaseOrderDocData } from './purchaseOrd
 import { renderInspectionReportBody, loadInspectionReportDocData } from './inspectionReport';
 import { renderMergedPackingListBody } from './mergedPackingList';
 import { renderMergedInspectionSummaryBody } from './mergedInspectionSummary';
-import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody, renderCommercialInvoiceBody, renderFormABody, renderBeneficiaryCertificateBody, renderAirWaybillBody } from './customsDocs';
+import { renderCertificateOfOriginBody, renderBillOfLadingBody, renderInsurancePolicyBody, renderCommercialInvoiceBody, renderFormABody, renderBeneficiaryCertificateBody, renderAirWaybillBody, renderInspectionCertificateBody, renderPhytosanitaryCertBody, renderOtherTradeDocumentBody } from './customsDocs';
 import { renderQuotationBody, loadQuotationDocData } from './quotation';
 import { renderOrderConfirmationBody, loadOrderConfirmationDocData } from './orderConfirmation';
 import { renderContractBody } from './contract';
@@ -62,6 +62,9 @@ const TRADE_DOC_TYPE_TO_KIND: Partial<Record<string, string>> = {
   BillOfLading: 'BL',
   AirWaybill: 'AWB',
   InsuranceCert: 'INS',
+  InspectionCert: 'IC', // 批次 H2
+  PhytosanitaryCert: 'PC', // 批次 H2
+  Other: 'OTHER', // 批次 H2（通用版式：快照优先，手工登记壳回落字段版式）
   PurchaseOrder: 'PO',
   InspectionReport: 'IR',
   Quotation: 'QUOT',
@@ -92,6 +95,25 @@ async function loadDocumentSetSnapshot(prisma: PrismaClient, doc: ServerDocConte
   return ds && typeof ds === 'object' ? ds : null;
 }
 
+/**
+ * OTHER 数据装配（批次 H2）：运单生成的 Other 单据走 documentSet 快照版式；
+ * 手工登记的 Other 单据（无快照）回落 TradeDocument 行字段版式——登记壳也能出文件。
+ * BigInt/Decimal → number（模板直接渲染，不经 serializeValue）。
+ */
+async function loadOtherTradeDocumentData(prisma: PrismaClient, doc: ServerDocContext): Promise<any | null> {
+  const set = await loadDocumentSetSnapshot(prisma, doc);
+  if (set) return { source: 'set', set };
+  const row = await (prisma as any).tradeDocument.findFirst({ where: { id: doc.id, deletedAt: null } });
+  if (!row) return null;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (typeof value === 'bigint') out[key] = Number(value);
+    else if (value && typeof value === 'object' && typeof (value as any).toNumber === 'function') out[key] = Number(value);
+    else out[key] = value;
+  }
+  return { source: 'doc', doc: out };
+}
+
 export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
   CI: { kind: 'CI', title: 'Commercial Invoice 商业发票', loadData: loadDocumentSetSnapshot, renderBody: renderCommercialInvoiceBody },
   PL: { kind: 'PL', title: 'Packing List 装箱单', loadData: loadDocumentSetSnapshot, renderBody: renderPackingListBody },
@@ -101,6 +123,10 @@ export const SERVER_DOC_TEMPLATES: Record<string, ServerDocTemplate> = {
   INS: { kind: 'INS', title: 'Insurance Policy 保险单', loadData: loadDocumentSetSnapshot, renderBody: renderInsurancePolicyBody },
   FORMA: { kind: 'FORMA', title: 'GSP Form A 普惠制原产地证', loadData: loadDocumentSetSnapshot, renderBody: renderFormABody },
   BC: { kind: 'BC', title: "Beneficiary's Certificate 受益人证明", loadData: loadDocumentSetSnapshot, renderBody: renderBeneficiaryCertificateBody },
+  // 批次 H2：检验证书 / 植检证书 / 通用单据（此前无模板只能登记壳）
+  IC: { kind: 'IC', title: 'Inspection Certificate 检验证书', loadData: loadDocumentSetSnapshot, renderBody: renderInspectionCertificateBody },
+  PC: { kind: 'PC', title: 'Phytosanitary Certificate 植检证书', loadData: loadDocumentSetSnapshot, renderBody: renderPhytosanitaryCertBody },
+  OTHER: { kind: 'OTHER', title: 'Trade Document 通用外贸单据', loadData: loadOtherTradeDocumentData, renderBody: renderOtherTradeDocumentBody },
   PO: { kind: 'PO', title: 'Purchase Order 采购订单', loadData: async (prisma, doc) => (doc.sourceRef ? loadPurchaseOrderDocData(prisma, doc.sourceRef) : null), renderBody: renderPurchaseOrderBody },
   IR: { kind: 'IR', title: 'Inspection Report 验货报告', loadData: async (prisma, doc) => (doc.sourceRef ? loadInspectionReportDocData(prisma, doc.sourceRef) : null), renderBody: renderInspectionReportBody },
   QUOT: { kind: 'QUOT', title: 'Quotation 报价单', loadData: async (prisma, doc) => (doc.sourceRef ? loadQuotationDocData(prisma, doc.sourceRef) : null), renderBody: renderQuotationBody },

@@ -3990,7 +3990,7 @@ export interface TradeShowROI {
 // 统一风险预警中心 / 汇率与锁定 / 客户信用评级 / 合规检查 / 质量疵点趋势
 // ════════════════════════════════════════════════════════════════
 
-export type RiskAlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat' | 'sample_deadline' | 'hr_lifecycle' | 'crm_follow_up_overdue' | 'lc_maturity' | 'tax_refund_stall' | 'factory_visit';
+export type RiskAlertType = 'fx_volatility' | 'credit_frozen' | 'bad_debt' | 'compliance_fail' | 'quality_repeat' | 'sample_deadline' | 'hr_lifecycle' | 'crm_follow_up_overdue' | 'lc_maturity' | 'tax_refund_stall' | 'factory_visit' | 'dunning_stage';
 export type RiskAlertLevel = 'info' | 'warning' | 'critical';
 export type RiskAlertStatus = 'Open' | 'Acknowledged' | 'Resolved';
 
@@ -4114,9 +4114,11 @@ export interface DefectKeyword {
   count: number;
 }
 
-/** 疵点趋势聚合行（按工厂或季度分组） */
+/** 疵点趋势聚合行（按工厂或季度分组；factory 组返回 factoryId/factoryLabel，quarter 组返回 quarter） */
 export interface DefectTrendItem {
-  key: string;
+  factoryId?: string | null;
+  factoryLabel?: string;
+  quarter?: string;
   reports: number;
   failCount: number;
   criticalDefects: number;
@@ -4713,7 +4715,8 @@ export interface TaxRefundInput {
 }
 
 export interface TaxRefundReviewInput {
-  reviewedBy: string;
+  /** @deprecated G3：审核人由后端取真实登录人（认证身份），前端无需/不应再传 */
+  reviewedBy?: string;
   decision: 'Approved' | 'Rejected';
   reviewNotes?: string;
   refundAmount?: number;

@@ -500,6 +500,32 @@ describe('CustomsService', () => {
       const result = await service.reviewTaxRefund('tr_1', { decision: 'Rejected', reviewedBy: 'admin_1' }, 'admin_1');
       expect(result.status).toBe('Rejected');
     });
+
+    // G3：审核留痕取真实登录人（actorId 来自路由层认证身份），请求体 reviewedBy 不再受信
+    it('takes reviewedBy from the authenticated actor, not the request body', async () => {
+      prisma.taxRefund.findFirst.mockResolvedValue({ id: 'tr_1', status: 'Reviewing', refundNumber: 'TR-001', deletedAt: null });
+      const service = createCustomsService(prisma);
+      const result = await service.reviewTaxRefund('tr_1', { decision: 'Approved', reviewedBy: '当前用户' }, 'real_login_user_42');
+      expect(result.status).toBe('Approved');
+      expect(result.reviewedBy).toBe('real_login_user_42');
+    });
+
+    it('records reviewedBy in audit trail detail as the authenticated actor', async () => {
+      prisma.taxRefund.findFirst.mockResolvedValue({ id: 'tr_1', status: 'Reviewing', refundNumber: 'TR-001', deletedAt: null });
+      const service = createCustomsService(prisma);
+      await service.reviewTaxRefund('tr_1', { decision: 'Approved' }, 'real_login_user_42');
+      const auditCreate = (prisma.auditLog.create as any);
+      const reviewCall = auditCreate.mock.calls.find((c: any) => c[0]?.data?.action === 'TAX_REFUND_REVIEW');
+      expect(reviewCall).toBeTruthy();
+      expect(reviewCall[0].data.detail.reviewedBy).toBe('real_login_user_42');
+    });
+
+    it('falls back to body reviewedBy only when actor is missing', async () => {
+      prisma.taxRefund.findFirst.mockResolvedValue({ id: 'tr_1', status: 'Reviewing', refundNumber: 'TR-001', deletedAt: null });
+      const service = createCustomsService(prisma);
+      const result = await service.reviewTaxRefund('tr_1', { decision: 'Approved', reviewedBy: 'fallback_user' }, '');
+      expect(result.reviewedBy).toBe('fallback_user');
+    });
   });
 
   // ══════════════════════════════════════════════════════════════

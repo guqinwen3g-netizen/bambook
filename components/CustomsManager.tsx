@@ -31,6 +31,7 @@ import {
   Receipt,
   FileText,
   X,
+  Pencil,
   ChevronDown,
   ChevronRight,
   History,
@@ -43,6 +44,7 @@ import DocumentTemplateManager from './tools/DocumentTemplateManager';
 import {
   CustomsDeclaration,
   CustomsDeclarationInput,
+  CustomsDeclarationLineInput,
   CustomsDeclarationStatus,
   CustomsType,
   HsCode,
@@ -212,6 +214,13 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   const [lcEvents, setLcEvents] = useState<LcEvent[]>([]);
   const [lcEventsLoading, setLcEventsLoading] = useState(false);
 
+  // G2：信用证「录入不符点」内联录入（点击后展开输入框，确认后流转 Discrepant）
+  const [lcDiscrepancyId, setLcDiscrepancyId] = useState<string | null>(null);
+  const [lcDiscrepancyText, setLcDiscrepancyText] = useState('');
+
+  // G5：HS 编码编辑（复用新建弹窗，editing 非空即编辑模式）
+  const [editingHsCode, setEditingHsCode] = useState<HsCode | null>(null);
+
   // C6：退税申报单进项专票勾稽（消费 GET /v1/finance/vat-invoices?taxRefundId=）
   const [trVatId, setTrVatId] = useState<string | null>(null);
   const [trVatInvoices, setTrVatInvoices] = useState<VatInvoice[]>([]);
@@ -329,10 +338,10 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
     }
   }, []);
 
-  const handleTransitionLc = useCallback(async (id: string, toStatus: LetterOfCreditStatus) => {
+  const handleTransitionLc = useCallback(async (id: string, toStatus: LetterOfCreditStatus, discrepancies?: string) => {
     setActionLoading(`lc_${id}_${toStatus}`);
     try {
-      const updated = await apiService.transitionLetterOfCreditStatus(id, toStatus);
+      const updated = await apiService.transitionLetterOfCreditStatus(id, toStatus, discrepancies);
       setLettersOfCredit(prev => prev.map(d => (d.id === id ? updated : d)));
       // F1：若该信用证时间轴已展开，流转后同步刷新节点
       if (lcTimelineId === id) {
@@ -345,6 +354,43 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
       setActionLoading(null);
     }
   }, [lcTimelineId]);
+
+  // G2：录入不符点（Presented → Discrepant，不符点内容必填并落 LcEvent 节点留痕）
+  const handleRecordDiscrepancy = useCallback(async (id: string) => {
+    const text = lcDiscrepancyText.trim();
+    if (!text) {
+      setError('请填写不符点内容');
+      return;
+    }
+    setActionLoading(`lc_${id}_Discrepant`);
+    try {
+      const updated = await apiService.transitionLetterOfCreditStatus(id, 'Discrepant', text);
+      setLettersOfCredit(prev => prev.map(d => (d.id === id ? updated : d)));
+      if (lcTimelineId === id) {
+        const data = await apiService.listLetterOfCreditEvents(id);
+        setLcEvents(data.items);
+      }
+      setLcDiscrepancyId(null);
+      setLcDiscrepancyText('');
+    } catch (e: any) {
+      setError(`录入不符点失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [lcDiscrepancyText, lcTimelineId]);
+
+  // G4：一键生成退税草稿（后端从报关单自动核算，L10 同一入口；生成后跳到出口退税页签查看草稿）
+  const handleGenerateTaxRefund = useCallback(async (declarationId: string) => {
+    setActionLoading(`decl_${declarationId}_taxrefund`);
+    try {
+      await apiService.createTaxRefundFromDeclaration(declarationId);
+      setActiveTab('taxRefunds');
+    } catch (e: any) {
+      setError(`生成退税草稿失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, []);
 
   // F1：展开/收起信用证节点时间轴（首次展开时拉取 LcEvent）
   const handleToggleLcTimeline = useCallback(async (id: string) => {
@@ -397,10 +443,10 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
   }, []);
 
   const handleReviewTaxRefund = useCallback(async (id: string, decision: 'Approved' | 'Rejected') => {
-    const reviewedBy = '当前用户';
+    // G3：审核人由后端取真实登录人（认证身份），前端不再传 reviewedBy
     setActionLoading(`tr_review_${id}_${decision}`);
     try {
-      const updated = await apiService.reviewTaxRefund(id, { reviewedBy, decision });
+      const updated = await apiService.reviewTaxRefund(id, { decision });
       setTaxRefunds(prev => prev.map(d => (d.id === id ? updated : d)));
     } catch (e: any) {
       setError(`审核失败：${e?.message || e}`);
@@ -442,7 +488,7 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
         actions={
           TOOL_TAB_IDS.has(activeTab) ? undefined : (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => { setEditingHsCode(null); setShowForm(true); }}
               className="bds-btn bds-btn-primary"
             >
               <Plus size={14} strokeWidth={1.75} /><span>新增</span>
@@ -592,8 +638,18 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 {decl.status === 'Inspecting' && (
                                   <button onClick={() => handleTransitionDeclaration(decl.id, 'Released')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">放行</button>
                                 )}
+                                {/* G2：标记异常（Submitted/Declared/Inspecting → Exception） */}
+                                {(decl.status === 'Submitted' || decl.status === 'Declared' || decl.status === 'Inspecting') && (
+                                  <button onClick={() => handleTransitionDeclaration(decl.id, 'Exception')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">标记异常</button>
+                                )}
                                 {(decl.status === 'Draft' || decl.status === 'Submitted' || decl.status === 'Exception') && (
                                   <button onClick={() => handleTransitionDeclaration(decl.id, 'Cancelled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>
+                                )}
+                                {/* G4：一键生成退税草稿（后端自动核算；同报关单已生成则后端幂等拦截） */}
+                                {decl.status !== 'Cancelled' && (
+                                  <button onClick={() => handleGenerateTaxRefund(decl.id)} disabled={!!actionLoading} className="bds-btn bds-btn-secondary" title="按报关单明细行 HS 退税率自动核算生成退税申报草稿">
+                                    <Receipt size={14} strokeWidth={1.75} />一键生成退税草稿
+                                  </button>
                                 )}
                                 {(decl.status === 'Draft' || decl.status === 'Cancelled') && (
                                   <button onClick={() => handleDelete('declarations', decl.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger">
@@ -658,11 +714,17 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                                 </span>
                               </td>
                               <td className="num">
-                                {hc.isActive && (
-                                  <button onClick={() => handleDelete('hsCodes', hc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger bds-btn-icon" title="停用">
-                                    <Trash2 size={14} strokeWidth={1.75} />
+                                <div className="flex items-center justify-end gap-1">
+                                  {/* G5：HS 编码可编辑（退税率/描述等就地修改，无需停用重建） */}
+                                  <button onClick={() => { setEditingHsCode(hc); setShowForm(true); }} disabled={!!actionLoading} className="bds-btn bds-btn-secondary bds-btn-icon" title="编辑">
+                                    <Pencil size={14} strokeWidth={1.75} />
                                   </button>
-                                )}
+                                  {hc.isActive && (
+                                    <button onClick={() => handleDelete('hsCodes', hc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger bds-btn-icon" title="停用">
+                                      <Trash2 size={14} strokeWidth={1.75} />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -720,12 +782,36 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
                             {lc.status === 'Issued' && <button onClick={() => handleTransitionLc(lc.id, 'Presented')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">交单</button>}
                             {lc.status === 'Presented' && <button onClick={() => handleTransitionLc(lc.id, 'Accepted')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">承兑</button>}
                             {lc.status === 'Accepted' && <button onClick={() => handleTransitionLc(lc.id, 'Settled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">结算</button>}
+                            {/* G2：录入不符点（Presented → Discrepant，展开内联输入） */}
+                            {lc.status === 'Presented' && (
+                              <button
+                                onClick={() => { setLcDiscrepancyId(lcDiscrepancyId === lc.id ? null : lc.id); setLcDiscrepancyText(lc.discrepancies ?? ''); }}
+                                disabled={!!actionLoading}
+                                className="bds-btn bds-btn-secondary"
+                              >
+                                录入不符点
+                              </button>
+                            )}
                             {(lc.status === 'Issued' || lc.status === 'Presented' || lc.status === 'Accepted') && <button onClick={() => handleTransitionLc(lc.id, 'Cancelled')} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>}
                             <button onClick={() => handleToggleLcTimeline(lc.id)} className="bds-btn bds-btn-secondary">
                               <History size={14} strokeWidth={1.75} />{lcTimelineId === lc.id ? '收起时间轴' : '节点时间轴'}
                             </button>
                             {(lc.status === 'Issued' || lc.status === 'Cancelled') && <button onClick={() => handleDelete('lettersOfCredit', lc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-danger"><Trash2 size={14} strokeWidth={1.75} />删除</button>}
                           </div>
+                          {/* G2：不符点内联录入（确认后流转 Discrepant 并落节点留痕） */}
+                          {lcDiscrepancyId === lc.id && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <input
+                                className="bds-input sm flex-1"
+                                value={lcDiscrepancyText}
+                                onChange={e => setLcDiscrepancyText(e.target.value)}
+                                placeholder="不符点内容（如：单证不一致、迟装运、金额超证）"
+                                onKeyDown={e => { if (e.key === 'Enter') handleRecordDiscrepancy(lc.id); }}
+                              />
+                              <button onClick={() => handleRecordDiscrepancy(lc.id)} disabled={!!actionLoading} className="bds-btn bds-btn-primary">确认</button>
+                              <button onClick={() => { setLcDiscrepancyId(null); setLcDiscrepancyText(''); }} disabled={!!actionLoading} className="bds-btn bds-btn-secondary">取消</button>
+                            </div>
+                          )}
                           {/* F1：节点时间轴（LcEvent 开证→交单→承兑/不符点→结清/过期/作废） */}
                           {lcTimelineId === lc.id && (
                             <div className="mt-3 pt-3" style={{ borderTop: 'var(--border-subtle)' }}>
@@ -939,10 +1025,12 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
         <CreateFormModal
           activeTab={activeTab}
           isDarkMode={isDarkMode}
-          onClose={() => { setShowForm(false); setFormError(null); }}
+          editingHsCode={editingHsCode}
+          onClose={() => { setShowForm(false); setFormError(null); setEditingHsCode(null); }}
           onSuccess={async () => {
             setShowForm(false);
             setFormError(null);
+            setEditingHsCode(null);
             if (activeTab === 'declarations') fetchDeclarations();
             if (activeTab === 'hsCodes') fetchHsCodes();
             if (activeTab === 'lettersOfCredit') fetchLettersOfCredit();
@@ -959,11 +1047,13 @@ const CustomsManager: React.FC<CustomsManagerProps> = ({ isDarkMode, initialTab,
 interface CreateFormModalProps {
   activeTab: TabId;
   isDarkMode: boolean;
+  /** G5：HS 编码编辑模式（非空时弹窗预填并走 updateHsCode） */
+  editingHsCode?: HsCode | null;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode, onClose, onSuccess }) => {
+const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode, editingHsCode, onClose, onSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -975,6 +1065,13 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
     currency: 'USD',
   });
 
+  // G1：报关单明细行（品名/HS 编码/数量/单位/单价/金额，可加多行）
+  const [declLines, setDeclLines] = useState<CustomsDeclarationLineInput[]>([]);
+  const addDeclLine = () => setDeclLines(prev => [...prev, { productName: '', quantity: 0, unit: 'PCS' }]);
+  const updateDeclLine = (idx: number, patch: Partial<CustomsDeclarationLineInput>) =>
+    setDeclLines(prev => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  const removeDeclLine = (idx: number) => setDeclLines(prev => prev.filter((_, i) => i !== idx));
+
   // HS 编码表单
   const [hsForm, setHsForm] = useState<HsCodeInput>({
     code: '',
@@ -982,6 +1079,26 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
     category: 'Textile',
     isActive: true,
   });
+
+  // G5：编辑模式预填（code 为自然键不可改，updateHsCode 白名单也不含 code）
+  useEffect(() => {
+    if (editingHsCode) {
+      setHsForm({
+        code: editingHsCode.code,
+        description: editingHsCode.description,
+        category: editingHsCode.category,
+        exportTaxRebateRate: editingHsCode.exportTaxRebateRate != null ? Number(editingHsCode.exportTaxRebateRate) : undefined,
+        importTariffRate: editingHsCode.importTariffRate != null ? Number(editingHsCode.importTariffRate) : undefined,
+        vatRate: editingHsCode.vatRate != null ? Number(editingHsCode.vatRate) : undefined,
+        unit: editingHsCode.unit ?? undefined,
+        supervisionCondition: editingHsCode.supervisionCondition ?? undefined,
+        inspectionQuarantine: editingHsCode.inspectionQuarantine ?? undefined,
+        additionalDuty: editingHsCode.additionalDuty ?? undefined,
+        notes: editingHsCode.notes ?? undefined,
+        isActive: editingHsCode.isActive,
+      });
+    }
+  }, [editingHsCode]);
 
   // 信用证表单
   const [lcForm, setLcForm] = useState<LetterOfCreditInput>({
@@ -1003,10 +1120,18 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
     try {
       if (activeTab === 'declarations') {
         if (!declForm.declarationNumber) throw new Error('请填写报关单号');
-        await apiService.createCustomsDeclaration(declForm);
+        // G1：明细行校验——只收完整行（品名+数量>0+单位），半填行给出明确提示
+        const halfFilled = declLines.find(l => (l.productName.trim() || l.quantity > 0) && !(l.productName.trim() && l.quantity > 0 && l.unit.trim()));
+        if (halfFilled) throw new Error('明细行需填完整：品名 / 数量(>0) / 单位');
+        const lines = declLines.filter(l => l.productName.trim() && l.quantity > 0 && l.unit.trim());
+        await apiService.createCustomsDeclaration({ ...declForm, lines: lines.length > 0 ? lines : undefined });
       } else if (activeTab === 'hsCodes') {
         if (!hsForm.code || !hsForm.description) throw new Error('请填写 HS 编码和描述');
-        await apiService.createHsCode(hsForm);
+        if (editingHsCode) {
+          await apiService.updateHsCode(editingHsCode.id, hsForm);
+        } else {
+          await apiService.createHsCode(hsForm);
+        }
       } else if (activeTab === 'lettersOfCredit') {
         if (!lcForm.lcNumber || !lcForm.amount) throw new Error('请填写信用证号和金额');
         await apiService.createLetterOfCredit(lcForm);
@@ -1016,7 +1141,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
       }
       onSuccess();
     } catch (e: any) {
-      setError(String(e?.message || e || '创建失败'));
+      setError(String(e?.message || e || (editingHsCode ? '保存失败' : '创建失败')));
     } finally {
       setSubmitting(false);
     }
@@ -1028,7 +1153,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
         <div className="flex items-center justify-between mb-4">
           <h2 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>
             {activeTab === 'declarations' && '新增报关单'}
-            {activeTab === 'hsCodes' && '新增 HS 编码'}
+            {activeTab === 'hsCodes' && (editingHsCode ? '编辑 HS 编码' : '新增 HS 编码')}
             {activeTab === 'lettersOfCredit' && '新增信用证'}
             {activeTab === 'taxRefunds' && '新增出口退税'}
           </h2>
@@ -1060,13 +1185,47 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>币种</label><input className="bds-input sm" value={declForm.currency || ''} onChange={e => setDeclForm({ ...declForm, currency: e.target.value })} placeholder="USD" /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>毛重(kg)</label><input type="number" className="bds-input sm" value={declForm.grossWeight ?? ''} onChange={e => setDeclForm({ ...declForm, grossWeight: Number(e.target.value) || undefined })} /></div>
             <div className="col-span-2"><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>备注</label><textarea className="bds-input bds-textarea" rows={2} value={declForm.notes || ''} onChange={e => setDeclForm({ ...declForm, notes: e.target.value })} /></div>
+            {/* G1：明细行录入区（品名/HS 编码/数量/单位/单价/金额，可加多行） */}
+            <div className="col-span-2">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs" style={{ color: 'var(--text-tertiary)' }}>明细行</label>
+                <button type="button" onClick={addDeclLine} className="bds-btn bds-btn-secondary">
+                  <Plus size={14} strokeWidth={1.75} />添加明细行
+                </button>
+              </div>
+              {declLines.length === 0 ? (
+                <div className="text-xs py-1" style={{ color: 'var(--text-quaternary)' }}>暂无明细行（可不填，后续退税核算将回退按申报总额）</div>
+              ) : (
+                <div className="space-y-2">
+                  {declLines.map((line, idx) => (
+                    <div key={idx} className="px-2 py-2 rounded-inset bds-inset">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>#{idx + 1}</span>
+                        <button type="button" onClick={() => removeDeclLine(idx)} className="bds-btn bds-btn-danger bds-btn-icon" title="删除行">
+                          <Trash2 size={14} strokeWidth={1.75} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-6 gap-2">
+                        <input className="bds-input sm col-span-2" placeholder="品名 *" value={line.productName} onChange={e => updateDeclLine(idx, { productName: e.target.value })} />
+                        <input className="bds-input sm col-span-2 bds-mono" placeholder="HS 编码" value={line.hsCode || ''} onChange={e => updateDeclLine(idx, { hsCode: e.target.value })} />
+                        <input type="number" className="bds-input sm col-span-1" placeholder="数量 *" value={line.quantity || ''} onChange={e => updateDeclLine(idx, { quantity: Number(e.target.value) || 0 })} />
+                        <input className="bds-input sm col-span-1" placeholder="单位 *" value={line.unit} onChange={e => updateDeclLine(idx, { unit: e.target.value })} />
+                        <input type="number" className="bds-input sm col-span-2" placeholder="单价" value={line.unitPrice ?? ''} onChange={e => updateDeclLine(idx, { unitPrice: e.target.value === '' ? undefined : Number(e.target.value) })} />
+                        <input type="number" className="bds-input sm col-span-2" placeholder="金额" value={line.totalAmount ?? ''} onChange={e => updateDeclLine(idx, { totalAmount: e.target.value === '' ? undefined : Number(e.target.value) })} />
+                        <input className="bds-input sm col-span-2" placeholder="币种" value={line.currency || declForm.currency || ''} onChange={e => updateDeclLine(idx, { currency: e.target.value })} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* HS 编码表单 */}
         {activeTab === 'hsCodes' && (
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>HS 编码 *</label><input className="bds-input sm" value={hsForm.code} onChange={e => setHsForm({ ...hsForm, code: e.target.value })} placeholder="5208.52.00.00" /></div>
+            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>HS 编码 *</label><input className="bds-input sm" value={hsForm.code} onChange={e => setHsForm({ ...hsForm, code: e.target.value })} placeholder="5208.52.00.00" disabled={!!editingHsCode} title={editingHsCode ? '编码为自然键不可修改' : undefined} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>类别 *</label><select className="bds-select sm" value={hsForm.category} onChange={e => setHsForm({ ...hsForm, category: e.target.value as HsCodeCategory })}>{HS_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
             <div className="col-span-2"><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>商品描述 *</label><input className="bds-input sm" value={hsForm.description} onChange={e => setHsForm({ ...hsForm, description: e.target.value })} /></div>
             <div><label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>出口退税率(%)</label><input type="number" step="0.01" className="bds-input sm" value={hsForm.exportTaxRebateRate ?? ''} onChange={e => setHsForm({ ...hsForm, exportTaxRebateRate: Number(e.target.value) || undefined })} /></div>
@@ -1119,7 +1278,7 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ activeTab, isDarkMode
           <button onClick={onClose} className="bds-btn bds-btn-secondary">取消</button>
           <button onClick={handleSubmit} disabled={submitting} className="bds-btn bds-btn-primary">
             {submitting && <Loader2 size={14} className="animate-spin" />}
-            创建
+            {editingHsCode ? '保存' : '创建'}
           </button>
         </div>
       </div>

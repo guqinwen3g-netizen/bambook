@@ -1,26 +1,32 @@
 /**
- * 组合文档服务（2026-08-22 B3 多选叠加生成 / B8 扩展 CONTRACT）—— 多对一数据层聚合。
+ * 组合文档服务（2026-08-22 B3 多选叠加生成 / B8 扩展 CONTRACT / 2026-08-28 批次 H3 登记台账）—— 多对一数据层聚合。
  *
  * 架构裁决：
  *   - 叠加 = 数据聚合而非 PDF 拼页：多业务记录合并为单一数据集 → 单张文档呈现
- *   - 组合文档是即时性汇总产物，不登记 TradeDocument（无单一业务真源可回链，
- *     预览/生成走 composite 端点流式输出，与域单据归档体系互补）
+ *   - 批次 H3 留档裁决（推翻"不登记"旧裁决）：合并装箱单/合并合同装配成功即幂等登记
+ *     TradeDocument（domain=customs，sourceRef=composite:{kind}:{排序后 id 列表} 唯一定位，
+ *     v1 快照携带装配数据冻结归档）——事后可在单据中心查回/重渲染；同组合重复预览/生成
+ *     只刷新头字段不追加版本。MERGED_IR 按任务包口径不登记（即时汇总产物）。
+ *   - 渲染复用：lifecycleService 按 sourceRef 解析回链 → 实时重装配渲染；真源记录被删
+ *     时回落 v1 快照数据（归档语义）
  *   - 聚合复用既有装配器：合并 PL 逐运单调 assembleDocumentSetData（单一回退链
  *     真源不变），合并 IR 逐报告调 loadInspectionReportDocData
  *
  * 已支持组合类型：
- *   MERGED_PL — 多运单合并装箱单（合票出运场景：lines 重编行号 + 跨运单 totals 重算）
- *   MERGED_IR — 多验货报告合并汇总（跨报告合计 + 每报告一节）
- *   CONTRACT — 多订单合并销售合同（B8：订单一览 + 合并明细 + 通用条款；单订单确认走 OC 域单据）
+ *   MERGED_PL — 多运单合并装箱单（合票出运场景：lines 重编行号 + 跨运单 totals 重算）→ 登记 type=PackingList
+ *   MERGED_IR — 多验货报告合并汇总（跨报告合计 + 每报告一节）→ 不登记
+ *   CONTRACT — 多订单合并销售合同（B8：订单一览 + 合并明细 + 通用条款；单订单确认走 OC 域单据）→ 登记 type=Contract
  *   （CI 多订单合票走财务发票 orderIds[] 真源，已有能力，不在此重复）
  */
 
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { logger } from '../lib/logger';
 import { assembleDocumentSetData } from '../shipping/documentSetService';
 import { loadInspectionReportDocData } from '../templates/docTemplates/inspectionReport';
 import type { MergedDocumentSetData, MergedDocumentSetLine } from '../templates/docTemplates/mergedPackingList';
 import type { MergedInspectionSummaryData } from '../templates/docTemplates/mergedInspectionSummary';
 import type { ContractDocData, ContractDocLine, ContractOrderInfo } from '../templates/docTemplates/contract';
+import type { TradeDocumentType } from './customsService';
 
 /** 组合文档类型（COMPOSITE 注册表 kind——前端组合生成入口按此选择） */
 export const COMPOSITE_DOC_KINDS = ['MERGED_PL', 'MERGED_IR', 'CONTRACT'] as const;
@@ -34,6 +40,157 @@ export interface CompositeDocInput {
 
 export function isCompositeDocKind(kind: string): kind is CompositeDocKind {
   return (COMPOSITE_DOC_KINDS as readonly string[]).includes(kind);
+}
+
+// ────────────────────────────────────────────────────────────────
+// 批次 H3：组合生成留档（登记 TradeDocument 台账）
+// ────────────────────────────────────────────────────────────────
+
+/** 组合单据 sourceRef 前缀（lifecycleService 渲染分支按此前缀识别回链） */
+export const COMPOSITE_SOURCE_REF_PREFIX = 'composite:';
+
+/** 组合 kind → 登记单据类型（MERGED_IR 无映射=不登记，按任务包口径保持即时产物） */
+export const COMPOSITE_TRADE_DOC_TYPE: Partial<Record<CompositeDocKind, TradeDocumentType>> = {
+  MERGED_PL: 'PackingList',
+  CONTRACT: 'Contract',
+};
+
+/** 组合 sourceRef 构建：sourceIds 排序后拼接——同组合任意顺序命中同一台账记录（幂等定位） */
+export function buildCompositeSourceRef(kind: CompositeDocKind, sourceIds: string[]): string {
+  return `${COMPOSITE_SOURCE_REF_PREFIX}${kind}:${[...sourceIds].sort().join(',')}`;
+}
+
+/** 组合 sourceRef 解析（非法/非组合回链返回 null） */
+export function parseCompositeSourceRef(ref: string | null | undefined): { kind: CompositeDocKind; sourceIds: string[] } | null {
+  if (!ref || !ref.startsWith(COMPOSITE_SOURCE_REF_PREFIX)) return null;
+  const rest = ref.slice(COMPOSITE_SOURCE_REF_PREFIX.length);
+  const sep = rest.indexOf(':');
+  if (sep <= 0) return null;
+  const kind = rest.slice(0, sep);
+  if (!isCompositeDocKind(kind)) return null;
+  const sourceIds = rest.slice(sep + 1).split(',').map(s => s.trim()).filter(Boolean);
+  if (sourceIds.length < 2) return null;
+  return { kind, sourceIds };
+}
+
+const nowTs = (): bigint => BigInt(Date.now());
+
+function generateCompositeId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function localDateToday(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export interface RegisterCompositeResult {
+  documentId: string | null;
+  documentNumber: string | null;
+  /** created=首次登记（含 v1 快照）；updated=同组合已存在刷新头字段；skipped=该 kind 不登记或无 tradeDocument 模型 */
+  outcome: 'created' | 'updated' | 'skipped';
+}
+
+/**
+ * 组合单据登记（幂等）：domain=customs + type + sourceRef 唯一定位。
+ *   - 首次：创建 TradeDocument（Draft，自动取号 PL-/CT-）+ v1 快照
+ *     （content={ source:'composite', kind, sourceIds, data }——装配数据冻结归档，
+ *      真源记录被删后仍可回落快照渲染；日常渲染走 sourceRef 实时重装配）
+ *   - 已存在：刷新头字段（金额/币种/签发日随最新装配），不追加版本
+ * 登记失败由调用方决定是否阻断（assembleCompositeDocument 默认 warn 不阻断输出）。
+ */
+export async function registerCompositeTradeDocument(
+  prisma: PrismaClient,
+  params: { kind: CompositeDocKind; sourceIds: string[]; data: unknown; actorId?: string },
+): Promise<RegisterCompositeResult> {
+  const type = COMPOSITE_TRADE_DOC_TYPE[params.kind];
+  if (!type) return { documentId: null, documentNumber: null, outcome: 'skipped' };
+  const db = prisma as any;
+  if (!db?.tradeDocument) return { documentId: null, documentNumber: null, outcome: 'skipped' };
+
+  const actorId = params.actorId?.trim() || 'system';
+  const sourceRef = buildCompositeSourceRef(params.kind, params.sourceIds);
+  const totals = (params.data as Record<string, any> | null)?.totals ?? {};
+  const totalAmount = totals.amount != null && Number.isFinite(Number(totals.amount)) ? Number(totals.amount) : null;
+  const currency = typeof totals.currency === 'string' && totals.currency ? totals.currency : null;
+
+  const { appendTradeDocumentVersion, generateTradeDocumentNumber } = await import('./tradeDocumentLifecycleService');
+
+  const existing = await db.tradeDocument.findFirst({
+    where: { domain: 'customs', type, sourceRef, deletedAt: null },
+    select: { id: true, documentNumber: true },
+  });
+
+  if (existing) {
+    await db.$transaction(async (tx: any) => {
+      await tx.tradeDocument.update({
+        where: { id: existing.id },
+        data: {
+          totalAmount: totalAmount != null ? new Prisma.Decimal(totalAmount) : undefined,
+          currency: currency ?? undefined,
+          issueDate: localDateToday(),
+          updatedAt: nowTs(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          id: generateCompositeId('AUD'),
+          action: 'TRADE_DOCUMENT_DOMAIN_REFRESH',
+          actorId,
+          targetType: 'TradeDocument',
+          targetId: existing.id,
+          detail: { domain: 'customs', type, sourceRef, source: 'composite' },
+        },
+      });
+    });
+    logger.info('[CompositeDocument] 台账刷新（同组合已登记）', { id: existing.id, documentNumber: existing.documentNumber, kind: params.kind });
+    return { documentId: existing.id, documentNumber: existing.documentNumber, outcome: 'updated' };
+  }
+
+  const documentId = generateCompositeId('TD');
+  let documentNumber = '';
+  await db.$transaction(async (tx: any) => {
+    documentNumber = await generateTradeDocumentNumber(tx, type);
+    const ts = nowTs();
+    await tx.tradeDocument.create({
+      data: {
+        id: documentId,
+        documentNumber,
+        domain: 'customs',
+        type,
+        status: 'Draft',
+        shipmentId: null,
+        declarationId: null,
+        orderId: null,
+        relationId: null,
+        sourceRef,
+        issueDate: localDateToday(),
+        totalAmount: totalAmount != null ? new Prisma.Decimal(totalAmount) : null,
+        currency,
+        createdAt: ts,
+        updatedAt: ts,
+      },
+    });
+    await appendTradeDocumentVersion(tx, {
+      documentId,
+      content: { source: 'composite', kind: params.kind, sourceIds: [...params.sourceIds], data: params.data as Record<string, unknown> },
+      actorId,
+      changeReason: '组合生成登记',
+    });
+    await tx.auditLog.create({
+      data: {
+        id: generateCompositeId('AUD'),
+        action: 'TRADE_DOCUMENT_CREATE',
+        actorId,
+        targetType: 'TradeDocument',
+        targetId: documentId,
+        detail: { documentNumber, type, source: 'composite', kind: params.kind, sourceRef },
+      },
+    });
+  });
+  logger.info('[CompositeDocument] 台账登记', { id: documentId, documentNumber, kind: params.kind, sourceCount: params.sourceIds.length });
+  return { documentId, documentNumber, outcome: 'created' };
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -255,20 +412,47 @@ export async function assembleContractData(
   };
 }
 
+/** 组合装配选项（批次 H3） */
+export interface AssembleCompositeOptions {
+  /**
+   * 登记 TradeDocument 台账（默认 true；MERGED_PL/CONTRACT 有效，MERGED_IR 不登记）。
+   * 渲染复用路径（lifecycleService 按 sourceRef 重装配）必须传 false 防回环。
+   */
+  register?: boolean;
+  /** 操作人（审计/版本 changedBy；缺省 system——route 层当前未透传 actorId） */
+  actorId?: string;
+}
+
 /**
  * 组合文档装配统一入口（route 层用）：
  * 按 kind 分发到对应聚合器，输出直接可喂 renderServerDocument 的数据。
+ * 批次 H3：装配成功后默认幂等登记台账（登记失败 warn 不阻断预览/生成输出）。
  */
 export async function assembleCompositeDocument(
   prisma: PrismaClient,
   input: CompositeDocInput,
+  opts: AssembleCompositeOptions = {},
 ): Promise<{ kind: CompositeDocKind; data: unknown }> {
   if (!isCompositeDocKind(input.kind)) throw new Error(`未知组合文档类型: ${input.kind}`);
+  let result: { kind: CompositeDocKind; data: unknown };
   if (input.kind === 'MERGED_PL') {
-    return { kind: input.kind, data: await assembleMergedDocumentSet(prisma, input.sourceIds) };
+    result = { kind: input.kind, data: await assembleMergedDocumentSet(prisma, input.sourceIds) };
+  } else if (input.kind === 'CONTRACT') {
+    result = { kind: input.kind, data: await assembleContractData(prisma, input.sourceIds) };
+  } else {
+    result = { kind: input.kind, data: await loadMergedInspectionSummary(prisma, input.sourceIds) };
   }
-  if (input.kind === 'CONTRACT') {
-    return { kind: input.kind, data: await assembleContractData(prisma, input.sourceIds) };
+  if (opts.register !== false) {
+    try {
+      await registerCompositeTradeDocument(prisma, {
+        kind: result.kind,
+        sourceIds: input.sourceIds,
+        data: result.data,
+        actorId: opts.actorId,
+      });
+    } catch (e: any) {
+      logger.warn('[CompositeDocument] 台账登记失败（不阻断装配输出）', { kind: result.kind, error: e?.message });
+    }
   }
-  return { kind: input.kind, data: await loadMergedInspectionSummary(prisma, input.sourceIds) };
+  return result;
 }
