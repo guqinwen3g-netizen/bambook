@@ -1,77 +1,52 @@
-# 🗺️ Bambook 知识库与架构文档索引地图
+# Bambook 文档导航唯一入口
 
-欢迎来到 Bambook (Panda Clothing Enterprise Agent OS) 架构与文档中心。为了避免认知污染，我们对项目中的存量文档进行了系统性审计与规整。
-
-以下是目前**依然有效、具有权威参考价值**的文档谱系，以及已归档的历史文档说明。
-
-> **🧭 单一权威源约定（2026-06-15 校准）**：文档体系内有多份"自称权威"的文档，本索引规定它们的真实分工 —— 避免冲突：
->
-> | 维度 | 唯一真权威 | 备注 |
-> |---|---|---|
-> | **真实运行架构** | `Bambook-Agent-OS-使用说明书.md` §1 + `server/docs/macmini-data-center.md` | **客户端 + Mac Mini 数据中心两端分离**；`Master_Specification.md` 与 `ARCHITECTURE.md` 旧版"内嵌后端"描述已于 2026-06-15 修正 |
-> | 业务全貌 / 数据哲学 | `Bambook_Master_Specification.md` | 静态白皮书，**不写"已完成债务"日记**（那是 CHANGELOG 职责）|
-> | 新模块/新工具开发的强制 checklist | `MODULE_CONTRACT.md` | 八层契约，PR 模板和脚手架引用此文档 |
-> | Agent 运行时行为约束 | `AGENT_RUNTIME_ARCHITECTURE.md` | 描述**理想的工具命名收敛方向**（`*.query/get/expand/draft/execute`），实际命名见代码 |
-> | 实际工具集 / 路由 / 模型清单 | **代码本身** + [`docs/audit-2026-06-15/CODE_TRUTH.md`](./audit-2026-06-15/CODE_TRUTH.md) | 文档与代码冲突时，**以代码为准**；CODE_TRUTH.md 是 2026-06-15 的代码事实快照 |
-> | 部署 / 重启 / 健康检查 | `server/docs/ops-panel-runbook.md` | OPS Panel 是默认通路，SSH 仅 fallback |
-> | 短期路标 | `docs/implementation_plan.md` | 早期初稿 `docs/archive/legacy/task.md` 已归档 |
+> 本文件是全仓工程文档的**唯一导航真源**（2026-08-27 重建，经 16 路并行全文评审后收编）。
+> "唯一真源 / 权威"称号只能由本表授予；不在表内的文档一律视为参考或历史。
+> 文档与代码冲突时，**以代码为准**——数据结构看 `server/prisma/schema.prisma`，渲染看各 Manager 组件。
 
 ---
 
-## 🧭 核心业务与架构设计 (Active)
+## 一、真源地图（按"你要回答什么问题"找文档）
 
-以下文档承载了 Bambook 系统最核心的业务逻辑、数据边界与 Agent 运行法则，是开发新功能时的**第一真源**：
+| 你要回答的问题 | 唯一真源 | 说明 |
+|---|---|---|
+| 产品是什么 / 不做什么 | `docs/design/01-产品总览/1. 产品定位与愿景.md` + `docs/design/08-集成与边界/系统边界声明.md` | 定位叙事 + 5 项永不清单 |
+| 系统现在有哪些能力 | `docs/BUSINESS_CAPABILITY_MATRIX.md` | 能力矩阵 v2.0（v0.8 十九板块验收口径） |
+| 验收标准是什么 | `docs/design/09-路线图与技术债务/2026-08-21-v0.8交付验收剧本.md` | S1 主链闭环 / S2 可追溯 / S3 权限三条铁律 + 走查矩阵 |
+| 代码在哪里 / 怎么跑 | `docs/CODE_WIKI.md` | 32 模块注册表 + 197 模型地图，HEAD 基线随增量滚动刷新 |
+| 新增模块要改哪几层 | `docs/MODULE_CONTRACT.md` | 八层契约 + 反模式存照表，工程宪法 |
+| 业务规则怎么办 | `docs/design/03-业务规则/业务规则总览.md`（22 条矩阵）+ 同目录 MOQ / 价格审批 / 信用控制 / 质量门禁 / 订单变更 / 交期生产 / 事件联动七篇 | 行业规则的裁决出处 |
+| 数据结构是什么 | 代码即真源：`server/prisma/schema.prisma`；导航用 `docs/design/02-数据模型/实体关系总览.md` | 总览的模型计数滞后，分组框架仍有效 |
+| 页面长什么样 / 怎么交互 | UI 铁律见 `.trae/rules/project_rules.md`「设计系统」节；规格用 `docs/design-system/component-application-spec.md` + `page-skeleton-spec.md` + `page-consistency-ledger.md` | BDS v2.2 三主干；token 权威 = `styles/os-vnext.css`，渲染准源 = `styles/flat-experimental.css` |
+| 组件怎么选 | `docs/design/06-组件规格/BDS组件族7规格.md` + `布局构建语言.md` | 含 check-design-tokens 守卫断言映射 |
+| 这个模块的设计细节 | `docs/design/04-模块设计/<域>/<模块>/模块概述.md` | 每域一篇入口，实现状态注记基本可信 |
+| 为什么这样设计 | `docs/design/10-评审与决策/2026-08-16-设计评审决策记录.md` | DR 决策台账，只追加不重写 |
+| 多会话怎么协作 | `.trae/rules/project_rules.md` + `docs/design/10-评审与决策/2026-08-17-多会话协同推进纪律.md`（机制层：三绿/单写者/worktree/断言先行） | W0-W5 波次表已走完，机制仍然生效 |
+| Agent 能力边界 | `docs/design/04-模块设计/07-AI助手/Agent能力分层L0-L6.md` + `写操作工具集.md` + `审批与human-in-the-loop.md` | L0-L6 分层 + ProcessDraft 三阶段幂等闭环 |
+| 部署怎么做 | `.trae/rules/project_rules.md`「Mac Mini 部署」节 + `docs/design/08-集成与边界/OPSPanel与MacMini部署拓扑.md` | push-based tarball，勿用 SSH，勿信 GitHub-pull 旧 SOP |
+| 成功指标怎么定 | `docs/design/09-路线图与技术债务/成功指标.md` | B1-B4 / S1-S3 定义与阈值 |
+| 外部集成 / 移动端 | `docs/design/08-集成与边界/`（5 篇全为长期契约） | Webhook / 开放 API / QC PWA 边界 |
+| 工作区纪律 | `docs/WORKSPACE_HYGIENE.md` | 版本化资产边界，长期生效 |
 
-| 文档名称 | 物理路径 | 核心参考价值与说明 |
-| :--- | :--- | :--- |
-| **八层全栈模块契约** | [MODULE_CONTRACT.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/MODULE_CONTRACT.md) | **最高频引用！** 规定了新增一个模块或工具时，在数据层、API层、Agent层等 8 个层次必须同步修改的所有点位，含有标准的 PR 模板。 |
-| **Agent 运行时架构** | [AGENT_RUNTIME_ARCHITECTURE.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/AGENT_RUNTIME_ARCHITECTURE.md) | 详解 Agent Orchestrator、MCP 工具流、三级记忆机制与审批流的底层架构。 |
-| **前端模块单一源规范** | [MODULE_REGISTRY_PLAN.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/MODULE_REGISTRY_PLAN.md) | 规范了通过 `moduleRegistry.ts` 集中管理路由、菜单、权限和视图编译的逻辑。 |
-| **系统核心架构说明** | [ARCHITECTURE.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/ARCHITECTURE.md) | 介绍 Bambook 的整体系统拓扑，建议重点阅读 **L1-L3 记忆机制** 章节。 |
-| **遗留债务清洗清单** | [LEGACY_CLEANUP_INVENTORY.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/LEGACY_CLEANUP_INVENTORY.md) | 历史审计与已完成清理的记录；现行规则见工作区卫生契约。 |
-| **项目清理地图** | [PROJECT_CLEANUP_MAP.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/PROJECT_CLEANUP_MAP.md) | 历史架构/命名审计记录；不作为当前删除清单。 |
-| **工作区卫生契约** | [WORKSPACE_HYGIENE.md](./WORKSPACE_HYGIENE.md) | 定义可版本化资产、本地可再生成文件与 Git 历史治理的边界。 |
+## 二、动态状态住址（防止状态类信息腐化）
 
----
+- **当前 HEAD / 测试基线 / 波次进展** → 只住在 `.trae/rules/project_rules.md`（每会话强制注入）
+- **缺口优先级与剩余项** → `docs/design/10-评审与决策/2026-08-25-中度与严重缺失功能开发优先级规划.md` 的未消费部分
+- **待拍板决策** → DR 台账追加；REQ2-11 双抬头分账待决点 D-1~D-5
 
-## 🎨 前端设计系统规范 (Active - Design System)
+## 三、写作纪律（关水龙头）
 
-所有前端视觉、布局、材质（Glassmorphism 毛玻璃质感）的渲染依据全部收口在 `docs/design-system/` 目录下：
+1. 会话收尾**禁止默认新建**收尾报告 / 阶段清单 / 规划类新文档。产出只允许三种：更新现有真源的对应小节、向 DR 台账追加条目、更新 project_rules.md 动态行。
+2. 一次性快照确需留存 → 直接写入 `docs/archive/superseded/` 或该目录同级新快照目录，不进主视线。
+3. 新文档若自封权威而未登记本表 → 无效，评审时直接归档。
 
-* **全局索引**: [设计系统总览 (README)](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/design-system/README.md)
-* **核心规范**:
-  * [材质语法 (Material Grammar)](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/design-system/material-grammar.md) — 规定了不同深度层级的毛玻璃和暗色背景渲染。
-  * [布局语法 (Layout Grammar)](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/design-system/layout-grammar.md) — 网格系统、侧边栏以及卡片间距。
-  * [组件语法 (Component Grammar)](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/design-system/component-grammar.md) — 按钮、表单、表格和态势指示灯的样式。
-  * [类名所有权控制 (Class Ownership)](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/design-system/class-ownership.md) — 规定哪些 CSS 类名被严格保护，不能随意更改。
-  * [渲染已知问题与避坑](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/design-system/known-rendering-issues.md) — 处理毛玻璃发光和重叠阴影时的 CSS 避坑指南。
+## 四、归档
 
----
+`docs/archive/superseded/`（2026-08-27 大扫除迁入 27 份失效文档：旧权威 ×3、一次性报告 ×12、compiled 时代产物 ×8、无锚点前瞻稿 ×4）。判定依据见该目录 README。git 历史完整保留，可追溯恢复。
 
-## ⚙️ 后端与运维部署指南 (Active - Backend & Ops)
+## 五、已知欠账（按需排队，不阻塞主线）
 
-> **部署默认路径**：所有"远程后端部署 / 重启 / 健康检查"任务，**第一选择都是 OPS Panel**（`https://ops.jiangsupanda.com/ops`），不要绕回 SSH 手工操作。详见下表 ops-panel-runbook。
-
-| 文档 | 物理路径 | 定位 |
-| :--- | :--- | :--- |
-| **后端开发指南** | [BACKEND_GUIDE.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/BACKEND_GUIDE.md) | Prisma 数据库操作、API 编写、测试 |
-| **演示数据填充** | [demo-data-seed-runbook.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/docs/demo-data-seed-runbook.md) | demo seed 的 Dry-run 与回滚指南 |
-| **Mac mini 数据中心** | [macmini-data-center.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/docs/macmini-data-center.md) | 硬件拓扑 + SenseVoice 部署 |
-| **OPS Panel 运维面板（**真权威 runbook**）** | [ops-panel-runbook.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/server/docs/ops-panel-runbook.md) | 21 个白名单 ops-*.sh 脚本 + 3 个 LaunchAgent + 自动部署机制 |
-| **部署 SOP 路标（短文档）** | [DEPLOY_SOP.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/DEPLOY_SOP.md) | 三段式速查：① 默认走 OPS Panel ② push 后等自动部署 ③ SSH 仅作 fallback。所有详细步骤指向 ops-panel-runbook |
-
----
-
-## 📂 历史归档与备忘录 (Archived)
-
-为了防止陈旧、失效的配置和模块进度统计对新成员产生误导，我们已将以下文档移至 `archive/` 目录下。**仅作历史溯源参考，切勿作为当前开发指标**：
-
-* **历史项目基准 (v1.0)**: [Bambook-项目基准手册-v1.0.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/archive/legacy/Bambook-%E9%A1%B9%E7%9B%AE%E5%9F%BA%E5%87%86%E6%89%8B%E5%86%8C-v1.0.md) (包含过时的模型配置与已废弃的语音说明)。
-* **旧演示种子数据**: [DEMO_DATA_SEED.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/archive/legacy/DEMO_DATA_SEED.md) (已被新的 demo-data-seed-runbook 替代)。
-* **临时调试备忘**: [debug-sidebar-ghost-glow.md](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/archive/legacy/debug-sidebar-ghost-glow.md) (关于侧边栏幽灵发光调试的临时记录)。
-* **早期开发执行计划**: [superpowers-plans/](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/archive/superpowers-plans/) 目录下记录了 2026 年 5 月和 6 月的具体微观修复计划（如 git 初始化、orderLine 修复等），这些变动已 100% 合并入代码主线。
-* **早期设计规格书**: [superpowers-specs/](file:///Users/qinwengu/WorkBuddy/Claw/apps/Bambook/docs/archive/superpowers-specs/) 目录。
-
----
-
-> **文档维护规范**：任何新模块、新工具或架构调整落地后，请务必同步更新对应的活动文档（如 `MODULE_CONTRACT.md`），并在此索引地图中进行登记，以保持文档与代码库的绝对一致。
+1. `docs/design/00-索引.md` 进度表失真（停在 08-17 且自相矛盾），需一次校准或降级移除
+2. compiled 双路径叙述残留在约 8 篇 KEEP-REF 文档（产品总览 2/3/9 号、Relations、Dashboard、UiLab 等），须统一清创
+3. 近两批业务能力（出运批次门禁 / 催款四级 / 专属面料 / 退换货）在业务规则、数据模型、模块设计三处均待增补
+4. 自动评分两套交期扣分口径冲突（factoryService vs REQ2-10 文档），需以代码为准修正其一
