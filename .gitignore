@@ -129,3 +129,10 @@ server/storage/rendered/
 
 # Design exploration lab (local-only reference material)
 design-lab/
+
+# 本地产物（2026-08-27）
+.env.development
+dist-electron/
+.trae/backups/
+electron.vite.config.*.mjs
+scripts/_diag-*.png
