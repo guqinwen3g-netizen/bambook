@@ -619,6 +619,8 @@ const QC_BASE: RolePermissionMatrix = {
   'production:read': true,
   'shipments:read': true,
   'customs:read': true,
+  // 财务 KPI 层只读（敏感字段遮罩；W-C 视图门禁对齐文档 §6.4）
+  'finance:read': true,
   // QC 域（可写）
   'qc:read': true,
   'qc:write': true,
@@ -646,6 +648,10 @@ const LOGISTICS_BASE: RolePermissionMatrix = {
   'customs:write': true,
   // 单证模板/公司签章配置（GAP-R11 FinMan 位移）
   'customs:admin': true,
+  // 财务只读（KPI/商业发票做报关/水单核对；W-C 视图门禁对齐文档 §6.5）
+  'finance:read': true,
+  'invoices:read': true,
+  'vouchers:read': true,
   // 平台域
   'knowledge:read': true,
   'tools:execute': true,
