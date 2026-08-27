@@ -32,7 +32,6 @@ import { EmailList } from './email/EmailList';
 import { EmailEditor } from './email/EmailEditor';
 import SignatureManager from './email/SignatureManager';
 import { cleanHtmlSnippet } from '../utils/emailUtils';
-import { PageHeader } from './ui/PageHeader';
 import { bdsConfirm } from './ui/BdsDialog';
 
 
@@ -193,6 +192,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   // Load cache on mount - We use props from App.tsx mostly.
   // If emails prop from App is empty, we try to see if there's a cached view.
   useEffect(() => {
+    // L2：发件箱（Outbox）无本地缓存，加载逻辑由 handleBoxChange → loadOutboxEmails 负责
+    if (currentBox === 'Outbox') return;
+
     // Resolve base box for caching (Virtual folders use INBOX data)
     const isVirtual = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox);
     const baseBox = isVirtual ? 'INBOX' : currentBox;
@@ -220,8 +222,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isSyncing && !isLoadingMore && emailConfig.email && emailConfig.password) {
-        console.log('📡 Background check for new emails...');
-
         // 1. Always sync INBOX to keep the " 收件箱 " badge fresh
         handleSync('INBOX', false, true);
 
@@ -257,7 +257,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       hasInitialSyncedRef.current = true; // Set flag to prevent duplicate runs
 
       // Silent sync in background - no UI disruption
-      console.log("🔇 Starting silent background sync for all boxes...");
       setTimeout(() => {
         // Delay slightly to let UI load first
         Promise.all([
@@ -315,6 +314,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
   // Helper: Save lightweight headers to LS (Avoid Quota Exceeded)
   const saveEmailsToLS = (box: string, emails: Email[]) => {
+    // L2：发件箱是 DB-backed 文件夹，真源在 ERP DB，不写本地缓存
+    if (box === 'Outbox') return;
     try {
       const cacheKey = `nexus_emails_v2_${box}`;
       const existingStr = localStorage.getItem(cacheKey);
@@ -353,6 +354,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   const handleSync = async (targetBox?: string, isLoadMore = false, silent = false) => {
     // 1. Resolve logical vs physical box
     const logicalBox = targetBox || currentBox;
+
+    // L2：发件箱（Outbox）是 DB-backed 文件夹，不走 IMAP 同步
+    if (logicalBox === 'Outbox') {
+      if (!isLoadMore) await loadOutboxEmails();
+      return;
+    }
+
     const isVirtual = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(logicalBox);
     const physicalBox = isVirtual ? 'INBOX' : logicalBox;
 
@@ -369,7 +377,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       }
     }
 
-    // For simplicity, Load More only works for current physical box. 
+    // For simplicity, Load More only works for current physical box.
     // Background sync is always offset 0.
     const currentOffset = isLoadMore ? emails.length : 0;
 
@@ -385,24 +393,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         })
       });
       const json = await res.json();
-
-      // DEBUG: Log backend response
-      if (json.debug) {
-        console.log('[EMAIL DEBUG]', {
-          requestedLimit: json.debug.limit,
-          requestedOffset: json.debug.offset,
-          serverFoundTotal: json.debug.foundTotal,
-          serverReturnedCount: json.debug.fetchedCount,
-          targetBox: json.debug.targetBox,
-          availableBoxes: json.debug.availableBoxes,
-          clientReceivedCount: json.data?.length
-        });
-
-        // Debug log instead of alert
-        if (json.data.length === 20 && json.debug.limit === 50) {
-          console.warn(`⚠️ 请求了 ${json.debug.limit} 封邮件，但服务器只返回了 ${json.data.length} 封。服务器找到总数: ${json.debug.foundTotal}`);
-        }
-      }
 
       if (json.status === 'success') {
         const newEmails = json.data as Email[];
@@ -422,7 +412,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             setEmails(prev => {
               // Merge with PREV state for current box to keep latest snippets
               const emailMap = new Map<string, Email>(prev.map((e: Email) => [e.id, e]));
-              let hasNew = false;
 
               newEmails.forEach(e => {
                 const existing = emailMap.get(e.id);
@@ -442,17 +431,12 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   });
                 } else {
                   emailMap.set(e.id, e);
-                  hasNew = true;
                 }
               });
 
               const updatedList = Array.from(emailMap.values()).sort((a: any, b: any) =>
                 new Date(b.date).getTime() - new Date(a.date).getTime()
               ) as Email[];
-
-              if (hasNew) {
-                console.log(`📬 New emails detected in background sync for ${logicalBox}`);
-              }
 
               // Trigger prefetch for those still missing snippets
               const needsPrefetch = updatedList
@@ -577,7 +561,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         } else {
           // NOT CURRENT BOX (Non-silent) - Just update LocalStorage
           saveEmailsToLS(physicalBox, newEmails);
-          console.log(`💾 Background non-silent sync updated cache for ${physicalBox}`);
         }
 
         // Don't auto-select - let user choose which email to read
@@ -600,6 +583,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
   // Smart Prefetching System
   const prefetchDetails = async (targetIds: string[], boxName: string) => {
+    // L2：发件箱是 DB-backed（EML__ id），无 IMAP uid，跳过预取
+    if (boxName === 'Outbox') return;
+
     // IGNORE context emails, use internal state to avoid staleness
     // Filter out those that are already being fetched
     const queue = targetIds.filter(id => !pendingPrefetch.current.has(id));
@@ -608,8 +594,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
     // Mark as pending
     queue.forEach(id => pendingPrefetch.current.add(id));
-
-    console.log(`[Prefetch] Starting download for ${queue.length} emails in ${boxName}...`);
 
     // Process in batches (Prioritize local cache check)
     const BATCH_SIZE = 5;
@@ -633,8 +617,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             await EmailDB.saveBody(uid, res.data);
             return { id, data: res.data };
           }
-        } catch (e) {
-          console.warn(`[Prefetch] Failed for ${id}`, e);
+        } catch {
+          // 预取失败静默：正文会在用户点开邮件时按需重新拉取
         } finally {
           // Release from pending after some time
           setTimeout(() => pendingPrefetch.current.delete(id), 10000);
@@ -688,7 +672,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
             });
             if (lsChange) {
               localStorage.setItem(`nexus_emails_v2_${boxName}`, JSON.stringify(cachedList));
-              console.log(`💾 Persisted ${results.length} snippets for ${boxName} (background)`);
             }
           }
           return prev; // No state change for current view
@@ -708,15 +691,52 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       await processBatch(batch);
       await new Promise(r => setTimeout(r, 200));
     }
-    console.log("[Prefetch] Batch complete.");
+  };
+
+  /** L2：DB Email 行 → 前端 Email 形状（发件箱用；事实字段来自 ERP DB，不本地伪造） */
+  const mapDbEmailToUi = (row: any): Email => {
+    const { sentAt, messageId } = row;
+    return {
+      id: row.id,
+      sender: row.fromName ? `${row.fromName} <${row.fromAddress}>` : String(row.fromAddress || ''),
+      subject: row.subject || '(No Subject)',
+      body: row.bodyHtml || row.bodyText || '',
+      snippet: row.snippet || '',
+      date: sentAt || (row.createdAt ? new Date(Number(row.createdAt)).toISOString() : new Date().toISOString()),
+      isRead: true,
+      attachments: (row.attachments || []).map((a: any) => ({
+        filename: a.filename,
+        contentType: a.contentType,
+        size: a.fileSize ?? a.size ?? 0,
+        id: a.id,
+      })),
+      direction: row.direction,
+      mailbox: row.mailbox,
+      sentAt,
+      messageId,
+    };
+  };
+
+  /** L2：发件箱/待发送 — 从 ERP DB 拉 Outbox 邮件（direction=outbound, mailbox=Outbox） */
+  const loadOutboxEmails = async () => {
+    try {
+      const res = await fetch(emailApiUrl('/v1/email?mailbox=Outbox&direction=outbound&limit=100'), {
+        headers: apiService.getAuthHeaders(),
+      });
+      const json = await res.json();
+      if (json?.ok && Array.isArray(json.items)) {
+        setEmails(json.items.map(mapDbEmailToUi));
+      }
+    } catch (e) {
+      console.error('加载发件箱失败', e);
+    }
   };
 
   const handleBoxChange = (box: string) => {
-    // 1. Determine the base box. 
+    // 1. Determine the base box.
     // NOW: We treat 'IMPORTANT', 'STARRED', 'UNREAD' as their own boxes for Fetching/Caching purposes.
     // This allows us to cache the specific list of important emails separately from Inbox.
     // The previous "isVirtual" logic forced them to share Inbox cache, which caused "Missing Email" issues.
-    const isVirtual = false; // We now handle all boxes as distinct "fetchable" entities
     const baseBox = box;
 
     setCurrentBox(box);
@@ -729,6 +749,14 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     setFilterType('All');
     setSearchTerm('');
 
+    // L2：发件箱（Outbox）是 DB-backed 文件夹 — 无本地缓存，直接拉 ERP DB
+    if (box === 'Outbox') {
+      setEmails([]);
+      setHasMore(false);
+      loadOutboxEmails();
+      return;
+    }
+
     // 2. Load Base Data from Cache (Virtual folders always look at INBOX cache)
     const cached = localStorage.getItem(`nexus_emails_v2_${baseBox}`);
     let hasCache = false;
@@ -740,13 +768,11 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         // CACHE CLEANUP: Force clear Spams/Drafts/Trash on load to remove any historical pollution
         // The backend now prevents fallback, so we must remove old "Spams-but-actually-Inbox" data.
         if (['Spams'].includes(box)) {
-          console.warn(`⚠️ Force clearing cache for ${box} to ensure data integrity.`);
           localStorage.removeItem(`nexus_emails_v2_${baseBox}`);
           setEmails([]);
         } else if (parsed.length > 0) {
           setEmails(parsed);
           hasCache = true;
-          console.log(`🚀 Virtual/Base: Loaded ${parsed.length} from ${baseBox} cache for ${box} view`);
         } else {
           setEmails([]);
         }
@@ -762,21 +788,61 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   };
 
 
-  const handleDownloadAttachment = (emailItem: Email, filename: string) => {
-    const params = new URLSearchParams({
-      email: emailConfig.email,
-      password: emailConfig.password,
-      box: emailItem.realBox || currentBox, // use backend-returned realBox or fallback
-      uid: emailItem.uid || (emailItem.id.includes('-') ? emailItem.id.split('-').pop()! : emailItem.id),
-      filename: filename
-    });
-    window.open(`${emailApiUrl('/email/attachment')}?${params.toString()}`, '_blank');
+  /** L3/L7：附件下载 — DB 附件走 /v1/email/attachments/:id/download；IMAP 附件改 POST（凭据不进 URL） */
+  const handleDownloadAttachment = async (emailItem: Email, att: { filename: string; id?: string }) => {
+    try {
+      // DB-backed 附件（EMLATT__ 前缀，含发件箱/已同步邮件）
+      if (att.id && String(att.id).startsWith('EMLATT__')) {
+        const res = await fetch(emailApiUrl(`/v1/email/attachments/${encodeURIComponent(String(att.id))}/download`), {
+          headers: apiService.getAuthHeaders(),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = att.filename || 'download';
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // IMAP 实时附件：POST body 传凭据（L7：密码不再拼进 URL）
+      const res = await fetch(emailApiUrl('/email/attachment'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...emailConfig,
+          box: emailItem.realBox || currentBox, // use backend-returned realBox or fallback
+          uid: emailItem.uid || (emailItem.id.includes('-') ? emailItem.id.split('-').pop()! : emailItem.id),
+          filename: att.filename,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = att.filename || 'download';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('附件下载失败', e);
+    }
   };
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedId(email.id);
     setSelectedEmailBody(null); // Show loading
     setSelectedEmailAttachments([]);
+
+    // L2：DB-backed 邮件（发件箱 EML__ id）无 IMAP uid — 正文/附件直接取记录本身
+    if (String(email.id).startsWith('EML__')) {
+      setSelectedEmailBody(email.body || '(无正文)');
+      setSelectedEmailAttachments(email.attachments || []);
+      if (isMobile) setMobileView('detail');
+      return;
+    }
 
     const uid = email.uid || (email.id.includes('-') ? email.id.split('-').pop()! : email.id);
     const physicalBox = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox) ? 'INBOX' : currentBox;
@@ -797,7 +863,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     try {
       const cachedBody = await EmailDB.getBody(uid);
       if (cachedBody && cachedBody.body) {
-        console.log(`[Cache] ✅ Hit for ${uid}`);
         setSelectedEmailBody(cachedBody.body);
         setSelectedEmailAttachments(cachedBody.attachments || []);
         return;
@@ -807,7 +872,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     }
 
     // 2. Network Fetch (if body not in IDB) with timeout
-    console.log(`[Network] Fetching ${uid}...`);
     try {
       // Create timeout promise
       const timeoutPromise = new Promise((_, reject) =>
@@ -856,6 +920,14 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   const [outboxSendingId, setOutboxSendingId] = useState<string | null>(null);
   const [outboxError, setOutboxError] = useState<string | null>(null);
 
+  /** L2/L9：SMTP 凭据（host/port 优先取 SMTP 专属配置，缺省回落 IMAP 配置/后端默认值） */
+  const smtpCredentials = () => ({
+    user: emailConfig.email,
+    pass: emailConfig.password,
+    host: emailConfig.smtpHost || emailConfig.host || undefined,
+    port: emailConfig.smtpPort ? Number(emailConfig.smtpPort) : undefined,
+  });
+
   const handleSendOutbox = async (emailId: string) => {
     if (!emailConfig.email || !emailConfig.password) {
       setOutboxError('请先配置邮箱凭据');
@@ -864,10 +936,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     setOutboxSendingId(emailId);
     setOutboxError(null);
     try {
-      const result = await emailOutboxService.sendOutboxEmail(emailId, {
-        user: emailConfig.email,
-        pass: emailConfig.password,
-      });
+      const result = await emailOutboxService.sendOutboxEmail(emailId, smtpCredentials());
       if (!result.ok || !result.data) {
         // 失败：保持 Outbox UI 状态，显示后端错误反馈（不本地伪成功）
         const reason = result.error?.message || result.error?.code || '发送失败';
@@ -876,9 +945,13 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
       }
       // 成功：消费后端返回的 Sent/sentAt/messageId 更新本地（不本地伪造）
       const { messageId, sentAt } = result.data;
-      setEmails(prev => prev.map(e => e.id === emailId
-        ? { ...e, mailbox: 'Sent', sentAt, messageId, isRead: true }
-        : e));
+      setEmails(prev => {
+        const updated = prev.map(e => e.id === emailId
+          ? { ...e, mailbox: 'Sent', sentAt, messageId, isRead: true }
+          : e);
+        // 发件箱视图：已发送邮件从列表移除（后端 mailbox 已转 Sent）
+        return currentBoxRef.current === 'Outbox' ? updated.filter(e => e.id !== emailId) : updated;
+      });
     } catch (e: any) {
       // 网络异常：保持 Outbox UI 状态
       setOutboxError(`发送异常：${e?.message ?? e}`);
@@ -899,8 +972,12 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         if (matches) toAddr = matches[1];
       }
       const toAddrs = [toAddr].filter(Boolean);
-      // originalEmailId 边界：纯数字 IMAP uid 非 DB id，会 404，需先同步到 ERP
-      const emailIdStr = String(selectedEmail.id);
+      // L1：originalEmailId 用覆盖层 DB id（selectedIntentInfo.id，EML__ 前缀）——
+      // 列表项 id 是「箱名-IMAP uid」格式（如 INBOX-123），直接传后端会 404（原死胡同根因）；
+      // 发件箱等 DB-backed 视图（EML__ id）则直接取邮件自身 id
+      const emailIdStr = selectedIntentInfo?.id
+        ? String(selectedIntentInfo.id)
+        : (String(selectedEmail.id).startsWith('EML__') ? String(selectedEmail.id) : '');
       if (!emailIdStr || !/^EML__/.test(emailIdStr)) {
         setOutboxError('该邮件未同步到 ERP 数据库，请先「同步到 ERP」后再回复');
         return;
@@ -912,6 +989,8 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         subject: selectedEmail.subject.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject}`,
         bodyText: replyContent,
       });
+      // L2：创建后立即一键真发（显式 SMTP）；失败保持 Outbox，可到发件箱重试（不本地伪成功）
+      const sendResult = await emailOutboxService.sendOutboxEmail(created.emailId, smtpCredentials());
       // 消费后端事实字段：用 emailId 拉真实 Email 记录
       try {
         const apiKey = apiService.getApiKey();
@@ -923,6 +1002,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           setEmails(prev => [detail.data, ...prev]);
         }
       } catch { /* best-effort refresh */ }
+      if (!sendResult.ok || !sendResult.data) {
+        const reason = sendResult.error?.message || sendResult.error?.code || '发送失败';
+        setOutboxError(`已存发件箱但发送失败：${reason}（可到发件箱重试）`);
+      }
       setIsReplying(false);
       setReplyContent('');
     } catch (e: any) {
@@ -935,6 +1018,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
   const handleSendNew = async () => {
     if (!emailConfig.email || !composeTo) return;
     if (isSending) return;
+    if (!emailConfig.password) {
+      setOutboxError('请先在邮箱设置中输入密码后再发送');
+      return;
+    }
     setIsSending(true);
     setOutboxError(null);
     try {
@@ -945,6 +1032,9 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
         subject: composeSubject,
         bodyText: composeBody,
       });
+      // L2：一键真发 — 创建 Outbox 记录后立即调 SMTP 显式发送；
+      // 失败保持 Outbox（不本地伪成功），邮件留存在发件箱可重试
+      const sendResult = await emailOutboxService.sendOutboxEmail(created.emailId, smtpCredentials());
       // 消费后端事实字段：用 emailId 拉真实 Email 记录，不伪造 Sent/sentAt/messageId
       try {
         const apiKey = apiService.getApiKey();
@@ -956,6 +1046,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           setEmails(prev => [detail.data, ...prev]);
         }
       } catch { /* best-effort refresh */ }
+      if (!sendResult.ok || !sendResult.data) {
+        const reason = sendResult.error?.message || sendResult.error?.code || '发送失败';
+        setOutboxError(`已存发件箱但发送失败：${reason}（可到发件箱重试）`);
+      }
       setIsComposing(false);
       setComposeTo('');
       setComposeSubject('');
@@ -984,7 +1078,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     // 2. Server Sync
     try {
       const email = emails.find(e => e.id === id);
-      if (!email || !emailConfig.email) return;
+      if (!email || !emailConfig.email || !email.uid) return;
 
       await fetch(emailApiUrl('/email/mark_starred'), {
         method: 'POST',
@@ -1016,7 +1110,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     // 2. Server Sync
     try {
       const email = emails.find(e => e.id === id);
-      if (!email || !emailConfig.email) return;
+      if (!email || !emailConfig.email || !email.uid) return;
 
       await fetch(emailApiUrl('/email/mark_important'), {
         method: 'POST',
@@ -1047,7 +1141,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     // 2. Server Sync
     try {
       const email = emails.find(e => e.id === id);
-      if (!email || !emailConfig.email) return;
+      if (!email || !emailConfig.email || !email.uid) return;
 
       await fetch(emailApiUrl('/email/mark_read'), {
         method: 'POST',
@@ -1079,7 +1173,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     // 2. Server Sync
     try {
       const email = emails.find(e => e.id === id);
-      if (!email || !emailConfig.email) return;
+      if (!email || !emailConfig.email || !email.uid) return;
 
       await fetch(emailApiUrl('/email/move'), {
         method: 'POST',
@@ -1096,14 +1190,68 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     }
   };
 
-  const handleArchive = (id: string) => {
+  const handleArchive = async (id: string) => {
     const physicalBox = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox) ? 'INBOX' : currentBox;
+
+    // 1. Optimistic UI Update
     setEmails(prev => {
       const newList = prev.filter(e => e.id !== id);
       saveEmailsToLS(physicalBox, newList);
       return newList;
     });
     setSelectedId(null);
+
+    // 2. Server Sync — L6：归档必须通知邮件服务器（移动到 Archive 箱），否则下次同步原样回来
+    try {
+      const email = emails.find(e => e.id === id);
+      if (!email || !emailConfig.email || !email.uid) return;
+
+      await fetch(emailApiUrl('/email/move'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...emailConfig,
+          box: physicalBox,
+          uid: email.uid,
+          toBox: 'Archive'
+        })
+      });
+    } catch (e) {
+      console.error("Failed to sync archive (move to Archive)", e);
+    }
+  };
+
+  /** L5：移动到文件夹 — 真调邮件服务器 API 移动（而非仅切换左侧视图） */
+  const handleMoveToFolder = async (id: string, toBox: string) => {
+    const physicalBox = ['UNREAD', 'STARRED', 'IMPORTANT'].includes(currentBox) ? 'INBOX' : currentBox;
+    if (physicalBox === toBox) return;
+
+    // 1. Optimistic UI Update：从当前列表移除
+    setEmails(prev => {
+      const newList = prev.filter(e => e.id !== id);
+      saveEmailsToLS(physicalBox, newList);
+      return newList;
+    });
+    setSelectedId(null);
+
+    // 2. Server Sync：IMAP 真移动
+    try {
+      const email = emails.find(e => e.id === id);
+      if (!email || !emailConfig.email || !email.uid) return;
+
+      await fetch(emailApiUrl('/email/move'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...emailConfig,
+          box: physicalBox,
+          uid: email.uid,
+          toBox
+        })
+      });
+    } catch (e) {
+      console.error(`Failed to move email to ${toBox}`, e);
+    }
   };
 
   const handleSpam = async (id: string) => {
@@ -1121,7 +1269,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
     // 2. Server Sync
     try {
       const email = emails.find(e => e.id === id);
-      if (!email || !emailConfig.email) return;
+      if (!email || !emailConfig.email || !email.uid) return;
 
       await fetch(emailApiUrl('/email/move'), {
         method: 'POST',
@@ -1362,12 +1510,6 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
 
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
-      <PageHeader
-        title="邮件中心"
-        subtitle="Mail / Signature / Templates"
-        contextLabel="Email Workspace"
-        isDarkMode={isDarkMode}
-      />
       <div
         data-email-workspace="full-bleed"
         className="w-full flex-1 min-h-0 min-w-0 flex relative bg-transparent overflow-hidden text-[var(--text-primary)]"
@@ -1461,6 +1603,14 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 onClick={() => handleBoxChange('Sent Messages')}
                 collapsed={isSidebarCollapsed}
               />
+              {/* L2：发件箱/待发送（DB-backed Outbox 文件夹，待发送记录持久可见可重发） */}
+              <NavItem
+                icon={SendHorizontal}
+                label="Outbox"
+                active={currentBox === 'Outbox'}
+                onClick={() => handleBoxChange('Outbox')}
+                collapsed={isSidebarCollapsed}
+              />
               <NavItem
                 icon={Trash2}
                 label="Deleted"
@@ -1525,7 +1675,7 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
           <div data-os-adaptive-container="1" className="h-14 border-b flex items-center justify-between px-5 shrink-0 bg-transparent border-[var(--border-c-default)]">
             <div data-ui-lab-wallpaper-contrast="primary" className="flex items-center gap-2 font-light text-sm text-[var(--text-secondary)]">
               <ChevronDown size={14} strokeWidth={1} className="text-[var(--text-quaternary)]" />
-              <span>{currentBox === 'INBOX' ? 'Inbox' : currentBox === 'STARRED' ? 'Flagged' : currentBox === 'IMPORTANT' ? 'Important' : currentBox === 'UNREAD' ? 'Unread Messages' : currentBox === 'Sent Messages' ? 'Sent' : currentBox}</span>
+              <span>{currentBox === 'INBOX' ? 'Inbox' : currentBox === 'STARRED' ? 'Flagged' : currentBox === 'IMPORTANT' ? 'Important' : currentBox === 'UNREAD' ? 'Unread Messages' : currentBox === 'Sent Messages' ? 'Sent' : currentBox === 'Outbox' ? 'Outbox' : currentBox}</span>
             </div>
             <div className="flex items-center gap-4 text-[var(--text-tertiary)]">
               {/* Filter Dropdown */}
@@ -1742,10 +1892,10 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                 <button type="button" className="bds-btn bds-btn-ghost bds-btn-icon" title="Move to folder"><MoreHorizontal size={16} strokeWidth={1} /></button>
                 <div className="absolute right-0 top-full mt-1 w-48 z-[70] hidden group-hover:block animate-in fade-in slide-in-from-top-2 rounded-card border border-[var(--border-c-subtle)] bg-[var(--bg-raised)] p-2">
                   <div className="px-3 py-2 text-[11px] font-light text-[var(--text-tertiary)] mb-1">Move to</div>
-                  <button onClick={() => handleBoxChange('INBOX')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Inbox</button>
-                  <button onClick={() => handleBoxChange('Sent Messages')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Sent Items</button>
-                  <button onClick={() => handleBoxChange('Drafts')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Drafts</button>
-                  <button onClick={() => handleBoxChange('Trash')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Deleted</button>
+                  <button onClick={() => handleMoveToFolder(selectedId!, 'INBOX')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Inbox</button>
+                  <button onClick={() => handleMoveToFolder(selectedId!, 'Sent Messages')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Sent Items</button>
+                  <button onClick={() => handleMoveToFolder(selectedId!, 'Drafts')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Drafts</button>
+                  <button onClick={() => handleMoveToFolder(selectedId!, 'Trash')} className="w-full text-left px-4 py-2 text-sm transition-colors rounded-control text-[var(--text-secondary)] hover:bg-[var(--accent-tint)] hover:text-[var(--accent-text)]">Deleted</button>
                 </div>
               </div>
             </div>
@@ -1810,24 +1960,25 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                   </div>
                 )}
 
-                {/* Attachments */}
-                {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
+                {/* Attachments — L3：渲染 selectedEmailAttachments（详情接口/缓存的真实附件列表），
+                    而非列表项上已被清空的 selectedEmail.attachments */}
+                {selectedEmailAttachments && selectedEmailAttachments.length > 0 && (
                   <div className="mt-8 pt-6 border-t border-[var(--border-c-default)]">
                     <h3 className="text-sm font-light text-[var(--text-primary)] mb-4 flex items-center gap-2">
                       <Paperclip size={16} strokeWidth={1} />
-                      {selectedEmail.attachments.length} Attachments
+                      {selectedEmailAttachments.length} Attachments
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                      {selectedEmail.attachments.map((att, idx) => (
+                      {selectedEmailAttachments.map((att, idx) => (
                         <div key={idx} className="rdl-data-row flex items-center p-3 transition-all group cursor-pointer text-[var(--text-secondary)] hover:bg-[var(--hover-darken)]"
-                          onClick={() => handleDownloadAttachment(selectedEmail, att.filename)}
+                          onClick={() => handleDownloadAttachment(selectedEmail, att)}
                         >
                           <div className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--text-tertiary)] shrink-0 group-hover:text-[var(--accent-text)] transition-colors">
                             <FileText size={20} strokeWidth={1} />
                           </div>
                           <div className="ml-3 min-w-0 flex-1">
                             <div className="text-sm font-light truncate group-hover:text-[var(--accent-text)] text-[var(--text-secondary)]">{att.filename}</div>
-                            <div className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">{(att.size / 1024).toFixed(1)} KB</div>
+                            <div className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">{((att.size ?? att.fileSize ?? 0) / 1024).toFixed(1)} KB</div>
                           </div>
                         </div>
                       ))}
@@ -2151,6 +2302,49 @@ const EmailManager: React.FC<EmailProps> = ({ emails, setEmails, knowledge, orde
                         onChange={e => setEmailConfig({ ...emailConfig, password: e.target.value })}
                         className="bds-input pl-11"
                         placeholder="••••••••••••••"
+                      />
+                    </div>
+                  </div>
+                  {/* L9：邮箱服务商配置 — IMAP/SMTP 服务器与端口（留空走阿里云企业邮默认） */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2.5">
+                      <label className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest ml-1">IMAP Server</label>
+                      <input
+                        type="text"
+                        value={emailConfig.host || ''}
+                        onChange={e => setEmailConfig({ ...emailConfig, host: e.target.value })}
+                        className="bds-input"
+                        placeholder="imap.qiye.aliyun.com"
+                      />
+                    </div>
+                    <div className="space-y-2.5">
+                      <label className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest ml-1">IMAP Port</label>
+                      <input
+                        type="number"
+                        value={emailConfig.port || ''}
+                        onChange={e => setEmailConfig({ ...emailConfig, port: e.target.value ? Number(e.target.value) : undefined })}
+                        className="bds-input"
+                        placeholder="993"
+                      />
+                    </div>
+                    <div className="space-y-2.5">
+                      <label className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest ml-1">SMTP Server</label>
+                      <input
+                        type="text"
+                        value={emailConfig.smtpHost || ''}
+                        onChange={e => setEmailConfig({ ...emailConfig, smtpHost: e.target.value })}
+                        className="bds-input"
+                        placeholder="smtp.qiye.aliyun.com"
+                      />
+                    </div>
+                    <div className="space-y-2.5">
+                      <label className="text-[10px] font-light text-[var(--text-tertiary)] uppercase tracking-widest ml-1">SMTP Port</label>
+                      <input
+                        type="number"
+                        value={emailConfig.smtpPort || ''}
+                        onChange={e => setEmailConfig({ ...emailConfig, smtpPort: e.target.value ? Number(e.target.value) : undefined })}
+                        className="bds-input"
+                        placeholder="465"
                       />
                     </div>
                   </div>

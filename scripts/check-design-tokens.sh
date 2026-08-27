@@ -91,10 +91,11 @@ BASELINE_TEXT_WHITE=11         # 批E 伴随项：accent 填充上 text-white �
 # ── W-PG 页面规格化断言基线（2026-08-17 W-PG-P0 建立，只减不增）──
 # 依据 docs/design-system/page-skeleton-spec.md §8（总控审定）+ 纪律文档 §10.3。
 # 作用域 PG_SCAN_PATHS（components/ + src/）。
-BASELINE_PAGEHEAD_MISSING=0   # M1: *Manager.tsx 缺 PageHeader/bds-pagehead 文件数（24 文件清单断言；
+BASELINE_PAGEHEAD_MISSING=1   # M1: *Manager.tsx 缺 PageHeader/bds-pagehead 文件数（24 文件清单断言；
                               # 骨架为页面级规格，颜色 token 豁免不适用 → 仅豁免 node_modules/测试；
                               # 2026-08-17 W-PG-P2 DocumentCenter 主刀：tools/DocumentTemplateManager 补 PageHeader（3→2）；
-                              # 2026-08-18 P2-W3 组6 收编 2→0：EmailManager + email/SignatureManager 补 PageHeader）
+                              # 2026-08-18 P2-W3 组6 收编 2→0：EmailManager + email/SignatureManager 补 PageHeader；
+                              # 2026-08-28 批次二 L11 用户拍板：EmailManager 去掉「邮件中心」标题（0→1，拍板豁免））
 BASELINE_BDS_BTN_SM=0         # M2: bds-btn-sm 计数（行尾注释 `// bds-sm-ok: <原因>` 白名单豁免，
                               # 白名单仅限表格行内操作，spec §3.1）
 BASELINE_FILTERBAR_H=0        # M3: bds-filterbar 行手写非 h-10 高度覆盖（行数口径，单行 className 约定；

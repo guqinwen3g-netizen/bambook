@@ -28,6 +28,7 @@ import { simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
 import { sendOutboxEmail } from './outboxSend';
 import { syncEmailsFromImap } from './emailSyncService';
+import { putImapSession, getImapSession } from './imapSessionStore';
 import { autoLinkEmailById, backfillEmailLinks } from './emailLinkService';
 import { applyEmailClassification, backfillEmailClassification } from './emailClassificationService';
 import { autoFollowUpForClassifiedEmail, createFollowUpFromEmail } from './emailFollowUpService';
@@ -80,6 +81,8 @@ const BOX_ATTR_MAP: Record<string, string> = {
   Drafts: '\\DRAFTS',
   Spams: '\\JUNK',
   Junk: '\\JUNK',
+  // L6：归档 — 支持 LIST-EXTENDED \Archive 属性的服务器按属性解析，否则回退字面量 'Archive'
+  Archive: '\\ARCHIVE',
 };
 
 async function resolvePhysicalBox(connection: any, box: string): Promise<string> {
@@ -449,7 +452,6 @@ export function createEmailRouter(options: EmailRouterOptions) {
   router.post('/fetch', requireWrite, async (req: Request, res: Response) => {
     const { email, password, host, port = 993, box = 'INBOX', limit = 50, offset = 0 } = req.body;
     let targetBox = box;
-    let availableBoxes: string[] = [];
 
     if (!email || !password) return res.status(400).json({ error: 'Missing credentials' });
 
@@ -477,8 +479,6 @@ export function createEmailRouter(options: EmailRouterOptions) {
 
       if (!isVirtual) {
         try {
-          const boxes = await connection.getBoxes();
-          availableBoxes = Object.keys(boxes);
           if (['Sent Messages', 'Sent', 'Trash', 'Drafts', 'Spams', 'Junk'].includes(box)) {
             targetBox = await resolvePhysicalBox(connection, box);
           }
@@ -500,7 +500,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
 
       if (targetMeta.length === 0) {
         connection.end();
-        return res.json({ status: 'success', data: [], total, debug: { limit, offset, foundTotal: total, targetBox } });
+        return res.json({ status: 'success', data: [], total });
       }
 
       const targetUids = targetMeta.map((m: any) => m.attributes.uid);
@@ -536,7 +536,6 @@ export function createEmailRouter(options: EmailRouterOptions) {
       connection.end();
       res.json({
         status: 'success', data: emails.filter(Boolean), total,
-        debug: { limit, offset, foundTotal: total, targetBox, availableBoxes },
       });
     } catch (err: any) {
       res.status(500).json({ error: '邮箱连接失败: ' + err.message });
@@ -649,10 +648,11 @@ export function createEmailRouter(options: EmailRouterOptions) {
   });
 
   /**
-   * GET /api/email/attachment — 下载附件（IMAP 实时代理）
+   * POST /api/email/attachment — 下载附件（IMAP 实时代理）
+   * L7：凭据从 URL query 移到 POST body（密码不再出现在 URL/访问日志）。
    */
-  router.get('/attachment', requireJwt, async (req: Request, res: Response) => {
-    const { email, password, host, port = 993, box = 'INBOX', uid, filename } = req.query as Record<string, string>;
+  router.post('/attachment', requireJwt, async (req: Request, res: Response) => {
+    const { email, password, host, port = 993, box = 'INBOX', uid, filename } = req.body || {};
     if (!email || !password || !uid || !filename) return res.status(400).send('Missing parameters');
 
     try {
@@ -680,13 +680,18 @@ export function createEmailRouter(options: EmailRouterOptions) {
 
   /**
    * GET /api/email/image — 获取邮件内嵌图片
+   * L7：URL 不再携带 email/password；/detail 生成代理地址时把凭据放入
+   * imapSessionStore（30 分钟 TTL），本端点仅凭 session token 取回凭据。
    */
   router.get('/image', requireJwt, async (req: Request, res: Response) => {
-    const { email, password, host, port, box, uid, cid } = req.query as Record<string, string>;
-    if (!email || !password || !uid || !cid) return res.status(400).send('Missing parameters');
+    const { session, box, uid, cid } = req.query as Record<string, string>;
+    if (!session || !uid || !cid) return res.status(400).send('Missing parameters');
+
+    const cred = getImapSession(session);
+    if (!cred) return res.status(401).send('Image proxy session expired; re-open the email to refresh');
 
     try {
-      const connection = await imaps.connect(makeImapConfig(email, password, host, Number(port) || 993));
+      const connection = await imaps.connect(makeImapConfig(cred.user, cred.pass, cred.host, Number(cred.port) || 993));
       await connection.openBox(box);
       const messages = await connection.search([['UID', uid]], { bodies: [''], markSeen: false, struct: true });
       if (messages.length === 0) { connection.end(); return res.status(404).send('Not found'); }
@@ -699,7 +704,7 @@ export function createEmailRouter(options: EmailRouterOptions) {
       if (!image) { connection.end(); return res.status(404).send('Image not found'); }
 
       res.setHeader('Content-Type', image.contentType);
-      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.setHeader('Cache-Control', 'private, max-age=1800');
       res.send(image.content);
       connection.end();
     } catch (_) {
@@ -743,10 +748,18 @@ export function createEmailRouter(options: EmailRouterOptions) {
       const attachmentsMeta: any[] = [];
 
       if (parsed.attachments) {
+        // L7：代理地址不含密码 — 仅当确有 cid 内嵌图时才注册短期 session
+        let imageSessionToken: string | null = null;
+        const ensureImageSession = () => {
+          if (!imageSessionToken) {
+            imageSessionToken = putImapSession({ user: email, pass: password, host, port: Number(port) || 993 });
+          }
+          return imageSessionToken;
+        };
         parsed.attachments.forEach((att: any) => {
           const rawCid = att.contentId ? att.contentId.replace(/[<>]/g, '') : null;
           if (rawCid && htmlBody.includes(`cid:${rawCid}`)) {
-            const params = new URLSearchParams({ email, password, host, port: String(port), box: targetBox, uid: String(uid), cid: rawCid });
+            const params = new URLSearchParams({ session: ensureImageSession(), box: targetBox, uid: String(uid), cid: rawCid });
             const proxyUrl = `/api/email/image?${params.toString()}`;
             htmlBody = htmlBody.split(`cid:${rawCid}`).join(proxyUrl);
           } else if (att.contentDisposition === 'inline') {
