@@ -41,18 +41,18 @@ import {
 const DEPT_SCOPE_EXEMPT_MODULES = new Set(['hr']);
 
 // ───────────────────────────────────────────────────────────────────
-// 新 8 角色 ID → 旧 AgentRole 字符串（向后兼容映射，保持旧 HIGH_RISK_ROLES 判断有效）
+// 新 7 角色 ID → 旧 AgentRole 字符串（向后兼容映射，保持旧 HIGH_RISK_ROLES 判断有效）
 //   旧语义：owner=最高权限  admin=系统管理员  manager=业务审批/经理级  finance=财务
 //   新→旧映射原则：保持 68 处调用的语义不变（HIGH_RISK 路由不能被 sales 直接写）
 //   DR-041：QC → viewer（质检写权限走新 scope qc:write，legacy 层不给任何写路由通过）
 //           LOGISTICS → logistics（legacy logistics 不在任何 HIGH_RISK 组，写权限走新 scope）
+//   GAP-R11：FINANCE_MANAGER 已删除（原映射 finance 与 FINANCE 相同，无行为变化）
 // ───────────────────────────────────────────────────────────────────
 export const ROLE_ID_TO_LEGACY_AGENT_ROLE: Record<string, AgentRole> = {
   [SYSTEM_ROLE_IDS.SUPER_ADMIN]: 'owner',       // 最高 → owner（所有 HIGH_RISK 组都包含 owner ✓）
   [SYSTEM_ROLE_IDS.ADMIN]: 'admin',             // 系统管理员 → admin（owner/admin 类路由通过 ✓）
   [SYSTEM_ROLE_IDS.SALES_MANAGER]: 'manager',   // 销售主管 → manager（业务写审批路由用 ['owner','admin','manager'] ✓）
-  [SYSTEM_ROLE_IDS.FINANCE_MANAGER]: 'finance', // 财务主管 → finance（finance 模块 HIGH_RISK 含 finance ✓）
-  [SYSTEM_ROLE_IDS.FINANCE]: 'finance',         // 普通财务 → finance（同模块 HIGH_RISK 通过 ✓）
+  [SYSTEM_ROLE_IDS.FINANCE]: 'finance',         // 财务 → finance（finance 模块 HIGH_RISK 含 finance ✓）
   [SYSTEM_ROLE_IDS.SALES]: 'sales',             // 业务员 → sales（写路由 HIGH_RISK 不含 sales → 保持被拒 ✓）
   [SYSTEM_ROLE_IDS.QC]: 'viewer',               // QC → viewer（legacy 层只读；qc:write 走新 scope 链 ✓）
   [SYSTEM_ROLE_IDS.LOGISTICS]: 'logistics',     // 后勤 → logistics（legacy 层非 HIGH_RISK；shipments:write 走新 scope 链 ✓）
@@ -382,20 +382,25 @@ export function createPermissionService(opts: PermissionServiceOptions) {
 
 // ───────────────────────────────────────────────────────────────────
 // 反向映射：legacy AgentRole string → 新 SYSTEM_ROLE_IDS（用于 hasScope fallback）
-// 一个 legacy code 可能对应多个新 role ID（如 finance 对应 FINANCE 和 FINANCE_MANAGER）
+// 最小权限原则（W-C 安全修复）：fallback 默认矩阵只授予与该 legacy 角色语义相符的
+// 新角色默认权限；无对应新角色的 legacy 角色（viewer/factory/production_manager）
+// 不再降级为 SALES——此前 viewer/factory 老 JWT 会在 fallback 路径获得业务员完整
+// 默认矩阵（含 orders:write 等写 scope），属越权放大。映射为空 = 仅消费 JWT/DB
+// 已聚合的 permissions（login 链路对新角色用户照常生效，不受本表影响）。
+// GAP-R11：finance 不再映射已删除的 FINANCE_MANAGER。
 // ───────────────────────────────────────────────────────────────────
 const LEGACY_TO_ROLE_ID: Record<string, string[]> = {
   owner: [SYSTEM_ROLE_IDS.SUPER_ADMIN],
   admin: [SYSTEM_ROLE_IDS.ADMIN],
   manager: [SYSTEM_ROLE_IDS.SALES_MANAGER],
-  finance: [SYSTEM_ROLE_IDS.FINANCE, SYSTEM_ROLE_IDS.FINANCE_MANAGER],
+  finance: [SYSTEM_ROLE_IDS.FINANCE],
   sales: [SYSTEM_ROLE_IDS.SALES],
-  // 剩余 legacy roles（生产中不常用）作为 sales 的降级语义，避免老 JWT 被意外拦截
-  merchandiser: [SYSTEM_ROLE_IDS.SALES],
-  logistics: [SYSTEM_ROLE_IDS.SALES],
-  production_manager: [SYSTEM_ROLE_IDS.SALES_MANAGER],
-  factory: [SYSTEM_ROLE_IDS.SALES],
-  viewer: [SYSTEM_ROLE_IDS.SALES],
+  merchandiser: [SYSTEM_ROLE_IDS.SALES],   // 跟单员语义≈业务员（保留）
+  logistics: [SYSTEM_ROLE_IDS.LOGISTICS],  // 对齐新后勤角色
+  // 无新角色容器 → 空映射（最小权限）：viewer 只读语义 / factory 工厂 / production_manager 生产
+  viewer: [],
+  factory: [],
+  production_manager: [],
 };
 
 function dedupe<T>(arr: T[]): T[] {

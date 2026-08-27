@@ -80,15 +80,15 @@ export interface MoqConfigServiceOptions {
   prisma: PrismaClient;
 }
 
-// legacy 角色 → 新 RBAC roleId 映射（与 permissionGuard 内联映射保持同一子集）
+// legacy 角色 → 新 RBAC roleId 映射（与 permissionGuard 内联映射保持同一子集；最小权限原则）
 const LEGACY_TO_ROLE_ID: Record<string, string[]> = {
   owner: [SYSTEM_ROLE_IDS.SUPER_ADMIN],
   admin: [SYSTEM_ROLE_IDS.ADMIN],
   manager: [SYSTEM_ROLE_IDS.SALES_MANAGER],
-  finance: [SYSTEM_ROLE_IDS.FINANCE, SYSTEM_ROLE_IDS.FINANCE_MANAGER],
+  finance: [SYSTEM_ROLE_IDS.FINANCE],
   sales: [SYSTEM_ROLE_IDS.SALES],
   merchandiser: [SYSTEM_ROLE_IDS.SALES],
-  logistics: [SYSTEM_ROLE_IDS.SALES],
+  logistics: [SYSTEM_ROLE_IDS.LOGISTICS],
 };
 
 /** scope 判定：JWT.permissions 直查 → SUPER_ADMIN 全通 → legacy 角色映射走默认矩阵 */

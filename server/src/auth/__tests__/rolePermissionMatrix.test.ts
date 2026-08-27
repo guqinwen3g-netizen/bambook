@@ -1,13 +1,14 @@
 /**
- * rolePermissionMatrix.test.ts — DR-041 QC/后勤角色容器内置回归测试
+ * rolePermissionMatrix.test.ts — 角色容器回归测试（DR-041 QC/后勤内置 + GAP-R11 FinMan 删除收编）
  *
  * 锁定契约：
- *   1. 8 个系统内置角色（含 QC/后勤）在 SYSTEM_ROLE_META / DEFAULT_ROLE_PERMISSION_MATRIX /
- *      DEFAULT_DATA_SCOPE_BY_ROLE 三处注册完整
- *   2. QC_BASE / LOGISTICS_BASE 引用的 scope 全部存在于 PERMISSION_SCOPES（否则 seed 静默跳过）
- *   3. ROLE_ID_TO_LEGACY_AGENT_ROLE 覆盖全部 8 个系统角色（登录写 JWT legacy roles 链路闭合）
- *   4. SYSTEM_ROLE_META 描述无 "≤5万 / >5万" 阈值残留（审批阈值分级已废止，统一走审批策略）
- *   5. 双文件逐字同步守卫（GAP-R2）：根 lib/rolePermissionMatrix.ts 与
+ *   1. 7 个系统内置角色（GAP-R11：FinanceManager 已删除）在 SYSTEM_ROLE_META /
+ *      DEFAULT_ROLE_PERMISSION_MATRIX / DEFAULT_DATA_SCOPE_BY_ROLE 三处注册完整
+ *   2. GAP-R11 位移闭合：FinMan 原独有 scope 全部在新落点（SM/Finance/Admin/QC/Logistics）
+ *   3. QC_BASE / LOGISTICS_BASE 引用的 scope 全部存在于 PERMISSION_SCOPES（否则 seed 静默跳过）
+ *   4. ROLE_ID_TO_LEGACY_AGENT_ROLE 覆盖全部 7 个系统角色（登录写 JWT legacy roles 链路闭合）
+ *   5. SYSTEM_ROLE_META 描述无 "≤5万 / >5万" 阈值残留（审批阈值分级已废止，统一走审批策略）
+ *   6. 双文件逐字同步守卫（GAP-R2）：根 lib/rolePermissionMatrix.ts 与
  *      server/src/_shared/rolePermissionMatrix.ts 自 SYSTEM_ROLE_IDS 定义起至文件末尾逐字一致
  *      —— 此前发生过副本漂移导致 seed 与运行时守卫判定冲突，此处固化为测试断言
  */
@@ -28,18 +29,50 @@ import { ROLE_ID_TO_LEGACY_AGENT_ROLE } from '../permissionService';
 
 const ALL_SYSTEM_ROLE_IDS = Object.values(SYSTEM_ROLE_IDS) as SystemRoleId[];
 
-describe('DR-041 QC/后勤角色容器内置', () => {
-  it('系统内置角色共 8 个（含 role-qc / role-logistics）', () => {
-    expect(ALL_SYSTEM_ROLE_IDS).toHaveLength(8);
+describe('系统内置角色注册（DR-041 + GAP-R11）', () => {
+  it('系统内置角色共 7 个（含 role-qc / role-logistics；无 role-finance-manager）', () => {
+    expect(ALL_SYSTEM_ROLE_IDS).toHaveLength(7);
     expect(SYSTEM_ROLE_IDS.QC).toBe('role-qc');
     expect(SYSTEM_ROLE_IDS.LOGISTICS).toBe('role-logistics');
+    expect(ALL_SYSTEM_ROLE_IDS).not.toContain('role-finance-manager');
+    expect((SYSTEM_ROLE_IDS as Record<string, string>).FINANCE_MANAGER).toBeUndefined();
   });
 
-  it('8 角色在 META / 权限矩阵 / 行级范围三处注册完整', () => {
+  it('7 角色在 META / 权限矩阵 / 行级范围三处注册完整', () => {
     for (const roleId of ALL_SYSTEM_ROLE_IDS) {
       expect(SYSTEM_ROLE_META[roleId], `SYSTEM_ROLE_META 缺 ${roleId}`).toBeDefined();
       expect(DEFAULT_ROLE_PERMISSION_MATRIX[roleId], `DEFAULT_ROLE_PERMISSION_MATRIX 缺 ${roleId}`).toBeDefined();
       expect(DEFAULT_DATA_SCOPE_BY_ROLE[roleId], `DEFAULT_DATA_SCOPE_BY_ROLE 缺 ${roleId}`).toBeDefined();
+    }
+  });
+
+  it('GAP-R11 位移闭合：FinMan 原独有 scope 全部在新落点，无 capability 丢失', () => {
+    const sm = getDefaultScopeListForRole(SYSTEM_ROLE_IDS.SALES_MANAGER);
+    const fin = getDefaultScopeListForRole(SYSTEM_ROLE_IDS.FINANCE);
+    const admin = getDefaultScopeListForRole(SYSTEM_ROLE_IDS.ADMIN);
+    const qc = getDefaultScopeListForRole(SYSTEM_ROLE_IDS.QC);
+    const logistics = getDefaultScopeListForRole(SYSTEM_ROLE_IDS.LOGISTICS);
+    // SM：本团队小单付款审批 + 价格双签之一 + BOM 共享 + 付款申请审批
+    for (const s of ['vouchers:approve:pay_lt5', 'orders:approve:change_price', 'bom:admin', 'finance:payment_request:approve']) {
+      expect(sm, `SALES_MANAGER 缺 ${s}`).toContain(s);
+    }
+    // Finance：佣金可见 + 退税审批（财务专业合规工作）
+    for (const s of ['sensitive:commission', 'tax:approve']) {
+      expect(fin, `FINANCE 缺 ${s}`).toContain(s);
+    }
+    // Admin（总领导）：大单付款/首单+1级/坏账核销/订单取消/风控总监级/定价管理员级/审计导出
+    for (const s of ['vouchers:approve:pay_gt5', 'vouchers:approve:pay_new_supplier', 'invoices:approve:writeoff', 'orders:approve:cancel', 'risk:admin', 'pricing:admin', 'audit:export']) {
+      expect(admin, `ADMIN 缺 ${s}`).toContain(s);
+    }
+    // QC：BOM 共享管理权；Logistics：单证模板/签章配置
+    expect(qc).toContain('bom:admin');
+    expect(logistics).toContain('customs:admin');
+  });
+
+  it('财务禁止拥有业务审批 scope（审批/执行分离铁律）', () => {
+    const fin = getDefaultScopeListForRole(SYSTEM_ROLE_IDS.FINANCE);
+    for (const denied of ['vouchers:approve:pay_lt5', 'vouchers:approve:pay_gt5', 'vouchers:approve:pay_new_supplier', 'invoices:approve:writeoff', 'orders:approve:cancel', 'risk:admin', 'pricing:admin', 'audit:export']) {
+      expect(fin, `FINANCE 不得持有 ${denied}`).not.toContain(denied);
     }
   });
 
@@ -79,12 +112,24 @@ describe('DR-041 QC/后勤角色容器内置', () => {
     }
   });
 
-  it('ROLE_ID_TO_LEGACY_AGENT_ROLE 覆盖全部 8 个系统角色', () => {
+  it('GAP-R11 位移落点引用的 scope 全部存在于 PERMISSION_SCOPES', () => {
+    for (const roleId of ALL_SYSTEM_ROLE_IDS) {
+      for (const scope of getDefaultScopeListForRole(roleId)) {
+        expect(
+          Object.prototype.hasOwnProperty.call(PERMISSION_SCOPES, scope),
+          `角色 ${roleId} 引用未定义 scope：${scope}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('ROLE_ID_TO_LEGACY_AGENT_ROLE 覆盖全部 7 个系统角色', () => {
     for (const roleId of ALL_SYSTEM_ROLE_IDS) {
       expect(ROLE_ID_TO_LEGACY_AGENT_ROLE[roleId], `legacy 映射缺 ${roleId}`).toBeDefined();
     }
     expect(ROLE_ID_TO_LEGACY_AGENT_ROLE[SYSTEM_ROLE_IDS.QC]).toBe('viewer');
     expect(ROLE_ID_TO_LEGACY_AGENT_ROLE[SYSTEM_ROLE_IDS.LOGISTICS]).toBe('logistics');
+    expect(Object.values(ROLE_ID_TO_LEGACY_AGENT_ROLE)).toHaveLength(7);
   });
 
   it('SYSTEM_ROLE_META 描述无 ≤5万/>5万 阈值残留', () => {

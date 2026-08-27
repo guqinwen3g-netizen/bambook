@@ -8,7 +8,8 @@
  *
  * 设计原则：
  *   - 所有权限字符串都在此文件定义为 TS 常量/枚举，绝不允许业务代码手写 'orders:write' 等字符串
- *   - 8 个系统内置角色（含 QC/后勤）（Sales/SalesManager/Finance/FinanceManager/Admin/QC/Logistics/SuperAdmin）
+ *   - 7 个系统内置角色（GAP-R11 已收口：Sales/SalesManager/Finance/Admin/QC/Logistics/SuperAdmin；
+ *     FinanceManager 已删除收编——付款审批权上抬 SM/总领导，退税审批归 Finance，见其位移注释）
  *     的 默认模块权限位（R/W/D/A + 敏感字段 + 行级数据范围） 全部在此硬编码，
  *     DB 中的 Role/Permission/RolePermission 表运行时可以 UI 调整，
  *     但初始化 seed 和 代码级判断的 fallback 默认值 必须 从这里取。
@@ -32,7 +33,6 @@ export const SYSTEM_ROLE_IDS = {
   SALES: 'role-sales',
   SALES_MANAGER: 'role-sales-manager',
   FINANCE: 'role-finance',
-  FINANCE_MANAGER: 'role-finance-manager',
   ADMIN: 'role-admin',
   QC: 'role-qc',
   LOGISTICS: 'role-logistics',
@@ -56,11 +56,6 @@ export const SYSTEM_ROLE_META: Record<SystemRoleId, { name: string; description:
     name: '财务',
     description: '财务部会计/出纳；全公司财务数据可读写，业务域只读',
     rank: 2,
-  },
-  [SYSTEM_ROLE_IDS.FINANCE_MANAGER]: {
-    name: '财务主管',
-    description: '财务部负责人；付款审批双签人、价格变更审批',
-    rank: 3,
   },
   [SYSTEM_ROLE_IDS.ADMIN]: {
     name: '系统管理员',
@@ -345,13 +340,10 @@ export const DEFAULT_DATA_SCOPE_BY_ROLE: Record<
     vouchers: { kind: 'department', own: true, includeDescendantDepartments: true },
     hr: { kind: 'department', own: true }, // 主管看本部门员工基本信息，薪酬明细仍要单独敏感scope
   },
-  // --- 财务/财务主管：财务域全公司，业务域只读全公司 ---
+  // --- 财务：财务域全公司，业务域只读全公司 ---
   [SYSTEM_ROLE_IDS.FINANCE]: {
     '*': { kind: 'all' }, // 财务看所有模块全公司范围
     // 但 HR 的薪酬明细仍要敏感 salary scope 才能看
-  },
-  [SYSTEM_ROLE_IDS.FINANCE_MANAGER]: {
-    '*': { kind: 'all' },
   },
   // --- 系统管理员：配置看全公司，业务/财务数据按需要给scope但默认行级all（方便配置）---
   [SYSTEM_ROLE_IDS.ADMIN]: {
@@ -456,8 +448,16 @@ const SALES_MANAGER_BASE: RolePermissionMatrix = {
   'reports:admin': true,
   // 客诉处理审批
   'aftersales:approve': true,
-  // 采购PO审批（≤5万档，SM+FinMan双签）
+  // 采购PO审批（DR-007 组织归属解析；首单自动上抬总领导）
   'procurement:approve': true,
+  // GAP-R11 FinMan 位移：本团队小单付款审批（大单/跨团队自动上抬总领导）
+  'vouchers:approve:pay_lt5': true,
+  // GAP-R11 FinMan 位移：订单变更-价格 双签之一（另一签总领导）
+  'orders:approve:change_price': true,
+  // GAP-R11 FinMan 位移：BOM 版本/计算模型管理（与 QC 共享）
+  'bom:admin': true,
+  // GAP-R11 FinMan 位移：付款申请审批（DR-017 本团队档）
+  'finance:payment_request:approve': true,
   // Phase 1 预分配：销售主管审批侧 scope（继承 SALES 申请侧；此处为 SM 独有增量）
   'moq:capsule_exemption:write': true,
   'order:change_request:apply': true,
@@ -475,10 +475,11 @@ const FINANCE_BASE: RolePermissionMatrix = {
   'ai:chat': true,
   'ai:write:low': true,
   'ai:write:medium': true,
-  // 敏感字段：财务可见成本/利润/税基（佣金仅 FinanceManager/SuperAdmin）
+  // 敏感字段：财务可见成本/利润/税基/佣金（做账发薪必需；GAP-R11 FinMan 位移）
   'sensitive:cost': true,
   'sensitive:profit': true,
   'sensitive:tax_base': true,
+  'sensitive:commission': true,
   // 客户市场：只读（不做编辑）
   'relations:read': true,
   'crm:read': true,
@@ -510,6 +511,8 @@ const FINANCE_BASE: RolePermissionMatrix = {
   'vat:write': true,
   'tax:read': true,
   'tax:write': true,
+  // GAP-R11 FinMan 位移：退税申报审批 = 财务专业合规工作（不归业务审批链）
+  'tax:approve': true,
   'remit:read': true,
   'remit:write': true,
   'fx:lock': true,
@@ -525,40 +528,6 @@ const FINANCE_BASE: RolePermissionMatrix = {
   // Phase 1 预分配：财务申请侧 scope
   'finance:payment_request:create': true,
   'exception:dr013:create': true,
-};
-
-const FINANCE_MANAGER_BASE: RolePermissionMatrix = {
-  ...FINANCE_BASE,
-  // 敏感：佣金可见（业务员看不到）
-  'sensitive:commission': true,
-  // 付款审批：≤5万档
-  'vouchers:approve:pay_lt5': true,
-  // 付款审批：>5万档 以及 坏账核销/发票作废
-  'vouchers:approve:pay_gt5': true,
-  'invoices:approve:writeoff': true,
-  // 订单变更-价格 双签（必须SM+FinMan都批）
-  'orders:approve:change_price': true,
-  // 订单取消三签之一
-  'orders:approve:cancel': true,
-  // 退税申报审批
-  'tax:approve': true,
-  // 风控总监级权限
-  'risk:admin': true,
-  // 定价管理员级权限
-  'pricing:admin': true,
-  // 首单付款+1级（和总经理共享，以后可以拆scope）
-  'vouchers:approve:pay_new_supplier': true,
-  // 单证模板/签章配置
-  'customs:admin': true,
-  // 审计日志导出
-  'audit:export': true,
-  // BOM版本管理
-  'bom:admin': true,
-  // Phase 1 预分配：财务主管审批侧 scope（继承 FINANCE 申请侧；此处为 FinMan 独有增量）
-  'finance:payment_request:approve': true,
-  'credit:freeze:write': true,
-  'credit:thaw:write': true,
-  'order:internal_trade:write': true,
 };
 
 const ADMIN_BASE: RolePermissionMatrix = {
@@ -583,8 +552,17 @@ const ADMIN_BASE: RolePermissionMatrix = {
   'reports:read': true,
   'reports:write': true,
   'reports:admin': true,
-  // 审计日志查看（不可导出，导出是FinanceMan+/SuperAdmin）
+  // 审计日志查看（导出归总领导/SuperAdmin）
   'audit:read': true,
+  // GAP-R11 FinMan 位移：总领导兜底审批档（大单付款/首单+1级/坏账核销/订单取消/价格双签另一签）
+  'vouchers:approve:pay_gt5': true,
+  'vouchers:approve:pay_new_supplier': true,
+  'invoices:approve:writeoff': true,
+  'orders:approve:cancel': true,
+  // GAP-R11 FinMan 位移：风控总监级 + 定价管理员级 + 审计导出
+  'risk:admin': true,
+  'pricing:admin': true,
+  'audit:export': true,
   // 看所有业务域只读（Admin要能排障，不能两眼一抹黑）
   'dashboard:read': true,
   'cockpit:read': true,
@@ -650,6 +628,8 @@ const QC_BASE: RolePermissionMatrix = {
   // QC 域（可写）
   'qc:read': true,
   'qc:write': true,
+  // BOM 版本/工艺模型管理（与 SM 共享；GAP-R11 FinMan 位移）
+  'bom:admin': true,
   // 平台域
   'knowledge:read': true,
   'tools:execute': true,
@@ -670,6 +650,8 @@ const LOGISTICS_BASE: RolePermissionMatrix = {
   'shipments:write': true,
   'customs:read': true,
   'customs:write': true,
+  // 单证模板/公司签章配置（GAP-R11 FinMan 位移）
+  'customs:admin': true,
   // 平台域
   'knowledge:read': true,
   'tools:execute': true,
@@ -685,7 +667,6 @@ export const DEFAULT_ROLE_PERMISSION_MATRIX: Record<SystemRoleId, RolePermission
   [SYSTEM_ROLE_IDS.SALES]: SALES_BASE,
   [SYSTEM_ROLE_IDS.SALES_MANAGER]: SALES_MANAGER_BASE,
   [SYSTEM_ROLE_IDS.FINANCE]: FINANCE_BASE,
-  [SYSTEM_ROLE_IDS.FINANCE_MANAGER]: FINANCE_MANAGER_BASE,
   [SYSTEM_ROLE_IDS.ADMIN]: ADMIN_BASE,
   [SYSTEM_ROLE_IDS.QC]: QC_BASE,
   [SYSTEM_ROLE_IDS.LOGISTICS]: LOGISTICS_BASE,

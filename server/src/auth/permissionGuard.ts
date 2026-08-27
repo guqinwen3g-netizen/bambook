@@ -151,18 +151,18 @@ import {
 } from '../_shared/rolePermissionMatrix';
 function inlineFallbackHasScope(actor: TokenPayload, scope: PermissionScope): boolean {
   // legacy roles → new role ids map (copied small subset here for hot-path speed;
-  // source of truth is still permissionService.ts's LEGACY_TO_ROLE_ID)
+  // source of truth is still permissionService.ts's LEGACY_TO_ROLE_ID — 同步保持最小权限原则)
   const LEGACY_TO_ROLE_ID: Record<string, string[]> = {
     owner: [SYSTEM_ROLE_IDS.SUPER_ADMIN],
     admin: [SYSTEM_ROLE_IDS.ADMIN],
     manager: [SYSTEM_ROLE_IDS.SALES_MANAGER],
-    finance: [SYSTEM_ROLE_IDS.FINANCE, SYSTEM_ROLE_IDS.FINANCE_MANAGER],
+    finance: [SYSTEM_ROLE_IDS.FINANCE],
     sales: [SYSTEM_ROLE_IDS.SALES],
     merchandiser: [SYSTEM_ROLE_IDS.SALES],
-    logistics: [SYSTEM_ROLE_IDS.SALES],
-    production_manager: [SYSTEM_ROLE_IDS.SALES_MANAGER],
-    factory: [SYSTEM_ROLE_IDS.SALES],
-    viewer: [SYSTEM_ROLE_IDS.SALES],
+    logistics: [SYSTEM_ROLE_IDS.LOGISTICS],
+    production_manager: [],
+    factory: [],
+    viewer: [],
   };
   const roleIds: string[] = [];
   for (const r of actor.roles || []) {

@@ -36,7 +36,7 @@ const ROLE_LABELS: Record<typeof AVAILABLE_ROLES[number], string> = {
  * 顺序即展示顺序：一线 → 主管 → 职能 → 管理层。
  */
 const ROLE_CONTAINER_ORDER = [
-  'role-sales', 'role-sales-manager', 'role-finance', 'role-finance-manager',
+  'role-sales', 'role-sales-manager', 'role-finance',
   'role-qc', 'role-logistics', 'role-admin', 'role-super-admin',
 ] as const;
 const DEFAULT_ASSIGN_ROLE = 'role-sales';

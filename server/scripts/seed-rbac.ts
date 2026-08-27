@@ -3,9 +3,9 @@
  *
  * ═══════════════════════════════════════════════════════════════════
  * 单一权威真源：lib/rolePermissionMatrix.ts（根目录，与 seed-rbac 同仓库版本）
- *   - 8 系统内置角色定义：SYSTEM_ROLE_IDS / SYSTEM_ROLE_META（DR-041 起含 QC/后勤）
+ *   - 7 系统内置角色定义：SYSTEM_ROLE_IDS / SYSTEM_ROLE_META（DR-041 起含 QC/后勤；GAP-R11 起删除 FinanceManager）
  *   - 85+ 权限 scope：PERMISSION_SCOPES（经营总览/客户市场/订单履约/财务成本/平台域/敏感字段）
- *   - 8×85 角色权限矩阵：DEFAULT_ROLE_PERMISSION_MATRIX
+ *   - 7×85 角色权限矩阵：DEFAULT_ROLE_PERMISSION_MATRIX
  *   - 行级数据范围规则：DEFAULT_DATA_SCOPE_BY_ROLE（运行时用，DB 仅 seed 部门树）
  * ═══════════════════════════════════════════════════════════════════
  *
@@ -285,7 +285,7 @@ const DEMO_ACCOUNTS: Array<{
   { id: 'usr_demo_sales_manager', email: 'sales.manager@bambook.local', displayName: '陈雅雯', roleId: SYSTEM_ROLE_IDS.SALES_MANAGER, departmentId: 'dept-sales' },
   { id: 'usr_demo_sales_a', email: 'sales.a@bambook.local', displayName: '苏晓芸', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
   { id: 'usr_demo_sales_b', email: 'sales.b@bambook.local', displayName: '周子墨', roleId: SYSTEM_ROLE_IDS.SALES, departmentId: 'dept-sales' },
-  { id: 'usr_demo_finance_manager', email: 'finance.manager@bambook.local', displayName: '赵美玲', roleId: SYSTEM_ROLE_IDS.FINANCE_MANAGER, departmentId: 'dept-finance' },
+  { id: 'usr_demo_finance_manager', email: 'finance.manager@bambook.local', displayName: '赵美玲', roleId: SYSTEM_ROLE_IDS.FINANCE, departmentId: 'dept-finance' },
   { id: 'usr_demo_finance', email: 'finance@bambook.local', displayName: '钱志明', roleId: SYSTEM_ROLE_IDS.FINANCE, departmentId: 'dept-finance' },
   { id: 'usr_demo_qc', email: 'qc@bambook.local', displayName: '吴建国', roleId: SYSTEM_ROLE_IDS.QC, departmentId: 'dept-qc' },
   { id: 'usr_demo_logistics', email: 'logistics@bambook.local', displayName: '郑海涛', roleId: SYSTEM_ROLE_IDS.LOGISTICS, departmentId: 'dept-logistics' },
