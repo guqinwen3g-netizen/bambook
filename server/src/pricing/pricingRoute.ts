@@ -361,7 +361,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   });
 
   // ══════════════════════════════════════════════════════════════
-  // 佣金规则（P2：E5/E10，中间人精确命中优先，默认规则兜底）
+  // 佣金规则（P2：任意百分比费率，中间人精确命中优先，默认规则兜底）
   // ══════════════════════════════════════════════════════════════
 
   router.get('/commission-rules', requirePermission('pricing:read'), async (req: Request, res: Response) => {

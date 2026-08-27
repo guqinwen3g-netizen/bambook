@@ -40,7 +40,7 @@ export interface TrackBInput {
   refundRate: number; // %
   exchangeRate: number; // CNY per USD
   profitMargin: number; // %
-  commissionRate?: number; // %（0=无 / 5=E5 / 10=E10）
+  commissionRate?: number; // %（0-100 任意百分比，0=无佣金）
 }
 
 export interface TrackBResult {
@@ -85,7 +85,9 @@ export interface TrackAPreviewInput extends TrackAInput {
 
 const HS_CODE_RE = /^(\d{2}|\d{4}|\d{6}|\d{8}|\d{10})$/;
 const CALC_STATUSES = ['Draft', 'Confirmed', 'Archived'] as const;
-const COMMISSION_RATES = [0, 5, 10]; // 无 | E5 | E10
+/** 佣金率合法区间（J2：任意百分比，0=无佣金） */
+const COMMISSION_RATE_MIN = 0;
+const COMMISSION_RATE_MAX = 100;
 /** 退税率合法区间（PRD 8.6：0-16%） */
 const REFUND_RATE_MIN = 0;
 const REFUND_RATE_MAX = 16;
@@ -112,7 +114,9 @@ export function calculateTrackB(input: TrackBInput): TrackBResult {
   }
   if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) throw new Error('汇率必须大于 0');
   if (!Number.isFinite(profitMargin) || profitMargin < 0) throw new Error('利润率非法');
-  if (!COMMISSION_RATES.includes(commissionRate)) throw new Error('佣金率仅允许 0（无）/ 5（E5）/ 10（E10）');
+  if (!Number.isFinite(commissionRate) || commissionRate < COMMISSION_RATE_MIN || commissionRate > COMMISSION_RATE_MAX) {
+    throw new Error(`佣金率必须在 ${COMMISSION_RATE_MIN}-${COMMISSION_RATE_MAX}% 之间`);
+  }
 
   const netUsdCost = round4((purchaseCostCny * (1 - refundRate / 100)) / exchangeRate);
   const profitAmount = round4((netUsdCost * profitMargin) / 100);

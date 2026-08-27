@@ -121,11 +121,17 @@ describe('P2a · CommissionRule CRUD + 占位唯一', () => {
   const createRule = (app: any, body: Record<string, any>) =>
     request(app).post('/api/v1/pricing/commission-rules').set(auth()).send(body);
 
-  it('创建校验：名称必填 / 佣金率仅 5|10 / 中间人须存在（且未软删）', async () => {
+  it('创建校验：名称必填 / 佣金率任意百分比（0 < rate ≤ 100，J2）/ 中间人须存在（且未软删）', async () => {
     const app = makeApp(prisma);
     expect((await createRule(app, { name: ' ', rate: 5 })).status).toBe(400);
     expect((await createRule(app, { name: 'X', rate: 0 })).status).toBe(400);
-    expect((await createRule(app, { name: 'X', rate: 7 })).status).toBe(400);
+    expect((await createRule(app, { name: 'X', rate: -3 })).status).toBe(400);
+    expect((await createRule(app, { name: 'X', rate: 101 })).status).toBe(400);
+
+    // J2：任意百分比（如 7.5%）可表达
+    const custom = await createRule(app, { name: '自定义费率', rate: 7.5 });
+    expect(custom.status).toBe(201);
+    expect(custom.body.item.rate).toBe(7.5);
 
     const ghost = await createRule(app, { name: 'X', rate: 5, intermediaryRelationId: 'REL__GHOST' });
     expect(ghost.status).toBe(404);

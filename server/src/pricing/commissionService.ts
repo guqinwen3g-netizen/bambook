@@ -29,7 +29,9 @@ export interface CommissionRuleInput {
 
 export type CommissionRulePatch = Partial<CommissionRuleInput>;
 
-const ALLOWED_RATES = [5, 10];
+/** 佣金规则费率合法区间（J2：任意百分比；0% 无佣金由"无规则"表达，不落规则） */
+const RATE_MIN_EXCLUSIVE = 0;
+const RATE_MAX = 100;
 
 function generateId(prefix: string): string {
   return `${prefix}__${crypto.randomBytes(6).toString('base64url').toUpperCase()}`;
@@ -46,7 +48,9 @@ export function createCommissionService(prisma: PrismaClient) {
   }
 
   function assertRate(rate: number): void {
-    if (!ALLOWED_RATES.includes(rate)) throw new Error('佣金率仅允许 5（E5）/ 10（E10）');
+    if (!Number.isFinite(rate) || rate <= RATE_MIN_EXCLUSIVE || rate > RATE_MAX) {
+      throw new Error(`佣金率必须大于 ${RATE_MIN_EXCLUSIVE} 且不超过 ${RATE_MAX}%`);
+    }
   }
 
   /** 中间人快照校验（Relation 真源存在性 + 名称快照） */

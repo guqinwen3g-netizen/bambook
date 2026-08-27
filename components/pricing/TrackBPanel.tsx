@@ -6,7 +6,7 @@
  *   - 派生值（netUsdCost / profitAmount / commissionAmount / finalUnitPrice）一律以后端
  *     track-b-preview 返回为准，前端不做本地计算
  *   - HS Code 最长前缀命中退税率、最新汇率一键带入
- *   - 佣金：无 / E5 / E10 / 佣金规则快照（佣金仅管理层+财务可见的权限约束由页面层控制）
+ *   - 佣金：任意百分比（0-100）手工输入 / 佣金规则快照带入（佣金仅管理层+财务可见的权限约束由页面层控制）
  *   - onResultChange / onInputsChange 供父级做双轨偏差校验与保存定价记录
  */
 
@@ -83,20 +83,25 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
     return () => { cancelled = true; };
   }, []);
 
-  // 佣金选择：'' = 无佣金；'E5'/'E10' = 手工口径；rule.id = 规则快照
-  const handleCommissionSelect = (value: string) => {
+  // 佣金规则快照：选择规则带入其费率；手工改费率（与规则值不一致）即脱离规则快照
+  const handleCommissionRuleSelect = (value: string) => {
     setPreview(null);
     if (value === '') {
       setCommissionRuleId(null);
-      setCommissionRate('0');
-    } else if (value === 'E5' || value === 'E10') {
-      setCommissionRuleId(null);
-      setCommissionRate(value === 'E5' ? '5' : '10');
-    } else {
-      const rule = commissionRules.find((r) => r.id === value);
-      if (!rule) return;
-      setCommissionRuleId(rule.id);
-      setCommissionRate(String(rule.rate));
+      return;
+    }
+    const rule = commissionRules.find((r) => r.id === value);
+    if (!rule) return;
+    setCommissionRuleId(rule.id);
+    setCommissionRate(String(rule.rate));
+  };
+
+  const handleCommissionRateChange = (raw: string) => {
+    setPreview(null);
+    setCommissionRate(raw);
+    if (commissionRuleId) {
+      const rule = commissionRules.find((r) => r.id === commissionRuleId);
+      if (!rule || parseNum(raw) !== Number(rule.rate)) setCommissionRuleId(null);
     }
   };
 
@@ -105,16 +110,18 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
     const refund = parseNum(refundRate);
     const fx = parseNum(exchangeRate);
     const margin = parseNum(profitMargin);
+    const commission = commissionRate.trim() === '' ? 0 : parseNum(commissionRate);
     if (cost === null || cost <= 0) return null;
     if (refund === null || refund < 0) return null;
     if (fx === null || fx <= 0) return null;
     if (margin === null) return null;
+    if (commission === null || commission < 0 || commission > 100) return null;
     return {
       purchaseCostCny: cost,
       refundRate: refund,
       exchangeRate: fx,
       profitMargin: margin,
-      commissionRate: parseNum(commissionRate) ?? 0,
+      commissionRate: commission,
       commissionRuleId,
       hsCode: hsCode.trim(),
     };
@@ -210,18 +217,25 @@ export function TrackBPanel({ title, onResultChange, onInputsChange, children, a
         <Field label="利润率（%）">
           <input className={inputClass} value={profitMargin} onChange={(e) => { setProfitMargin(e.target.value); setPreview(null); }} placeholder="如 15" inputMode="decimal" />
         </Field>
-        <Field label="佣金（无 / E5 / E10 / 规则快照）">
+        <Field label="佣金率（%，可选，0-100）">
+          <input
+            className={inputClass}
+            value={commissionRate}
+            onChange={(e) => handleCommissionRateChange(e.target.value)}
+            placeholder="如 7.5（空 = 无佣金）"
+            inputMode="decimal"
+          />
+        </Field>
+        <Field label="佣金规则（可选，带入快照）">
           <select
             className="bds-select"
-            value={commissionRuleId ?? (commissionRate === '5' ? 'E5' : commissionRate === '10' ? 'E10' : '')}
-            onChange={(e) => handleCommissionSelect(e.target.value)}
+            value={commissionRuleId ?? ''}
+            onChange={(e) => handleCommissionRuleSelect(e.target.value)}
           >
-            <option value="">无佣金（0%）</option>
-            <option value="E5">E5（5%）</option>
-            <option value="E10">E10（10%）</option>
+            <option value="">不使用规则</option>
             {commissionRules.map((r) => (
               <option key={r.id} value={r.id}>
-                规则：{r.name}（{r.rate}%{r.intermediaryName ? ` · ${r.intermediaryName}` : ' · 默认'}）
+                {r.name}（{r.rate}%{r.intermediaryName ? ` · ${r.intermediaryName}` : ' · 默认'}）
               </option>
             ))}
           </select>

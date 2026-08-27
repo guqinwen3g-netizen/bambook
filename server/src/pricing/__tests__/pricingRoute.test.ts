@@ -227,10 +227,14 @@ describe('P1 · 轨道 B track-b-preview', () => {
     expect(res.body.finalUnitPrice).toBeCloseTo(13.05, 1);
   });
 
-  it('校验：佣金率仅允许 0/5/10；汇率 ≤ 0 → 400；退税率超 16% → 400', async () => {
+  it('校验：佣金率任意百分比 0-100（J2，7.5% 合法）；超界 / 汇率 ≤ 0 / 退税率超 16% → 400', async () => {
     const app = makeApp(makeMockPrisma());
     const base = { purchaseCostCny: 80, refundRate: 13, exchangeRate: 7.2, profitMargin: 25 };
-    expect((await request(app).post('/api/v1/pricing/track-b-preview').set(auth()).send({ ...base, commissionRate: 7 })).status).toBe(400);
+    const custom = await request(app).post('/api/v1/pricing/track-b-preview').set(auth()).send({ ...base, commissionRate: 7.5 });
+    expect(custom.status).toBe(200);
+    expect(custom.body.commissionAmount).toBeCloseTo(9.6667 * 0.075, 3);
+    expect((await request(app).post('/api/v1/pricing/track-b-preview').set(auth()).send({ ...base, commissionRate: -1 })).status).toBe(400);
+    expect((await request(app).post('/api/v1/pricing/track-b-preview').set(auth()).send({ ...base, commissionRate: 101 })).status).toBe(400);
     expect((await request(app).post('/api/v1/pricing/track-b-preview').set(auth()).send({ ...base, exchangeRate: 0 })).status).toBe(400);
     expect((await request(app).post('/api/v1/pricing/track-b-preview').set(auth()).send({ ...base, refundRate: 20 })).status).toBe(400);
   });
@@ -269,6 +273,42 @@ describe('P1 · PricingCalculation', () => {
     expect(item.netUsdCost).toBeCloseTo(9.6667, 3);
     expect(item.finalUnitPrice).not.toBe(999);
     expect(item.finalUnitPrice).toBeCloseTo(9.6667 * 1.25 + 9.6667 * 0.05, 2);
+  });
+
+  it('J1 归属：创建携带订单/报价单/产品关联并落库；列表可按 orderId/quotationId 过滤；PATCH 可改关联', async () => {
+    const app = makeApp(prisma);
+    const res = await request(app)
+      .post('/api/v1/pricing/calculations')
+      .set(auth())
+      .send({
+        purchaseCostCny: 80, refundRate: 13, exchangeRate: 7.2, profitMargin: 25,
+        orderId: 'ORD__1', quotationId: 'QUO__1', productAssetId: 'PA__1',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.item.orderId).toBe('ORD__1');
+    expect(res.body.item.quotationId).toBe('QUO__1');
+    expect(res.body.item.productAssetId).toBe('PA__1');
+
+    // 无关联记录不应被 orderId 过滤命中
+    await request(app)
+      .post('/api/v1/pricing/calculations')
+      .set(auth())
+      .send({ purchaseCostCny: 100, refundRate: 13, exchangeRate: 7.0, profitMargin: 20 });
+
+    const byOrder = await request(app).get('/api/v1/pricing/calculations?orderId=ORD__1').set(auth());
+    expect(byOrder.body.total).toBe(1);
+    expect(byOrder.body.items[0].orderId).toBe('ORD__1');
+    const byQuotation = await request(app).get('/api/v1/pricing/calculations?quotationId=QUO__1').set(auth());
+    expect(byQuotation.body.total).toBe(1);
+
+    const patched = await request(app)
+      .patch(`/api/v1/pricing/calculations/${res.body.item.id}`)
+      .set(auth())
+      .send({ orderId: 'ORD__2', productAssetId: null });
+    expect(patched.status).toBe(200);
+    expect(patched.body.item.orderId).toBe('ORD__2');
+    expect(patched.body.item.productAssetId).toBeNull();
+    expect(patched.body.item.quotationId).toBe('QUO__1'); // 未传字段保持不变
   });
 
   it('创建：hsCode 无映射且未传 refundRate → 400；无汇率记录且未传 exchangeRate → 400', async () => {

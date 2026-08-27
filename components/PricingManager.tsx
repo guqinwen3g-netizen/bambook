@@ -42,6 +42,8 @@ import {
 import { apiService } from '../services/apiService';
 import {
   Order,
+  Quotation,
+  ProductAssetDetail,
   TaxRefundRate,
   TaxRefundRateInput,
   TrackBResult,
@@ -277,6 +279,14 @@ function CalculatorPanel() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // J1 定价记录归属：关联订单 / 报价单 / 产品（snapshot FK，均为可选）
+  const [orderId, setOrderId] = useState('');
+  const [quotationId, setQuotationId] = useState('');
+  const [productAssetId, setProductAssetId] = useState('');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [products, setProducts] = useState<ProductAssetDetail[]>([]);
+
   // 双轨联动校验（PRD 8.6）：轨道 A 中位估算 + 轨道 B 终价 → 偏差黄/红标
   const [trackAMedian, setTrackAMedian] = useState<{ usd: number; unit: 'PC' | 'M' } | null>(null);
   const [trackBInputs, setTrackBInputs] = useState<TrackBValidInputs | null>(null);
@@ -301,6 +311,45 @@ function CalculatorPanel() {
     loadRecords();
   }, [loadRecords]);
 
+  // 关联候选列表（失败不阻塞主流程，仅下拉为空）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listOrders();
+        if (!cancelled) setOrders(list.filter((o) => !o.deletedAt));
+      } catch (e) {
+        console.error('[PricingManager] listOrders failed', e);
+      }
+      try {
+        const { items } = await apiService.listQuotations({ limit: 200 });
+        if (!cancelled) setQuotations(items);
+      } catch (e) {
+        console.error('[PricingManager] listQuotations failed', e);
+      }
+      try {
+        const assets = await apiService.listProductAssets(undefined, { limit: 200 });
+        if (!cancelled) setProducts(assets.filter((a) => !a.deletedAt));
+      } catch (e) {
+        console.error('[PricingManager] listProductAssets failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const orderLabel = useCallback((id: string) => {
+    const o = orders.find((x) => x.id === id);
+    return o ? `${o.id} · ${o.customer}` : id;
+  }, [orders]);
+  const quotationLabel = useCallback((id: string) => {
+    const q = quotations.find((x) => x.id === id);
+    return q ? `${q.quotationNumber}${q.customerName ? ` · ${q.customerName}` : ''}` : id;
+  }, [quotations]);
+  const productLabel = useCallback((id: string) => {
+    const p = products.find((x) => x.id === id);
+    return p ? `${p.name} · ${p.sku}` : id;
+  }, [products]);
+
   const handleSave = async () => {
     if (!trackBInputs) {
       bdsToast.warning('请完整填写采购成本 / 退税率 / 汇率 / 利润率');
@@ -316,10 +365,16 @@ function CalculatorPanel() {
         commissionRate: trackBInputs.commissionRate,
         commissionRuleId: trackBInputs.commissionRuleId,
         hsCode: trackBInputs.hsCode || null,
+        orderId: orderId || null,
+        quotationId: quotationId || null,
+        productAssetId: productAssetId || null,
         quantity: parseNum(quantity),
         notes: notes.trim() || null,
       });
       setNotes('');
+      setOrderId('');
+      setQuotationId('');
+      setProductAssetId('');
       await loadRecords();
     } catch (e) {
       console.error('[PricingManager] createPricingCalculation failed', e);
@@ -375,6 +430,30 @@ function CalculatorPanel() {
             </button>
           }
         >
+          <Field label="关联订单（可选）">
+            <select className="bds-select" value={orderId} onChange={(e) => setOrderId(e.target.value)}>
+              <option value="">不关联</option>
+              {orders.map((o) => (
+                <option key={o.id} value={o.id}>{orderLabel(o.id)}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="关联报价单（可选）">
+            <select className="bds-select" value={quotationId} onChange={(e) => setQuotationId(e.target.value)}>
+              <option value="">不关联</option>
+              {quotations.map((q) => (
+                <option key={q.id} value={q.id}>{quotationLabel(q.id)}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="关联产品（可选）">
+            <select className="bds-select" value={productAssetId} onChange={(e) => setProductAssetId(e.target.value)}>
+              <option value="">不关联</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{productLabel(p.id)}</option>
+              ))}
+            </select>
+          </Field>
           <Field label="数量（可选）">
             <input className={inputClass} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="如 800" inputMode="decimal" />
           </Field>
@@ -417,6 +496,15 @@ function CalculatorPanel() {
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                       利润率 {rec.profitMargin}%{rec.commissionRate ? ` · 佣金 ${rec.commissionRate}%` : ''}{rec.hsCode ? ` · HS ${rec.hsCode}` : ''}{rec.quantity ? ` · 数量 ${rec.quantity}` : ''} · {formatTs(rec.createdAt)}
                     </p>
+                    {(rec.orderId || rec.quotationId || rec.productAssetId) && (
+                      <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }}>
+                        归属：{[
+                          rec.orderId ? `订单 ${orderLabel(rec.orderId)}` : null,
+                          rec.quotationId ? `报价单 ${quotationLabel(rec.quotationId)}` : null,
+                          rec.productAssetId ? `产品 ${productLabel(rec.productAssetId)}` : null,
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                     {rec.notes && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }}>{rec.notes}</p>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -1394,7 +1482,7 @@ function CommissionRulesPanel({ registerNewAction }: { registerNewAction?: (fn: 
                 style={idx > 0 ? { borderTop: 'var(--border-subtle)' } : undefined}
               >
                 <span className="col-span-3 truncate" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                <span className="col-span-2 bds-tnum" style={{ color: 'var(--text-primary)' }}>E{item.rate}（{item.rate}%）</span>
+                <span className="col-span-2 bds-tnum" style={{ color: 'var(--text-primary)' }}>{item.rate}%</span>
                 <span className="col-span-2 truncate" style={{ color: 'var(--text-secondary)' }}>{item.intermediaryName || '默认规则'}</span>
                 <span className="col-span-2 truncate" style={{ color: 'var(--text-secondary)' }}>{item.notes || '—'}</span>
                 <span className="col-span-1">
@@ -1486,9 +1574,14 @@ function CommissionRuleForm({
       bdsToast.warning('规则名称必填');
       return;
     }
+    const rateNum = parseNum(rate);
+    if (rateNum === null || rateNum <= 0 || rateNum > 100) {
+      bdsToast.warning('佣金率必须大于 0 且不超过 100%');
+      return;
+    }
     onSave({
       name: name.trim(),
-      rate: Number(rate),
+      rate: rateNum,
       intermediaryRelationId: intermediaryRelationId || null,
       notes: notes.trim() || null,
       isActive: editing?.isActive ?? true,
@@ -1500,11 +1593,8 @@ function CommissionRuleForm({
       <Field label="规则名称">
         <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 E10-品牌中介" />
       </Field>
-      <Field label="佣金率">
-        <select className="bds-select" value={rate} onChange={(e) => setRate(e.target.value)}>
-          <option value="5">E5（5%）</option>
-          <option value="10">E10（10%）</option>
-        </select>
+      <Field label="佣金率（%，0-100）">
+        <input className={inputClass} value={rate} onChange={(e) => setRate(e.target.value)} placeholder="如 7.5" inputMode="decimal" />
       </Field>
       <Field label="中间人（空 = 默认规则）">
         <select className="bds-select" value={intermediaryRelationId} onChange={(e) => setIntermediaryRelationId(e.target.value)}>
