@@ -351,17 +351,14 @@ describe('Bambook OS design system contract', () => {
     expect(readDoc('material-grammar.md')).toContain('Surface And Shadow Are Separate');
     expect(readDoc('component-grammar.md')).toContain('Action button: idle, hover, press');
     expect(readDoc('content-language.md')).toContain('Missing Data');
-    expect(readDoc('page-generation.md')).toContain('one valid shape');
     expect(readDoc('material-grammar.md')).toContain('--ui-lab-panel-shared-glass-background');
     expect(readDoc('material-grammar.md')).toContain('--ui-lab-panel-nested-glass-background');
     expect(readDoc('material-grammar.md')).toContain('--bambook-selected-light-background');
     expect(readDoc('material-grammar.md')).toContain('Level 4: Derived Micro Surface');
     expect(readDoc('component-grammar.md')).toContain('Hover must not look selected');
     expect(readDoc('component-grammar.md')).toContain('Scroll Fade');
-    expect(readDoc('design-compiler.md')).toContain('Semantic input schema');
-    expect(readDoc('design-compiler.md')).toContain('Layer stack');
-    expect(readDoc('design-compiler.md')).toContain('Portal overlay');
-    expect(readDoc('design-compiler.md')).toContain('provisionalBridge');
+    // design-compiler.md 与 page-generation.md 已于 2026-08-27 归档至 docs/archive/superseded/
+    // （compiled 双路径 2026-08-18 删除后编译器叙事退役），对应断言一并移除。
     expect(readDoc('governance.md')).toContain('Compiler Uniformity Gate');
     expect(readDoc('governance.md')).toContain('New z-index layer stacks');
     expect(readDoc('governance.md')).toContain('New portal roots or overlay placement rules');
