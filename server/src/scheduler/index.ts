@@ -36,6 +36,10 @@ import { createQuotationFollowUpWatchdogTask } from './tasks/quotationFollowUpWa
 import { createPpSampleConfirmationWatchdogTask } from './tasks/ppSampleConfirmationWatchdog';
 import { createFactoryVisitWatchdogTask } from './tasks/factoryVisitWatchdog';
 import { createDunningStageWatchdogTask } from './tasks/dunningStageWatchdog';
+import { createEmailAutoSyncTask } from './tasks/emailAutoSync';
+import { createFxRateSyncTask } from './tasks/fxRateSync';
+import { createCreditRatingReevaluationTask } from './tasks/creditRatingReevaluation';
+import { createCustomsComplianceWatchdogTask } from './tasks/customsComplianceWatchdog';
 import { logger } from '../lib/logger';
 
 export function startScheduler(prisma: PrismaClient): void {
@@ -81,12 +85,20 @@ export function startScheduler(prisma: PrismaClient): void {
   scheduler.register(createFactoryVisitWatchdogTask());
   // P0-2：催款分级自动升级（账龄+尾款 → reminder/firm/urgent/legal；升级告警责任人），每日 09:45
   scheduler.register(createDunningStageWatchdogTask());
+  // 批次二 L10：ERP 邮件自动同步（每 5 分钟，SystemConfig email.autoSync.* 配置凭据，未启用 fail-silent）
+  scheduler.register(createEmailAutoSyncTask());
+  // 批次二 M4：汇率外部行情同步（内网离线自动兜底，保留手工录入）
+  scheduler.register(createFxRateSyncTask());
+  // 批次二 M4：信用评级定时重估（每日 09:45，先于 10:00 信用风险扫描）
+  scheduler.register(createCreditRatingReevaluationTask());
+  // 批次二 M4：新报关单合规检查轮询（每 15 分钟，ComplianceCheck 存在性幂等，停机自愈）
+  scheduler.register(createCustomsComplianceWatchdogTask());
 
   // 启动调度器
   scheduler.start();
 
-  logger.info('[Scheduler] initialized with 24 tasks', {
-    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog', 'season_review_watchdog', 'credit_risk_watchdog', 'quality_repeat_watchdog', 'sample_deadline_watchdog', 'scheduled_report_runner', 'hr_lifecycle_watchdog', 'crm_follow_up_watchdog', 'lc_maturity_watchdog', 'tax_refund_stall_watchdog', 'quotation_follow_up_watchdog', 'pp_sample_confirmation_watchdog', 'factory_visit_watchdog', 'dunning_stage_watchdog'],
+  logger.info('[Scheduler] initialized with 28 tasks', {
+    tasks: ['crash_recovery', 'cleanup_queued_jobs', 'daily_briefing', 'weekly_briefing', 'stuck_process_detector', 'expiry_watchdog', 'shipment_delay_detector', 'receivable_overdue_detector', 'inventory_watchdog', 'production_deadline_watchdog', 'factory_certification_watchdog', 'season_review_watchdog', 'credit_risk_watchdog', 'quality_repeat_watchdog', 'sample_deadline_watchdog', 'scheduled_report_runner', 'hr_lifecycle_watchdog', 'crm_follow_up_watchdog', 'lc_maturity_watchdog', 'tax_refund_stall_watchdog', 'quotation_follow_up_watchdog', 'pp_sample_confirmation_watchdog', 'factory_visit_watchdog', 'dunning_stage_watchdog', 'email_auto_sync', 'fx_rate_sync', 'credit_rating_reevaluation', 'customs_compliance_watchdog'],
   });
 }
 

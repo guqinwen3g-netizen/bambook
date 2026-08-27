@@ -26,6 +26,8 @@
  *   - POST /compliance-checks/hs-code      — HS 编码校验 {declarationId}
  *   - POST /compliance-checks/export-control — 出口管制校验 {declarationId}
  *   - POST /compliance-checks              — 人工录入（origin_rule 等）{type, targetType, targetId, result, summary, details?}
+ *   - GET  /sanctioned-countries           — 禁运国清单（M7：SystemConfig 配置，未配置回退默认）
+ *   - PUT  /sanctioned-countries           — 更新禁运国清单 {items: string[], reason?}（risk:write）
  *
  * 质量（PRD 15.4）：
  *   - GET  /quality/defect-trends          — 疵点趋势（?groupBy=factory|quarter，默认 factory）
@@ -272,6 +274,29 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
       res.status(201).json(serializeValue({ ok: true, item: check }));
     } catch (e: any) {
       handleError(res, e, 'COMPLIANCE_CREATE_FAILED');
+    }
+  });
+
+  // 禁运国清单配置（M7：SystemConfig 数据库真源，未配置时 source=default 回退内置清单）
+  router.get('/sanctioned-countries', requireRiskRead, async (_req: Request, res: Response) => {
+    try {
+      const result = await service.getSanctionedCountries();
+      res.json(serializeValue({ ok: true, ...result }));
+    } catch (e: any) {
+      handleError(res, e, 'SANCTIONED_LIST_FAILED');
+    }
+  });
+
+  router.put('/sanctioned-countries', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
+    try {
+      const result = await service.updateSanctionedCountries(
+        { items: req.body?.items, reason: typeof req.body?.reason === 'string' ? req.body.reason : null },
+        actorIdFromRequest(req),
+      );
+      notify('update_sanctioned_countries');
+      res.json(serializeValue({ ok: true, ...result }));
+    } catch (e: any) {
+      handleError(res, e, 'SANCTIONED_UPDATE_FAILED');
     }
   });
 

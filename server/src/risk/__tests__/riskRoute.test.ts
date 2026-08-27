@@ -168,12 +168,70 @@ function makeMockPrisma() {
     findMany: async ({ where }: any = {}) => orders.filter(o => matchWhere(o, where)),
   };
 
+  const creditLimitHistories: any[] = [];
+  const auditLogs: any[] = [];
+  const systemConfigs: any[] = [];
+  const systemConfigHistories: any[] = [];
+
   const creditLimit = {
+    findUnique: async ({ where }: any) => creditLimits.find(c => c.id === where.id) || null,
+    findFirst: async ({ where, orderBy }: any = {}) =>
+      applyOrderBy(creditLimits.filter(c => matchWhere(c, where)), orderBy)[0] ?? null,
     findMany: async ({ where }: any = {}) => creditLimits.filter(c => matchWhere(c, where)),
     update: async ({ where, data }: any) => {
       const row = creditLimits.find(c => c.id === where.id);
       if (!row) throw new Error('not found');
       Object.assign(row, data);
+      return row;
+    },
+    updateMany: async ({ where, data }: any) => {
+      const rows = creditLimits.filter(c => matchWhere(c, where));
+      rows.forEach(r => Object.assign(r, data));
+      return { count: rows.length };
+    },
+  };
+
+  const creditLimitHistory = {
+    create: async ({ data }: any) => {
+      const row = { triggerId: null, triggerBy: null, remark: null, ...data, id: data.id || `CLHIST__T${++seq}` };
+      creditLimitHistories.push(row);
+      return row;
+    },
+  };
+
+  const auditLog = {
+    create: async ({ data }: any) => {
+      const row = { ...data, id: data.id || `ALOG__T${++seq}` };
+      auditLogs.push(row);
+      return row;
+    },
+  };
+
+  // SystemConfig（M7 禁运国清单）：id = `${scope}::${key}`，json 类型存字符串
+  const systemConfig = {
+    // 返回浅拷贝（Prisma 语义为脱离库的快照；service 侧 set 先读 existing 再 upsert 后读 existing.version 写 History）
+    findUnique: async ({ where }: any) => {
+      const found = systemConfigs.find(c => c.id === where.id);
+      return found ? { ...found } : null;
+    },
+    upsert: async ({ where, create, update }: any) => {
+      const existing = systemConfigs.find(c => c.id === where.id);
+      if (existing) {
+        for (const [k, v] of Object.entries(update)) {
+          if (v !== undefined) (existing as any)[k] = v;
+        }
+        return existing;
+      }
+      const row = { ...create };
+      systemConfigs.push(row);
+      return row;
+    },
+  };
+
+  const systemConfigHistory = {
+    create: async ({ data }: any) => {
+      const row = { ...data, id: data.id || `SCH__T${++seq}` };
+      systemConfigHistories.push(row);
       return row;
     },
   };
@@ -196,7 +254,7 @@ function makeMockPrisma() {
       applyTakeSkip(inspectionReports.filter(r => matchWhere(r, where)), take),
   };
 
-  return {
+  const prisma: any = {
     exchangeRate,
     fxRateLock,
     riskAlert,
@@ -206,16 +264,24 @@ function makeMockPrisma() {
     relation,
     order,
     creditLimit,
+    creditLimitHistory,
+    auditLog,
+    systemConfig,
+    systemConfigHistory,
     customsDeclaration,
     customsDeclarationLine,
     hsCode,
     inspectionReport,
+    // credit 正规冻结通道（transitionLimits）在 $transaction 内执行：mock 直接复用同一对象
+    $transaction: async (fn: any) => fn(prisma),
     _stores: {
       exchangeRates, fxRateLocks, riskAlerts, creditRatings, complianceChecks,
-      invoices, relations, orders, creditLimits, customsDeclarations,
+      invoices, relations, orders, creditLimits, creditLimitHistories, auditLogs,
+      systemConfigs, systemConfigHistories, customsDeclarations,
       customsDeclarationLines, hsCodes, inspectionReports,
     },
   };
+  return prisma;
 }
 
 function makeApp(prisma: any) {
@@ -515,6 +581,43 @@ describe('H3 · 信用风险扫描', () => {
     expect(allAlerts.body.total).toBe(3);
   });
 
+  it('M1：冻结走信用模块正规通道（frozenBy=system_credit_scan + CreditLimitHistory + AuditLog 审计理由）', async () => {
+    const app = makeApp(prisma);
+    const res = await request(app).post('/api/v1/risk/credit-risk-scan').set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.frozenCount).toBe(2);
+
+    const stores = prisma._stores;
+    // 正规通道标记：信用模块自动解冻仅认 frozenBy=system_credit_scan 的冻结（M1 修复核心）
+    for (const id of ['CL_1', 'CL_2']) {
+      const cl = stores.creditLimits.find((c: any) => c.id === id);
+      expect(cl.status).toBe('Frozen');
+      expect(cl.frozenBy).toBe('system_credit_scan');
+      expect(cl.frozenAt).toBeInstanceOf(Date);
+    }
+
+    // CreditLimitHistory：每条被冻额度一行 credit_freeze（delta=0，理由含逾期天数）
+    const histories = stores.creditLimitHistories.filter((h: any) => h.triggerType === 'credit_freeze');
+    expect(histories).toHaveLength(2);
+    expect(histories.map((h: any) => h.creditLimitId).sort()).toEqual(['CL_1', 'CL_2']);
+    expect(histories[0].triggerBy).toBe('system_credit_scan');
+    expect(histories[0].delta).toBe(0);
+    expect(histories[0].remark).toContain('60 天逾期规则自动冻结');
+    expect(histories[0].remark).toContain('200'); // REL_C1 最大逾期 200 天
+
+    // AuditLog：字段级审计（status Active→Frozen + 理由）
+    const audits = stores.auditLogs.filter((a: any) => a.action === 'credit:60d-overdue-freeze');
+    expect(audits).toHaveLength(2);
+    expect(audits[0].actorId).toBe('system_credit_scan');
+    expect(audits[0].targetType).toBe('CreditLimit');
+    expect(audits[0].afterValue).toBe('Frozen');
+
+    // 幂等：正规通道已 Frozen 不重复写历史/审计
+    await request(app).post('/api/v1/risk/credit-risk-scan').set(auth());
+    expect(stores.creditLimitHistories.filter((h: any) => h.triggerType === 'credit_freeze')).toHaveLength(2);
+    expect(stores.auditLogs.filter((a: any) => a.action === 'credit:60d-overdue-freeze')).toHaveLength(2);
+  });
+
   it('viewer 角色触发扫描 → 403（owner/admin/manager 专属）', async () => {
     const app = makeApp(prisma);
     const res = await request(app).post('/api/v1/risk/credit-risk-scan').set(viewerAuth());
@@ -642,6 +745,78 @@ describe('H3 · 出口管制与人工合规录入', () => {
     expect(ok.status).toBe(201);
     expect(ok.body.item.type).toBe('origin_rule');
     expect(ok.body.item.checkedById).toBe('u1');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// M7 · 禁运国清单可配置（SystemConfig 数据库真源）
+// ════════════════════════════════════════════════════════════════
+
+describe('M7 · 禁运国清单配置', () => {
+  let prisma: any;
+  beforeEach(() => {
+    prisma = makeMockPrisma();
+    prisma._stores.customsDeclarations.push(
+      { id: 'CD_KP', declarationNumber: 'D-KP', destinationCountry: 'KP', deletedAt: null },
+      { id: 'CD_XX', declarationNumber: 'D-XX', destinationCountry: 'XX', deletedAt: null },
+    );
+  });
+
+  it('未配置 → GET 返回内置默认清单（source=default）', async () => {
+    const app = makeApp(prisma);
+    const res = await request(app).get('/api/v1/risk/sanctioned-countries').set(auth());
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.source).toBe('default');
+    expect(res.body.items).toContain('KP');
+    expect(res.body.items).toContain('IR');
+  });
+
+  it('PUT 配置生效（source=config，trim/去重）；出口管制检查改用配置清单；二次 PUT 落 SystemConfigHistory 审计', async () => {
+    const app = makeApp(prisma);
+
+    const put = await request(app).put('/api/v1/risk/sanctioned-countries').set(auth()).send({
+      items: ['XX', ' yy ', 'YY'], // 去重（大小写不敏感）+ trim
+      reason: '政策更新：新增 XX 禁运',
+    });
+    expect(put.status).toBe(200);
+    expect(put.body.source).toBe('config');
+    expect(put.body.items).toEqual(['XX', 'yy']);
+
+    const get = await request(app).get('/api/v1/risk/sanctioned-countries').set(auth());
+    expect(get.body.source).toBe('config');
+    expect(get.body.items).toEqual(['XX', 'yy']);
+
+    // 出口管制检查即时生效：XX 命中（新增禁运），KP 不再命中（配置覆盖默认）
+    const xx = await request(app).post('/api/v1/risk/compliance-checks/export-control').set(auth()).send({ declarationId: 'CD_XX' });
+    expect(xx.body.item.result).toBe('fail');
+    expect(xx.body.item.details.sanctionedSource).toBe('config');
+    const kp = await request(app).post('/api/v1/risk/compliance-checks/export-control').set(auth()).send({ declarationId: 'CD_KP' });
+    expect(kp.body.item.result).toBe('pass');
+
+    // 二次 PUT：更新既有配置 → SystemConfigHistory 留痕（versionFrom→To + actor + reason）
+    const put2 = await request(app).put('/api/v1/risk/sanctioned-countries').set(auth()).send({
+      items: ['XX'],
+      reason: '移除 yy',
+    });
+    expect(put2.status).toBe(200);
+    expect(put2.body.items).toEqual(['XX']);
+    const histories = prisma._stores.systemConfigHistories;
+    expect(histories).toHaveLength(1);
+    expect(histories[0].versionFrom).toBe(1);
+    expect(histories[0].versionTo).toBe(2);
+    expect(histories[0].actorId).toBe('u1');
+    expect(histories[0].reason).toBe('移除 yy');
+  });
+
+  it('PUT 校验：空数组 / 非字符串条目 → 400；viewer → 403', async () => {
+    const app = makeApp(prisma);
+    const empty = await request(app).put('/api/v1/risk/sanctioned-countries').set(auth()).send({ items: [] });
+    expect(empty.status).toBe(400);
+    const badItem = await request(app).put('/api/v1/risk/sanctioned-countries').set(auth()).send({ items: ['KP', 42] });
+    expect(badItem.status).toBe(400);
+    const viewer = await request(app).put('/api/v1/risk/sanctioned-countries').set(viewerAuth()).send({ items: ['KP'] });
+    expect(viewer.status).toBe(403);
   });
 });
 

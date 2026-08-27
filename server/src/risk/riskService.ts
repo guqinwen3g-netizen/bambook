@@ -19,6 +19,8 @@
 
 import { PrismaClient, RiskAlert } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { createCreditService } from '../credit/creditService';
+import { createSystemConfigService } from '../config/systemConfigService';
 import crypto from 'crypto';
 
 // ────────────────────────────────────────────────────────────────
@@ -85,14 +87,16 @@ const QUALITY_REPEAT_WINDOW_DAYS = 90;
 const RECEIVABLE_OPEN_STATUSES = ['Issued', 'PartiallyPaid'];
 
 /**
- * 出口管制禁运清单（可配置基线：当前为内置常量，后续可迁移至配置表）。
- * 匹配口径：ISO 两位码 或 常见英文国名，大小写不敏感。
+ * 出口管制禁运清单（M7：数据库配置真源）。
+ *   - SystemConfig `global::risk.sanctionedCountries`（json 字符串数组）为生效清单；
+ *     未配置/读取失败时回退内置默认清单（fail-safe，不失效放行）。
+ *   - 匹配口径：ISO 两位码 或 常见英文国名，大小写不敏感精确匹配（trim 后比对）。
  */
-const SANCTIONED_COUNTRIES = ['KP', 'IR', 'CU', 'SY'];
-const SANCTIONED_MATCH_SET = new Set([
-  ...SANCTIONED_COUNTRIES.map(c => c.toLowerCase()),
-  'north korea', 'iran', 'cuba', 'syria',
-]);
+export const SANCTIONED_COUNTRIES_CONFIG_KEY = 'risk.sanctionedCountries';
+const DEFAULT_SANCTIONED_COUNTRIES = ['KP', 'IR', 'CU', 'SY', 'North Korea', 'Iran', 'Cuba', 'Syria'];
+/** 清单条目上限（防误粘贴超大配置拖慢匹配） */
+const SANCTIONED_LIST_MAX_ITEMS = 200;
+const SANCTIONED_ITEM_MAX_LEN = 100;
 
 /** HS 编码可接受格式：纯数字 4-10 位，或 4 位 + 1-3 组 ".xx" 点分扩展 */
 const HS_PLAIN_RE = /^\d{4,10}$/;
@@ -147,8 +151,9 @@ function parseDefectKeywords(summary: string | null | undefined): string[] {
     .filter(w => w.length > 0);
 }
 
-function isSanctionedCountry(destination: string): boolean {
-  return SANCTIONED_MATCH_SET.has(destination.trim().toLowerCase());
+function matchesSanctionedCountry(destination: string, sanctionedItems: string[]): boolean {
+  const set = new Set(sanctionedItems.map(i => i.toLowerCase()));
+  return set.has(destination.trim().toLowerCase());
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -509,8 +514,14 @@ export function createRiskService(prisma: PrismaClient) {
 
   /**
    * 信用风险扫描（watchdog 与手动触发共用）：
-   *   - 客户最大逾期 > 60 天 → 其 Active 信用额度全部冻结 + credit_frozen 预警（按日去重）
+   *   - 客户最大逾期 > 60 天 → 冻结其 Active 信用额度 + credit_frozen 预警（按日去重）
    *   - 单张发票逾期 > 180 天 → bad_debt 预警（dedupKey 保证只报一次）
+   *
+   * M1（2026-08-28）：冻结动作改走信用模块正规冻结通道 creditService.runAutoFreezeScan ——
+   *   Active→Frozen 同事务写 frozenBy=system_credit_scan + CreditLimitHistory + AuditLog
+   *   （审计理由：「60 天逾期规则自动冻结…」），与信用模块自动解冻（仅认 system_credit_scan
+   *   冻结的额度）形成闭环；信用例外白名单由 creditExceptionGate 在下单门禁消费点生效
+   *   （DR-013，冻结事实不受例外影响）。本函数只保留风险预警职责（credit_frozen / bad_debt）。
    */
   async function runCreditRiskScan(today: Date = new Date()): Promise<{ frozenCount: number; badDebtCount: number }> {
     const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
@@ -520,44 +531,33 @@ export function createRiskService(prisma: PrismaClient) {
       where: { type: 'Receivable', status: { in: RECEIVABLE_OPEN_STATUSES }, deletedAt: null },
     });
 
-    // 按客户分组计算最大逾期天数（无归属客户的发票无法冻结额度，但仍可记坏账）
-    const byCustomer = new Map<string, number>();
+    // 坏账扫描：风险模块自有职责（credit 正规通道不含 bad_debt 预警）
     const badDebtInvoices: any[] = [];
     for (const inv of invoices) {
       const dueMs = effectiveDueMs(inv.dueDate, inv.issueDate);
       if (dueMs === null) continue;
       const days = Math.floor((todayMs - dueMs) / DAY_MS);
-      if (days < 1) continue;
-      if (inv.customerRelationId) {
-        const cur = byCustomer.get(inv.customerRelationId) || 0;
-        if (days > cur) byCustomer.set(inv.customerRelationId, days);
-      }
       if (days > BAD_DEBT_DAYS) badDebtInvoices.push({ inv, days });
     }
 
-    let frozenCount = 0;
-    for (const [relationId, maxDays] of byCustomer) {
-      if (maxDays <= CREDIT_FREEZE_DAYS) continue;
-      const limits = await db.creditLimit.findMany({
-        where: { relationId, status: 'Active', deletedAt: null },
+    // 正规冻结通道：幂等（仅 Active→Frozen，已 Frozen 不重复写历史）
+    const creditService = createCreditService({ prisma });
+    const freeze = await creditService.runAutoFreezeScan({ today });
+
+    for (const f of freeze.frozen) {
+      const cl = await db.creditLimit.findUnique({ where: { id: f.creditLimitId } });
+      const limitDesc = cl ? `（总额 ${cl.totalLimit} ${cl.currency}）` : '';
+      await raiseAlert({
+        type: 'credit_frozen',
+        level: 'critical',
+        title: `客户信用额度已冻结（逾期 ${f.maxOverdueDays} 天）`,
+        content: `客户 ${f.relationId} 应收发票最大逾期 ${f.maxOverdueDays} 天，超过 ${CREDIT_FREEZE_DAYS} 天阈值，信用额度 ${f.creditLimitId}${limitDesc} 已经信用模块正规通道自动冻结（审计留痕；解冻路径：逾期款全额核销后自动解冻 / 主管手动解冻）。`,
+        relatedType: 'CreditLimit',
+        relatedId: f.creditLimitId,
+        dedupKey: `credit_frozen:${f.creditLimitId}:${todayKey}`,
       });
-      for (const cl of limits) {
-        await db.creditLimit.update({
-          where: { id: cl.id },
-          data: { status: 'Frozen', updatedAt: BigInt(now()) },
-        });
-        frozenCount += 1;
-        await raiseAlert({
-          type: 'credit_frozen',
-          level: 'critical',
-          title: `客户信用额度已冻结（逾期 ${maxDays} 天）`,
-          content: `客户 ${relationId} 应收发票最大逾期 ${maxDays} 天，超过 ${CREDIT_FREEZE_DAYS} 天阈值，信用额度 ${cl.id}（总额 ${cl.totalLimit} ${cl.currency}）已自动冻结。`,
-          relatedType: 'CreditLimit',
-          relatedId: cl.id,
-          dedupKey: `credit_frozen:${cl.id}:${todayKey}`,
-        });
-      }
     }
+    const frozenCount = freeze.frozenCount;
 
     let badDebtCount = 0;
     for (const { inv, days } of badDebtInvoices) {
@@ -582,6 +582,73 @@ export function createRiskService(prisma: PrismaClient) {
   // ══════════════════════════════════════════════════════════════
   // 4. 合规（PRD 15.3）
   // ══════════════════════════════════════════════════════════════
+
+  /**
+   * 读取生效禁运国清单：SystemConfig 配置优先，未配置/读取异常回退内置默认清单。
+   * 配置值为字符串数组（ISO 两位码或国名），trim + 去空 + 去重（大小写不敏感）。
+   */
+  async function getSanctionedCountries(): Promise<{ items: string[]; source: 'config' | 'default' }> {
+    try {
+      const cfg = createSystemConfigService(prisma);
+      const found = await cfg.get(SANCTIONED_COUNTRIES_CONFIG_KEY);
+      if (found && Array.isArray(found.value)) {
+        const seen = new Set<string>();
+        const items: string[] = [];
+        for (const raw of found.value) {
+          const v = String(raw ?? '').trim();
+          if (!v) continue;
+          const k = v.toLowerCase();
+          if (seen.has(k)) continue;
+          seen.add(k);
+          items.push(v);
+        }
+        if (items.length > 0) return { items, source: 'config' };
+      }
+    } catch (e: any) {
+      logger.warn('[RiskService] 禁运国清单配置读取失败，回退内置默认清单', { error: e?.message });
+    }
+    return { items: [...DEFAULT_SANCTIONED_COUNTRIES], source: 'default' };
+  }
+
+  /**
+   * 更新禁运国清单（M7 配置界面写入口）。
+   * 校验：非空字符串数组、单条 ≤100 字符、总数 ≤200；大小写不敏感去重（保留首个写法）。
+   * 审计：SystemConfigHistory 由 systemConfigService.set 落（version + actorId + reason）。
+   */
+  async function updateSanctionedCountries(input: { items: unknown; reason?: string | null }, actorId: string) {
+    if (!Array.isArray(input.items) || input.items.length === 0) {
+      throw new Error('禁运国清单必填且必须为非空字符串数组');
+    }
+    if (input.items.length > SANCTIONED_LIST_MAX_ITEMS) {
+      throw new Error(`禁运国清单条目数必须不超过 ${SANCTIONED_LIST_MAX_ITEMS}`);
+    }
+    const seen = new Set<string>();
+    const items: string[] = [];
+    for (const raw of input.items) {
+      if (typeof raw !== 'string' || !raw.trim()) {
+        throw new Error('非法禁运国条目：必须为非空字符串（ISO 两位码或国名）');
+      }
+      const v = raw.trim();
+      if (v.length > SANCTIONED_ITEM_MAX_LEN) {
+        throw new Error(`非法禁运国条目：长度必须不超过 ${SANCTIONED_ITEM_MAX_LEN} 字符`);
+      }
+      const k = v.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      items.push(v);
+    }
+    const cfg = createSystemConfigService(prisma);
+    await cfg.set(SANCTIONED_COUNTRIES_CONFIG_KEY, items, {
+      group: 'ops',
+      label: '出口管制禁运国清单',
+      valueType: 'json',
+      description: '出口管制检查命中的禁运国清单（ISO 两位码或国名，大小写不敏感精确匹配）；风险模块合规检查唯一真源',
+      actorId,
+      reason: input.reason ?? null,
+    });
+    logger.info('[RiskService] 禁运国清单已更新', { count: items.length, actorId });
+    return getSanctionedCountries();
+  }
 
   async function getDeclarationOrThrow(declarationId: string) {
     const decl = await db.customsDeclaration.findUnique({ where: { id: declarationId } });
@@ -692,22 +759,24 @@ export function createRiskService(prisma: PrismaClient) {
 
   /**
    * 出口管制校验：目的国命中禁运清单 → fail + 预警；目的国为空 → warn（无法判定）；否则 pass。
+   * 禁运清单为 SystemConfig 数据库配置（M7），未配置时回退内置默认清单。
    */
   async function runExportControlCheck(declarationId: string, actorId?: string | null) {
     if (!declarationId?.trim()) throw new Error('declarationId 必填');
     const decl = await getDeclarationOrThrow(declarationId);
+    const sanctioned = await getSanctionedCountries();
 
     const dest = decl.destinationCountry?.trim();
     let result: string;
     let summary: string;
-    let sanctioned = false;
+    let hit = false;
 
     if (!dest) {
       result = 'warn';
       summary = '目的国为空，无法判定出口管制风险';
-    } else if (isSanctionedCountry(dest)) {
+    } else if (matchesSanctionedCountry(dest, sanctioned.items)) {
       result = 'fail';
-      sanctioned = true;
+      hit = true;
       summary = `目的国 ${dest} 命中出口管制禁运清单`;
     } else {
       result = 'pass';
@@ -720,7 +789,7 @@ export function createRiskService(prisma: PrismaClient) {
       targetId: declarationId,
       result,
       summary,
-      details: { destinationCountry: dest ?? null, sanctioned, sanctionedList: SANCTIONED_COUNTRIES },
+      details: { destinationCountry: dest ?? null, sanctioned: hit, sanctionedList: sanctioned.items, sanctionedSource: sanctioned.source },
       checkedById: actorId ?? null,
     });
 
@@ -729,7 +798,7 @@ export function createRiskService(prisma: PrismaClient) {
         type: 'compliance_fail',
         level: 'critical',
         title: `报关单命中出口管制禁运国`,
-        content: `报关单 ${declarationId} 目的国 ${dest} 命中出口管制禁运清单（${SANCTIONED_COUNTRIES.join('/')}），出运前必须完成合规审批。`,
+        content: `报关单 ${declarationId} 目的国 ${dest} 命中出口管制禁运清单（${sanctioned.items.join('/')}），出运前必须完成合规审批。`,
         relatedType: 'CustomsDeclaration',
         relatedId: declarationId,
         dedupKey: `compliance:export_control:${declarationId}:${todayStr()}`,
@@ -926,6 +995,8 @@ export function createRiskService(prisma: PrismaClient) {
     runExportControlCheck,
     addManualComplianceCheck,
     listComplianceChecks,
+    getSanctionedCountries,
+    updateSanctionedCountries,
     // 质量
     getDefectTrends,
     runQualityRepeatScan,

@@ -31,11 +31,15 @@ import {
   CheckCheck,
   Play,
   Lock,
+  Plus,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import {
   Relation,
+  Order,
+  CustomsDeclaration,
   RiskAlert,
   RiskAlertType,
   RiskAlertLevel,
@@ -80,7 +84,14 @@ const ALERT_TYPE_LABELS: Record<RiskAlertType, string> = {
   lc_maturity: '信用证到期',
   tax_refund_stall: '退税滞留',
   factory_visit: '实地验厂',
+  dunning_stage: '催款分级',
 };
+
+// M3：筛选按钮补全后端全部 12 种预警类型（与 server riskService ALERT_TYPES 对齐）
+const ALERT_TYPE_FILTERS: readonly RiskAlertType[] = [
+  'fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat', 'sample_deadline',
+  'hr_lifecycle', 'crm_follow_up_overdue', 'lc_maturity', 'tax_refund_stall', 'factory_visit', 'dunning_stage',
+];
 
 const ALERT_LEVEL_LABELS: Record<RiskAlertLevel, string> = {
   critical: '严重',
@@ -337,7 +348,7 @@ function AlertsPanel() {
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] w-10 shrink-0" style={{ color: 'var(--text-tertiary)' }}>类型</span>
             <div className="bds-segment flex-wrap">
-              {(['', 'fx_volatility', 'credit_frozen', 'bad_debt', 'compliance_fail', 'quality_repeat', 'sample_deadline'] as const).map((t) => (
+              {(['', ...ALERT_TYPE_FILTERS] as const).map((t) => (
                 <button
                   key={t || 'all'}
                   onClick={() => setTypeFilter(t)}
@@ -475,6 +486,22 @@ function FxPanel() {
   const [lockRate, setLockRate] = useState('');
   const [lockNote, setLockNote] = useState('');
   const [savingLock, setSavingLock] = useState(false);
+  // M5：锁汇订单改下拉选择（订单档案真源，杜绝手打错单号）
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await apiService.listOrders();
+        if (cancelled) return;
+        setOrders(list.filter((o) => !o.deletedAt));
+      } catch (e) {
+        console.error('[RisksManager] load orders failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const loadLatest = useCallback(async () => {
     try {
@@ -552,7 +579,7 @@ function FxPanel() {
 
   const handleLock = async () => {
     if (!lockOrderId.trim()) {
-      bdsToast.warning('请填写订单号');
+      bdsToast.warning('请选择订单');
       return;
     }
     if (lockRate && !(Number(lockRate) > 0)) {
@@ -707,8 +734,13 @@ function FxPanel() {
       {/* 订单汇率锁定 */}
       <SectionCard title="订单汇率锁定">
         <div className="grid grid-cols-[1.2fr_0.8fr_1fr_1.2fr_auto] gap-3 items-end mb-4">
-          <Field label="订单号 *">
-            <input className="bds-input" value={lockOrderId} onChange={(e) => setLockOrderId(e.target.value)} placeholder="如 SO-2026-0001" />
+          <Field label="订单 *">
+            <select className="bds-select" value={lockOrderId} onChange={(e) => setLockOrderId(e.target.value)}>
+              <option value="">选择订单...</option>
+              {orders.map((o) => (
+                <option key={o.id} value={o.id}>{o.id}（{o.customer}）</option>
+              ))}
+            </select>
           </Field>
           <Field label="币种 *">
             <select className="bds-select" value={lockCurrency} onChange={(e) => setLockCurrency(e.target.value)}>
@@ -967,6 +999,9 @@ function CompliancePanel() {
   const [typeFilter, setTypeFilter] = useState<'' | ComplianceCheckType>('');
   const [resultFilter, setResultFilter] = useState<'' | ComplianceCheckResult>('');
 
+  // M5：合规检查报关单改下拉选择（报关单档案真源，杜绝手打错单号）
+  const [declarations, setDeclarations] = useState<CustomsDeclaration[]>([]);
+
   // HS Code 检查表单
   const [hsDeclarationId, setHsDeclarationId] = useState('');
   const [runningHs, setRunningHs] = useState(false);
@@ -979,6 +1014,20 @@ function CompliancePanel() {
   const [manualResult, setManualResult] = useState<ComplianceCheckResult>('pass');
   const [manualSummary, setManualSummary] = useState('');
   const [savingManual, setSavingManual] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await apiService.listCustomsDeclarations({ limit: 200 });
+        if (cancelled) return;
+        setDeclarations(result.items);
+      } catch (e) {
+        console.error('[RisksManager] load customs declarations failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const loadChecks = useCallback(async () => {
     setLoading(true);
@@ -1017,7 +1066,7 @@ function CompliancePanel() {
 
   const handleRunEc = async () => {
     if (!ecDeclarationId.trim()) {
-      bdsToast.warning('请填写报关单 ID');
+      bdsToast.warning('请选择报关单');
       return;
     }
     setRunningEc(true);
@@ -1062,8 +1111,13 @@ function CompliancePanel() {
       {/* 检查触发 */}
       <div className="grid grid-cols-3 gap-4">
         <SectionCard title="运行 HS Code 检查">
-          <Field label="报关单 ID *">
-            <input className="bds-input" value={hsDeclarationId} onChange={(e) => setHsDeclarationId(e.target.value)} placeholder="如 CD-2026-0001" />
+          <Field label="报关单 *">
+            <select className="bds-select" value={hsDeclarationId} onChange={(e) => setHsDeclarationId(e.target.value)}>
+              <option value="">选择报关单...</option>
+              {declarations.map((d) => (
+                <option key={d.id} value={d.id}>{d.declarationNumber}{d.destinationCountry ? `（${d.destinationCountry}）` : ''}</option>
+              ))}
+            </select>
           </Field>
           <div className="flex justify-end">
             <button onClick={handleRunHs} disabled={runningHs} className={actionBtnCls}>
@@ -1073,8 +1127,13 @@ function CompliancePanel() {
           </div>
         </SectionCard>
         <SectionCard title="运行出口管制检查">
-          <Field label="报关单 ID *">
-            <input className="bds-input" value={ecDeclarationId} onChange={(e) => setEcDeclarationId(e.target.value)} placeholder="如 CD-2026-0001" />
+          <Field label="报关单 *">
+            <select className="bds-select" value={ecDeclarationId} onChange={(e) => setEcDeclarationId(e.target.value)}>
+              <option value="">选择报关单...</option>
+              {declarations.map((d) => (
+                <option key={d.id} value={d.id}>{d.declarationNumber}{d.destinationCountry ? `（${d.destinationCountry}）` : ''}</option>
+              ))}
+            </select>
           </Field>
           <div className="flex justify-end">
             <button onClick={handleRunEc} disabled={runningEc} className={actionBtnCls}>
@@ -1112,6 +1171,9 @@ function CompliancePanel() {
           </div>
         </SectionCard>
       </div>
+
+      {/* 禁运国清单配置（M7：数据库配置真源，政策变更免改代码） */}
+      <SanctionedCountriesCard />
 
       {/* 检查记录 */}
       <div className="bds-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -1193,6 +1255,142 @@ function CompliancePanel() {
         )}
       </div>
     </div>
+  );
+}
+
+// ==================== 禁运国清单配置 Card（M7） ====================
+
+function SanctionedCountriesCard() {
+  const [items, setItems] = useState<string[]>([]);
+  const [source, setSource] = useState<'config' | 'default'>('default');
+  const [loading, setLoading] = useState(true);
+  const [newItem, setNewItem] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await apiService.getSanctionedCountries();
+      setItems(result.items);
+      setSource(result.source);
+      setDirty(false);
+    } catch (e) {
+      console.error('[RisksManager] getSanctionedCountries failed', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleAdd = () => {
+    const v = newItem.trim();
+    if (!v) return;
+    if (items.some((i) => i.toLowerCase() === v.toLowerCase())) {
+      bdsToast.warning('该条目已在清单中');
+      return;
+    }
+    setItems([...items, v]);
+    setNewItem('');
+    setDirty(true);
+  };
+
+  const handleRemove = (item: string) => {
+    setItems(items.filter((i) => i !== item));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    if (items.length === 0) {
+      bdsToast.warning('禁运国清单不能为空');
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await apiService.updateSanctionedCountries(items, reason.trim() || undefined);
+      setItems(result.items);
+      setSource(result.source);
+      setReason('');
+      setDirty(false);
+      bdsToast.success('禁运国清单已保存，出口管制检查即时生效');
+    } catch (e: any) {
+      bdsToast.danger(`保存禁运国清单失败：${e?.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="禁运国清单配置（出口管制）"
+      extra={
+        <span className={`bds-badge sm ${source === 'config' ? 'info' : 'neutral'}`}>
+          {source === 'config' ? '数据库配置' : '内置默认（保存后转为配置）'}
+        </span>
+      }
+    >
+      {loading ? (
+        <div className="flex items-center justify-center py-6">
+          <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-quaternary)' }} />
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5 flex-wrap mb-3">
+            {items.map((item) => (
+              <span key={item} className="bds-badge sm neutral flex items-center gap-1">
+                {item}
+                <button
+                  onClick={() => handleRemove(item)}
+                  className="bds-btn bds-btn-ghost bds-btn-icon"
+                  title={`移除 ${item}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+            {items.length === 0 && (
+              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>清单为空，请先添加条目</span>
+            )}
+          </div>
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <Field label="新增条目（ISO 两位码或国名）">
+              <input
+                className="bds-input"
+                value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+                placeholder="如 KP / North Korea"
+              />
+            </Field>
+            <Field label="变更理由（可选，留痕审计）">
+              <input
+                className="bds-input"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="如：政策更新新增禁运国"
+              />
+            </Field>
+            <div className="flex items-center gap-1.5 mb-3">
+              <button onClick={handleAdd} className={actionBtnCls}>
+                <Plus className="w-3.5 h-3.5" />
+                添加
+              </button>
+              <button onClick={handleSave} disabled={saving || !dirty} className={actionBtnCls}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                保存清单
+              </button>
+            </div>
+          </div>
+          <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+            目的国与任一条目精确匹配（大小写不敏感）即判定命中禁运；保存后立即作用于出口管制检查。
+          </div>
+        </>
+      )}
+    </SectionCard>
   );
 }
 
@@ -1297,9 +1495,12 @@ function QualityPanel() {
                 </tr>
               </thead>
               <tbody>
-                {trends.map((item) => (
-                  <tr key={item.key}>
-                    <td className="max-w-[180px] truncate" style={{ color: 'var(--text-primary)' }}>{item.key}</td>
+                {trends.map((item) => {
+                  // M2：字段对齐后端（factory 组=factoryLabel，quarter 组=quarter）
+                  const rowLabel = item.factoryLabel ?? item.quarter ?? '—';
+                  return (
+                  <tr key={rowLabel}>
+                    <td className="max-w-[180px] truncate" style={{ color: 'var(--text-primary)' }}>{rowLabel}</td>
                     <td className="num bds-tnum" style={{ color: 'var(--text-secondary)' }}>{formatNumber(item.reports)}</td>
                     <td className="num bds-tnum" style={{ color: 'var(--text-secondary)' }}>{formatNumber(item.failCount)}</td>
                     <td className="num bds-tnum" style={{ color: item.criticalDefects > 0 ? 'var(--danger-text)' : 'var(--text-tertiary)' }}>{formatNumber(item.criticalDefects)}</td>
@@ -1319,7 +1520,8 @@ function QualityPanel() {
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
