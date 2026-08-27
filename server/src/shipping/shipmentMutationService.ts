@@ -14,6 +14,7 @@ import { writeRouteAuditLog } from '../audit/routeAudit';
 import { publishBusinessEvent } from '../events/businessEventBus';
 import { mapOrderLinesToShipmentLineInputs, replaceShipmentLinesTx } from './shipmentPackingService';
 import { evaluateShipmentReleaseGate, type ShipmentReleaseGateBlockedError } from './shipmentEligibilityGate';
+import { createOrderShipmentBatchService } from './orderShipmentBatchService';
 import type { ExceptionChecker } from '../exceptions/exceptionGate';
 
 export type ShipmentMutationErrorCode =
@@ -294,6 +295,10 @@ export async function createShipment(params: CreateShipmentParams): Promise<Ship
         transactionId: result.auditId,
       }).catch(() => { /* event publish failure must not fail business */ });
     }
+    // W-B 断层④：直建 Shipped（补录场景）→ 自动推进挂接批次 planned→shipped（best-effort，不阻断创建结果）
+    if (result.shipment.status === 'Shipped') {
+      await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped(result.shipment.id, actorId);
+    }
     return { ok: true, data: result };
   } catch (e: any) {
     return { ok: false, error: toMutationError(e, tx ? 'COMMIT_TRANSACTION_FAILED' : 'CREATE_FAILED') };
@@ -398,6 +403,10 @@ export async function updateShipment(params: UpdateShipmentParams): Promise<Ship
           transactionId: result.auditId,
         }).catch(() => { /* event publish failure must not fail business */ });
       }
+    }
+    // W-B 断层④：流转至 Shipped → 自动推进挂接批次 planned→shipped（同状态幂等 patch 不重复触发；best-effort 不阻断更新结果）
+    if (hasStatus && result.shipment.status === 'Shipped' && result.fromStatus !== 'Shipped') {
+      await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped(result.shipment.id, actorId);
     }
     return { ok: true, data: result };
   } catch (e: any) {

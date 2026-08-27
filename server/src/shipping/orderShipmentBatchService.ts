@@ -22,6 +22,7 @@
  */
 import { PrismaClient, Prisma } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
+import { logger } from '../lib/logger';
 
 export type OrderShipmentBatchResult<T = any> =
   | { ok: true; data: T }
@@ -444,6 +445,7 @@ export function createOrderShipmentBatchService(prisma: PrismaClient) {
     shippedAt?: number; // 缺省取运单 atd/当日
     gateCoverRatio?: number; // 末批门禁覆盖率覆盖（1 = 全覆盖尾款前款项；<1 放宽）
     skipGate?: boolean; // 管理员豁免（留痕）
+    autoLinkage?: boolean; // Shipment→Shipped 自动联动标记（留痕，区别于人工操作/管理员豁免）
   }, actorId?: string): Promise<OrderShipmentBatchResult<any>> {
     try {
       const batch = await db.orderShipmentBatch.findFirst({ where: { id: batchId, deletedAt: null } });
@@ -512,7 +514,7 @@ export function createOrderShipmentBatchService(prisma: PrismaClient) {
           targetType: 'OrderShipmentBatch',
           targetId: batchId,
           before: { id: batchId, status: batch.status },
-          after: { id: batchId, status: 'shipped', shipmentId: shipId, finalPaymentDueDate, skipGate: input?.skipGate === true },
+          after: { id: batchId, status: 'shipped', shipmentId: shipId, finalPaymentDueDate, skipGate: input?.skipGate === true, autoLinkage: input?.autoLinkage === true },
           ip: null,
         });
         return row;
@@ -590,10 +592,51 @@ export function createOrderShipmentBatchService(prisma: PrismaClient) {
     };
   }
 
+  // ════════════════════════════════════════════════════════════════
+  // W-B 断层④拍板：Shipment→Shipped 自动推进挂接批次（双状态机挂钩）
+  //   物理事实优先：运单既已发运，显式挂接（shipmentId=该运单）的 planned 批次
+  //   必须同步 shipped——否则催款分级/对账读批次状态永远滞后（货发了款没催）。
+  //   - 幂等：仅扫 status='planned'；shipped/cancelled 天然跳过（终态不复活）
+  //   - 尾款门禁语义：末批收款门禁的保护点在「发运前」（人工 mark-shipped / 出运放行门禁）；
+  //     物理发运既成事实后不再阻断状态同步，缺口以 skipGate+autoLinkage 留痕，
+  //     由催款 watchdog（listOverdueFinalBatches）兜底追款
+  //   - best-effort：单批失败记录并继续，整体永不 throw（不阻断运单主业务）
+  //   - 归属判定：只推进显式挂接批次；未排船批次（shipmentId=null）保持 planned，
+  //     走人工 mark-shipped（一票多批次的归属歧义不猜）
+  // ════════════════════════════════════════════════════════════════
+  async function autoAdvanceOnShipmentShipped(
+    shipmentId: string,
+    actorId?: string,
+  ): Promise<{ advanced: string[]; failed: Array<{ batchId: string; code: string }> }> {
+    const advanced: string[] = [];
+    const failed: Array<{ batchId: string; code: string }> = [];
+    try {
+      const candidates = await db.orderShipmentBatch.findMany({
+        where: { shipmentId, status: 'planned', deletedAt: null },
+        select: { id: true },
+      });
+      for (const b of candidates) {
+        const r = await markShipped(b.id, { shipmentId, skipGate: true, autoLinkage: true }, actorId ?? 'system');
+        if (r.ok) advanced.push(b.id);
+        else {
+          failed.push({ batchId: b.id, code: r.error.code });
+          logger.warn('[OrderShipmentBatch] Shipment→Shipped 自动联动单批失败（不阻断）', { shipmentId, batchId: b.id, code: r.error.code, message: r.error.message });
+        }
+      }
+      if (advanced.length > 0) {
+        logger.info('[OrderShipmentBatch] Shipment→Shipped 自动联动推进批次', { shipmentId, advanced });
+      }
+    } catch (e: any) {
+      logger.warn('[OrderShipmentBatch] Shipment→Shipped 自动联动异常（不阻断）', { shipmentId, error: e?.message });
+    }
+    return { advanced, failed };
+  }
+
   return {
     createBatch,
     updateBatch,
     markShipped,
+    autoAdvanceOnShipmentShipped,
     recalcSettlement,
     recalcOrderSettlement,
     totalPaidOfOrder,

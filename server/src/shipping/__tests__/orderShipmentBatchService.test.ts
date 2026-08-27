@@ -67,8 +67,9 @@ function makePrisma(seed: {
         let rows = notDeleted(state.batches);
         if (where?.orderId) rows = rows.filter(b => b.orderId === where.orderId);
         if (where?.id?.not) rows = rows.filter(b => b.id !== where.id.not);
+        if (where?.shipmentId) rows = rows.filter(b => b.shipmentId === where.shipmentId);
         if (where?.isFinalBatch === true) rows = rows.filter(b => b.isFinalBatch === true);
-        if (where?.status === 'shipped') rows = rows.filter(b => b.status === 'shipped');
+        if (where?.status && typeof where.status === 'string') rows = rows.filter(b => b.status === where.status);
         if (where?.settleStatus?.not) rows = rows.filter(b => b.settleStatus !== where.settleStatus.not);
         if (where?.finalPaymentDueDate?.lt) rows = rows.filter(b => (b.finalPaymentDueDate ?? '9999') < where.finalPaymentDueDate.lt);
         if (orderBy?.batchNo === 'asc') rows = [...rows].sort((a, b) => a.batchNo - b.batchNo);
@@ -423,5 +424,92 @@ describe('订单批次全景（listByOrder）', () => {
     expect(r.data.summary.totalPaid).toBe(60000);
     expect(r.data.summary.allShipped).toBe(false);
     expect(r.data.order.poNumber).toBe('PO-2601001');
+  });
+});
+
+// ═══ W-B 断层④：Shipment→Shipped 自动联动 ═══
+describe('Shipment→Shipped 自动联动（autoAdvanceOnShipmentShipped）', () => {
+  const SHIPMENT = { id: 'SHP-1', orderId: 'O-1', status: 'Shipped', atd: '2026-08-20', deletedAt: null };
+  const mkBatch = (over: any) => ({
+    orderId: 'O-1', batchNo: 1, shipmentId: 'SHP-1',
+    plannedRatio: '100.00', amount: '100000', currency: 'USD',
+    customerRelationId: 'REL-ATLAS', customerName: 'Atlas',
+    status: 'planned', shippedAt: null, settleStatus: 'unsettled',
+    invoicedAmount: null, paidAmount: null, settledAt: null,
+    isFinalBatch: false, finalPaymentDueDays: null, finalPaymentDueDate: null,
+    notes: null, createdAt: NOW, updatedAt: NOW, deletedAt: null, ...over,
+  });
+
+  it('挂接 planned 批次 → 推进 shipped，shippedAt 取运单 atd，尾款到期日 = atd + 账期', async () => {
+    const { prisma, state } = makePrisma({
+      orders: [ORDER],
+      shipments: [SHIPMENT],
+      batches: [mkBatch({ id: 'B1', isFinalBatch: true })],
+    });
+    const svc = createOrderShipmentBatchService(prisma);
+    const r = await svc.autoAdvanceOnShipmentShipped('SHP-1', 'system');
+    expect(r.advanced).toEqual(['B1']);
+    expect(r.failed).toHaveLength(0);
+    const b = state.batches.find(x => x.id === 'B1');
+    expect(b.status).toBe('shipped');
+    expect(Number(b.shippedAt)).toBe(Date.parse('2026-08-20T00:00:00Z'));
+    // 末批到期日 = atd 2026-08-20 + 30 天（paymentTerms 解析）= 2026-09-19
+    expect(b.finalPaymentDueDate).toBe('2026-09-19');
+  });
+
+  it('幂等：已 shipped / 已 cancelled 批次不重复推进（终态不复活）', async () => {
+    const { prisma, state } = makePrisma({
+      orders: [ORDER],
+      shipments: [SHIPMENT],
+      batches: [
+        mkBatch({ id: 'B1', status: 'shipped', shippedAt: NOW }),
+        mkBatch({ id: 'B2', batchNo: 2, status: 'cancelled' }),
+      ],
+    });
+    const r = await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped('SHP-1', 'system');
+    expect(r.advanced).toHaveLength(0);
+    expect(r.failed).toHaveLength(0);
+    expect(state.batches.find(x => x.id === 'B1').status).toBe('shipped');
+    expect(state.batches.find(x => x.id === 'B2').status).toBe('cancelled');
+  });
+
+  it('归属判定：未挂接（shipmentId=null）或挂其他运单的批次不受影响', async () => {
+    const { prisma, state } = makePrisma({
+      orders: [ORDER],
+      shipments: [SHIPMENT],
+      batches: [
+        mkBatch({ id: 'B1', shipmentId: null }),
+        mkBatch({ id: 'B2', batchNo: 2, shipmentId: 'SHP-OTHER' }),
+      ],
+    });
+    const r = await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped('SHP-1', 'system');
+    expect(r.advanced).toHaveLength(0);
+    expect(state.batches.every(b => b.status === 'planned')).toBe(true);
+  });
+
+  it('末批尾款缺口：物理事实优先仍推进，审计留痕 skipGate+autoLinkage', async () => {
+    const { writeRouteAuditLog } = await import('../../audit/routeAudit');
+    const { prisma, state } = makePrisma({
+      orders: [ORDER],
+      shipments: [SHIPMENT],
+      // 末批 40000，订单 100000，已收 0 < 门禁线 60000 → 人工 mark-shipped 会被 FINAL_PAYMENT_GATE_BLOCKED
+      batches: [mkBatch({ id: 'B1', isFinalBatch: true, amount: '40000' })],
+    });
+    const r = await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped('SHP-1', 'system');
+    expect(r.advanced).toEqual(['B1']);
+    expect(state.batches.find(x => x.id === 'B1').status).toBe('shipped');
+    const auditCalls = (writeRouteAuditLog as any).mock.calls.filter((c: any[]) => c[0]?.operation === 'mark_batch_shipped');
+    expect(auditCalls).toHaveLength(1);
+    expect(auditCalls[0][0].after.skipGate).toBe(true);
+    expect(auditCalls[0][0].after.autoLinkage).toBe(true);
+    expect(auditCalls[0][0].actorId).toBe('system');
+  });
+
+  it('best-effort：数据层异常不 throw，返回空结果并记录告警', async () => {
+    const { prisma } = makePrisma({ orders: [ORDER] });
+    prisma.orderShipmentBatch.findMany = async () => { throw new Error('db down'); };
+    const r = await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped('SHP-1', 'system');
+    expect(r.advanced).toHaveLength(0);
+    expect(r.failed).toHaveLength(0);
   });
 });

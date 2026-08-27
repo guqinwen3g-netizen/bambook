@@ -20,6 +20,7 @@ import { validateStatusTransition } from '../statusTransition';
 import { linkOrderStatusFromShipment } from '../shipping/orderLinkService';
 import { appendShipmentEvent } from '../shipping/shipmentMutationService';
 import { evaluateShipmentReleaseGate } from '../shipping/shipmentEligibilityGate';
+import { createOrderShipmentBatchService } from '../shipping/orderShipmentBatchService';
 import { extractEmailAi } from '../email/aiExtract';
 import { syncEmailReferences } from '../email/sync';
 import { createInvoice, updateInvoice } from '../finance/invoiceMutationService';
@@ -6169,6 +6170,10 @@ export async function handleShippingCreateShipment(prisma: PrismaClient, input: 
       });
       return sh;
     });
+    // W-B 断层④：Agent 直建 Shipped → 自动推进挂接批次（best-effort，不阻断创建结果）
+    if (created.status === 'Shipped') {
+      await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped(created.id, 'agent');
+    }
     return { ok: true, created, dataSource: 'bambook-data-center' };
   } catch (e: any) {
     // 稳定错误码映射（不裸露内部 message）
@@ -6241,6 +6246,10 @@ export async function handleShippingUpdateTrackingStatus(prisma: PrismaClient, i
       });
       return upd;
     });
+    // W-B 断层④：Agent 流转至 Shipped → 自动推进挂接批次（同状态幂等 patch 不重复触发；best-effort 不阻断更新结果）
+    if (status === 'Shipped' && updated.status === 'Shipped') {
+      await createOrderShipmentBatchService(prisma).autoAdvanceOnShipmentShipped(shipmentId, 'agent');
+    }
     return { ok: true, shipmentId, newStatus: status, updatedAt: now, dataSource: 'bambook-data-center' };
   } catch (e: any) {
     if (e?.code === 'NOT_FOUND') return { ok: false, error: 'SHIPMENT_NOT_FOUND', message: 'shipment not found', dataSource: 'bambook-data-center' };
