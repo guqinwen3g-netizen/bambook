@@ -375,16 +375,19 @@ export function createOrderShipmentBatchService(prisma: PrismaClient) {
     }
 
     // 已收款：上述发票经 InvoiceAllocation 核销（allocation 已核销金额 = 核销时点发票已收全额，取 settledAmount 口径）
+    // 注意：InvoiceAllocation 为硬删除模型（@@unique + delete+insert 语义，schema/migrations 均无 deletedAt 列），
+    // 过滤 deletedAt 会触发 PrismaClientValidationError —— 此处不做软删过滤。
     let paid = 0;
     if (invoiceIds.length > 0) {
       const invoiceAllocs = await runner.invoiceAllocation.findMany({
-        where: { invoiceId: { in: invoiceIds }, deletedAt: null },
+        where: { invoiceId: { in: invoiceIds } },
       });
       // InvoiceAllocation 行 = 凭证×发票核销记录；已核销金额按行汇总即该发票累计已收
+      // 注意：核销金额字段为 appliedAmount（InvoiceAllocation 模型唯一金额字段，schema 真源）
       for (const ia of invoiceAllocs as any[]) {
         const inv = invoiceMap.get(ia.invoiceId) as any;
         if (!inv || inv.status === 'Cancelled') continue;
-        paid += ia.allocatedAmount != null ? Number(ia.allocatedAmount) : 0;
+        paid += ia.appliedAmount != null ? Number(ia.appliedAmount) : 0;
       }
     }
 
@@ -528,10 +531,11 @@ export function createOrderShipmentBatchService(prisma: PrismaClient) {
     });
     const invoiceIds = [...new Set(allocations.map((a: any) => a.invoiceId))];
     if (invoiceIds.length === 0) return 0;
+    // InvoiceAllocation 为硬删除模型（无 deletedAt 列），不做软删过滤（同 recalcSettlement）
     const invoiceAllocs = await db.invoiceAllocation.findMany({
-      where: { invoiceId: { in: invoiceIds }, deletedAt: null },
+      where: { invoiceId: { in: invoiceIds } },
     });
-    return invoiceAllocs.reduce((sum: number, ia: any) => sum + (ia.allocatedAmount != null ? Number(ia.allocatedAmount) : 0), 0);
+    return invoiceAllocs.reduce((sum: number, ia: any) => sum + (ia.appliedAmount != null ? Number(ia.appliedAmount) : 0), 0);
   }
 
   // ════════════════════════════════════════════════════════════════

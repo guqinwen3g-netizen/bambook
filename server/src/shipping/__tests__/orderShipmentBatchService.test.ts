@@ -302,7 +302,7 @@ describe('批次发运确认（markShipped）', () => {
       orders: [ORDER], shipments: [SHIPMENT], batches: [baseBatch()],
       ioAllocations: [{ id: 'IOA-1', invoiceId: 'INV-1', orderId: 'O-1', batchId: 'OSB__E', allocatedAmount: '60000', deletedAt: null }],
       invoices: [{ id: 'INV-1', amount: '60000', currency: 'USD', status: 'Issued', deletedAt: null }],
-      invoiceAllocations: [{ id: 'IA-1', invoiceId: 'INV-1', allocatedAmount: '60000', deletedAt: null }],
+      invoiceAllocations: [{ id: 'IA-1', invoiceId: 'INV-1', appliedAmount: '60000', deletedAt: null }],
     });
     const r = await createOrderShipmentBatchService(prisma).markShipped('OSB__F');
     expect(r.ok).toBe(true);
@@ -335,7 +335,7 @@ describe('结算进度聚合（recalcSettlement）', () => {
       orders: [ORDER], batches: [{ ...BATCH }],
       ioAllocations: [{ id: 'IOA-1', invoiceId: 'INV-1', orderId: 'O-1', batchId: 'OSB__1', allocatedAmount: '60000', deletedAt: null }],
       invoices: [{ id: 'INV-1', amount: '60000', currency: 'USD', status: 'Issued', deletedAt: null }],
-      invoiceAllocations: [{ id: 'IA-1', invoiceId: 'INV-1', allocatedAmount: '20000', deletedAt: null }],
+      invoiceAllocations: [{ id: 'IA-1', invoiceId: 'INV-1', appliedAmount: '20000', deletedAt: null }],
     });
     const svc = createOrderShipmentBatchService(prisma);
     const r1 = await svc.recalcSettlement('OSB__1');
@@ -350,8 +350,8 @@ describe('结算进度聚合（recalcSettlement）', () => {
       ioAllocations: [{ id: 'IOA-1', invoiceId: 'INV-1', orderId: 'O-1', batchId: 'OSB__1', allocatedAmount: '60000', deletedAt: null }],
       invoices: [{ id: 'INV-1', amount: '60000', currency: 'USD', status: 'Issued', deletedAt: null }],
       invoiceAllocations: [
-        { id: 'IA-1', invoiceId: 'INV-1', allocatedAmount: '20000', deletedAt: null },
-        { id: 'IA-2', invoiceId: 'INV-1', allocatedAmount: '40000', deletedAt: null },
+        { id: 'IA-1', invoiceId: 'INV-1', appliedAmount: '20000', deletedAt: null },
+        { id: 'IA-2', invoiceId: 'INV-1', appliedAmount: '40000', deletedAt: null },
       ],
     });
     const r2 = await createOrderShipmentBatchService(p2).recalcSettlement('OSB__1');

@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { syncInvoiceReferences, syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { recalcInvoiceStatus, recalcVoucherStatus, validateAllocationInput, syncAllocationVoucherLinks, applyAllocation, isValidAllocationDecimal } from './allocationService';
+import { notifyShipmentBatchSettlementRecalc } from './shipmentBatchSettlementHook';
 import { publishBusinessEvent } from '../events/businessEventBus';
 
 export type AllocationMutationErrorCode =
@@ -105,6 +106,8 @@ export async function updateAllocation(params: {
         after: { appliedAmount: new Prisma.Decimal(updated.appliedAmount).toString(), invoiceStatus: newInvoiceStatus, voucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString() },
         ip: ip || null,
       });
+      // W-A P0-1：核销金额调整后触发受影响订单的出运批次结算重算（同事务、失败不阻断，幂等）
+      await notifyShipmentBatchSettlementRecalc(tx, { invoiceId: existing.invoiceId, source: 'route:allocation:update' });
       return { allocation: { id: allocationId, appliedAmount: new Prisma.Decimal(updated.appliedAmount).toString(), appliedDate: updated.appliedDate }, invoiceId: existing.invoiceId, voucherId: existing.voucherId, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
     }, SERIALIZABLE_TX);
     // Publish domain events after commit (best-effort, never fails business)
@@ -241,6 +244,8 @@ export async function deleteAllocation(params: {
         after: { invoiceStatus: newInvoiceStatus, voucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString() },
         ip: ip || null,
       });
+      // W-A P0-1：核销删除后触发受影响订单的出运批次结算重算（同事务、失败不阻断，幂等）
+      await notifyShipmentBatchSettlementRecalc(tx, { invoiceId: existing.invoiceId, source: 'route:allocation:delete' });
       return { deleted: true as const, id: allocationId, invoiceId: existing.invoiceId, voucherId: existing.voucherId, newInvoiceStatus, newVoucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString(), auditId };
     }, SERIALIZABLE_TX);
     return { ok: true, data };

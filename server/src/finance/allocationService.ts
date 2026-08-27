@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { syncInvoiceReferences, syncPaymentVoucherReferences } from '../entities/sync';
 import { writeRouteAuditLog } from '../audit/routeAudit';
+import { notifyShipmentBatchSettlementRecalc } from './shipmentBatchSettlementHook';
 
 /**
  * task ERP-P1-payment-allocation-route-foundation: allocation 状态重算纯函数。
@@ -314,6 +315,9 @@ export async function applyAllocation(
     targetType: 'InvoiceAllocation', targetId: allocId,
     after: { id: allocId, invoiceId, voucherId, appliedAmount: appliedAmountStr, invoiceStatus: newInvoiceStatus, voucherStatus: voucherRecalc.status, voucherAppliedAmount: voucherRecalc.totalAllocated.toString() },
   });
+
+  // 6. W-A P0-1：核销创建/替换后触发受影响订单的出运批次结算重算（同事务、失败不阻断，幂等）
+  await notifyShipmentBatchSettlementRecalc(tx, { invoiceId, source });
 
   return {
     allocationId: allocId,
