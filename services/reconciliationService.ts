@@ -18,7 +18,11 @@ export type DiscrepancyType =
   | 'payment_mismatch'
   | 'status_inconsistency'
   | 'currency_mismatch'
-  | 'manual_payment_field_drift';
+  | 'manual_payment_field_drift'
+  // P2-7 汇率链差异（全量清单拍平类型；type=fx 聚合筛选全部三段）
+  | 'fx_order_to_invoice'
+  | 'fx_invoice_to_payment'
+  | 'fx_payment_to_settlement';
 
 export interface ReconciliationDiscrepancy {
   type: DiscrepancyType;
@@ -28,6 +32,78 @@ export interface ReconciliationDiscrepancy {
   severity: DiscrepancySeverity;
   message: string;
 }
+
+// ────────────────────────────────────────────────────────────────
+// P2-7 多币种汇率链（与后端 fxReconciliationService 同源）
+// ────────────────────────────────────────────────────────────────
+
+export type FxChainSegmentType = 'order_to_invoice' | 'invoice_to_payment' | 'payment_to_settlement';
+export type FxRateSource = 'locked' | 'market' | 'upstream' | 'missing';
+
+export interface FxDiscrepancy {
+  type: FxChainSegmentType;
+  fromCurrency: string;
+  toCurrency: string;
+  expectedRate: number | null;
+  actualRate: number | null;
+  variance: number | null;
+  variancePct: number | null;
+  severity: DiscrepancySeverity;
+  message: string;
+  locked: boolean;
+  documentKind: 'invoice' | 'voucher' | 'settlement';
+  documentId: string;
+  documentNumber: string;
+  foreignAmount: number;
+  gainLossCny: number | null;
+}
+
+export interface FxChainSegment {
+  stage: FxChainSegmentType;
+  documentKind: 'invoice' | 'voucher' | 'settlement';
+  documentId: string;
+  documentNumber: string;
+  currency: string;
+  foreignAmount: number;
+  documentRate: number | null;
+  expectedRate: number | null;
+  rateSource: FxRateSource;
+  variance: number | null;
+  variancePct: number | null;
+  gainLossCny: number | null;
+  locked: boolean;
+}
+
+export interface OrderFxDetail {
+  orderId: string;
+  baseCurrency: string;
+  locks: Array<{ id: string; currency: string; rate: number }>;
+  segments: FxChainSegment[];
+  fxDiscrepancies: FxDiscrepancy[];
+  realizedGainLossCny: number;
+  invoicedByCurrency: Array<{ currency: string; amount: number; lockedAmount: number }>;
+}
+
+export interface CustomerFxCurrencySummary {
+  currency: string;
+  invoicedAmount: number;
+  lockedAmount: number;
+  coveragePct: number;
+  realizedGainLossCny: number;
+}
+
+export const FX_SEGMENT_LABELS: Record<FxChainSegmentType, string> = {
+  order_to_invoice: '订单 → 开票',
+  invoice_to_payment: '开票 → 收付',
+  payment_to_settlement: '收付 → 结汇',
+};
+
+export const FX_RATE_SOURCE_LABELS: Record<FxRateSource, string> = {
+  locked: '锁定价',
+  market: '市场价',
+  upstream: '上游单据',
+  missing: '缺档案',
+};
 
 export interface OrderReconciliation {
   orderId: string;
@@ -46,6 +122,8 @@ export interface OrderReconciliation {
   paidAmount: number;
   referenceActualPaymentAmount: number | null;
   discrepancies: ReconciliationDiscrepancy[];
+  fxDiscrepancies: FxDiscrepancy[]; // P2-7 汇率链显著差异
+  fx: OrderFxDetail;                // P2-7 三段对照 + 锁汇 + 已实现损益
 }
 
 export interface CustomerReconciliationSummary {
@@ -58,6 +136,7 @@ export interface CustomerReconciliationSummary {
   criticalCount: number;
   warningCount: number;
   infoCount: number;
+  fxGainLossTotal: CustomerFxCurrencySummary[]; // P2-7 多币种汇总（按币种分组）
 }
 
 export interface DiscrepancyListItem extends ReconciliationDiscrepancy {
@@ -77,6 +156,9 @@ export const DISCREPANCY_TYPE_LABELS: Record<DiscrepancyType, string> = {
   status_inconsistency: '状态不一致',
   currency_mismatch: '币种不一致',
   manual_payment_field_drift: '手工实收漂移',
+  fx_order_to_invoice: '汇率·订单→开票',
+  fx_invoice_to_payment: '汇率·开票→收付',
+  fx_payment_to_settlement: '汇率·收付→结汇',
 };
 
 export const SEVERITY_LABELS: Record<DiscrepancySeverity, string> = {
@@ -135,9 +217,9 @@ export const reconciliationService = {
     return res.json();
   },
 
-  /** 全量差异清单（severity 排序，分页/筛选） */
+  /** 全量差异清单（severity 排序，分页/筛选；type=fx 聚合筛选全部汇率链差异） */
   async listDiscrepancies(
-    params: { severity?: DiscrepancySeverity | ''; type?: DiscrepancyType | ''; customerRelationId?: string; page?: number; pageSize?: number } = {},
+    params: { severity?: DiscrepancySeverity | ''; type?: DiscrepancyType | 'fx' | ''; customerRelationId?: string; page?: number; pageSize?: number } = {},
     endpoint?: string,
   ): Promise<{ items: DiscrepancyListItem[]; total: number; page: number; pageSize: number }> {
     const query = new URLSearchParams();

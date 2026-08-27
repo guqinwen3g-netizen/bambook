@@ -23,8 +23,18 @@
  *   - 收款金额：Σ InvoiceAllocation.appliedAmount（硬删除模型，无软删过滤）。
  *
  * 纯只读：不写库、不触发任何状态重算；所有金额用 Prisma.Decimal 累加避免 IEEE 754 漂移。
+ *
+ * P2-7 多币种扩展（fxReconciliationService 为汇率链唯一计算真源）：
+ *   - 单订单结果补 fxDiscrepancies + fx（三段汇率链对照 / 锁汇 / 已实现损益）
+ *   - 客户汇总补 fxGainLossTotal（按币种分组：应收/锁汇覆盖/已实现损益）
+ *   - 全量差异清单拍平 fx 差异（type=fx_*，支持 type=fx 聚合筛选）
  */
 import { Prisma, PrismaClient } from '@prisma/client';
+import {
+  reconcileOrderFx,
+  type FxDiscrepancy,
+  type OrderFxReconciliation,
+} from './fxReconciliationService';
 
 export type DiscrepancySeverity = 'critical' | 'warning' | 'info';
 
@@ -35,7 +45,10 @@ export interface ReconciliationDiscrepancy {
     | 'payment_mismatch'         // 收款 ≠ 开票（超收 critical；未收款余额 info/warning）
     | 'status_inconsistency'     // 状态链断裂（已交付无票/已付未交付等）
     | 'currency_mismatch'        // 订单/发票币种两两不同
-    | 'manual_payment_field_drift'; // actualPaymentAmount 手工字段与核销真源漂移
+    | 'manual_payment_field_drift' // actualPaymentAmount 手工字段与核销真源漂移
+    | 'fx_order_to_invoice'      // P2-7 汇率链 A 段：开票汇率 vs 期望（锁定/市场）
+    | 'fx_invoice_to_payment'    // P2-7 汇率链 B 段：收付汇率 vs 开票汇率（已实现损益）
+    | 'fx_payment_to_settlement'; // P2-7 汇率链 C 段：结汇汇率 vs 收付汇率（已实现损益）
   field: string;
   expected: string;
   actual: string;
@@ -60,6 +73,17 @@ export interface ReconcileOrderResult {
   paidAmount: number;               // Σ InvoiceAllocation.appliedAmount（收款真源）
   referenceActualPaymentAmount: number | null; // 手工字段快照（仅参考，见拍板③）
   discrepancies: ReconciliationDiscrepancy[];
+  fxDiscrepancies: FxDiscrepancy[];       // P2-7 汇率链显著差异（锁汇优先）
+  fx: OrderFxReconciliation;              // P2-7 三段对照 + 锁汇 + 已实现损益（纯 CNY 订单 segments 为空）
+}
+
+/** P2-7 客户维度多币种汇总行（按币种分组） */
+export interface CustomerFxCurrencySummary {
+  currency: string;
+  invoicedAmount: number;      // 外币应收总额（发票）
+  lockedAmount: number;        // 其中锁汇覆盖金额（FxRateLock active 的订单）
+  coveragePct: number;         // lockedAmount / invoicedAmount（0-1）
+  realizedGainLossCny: number; // 已实现汇兑损益（B+C 段合计，CNY）
 }
 
 export interface CustomerReconciliationSummary {
@@ -72,6 +96,7 @@ export interface CustomerReconciliationSummary {
   criticalCount: number;
   warningCount: number;
   infoCount: number;
+  fxGainLossTotal: CustomerFxCurrencySummary[]; // P2-7 多币种汇总（按币种分组）
 }
 
 const SHIPPED_STATUSES = new Set(['Shipped', 'Arrived', 'Cleared', 'Delivered']);
@@ -323,6 +348,9 @@ export async function reconcileOrder(prisma: PrismaClient, orderId: string): Pro
     }
   }
 
+  // ── P2-7 汇率链（fxReconciliationService 唯一真源；订单已存在，恒非 null） ──
+  const fx = await reconcileOrderFx(prisma, orderId);
+
   return {
     orderId: order.id,
     orderCode: order.code ?? null,
@@ -340,6 +368,8 @@ export async function reconcileOrder(prisma: PrismaClient, orderId: string): Pro
     paidAmount: d2n(paidAmount),
     referenceActualPaymentAmount: order.actualPaymentAmount != null ? d2n(dec(order.actualPaymentAmount)) : null,
     discrepancies: sortDiscrepancies(discrepancies),
+    fxDiscrepancies: fx!.fxDiscrepancies,
+    fx: fx!,
   };
 }
 
@@ -360,6 +390,31 @@ export async function reconcileCustomer(
     const r = await reconcileOrder(prisma, o.id);
     if (r) results.push(r);
   }
+  // P2-7 多币种汇总：按币种分组聚合应收 / 锁汇覆盖 / 已实现损益
+  const fxByCurrency = new Map<string, CustomerFxCurrencySummary>();
+  for (const r of results) {
+    for (const g of r.fx.invoicedByCurrency) {
+      let row = fxByCurrency.get(g.currency);
+      if (!row) {
+        row = { currency: g.currency, invoicedAmount: 0, lockedAmount: 0, coveragePct: 0, realizedGainLossCny: 0 };
+        fxByCurrency.set(g.currency, row);
+      }
+      row.invoicedAmount = d2n(dec(row.invoicedAmount).plus(dec(g.amount)));
+      row.lockedAmount = d2n(dec(row.lockedAmount).plus(dec(g.lockedAmount)));
+    }
+    for (const seg of r.fx.segments) {
+      if (seg.gainLossCny == null) continue;
+      let row = fxByCurrency.get(seg.currency);
+      if (!row) {
+        row = { currency: seg.currency, invoicedAmount: 0, lockedAmount: 0, coveragePct: 0, realizedGainLossCny: 0 };
+        fxByCurrency.set(seg.currency, row);
+      }
+      row.realizedGainLossCny = d2n(dec(row.realizedGainLossCny).plus(dec(seg.gainLossCny)));
+    }
+  }
+  for (const row of fxByCurrency.values()) {
+    row.coveragePct = row.invoicedAmount > 0 ? d2n(dec(row.lockedAmount).div(dec(row.invoicedAmount))) : 0;
+  }
   const summary: CustomerReconciliationSummary = {
     customerRelationId,
     totalOrders: results.length,
@@ -370,6 +425,7 @@ export async function reconcileCustomer(
     criticalCount: results.reduce((s, r) => s + r.discrepancies.filter(d => d.severity === 'critical').length, 0),
     warningCount: results.reduce((s, r) => s + r.discrepancies.filter(d => d.severity === 'warning').length, 0),
     infoCount: results.reduce((s, r) => s + r.discrepancies.filter(d => d.severity === 'info').length, 0),
+    fxGainLossTotal: [...fxByCurrency.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
   };
   return { summary, orders: results };
 }
@@ -387,6 +443,9 @@ export interface DiscrepancyListItem extends ReconciliationDiscrepancy {
 /**
  * 全量差异清单：扫全部未删订单逐单勾稽，拍平差异按 severity 排序，内存分页。
  * （对账工作台口径；订单量大时后续可加快照缓存——POST /refresh 即为重算入口。）
+ *
+ * P2-7：fx 差异（汇率链三段）一并拍平，type=fx_order_to_invoice / fx_invoice_to_payment /
+ * fx_payment_to_settlement；type 筛选支持精确匹配，或 type=fx 聚合匹配全部汇率链差异。
  */
 export async function listAllDiscrepancies(
   prisma: PrismaClient,
@@ -396,22 +455,42 @@ export async function listAllDiscrepancies(
   const where: any = { deletedAt: null };
   if (params.customerRelationId) where.customerRelationId = params.customerRelationId;
   const orders: any[] = await db.order.findMany({ where, select: { id: true } });
+  const matchType = (t: string) => {
+    if (!params.type) return true;
+    if (params.type === 'fx') return t.startsWith('fx_');
+    return t === params.type;
+  };
   const flat: DiscrepancyListItem[] = [];
   for (const o of orders) {
     const r = await reconcileOrder(prisma, o.id);
     if (!r) continue;
+    const orderCtx = {
+      orderId: r.orderId,
+      orderCode: r.orderCode,
+      poNumber: r.poNumber,
+      customerName: r.customerName,
+      customerRelationId: r.customerRelationId,
+      currency: r.currency,
+      orderAmount: r.orderAmount,
+    };
     for (const d of r.discrepancies) {
       if (params.severity && d.severity !== params.severity) continue;
-      if (params.type && d.type !== params.type) continue;
+      if (!matchType(d.type)) continue;
+      flat.push({ ...d, ...orderCtx });
+    }
+    // P2-7 汇率链差异拍平（FxDiscrepancy → 清单行；expected/actual 取期望/实际汇率）
+    for (const fx of r.fxDiscrepancies) {
+      if (params.severity && fx.severity !== params.severity) continue;
+      const flatType = `fx_${fx.type}` as ReconciliationDiscrepancy['type'];
+      if (!matchType(flatType)) continue;
       flat.push({
-        ...d,
-        orderId: r.orderId,
-        orderCode: r.orderCode,
-        poNumber: r.poNumber,
-        customerName: r.customerName,
-        customerRelationId: r.customerRelationId,
-        currency: r.currency,
-        orderAmount: r.orderAmount,
+        type: flatType,
+        field: 'exchangeRate',
+        expected: fx.expectedRate != null ? String(fx.expectedRate) : '(缺上游汇率)',
+        actual: fx.actualRate != null ? String(fx.actualRate) : '(缺单据汇率)',
+        severity: fx.severity,
+        message: fx.message,
+        ...orderCtx,
       });
     }
   }

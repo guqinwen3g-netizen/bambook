@@ -44,6 +44,16 @@ import type { AgingBuckets, AgingReport, CustomerStatement, DunningStage, FxGain
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 
+// P2-7 汇率链分段（后端 FxGainLossRow 扩展字段；root types.ts 冻结，本地交叉类型镜像）
+type FxGainLossRowExt = FxGainLossReport['rows'][number] & {
+  segment?: 'invoice_to_payment' | 'payment_to_settlement';
+  lockProtected?: boolean;
+};
+const FX_SEGMENT_BADGE: Record<string, string> = {
+  invoice_to_payment: '收付',
+  payment_to_settlement: '结汇',
+};
+
 type ReportTabId = 'aging' | 'statement' | 'supplier-statement' | 'fx' | 'fx-ledger' | 'consolidated' | 'internal-trade' | 'monthly-close';
 
 /** YYYY-MM-DD（与 server internalTrade DATE_RE 一致） */
@@ -688,12 +698,16 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
             <div className="text-right">损益 ({fx.baseCurrency})</div>
           </div>
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs">
-            {fx.rows.map(row => (
+            {fx.rows.map(row => {
+              const ext = row as FxGainLossRowExt;
+              return (
               <div key={row.allocationId} className={cx('grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.7fr)] items-center rounded-control px-4 py-2.5', 'bg-[var(--recessed-bg)]')}>
                 <div className={cx('font-light tabular-nums', textSecondary)}>{row.appliedDate}</div>
                 <div className={cx('truncate font-light', textPrimary)}>
                   {row.invoiceNumber}
                   <span className={cx('ml-1.5 text-[10px]', textFaint)}>{row.invoiceType === 'Payable' ? '应付' : '应收'}</span>
+                  {ext.segment && <span className={cx('ml-1.5 text-[10px]', textFaint)}>{FX_SEGMENT_BADGE[ext.segment] ?? ext.segment}</span>}
+                  {ext.lockProtected && <span className={cx('ml-1.5 text-[10px]', textFaint)}>锁汇</span>}
                 </div>
                 <div className={cx('truncate font-light', textPrimary)}>{row.voucherNumber}</div>
                 <div className={cx('text-right font-light tabular-nums', textPrimary)}>{formatAmount(row.appliedAmount, row.currency)}</div>
@@ -703,9 +717,10 @@ export function FinanceReportsPanel({ isDarkMode, endpoint }: FinanceReportsPane
                   {row.gainLoss >= 0 ? '+' : ''}{formatAmount(row.gainLoss, fx.baseCurrency)}
                 </div>
               </div>
-            ))}
+              );
+            })}
             {fx.rows.length === 0 && (
-              <div className={cx('py-6 text-center font-light', textFaint)}>该期间无含双边汇率的核销记录</div>
+              <div className={cx('py-6 text-center font-light', textFaint)}>该期间无含双边汇率的核销/结汇记录</div>
             )}
           </div>
         </RdlSurface>

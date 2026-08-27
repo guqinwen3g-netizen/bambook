@@ -25,6 +25,8 @@ function makePrisma(opts: {
   allocGroupBy?: any[];
   devCases?: any[];
   fxRates?: any[];
+  settlements?: any[]; // FxSettlement（P2-7 汇率链 C 段）
+  locks?: any[];       // FxRateLock（P2-7 锁汇索引）
 }) {
   return {
     order: {
@@ -65,6 +67,22 @@ function makePrisma(opts: {
     },
     exchangeRate: {
       findMany: vi.fn().mockResolvedValue(opts.fxRates ?? []),
+    },
+    // P2-7：getFxGainLoss 统一汇率链后新增 C 段结汇查询 + 锁汇索引（驾驶舱经由 getBusinessCockpit 消费）
+    fxSettlement: {
+      findMany: vi.fn().mockImplementation(async ({ where }: any = {}) => {
+        let rows = (opts.settlements ?? []).filter((r: any) => r.deletedAt == null);
+        if (where?.settleDate?.gte) rows = rows.filter((r: any) => r.settleDate >= where.settleDate.gte);
+        if (where?.settleDate?.lte) rows = rows.filter((r: any) => r.settleDate <= where.settleDate.lte);
+        return rows;
+      }),
+    },
+    fxRateLock: {
+      findMany: vi.fn().mockImplementation(async ({ where }: any = {}) => {
+        let rows = (opts.locks ?? []).filter((r: any) => r.deletedAt == null);
+        if (where?.orderId?.in) rows = rows.filter((r: any) => where.orderId.in.includes(r.orderId));
+        return rows;
+      }),
     },
   } as any;
 }

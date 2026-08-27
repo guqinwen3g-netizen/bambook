@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { reconcileOrder, reconcileCustomer, listAllDiscrepancies } from '../reconciliationService';
 
-/** 内存 prisma：仅实现对账引擎消费的查询面 */
+/** 内存 prisma：仅实现对账引擎消费的查询面（P2-7 增补 fx 模型面） */
 function makePrisma(seed: {
   orders?: any[];
   orderLines?: any[];
@@ -28,6 +28,10 @@ function makePrisma(seed: {
   ioas?: any[];                // InvoiceOrderAllocation
   invoices?: any[];
   invoiceAllocations?: any[];  // InvoiceAllocation（核销）
+  vouchers?: any[];            // PaymentVoucher（P2-7 汇率链 B 段）
+  settlements?: any[];         // FxSettlement（P2-7 汇率链 C 段）
+  fxRateLocks?: any[];         // FxRateLock（P2-7 锁汇）
+  exchangeRates?: any[];       // ExchangeRate 市场档案（P2-7 A 段期望汇率）
 } = {}) {
   const state = {
     orders: seed.orders ?? [],
@@ -38,6 +42,10 @@ function makePrisma(seed: {
     ioas: seed.ioas ?? [],
     invoices: seed.invoices ?? [],
     invoiceAllocations: seed.invoiceAllocations ?? [],
+    vouchers: seed.vouchers ?? [],
+    settlements: seed.settlements ?? [],
+    fxRateLocks: seed.fxRateLocks ?? [],
+    exchangeRates: seed.exchangeRates ?? [],
   };
   const matchIdIn = (row: any, where: any, key = 'id') => {
     if (where?.[key]?.in) return where[key].in.includes(row[key]);
@@ -79,6 +87,30 @@ function makePrisma(seed: {
     },
     invoiceAllocation: {
       findMany: async ({ where }: any) => state.invoiceAllocations.filter(a => !where?.invoiceId?.in || where.invoiceId.in.includes(a.invoiceId)),
+    },
+    // ── P2-7 fx 模型面 ──
+    paymentVoucher: {
+      findMany: async ({ where }: any = {}) => state.vouchers.filter(v => !where?.id?.in || where.id.in.includes(v.id)),
+    },
+    fxSettlement: {
+      findMany: async ({ where }: any = {}) =>
+        state.settlements.filter(s =>
+          s.deletedAt == null
+          && (!where?.orderId || s.orderId === where.orderId)
+          && (!where?.voucherId?.in || where.voucherId.in.includes(s.voucherId))),
+    },
+    fxRateLock: {
+      findMany: async ({ where }: any = {}) =>
+        state.fxRateLocks.filter(l => l.deletedAt == null && (!where?.orderId || l.orderId === where.orderId)),
+    },
+    exchangeRate: {
+      findFirst: async ({ where }: any = {}) => {
+        let rows = state.exchangeRates.filter(r => !where?.currency || r.currency === where.currency);
+        if (where?.effectiveDate?.lte) rows = rows.filter(r => r.effectiveDate <= where.effectiveDate.lte);
+        rows = [...rows].sort((a, b) =>
+          b.effectiveDate.localeCompare(a.effectiveDate) || Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0));
+        return rows[0] ?? null;
+      },
     },
   };
   return prisma;
@@ -403,5 +435,115 @@ describe('reconcileCustomer / listAllDiscrepancies — 客户维度与全量清�
     // customerRelationId 过滤
     const byCustomer = await listAllDiscrepancies(prisma, { customerRelationId: 'REL_NOBODY' });
     expect(byCustomer.total).toBe(0);
+  });
+});
+
+describe('P2-7 多币种对账 — fx 扩展（汇率链 + 锁汇优先）', () => {
+  const fxInvoice = {
+    ...fullInvoice,
+    exchangeRate: '7.0',
+    issueDate: '2026-07-01',
+    baseCurrency: 'CNY',
+  };
+  const fxVoucher = {
+    id: 'PAY1', voucherNumber: 'PAY-001', type: 'Receipt', amount: '6000',
+    currency: 'USD', exchangeRate: '7.1', baseCurrency: 'CNY', paymentDate: '2026-07-10',
+    orderId: 'ORD1', deletedAt: null,
+  };
+  const fxRates = [{ id: 'FXR1', currency: 'USD', rate: '7.2', effectiveDate: '2026-06-30', createdAt: 1n }];
+  const seedFx = (overrides: Parameters<typeof makePrisma>[0] = {}) => makePrisma({
+    orders: [baseOrder],
+    orderLines: [{ id: 'OL1', orderId: 'ORD1', quantity: '100' }],
+    shipments: [shippedShipment],
+    shipmentAllocations: [{ id: 'SHPA1', shipmentId: 'SHP1', orderId: 'ORD1', actualQty: '100' }],
+    invoices: [fxInvoice],
+    ioas: [{ id: 'IOA1', invoiceId: 'INV1', orderId: 'ORD1', allocatedAmount: null, deletedAt: null }],
+    invoiceAllocations: [{ id: 'AL1', invoiceId: 'INV1', voucherId: 'PAY1', appliedAmount: '6000' }],
+    vouchers: [fxVoucher],
+    exchangeRates: fxRates,
+    ...overrides,
+  });
+
+  it('单订单结果补 fxDiscrepancies + fx 三段对照；四单 discrepancies 口径不变', async () => {
+    const prisma = seedFx();
+    const r = await reconcileOrder(prisma, 'ORD1');
+    // A 段：开票 7.0 vs 市场 7.2（−2.78% > 2%）→ warning；B 段：收付 7.1 vs 开票 7.0 → info + 损益 600
+    const discA = r!.fxDiscrepancies.find(d => d.type === 'order_to_invoice');
+    expect(discA!.severity).toBe('warning');
+    const discB = r!.fxDiscrepancies.find(d => d.type === 'invoice_to_payment');
+    expect(discB!.severity).toBe('info');
+    expect(discB!.gainLossCny).toBe(600);
+    expect(r!.fx.realizedGainLossCny).toBe(600);
+    expect(r!.fx.segments.map(s => s.stage)).toEqual(['order_to_invoice', 'invoice_to_payment']);
+    expect(r!.fx.invoicedByCurrency).toEqual([{ currency: 'USD', amount: 10000, lockedAmount: 0 }]);
+    // 四单主差异数组不含 fx 类型（口径不变）
+    expect(r!.discrepancies.every(d => !d.type.startsWith('fx_'))).toBe(true);
+  });
+
+  it('锁汇优先：active FxRateLock → 期望汇率取锁定价，差异记 info；覆盖金额进 invoicedByCurrency', async () => {
+    const prisma = seedFx({
+      fxRateLocks: [{ id: 'FXL1', orderId: 'ORD1', currency: 'USD', rate: '7.3', lockedAt: 1n, deletedAt: null }],
+    });
+    const r = await reconcileOrder(prisma, 'ORD1');
+    expect(r!.fx.locks).toHaveLength(1);
+    const segA = r!.fx.segments.find(s => s.stage === 'order_to_invoice')!;
+    expect(segA.expectedRate).toBe(7.3);
+    expect(segA.rateSource).toBe('locked');
+    expect(r!.fxDiscrepancies.find(d => d.type === 'order_to_invoice')!.severity).toBe('info');
+    expect(r!.fx.invoicedByCurrency[0].lockedAmount).toBe(10000);
+  });
+
+  it('客户汇总 fxGainLossTotal：按币种分组（应收 / 锁汇覆盖 / 已实现损益）', async () => {
+    const eurOrder = { ...baseOrder, id: 'ORD2', code: 'SO-2026-002', currency: 'EUR', status: 'Shipping' };
+    const eurInvoice = {
+      ...fullInvoice, id: 'INV2', invoiceNumber: 'INV-2026-002', currency: 'EUR', orderId: 'ORD2',
+      exchangeRate: '7.8', issueDate: '2026-07-01', baseCurrency: 'CNY', amount: '5000', status: 'Issued',
+    };
+    const prisma = makePrisma({
+      orders: [baseOrder, eurOrder],
+      orderLines: [
+        { id: 'OL1', orderId: 'ORD1', quantity: '100' },
+        { id: 'OL2', orderId: 'ORD2', quantity: '50' },
+      ],
+      shipments: [shippedShipment],
+      shipmentAllocations: [{ id: 'SHPA1', shipmentId: 'SHP1', orderId: 'ORD1', actualQty: '100' }],
+      invoices: [fxInvoice, eurInvoice],
+      ioas: [
+        { id: 'IOA1', invoiceId: 'INV1', orderId: 'ORD1', allocatedAmount: null, deletedAt: null },
+        { id: 'IOA2', invoiceId: 'INV2', orderId: 'ORD2', allocatedAmount: null, deletedAt: null },
+      ],
+      invoiceAllocations: [{ id: 'AL1', invoiceId: 'INV1', voucherId: 'PAY1', appliedAmount: '6000' }],
+      vouchers: [fxVoucher],
+      fxRateLocks: [{ id: 'FXL1', orderId: 'ORD1', currency: 'USD', rate: '7.3', lockedAt: 1n, deletedAt: null }],
+      exchangeRates: [...fxRates, { id: 'FXR2', currency: 'EUR', rate: '7.9', effectiveDate: '2026-06-30', createdAt: 1n }],
+    });
+    const { summary } = await reconcileCustomer(prisma, 'REL1');
+    expect(summary.fxGainLossTotal).toEqual([
+      { currency: 'EUR', invoicedAmount: 5000, lockedAmount: 0, coveragePct: 0, realizedGainLossCny: 0 },
+      { currency: 'USD', invoicedAmount: 10000, lockedAmount: 10000, coveragePct: 1, realizedGainLossCny: 600 },
+    ]);
+  });
+
+  it('全量差异清单：fx 差异拍平 + type=fx 聚合筛选 + 精确类型筛选', async () => {
+    const prisma = seedFx();
+    const all = await listAllDiscrepancies(prisma, {});
+    const fxItems = all.items.filter(i => i.type.startsWith('fx_'));
+    expect(fxItems.length).toBeGreaterThanOrEqual(2); // A warning + B info
+    expect(fxItems.every(i => i.field === 'exchangeRate')).toBe(true);
+    expect(fxItems.find(i => i.type === 'fx_order_to_invoice')).toBeDefined();
+    expect(fxItems.find(i => i.type === 'fx_invoice_to_payment')).toBeDefined();
+
+    // type=fx 聚合筛选：只剩汇率链差异
+    const onlyFx = await listAllDiscrepancies(prisma, { type: 'fx' });
+    expect(onlyFx.total).toBeGreaterThan(0);
+    expect(onlyFx.items.every(i => i.type.startsWith('fx_'))).toBe(true);
+
+    // 精确类型筛选
+    const onlyB = await listAllDiscrepancies(prisma, { type: 'fx_invoice_to_payment' });
+    expect(onlyB.items.every(i => i.type === 'fx_invoice_to_payment')).toBe(true);
+
+    // severity 筛选对 fx 差异同样生效
+    const warnings = await listAllDiscrepancies(prisma, { severity: 'warning', type: 'fx' });
+    expect(warnings.items.every(i => i.severity === 'warning' && i.type.startsWith('fx_'))).toBe(true);
   });
 });

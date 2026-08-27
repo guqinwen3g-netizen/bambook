@@ -19,6 +19,8 @@ function makePrisma(opts: {
   vouchers?: any[];
   allocations?: any[];
   allocGroupBy?: any[];
+  settlements?: any[];  // FxSettlement（P2-7 汇率链 C 段）
+  locks?: any[];        // FxRateLock（P2-7 锁汇覆盖标记）
 }) {
   return {
     invoice: {
@@ -47,6 +49,22 @@ function makePrisma(opts: {
         let rows = opts.allocations ?? [];
         if (where?.appliedDate?.gte) rows = rows.filter(r => r.appliedDate >= where.appliedDate.gte);
         if (where?.appliedDate?.lte) rows = rows.filter(r => r.appliedDate <= where.appliedDate.lte);
+        return rows;
+      }),
+    },
+    // ── P2-7 汇率链 C 段（结汇）+ 锁汇覆盖 ──
+    fxSettlement: {
+      findMany: vi.fn().mockImplementation(async ({ where }: any = {}) => {
+        let rows = (opts.settlements ?? []).filter(r => r.deletedAt == null);
+        if (where?.settleDate?.gte) rows = rows.filter(r => r.settleDate >= where.settleDate.gte);
+        if (where?.settleDate?.lte) rows = rows.filter(r => r.settleDate <= where.settleDate.lte);
+        return rows;
+      }),
+    },
+    fxRateLock: {
+      findMany: vi.fn().mockImplementation(async ({ where }: any = {}) => {
+        let rows = (opts.locks ?? []).filter(r => r.deletedAt == null);
+        if (where?.orderId?.in) rows = rows.filter(r => where.orderId.in.includes(r.orderId));
         return rows;
       }),
     },

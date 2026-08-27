@@ -6,7 +6,8 @@
  *   - 未核销余额 = 发票金额 - Σ allocation.appliedAmount（与 recalcInvoiceStatus 同一口径）
  *   - 账龄以 dueDate 为基准（无 dueDate 回退 issueDate），分 current/1-30/31-60/61-90/90+ 五桶
  *   - 多币种不折算汇总 —— 按 (客户, 币种) 分行，避免汇率假设污染报表
- *   - 汇率损益口径：Receivable 收益 = 核销额 × (收款汇率 - 开票汇率)；Payable 反向
+ *   - 汇率损益口径（P2-7 统一走 fxReconciliationService 汇率链）：
+ *     B 段 核销额 × (收付汇率 - 开票汇率)；C 段 结汇额 × (结汇汇率 - 收付汇率)；Payable 反向
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -321,18 +322,38 @@ export async function getSupplierStatement(
 // ────────────────────────────────────────────────────────────────
 // 3. 汇率损益（FX Gain/Loss）
 // ────────────────────────────────────────────────────────────────
+//
+// P2-7 口径统一：损益计算不再自算，统一走 fxReconciliationService 的汇率链——
+//   B 段（开票日→收付日）：核销维度，computeFxGainLoss(invoice.exchangeRate → voucher.exchangeRate)
+//   C 段（收付日→结汇日）：水单维度，computeFxGainLoss(voucher.exchangeRate → settlement.fxRate)
+// 符号真源 = computeFxGainLoss（Receivable 下游高=收益 / Payable 下游低=收益）。
+// 锁汇覆盖：行级 lockProtected 标记（该单据所属订单存在同币种 active FxRateLock），
+// 报表级 lockCoverage 汇总（期间内核销涉及的外币发票中，被锁汇保护的金额占比）。
+
+import { computeFxGainLoss } from './fxReconciliationService';
+
+export type FxGainLossSegment = 'invoice_to_payment' | 'payment_to_settlement';
 
 export interface FxGainLossRow {
-  allocationId: string;
-  appliedDate: string;
-  invoiceNumber: string;
-  voucherNumber: string;
+  allocationId: string;          // B 段 = InvoiceAllocation.id；C 段 = FxSettlement.id
+  appliedDate: string;           // B 段 = 核销日；C 段 = 结汇日
+  invoiceNumber: string;         // B 段 = 发票号；C 段 = 上游凭证号（结汇无直接发票）
+  voucherNumber: string;         // B 段 = 凭证号；C 段 = 结汇水单号
   invoiceType: string;
   currency: string;
   appliedAmount: number;
-  invoiceRate: number;
-  voucherRate: number;
+  invoiceRate: number;           // 上游汇率（B 段开票日 / C 段收付日）
+  voucherRate: number;           // 下游汇率（B 段收付日 / C 段结汇日）
   gainLoss: number; // 正=收益，负=损失（本位币）
+  segment: FxGainLossSegment;    // P2-7 汇率链分段
+  lockProtected: boolean;        // P2-7 是否被 FxRateLock 保护
+}
+
+export interface FxLockCoverageRow {
+  currency: string;
+  totalAmount: number;   // 期间内核销涉及的外币发票总额
+  lockedAmount: number;  // 其中锁汇覆盖金额
+  coveragePct: number;   // lockedAmount / totalAmount（0-1）
 }
 
 export interface FxGainLossReport {
@@ -341,6 +362,7 @@ export interface FxGainLossReport {
   baseCurrency: string;
   rows: FxGainLossRow[];
   totalGainLoss: number;
+  lockCoverage: FxLockCoverageRow[]; // P2-7 锁汇覆盖汇总
 }
 
 export async function getFxGainLoss(
@@ -348,6 +370,7 @@ export async function getFxGainLoss(
   params: { from?: string; to?: string } = {},
 ): Promise<FxGainLossReport> {
   const { from, to } = params;
+  const db = prisma as any;
 
   const allocations = await prisma.invoiceAllocation.findMany({
     where: {
@@ -357,14 +380,26 @@ export async function getFxGainLoss(
     select: { id: true, invoiceId: true, voucherId: true, appliedAmount: true, appliedDate: true },
   });
 
+  // C 段：期间内结汇水单（FxSettlement 仅挂 Receipt 外币凭证，恒 Receivable 侧）
+  const settlements: any[] = await db.fxSettlement.findMany({
+    where: {
+      deletedAt: null,
+      ...(from ? { settleDate: { gte: from } } : {}),
+      ...(to ? { settleDate: { lte: to } } : {}),
+    },
+  });
+
   const invoiceIds = [...new Set(allocations.map(a => a.invoiceId))];
-  const voucherIds = [...new Set(allocations.map(a => a.voucherId))];
+  const voucherIds = [...new Set([
+    ...allocations.map(a => a.voucherId),
+    ...settlements.map((s: any) => s.voucherId as string),
+  ])];
 
   const [invoices, vouchers] = await Promise.all([
     invoiceIds.length > 0
       ? prisma.invoice.findMany({
           where: { id: { in: invoiceIds } },
-          select: { id: true, invoiceNumber: true, type: true, currency: true, exchangeRate: true, baseCurrency: true },
+          select: { id: true, invoiceNumber: true, type: true, amount: true, currency: true, exchangeRate: true, baseCurrency: true, orderId: true },
         })
       : [],
     voucherIds.length > 0
@@ -374,13 +409,26 @@ export async function getFxGainLoss(
         })
       : [],
   ]);
-  const invMap = new Map(invoices.map(i => [i.id, i]));
-  const vocMap = new Map(vouchers.map(v => [v.id, v]));
+  const invMap = new Map<string, any>(invoices.map(i => [i.id, i] as [string, any]));
+  const vocMap = new Map<string, any>(vouchers.map(v => [v.id, v] as [string, any]));
+
+  // 锁汇索引：(orderId, currency) active 锁
+  const lockOrderIds = [...new Set([
+    ...invoices.map(i => i.orderId).filter((x): x is string => x != null),
+    ...settlements.map((s: any) => s.orderId).filter((x: any): x is string => x != null),
+  ])];
+  const lockRows: any[] = lockOrderIds.length > 0
+    ? await db.fxRateLock.findMany({ where: { orderId: { in: lockOrderIds }, deletedAt: null } })
+    : [];
+  const lockSet = new Set<string>(lockRows.map((l: any) => `${l.orderId}::${l.currency}`));
 
   const rows: FxGainLossRow[] = [];
   let total = 0;
   let baseCurrency = 'CNY';
 
+  // ── B 段：开票 → 收付（核销维度） ──
+  const coverageMap = new Map<string, { total: number; locked: number }>();
+  const coveredInvoiceIds = new Set<string>();
   for (const alloc of allocations) {
     const inv = invMap.get(alloc.invoiceId);
     const voc = vocMap.get(alloc.voucherId);
@@ -389,12 +437,25 @@ export async function getFxGainLoss(
     if (inv.currency === inv.baseCurrency) continue; // 本币发票无汇兑
 
     baseCurrency = inv.baseCurrency;
+    const lockProtected = inv.orderId != null && lockSet.has(`${inv.orderId}::${inv.currency}`);
+
+    // 锁汇覆盖汇总（按发票去重；期间内核销涉及的外币发票）
+    if (!coveredInvoiceIds.has(inv.id)) {
+      coveredInvoiceIds.add(inv.id);
+      const invAmount = Number(inv.amount);
+      if (Number.isFinite(invAmount)) {
+        const b = coverageMap.get(inv.currency) ?? { total: 0, locked: 0 };
+        b.total = round4(b.total + invAmount);
+        if (lockProtected) b.locked = round4(b.locked + invAmount);
+        coverageMap.set(inv.currency, b);
+      }
+    }
+
     const applied = Number(alloc.appliedAmount);
     const invRate = Number(inv.exchangeRate);
     const vocRate = Number(voc.exchangeRate);
-    // Receivable：收款汇率高于开票汇率 = 收益；Payable：付款汇率低于开票汇率 = 收益
-    const diff = inv.type === 'Payable' ? invRate - vocRate : vocRate - invRate;
-    const gainLoss = round4(applied * diff);
+    // 符号口径统一走 computeFxGainLoss（Receivable 收高=收益 / Payable 付低=收益）
+    const gainLoss = computeFxGainLoss({ side: inv.type, foreignAmount: applied, fromRate: invRate, toRate: vocRate });
     if (gainLoss === 0) continue;
 
     rows.push({
@@ -408,12 +469,52 @@ export async function getFxGainLoss(
       invoiceRate: invRate,
       voucherRate: vocRate,
       gainLoss,
+      segment: 'invoice_to_payment',
+      lockProtected,
     });
     total = round4(total + gainLoss);
   }
 
+  // ── C 段：收付 → 结汇（水单维度；上游=收款凭证汇率快照） ──
+  for (const st of settlements) {
+    const voc = vocMap.get(st.voucherId);
+    if (!voc || voc.exchangeRate == null) continue;
+    if (!st.currency || st.currency === 'CNY') continue; // CNY 凭证无结汇语义（创建侧 fail closed），防御性排除
+    const foreign = Number(st.foreignAmount);
+    const fromRate = Number(voc.exchangeRate);
+    const toRate = Number(st.fxRate);
+    // 结汇恒为收款侧：结汇汇率高于收付汇率 = 收益
+    const gainLoss = computeFxGainLoss({ side: 'Receivable', foreignAmount: foreign, fromRate, toRate });
+    if (gainLoss === 0) continue;
+
+    rows.push({
+      allocationId: st.id,
+      appliedDate: st.settleDate,
+      invoiceNumber: voc.voucherNumber, // 结汇无直接发票，上游单据 = 收款凭证
+      voucherNumber: st.settlementNumber,
+      invoiceType: 'Receivable',
+      currency: st.currency,
+      appliedAmount: foreign,
+      invoiceRate: fromRate,
+      voucherRate: toRate,
+      gainLoss,
+      segment: 'payment_to_settlement',
+      lockProtected: st.orderId != null && lockSet.has(`${st.orderId}::${st.currency}`),
+    });
+    total = round4(total + gainLoss);
+  }
+
+  const lockCoverage: FxLockCoverageRow[] = [...coverageMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, b]) => ({
+      currency,
+      totalAmount: b.total,
+      lockedAmount: b.locked,
+      coveragePct: b.total > 0 ? round4(b.locked / b.total) : 0,
+    }));
+
   rows.sort((a, b) => a.appliedDate.localeCompare(b.appliedDate));
-  return { from: from ?? null, to: to ?? null, baseCurrency, rows, totalGainLoss: total };
+  return { from: from ?? null, to: to ?? null, baseCurrency, rows, totalGainLoss: total, lockCoverage };
 }
 
 // ────────────────────────────────────────────────────────────────
