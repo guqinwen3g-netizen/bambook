@@ -47,6 +47,7 @@ import {
   MATERIAL_RETURN_STATUS_LABELS,
   Relation,
   View,
+  Warehouse,
 } from '../types';
 import { primeFinanceInvoiceCreate } from './FinanceManager';
 import { PageHeader } from './ui/PageHeader';
@@ -56,7 +57,7 @@ import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
-import SupplierInquiryPanel from './SupplierInquiryPanel';
+import SupplierInquiryPanel, { SupplierInquiryConvertDraft } from './SupplierInquiryPanel';
 import { bdsConfirm } from './ui/BdsDialog';
 import { bdsToast } from './ui/bdsToast';
 
@@ -281,19 +282,20 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
     }]);
   }, [createPrime]);
 
-  // 来料检验表单状态
+  // 来料检验表单状态（D5 仓库下拉选 warehouseId；D6 行级明细为真源，单头合计由行级累加派生）
   const [receiptForm, setReceiptForm] = useState({
     receiptNumber: '',
     receivedDate: new Date().toISOString().split('T')[0],
     receivedBy: '',
-    warehouseName: '',
-    totalReceived: '',
-    totalAccepted: '',
-    totalRejected: '',
+    warehouseId: '',
     rejectionReason: '',
     qualityNotes: '',
   });
+  // D6 行级收货输入态：lineId → 本次合格/不合格（字符串，空 = 未收）
+  const [receiptLines, setReceiptLines] = useState<Record<string, { accepted: string; rejected: string }>>({});
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  // D5：入库仓库下拉数据源（收货表单用）
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   // ── 拉取数据 ──
   const fetchPurchaseOrders = useCallback(async () => {
@@ -327,6 +329,48 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   useEffect(() => {
     apiService.listRelations().then(setRelations).catch(() => {});
   }, []);
+
+  // D5：入库仓库下拉数据源（收货表单用）
+  useEffect(() => {
+    apiService.listWarehouses().then(setWarehouses).catch(() => {});
+  }, []);
+
+  // ── C7：询价一键转采购单（已比价询价单 → 新建采购单预填：供应商/币种/条款/行明细） ──
+  const handleConvertInquiry = useCallback((draft: SupplierInquiryConvertDraft) => {
+    setCreatePrime(null); // 询价来源与订单 prime 互斥，避免关联备注串味
+    setForm(prev => ({
+      ...prev,
+      currency: draft.currency || prev.currency,
+      supplierRelationId: draft.supplierRelationId ?? '',
+      supplierName: draft.supplierName ?? '',
+      expectedDeliveryDate: draft.expectedDeliveryDate || prev.expectedDeliveryDate,
+      deliveryTerms: draft.deliveryTerms || prev.deliveryTerms,
+      paymentTerms: draft.paymentTerms || prev.paymentTerms,
+      buyer: draft.buyer || prev.buyer,
+      notes: `来自询价单 ${draft.inquiryNumber}`,
+    }));
+    setFormLines([{
+      ...createEmptyLine(),
+      materialCode: draft.line.materialCode ?? '',
+      description: draft.line.description,
+      quantity: draft.line.quantity != null ? String(draft.line.quantity) : '',
+      unit: draft.line.unit || 'YD',
+    }]);
+    setFormError(null);
+    setViewMode('orders');
+    setShowCreateForm(true);
+  }, []);
+
+  // D6：行级收货合计（行级为真源，单头合计派生只读展示）
+  const receiptTotals = useMemo(() => {
+    let accepted = 0;
+    let rejected = 0;
+    for (const v of Object.values(receiptLines)) {
+      accepted += v.accepted.trim() ? Number(v.accepted) || 0 : 0;
+      rejected += v.rejected.trim() ? Number(v.rejected) || 0 : 0;
+    }
+    return { accepted, rejected };
+  }, [receiptLines]);
 
   // ── 供应商选项 ──
   const supplierOptions = useMemo(() => {
@@ -505,36 +549,56 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
     }
   }, [form, formLines, createPrime, fetchPurchaseOrders]);
 
-  // ── 创建来料检验记录 ──
+  // ── 创建来料检验记录（D5 仓库下拉生效；D6 行级明细为真源，单头合计由行级累加派生） ──
   const handleCreateReceipt = useCallback(async (poId: string) => {
     setReceiptError(null);
     if (!receiptForm.receiptNumber) { setReceiptError('请填写收料单号'); return; }
     if (!receiptForm.receivedDate) { setReceiptError('请填写收货日期'); return; }
-    if (receiptForm.totalReceived === '' || receiptForm.totalAccepted === '' || receiptForm.totalRejected === '') {
-      setReceiptError('请填写收货数量 / 合格数量 / 不合格数量'); return;
+
+    const po = purchaseOrders.find(p => p.id === poId);
+    const lines = po?.lines ?? [];
+    // D6：逐行解析本次收货数量（空 = 未收），行级明细为真源
+    const lineReceipts: Array<{ lineId: string; accepted: number; rejected: number }> = [];
+    for (const line of lines) {
+      const draft = receiptLines[line.id];
+      const acc = draft?.accepted?.trim() ? Number(draft.accepted) : 0;
+      const rej = draft?.rejected?.trim() ? Number(draft.rejected) : 0;
+      if (!Number.isFinite(acc) || acc < 0 || !Number.isFinite(rej) || rej < 0) {
+        setReceiptError(`行 ${line.lineNumber} 收货数量非法（须为非负数字）`); return;
+      }
+      if (acc > 0 || rej > 0) lineReceipts.push({ lineId: line.id, accepted: acc, rejected: rej });
     }
+    if (lineReceipts.length === 0) { setReceiptError('请至少填写一行的本次收货数量'); return; }
+    const totalAccepted = lineReceipts.reduce((s, l) => s + l.accepted, 0);
+    const totalRejected = lineReceipts.reduce((s, l) => s + l.rejected, 0);
+    const totalReceived = totalAccepted + totalRejected;
 
     setActionLoading(`receipt_${poId}`);
     try {
-      const input: MaterialReceiptInput = {
+      // D5：仓库下拉选定 → warehouseId + 名称快照一并提交（后端落库并随事件透传，不再永远进主仓）
+      const warehouse = warehouses.find(w => w.id === receiptForm.warehouseId);
+      const input = {
         receiptNumber: receiptForm.receiptNumber,
         receivedDate: receiptForm.receivedDate,
         receivedBy: receiptForm.receivedBy || undefined,
-        warehouseName: receiptForm.warehouseName || undefined,
-        totalReceived: parseFloat(receiptForm.totalReceived),
-        totalAccepted: parseFloat(receiptForm.totalAccepted),
-        totalRejected: parseFloat(receiptForm.totalRejected),
+        warehouseId: warehouse?.id || undefined,
+        warehouseName: warehouse?.name || undefined,
+        totalReceived,
+        totalAccepted,
+        totalRejected,
         rejectionReason: receiptForm.rejectionReason || undefined,
         qualityNotes: receiptForm.qualityNotes || undefined,
-      };
+        // D6 行级明细（后端契约字段；前端 MaterialReceiptInput 类型未含——types.ts 不在本车道租约内，断言透传）
+        lineReceipts,
+      } as MaterialReceiptInput & { lineReceipts: typeof lineReceipts };
       await apiService.createMaterialReceipt(poId, input);
       setShowReceiptForm(null);
       // 重置来料表单
       setReceiptForm({
         receiptNumber: '', receivedDate: new Date().toISOString().split('T')[0],
-        receivedBy: '', warehouseName: '', totalReceived: '', totalAccepted: '',
-        totalRejected: '', rejectionReason: '', qualityNotes: '',
+        receivedBy: '', warehouseId: '', rejectionReason: '', qualityNotes: '',
       });
+      setReceiptLines({});
       await fetchReceipts(poId);
       await fetchPurchaseOrders();
     } catch (e: any) {
@@ -542,7 +606,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
     } finally {
       setActionLoading(null);
     }
-  }, [receiptForm, fetchReceipts, fetchPurchaseOrders]);
+  }, [receiptForm, receiptLines, purchaseOrders, warehouses, fetchReceipts, fetchPurchaseOrders]);
 
   // ── P1-4：登记退换货/索赔 ──
   const handleCreateReturn = useCallback(async () => {
@@ -655,7 +719,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
           <AnimatePresence mode="wait">
             {viewMode === 'inquiries' ? (
               <motion.div key="inquiries-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                <SupplierInquiryPanel isDarkMode={isDarkMode} />
+                <SupplierInquiryPanel isDarkMode={isDarkMode} onConvertToPurchaseOrder={handleConvertInquiry} />
               </motion.div>
             ) : showCreateForm ? (
               <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
@@ -1084,11 +1148,50 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                             <input type="text" value={receiptForm.receiptNumber} onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })} placeholder="收料单号 *" className="bds-input sm" />
                                             <CapsuleDateInput value={receiptForm.receivedDate} onChange={(v) => setReceiptForm({ ...receiptForm, receivedDate: v })} className="bds-input sm" />
                                             <input type="text" value={receiptForm.receivedBy} onChange={(e) => setReceiptForm({ ...receiptForm, receivedBy: e.target.value })} placeholder="收货人" className="bds-input sm" />
-                                            <input type="text" value={receiptForm.warehouseName} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseName: e.target.value })} placeholder="入库仓库" className="bds-input sm" />
-                                            <input type="number" value={receiptForm.totalReceived} onChange={(e) => setReceiptForm({ ...receiptForm, totalReceived: e.target.value })} placeholder="收货数量 *" className="bds-input sm" />
-                                            <input type="number" value={receiptForm.totalAccepted} onChange={(e) => setReceiptForm({ ...receiptForm, totalAccepted: e.target.value })} placeholder="合格数量 *" className="bds-input sm" />
-                                            <input type="number" value={receiptForm.totalRejected} onChange={(e) => setReceiptForm({ ...receiptForm, totalRejected: e.target.value })} placeholder="不合格数量 *" className="bds-input sm" />
+                                            {/* D5：入库仓库下拉（选定真实落点；不选 = 默认主仓，与 L8 兜底口径一致） */}
+                                            <select value={receiptForm.warehouseId} onChange={(e) => setReceiptForm({ ...receiptForm, warehouseId: e.target.value })} className="bds-select sm">
+                                              <option value="">入库仓库（默认主仓）</option>
+                                              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                            </select>
+                                          </div>
+                                          {/* D6 行级收货明细（真源：每行本次收了多少；单头合计由行级累加派生） */}
+                                          <div className="mb-2">
+                                            <div className="text-xs mb-1" style={{ color: 'var(--text-quaternary)' }}>行级收货明细（本次合格 / 本次不合格）</div>
+                                            <div className="space-y-1.5">
+                                              {(po.lines ?? []).map(line => {
+                                                const draft = receiptLines[line.id] ?? { accepted: '', rejected: '' };
+                                                return (
+                                                  <div key={line.id} className="grid grid-cols-2 xl:grid-cols-4 gap-2 items-center p-2 rounded-inset bds-inset">
+                                                    <div className="col-span-2 min-w-0">
+                                                      <div className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>
+                                                        行{line.lineNumber} · {line.description}
+                                                      </div>
+                                                      <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+                                                        订单 {Number(line.quantity).toLocaleString('en-US')} {line.unit} · 已收 {Number(line.receivedQuantity ?? 0).toLocaleString('en-US')}
+                                                      </div>
+                                                    </div>
+                                                    <input
+                                                      type="number" min="0" value={draft.accepted}
+                                                      onChange={(e) => setReceiptLines(prev => ({ ...prev, [line.id]: { ...draft, accepted: e.target.value } }))}
+                                                      placeholder="本次合格" className="bds-input sm"
+                                                    />
+                                                    <input
+                                                      type="number" min="0" value={draft.rejected}
+                                                      onChange={(e) => setReceiptLines(prev => ({ ...prev, [line.id]: { ...draft, rejected: e.target.value } }))}
+                                                      placeholder="本次不合格" className="bds-input sm"
+                                                    />
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                            <div className="text-xs mt-1.5 text-right" style={{ color: 'var(--text-tertiary)' }}>
+                                              合计：合格 <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{receiptTotals.accepted}</span>
+                                              {' '}· 不合格 <span className="bds-tnum" style={{ color: 'var(--text-primary)' }}>{receiptTotals.rejected}</span>
+                                            </div>
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2 mb-2">
                                             <input type="text" value={receiptForm.rejectionReason} onChange={(e) => setReceiptForm({ ...receiptForm, rejectionReason: e.target.value })} placeholder="不合格原因" className="bds-input sm" />
+                                            <input type="text" value={receiptForm.qualityNotes} onChange={(e) => setReceiptForm({ ...receiptForm, qualityNotes: e.target.value })} placeholder="质检备注" className="bds-input sm" />
                                           </div>
                                           {receiptError && (
                                             <div className="text-xs mb-2" style={{ color: 'var(--danger-text)' }}>{receiptError}</div>
@@ -1189,7 +1292,16 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
                                     {canReceive(po.status as PurchaseOrderStatus) && (
                                       <>
                                         <button
-                                          onClick={() => { setShowReceiptForm(showReceiptForm === po.id ? null : po.id); setReceiptError(null); }}
+                                          onClick={() => {
+                                            if (showReceiptForm === po.id) {
+                                              setShowReceiptForm(null);
+                                            } else {
+                                              setShowReceiptForm(po.id);
+                                              // D6：按采购行初始化行级收货输入态（空 = 本次未收）
+                                              setReceiptLines(Object.fromEntries((po.lines ?? []).map(l => [l.id, { accepted: '', rejected: '' }])));
+                                            }
+                                            setReceiptError(null);
+                                          }}
                                           className="bds-btn bds-btn-secondary"
                                         >
                                           <Package size={14} />

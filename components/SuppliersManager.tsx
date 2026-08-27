@@ -503,16 +503,23 @@ export default function SuppliersManager({ isDarkMode, onNavigate }: SuppliersMa
         }
       />
 
-      {/* 认证到期预警横幅 */}
+      {/* 认证到期预警横幅（C8：已过期证书一并进预警，比将到期更紧急） */}
       {expiringCerts.length > 0 && (
         <div className="px-7 pb-2">
           <button
             onClick={() => setShowExpiringPanel((v) => !v)}
-            className="bds-alert warning w-full text-left"
+            className={`bds-alert w-full text-left ${expiringCerts.some((c) => (certDaysLeft(c.validUntil) ?? 0) < 0) ? 'danger' : 'warning'}`}
           >
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>
-              {expiringCerts.length} 项工厂认证将于 {EXPIRING_DAYS} 天内到期
+              {(() => {
+                const expired = expiringCerts.filter((c) => (certDaysLeft(c.validUntil) ?? 0) < 0).length;
+                const upcoming = expiringCerts.length - expired;
+                const parts: string[] = [];
+                if (expired > 0) parts.push(`${expired} 项工厂认证已过期`);
+                if (upcoming > 0) parts.push(`${upcoming} 项将于 ${EXPIRING_DAYS} 天内到期`);
+                return parts.join('，');
+              })()}
             </span>
             <span className="text-xs opacity-70 ml-auto">{showExpiringPanel ? '收起' : '查看'}</span>
           </button>

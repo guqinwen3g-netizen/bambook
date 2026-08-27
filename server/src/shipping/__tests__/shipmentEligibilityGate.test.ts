@@ -47,8 +47,15 @@ function garmentOrder(id: string): OrderFixture {
 
 function makePrisma(opts: {
   orders: OrderFixture[];
-  /** orderId → 大货 Final QC 报告（null=无报告） */
-  finalReports?: Record<string, { inspectionType: string; result: string } | null>;
+  /** orderId → 大货 Final QC 报告（null=无报告；D8 统一放行口径需数量/疵点/业务批准字段） */
+  finalReports?: Record<string, {
+    inspectionType: string;
+    result: string;
+    totalUnits?: number;
+    passedUnits?: number;
+    criticalDefects?: number;
+    approvedByBusiness?: boolean;
+  } | null>;
   /** orderId → 最新 S/S 船样（null=无船样） */
   ssSamples?: Record<string, { id: string; sampleCode: string; customerStatus: string } | null>;
 }) {
@@ -102,7 +109,11 @@ function makeExceptionChecker(activeFor: Record<string, ActiveExceptionSummary>)
   }) as any;
 }
 
-const FINAL_PASS = { inspectionType: 'final', result: 'pass' };
+// D8 统一放行口径：result 非 fail + 合格率≥90% + 致命疵点=0 + 业务部批准 全部满足才算 Final QC 通过
+const FINAL_PASS = {
+  inspectionType: 'final', result: 'pass',
+  totalUnits: 100, passedUnits: 98, criticalDefects: 0, approvedByBusiness: true,
+};
 const SS_APPROVED = { id: 'FSS-1', sampleCode: 'SS-001', customerStatus: 'approved' };
 
 // ────────────────────────────────────────────────────────────────────

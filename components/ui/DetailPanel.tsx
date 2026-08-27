@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Relation, RelationCategory, FollowUpRecord, BrandLine, CommunicationLog, CommunicationType } from '../../types';
+import { Relation, RelationCategory, FollowUpRecord, BrandLine, CommunicationLog, CommunicationType, CommunicationDirection, Order, Quotation } from '../../types';
 import { apiService } from '../../services/apiService';
 import {
     Building2, User, Globe, Mail, Phone, MapPin,
@@ -15,10 +15,11 @@ import {
     Edit2, Trash2, Star, Tag, Briefcase, Factory,
     Warehouse, Navigation, Languages, Cake, FileText,
     Hash, Banknote, Plus, Loader2, MessagesSquare, Layers,
-    ShieldCheck
+    ShieldCheck, Ban, Power
 } from 'lucide-react';
 import { BAMBOOK_OS } from './bambookOsTokens';
 import CapsuleDateInput from './CapsuleDateInput';
+import { bdsConfirm } from './BdsDialog';
 import { CompiledEdgeFade, CompiledSurfacePanel } from './primitives/compiledSurfacePrimitives';
 import { RelatedEntitiesPanel } from '../RelatedEntitiesPanel';
 import { RelatedWorkspacesSection } from './RelatedWorkspacesSection';
@@ -187,7 +188,19 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
     const [brandLines, setBrandLines] = useState<BrandLine[] | null>(null);
     const [commLogs, setCommLogs] = useState<CommunicationLog[] | null>(null);
     const [brandLineForm, setBrandLineForm] = useState({ name: '', code: '' });
-    const [commLogForm, setCommLogForm] = useState({ type: 'Email' as CommunicationType, occurredAt: new Date().toISOString().slice(0, 10), summary: '' });
+    // C3 沟通日志表单补全：方向（客户发起/我方发起）+ 主题 + 关联订单/报价
+    const [commLogForm, setCommLogForm] = useState({
+        type: 'Email' as CommunicationType,
+        direction: 'Outbound' as CommunicationDirection,
+        occurredAt: new Date().toISOString().slice(0, 10),
+        subject: '',
+        summary: '',
+        orderId: '',
+        quotationId: '',
+    });
+    // C3 关联单证下拉数据源（订单/报价挂在组织维度；联系人布局取所属组织）
+    const [commLinkOrders, setCommLinkOrders] = useState<Order[]>([]);
+    const [commLinkQuotations, setCommLinkQuotations] = useState<Quotation[]>([]);
     const [brandLineBusy, setBrandLineBusy] = useState(false);
     const [commLogBusy, setCommLogBusy] = useState(false);
     const [p3bError, setP3bError] = useState<string | null>(null);
@@ -204,11 +217,12 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
     // 品牌线：仅组织布局且分类配置开启时拉取（PRD 6.2 客户 360° 品牌线档案——
     // 供应商/政府等无品牌线语义，不渲染也不发请求）
+    // C4：includeInactive——停用切换需要看到已停用行（否则停用即消失，无法恢复启用）
     useEffect(() => {
         if (!isOrg || !RELATION_CATEGORY_DETAIL_CONFIG[data.category]?.brandLines) return;
         let cancelled = false;
         setBrandLines(null);
-        apiService.listBrandLines(data.id)
+        apiService.listBrandLines(data.id, { includeInactive: true })
             .then(items => { if (!cancelled) setBrandLines(items); })
             .catch(() => { if (!cancelled) setBrandLines([]); });
         return () => { cancelled = true; };
@@ -223,6 +237,20 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
             .catch(() => { if (!cancelled) setCommLogs([]); });
         return () => { cancelled = true; };
     }, [data.id]);
+
+    // C3 沟通日志关联单证下拉：订单/报价挂在组织维度——联系人布局取所属组织 id
+    const commLinkRelationId = isOrg ? data.id : (organization?.id ?? null);
+    useEffect(() => {
+        if (!commLinkRelationId) return;
+        let cancelled = false;
+        apiService.listOrders()
+            .then(items => { if (!cancelled) setCommLinkOrders(items.filter(o => o.customerRelationId === commLinkRelationId && !o.deletedAt)); })
+            .catch(() => { if (!cancelled) setCommLinkOrders([]); });
+        apiService.listQuotations({ customerRelationId: commLinkRelationId, limit: 100 })
+            .then(res => { if (!cancelled) setCommLinkQuotations(res.items); })
+            .catch(() => { if (!cancelled) setCommLinkQuotations([]); });
+        return () => { cancelled = true; };
+    }, [commLinkRelationId]);
 
     const handleAddBrandLine = async () => {
         const name = brandLineForm.name.trim();
@@ -242,6 +270,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
     const handleDeleteBrandLine = async (id: string) => {
         if (brandLineBusy) return;
+        // E1：删除确认统一走 bdsConfirm（破坏性操作 danger 语义）
+        if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此品牌线？', danger: true }))) return;
         setBrandLineBusy(true);
         setP3bError(null);
         try {
@@ -249,6 +279,21 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
             setBrandLines(prev => (prev ?? []).filter(bl => bl.id !== id));
         } catch (e: any) {
             setP3bError(`品牌线删除失败：${e?.message || e}`);
+        } finally {
+            setBrandLineBusy(false);
+        }
+    };
+
+    // C4 品牌线启用/停用切换（数据模型 isActive 已支持，服务端 updateBrandLine 直通）
+    const handleToggleBrandLine = async (bl: BrandLine) => {
+        if (brandLineBusy) return;
+        setBrandLineBusy(true);
+        setP3bError(null);
+        try {
+            const updated = await apiService.updateBrandLine(bl.id, { isActive: !bl.isActive });
+            setBrandLines(prev => (prev ?? []).map(x => (x.id === updated.id ? updated : x)));
+        } catch (e: any) {
+            setP3bError(`品牌线${bl.isActive ? '停用' : '启用'}失败：${e?.message || e}`);
         } finally {
             setBrandLineBusy(false);
         }
@@ -262,11 +307,15 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
         try {
             const item = await apiService.createCommLog(data.id, {
                 type: commLogForm.type,
+                direction: commLogForm.direction,
+                subject: commLogForm.subject.trim() || undefined,
                 summary,
                 occurredAt: commLogForm.occurredAt,
+                orderId: commLogForm.orderId || undefined,
+                quotationId: commLogForm.quotationId || undefined,
             });
             setCommLogs(prev => [item, ...(prev ?? [])]);
-            setCommLogForm({ type: 'Email', occurredAt: new Date().toISOString().slice(0, 10), summary: '' });
+            setCommLogForm({ type: 'Email', direction: 'Outbound', occurredAt: new Date().toISOString().slice(0, 10), subject: '', summary: '', orderId: '', quotationId: '' });
         } catch (e: any) {
             setP3bError(`沟通日志添加失败：${e?.message || e}`);
         } finally {
@@ -276,6 +325,8 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
 
     const handleDeleteCommLog = async (id: string) => {
         if (commLogBusy) return;
+        // E1：删除确认统一走 bdsConfirm（破坏性操作 danger 语义）
+        if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此沟通日志？', danger: true }))) return;
         setCommLogBusy(true);
         setP3bError(null);
         try {
@@ -346,11 +397,21 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                 {!bl.isActive && (
                                     <span className={`text-[10px] text-[var(--text-tertiary)]`}>已停用</span>
                                 )}
+                                {/* C4 启用/停用切换（hover 显现，动作组首个按钮 ml-auto 推到行尾） */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleToggleBrandLine(bl)}
+                                    disabled={brandLineBusy}
+                                    className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
+                                    title={bl.isActive ? '停用品牌线' : '启用品牌线'}
+                                >
+                                    {bl.isActive ? <Ban size={14} /> : <Power size={14} />}
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => handleDeleteBrandLine(bl.id)}
                                     disabled={brandLineBusy}
-                                    className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
+                                    className={`opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
                                     title="删除品牌线"
                                 >
                                     <Trash2 size={14} />
@@ -402,7 +463,14 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                                 <span className={`inline-block px-1.5 py-0.5 rounded-bds-sm text-[10px] shrink-0 ${dataChipClass}`}>
                                     {COMM_TYPE_LABELS[cl.type] ?? cl.type}
                                 </span>
+                                {/* C3：方向可读化（客户发起/我方发起，PRD 12.3） */}
+                                <span className={`inline-block px-1.5 py-0.5 rounded-bds-sm text-[10px] shrink-0 ${dataChipClass}`}>
+                                    {COMM_DIRECTION_LABELS[cl.direction] ?? cl.direction}
+                                </span>
                                 <span className={`shrink-0 text-[var(--text-tertiary)]`}>{cl.occurredAt}</span>
+                                {cl.subject && (
+                                    <span className={`shrink-0 text-[var(--text-primary)]`}>{cl.subject}</span>
+                                )}
                                 <span className="break-all">{cl.summary}</span>
                                 <button
                                     type="button"
@@ -417,37 +485,79 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                         ))}
                     </ul>
                 )}
-                {/* 内联添加表单（类型 + 日期 + 摘要） */}
-                <div className="flex items-center gap-1.5 mt-2">
-                    <select
-                        className="bds-select sm shrink-0 w-auto"
-                        value={commLogForm.type}
-                        onChange={e => setCommLogForm(prev => ({ ...prev, type: e.target.value as CommunicationType }))}
-                    >
-                        {COMM_TYPES.map(t => (
-                            <option key={t} value={t}>{COMM_TYPE_LABELS[t]}</option>
-                        ))}
-                    </select>
-                    <CapsuleDateInput
-                        value={commLogForm.occurredAt}
-                        onChange={v => setCommLogForm(prev => ({ ...prev, occurredAt: v }))}
-                        className="bds-input sm shrink-0"
-                    />
-                    <input
-                        value={commLogForm.summary}
-                        onChange={e => setCommLogForm(prev => ({ ...prev, summary: e.target.value }))}
-                        placeholder="沟通摘要"
-                        className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
-                    />
-                    <button
-                        type="button"
-                        onClick={handleAddCommLog}
-                        disabled={commLogBusy || !commLogForm.summary.trim()}
-                        className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]`}
-                        title="添加沟通日志"
-                    >
-                        {commLogBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                    </button>
+                {/* 内联添加表单（C3 补全：类型 + 方向 + 日期 + 摘要 / 主题 + 关联订单/报价） */}
+                <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                        <select
+                            className="bds-select sm shrink-0 w-auto"
+                            value={commLogForm.type}
+                            onChange={e => setCommLogForm(prev => ({ ...prev, type: e.target.value as CommunicationType }))}
+                        >
+                            {COMM_TYPES.map(t => (
+                                <option key={t} value={t}>{COMM_TYPE_LABELS[t]}</option>
+                            ))}
+                        </select>
+                        <select
+                            className="bds-select sm shrink-0 w-auto"
+                            value={commLogForm.direction}
+                            onChange={e => setCommLogForm(prev => ({ ...prev, direction: e.target.value as CommunicationDirection }))}
+                            title="沟通方向"
+                        >
+                            {(['Inbound', 'Outbound'] as CommunicationDirection[]).map(d => (
+                                <option key={d} value={d}>{COMM_DIRECTION_LABELS[d]}</option>
+                            ))}
+                        </select>
+                        <CapsuleDateInput
+                            value={commLogForm.occurredAt}
+                            onChange={v => setCommLogForm(prev => ({ ...prev, occurredAt: v }))}
+                            className="bds-input sm shrink-0"
+                        />
+                        <input
+                            value={commLogForm.summary}
+                            onChange={e => setCommLogForm(prev => ({ ...prev, summary: e.target.value }))}
+                            placeholder="沟通摘要"
+                            className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddCommLog}
+                            disabled={commLogBusy || !commLogForm.summary.trim()}
+                            className={`shrink-0 h-6 w-6 rounded-control flex items-center justify-center transition-colors disabled:opacity-40 bg-[var(--recessed-bg)] hover:bg-[var(--active-darken)] text-[var(--text-secondary)]`}
+                            title="添加沟通日志"
+                        >
+                            {commLogBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <input
+                            value={commLogForm.subject}
+                            onChange={e => setCommLogForm(prev => ({ ...prev, subject: e.target.value }))}
+                            placeholder="主题(可选)"
+                            className={`flex-1 min-w-0 px-2 py-1 rounded-control text-xs font-light outline-none border bg-[var(--recessed-bg)] border-[var(--border-c-default)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]`}
+                        />
+                        <select
+                            className="bds-select sm shrink-0 w-auto max-w-40"
+                            value={commLogForm.orderId}
+                            onChange={e => setCommLogForm(prev => ({ ...prev, orderId: e.target.value }))}
+                            title="关联订单"
+                        >
+                            <option value="">不关联订单</option>
+                            {commLinkOrders.map(o => (
+                                <option key={o.id} value={o.id}>{o.poNumber || o.id}{o.product ? ` · ${o.product}` : ''}</option>
+                            ))}
+                        </select>
+                        <select
+                            className="bds-select sm shrink-0 w-auto max-w-36"
+                            value={commLogForm.quotationId}
+                            onChange={e => setCommLogForm(prev => ({ ...prev, quotationId: e.target.value }))}
+                            title="关联报价"
+                        >
+                            <option value="">不关联报价</option>
+                            {commLinkQuotations.map(q => (
+                                <option key={q.id} value={q.id}>{q.quotationNumber}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
         </InfoSection>

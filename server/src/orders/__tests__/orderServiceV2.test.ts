@@ -139,6 +139,24 @@ describe('listOrders 订单列表', () => {
     expect(where.type).toBe('Fabric');
     expect(where.OR).toBeDefined();
   });
+
+  it('E4：搜索扩展供应商/发票号/合同号字段（模糊匹配 insensitive）', async () => {
+    const prisma = makePrisma();
+    const svc = createOrderServiceV2(prisma);
+    await svc.listOrders(ACTOR, { search: 'INV-2026' });
+    const where = prisma.order.findMany.mock.calls[0][0].where;
+    const orFields = (where.OR as any[]).map((clause) => Object.keys(clause)[0]);
+    // 原四字段保留
+    expect(orFields).toEqual(expect.arrayContaining(['customer', 'product', 'code', 'poNumber']));
+    // E4 新增：供应商（工厂）/ 我方发票号 / 供应商发票号 / 销售合同号 / 最终合同号
+    expect(orFields).toEqual(expect.arrayContaining([
+      'millName', 'invoiceNumber', 'supplierInvoiceNumber', 'salesContractNumber', 'finalContractNumber',
+    ]));
+    for (const clause of where.OR as any[]) {
+      const field = Object.keys(clause)[0];
+      expect(clause[field]).toEqual({ contains: 'INV-2026', mode: 'insensitive' });
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

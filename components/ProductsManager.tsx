@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as QRCode from 'qrcode';
-import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory } from '../types';
+import * as XLSX from 'xlsx';
+import { ProductAsset, ProductSubCategory, MainCategory, ProductImage, PdmlRawFabric, Relation, RelationCategory, FactoryProfile } from '../types';
 import { apiService } from '../services/apiService';
 import { storageService } from '../services/storageService';
 import { consumeCrossModuleNav, primeCrossModuleNav } from '../services/crossModuleNav';
@@ -21,7 +22,7 @@ import {
   Layers, Watch, Scissors, Gift, Box, Edit2, Trash2,
   DollarSign, FileText, Tag, Sparkles, Library,
   CheckCircle2, AlertTriangle, Archive, RefreshCw, Image as ImageIcon, Clock, ArrowDownAZ,
-  BookOpenText, Columns3, Database, SlidersHorizontal, Tags, ArrowRight,
+  BookOpenText, Columns3, Database, SlidersHorizontal, Tags, ArrowRight, FileDown, Upload,
   type LucideIcon,
 } from 'lucide-react';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
@@ -147,6 +148,227 @@ const ProductRelationField: React.FC<{
       <input type="hidden" name={fkName} value={selection.relationId || ''} />
     </div>
   );
+};
+
+/**
+ * D3：面料供应商档案下拉框。
+ *
+ * 数据源与 SupplierInquiryPanel 报价供应商下拉同源（GET /api/v1/suppliers，
+ * blacklisted=false 过滤黑名单）；选中后双写 millOrganizationId（Relation FK）
+ * + millName（名称快照），与 Order 的 snapshot + FK 双写模式一致。
+ * 历史裸文本（PDML 导入等未建档值）保留为兜底选项，编辑旧档案不会被静默清空。
+ * 模块级定义（非闭包组件）：保证 open/查询状态在父级重渲染后不丢失。
+ */
+const FabricSupplierField: React.FC<{
+  defaultRelationId?: string | null;
+  defaultName?: string | null;
+  isDarkMode: boolean;
+  labelClass: string;
+}> = ({ defaultRelationId, defaultName, isDarkMode, labelClass }) => {
+  const [profiles, setProfiles] = useState<FactoryProfile[]>([]);
+  const [selectedValue, setSelectedValue] = useState(defaultRelationId || '');
+  // 切换编辑对象时同步外部初值（表单无 key 重置，靠 prop 变化驱动，同 ProductRelationField）
+  useEffect(() => {
+    setSelectedValue(defaultRelationId || '');
+  }, [defaultRelationId]);
+  useEffect(() => {
+    let cancelled = false;
+    apiService.listFactoryProfiles({ blacklisted: false, limit: 200 })
+      .then((result) => { if (!cancelled) setProfiles(result.items); })
+      .catch(() => { if (!cancelled) setProfiles([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const options = useMemo(() => {
+    const base = [
+      { value: '', label: '未选择供应商' },
+      ...profiles.map((profile) => ({
+        value: profile.relationId,
+        label: profile.relation?.name?.trim() || profile.relationId,
+      })),
+    ];
+    if (selectedValue && !base.some((option) => option.value === selectedValue)) {
+      base.push({ value: selectedValue, label: defaultName || selectedValue });
+    }
+    return base;
+  }, [profiles, selectedValue, defaultName]);
+  const selectedOption = options.find((option) => option.value === selectedValue);
+
+  return (
+    <div className="space-y-2">
+      <label className={labelClass}>供应商 / 生产工厂</label>
+      <CompiledSelectControl
+        value={selectedValue}
+        onChange={setSelectedValue}
+        options={options}
+        placeholder="请选择供应商档案"
+        isDarkMode={isDarkMode}
+        surface="form"
+        menuPortal
+        className="relative z-30 w-full"
+        source="CompiledProductsPage.fabric-supplier-select"
+      />
+      <input type="hidden" name="millOrganizationId" value={selectedValue} />
+      <input type="hidden" name="millName" value={selectedOption && selectedValue ? selectedOption.label : ''} />
+    </div>
+  );
+};
+
+/**
+ * C11：新建档案图片暂存上传区。
+ *
+ * 服务端图片上传要求 ProductAsset 已落库（POST /assets/:id/images 404 fail-closed），
+ * 因此新建表单先把文件暂存在本地（objectURL 预览），保存档案拿到 id 后再统一上传
+ * （见 handleAddProduct）。视觉与 ImageUploader 上传区同源（BDS recessed/dashed 语义类）。
+ */
+const PendingImageUploader: React.FC<{
+  files: File[];
+  onChange: (files: File[]) => void;
+}> = ({ files, onChange }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const previewUrls = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
+  useEffect(() => () => { previewUrls.forEach((url) => URL.revokeObjectURL(url)); }, [previewUrls]);
+
+  const appendFiles = (incoming: FileList | File[]) => {
+    const imageFiles = Array.from(incoming).filter((file) => /^image\/(jpeg|png|webp|gif)$/.test(file.type));
+    if (imageFiles.length > 0) onChange([...files, ...imageFiles]);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div
+        onClick={() => fileInputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (e.dataTransfer.files.length > 0) appendFiles(e.dataTransfer.files);
+        }}
+        className={`
+          relative cursor-pointer rounded-inset border-2 border-dashed
+          transition-all duration-200 py-6 px-4 text-center
+          ${dragOver
+            ? 'border-[var(--os-vnext-brand-blue-soft)]/60 bg-[var(--os-vnext-brand-blue-soft)]/10'
+            : 'border-[var(--border-c-default)] hover:border-[var(--border-c-strong)] hover:bg-[var(--hover-darken)]'
+          }
+        `}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) appendFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
+        <div className="flex flex-col items-center gap-2">
+          <Upload size={24} className="text-[var(--text-tertiary)]" />
+          <span className="text-sm font-light text-[var(--text-tertiary)]">
+            拖拽图片到此处，或点击选择
+          </span>
+          <span className="text-[10px] text-[var(--text-tertiary)]">
+            支持 JPEG / PNG / WebP / GIF，保存档案后自动上传，第一张自动设为主图
+          </span>
+        </div>
+      </div>
+
+      {files.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {files.map((file, index) => (
+            <div
+              key={`${file.name}-${file.size}-${index}`}
+              className="relative group rounded-inset overflow-hidden border border-[var(--border-c-default)]"
+            >
+              <div className="aspect-square overflow-hidden">
+                <img src={previewUrls[index]} alt={file.name} className="w-full h-full object-cover" />
+              </div>
+              {index === 0 && (
+                <div className="absolute top-1.5 left-1.5 bds-badge sm info">
+                  主图
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => onChange(files.filter((_, i) => i !== index))}
+                className="absolute top-1.5 right-1.5 p-1.5 rounded-control transition-colors bg-[var(--recessed-bg)] text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100"
+                title="移除"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** C10：产品档案 Excel 导出列头（SKU/名称/品类/供应商/价格/库存等列） */
+export const PRODUCT_EXPORT_HEADERS = [
+  'SKU', '名称', '主类', '品类', '供应商', '工厂价', '售价', '样品价', '零剪价', '币种', '库存状态', '库存数量', '更新时间',
+];
+
+/** 最新有效面料价格（与组件内 latestPrice 同口径：priceType + 未删除 + updatedAt 倒序取首条） */
+const latestFabricPriceOf = (product: ProductAsset, priceType: string) =>
+  (product.fabricPrices || [])
+    .filter((price) => price.priceType === priceType && !price.deletedAt)
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+
+/** C10：把当前视图产品列表展开为 xlsx AoA（首行表头），纯函数便于测试 */
+export const buildProductExportRows = (products: ProductAsset[]): Array<Array<string | number>> => {
+  const stockTextOf = (quantity?: number | null, unit?: string | null) =>
+    quantity === null || quantity === undefined ? '' : `${quantity}${unit ? ` ${unit}` : ''}`;
+  return [
+    PRODUCT_EXPORT_HEADERS,
+    ...products.map((product) => {
+      const factoryPrice = latestFabricPriceOf(product, 'factory');
+      const salesPrice = latestFabricPriceOf(product, 'customer');
+      const samplePrice = latestFabricPriceOf(product, 'sample');
+      const cuttingPrice = latestFabricPriceOf(product, 'cutting');
+      const isGarment = product.mainCategory === 'Garment';
+      const isTrimming = product.mainCategory === 'Trimmings';
+      return [
+        product.sku || '',
+        product.name || '',
+        isGarment ? '成衣' : isTrimming ? '辅料' : '面料',
+        isGarment
+          ? product.garmentProfile?.garmentCategory || ''
+          : isTrimming
+            ? product.trimmingProfile?.trimmingCategory || ''
+            : product.fabricProfile?.millQuality || '',
+        isGarment
+          ? product.garmentProfile?.factory || ''
+          : isTrimming
+            ? product.trimmingProfile?.supplier || product.trimmingProfile?.factory || ''
+            : product.fabricProfile?.millName || product.fabricProfile?.millOrganizationId || '',
+        isGarment
+          ? product.garmentProfile?.targetCost || ''
+          : isTrimming
+            ? product.trimmingProfile?.price || ''
+            : factoryPrice?.amount ?? '',
+        isGarment
+          ? product.garmentProfile?.fobPrice || ''
+          : isTrimming
+            ? ''
+            : salesPrice?.amount ?? '',
+        isGarment || isTrimming ? '' : samplePrice?.amount ?? '',
+        isGarment || isTrimming ? '' : cuttingPrice?.amount ?? '',
+        isGarment ? '' : isTrimming ? product.trimmingProfile?.currency || '' : factoryPrice?.currency || salesPrice?.currency || '',
+        isGarment ? '' : isTrimming ? product.trimmingProfile?.stockStatus || '' : product.fabricProfile?.stockStatus || '',
+        isGarment
+          ? ''
+          : isTrimming
+            ? stockTextOf(product.trimmingProfile?.stockQuantity, product.trimmingProfile?.stockUnit)
+            : stockTextOf(product.fabricProfile?.stockQuantity, product.fabricProfile?.stockUnit),
+        product.updatedAt ? new Date(product.updatedAt).toISOString().slice(0, 10) : '',
+      ];
+    }),
+  ];
 };
 type ProductFormSectionId =
   | 'images'
@@ -745,6 +967,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 
   const [productStatusValue, setProductStatusValue] = useState('Development');
   const [editingImages, setEditingImages] = useState<ProductImage[]>([]);
+  // C11：新建档案暂存的本地图片文件（资产落库拿到 id 后再上传，见 handleAddProduct）
+  const [pendingImages, setPendingImages] = useState<File[]>([]);
   const [deleteSubId, setDeleteSubId] = useState<string | null>(null);
   const [deleteProdId, setDeleteProdId] = useState<string | null>(null);
   const [showOptionsSheet, setShowOptionsSheet] = useState<ProductAsset | null>(null);
@@ -828,7 +1052,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   }, [editingProd]);
 
   useEffect(() => {
-    if (!showAddProdModal && !editingProd) return;
+    if (!showAddProdModal && !editingProd) {
+      // 表单关闭（保存成功/取消）时清空新建暂存图片，避免残留到下一次录入
+      setPendingImages([]);
+      return;
+    }
     setProductStatusValue(editingProd?.status || (selectedMain === 'Garment' ? '开发样' : 'Development'));
   }, [editingProd, selectedMain, showAddProdModal]);
 
@@ -1122,7 +1350,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     const supplierGroup = (product: ProductAsset) => {
       if (product.mainCategory === 'Garment') return product.garmentProfile?.factory || '';
       if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.supplier || product.trimmingProfile?.factory || '';
-      return product.fabricProfile?.millOrganizationId || '';
+      return product.fabricProfile?.millName || product.fabricProfile?.millOrganizationId || '';
     };
     const supplierFallback = selectedMain === 'Garment' ? '工厂未填' : '供应商未填';
     const priceGroupValue = (product: ProductAsset) => {
@@ -1210,7 +1438,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
             ? (p.garmentProfile?.factory || '工厂未填')
             : p.mainCategory === 'Trimmings'
               ? (p.trimmingProfile?.supplier || p.trimmingProfile?.factory || '供应商未填')
-              : (p.fabricProfile?.millOrganizationId || '供应商未填');
+              : (p.fabricProfile?.millName || p.fabricProfile?.millOrganizationId || '供应商未填');
           return supplier === selectedSubId;
         });
       } else if (classificationView === 'customer') {
@@ -1327,7 +1555,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       ? (product.garmentProfile?.factory || '')
       : product.mainCategory === 'Trimmings'
         ? (product.trimmingProfile?.supplier || product.trimmingProfile?.factory || '')
-        : (product.fabricProfile?.millOrganizationId || '');
+        : (product.fabricProfile?.millName || product.fabricProfile?.millOrganizationId || '');
     const customerSortText = (product: ProductAsset) => product.mainCategory === 'Garment'
       ? (product.garmentProfile?.customer || '')
       : product.mainCategory === 'Trimmings'
@@ -1400,6 +1628,21 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     });
   }, [classificationView, searchTerm, selectedMainProducts, selectedSubId, tableSort, uncategorizedProducts]);
 
+  // C10：产品档案 Excel 导出（当前筛选视图全量；前端生成 xlsx，与历史报价导入模板同套客户端方案）
+  const handleExportProducts = () => {
+    if (currentProducts.length === 0) {
+      bdsToast.warning('当前视图没有可导出的产品档案');
+      return;
+    }
+    const rows = buildProductExportRows(currentProducts);
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    sheet['!cols'] = PRODUCT_EXPORT_HEADERS.map(() => ({ wch: 16 }));
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, '产品档案');
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    XLSX.writeFile(book, `产品档案-${stamp}.xlsx`);
+  };
+
   const sidebarProducts = useMemo(() => {
     let list = [...currentProducts];
     if (sideSearchTerm) {
@@ -1460,6 +1703,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       productAssetId: existing?.id || '',
       articleNo: valueOf('articleNo'),
       millOrganizationId: valueOf('millOrganizationId'),
+      millName: valueOf('millName'),
       millQuality: valueOf('millQuality'),
       millColorCode: valueOf('millColorCode'),
       colorDescription: valueOf('colorDescription'),
@@ -1915,7 +2159,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
   const productSupplierText = (product: ProductAsset) => {
     if (product.mainCategory === 'Garment') return product.garmentProfile?.factory || '工厂未填';
     if (product.mainCategory === 'Trimmings') return product.trimmingProfile?.supplier || product.trimmingProfile?.factory || '供应商未填';
-    return product.fabricProfile?.millOrganizationId || '供应商未填';
+    return product.fabricProfile?.millName || product.fabricProfile?.millOrganizationId || '供应商未填';
   };
 
   const productCustomerText = (product: ProductAsset) => {
@@ -2331,6 +2575,16 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
       </div>
 
       <div className="ml-auto flex h-9 shrink-0 items-center gap-1">
+        {/* C10：导出当前筛选视图产品档案（xlsx） */}
+        <button
+          type="button"
+          onClick={handleExportProducts}
+          className={`${PRODUCT_SEGMENT_BUTTON_CLASS} text-[var(--os-vnext-brand-blue)] opacity-100 drop-shadow-none`}
+          aria-label="导出当前视图产品 Excel"
+          title="导出当前视图产品 Excel"
+        >
+          <FileDown size={14} strokeWidth={1.5} />
+        </button>
         <button
           type="button"
           onClick={() => setListDisplayMode(listDisplayMode === 'grid' ? 'table' : 'grid')}
@@ -2355,10 +2609,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     return (
       <>
         <ProductFormSection id="specs" title="规格参数" description="沉淀面料识别、规格、组织和生产周期，用于后续样品、大货、报价引用。" isDarkMode={isDarkMode}>
-          <div className="space-y-2">
-            <label className={productLabelClass}>供应商 / 生产工厂</label>
-            <input defaultValue={profile?.millOrganizationId || ''} name="millOrganizationId" className={productInputClass} />
-          </div>
+          {/* D3：供应商从供应商档案下拉选择（双写 millOrganizationId FK + millName 快照），不再手打 */}
+          <FabricSupplierField
+            defaultRelationId={profile?.millOrganizationId || null}
+            defaultName={profile?.millName || null}
+            isDarkMode={isDarkMode}
+            labelClass={productLabelClass}
+          />
           <div className="space-y-2">
             <label className={productLabelClass}>Mill Quality</label>
             <input defaultValue={profile?.millQuality || ''} name="millQuality" className={productInputClass} />
@@ -2770,7 +3027,19 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
     try {
       ensureOnlineWrite();
       const persisted = await apiService.createProductAsset(payload as any, cloudEndpoint);
-      onUpdateProducts([persisted, ...products], persisted);
+      // C11：新建档案图片 —— 资产先落库拿到 id（服务端 /assets/:id/images 要求资产已存在），
+      // 再把表单暂存的本地图片上传到同一档案；上传失败不回滚档案，提示后可在编辑里补传。
+      let persistedWithImages = persisted;
+      if (pendingImages.length > 0) {
+        try {
+          const uploadedImages = await apiService.uploadProductImages(persisted.id, pendingImages, cloudEndpoint);
+          persistedWithImages = { ...persisted, images: uploadedImages };
+        } catch (imageError: any) {
+          bdsToast.warning(`档案已创建，但图片上传失败：${imageError?.message || imageError}。可进入编辑重新上传。`);
+        }
+      }
+      onUpdateProducts([persistedWithImages, ...products], persistedWithImages);
+      setPendingImages([]);
       setShowAddProdModal(false);
     } catch (error: any) {
       setProductWriteError(error?.message || String(error));
@@ -3851,7 +4120,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                      <DetailSection title="基础识别" icon={<Tag size={14} />}>
 	                        <DetailItem label="SKU" value={selectedProduct.sku} />
 	                        <DetailItem label="Article No." value={selectedProduct.fabricProfile?.articleNo} />
-	                        <DetailItem label="供应商 / 生产工厂" value={selectedProduct.fabricProfile?.millOrganizationId} />
+	                        <DetailItem label="供应商 / 生产工厂" value={selectedProduct.fabricProfile?.millName || selectedProduct.fabricProfile?.millOrganizationId} />
 	                        <DetailItem label="Mill Quality" value={selectedProduct.fabricProfile?.millQuality} />
 	                        <DetailItem label="Col." value={selectedProduct.fabricProfile?.millColorCode} />
 	                        <DetailItem label="Description" value={selectedProduct.fabricProfile?.colorDescription} wide />
@@ -3889,14 +4158,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
 	                        <DetailItem label="工厂起订量" value={selectedProduct.fabricProfile?.factoryMoqValue} />
 	                        <DetailItem label="试样起订量" value={selectedProduct.fabricProfile?.sampleMoqValue} />
                       </DetailSection>
-                      {/* F4 价格生命周期：价格历史时间线（PRD 19.17 面料 360° 价格历史 Tab） */}
+                      {/* F4 价格生命周期：价格历史时间线（PRD 19.17 面料 360° 价格历史 Tab）；C12 补样品价/零剪价两栏（只读展示存量数据） */}
                       <section className="space-y-3">
                         <h4 className={`text-xs font-light tracking-wide text-[var(--text-tertiary)]`}>价格历史</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {(['factory', 'customer'] as const).map(type => (
+                          {(['factory', 'customer', 'sample', 'cutting'] as const).map(type => (
                             <div key={type} className={PRODUCT_DETAIL_HISTORY_PANEL_CLASS}>
                               <div className={`text-[10px] font-light tracking-wide mb-3 text-[var(--text-tertiary)]`}>
-                                {type === 'factory' ? '工厂价格历史' : '售价历史'}
+                                {type === 'factory' ? '工厂价格历史' : type === 'customer' ? '售价历史' : type === 'sample' ? '样品价历史' : '零剪价历史'}
                               </div>
                               <div className="space-y-2">
                                 {priceHistoryRows(selectedProduct, type).length > 0 ? priceHistoryRows(selectedProduct, type).slice(0, 5).map(price => (
@@ -4014,7 +4283,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
           {/* Mobile: Add Product Sheet */}
           <CompiledBottomSheet isOpen={showAddProdModal || !!editingProd} onClose={() => { setShowAddProdModal(false); setEditingProd(null); }} title={editingProd ? '修正档案' : '录入 SKU'} height="full" isDarkMode={isDarkMode}>
             <form onSubmit={editingProd ? handleEditProduct : handleAddProduct} className="space-y-6 pt-2 pb-24">
-              {editingProd && (
+              {/* C11：编辑走已落库直传；新建走本地暂存（保存后统一上传） */}
+              {editingProd ? (
                 <div className="space-y-3">
                   <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">产品图片</label>
                   <CompiledImageUploader
@@ -4024,6 +4294,11 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     isDarkMode={isDarkMode}
                     onChange={setEditingImages}
                   />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <label className="text-[10px] font-light text-[var(--text-tertiary)] tracking-wide ml-1">产品图片</label>
+                  <PendingImageUploader files={pendingImages} onChange={setPendingImages} />
                 </div>
               )}
               <div className="space-y-3">
@@ -4238,8 +4513,8 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                     </aside>
 
                     <div ref={productFormScrollRef} className={blueprint.form.scrollViewportClassName}>
-                      {/* Images section */}
-                      {editingProd && (
+                      {/* Images section：C11 编辑走已落库直传；新建走本地暂存（保存后统一上传） */}
+                      {editingProd ? (
                         <ProductFormSection id="images" title="产品图片" description="上传面料/产品的实物照片，第一张自动设为主图。" isDarkMode={isDarkMode}>
                           <CompiledImageUploader
                             productId={editingProd.id}
@@ -4248,6 +4523,10 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ products, productCate
                             isDarkMode={isDarkMode}
                             onChange={setEditingImages}
                           />
+                        </ProductFormSection>
+                      ) : (
+                        <ProductFormSection id="images" title="产品图片" description="选择面料/产品的实物照片，保存档案后自动上传，第一张自动设为主图。" isDarkMode={isDarkMode}>
+                          <PendingImageUploader files={pendingImages} onChange={setPendingImages} />
                         </ProductFormSection>
                       )}
 	                      <ProductFormSection id="basic" title={isGarmentFormContext ? '基础身份' : isTrimmingFormContext ? '基础识别' : '基础信息'} description={isGarmentFormContext ? '记录款号、款名、品类、客户、系列和样衣状态。' : isTrimmingFormContext ? '记录辅料编号、名称、类别、客户、品牌和状态。' : '只保留这条档案最核心的身份信息：SKU、二维码、品号、克重、门幅和成分。'} isDarkMode={isDarkMode}>

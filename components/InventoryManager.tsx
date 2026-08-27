@@ -303,10 +303,17 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
     }
     setActionLoading(`movement_${movementTargetId}`);
     try {
-      await apiService.createStockMovement({ ...movementForm, itemId: movementTargetId });
+      // E6：手工变动可挂关联单据号（referenceId；有单据号时 referenceType 记 Manual 台账口径）
+      const referenceId = movementForm.referenceId?.trim() || undefined;
+      await apiService.createStockMovement({
+        ...movementForm,
+        itemId: movementTargetId,
+        referenceId,
+        referenceType: referenceId ? 'Manual' : movementForm.referenceType,
+      });
       setMovementTargetId(null);
       setMovementForm({
-        itemId: '', type: 'Inbound', quantity: 0, reason: '',
+        itemId: '', type: 'Inbound', quantity: 0, reason: '', referenceId: '',
         movementDate: new Date().toISOString().split('T')[0],
       });
       await fetchItems();
@@ -500,6 +507,7 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                                               {formatQty(Number(mv.balanceBefore))} → {formatQty(Number(mv.balanceAfter))}
                                             </span>
                                             {mv.reason && <span style={{ color: 'var(--text-quaternary)' }}>· {mv.reason}</span>}
+                                            {mv.referenceId && <span className="bds-mono" style={{ color: 'var(--text-quaternary)' }}>· 单 {mv.referenceId}</span>}
                                           </div>
                                         );
                                       })}
@@ -539,6 +547,8 @@ const InventoryManager: React.FC<InventoryManagerProps> = ({ isDarkMode, onNavig
                                           <input type="number" value={movementForm.quantity || ''} onChange={(e) => setMovementForm({ ...movementForm, quantity: parseFloat(e.target.value) || 0 })} placeholder={movementForm.type === 'Adjustment' ? '盘点后实际数量 *' : '数量 *'} className="bds-input sm" />
                                           <CapsuleDateInput value={movementForm.movementDate || ''} onChange={(v) => setMovementForm({ ...movementForm, movementDate: v })} className="bds-input sm" />
                                           <input type="text" value={movementForm.reason || ''} onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })} placeholder="原因" className="bds-input sm" />
+                                          {/* E6：关联单据号（如 PO-2026-001 / MR-001，随变动流水落库可追溯） */}
+                                          <input type="text" value={movementForm.referenceId || ''} onChange={(e) => setMovementForm({ ...movementForm, referenceId: e.target.value })} placeholder="关联单据号" className="bds-input sm" />
                                           {movementForm.type === 'Transfer' && (
                                             <select value={movementForm.targetWarehouseId || ''} onChange={(e) => setMovementForm({ ...movementForm, targetWarehouseId: e.target.value })} className="bds-select sm xl:col-span-2">
                                               <option value="">目标仓库...</option>

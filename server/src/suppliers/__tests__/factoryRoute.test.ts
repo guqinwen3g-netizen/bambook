@@ -398,6 +398,32 @@ describe('H1a · FactoryCertification 认证与到期预警', () => {
     const list2 = await request(app).get(`/api/v1/suppliers/${p.id}/certifications`).set(auth());
     expect(list2.body.total).toBe(2);
   });
+
+  it('C8：已过期证书进预警（标记已过期 X 天），排序最逾期在前；远期证书仍不进预警', async () => {
+    seedSupplierRelation(prisma);
+    const app = makeApp(prisma);
+    const p = await createProfile(app, 'REL_SUP1');
+
+    const expired10 = new Date(Date.now() - 10 * 86_400_000).toISOString().slice(0, 10);
+    const expired40 = new Date(Date.now() - 40 * 86_400_000).toISOString().slice(0, 10);
+    const soon = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+    const far = new Date(Date.now() + 200 * 86_400_000).toISOString().slice(0, 10);
+    await request(app).post(`/api/v1/suppliers/${p.id}/certifications`).set(auth()).send({ type: 'BSCI', validUntil: expired10 });
+    await request(app).post(`/api/v1/suppliers/${p.id}/certifications`).set(auth()).send({ type: 'SEDEX', validUntil: expired40 });
+    await request(app).post(`/api/v1/suppliers/${p.id}/certifications`).set(auth()).send({ type: 'WRAP', validUntil: soon });
+    await request(app).post(`/api/v1/suppliers/${p.id}/certifications`).set(auth()).send({ type: 'ISO9001', validUntil: far });
+
+    const res = await request(app).get('/api/v1/suppliers/expiring-certifications?days=30').set(auth());
+    expect(res.status).toBe(200);
+    // 已过期 2 项 + 30 天内到期 1 项；远期 ISO9001 不进预警
+    expect(res.body.total).toBe(3);
+    const types = res.body.items.map((i: any) => i.type);
+    expect(types).toEqual(['SEDEX', 'BSCI', 'WRAP']); // validUntil 升序：最逾期在前
+    const sedex = res.body.items[0];
+    expect(sedex.daysUntilExpiry).toBe(-40); // 已过期 40 天（服务端统一口径）
+    const wrap = res.body.items[2];
+    expect(wrap.daysUntilExpiry).toBe(10);
+  });
 });
 
 describe('H1a · FactoryCapacity 产能日历与占用聚合', () => {
@@ -434,6 +460,23 @@ describe('H1a · FactoryCapacity 产能日历与占用聚合', () => {
     expect(del.status).toBe(200);
     const list2 = await request(app).get(`/api/v1/suppliers/${p.id}/capacity`).set(auth());
     expect(list2.body.total).toBe(1);
+  });
+
+  it('D2：产能占用按单位换算聚合（YD→M 换算、不可换算单位不计入）', async () => {
+    seedSupplierRelation(prisma);
+    const app = makeApp(prisma);
+    const p = await createProfile(app, 'REL_SUP1'); // capacityUnit: 'M'
+
+    prisma._stores.purchaseOrders.push(
+      { id: 'POU1', supplierRelationId: 'REL_SUP1', status: 'Confirmed', expectedDeliveryDate: '2026-09-10', deletedAt: null,
+        lines: [{ quantity: 1000, unit: 'YD' }, { quantity: 500, unit: 'M' }, { quantity: 200, unit: 'KG' }] },
+    );
+
+    await request(app).put('/api/v1/suppliers/' + p.id + '/capacity/2026-09').set(auth()).send({ capacity: 50000, unit: 'M' });
+    const list = await request(app).get(`/api/v1/suppliers/${p.id}/capacity`).set(auth());
+    const sep = list.body.items.find((i: any) => i.month === '2026-09');
+    // 1000 YD × 0.9144 = 914.4 M + 500 M = 1414.4；200 KG 不可换算 → 不计入（不再件/米混加）
+    expect(sep.occupied).toBe(1414.4);
   });
 
   it('非法 month / 负 capacity → 400', async () => {

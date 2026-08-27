@@ -7,7 +7,7 @@ import {
   MoreHorizontal, Edit2, Trash2, X, Save,
   ChevronLeft, ChevronRight, ChevronDown,
   Briefcase, Landmark, Handshake, Globe2, Box, ArrowRight, Map,
-  LayoutGrid, List, Navigation, RefreshCw, GitBranch,
+  LayoutGrid, List, Navigation, RefreshCw, GitBranch, Download,
   type LucideIcon,
 } from 'lucide-react';
 import { TraceabilityPanel } from './TraceabilityPanel';
@@ -30,6 +30,7 @@ import { CompiledSurfacePanel } from './ui/primitives/compiledSurfacePrimitives'
 import { CompiledTableShell } from './ui/primitives/compiledPrimitives';
 import ScrollEdgeFades from './ui/ScrollEdgeFades';
 import { PageHeader } from './ui/PageHeader';
+import { bdsToast } from './ui/bdsToast';
 import { motion } from 'framer-motion';
 import { resolveCoordinates, extractAddressFromRelation, type ResolvedCoordinates } from '../utils/geoResolveService';
 import {
@@ -384,6 +385,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
   const [editingItem, setEditingItem] = useState<Relation | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [relationSaveError, setRelationSaveError] = useState<string | null>(null);
+  // C1 受控导出（REQ2-13：GET /v2/relations/export.csv，服务端 data:export:full 门禁）忙态
+  const [relationExportBusy, setRelationExportBusy] = useState(false);
   // 组织架构拖拽持久化失败提示（独立通道：不污染表单/删除弹窗的 relationSaveError）
   const [orgMoveError, setOrgMoveError] = useState<string | null>(null);
   const [relationBusy, setRelationBusy] = useState(false);
@@ -740,6 +743,24 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
     return orgContacts;
   }, [orgContacts]);
 
+  // C1 关系智库受控导出（REQ2-13）：按当前分类口径导出组织档案 CSV；
+  // 服务端 data:export:full 门禁——无权限角色 403，错误文案经 toast 呈现
+  const handleExportRelations = async () => {
+    if (relationExportBusy) return;
+    setRelationExportBusy(true);
+    try {
+      await apiService.exportRelationsCsv(
+        { category: selectedCategory ?? undefined, isOrganization: true },
+        cloudEndpoint,
+      );
+      bdsToast.success('关系档案 CSV 已开始下载');
+    } catch (e: any) {
+      bdsToast.danger(e?.message || '关系档案导出失败');
+    } finally {
+      setRelationExportBusy(false);
+    }
+  };
+
   const renderRelationListToolbar = (toolbarInsetClass = '', includeOffset = true) => (
     <SpotlightCard
       spotlightColor={isDarkMode ? RELATIONS_TOOLBAR_SPOTLIGHT_DARK_COLOR : RELATIONS_TOOLBAR_SPOTLIGHT_LIGHT_COLOR}
@@ -768,6 +789,22 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
         </div>
 
         <div className={RELATIONS_TOOLBAR_VIEW_GROUP_CLASS}>
+          {/* C1 受控导出（REQ2-13）：导出当前分类组织档案 CSV（服务端 data:export:full 门禁 + 审计） */}
+          <button
+            type="button"
+            onClick={handleExportRelations}
+            disabled={relationExportBusy}
+            className={`${RELATIONS_TOOLBAR_SEGMENT_BUTTON_CLASS} ${RELATIONS_TOOLBAR_SEGMENT_ACTIVE_CLASS} disabled:opacity-40`}
+            aria-label="导出组织档案 CSV"
+            title="导出当前分类组织档案 CSV"
+          >
+            {relationExportBusy ? (
+              <RefreshCw size={14} strokeWidth={1.5} className="animate-spin" />
+            ) : (
+              <Download size={14} strokeWidth={1.5} />
+            )}
+          </button>
+
           <CustomSelect
             value={relationSortMode}
             onChange={(value) => setRelationSortMode(value as RelationSortMode)}
@@ -1997,6 +2034,8 @@ const RelationsManager: React.FC<RelationsManagerProps> = ({ relations, onUpdate
                         <div>
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>信用额度 (USD)</label>
                           <input name="creditLimit" type="number" defaultValue={editingItem?.creditLimit} placeholder="50000" className={`w-full mt-1 h-9 px-3 rounded-full border outline-none font-light text-xs transition-all ${relationFormFieldClass}`} />
+                          {/* D1 拍板方案二：档案侧信用额度仅作备注——订单信用门禁唯一真源为 CRM「信用额度」（CreditLimit 实体） */}
+                          <p className="mt-1 ml-1 text-[10px] font-light text-[var(--text-tertiary)]">仅备注，不控制订单信用</p>
                         </div>
                         <div className="col-span-2">
                           <label className={`text-[10px] font-light tracking-wide ml-1 ${relationFormLabelClass}`}>付款偏好说明</label>

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ChevronLeft, FileText, Package, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2 } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, FileText, Package, PackageCheck, Plus, Pencil, RefreshCw, Save, Search, Trash2, XCircle } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import CapsuleDateInput from './ui/CapsuleDateInput';
+import RelationCombobox from './ui/RelationCombobox';
 import {
   CompiledFormMapPanel,
   CompiledFormSectionPanel,
@@ -22,6 +23,7 @@ import type {
   DevelopmentStage as DevStage,
   SampleType,
   ProductAssetDetail,
+  Relation,
 } from '../types';
 import { View } from '../types';
 import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
@@ -116,7 +118,9 @@ interface DevFormState {
   stage: DevStage;
   owner: string;
   customerName: string;
+  customerRelationId: string;
   supplierName: string;
+  supplierRelationId: string;
   productAssetId: string;
   productName: string;
   currentRound: string;
@@ -155,7 +159,9 @@ const EMPTY_FORM: DevFormState = {
   stage: 'developing',
   owner: '',
   customerName: '',
+  customerRelationId: '',
   supplierName: '',
+  supplierRelationId: '',
   productAssetId: '',
   productName: '',
   currentRound: '1',
@@ -190,7 +196,9 @@ const buildInitialForm = (editingCase: DevCase | null): DevFormState => {
     stage: editingCase.stage || 'developing',
     owner: editingCase.owner || '',
     customerName: editingCase.customerName || '',
+    customerRelationId: editingCase.customerRelationId || '',
     supplierName: editingCase.supplierName || '',
+    supplierRelationId: editingCase.supplierRelationId || '',
     productAssetId: (editingCase as any).productAssetId || '',
     productName: editingCase.productName || '',
     currentRound: String(editingCase.currentRound ?? 1),
@@ -244,6 +252,12 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       setIsRefreshing(false);
     }
   }, [setCases]);
+
+  // ── D4 关系智库档案（新建/编辑表单客户/供应商下拉数据源，与订单/财务各面板同通道）──
+  const [relations, setRelations] = useState<Relation[]>([]);
+  useEffect(() => {
+    apiService.listRelations().then(setRelations).catch(() => {});
+  }, []);
 
   // 客户端零延迟过滤（与老页面 RelationsManager 模式一致）
   const filteredCases = useMemo(() => {
@@ -387,7 +401,10 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       stage: form.stage,
       ...(form.owner.trim() ? { owner: form.owner.trim() } : {}),
       ...(form.customerName.trim() ? { customerName: form.customerName.trim() } : {}),
+      // D4：客户/供应商从关系智库档案选择时携带 FK 快照（手写未匹配档案则仅传名称，与订单范式一致）
+      ...(form.customerRelationId.trim() ? { customerRelationId: form.customerRelationId.trim() } : {}),
       ...(form.supplierName.trim() ? { supplierName: form.supplierName.trim() } : {}),
+      ...(form.supplierRelationId.trim() ? { supplierRelationId: form.supplierRelationId.trim() } : {}),
       ...(form.productAssetId.trim() ? { productAssetId: form.productAssetId.trim() } : {}),
       ...(form.productName.trim() ? { productName: form.productName.trim() } : {}),
       currentRound: Number.isFinite(parsedRound) && parsedRound > 0 ? parsedRound : 1,
@@ -429,6 +446,39 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
       bdsToast.danger(`删除失败：${err?.message || err}`);
     }
   }, [selectedCase, setCases]);
+
+  // ── C13 5A 样衣评审（生产部评审通过后方可进入寄出阶段；后端 POST /v1/development/:id/review）──
+  const [isReviewing, setIsReviewing] = useState(false);
+  const handleReview = useCallback(async (reviewStatus: 'passed' | 'failed') => {
+    if (!selectedCase || isReviewing) return;
+    const passed = reviewStatus === 'passed';
+    if (!(await bdsConfirm({
+      title: passed ? '评审通过' : '评审不通过',
+      body: passed
+        ? `确认 5A 样衣「${selectedCase.name}」(${selectedCase.code}) 评审通过？\n通过后本开发单方可进入寄出阶段。`
+        : `确认 5A 样衣「${selectedCase.name}」(${selectedCase.code}) 评审不通过？`,
+      danger: !passed,
+    }))) return;
+    setIsReviewing(true);
+    try {
+      const base = apiService.getStoredConfig().cloudEndpoint;
+      const url = apiService.buildApiUrl(`/v1/development/${encodeURIComponent(selectedCase.id)}/review`, base);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: apiService.getAuthHeaders(),
+        body: JSON.stringify({ reviewStatus }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message || `评审提交失败：HTTP ${res.status}`);
+      const updated = data.case;
+      setCases(prev => prev.map(c => (c.id === updated.id ? { ...c, ...updated } : c)));
+      bdsToast.success(passed ? '已登记评审通过' : '已登记评审不通过');
+    } catch (err: any) {
+      bdsToast.danger(`评审失败：${err?.message || err}`);
+    } finally {
+      setIsReviewing(false);
+    }
+  }, [selectedCase, isReviewing, setCases]);
 
   // ── BDS v2.1：本组件对主题透明 — 无 isDarkMode 分支，暗色由 tokens.css [data-theme] 统一覆盖 ──
   const textPrimaryClass = 'text-[var(--text-primary)]';
@@ -709,6 +759,31 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                             发起报价
                           </button>
                         )}
+                        {/* C13 5A 样衣评审入口：仅 5A 重点样衣显示（评审通过后方可进入寄出阶段，后端门禁兜底） */}
+                        {(selectedCase as any).sampleCategory === '5a' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleReview('passed')}
+                              disabled={isReviewing}
+                              title="5A 样衣生产部评审通过（通过后方可进入寄出阶段）"
+                              className="bds-btn bds-btn-secondary"
+                            >
+                              <CheckCircle2 size={14} />
+                              评审通过
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReview('failed')}
+                              disabled={isReviewing}
+                              title="5A 样衣评审不通过（留痕评审状态）"
+                              className="bds-btn bds-btn-secondary"
+                            >
+                              <XCircle size={14} />
+                              评审不通过
+                            </button>
+                          </>
+                        )}
                         <button
                           type="button"
                           onClick={openEditModal}
@@ -972,21 +1047,34 @@ const DevelopmentManager: React.FC<DevelopmentManagerProps> = ({ isDarkMode, cas
                 contentBaseClassName="grid grid-cols-2 gap-4"
               >
                 <div>
-                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">客户名</label>
-                  <input
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">客户</label>
+                  {/* D4：从关系智库档案选择（保留手输兜底——未匹配档案时仅按名称快照提交） */}
+                  <RelationCombobox
                     value={form.customerName}
-                    onChange={(e) => updateField('customerName', e.target.value)}
-                    placeholder="客户名称"
-                    className="bds-input"
+                    relationId={form.customerRelationId || undefined}
+                    relations={relations}
+                    filterCategories={['Customer']}
+                    placeholder="从关系智库选择客户"
+                    isDarkMode={isDarkMode}
+                    onChange={({ name, relationId }) => {
+                      updateField('customerName', name);
+                      updateField('customerRelationId', relationId ?? '');
+                    }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">供应商名</label>
-                  <input
+                  <label className="block text-xs mb-1 ml-1 text-[var(--text-tertiary)]">供应商</label>
+                  <RelationCombobox
                     value={form.supplierName}
-                    onChange={(e) => updateField('supplierName', e.target.value)}
-                    placeholder="供应商名称"
-                    className="bds-input"
+                    relationId={form.supplierRelationId || undefined}
+                    relations={relations}
+                    filterCategories={['Supplier']}
+                    placeholder="从关系智库选择供应商"
+                    isDarkMode={isDarkMode}
+                    onChange={({ name, relationId }) => {
+                      updateField('supplierName', name);
+                      updateField('supplierRelationId', relationId ?? '');
+                    }}
                   />
                 </div>
                 <div className="col-span-2">

@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  buildProductExportRows,
+  PRODUCT_EXPORT_HEADERS,
   PRODUCT_CATEGORY_CARD_GRID_CLASS,
   PRODUCT_CARD_CLASS,
   PRODUCT_CARD_GRID_CLASS,
@@ -396,5 +398,114 @@ describe('ProductsManager Bambook OS tokens', () => {
     expect(productsSource).not.toContain("backend create failed");
     expect(productsSource).not.toContain("backend update failed");
     expect(productsSource).not.toContain("backend delete failed");
+  });
+});
+
+describe('ProductsManager 功能批次 C/D（数字档案车道）', () => {
+  it('C10 产品导出：列表工具条提供导出按钮，前端 xlsx 生成当前视图全量', () => {
+    expect(productsSource).toContain("import * as XLSX from 'xlsx';");
+    expect(productsSource).toContain('const handleExportProducts = () => {');
+    expect(productsSource).toContain('buildProductExportRows(currentProducts)');
+    expect(productsSource).toContain('XLSX.utils.aoa_to_sheet(rows)');
+    expect(productsSource).toContain('XLSX.writeFile(book, `产品档案-${stamp}.xlsx`);');
+    expect(productsSource).toContain('aria-label="导出当前视图产品 Excel"');
+    expect(productsSource).toContain('onClick={handleExportProducts}');
+    expect(productsSource).toContain("bdsToast.warning('当前视图没有可导出的产品档案')");
+  });
+
+  it('C10 导出行构建：SKU/名称/品类/供应商/价格/库存列映射正确（含 millName 快照优先）', () => {
+    const fabricProduct = {
+      id: 'PROD-1',
+      sku: 'SKU-001',
+      name: '精纺羊毛',
+      mainCategory: 'Fabric',
+      subCategoryId: 'sub-1',
+      season: 'AW26',
+      cost: 0,
+      status: 'Development',
+      updatedAt: Date.UTC(2026, 7, 28),
+      fabricProfile: {
+        millOrganizationId: 'REL-MILL-1',
+        millName: 'Panda Mill',
+        millQuality: 'Super 120s',
+        stockStatus: '现货',
+        stockQuantity: 120.5,
+        stockUnit: 'm',
+      },
+      fabricPrices: [
+        { id: 'FP-1', productAssetId: 'PROD-1', priceType: 'factory', amount: 8.5, currency: 'USD', unit: 'm', updatedAt: 100 },
+        { id: 'FP-2', productAssetId: 'PROD-1', priceType: 'customer', amount: 12, currency: 'USD', unit: 'm', updatedAt: 100 },
+        { id: 'FP-3', productAssetId: 'PROD-1', priceType: 'sample', amount: 15, currency: 'USD', unit: 'm', updatedAt: 200 },
+        { id: 'FP-4', productAssetId: 'PROD-1', priceType: 'sample', amount: 14, currency: 'USD', unit: 'm', updatedAt: 90 },
+        { id: 'FP-5', productAssetId: 'PROD-1', priceType: 'cutting', amount: 13.5, currency: 'USD', unit: 'm', updatedAt: 100 },
+        { id: 'FP-6', productAssetId: 'PROD-1', priceType: 'factory', amount: 99, currency: 'USD', unit: 'm', updatedAt: 300, deletedAt: 1 },
+      ],
+    } as any;
+    const rows = buildProductExportRows([fabricProduct]);
+    expect(rows[0]).toEqual(PRODUCT_EXPORT_HEADERS);
+    expect(rows).toHaveLength(2);
+    const row = rows[1];
+    expect(row[0]).toBe('SKU-001');
+    expect(row[1]).toBe('精纺羊毛');
+    expect(row[2]).toBe('面料');
+    expect(row[3]).toBe('Super 120s');
+    // D3 双写后：供应商展示优先 millName 快照，回退 FK/历史裸文本
+    expect(row[4]).toBe('Panda Mill');
+    // 工厂价取最新未删除行（deletedAt 行被排除）
+    expect(row[5]).toBe(8.5);
+    expect(row[6]).toBe(12);
+    // 样品价取 updatedAt 最新行
+    expect(row[7]).toBe(15);
+    expect(row[8]).toBe(13.5);
+    expect(row[9]).toBe('USD');
+    expect(row[10]).toBe('现货');
+    expect(row[11]).toBe('120.5 m');
+    expect(row[12]).toBe('2026-08-28');
+  });
+
+  it('C11 新建产品图片：表单提供暂存上传区，保存落库后统一上传到同一档案', () => {
+    expect(productsSource).toContain('const PendingImageUploader: React.FC<{');
+    expect(productsSource).toContain('const [pendingImages, setPendingImages] = useState<File[]>([]);');
+    expect(productsSource).toContain('<PendingImageUploader files={pendingImages} onChange={setPendingImages} />');
+    expect(productsSource).toContain('URL.createObjectURL(file)');
+    // 暂存文件在 createProductAsset 成功拿到 id 后才上传（服务端要求资产已存在）
+    expect(productsSource).toContain('apiService.uploadProductImages(persisted.id, pendingImages, cloudEndpoint)');
+    expect(productsSource).toContain('persistedWithImages = { ...persisted, images: uploadedImages };');
+    // 上传失败不回滚档案，仅提示
+    expect(productsSource).toContain('档案已创建，但图片上传失败');
+    // 表单关闭时清空暂存
+    expect(productsSource).toContain('setPendingImages([]);');
+  });
+
+  it('C12 价格历史：补样品价历史与零剪价历史两栏（只读展示存量数据）', () => {
+    expect(productsSource).toContain("(['factory', 'customer', 'sample', 'cutting'] as const).map(type => (");
+    expect(productsSource).toContain("'售价历史' : type === 'sample' ? '样品价历史' : '零剪价历史'");
+    expect(productsSource).toContain('priceHistoryRows(selectedProduct, type)');
+  });
+
+  it('D3 面料供应商：从供应商档案下拉选择（与 SupplierInquiryPanel 同源 listFactoryProfiles）', () => {
+    expect(productsSource).toContain('const FabricSupplierField: React.FC<{');
+    expect(productsSource).toContain('apiService.listFactoryProfiles({ blacklisted: false, limit: 200 })');
+    expect(productsSource).toContain('<FabricSupplierField');
+    expect(productsSource).toContain('source="CompiledProductsPage.fabric-supplier-select"');
+    // FK + 名称快照双写
+    expect(productsSource).toContain('<input type="hidden" name="millOrganizationId" value={selectedValue} />');
+    expect(productsSource).toContain('name="millName"');
+    expect(productsSource).toContain("millName: valueOf('millName'),");
+    // 手打输入框已移除
+    expect(productsSource).not.toContain('name="millOrganizationId" className={productInputClass}');
+    // 展示路径优先 millName 快照
+    expect(productsSource).toContain("product.fabricProfile?.millName || product.fabricProfile?.millOrganizationId || '供应商未填'");
+  });
+
+  it('D3 设计纪律：供应商下拉走 CompiledSelectControl（BDS），不引入原生 select', () => {
+    const fieldStart = productsSource.indexOf('const FabricSupplierField: React.FC<{');
+    const fieldEnd = productsSource.indexOf('/**', fieldStart);
+    const fieldSource = productsSource.slice(fieldStart, fieldEnd);
+    expect(fieldSource).toContain('<CompiledSelectControl');
+    expect(fieldSource).toContain('surface="form"');
+    expect(fieldSource).not.toContain('<select');
+    expect(fieldSource).not.toMatch(/#[0-9a-fA-F]{3,6}\b/);
+    expect(fieldSource).not.toContain('rounded-[');
   });
 });

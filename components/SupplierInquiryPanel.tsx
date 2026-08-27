@@ -26,6 +26,8 @@ import {
   CheckCircle2,
   Scale,
   Pencil,
+  Undo2,
+  FileText,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import {
@@ -67,8 +69,28 @@ const UNITS = ['YD', 'M', 'KG', 'PC', 'SET'];
 
 // ==================== 类型 ====================
 
+/** C7：询价转采购单预填草稿（由宿主 ProcurementManager 消费） */
+export interface SupplierInquiryConvertDraft {
+  inquiryNumber: string;
+  currency: string;
+  supplierRelationId?: string;
+  supplierName?: string;
+  expectedDeliveryDate?: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  buyer?: string;
+  line: {
+    materialCode?: string;
+    description: string;
+    quantity?: number;
+    unit?: string;
+  };
+}
+
 interface SupplierInquiryPanelProps {
   isDarkMode: boolean;
+  /** C7：已比价询价单一键转采购单（宿主 ProcurementManager 提供；缺省不展示入口） */
+  onConvertToPurchaseOrder?: (draft: SupplierInquiryConvertDraft) => void;
 }
 
 interface QuoteFormState {
@@ -166,7 +188,7 @@ const getLowestBaseAmountId = (quotes: SupplierQuoteItem[]): string | null => {
 
 // ==================== 组件 ====================
 
-const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode: _isDarkMode }) => {
+const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode: _isDarkMode, onConvertToPurchaseOrder }) => {
   const [inquiries, setInquiries] = useState<SupplierInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -395,6 +417,47 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
       setActionLoading(null);
     }
   }, [updateInquiryInList]);
+
+  // ── C9：撤回比价（Compared → Open）——选错中选供应商可回退重新决策（报价保留） ──
+  const handleRevertComparison = useCallback(async (inquiryId: string) => {
+    setError(null);
+    setActionLoading(`revert_${inquiryId}`);
+    try {
+      // 后端 updateSupplierInquiry 已扩展 Compared → Open 撤回分支（状态机真源在服务端）；
+      // status 为后端撤回契约字段，前端 SupplierInquiryInput 类型未含（types.ts 不在本车道租约内），收窄断言透传。
+      const updated = await apiService.updateSupplierInquiry(inquiryId, { status: 'Open' } as any);
+      updateInquiryInList(updated);
+    } catch (e: any) {
+      setError(`撤回比价失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [updateInquiryInList]);
+
+  // ── C7：一键转采购单（已比价 → 采购单新建页预填：供应商/币种/条款/行明细） ──
+  const handleConvert = useCallback((inquiry: SupplierInquiry) => {
+    if (!onConvertToPurchaseOrder) return;
+    const quotes = Array.isArray(inquiry.supplierQuotes) ? inquiry.supplierQuotes : [];
+    const selectedQuote = quotes.find(q => q.isSelected)
+      ?? quotes.find(q => q.supplierId && q.supplierId === inquiry.selectedSupplierId)
+      ?? null;
+    onConvertToPurchaseOrder({
+      inquiryNumber: inquiry.inquiryNumber,
+      currency: inquiry.currency,
+      supplierRelationId: inquiry.selectedSupplierId ?? selectedQuote?.supplierId,
+      supplierName: inquiry.selectedSupplierName ?? selectedQuote?.supplierName,
+      expectedDeliveryDate: selectedQuote?.expectedDeliveryDate || inquiry.expectedDeliveryDate,
+      deliveryTerms: selectedQuote?.deliveryTerms,
+      paymentTerms: selectedQuote?.paymentTerms,
+      buyer: inquiry.buyer,
+      line: {
+        materialCode: inquiry.materialCode,
+        description: inquiry.description,
+        quantity: inquiry.quantity,
+        unit: inquiry.unit,
+      },
+    });
+  }, [onConvertToPurchaseOrder]);
 
   // ── 删除询价 ──
   const handleDeleteInquiry = useCallback(async (inquiryId: string) => {
@@ -1019,18 +1082,43 @@ const SupplierInquiryPanel: React.FC<SupplierInquiryPanelProps> = ({ isDarkMode:
                               {/* 操作按钮 */}
                               <div className="flex items-center gap-2 pt-2 flex-wrap">
                                 {inquiry.status === 'Compared' && (
-                                  <button
-                                    onClick={() => handleCloseInquiry(inquiry.id)}
-                                    disabled={actionLoading === `close_${inquiry.id}`}
-                                    className="bds-btn bds-btn-secondary"
-                                  >
-                                    {actionLoading === `close_${inquiry.id}` ? (
-                                      <Loader2 size={14} className="animate-spin" />
-                                    ) : (
-                                      <CheckCircle2 size={14} />
+                                  <>
+                                    {/* C7：一键转采购单（宿主提供跳转时展示） */}
+                                    {onConvertToPurchaseOrder && (
+                                      <button
+                                        onClick={() => handleConvert(inquiry)}
+                                        className="bds-btn bds-btn-primary"
+                                      >
+                                        <FileText size={14} />
+                                        <span>转采购单</span>
+                                      </button>
                                     )}
-                                    <span>关闭询价</span>
-                                  </button>
+                                    {/* C9：撤回比价（Compared → Open，报价保留可重新决策） */}
+                                    <button
+                                      onClick={() => handleRevertComparison(inquiry.id)}
+                                      disabled={actionLoading === `revert_${inquiry.id}`}
+                                      className="bds-btn bds-btn-ghost"
+                                    >
+                                      {actionLoading === `revert_${inquiry.id}` ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                      ) : (
+                                        <Undo2 size={14} />
+                                      )}
+                                      <span>撤回比价</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleCloseInquiry(inquiry.id)}
+                                      disabled={actionLoading === `close_${inquiry.id}`}
+                                      className="bds-btn bds-btn-secondary"
+                                    >
+                                      {actionLoading === `close_${inquiry.id}` ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                      ) : (
+                                        <CheckCircle2 size={14} />
+                                      )}
+                                      <span>关闭询价</span>
+                                    </button>
+                                  </>
                                 )}
                                 {inquiry.status === 'Open' && (
                                   <button

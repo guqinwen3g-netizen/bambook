@@ -21,6 +21,9 @@ import { logger } from '../lib/logger';
 import crypto from 'crypto';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { isFabricChainOrder, isGarmentChainOrder, isDevelopmentSampleType } from './qcChainService';
+// D8：验货放行口径唯一真源（合格率≥90% + 不合格率≤3% + 致命疵点=0 + 业务批准），
+// 与 production/stageService「qc_shipped」生产门禁同一判定函数，禁止 QC 侧重造宽松口径
+import { assessInspectionRelease } from '../production/stageService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型定义
@@ -62,6 +65,7 @@ export interface BulkReportInput {
   lotSize?: number;
   sampleSize?: number;
   aqlLevel?: string;
+  criticalDefects?: number; // D7：致命疵点（AQL 0 零容忍，D8 放行口径消费）
   majorDefects?: number;
   minorDefects?: number;
   defectSummary?: string;
@@ -123,7 +127,7 @@ export interface GarmentShipmentEligibility {
   /** 仅服装链订单适用（isGarmentChainOrder）；非服装订单 applicable=false */
   applicable: boolean;
   eligible: boolean;
-  /** 大货终期 Final QC 状态（InspectionReport id=INR__{orderId}, inspectionType='final', result='pass'） */
+  /** 大货终期 Final QC 状态（InspectionReport id=INR__{orderId}, inspectionType='final'；D8 起按生产门禁统一口径判定） */
   bulkQc: ShipmentGateState;
   missingGates: ShipmentGateCode[];
   /** applicable=false 时的原因说明（链边界） */
@@ -362,13 +366,14 @@ export function createQcService(prisma: PrismaClient) {
           result: r.result,
           inspectionDate: r.inspectionDate ?? new Date(ts).toISOString().slice(0, 10),
           inspectedBy: assignment.qcUserId,
-          // schema 契约对齐：totalUnits/passedUnits/majorDefects/minorDefects 为
+          // schema 契约对齐：totalUnits/passedUnits/criticalDefects/majorDefects/minorDefects 为
           // Int @default(0) 必填（不可 null），缺省语义为 0；lotSize/sampleSize 可空
           totalUnits: r.totalUnits ?? 0,
           passedUnits: r.passedUnits ?? 0,
           lotSize: r.lotSize ?? null,
           sampleSize: r.sampleSize ?? null,
           aqlLevel: r.aqlLevel ?? null,
+          criticalDefects: r.criticalDefects ?? 0,
           majorDefects: r.majorDefects ?? 0,
           minorDefects: r.minorDefects ?? 0,
           defectSummary: r.defectSummary ?? null,
@@ -501,7 +506,9 @@ export function createQcService(prisma: PrismaClient) {
    * 例外不改变此处返回的门禁状态（DR-013「例外不改变原规则」）。
    *
    * 数据来源（链路边界：各自独立记录，禁止合并为单一「已确认」字段）：
-   *   - bulkQc：InspectionReport(orderId, inspectionType='final') result='pass'
+   *   - bulkQc：InspectionReport(orderId, inspectionType='final')，D8 起放行判定统一为
+   *     生产门禁口径（assessInspectionRelease：结论非 fail + 致命疵点=0 + 合格率≥90%
+   *     + 不合格率≤3% + 业务部批准），不满足时 conditions.bulkQc.failureReasons 给出缺口
    *   - ss：FabricShipmentSample(orderId, deletedAt=null) customerStatus='approved'（取最新一条）
    *   - rc：Order.fabricSampleSentDate 非空=已启用；启用则要求 fabricSampleConfirmedDate 非空
    * 服装订单不适用（出运门禁=大货 Final QC 独立检查，REL-14-A4）→ applicable=false。
@@ -529,7 +536,12 @@ export function createQcService(prisma: PrismaClient) {
     const finalReport = await db.inspectionReport.findUnique({
       where: { id: `INR__${orderId}` },
     });
-    const bulkQcPassed = !!finalReport && finalReport.inspectionType === 'final' && finalReport.result === 'pass';
+    // D8：bulkQc 放行 = 生产门禁统一口径（result 非 fail + 致命疵点=0 + 合格率≥90%
+    // + 不合格率≤3% + 业务部批准），不再只看 result='pass' 宽松判定
+    const bulkRelease = finalReport && finalReport.inspectionType === 'final'
+      ? assessInspectionRelease(finalReport)
+      : assessInspectionRelease(null);
+    const bulkQcPassed = bulkRelease.qualified;
 
     const ssSamples = await db.fabricShipmentSample.findMany({
       where: { orderId, deletedAt: null },
@@ -557,6 +569,8 @@ export function createQcService(prisma: PrismaClient) {
           result: finalReport?.result ?? null,
           inspectedBy: finalReport?.inspectedBy ?? null,
           inspectionDate: finalReport?.inspectionDate ?? null,
+          // D8 透明化：不满足时的具体口径缺口（消息与生产门禁逐条口径一致）
+          ...(bulkRelease.qualified ? {} : { failureReasons: bulkRelease.failures.map(f => f.message) }),
         },
         ss: {
           satisfied: ssApproved,
@@ -581,8 +595,9 @@ export function createQcService(prisma: PrismaClient) {
   // ══════════════════════════════════════════════════════════════
 
   /**
-   * REL-14-A4：服装订单出运门禁 = 大货终期 Final QC 通过（InspectionReport id=INR__{orderId},
-   * inspectionType='final', result='pass'），与样品链 QC 严格独立（样品打回不阻断大货出运判定，
+   * REL-14-A4：服装订单出运门禁 = 大货终期 Final QC 放行（InspectionReport id=INR__{orderId},
+   * inspectionType='final'；D8 起判定统一为生产门禁口径 assessInspectionRelease：结论非 fail
+   * + 致命疵点=0 + 合格率≥90% + 不合格率≤3% + 业务部批准），与样品链 QC 严格独立（样品打回不阻断大货出运判定，
    * 大货 Final QC 缺/未过即不具备出运资格）。
    * 本函数只做原始门禁状态报告（fail-closed 视图），DR-013 受控例外由出运域另行绑定，
    * 例外不改变此处返回的门禁状态（DR-013「例外不改变原规则」）。
@@ -607,7 +622,11 @@ export function createQcService(prisma: PrismaClient) {
     const finalReport = await db.inspectionReport.findUnique({
       where: { id: `INR__${orderId}` },
     });
-    const bulkQcPassed = !!finalReport && finalReport.inspectionType === 'final' && finalReport.result === 'pass';
+    // D8：与面料链同一放行口径（生产门禁统一判定），不再只看 result='pass'
+    const bulkRelease = finalReport && finalReport.inspectionType === 'final'
+      ? assessInspectionRelease(finalReport)
+      : assessInspectionRelease(null);
+    const bulkQcPassed = bulkRelease.qualified;
 
     return {
       orderId,
@@ -619,6 +638,8 @@ export function createQcService(prisma: PrismaClient) {
         result: finalReport?.result ?? null,
         inspectedBy: finalReport?.inspectedBy ?? null,
         inspectionDate: finalReport?.inspectionDate ?? null,
+        // D8 透明化：不满足时的具体口径缺口
+        ...(bulkRelease.qualified ? {} : { failureReasons: bulkRelease.failures.map(f => f.message) }),
       },
       missingGates: bulkQcPassed ? [] : ['BULK_QC_NOT_PASSED'],
     };

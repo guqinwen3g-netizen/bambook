@@ -62,6 +62,65 @@ function defectRate(total: number, passed: number): number {
   return (total - passed) / total;
 }
 
+// ────────────────────────────────────────────────────────────────
+// D8 验货放行统一口径（qc_shipped 生产门禁 = QC 出运资格判定唯一真源）
+// ────────────────────────────────────────────────────────────────
+
+/** 放行判定消费的最小报告视图（与 InspectionReport 行结构兼容；数量缺省按 schema @default(0) 归一） */
+export interface InspectionReleaseSubject {
+  result?: string | null;
+  totalUnits?: number | null;
+  passedUnits?: number | null;
+  criticalDefects?: number | null;
+  approvedByBusiness?: boolean | null;
+}
+
+export interface InspectionReleaseFailure {
+  code: 'INSPECTION_NOT_QUALIFIED' | 'BUSINESS_APPROVAL_REQUIRED';
+  message: string;
+}
+
+export interface InspectionReleaseAssessment {
+  qualified: boolean;
+  failures: InspectionReleaseFailure[];
+}
+
+/**
+ * D8：验货放行口径唯一真源——合格率 ≥90% + 不合格率 ≤3% + 致命疵点 = 0
+ * （AQL 0 零容忍）+ 结论非 fail + 业务部批准。
+ * 消费方（禁止各自重造口径）：
+ *   - stageService.advanceStage「qc_shipped」门禁（failures[0] 即原逐条抛错语义，顺序一致）；
+ *   - qcService.checkShipmentEligibility / checkGarmentShipmentEligibility 出运资格 bulkQc 判定。
+ * null/undefined 报告 → qualified=false（fail-closed，「报告未建立」）。
+ */
+export function assessInspectionRelease(inspection: InspectionReleaseSubject | null | undefined): InspectionReleaseAssessment {
+  const failures: InspectionReleaseFailure[] = [];
+  if (!inspection) {
+    failures.push({ code: 'INSPECTION_NOT_QUALIFIED', message: '终期验货报告（final）未建立' });
+    return { qualified: false, failures };
+  }
+  if (inspection.result === 'fail') {
+    failures.push({ code: 'INSPECTION_NOT_QUALIFIED', message: '终期验货结论为不合格（fail），需整改复验' });
+  }
+  const critical = inspection.criticalDefects ?? 0;
+  if (critical > 0) {
+    failures.push({ code: 'INSPECTION_NOT_QUALIFIED', message: `存在 ${critical} 个致命疵点（AQL 0 零容忍）` });
+  }
+  // 缺省按 schema @default(0) 归一：无数量数据 → 合格率 0，fail-closed
+  const pr = passRate(inspection.totalUnits ?? 0, inspection.passedUnits ?? 0);
+  const dr = defectRate(inspection.totalUnits ?? 0, inspection.passedUnits ?? 0);
+  if (pr < MIN_PASS_RATE) {
+    failures.push({ code: 'INSPECTION_NOT_QUALIFIED', message: `合格率 ${(pr * 100).toFixed(1)}% 低于阈值 90%` });
+  }
+  if (dr > MAX_DEFECT_RATE) {
+    failures.push({ code: 'INSPECTION_NOT_QUALIFIED', message: `不合格率 ${(dr * 100).toFixed(1)}% 超过上限 3%` });
+  }
+  if (!inspection.approvedByBusiness) {
+    failures.push({ code: 'BUSINESS_APPROVAL_REQUIRED', message: '需业务部批准发货' });
+  }
+  return { qualified: failures.length === 0, failures };
+}
+
 export async function initProductionStages(prisma: PrismaClient, orderId: string): Promise<void> {
   const now = BigInt(Date.now());
   for (const stage of PRODUCTION_STAGES) {
@@ -293,28 +352,15 @@ export async function advanceStage(params: AdvanceStageParams): Promise<
 
       if (stageKey === 'qc_shipped') {
         // Phase B4：门禁仅认终期验货（final）报告
+        // D8：放行判定走 assessInspectionRelease 统一口径（与 QC 出运资格同一真源）；
+        // failures 顺序与原逐条检查一致，failures[0] 保持原抛错语义与消息
         const inspection = await tx.inspectionReport.findUnique({
           where: { orderId_inspectionType: { orderId, inspectionType: 'final' } },
         });
-        if (!inspection) {
-          throw Object.assign(new Error('终期验货报告（final）未建立'), { code: 'INSPECTION_NOT_QUALIFIED' });
-        }
-        if (inspection.result === 'fail') {
-          throw Object.assign(new Error('终期验货结论为不合格（fail），需整改复验'), { code: 'INSPECTION_NOT_QUALIFIED' });
-        }
-        if ((inspection.criticalDefects ?? 0) > 0) {
-          throw Object.assign(new Error(`存在 ${inspection.criticalDefects} 个致命疵点（AQL 0 零容忍）`), { code: 'INSPECTION_NOT_QUALIFIED' });
-        }
-        const pr = passRate(inspection.totalUnits, inspection.passedUnits);
-        const dr = defectRate(inspection.totalUnits, inspection.passedUnits);
-        if (pr < MIN_PASS_RATE) {
-          throw Object.assign(new Error(`合格率 ${(pr * 100).toFixed(1)}% 低于阈值 90%`), { code: 'INSPECTION_NOT_QUALIFIED' });
-        }
-        if (dr > MAX_DEFECT_RATE) {
-          throw Object.assign(new Error(`不合格率 ${(dr * 100).toFixed(1)}% 超过上限 3%`), { code: 'INSPECTION_NOT_QUALIFIED' });
-        }
-        if (!inspection.approvedByBusiness) {
-          throw Object.assign(new Error('需业务部批准发货'), { code: 'BUSINESS_APPROVAL_REQUIRED' });
+        const release = assessInspectionRelease(inspection);
+        if (!release.qualified) {
+          const first = release.failures[0];
+          throw Object.assign(new Error(first.message), { code: first.code });
         }
       }
 
@@ -380,6 +426,98 @@ export async function advanceStage(params: AdvanceStageParams): Promise<
       'INSPECTION_NOT_QUALIFIED', 'BUSINESS_APPROVAL_REQUIRED',
     ]);
     if (GATE_ERROR_CODES.has(e.code)) {
+      return { ok: false, error: { code: e.code, message: e.message } };
+    }
+    return { ok: false, error: { code: 'STAGE_UPDATE_FAILED', message: String(e?.message ?? e) } };
+  }
+}
+
+export type StageBlockErrorCode =
+  | 'ORDER_NOT_FOUND'
+  | 'INVALID_STAGE'
+  | 'STAGE_NOT_BLOCKABLE'
+  | 'STAGE_UPDATE_FAILED';
+
+export interface SetStageBlockedParams {
+  prisma: PrismaClient;
+  orderId: string;
+  stageKey: StageKey;
+  blocked: boolean;
+  operator?: string;
+  note?: string;
+}
+
+/**
+ * C18 看板阻塞标记：阶段 ⇄ blocked 状态写入路径。
+ * schema ProductionStage.status 注释口径 pending | in_progress | done | blocked，
+ * 此前仅看板聚合（getProductionBoard blockedCount）消费 blocked，无写入入口。
+ * 规则：
+ *   - done 阶段不可标记阻塞（已完成即事实，阻塞语义不成立）；
+ *   - 目标状态与当前一致 → 幂等放行（看板双击/重试不产生审计噪音）；
+ *   - 解除阻塞回到 pending（不臆造 in_progress——该状态无写入方）。
+ */
+export async function setStageBlocked(params: SetStageBlockedParams): Promise<
+  { ok: true; data: { stage: any } } | { ok: false; error: { code: StageBlockErrorCode; message: string } }
+> {
+  const { prisma, orderId, stageKey, blocked, operator, note } = params;
+  if (!STAGE_MAP.has(stageKey)) {
+    return { ok: false, error: { code: 'INVALID_STAGE', message: `Invalid stage: ${stageKey}` } };
+  }
+  try {
+    const result = await prisma.$transaction(async (tx: any) => {
+      const order = await tx.order.findFirst({ where: { id: orderId, deletedAt: null } });
+      if (!order) {
+        throw Object.assign(new Error(`Order ${orderId} not found`), { code: 'ORDER_NOT_FOUND' });
+      }
+      const stage = await tx.productionStage.findUnique({
+        where: { orderId_stageKey: { orderId, stageKey } },
+      });
+      if (!stage) {
+        throw Object.assign(new Error(`Stage ${stageKey} not initialized`), { code: 'INVALID_STAGE' });
+      }
+      if (stage.status === 'done') {
+        throw Object.assign(new Error(`阶段 ${stageKey} 已完成，不可标记/解除阻塞`), { code: 'STAGE_NOT_BLOCKABLE' });
+      }
+      // 幂等：目标状态与当前一致 → 直接返回，不写库不记审计
+      if ((blocked && stage.status === 'blocked') || (!blocked && stage.status !== 'blocked')) {
+        return stage;
+      }
+      const now = BigInt(Date.now());
+      const updated = await tx.productionStage.update({
+        where: { id: stage.id },
+        data: {
+          status: blocked ? 'blocked' : 'pending',
+          operator: operator || null,
+          note: note || stage.note,
+          updatedAt: now,
+        },
+      });
+      await writeRouteAuditLog({
+        prisma: tx,
+        actorId: operator || 'api',
+        source: 'route:production:block',
+        operation: blocked ? 'block_production_stage' : 'unblock_production_stage',
+        targetType: 'ProductionStage',
+        targetId: stage.id,
+        before: { status: stage.status },
+        after: { status: blocked ? 'blocked' : 'pending', stageKey },
+      });
+      return updated;
+    });
+    return {
+      ok: true,
+      data: {
+        stage: {
+          ...result,
+          createdAt: Number(result.createdAt),
+          updatedAt: Number(result.updatedAt),
+          startedAt: result.startedAt ? Number(result.startedAt) : null,
+          doneAt: result.doneAt ? Number(result.doneAt) : null,
+        },
+      },
+    };
+  } catch (e: any) {
+    if (['ORDER_NOT_FOUND', 'INVALID_STAGE', 'STAGE_NOT_BLOCKABLE'].includes(e?.code)) {
       return { ok: false, error: { code: e.code, message: e.message } };
     }
     return { ok: false, error: { code: 'STAGE_UPDATE_FAILED', message: String(e?.message ?? e) } };

@@ -709,12 +709,16 @@ describe('DR-014 · 出运资格三条件并行（QC-014-C2）', () => {
 
   it('并行顺序无关：仅 QC pass → 缺 S/S；仅 S/S approved → 缺 bulkQc（互不前置）', async () => {
     const app = makeApp(prisma);
-    // 场景①：先完成大货 QC
+    // 场景①：先完成大货 QC（D8 统一口径：合格数量达标 + 致命疵点 0 + 业务批准）
     prisma._stores.inspectionReports.push({
       id: 'INR__ORD-F1',
       orderId: 'ORD-F1',
       inspectionType: 'final',
       result: 'pass',
+      totalUnits: 100,
+      passedUnits: 98,
+      criticalDefects: 0,
+      approvedByBusiness: true,
       inspectedBy: 'QC-F1',
       inspectionDate: '2026-08-10',
       createdAt: BigInt(1),
@@ -743,6 +747,10 @@ describe('DR-014 · 出运资格三条件并行（QC-014-C2）', () => {
       orderId: 'ORD-F1',
       inspectionType: 'final',
       result: 'pass',
+      totalUnits: 100,
+      passedUnits: 98,
+      criticalDefects: 0,
+      approvedByBusiness: true,
       createdAt: BigInt(1),
     });
     seedSsSample(prisma, { customerStatus: 'approved' });

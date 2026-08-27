@@ -69,7 +69,7 @@ export interface OrderListFilter {
   customerCode?: string;
   customerRelationId?: string;
   businessLine?: string;
-  search?: string;          // customer / product / code / poNumber 模糊搜索
+  search?: string;          // customer / product / code / poNumber / millName(供应商) / invoiceNumber / supplierInvoiceNumber / salesContractNumber / finalContractNumber(合同号) 模糊搜索
   dateFrom?: string;
   dateTo?: string;
   limit?: number;
@@ -282,6 +282,12 @@ export function createOrderServiceV2(prisma: PrismaClient) {
             { product: { contains: s, mode: 'insensitive' } },
             { code: { contains: s, mode: 'insensitive' } },
             { poNumber: { contains: s, mode: 'insensitive' } },
+            // E4：供应商（工厂）/ 发票号（我方发票 + 供应商发票）/ 合同号（销售合同 + 最终合同）
+            { millName: { contains: s, mode: 'insensitive' } },
+            { invoiceNumber: { contains: s, mode: 'insensitive' } },
+            { supplierInvoiceNumber: { contains: s, mode: 'insensitive' } },
+            { salesContractNumber: { contains: s, mode: 'insensitive' } },
+            { finalContractNumber: { contains: s, mode: 'insensitive' } },
           ];
         }
       }

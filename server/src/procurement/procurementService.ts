@@ -19,6 +19,7 @@ import { PrismaClient, PurchaseOrder, PurchaseLine, MaterialReceipt, SupplierInq
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
 import { deactivateEntityLinks, syncMaterialReceiptReferences, syncPurchaseOrderReferences } from '../entities/sync';
+import { accumulateCompletedPurchaseOrderStats } from '../suppliers/factoryService';
 
 // ────────────────────────────────────────────────────────────────
 // 类型
@@ -95,6 +96,23 @@ export interface MaterialReceiptInput {
   rejectionReason?: string;
   qualityNotes?: string;
   notes?: string;
+  /**
+   * D6 行级收货明细（可选）：每行本次收了多少。
+   * 传入时按明细精确回写各行 receivedQuantity（真源在行），并强校验
+   * Σaccepted === totalAccepted / Σrejected === totalRejected（数字正确，不一致 409）；
+   * 缺省退回旧的按行号贪心分摊路径（兼容历史调用方）。
+   */
+  lineReceipts?: MaterialReceiptLineInput[];
+}
+
+/** D6 行级收货明细行 */
+export interface MaterialReceiptLineInput {
+  /** PurchaseLine.id（必须属于本采购单） */
+  lineId: string;
+  /** 本次该行合格数量（行级回写 + L8 入库口径） */
+  accepted: number;
+  /** 本次该行不合格数量（仅汇总入账；无行级子表不做行级拒收回写） */
+  rejected?: number;
 }
 
 /**
@@ -279,10 +297,10 @@ function validateStatusTransition(from: string, to: PurchaseOrderStatus): void {
   }
 }
 
-// ─── 供应商询价状态转换（Open → Compared → Closed） ───
+// ─── 供应商询价状态转换（Open → Compared → Closed；C9：Compared → Open 撤回比价） ───
 const INQUIRY_TRANSITIONS: Record<string, string[]> = {
   Open: ['Compared', 'Closed'],
-  Compared: ['Closed'],
+  Compared: ['Closed', 'Open'], // Open = 撤回比价（C9：选错中选供应商可回退重新决策，报价行保留）
   Closed: [], // 终态
 };
 
@@ -848,8 +866,44 @@ export function createProcurementService(prisma: PrismaClient) {
       newStatus = 'PartiallyReceived';
     }
 
-    // 行级回写分配（L8 断层修复）：在事务外按快照确定性计算，事务内执行增量 update
-    const stockInLineAllocations = allocateAcceptedQuantity(existing.lines, input.totalAccepted);
+    // C6 幂等口径前置快照：是否「首次进入 Received」（事务内 update 后 existing 可能被复用为返回对象，前态必须先行捕获）
+    const isFirstFullReceipt = newStatus === 'Received' && existing.status !== 'Received';
+
+    // 行级回写分配（L8 断层修复）：在事务外按快照确定性计算，事务内执行增量 update。
+    // D6：客户端传 lineReceipts 行级明细时按明细精确回写（真源在行，不再按行号分摊）；
+    //     缺省退回旧的贪心分摊路径（兼容历史调用方）。
+    let stockInLineAllocations: Array<{ line: PurchaseLine; quantity: number }>;
+    if (input.lineReceipts && input.lineReceipts.length > 0) {
+      const lineById = new Map(existing.lines.map(l => [l.id, l] as const));
+      const seen = new Set<string>();
+      let sumAccepted = 0;
+      let sumRejected = 0;
+      stockInLineAllocations = [];
+      for (const lr of input.lineReceipts) {
+        const line = lineById.get(lr.lineId);
+        if (!line) throw new Error(`行级收货明细引用了不属于采购单 ${purchaseOrderId} 的行：${lr.lineId}`);
+        if (seen.has(lr.lineId)) throw new Error(`行级收货明细行 ${lr.lineId} 重复`);
+        seen.add(lr.lineId);
+        const acc = Number(lr.accepted);
+        const rej = Number(lr.rejected ?? 0);
+        if (!Number.isFinite(acc) || acc < 0) throw new Error(`行级收货明细行 ${lr.lineId} 合格数量非法（须为非负数字）`);
+        if (!Number.isFinite(rej) || rej < 0) throw new Error(`行级收货明细行 ${lr.lineId} 不合格数量非法（须为非负数字）`);
+        sumAccepted += acc;
+        sumRejected += rej;
+        if (acc > 0) stockInLineAllocations.push({ line, quantity: Math.round(acc * 10000) / 10000 });
+      }
+      // 数字正确：行级合计必须与单头总数一致（防"明细一套、总数一套"双口径漂移）
+      sumAccepted = Math.round(sumAccepted * 10000) / 10000;
+      sumRejected = Math.round(sumRejected * 10000) / 10000;
+      if (sumAccepted !== Math.round(Number(input.totalAccepted) * 10000) / 10000) {
+        throw new Error(`行级合格合计 ${sumAccepted} 与收货单总合格数 ${input.totalAccepted} 不一致`);
+      }
+      if (sumRejected !== Math.round(Number(input.totalRejected) * 10000) / 10000) {
+        throw new Error(`行级不合格合计 ${sumRejected} 与收货单总不合格数 ${input.totalRejected} 不一致`);
+      }
+    } else {
+      stockInLineAllocations = allocateAcceptedQuantity(existing.lines, input.totalAccepted);
+    }
     let replayedDuplicate = false;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -915,6 +969,17 @@ export function createProcurementService(prisma: PrismaClient) {
         data: { status: newStatus, updatedAt: now },
       });
 
+      // C6：首次全部收齐（→Received）→ 供应商累计单数/金额同事务累加。
+      // 幂等口径：仅「首次进入 Received」累加；超收补收（Received → Received）不重复计数。
+      // 无工厂档案的供应商静默跳过。
+      if (isFirstFullReceipt && existing.supplierRelationId) {
+        await accumulateCompletedPurchaseOrderStats(tx, {
+          relationId: existing.supplierRelationId,
+          amount: Number(existing.totalAmount ?? 0),
+          updatedAt: BigInt(now),
+        });
+      }
+
       // 审计日志
       await tx.auditLog.create({
         data: {
@@ -958,6 +1023,9 @@ export function createProcurementService(prisma: PrismaClient) {
           totalReceived: input.totalReceived,
           totalAccepted: input.totalAccepted,
           totalRejected: input.totalRejected,
+          // D5：收货表单所选仓库随事件透传（收料单 warehouseId/warehouseName 已同事务落库；
+          // L8 自动入库消费方据此入库到表单仓库而非默认主仓）
+          warehouseId: input.warehouseId ?? null,
           warehouseName: input.warehouseName,
           purchaseOrderStatus: newStatus,
           // L8 行级入库增量契约（MaterialReceivedStockInLine）：仅本次合格数量（合格数口径），
@@ -1070,10 +1138,57 @@ export function createProcurementService(prisma: PrismaClient) {
     return created;
   }
 
-  // ── 更新询价单（仅 Open 状态可编辑） ──
+  // ── 更新询价单（仅 Open 状态可编辑；C9：Compared → Open 撤回比价专用分支） ──
   async function updateSupplierInquiry(id: string, input: UpdateSupplierInquiryInput, actorId: string): Promise<SupplierInquiry> {
     const existing = await prisma.supplierInquiry.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) throw new Error(`询价单 ${id} 不存在`);
+
+    // C9 撤回比价（Compared → Open）：body 携带与现态不同的 status 时按状态机处理。
+    // 撤回后回到可编辑/可增删报价/可重新决策态；清除中选快照与决策备注（决策留痕转审计），
+    // 报价行全部保留但 isSelected 清零（可重新勾选决策）。
+    if (input.status !== undefined && input.status !== existing.status) {
+      validateInquiryStatusTransition(existing.status, input.status);
+      if (!(existing.status === 'Compared' && input.status === 'Open')) {
+        throw new Error(`询价单状态流转 ${existing.status} → ${input.status} 请使用专属操作（比价决策/关闭询价），更新接口仅支持 Compared → Open 撤回比价`);
+      }
+      const now = Date.now();
+      const quotes: SupplierQuoteRecord[] = Array.isArray(existing.supplierQuotes) ? (existing.supplierQuotes as unknown as SupplierQuoteRecord[]) : [];
+      const cleared = quotes.map(q => ({ ...q, isSelected: false }));
+      const updated = await prisma.$transaction(async (tx) => {
+        const inquiry = await tx.supplierInquiry.update({
+          where: { id },
+          data: {
+            status: 'Open',
+            supplierQuotes: cleared as any,
+            selectedSupplierId: null,
+            selectedSupplierName: null,
+            decisionNote: null,
+            updatedAt: now,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+            actorId: actorId || 'system',
+            action: 'reopen_supplier_inquiry',
+            targetType: 'SupplierInquiry',
+            targetId: id,
+            detail: { source: 'api:procurement', before: { status: existing.status, selectedSupplierName: existing.selectedSupplierName ?? null, decisionNote: existing.decisionNote ?? null }, after: { status: 'Open' } } as any,
+            ip: null,
+            operationType: 'transition',
+            fieldPath: 'status',
+            beforeValue: existing.status,
+            afterValue: 'Open',
+            transactionId: null,
+          },
+        });
+        return inquiry;
+      });
+
+      logger.info('[ProcurementService] supplier comparison reverted (Compared → Open)', { id });
+      return updated;
+    }
+
     if (existing.status !== 'Open') {
       throw new Error(`询价单 ${id} 状态为 ${existing.status}，仅 Open 状态可编辑`);
     }

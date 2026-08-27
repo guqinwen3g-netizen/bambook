@@ -36,6 +36,7 @@ import {
   History,
   TrendingDown,
   Download,
+  Pencil,
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { checkFabricExclusivity, type FabricExclusivityViolation } from '../services/fabricExclusivityClient';
@@ -240,6 +241,8 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   //    moqDraftId 记录已存草稿 id，再次提交走 update（改量复判），避免重复建单 ──
   const [moqWarnings, setMoqWarnings] = useState<QuotationMoqLineVerdict[] | null>(null);
   const [moqDraftId, setMoqDraftId] = useState<string | null>(null);
+  // ── C14 砍价修订改价入口：草稿状态「编辑」按钮复用创建表单（提交走 updateQuotation）──
+  const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
 
   // ── 双轨成本面板（PRD 8.6）：轨道 A 中位估算 + 轨道 B 终价 → 偏差黄/红标（仅内部参考）──
   const [showDualTrack, setShowDualTrack] = useState(true);
@@ -394,7 +397,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
   }, [formLines]);
 
   // ── 状态转换操作 ──
-  const handleAction = useCallback(async (id: string, action: 'send' | 'accept' | 'reject' | 'delete' | 'convert' | 'revise') => {
+  const handleAction = useCallback(async (id: string, action: 'send' | 'accept' | 'reject' | 'delete' | 'revise') => {
     if (action === 'revise') {
       if (!(await bdsConfirm({
         title: '砍价修订',
@@ -409,10 +412,6 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       else if (action === 'reject') await apiService.rejectQuotation(id);
       else if (action === 'delete') await apiService.deleteQuotation(id);
       else if (action === 'revise') await apiService.reviseQuotation(id, '砍价修订');
-      else if (action === 'convert') {
-        const result = await apiService.convertQuotationToOrder(id);
-        setConvertedOrderId(result.orderId);
-      }
       await fetchQuotations();
     } catch (e: any) {
       setError(`操作失败：${e?.message || e}`);
@@ -420,6 +419,44 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setActionLoading(null);
     }
   }, [fetchQuotations]);
+
+  // ── C16 转订单补充信息：弹窗收集 PO 号/工厂/交期/订单类型后再调转换端点（overrides 契约后端已支持）──
+  const [convertTarget, setConvertTarget] = useState<Quotation | null>(null);
+  const [convertForm, setConvertForm] = useState<{ poNumber: string; millName: string; dueDate: string; type: string }>({
+    poNumber: '', millName: '', dueDate: '', type: 'Fabric',
+  });
+
+  const openConvertModal = useCallback((qt: Quotation) => {
+    setConvertForm({
+      poNumber: qt.quotationNumber || '',
+      millName: '',
+      dueDate: qt.validUntil || '',
+      type: 'Fabric',
+    });
+    setConvertTarget(qt);
+  }, []);
+
+  const handleConvertConfirm = useCallback(async () => {
+    if (!convertTarget) return;
+    const id = convertTarget.id;
+    setActionLoading(`${id}_convert`);
+    setConvertedOrderId(null);
+    try {
+      const result = await apiService.convertQuotationToOrder(id, {
+        poNumber: convertForm.poNumber.trim() || undefined,
+        millName: convertForm.millName.trim() || undefined,
+        dueDate: convertForm.dueDate || undefined,
+        type: convertForm.type || undefined,
+      });
+      setConvertedOrderId(result.orderId);
+      setConvertTarget(null);
+      await fetchQuotations();
+    } catch (e: any) {
+      setError(`操作失败：${e?.message || e}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [convertTarget, convertForm, fetchQuotations]);
 
   // ── REQ2-19：版本历史弹层 ──
   const [versionSheet, setVersionSheet] = useState<{ quotation: any; versions: any[] } | null>(null);
@@ -507,6 +544,40 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
     }
   }, [pricingQuoteId]);
 
+  // ── C14 草稿「编辑」：复用创建表单回填报价单内容（改价/改行后走 updateQuotation 保存）──
+  const openEditForm = useCallback((qt: Quotation) => {
+    setEditingQuotationId(qt.id);
+    setForm({
+      quotationNumber: qt.quotationNumber || '',
+      currency: qt.currency || 'USD',
+      customerRelationId: qt.customerRelationId || '',
+      customerName: qt.customerName || '',
+      issueDate: qt.issueDate || new Date().toISOString().split('T')[0],
+      validUntil: qt.validUntil || '',
+      deliveryTerms: qt.deliveryTerms || '',
+      paymentTerms: qt.paymentTerms || '',
+      salesperson: qt.salesperson || '',
+      inquiryRef: qt.inquiryRef || '',
+      notes: qt.notes || '',
+    });
+    setFormLines(qt.lines && qt.lines.length > 0
+      ? qt.lines.map(l => ({
+          key: newLineKey(),
+          fabricCode: l.fabricCode || '',
+          description: l.description || '',
+          quantity: l.quantity != null ? String(l.quantity) : '',
+          unit: l.unit || 'YD',
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : '',
+          notes: l.notes || '',
+          imageUrl: l.imageUrl || '',
+        }))
+      : [createEmptyLine()]);
+    setMoqWarnings(null);
+    setMoqDraftId(null);
+    setFormError(null);
+    setShowCreateForm(true);
+  }, []);
+
   // ── 创建报价单 ──
   const handleCreate = useCallback(async () => {
     setFormError(null);
@@ -547,9 +618,11 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
           imageUrl: l.imageUrl || undefined,
         })),
       };
-      // B4：已因 MOQ 提醒留存草稿 → 再次提交走 update 复判（不重复建单）
-      const saved = (moqDraftId
-        ? await apiService.updateQuotation(moqDraftId, input)
+      // B4：已因 MOQ 提醒留存草稿 → 再次提交走 update 复判（不重复建单）；
+      // C14：草稿「编辑」入口同样走 update（editingQuotationId 优先）
+      const updateTargetId = editingQuotationId || moqDraftId;
+      const saved = (updateTargetId
+        ? await apiService.updateQuotation(updateTargetId, input)
         : await apiService.createQuotation(input)) as Quotation & { moqCheck?: QuotationMoqCheck | null };
       // B4：服务端建单/改单已做 MOQ 校验（advisory），低于起订量的行在表单上即时行级提醒，
       // 不再等到点「发送」才被门禁拦下；表单保持打开供改量后再次提交复判
@@ -577,13 +650,14 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
       setTrackBResult(null);
       setMoqWarnings(null);
       setMoqDraftId(null);
+      setEditingQuotationId(null);
       await fetchQuotations();
     } catch (e: any) {
       setFormError(`保存失败：${e?.message || e}`);
     } finally {
       setActionLoading(null);
     }
-  }, [form, formLines, trackAMedian, trackBResult, moqDraftId, fetchQuotations]);
+  }, [form, formLines, trackAMedian, trackBResult, moqDraftId, editingQuotationId, fetchQuotations]);
 
   // ── P1-3 行面料即时预检：fabricCode 宽键（sku/厂号/品色号/客供品号并集解析，端点固定
   // clientCodeGlobalFallback=false），与后端 quotation create/rebuild 触发面一致；
@@ -772,10 +846,10 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
           <AnimatePresence mode="wait">
             {showCreateForm ? (
               <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                {/* 创建表单 */}
+                {/* 创建/编辑表单（C14：草稿「编辑」复用本表单，提交走 updateQuotation） */}
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>新建报价单</h2>
-                  <button onClick={() => { setShowCreateForm(false); setMoqWarnings(null); setMoqDraftId(null); }} className="bds-btn bds-btn-secondary">
+                  <h2 className="bds-text-lg" style={{ color: 'var(--text-primary)' }}>{editingQuotationId ? '编辑报价单' : '新建报价单'}</h2>
+                  <button onClick={() => { setShowCreateForm(false); setMoqWarnings(null); setMoqDraftId(null); setEditingQuotationId(null); }} className="bds-btn bds-btn-secondary">
                     <ChevronRight size={14} className="rotate-180" /><span>返回列表</span>
                   </button>
                 </div>
@@ -831,6 +905,16 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                         <label className={labelCls}>付款条款</label>
                         <input type="text" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })} className="bds-input" />
                       </div>
+                    </div>
+                    {/* C17 报价备注：内部留痕（谈判背景/特殊约定），随创建/编辑提交后端 notes 字段 */}
+                    <div className="mt-3">
+                      <label className={labelCls}>备注</label>
+                      <textarea
+                        value={form.notes}
+                        onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                        placeholder="报价备注（内部留痕，可记录谈判背景 / 特殊约定）"
+                        className="bds-input bds-textarea resize-none min-h-20"
+                      />
                     </div>
                   </div>
 
@@ -1017,7 +1101,7 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
 
                   <button onClick={handleCreate} disabled={actionLoading === 'create'} className="bds-btn bds-btn-primary lg w-full">
                     {actionLoading === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                    <span>{moqDraftId ? '保存修改' : '创建报价单'}</span>
+                    <span>{editingQuotationId || moqDraftId ? '保存修改' : '创建报价单'}</span>
                   </button>
                 </div>
               </motion.div>
@@ -1256,6 +1340,15 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                   )}
                                   {qt.status === 'Draft' && (
                                     <>
+                                      {/* C14 砍价修订改价入口：草稿直接编辑改价（表单回填，保存走 updateQuotation） */}
+                                      <button
+                                        onClick={() => openEditForm(qt)}
+                                        className="bds-btn bds-btn-secondary"
+                                        title="编辑草稿报价（改价/改行后保存，版本链自动留痕）"
+                                      >
+                                        <Pencil size={14} />
+                                        <span>编辑</span>
+                                      </button>
                                       <button
                                         onClick={() => { setPricingQuoteId(qt.id); setPricingResult(null); }}
                                         className="bds-btn bds-btn-secondary"
@@ -1301,9 +1394,10 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
                                     <>
                                       {qt.status === 'Accepted' && !qt.convertedOrderId && (
                                         <button
-                                          onClick={() => handleAction(qt.id, 'convert')}
+                                          onClick={() => openConvertModal(qt)}
                                           disabled={actionLoading === `${qt.id}_convert`}
                                           className="bds-btn bds-btn-secondary"
+                                          title="补充 PO 号/工厂/交期/订单类型后转为正式订单"
                                         >
                                           {actionLoading === `${qt.id}_convert` ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
                                           <span>转为订单</span>
@@ -1469,6 +1563,87 @@ const QuotationManager: React.FC<QuotationManagerProps> = ({ isDarkMode, onOpenO
               >
                 {applyingPricing ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
                 <span>{applyingPricing ? '计算中...' : '应用定价'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* C16 转订单补充信息弹窗：PO 号 / 工厂 / 交期 / 订单类型 → convert-to-order overrides */}
+      {convertTarget && (
+        <div className="bds-modal-mask" onClick={() => setConvertTarget(null)}>
+          <div
+            className="bds-modal"
+            style={{ width: '28rem' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="bds-text-sm" style={{ color: 'var(--text-primary)' }}>
+                转为订单 — {convertTarget.quotationNumber}
+              </h3>
+              <button onClick={() => setConvertTarget(null)} className="bds-btn bds-btn-ghost" style={{ padding: '0 var(--space-2)' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className={labelCls}>PO 号</label>
+                <input
+                  type="text"
+                  value={convertForm.poNumber}
+                  onChange={(e) => setConvertForm({ ...convertForm, poNumber: e.target.value })}
+                  placeholder="默认沿用报价号"
+                  className="bds-input"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>工厂</label>
+                <input
+                  type="text"
+                  value={convertForm.millName}
+                  onChange={(e) => setConvertForm({ ...convertForm, millName: e.target.value })}
+                  placeholder="生产工厂名称"
+                  className="bds-input"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>交期</label>
+                <CapsuleDateInput
+                  className="bds-input"
+                  value={convertForm.dueDate}
+                  onChange={(v) => setConvertForm({ ...convertForm, dueDate: v })}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>订单类型</label>
+                <select
+                  className="bds-select"
+                  value={convertForm.type}
+                  onChange={(e) => setConvertForm({ ...convertForm, type: e.target.value })}
+                >
+                  <option value="Fabric">面料订单</option>
+                  <option value="Garment">成衣订单</option>
+                  <option value="Other">其他</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                onClick={() => setConvertTarget(null)}
+                className="bds-btn bds-btn-ghost"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConvertConfirm}
+                disabled={actionLoading === `${convertTarget.id}_convert`}
+                className="bds-btn bds-btn-primary"
+              >
+                {actionLoading === `${convertTarget.id}_convert` ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+                <span>确认转订单</span>
               </button>
             </div>
           </div>

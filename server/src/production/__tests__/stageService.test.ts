@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { advanceStage, PRODUCTION_STAGES, initProductionStages, getProductionBoard } from '../stageService';
+import { advanceStage, PRODUCTION_STAGES, initProductionStages, getProductionBoard, setStageBlocked } from '../stageService';
 
 vi.mock('../../audit/routeAudit', () => ({
   writeRouteAuditLog: vi.fn().mockResolvedValue('audit_test_id'),
@@ -187,6 +187,72 @@ describe('advanceStage: qc_shipped threshold gate', () => {
     const r = await advanceStage({ prisma, orderId: 'O1', stageKey: 'qc_shipped' });
     expect(r.ok).toBe(false);
     if (!r.ok) { expect(r.error.code).toBe('INSPECTION_NOT_QUALIFIED'); expect(r.error.message).toContain('致命疵点'); }
+  });
+});
+
+describe('setStageBlocked: C18 看板阻塞标记', () => {
+  const pendingStage = {
+    id: 'PST__O1__in_production', orderId: 'O1', stageKey: 'in_production', stageSeq: 4,
+    status: 'pending', note: null, operator: null, doneAt: null,
+  };
+
+  it('pending 阶段标记阻塞 → status=blocked + 审计留痕', async () => {
+    const { prisma, tx } = makePrisma({ stage: pendingStage });
+    const r = await setStageBlocked({ prisma, orderId: 'O1', stageKey: 'in_production', blocked: true, operator: 'MER-1' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.stage.status).toBe('blocked');
+    expect(tx.productionStage.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'blocked', operator: 'MER-1' }),
+    }));
+  });
+
+  it('blocked 阶段解除 → 回到 pending', async () => {
+    const { prisma } = makePrisma({ stage: { ...pendingStage, status: 'blocked' } });
+    const r = await setStageBlocked({ prisma, orderId: 'O1', stageKey: 'in_production', blocked: false });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.stage.status).toBe('pending');
+  });
+
+  it('幂等：已 blocked 重复标记 / 非 blocked 重复解除 → 不写库', async () => {
+    const { prisma, tx } = makePrisma({ stage: { ...pendingStage, status: 'blocked' } });
+    const r = await setStageBlocked({ prisma, orderId: 'O1', stageKey: 'in_production', blocked: true });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.stage.status).toBe('blocked');
+    expect(tx.productionStage.update).not.toHaveBeenCalled();
+  });
+
+  it('done 阶段不可标记/解除 → STAGE_NOT_BLOCKABLE', async () => {
+    const { prisma } = makePrisma({ stage: { ...pendingStage, status: 'done', doneAt: BigInt(1000) } });
+    const r = await setStageBlocked({ prisma, orderId: 'O1', stageKey: 'in_production', blocked: true });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe('STAGE_NOT_BLOCKABLE');
+  });
+
+  it('订单不存在 → ORDER_NOT_FOUND；非法 stageKey → INVALID_STAGE', async () => {
+    // makeTx 对 order 有 ?? 兜底，not-found 场景需自定义 tx
+    const tx = {
+      order: { findFirst: vi.fn().mockResolvedValue(null) },
+      productionStage: {
+        findUnique: vi.fn().mockResolvedValue(pendingStage),
+        update: vi.fn(),
+      },
+    };
+    const prismaGone = { $transaction: vi.fn(async (fn: any) => fn(tx)) } as any;
+    const notFound = await setStageBlocked({ prisma: prismaGone, orderId: 'O-X', stageKey: 'in_production', blocked: true });
+    expect(notFound.ok).toBe(false);
+    if (notFound.ok) return;
+    expect(notFound.error.code).toBe('ORDER_NOT_FOUND');
+    expect(tx.productionStage.update).not.toHaveBeenCalled();
+
+    const { prisma } = makePrisma({ stage: pendingStage });
+    const bad = await setStageBlocked({ prisma, orderId: 'O1', stageKey: 'nope' as any, blocked: true });
+    expect(bad.ok).toBe(false);
+    if (bad.ok) return;
+    expect(bad.error.code).toBe('INVALID_STAGE');
   });
 });
 

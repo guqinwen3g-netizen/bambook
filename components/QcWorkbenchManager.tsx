@@ -377,13 +377,18 @@ function AssignmentsPanel({ registerNewAction }: { registerNewAction: (fn: (() =
     }
   };
 
-  const handleComplete = async (reportId?: string) => {
+  const handleComplete = async (payload: CompleteAssignmentPayload) => {
     if (!completingAssignment) return;
     setUpdatingId(completingAssignment.id);
     try {
-      await apiService.completeQcAssignment(completingAssignment.id, reportId || undefined);
+      // D7：携带验货数据时随完成创建大货验货报告（final 锚定 INR__{orderId} 出运门禁锚点）；
+      // 否则保持原路径：仅关联既有报告 ID 或直接完成
+      await postCompleteQcAssignment(completingAssignment.id, payload);
       setCompletingAssignment(null);
       await loadWorkbench();
+      if (payload.report) {
+        bdsToast.success(`任务已完成，${completingAssignment.inspectionType === 'final' ? '终期' : '中期'}验货报告已生成`);
+      }
     } catch (e: any) {
       bdsToast.danger(`完成任务失败：${e?.message || e}`);
     } finally {
@@ -876,7 +881,127 @@ function AssignmentForm({
   );
 }
 
-// ─── 完成任务表单（可关联验货报告） ───
+// ─── 完成任务表单（可关联验货报告 / D7 录入验货数据生成大货报告） ───
+
+/**
+ * D7 验货数据表单值（字符串态，提交前归一）。
+ * 对应后端 BulkReportInput（qcService.completeAssignment report 分支，
+ * final 任务锚定 INR__{orderId} 出运门禁锚点）。
+ */
+export interface BulkReportFormState {
+  result: 'pass' | 'fail';
+  inspectionDate: string;
+  totalUnits: string;
+  passedUnits: string;
+  lotSize: string;
+  sampleSize: string;
+  aqlLevel: string;
+  criticalDefects: string;
+  majorDefects: string;
+  minorDefects: string;
+  defectSummary: string;
+}
+
+export const EMPTY_BULK_REPORT_FORM: BulkReportFormState = {
+  result: 'pass',
+  inspectionDate: '',
+  totalUnits: '',
+  passedUnits: '',
+  lotSize: '',
+  sampleSize: '',
+  aqlLevel: '',
+  criticalDefects: '0',
+  majorDefects: '0',
+  minorDefects: '0',
+  defectSummary: '',
+};
+
+/** 完成任务提交载荷：reportId=关联既有报告；report=随完成创建大货验货报告（D7） */
+export interface CompleteAssignmentPayload {
+  reportId?: string;
+  report?: {
+    result: 'pass' | 'fail';
+    inspectionDate?: string;
+    totalUnits: number;
+    passedUnits: number;
+    lotSize?: number;
+    sampleSize?: number;
+    aqlLevel?: string;
+    criticalDefects: number;
+    majorDefects: number;
+    minorDefects: number;
+    defectSummary?: string;
+  };
+}
+
+/**
+ * D7 验货数据校验 + 归一（纯函数导出，供单测复用）：
+ *   - 检验总数为 >0 整数；合格数为 0..总数 的整数（合格率 = 合格/总数）
+ *   - 三类疵点为 >=0 整数；批量/抽样可空，填则 >=0 整数
+ */
+export function buildBulkReportPayload(
+  f: BulkReportFormState,
+): { ok: true; report: NonNullable<CompleteAssignmentPayload['report']> } | { ok: false; message: string } {
+  const intOf = (v: string) => {
+    const n = Number(v);
+    return Number.isInteger(n) ? n : NaN;
+  };
+  const total = intOf(f.totalUnits);
+  if (!(total > 0)) return { ok: false, message: '检验总数必须是 >0 的整数' };
+  const passed = intOf(f.passedUnits);
+  if (!(passed >= 0) || passed > total) return { ok: false, message: '合格数必须是 0..检验总数 之间的整数' };
+  const defectFields: Array<[keyof BulkReportFormState, string]> = [
+    ['criticalDefects', '致命疵点'],
+    ['majorDefects', '严重疵点'],
+    ['minorDefects', '轻微疵点'],
+  ];
+  const defects: Record<string, number> = {};
+  for (const [key, label] of defectFields) {
+    const n = intOf(f[key] as string);
+    if (!(n >= 0)) return { ok: false, message: `${label}必须是 >=0 的整数` };
+    defects[key] = n;
+  }
+  const optionalInts: Record<string, number | undefined> = {};
+  for (const [key, label] of [['lotSize', '批量'], ['sampleSize', '抽样数']] as Array<[keyof BulkReportFormState, string]>) {
+    const raw = (f[key] as string).trim();
+    if (raw === '') continue;
+    const n = intOf(raw);
+    if (!(n >= 0)) return { ok: false, message: `${label}必须是 >=0 的整数` };
+    optionalInts[key] = n;
+  }
+  return {
+    ok: true,
+    report: {
+      result: f.result,
+      ...(f.inspectionDate ? { inspectionDate: f.inspectionDate } : {}),
+      totalUnits: total,
+      passedUnits: passed,
+      ...(optionalInts.lotSize !== undefined ? { lotSize: optionalInts.lotSize } : {}),
+      ...(optionalInts.sampleSize !== undefined ? { sampleSize: optionalInts.sampleSize } : {}),
+      ...(f.aqlLevel.trim() ? { aqlLevel: f.aqlLevel.trim() } : {}),
+      criticalDefects: defects.criticalDefects,
+      majorDefects: defects.majorDefects,
+      minorDefects: defects.minorDefects,
+      ...(f.defectSummary.trim() ? { defectSummary: f.defectSummary.trim() } : {}),
+    },
+  };
+}
+
+/** D7：完成任务（可携带验货数据）；失败抛服务端错误消息 */
+async function postCompleteQcAssignment(id: string, payload: CompleteAssignmentPayload): Promise<void> {
+  const base = apiService.getStoredConfig().cloudEndpoint;
+  const url = apiService.buildApiUrl(`/v1/qc/assignments/${encodeURIComponent(id)}/complete`, base);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: apiService.getAuthHeaders(),
+    body: JSON.stringify({ reportId: payload.reportId ?? null, ...(payload.report ? { report: payload.report } : {}) }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.ok) {
+    const msg = data?.error?.message || (typeof data?.error === 'string' ? data.error : null) || `完成任务失败：HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+}
 
 function CompleteAssignmentForm({
   assignment,
@@ -886,30 +1011,134 @@ function CompleteAssignmentForm({
 }: {
   assignment: QCAssignment;
   saving: boolean;
-  onSave: (reportId?: string) => void;
+  onSave: (payload: CompleteAssignmentPayload) => void;
   onClose: () => void;
 }) {
   const [reportId, setReportId] = useState('');
+  // D7：完成任务同时录入验货数据（生成大货验货报告，final 锚定出运门禁）
+  const [recordReport, setRecordReport] = useState(true);
+  const [form, setForm] = useState<BulkReportFormState>(EMPTY_BULK_REPORT_FORM);
+  const patchForm = (patch: Partial<BulkReportFormState>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  // 合格率即时预览（只读展示；提交校验在 buildBulkReportPayload）
+  const totalNum = Number(form.totalUnits);
+  const passedNum = Number(form.passedUnits);
+  const passRateText = Number.isInteger(totalNum) && totalNum > 0 && Number.isInteger(passedNum) && passedNum >= 0 && passedNum <= totalNum
+    ? `${((passedNum / totalNum) * 100).toFixed(1)}%`
+    : '—';
+
+  const handleSubmit = () => {
+    if (recordReport) {
+      const built = buildBulkReportPayload(form);
+      if (!built.ok) {
+        bdsToast.warning(built.message);
+        return;
+      }
+      onSave({ report: built.report });
+      return;
+    }
+    onSave({ reportId: reportId.trim() || undefined });
+  };
 
   return (
     <ModalShell title={`完成验货任务 ${assignment.order?.poNumber || assignment.orderId}`} onClose={onClose}>
       <div className="bds-card flat mb-3 text-xs" style={{ padding: 'var(--space-2) var(--space-3)', color: 'var(--text-tertiary)' }}>
         {INSPECTION_TYPE_LABELS[assignment.inspectionType] || assignment.inspectionType}验货 · {assignment.order ? `${assignment.order.customer} · ${assignment.order.product}` : assignment.orderId}
       </div>
-      <Field label="验货报告 ID">
-        <input
-          className="bds-input"
-          value={reportId}
-          onChange={(e) => setReportId(e.target.value)}
-          placeholder="可选，完成后关联 InspectionReport"
-        />
-      </Field>
+
+      {/* D7：录入验货数据（合格率/疵点/AQL）⇄ 仅关联既有报告 二选一 */}
+      <div className="mb-3">
+        <label className="bds-check">
+          <input
+            type="checkbox"
+            checked={recordReport}
+            onChange={(e) => setRecordReport(e.target.checked)}
+          />
+          <span className="box" />
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            录入验货数据，随完成生成大货验货报告（终期任务锚定出运门禁）
+          </span>
+        </label>
+      </div>
+
+      {recordReport ? (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="验货结论 *">
+              <select
+                className="bds-select"
+                value={form.result}
+                onChange={(e) => patchForm({ result: e.target.value as 'pass' | 'fail' })}
+              >
+                <option value="pass">合格</option>
+                <option value="fail">不合格</option>
+              </select>
+            </Field>
+            <Field label="检验日期">
+              <CapsuleDateInput className="bds-input" value={form.inspectionDate} onChange={(v) => patchForm({ inspectionDate: v })} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="检验总数 *">
+              <input type="number" min={1} step={1} className="bds-input" value={form.totalUnits} onChange={(e) => patchForm({ totalUnits: e.target.value })} placeholder="如 500" />
+            </Field>
+            <Field label="合格数 *">
+              <input type="number" min={0} step={1} className="bds-input" value={form.passedUnits} onChange={(e) => patchForm({ passedUnits: e.target.value })} placeholder="如 490" />
+            </Field>
+            <Field label="合格率（自动）">
+              <div className="bds-input flex items-center" style={{ color: 'var(--text-secondary)' }}>{passRateText}</div>
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="致命疵点">
+              <input type="number" min={0} step={1} className="bds-input" value={form.criticalDefects} onChange={(e) => patchForm({ criticalDefects: e.target.value })} />
+            </Field>
+            <Field label="严重疵点">
+              <input type="number" min={0} step={1} className="bds-input" value={form.majorDefects} onChange={(e) => patchForm({ majorDefects: e.target.value })} />
+            </Field>
+            <Field label="轻微疵点">
+              <input type="number" min={0} step={1} className="bds-input" value={form.minorDefects} onChange={(e) => patchForm({ minorDefects: e.target.value })} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="AQL 等级">
+              <input className="bds-input" value={form.aqlLevel} onChange={(e) => patchForm({ aqlLevel: e.target.value })} placeholder="如 2.5/4.0 II" />
+            </Field>
+            <Field label="批量">
+              <input type="number" min={0} step={1} className="bds-input" value={form.lotSize} onChange={(e) => patchForm({ lotSize: e.target.value })} />
+            </Field>
+            <Field label="抽样数">
+              <input type="number" min={0} step={1} className="bds-input" value={form.sampleSize} onChange={(e) => patchForm({ sampleSize: e.target.value })} />
+            </Field>
+          </div>
+          <Field label="缺陷摘要">
+            <input
+              className="bds-input"
+              value={form.defectSummary}
+              onChange={(e) => patchForm({ defectSummary: e.target.value })}
+              placeholder="缺陷位置 / 类型 / 程度"
+            />
+          </Field>
+          <div className="text-[11px] mb-1" style={{ color: 'var(--text-tertiary)' }}>
+            放行口径：合格率 ≥90% + 致命疵点 = 0 + 业务部批准（与生产门禁一致）
+          </div>
+        </>
+      ) : (
+        <Field label="验货报告 ID">
+          <input
+            className="bds-input"
+            value={reportId}
+            onChange={(e) => setReportId(e.target.value)}
+            placeholder="可选，完成后关联 InspectionReport"
+          />
+        </Field>
+      )}
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onClose} className="bds-btn bds-btn-ghost">
           取消
         </button>
         <button
-          onClick={() => onSave(reportId.trim() || undefined)}
+          onClick={handleSubmit}
           disabled={saving}
           className="bds-btn bds-btn-primary"
         >

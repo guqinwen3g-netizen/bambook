@@ -44,6 +44,7 @@ export function registerL8AutoStockIn(): void {
         poNumber?: string;
         receiptId?: string;
         receiptNumber?: string;
+        warehouseId?: string;
         warehouseName?: string;
         stockInLines?: MaterialReceivedStockInLine[];
       };
@@ -130,11 +131,23 @@ export function registerL8AutoStockIn(): void {
           return { ok: true, created: null, error: 'no received lines' };
         }
 
-        // 查找默认仓库（优先 Main 类型）
-        let warehouse = await prisma.warehouse.findFirst({
-          where: { type: 'Main', isActive: true, deletedAt: null },
-          orderBy: { sortOrder: 'asc' },
-        });
+        // 查找入库仓库（D5 闭环：收货表单指定的仓库优先；缺省回退 Main 类型，再回退首个可用仓）
+        let warehouse = null;
+        const payloadWarehouseId = typeof payload.warehouseId === 'string' && payload.warehouseId.trim() ? payload.warehouseId.trim() : null;
+        if (payloadWarehouseId) {
+          warehouse = await prisma.warehouse.findFirst({
+            where: { id: payloadWarehouseId, isActive: true, deletedAt: null },
+          });
+          if (!warehouse) {
+            logger.warn('[L8] payload.warehouseId 指定的仓库不可用，回退默认仓库', { purchaseOrderId, warehouseId: payloadWarehouseId });
+          }
+        }
+        if (!warehouse) {
+          warehouse = await prisma.warehouse.findFirst({
+            where: { type: 'Main', isActive: true, deletedAt: null },
+            orderBy: { sortOrder: 'asc' },
+          });
+        }
         if (!warehouse) {
           warehouse = await prisma.warehouse.findFirst({
             where: { isActive: true, deletedAt: null },

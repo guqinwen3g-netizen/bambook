@@ -18,10 +18,12 @@ import { motion } from 'framer-motion';
 import {
   Users, CreditCard, Layers, TrendingUp, Calendar,
   Plus, Trash2, Loader2, Star, Phone, Mail,
+  UserMinus, UserCheck,
 } from 'lucide-react';
 import { BAMBOOK_OS } from '../bambookOsTokens';
 import CapsuleDateInput from '../CapsuleDateInput';
 import { CompiledSurfacePanel } from '../primitives/compiledSurfacePrimitives';
+import { bdsConfirm } from '../BdsDialog';
 import { statusSemanticClass, StatusSemantic } from '../../rdlBusinessStatusTokens';
 import { apiService } from '../../../services/apiService';
 import {
@@ -137,12 +139,28 @@ export const CrmContactsSection: React.FC<{ relationId: string; isDarkMode: bool
 
   const handleDelete = async (id: string) => {
     if (busy) return;
+    // E1：删除确认统一走 bdsConfirm（名片删除为破坏性操作，danger 语义）
+    if (!(await bdsConfirm({ title: '确认删除', body: '确认删除此联系人名片？', danger: true }))) return;
     setBusy(true); setError(null);
     try {
       await apiService.deleteContact(id);
       setContacts(prev => (prev ?? []).filter(c => c.id !== id));
     } catch (e: any) {
       setError(`联系人删除失败：${e?.message || e}`);
+    } finally { setBusy(false); }
+  };
+
+  // C2 联系人离职状态入口：Contact 真源即 Relation 人物行（contactStatus 字段），
+  // crm updateContact 契约不含 status——走 relations v2 更新链路（relationMutationService
+  // 已白名单 contactStatus）。离职可逆：已离职名片提供「恢复在职」回退，不留单向死胡同。
+  const handleSetStatus = async (c: Contact, status: 'Left' | 'Active') => {
+    if (busy) return;
+    setBusy(true); setError(null);
+    try {
+      await apiService.updateRelation(c.id, { contactStatus: status });
+      setContacts(prev => (prev ?? []).map(x => (x.id === c.id ? { ...x, status } : x)));
+    } catch (e: any) {
+      setError(`联系人状态更新失败：${e?.message || e}`);
     } finally { setBusy(false); }
   };
 
@@ -186,7 +204,21 @@ export const CrmContactsSection: React.FC<{ relationId: string; isDarkMode: bool
                     <Star size={12} />
                   </button>
                 )}
-                <button type="button" onClick={() => handleDelete(c.id)} disabled={busy} className={c.isPrimary ? rowDeleteCls(isDarkMode) : `self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`} title="删除联系人">
+                {/* C2 离职状态入口（hover 显现；首个动作按钮带 ml-auto 把动作组推到行尾） */}
+                {c.status !== 'Left' ? (
+                  <button type="button" onClick={() => handleSetStatus(c, 'Left')} disabled={busy}
+                    className={`${!c.isPrimary ? '' : 'ml-auto '}self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`}
+                    title="标记离职">
+                    <UserMinus size={14} />
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => handleSetStatus(c, 'Active')} disabled={busy}
+                    className="ml-auto self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                    title="恢复在职">
+                    <UserCheck size={14} />
+                  </button>
+                )}
+                <button type="button" onClick={() => handleDelete(c.id)} disabled={busy} className={`self-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]`} title="删除联系人">
                   <Trash2 size={14} />
                 </button>
               </li>

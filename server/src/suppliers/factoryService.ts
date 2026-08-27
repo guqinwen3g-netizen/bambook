@@ -106,6 +106,37 @@ export function inspectionScoreForResult(result: string, criticalDefects: number
 }
 
 // ────────────────────────────────────────────────────────────────
+// C6：供应商累计单数/金额累加（采购单收货全部完成触发）
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * 采购单首次全部收齐（→Received）→ FactoryProfile.totalOrders +1 / totalAmount += 采购金额。
+ *
+ * 调用纪律：
+ *   - 必须在调用方事务内执行（与收货状态流转原子提交，失败同滚）；
+ *   - 幂等口径由调用方保证：仅「首次进入 Received」（原状态 ≠ Received）触发，
+ *     超收补收（Received → Received）不重复计数；
+ *   - 无工厂档案的供应商静默跳过（不是所有供应商都建了档案，不阻断主流程）。
+ *
+ * 口径备注：totalAmount 为各采购单 totalAmount 原币累加（与供应商排名/详情展示既有口径一致，
+ * 不做币种换算——多币种可比金额为独立债务，见 W-B P2-7 多币种对账）。
+ */
+export async function accumulateCompletedPurchaseOrderStats(
+  tx: any,
+  params: { relationId: string; amount: number; updatedAt: bigint },
+): Promise<boolean> {
+  const result = await tx.factoryProfile.updateMany({
+    where: { relationId: params.relationId, deletedAt: null },
+    data: {
+      totalOrders: { increment: 1 },
+      totalAmount: { increment: params.amount },
+      updatedAt: params.updatedAt,
+    },
+  });
+  return (result?.count ?? 0) > 0;
+}
+
+// ────────────────────────────────────────────────────────────────
 // 服务工厂
 // ────────────────────────────────────────────────────────────────
 
@@ -440,17 +471,30 @@ export function createFactoryService(prisma: PrismaClient) {
     });
   }
 
-  /** 到期预警：validUntil 在 [today, today+days] 区间内的认证（validUntil 为 null = 长期有效，不预警） */
-  async function listExpiringCertifications(days: number): Promise<Array<FactoryCertification & { factory: FactoryProfile }>> {
+  /**
+   * 到期预警：已过期 + validUntil 在 [today, today+days] 区间内的认证（validUntil 为 null = 长期有效，不预警）。
+   *
+   * C8：已过期证书必须进预警（比将到期更紧急，原区间过滤 validUntil >= today 把已过期挡在横幅外）。
+   * 每行附带 daysUntilExpiry（服务端统一口径）：负数 = 已过期 X 天，0..days = 将到期剩余天数；
+   * 排序 validUntil 升序（最逾期/最紧急在前）。
+   */
+  async function listExpiringCertifications(days: number): Promise<Array<FactoryCertification & { factory: FactoryProfile; daysUntilExpiry: number }>> {
     const today = new Date();
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    const from = fmt(today);
     const to = fmt(new Date(today.getTime() + days * 86_400_000));
-    return db.factoryCertification.findMany({
-      where: { deletedAt: null, validUntil: { gte: from, lte: to }, factory: { deletedAt: null } },
+    const rows: Array<FactoryCertification & { factory: FactoryProfile }> = await db.factoryCertification.findMany({
+      where: { deletedAt: null, validUntil: { lte: to }, factory: { deletedAt: null } },
       include: { factory: { include: { relation: true } } },
       orderBy: { validUntil: 'asc' },
     });
+    // daysUntilExpiry 全 UTC 口径（validUntil 为纯业务日期串，UTC 零点对齐避免本地时区边界 ±1 天）
+    const todayUtcMs = new Date(`${fmt(today)}T00:00:00Z`).getTime();
+    return rows.map((r) => ({
+      ...r,
+      daysUntilExpiry: r.validUntil
+        ? Math.round((new Date(`${r.validUntil}T00:00:00Z`).getTime() - todayUtcMs) / 86_400_000)
+        : 0,
+    }));
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -499,11 +543,37 @@ export function createFactoryService(prisma: PrismaClient) {
   }
 
   /**
-   * 产能占用：在手采购单（Sent/Confirmed/PartiallyReceived）按 expectedDeliveryDate 落月聚合行数量。
+   * D2 产能占用单位换算：数量换算到目标单位。
+   *
+   * 口径裁决：
+   *   - 目标单位为空 → 原样返回（旧口径：无目标单位时退化为直接累加，兼容历史调用）；
+   *   - 来源单位为空（存量采购行无单位）→ 视同与目标单位一致，原样返回（兼容存量数据）；
+   *   - 同单位（大小写不敏感）→ 原样返回；
+   *   - 长度单位 YD ↔ M 按 1 YD = 0.9144 M 换算；
+   *   - 其余跨单位（如 KG ↔ M、PC ↔ M）不可换算 → 返回 null（不计入占用，
+   *     避免"件和米混着加"的虚高/虚低——不可比口径宁可不计也不错计）。
+   */
+  function convertQuantityToUnit(quantity: number, fromUnit: string | null | undefined, toUnit: string | null | undefined): number | null {
+    const to = (toUnit ?? '').trim().toUpperCase();
+    if (!to) return quantity;
+    const from = (fromUnit ?? '').trim().toUpperCase();
+    if (!from || from === to) return quantity;
+    const UNIT_TO_METER: Record<string, number> = { M: 1, YD: 0.9144 };
+    const f = UNIT_TO_METER[from];
+    const t = UNIT_TO_METER[to];
+    if (f != null && t != null) {
+      return Math.round(quantity * (f / t) * 10000) / 10000;
+    }
+    return null;
+  }
+
+  /**
+   * 产能占用（单位分明细）：在手采购单（Sent/Confirmed/PartiallyReceived）按 expectedDeliveryDate 落月，
+   * 行数量按行单位分组聚合（month → unit → qty；unit 键 '' = 存量无单位行）。
    * 占用量不落地，实时计算（口径变更无需回填）。
    */
-  async function aggregateOccupied(relationId: string, months: string[]): Promise<Record<string, number>> {
-    const occupied: Record<string, number> = {};
+  async function aggregateOccupiedByUnit(relationId: string, months: string[]): Promise<Record<string, Record<string, number>>> {
+    const occupied: Record<string, Record<string, number>> = {};
     if (!months.length) return occupied;
     const pos = await db.purchaseOrder.findMany({
       where: {
@@ -514,13 +584,33 @@ export function createFactoryService(prisma: PrismaClient) {
       },
       // P0-002 修复：PurchaseLine 无 deletedAt 软删字段（随主单 onDelete: Cascade），
       // 原 where: { deletedAt: null } 引用不存在字段导致 Prisma 校验 500（供应商 360° overview 全挂）。
-      select: { expectedDeliveryDate: true, lines: { select: { quantity: true } } },
+      select: { expectedDeliveryDate: true, lines: { select: { quantity: true, unit: true } } },
     });
     for (const po of pos) {
       const month = String(po.expectedDeliveryDate).slice(0, 7);
       if (!months.includes(month)) continue;
-      const qty = po.lines.reduce((s: number, l: any) => s + Number(l.quantity || 0), 0);
-      occupied[month] = (occupied[month] || 0) + qty;
+      for (const l of po.lines) {
+        const unitKey = ((l as any).unit ?? '').trim().toUpperCase();
+        occupied[month] = occupied[month] || {};
+        occupied[month][unitKey] = (occupied[month][unitKey] || 0) + Number((l as any).quantity || 0);
+      }
+    }
+    return occupied;
+  }
+
+  /**
+   * 产能占用标量口径：month → 占用量（targetUnit 指定时按 D2 换算规则聚合，缺省为旧口径全量累加）。
+   */
+  async function aggregateOccupied(relationId: string, months: string[], targetUnit?: string | null): Promise<Record<string, number>> {
+    const byUnit = await aggregateOccupiedByUnit(relationId, months);
+    const occupied: Record<string, number> = {};
+    for (const [month, unitMap] of Object.entries(byUnit)) {
+      let sum = 0;
+      for (const [unit, qty] of Object.entries(unitMap)) {
+        const converted = convertQuantityToUnit(qty, unit || null, targetUnit ?? null);
+        if (converted !== null) sum += converted;
+      }
+      occupied[month] = Math.round(sum * 10000) / 10000;
     }
     return occupied;
   }
@@ -531,8 +621,18 @@ export function createFactoryService(prisma: PrismaClient) {
       where: { factoryId, deletedAt: null },
       orderBy: { month: 'asc' },
     });
-    const occupied = await aggregateOccupied(profile.relationId, rows.map(r => r.month));
-    return rows.map(r => ({ ...r, occupied: occupied[r.month] || 0 }));
+    // D2：一次拉取按单位分组的占用，再按各行目标单位（行 unit 缺省回退档案 capacityUnit）换算聚合
+    const byUnit = await aggregateOccupiedByUnit(profile.relationId, rows.map(r => r.month));
+    return rows.map(r => {
+      const targetUnit = r.unit ?? profile.capacityUnit ?? null;
+      const unitMap = byUnit[r.month] || {};
+      let occupied = 0;
+      for (const [unit, qty] of Object.entries(unitMap)) {
+        const converted = convertQuantityToUnit(qty, unit || null, targetUnit);
+        if (converted !== null) occupied += converted;
+      }
+      return { ...r, occupied: Math.round(occupied * 10000) / 10000 };
+    });
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -575,6 +675,7 @@ export function createFactoryService(prisma: PrismaClient) {
     deleteCapacity,
     listCapacity,
     aggregateOccupied,
+    aggregateOccupiedByUnit,
     getOverview,
   };
 }

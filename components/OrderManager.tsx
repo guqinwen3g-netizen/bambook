@@ -10,7 +10,8 @@ import {
   AlertTriangle,
   Globe, List,
   Upload, ShoppingCart, ClipboardCheck, Ship, CheckCircle2, GitBranch,
-  Search, ArrowLeft, Eye, FileText, Loader2, Download
+  Search, ArrowLeft, Eye, FileText, Loader2, Download,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
 import { TraceabilityPanel } from './TraceabilityPanel';
@@ -139,6 +140,51 @@ interface OrderManagerProps {
   onNavigate?: (view: View) => void;
 }
 
+// ── E3 列头排序（客户 / 金额 / 交期；点击表头 升序→降序→取消 循环） ──
+export type OrderListSortKey = 'customer' | 'amount' | 'dueDate';
+export interface OrderListSort {
+  key: OrderListSortKey;
+  dir: 'asc' | 'desc';
+}
+
+/**
+ * 行项目排序比较器（纯函数导出，供列表 useMemo 与单测复用）。
+ * 取数口径与行渲染一致：金额=行 amount；交期=行 exMillDate → 订单 clientDate → dueDate；
+ * 客户=行 customer → 订单 customer。空日期恒排末位（与方向无关）。
+ */
+export function compareOrderLineItems(a: OrderLineItem, b: OrderLineItem, sort: OrderListSort): number {
+  const dirFactor = sort.dir === 'asc' ? 1 : -1;
+  if (sort.key === 'amount') {
+    return ((a.amount ?? 0) - (b.amount ?? 0)) * dirFactor;
+  }
+  if (sort.key === 'dueDate') {
+    const da = a.exMillDate || a.order?.clientDate || a.order?.dueDate || '';
+    const db = b.exMillDate || b.order?.clientDate || b.order?.dueDate || '';
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da.localeCompare(db) * dirFactor;
+  }
+  const ca = a.customer || a.order?.customer || '';
+  const cb = b.customer || b.order?.customer || '';
+  return ca.localeCompare(cb, 'zh-CN') * dirFactor;
+}
+
+/**
+ * E5：订单异常提示的真实原因——取状态时间线中最近一次「→ Alert」流转的 note
+ * （handleStatusTransition 留痕字段，后端 OrderStatusTransition 落库）。
+ * 时间线按时间升序，倒序找首条命中即最新；无 note 返回 null 由 UI 走兜底文案。
+ */
+export function resolveOrderAlertReason(timeline: OrderStatusTransition[]): string | null {
+  for (let i = timeline.length - 1; i >= 0; i -= 1) {
+    const t = timeline[i];
+    if (t.toStatus === 'Alert' && typeof t.note === 'string' && t.note.trim()) {
+      return t.note.trim();
+    }
+  }
+  return null;
+}
+
 const ORDER_TABLE_GRID_CLASS = 'grid-cols-[22%_15%_27%_13%_13%_10%]';
 const ORDER_TABLE_WIDTH_CLASS = 'w-full min-w-0';
 const ORDER_TABLE_ROW_CLASS = 'min-h-16';
@@ -150,12 +196,12 @@ const ORDER_TABLE_COLUMN_WIDTH_CLASSES = [
   'w-[13%]',
   'w-[10%]',
 ];
-const ORDER_TABLE_HEADERS = [
-  { label: '订单 / 客户' },
+const ORDER_TABLE_HEADERS: Array<{ label: string; align?: string; sortKey?: OrderListSortKey; sortLabel?: string }> = [
+  { label: '订单 / 客户', sortKey: 'customer', sortLabel: '客户' },
   { label: '品号' },
   { label: '描述 / 色号' },
-  { label: '数量 / 金额', align: 'text-right' },
-  { label: '日期' },
+  { label: '数量 / 金额', align: 'text-right', sortKey: 'amount', sortLabel: '金额' },
+  { label: '日期', sortKey: 'dueDate', sortLabel: '交期' },
   { label: '状态 / 动作' },
 ];
 const ORDER_TYPE_LABELS: Record<'all' | 'fabric' | 'garment' | 'other', string> = {
@@ -545,6 +591,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
   );
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [orderFilterStatus, setOrderFilterStatus] = useState<string>('all');
+  // E3：列头排序状态（null=默认服务端/录入顺序）
+  const [orderSort, setOrderSort] = useState<OrderListSort | null>(null);
+  const handleSortToggle = useCallback((key: OrderListSortKey) => {
+    setOrderSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: 'asc' };
+      if (prev.dir === 'asc') return { key, dir: 'desc' };
+      return null;
+    });
+  }, []);
 
   /** 订单台账 Excel 导出（当前列表筛选全量：类型/状态/搜索/Capsule 透镜镜像到服务端过滤） */
   const handleExportXlsx = useCallback(async () => {
@@ -584,8 +639,12 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
         item.order?.clientCode?.toLowerCase().includes(q)
       );
     }
+    // E3：列头排序（在全部筛选之后应用，稳定排序保持同值行原顺序）
+    if (orderSort) {
+      items = [...items].sort((a, b) => compareOrderLineItems(a, b, orderSort));
+    }
     return items;
-  }, [orders, orderType, capsuleActive, orderSearchTerm, orderFilterStatus, isAllType, currentDbType, navRelationFilter]);
+  }, [orders, orderType, capsuleActive, orderSearchTerm, orderFilterStatus, orderSort, isAllType, currentDbType, navRelationFilter]);
 
   const mergeLineIntoOrders = (line: OrderLineItem, sourceOrders: Order[] = orders): Order[] => {
     const parent = line.order;
@@ -1379,7 +1438,26 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         <tr>
                           {ORDER_TABLE_HEADERS.map((header) => (
                             <th key={header.label} className={`px-3 py-3 text-[10px] font-light tracking-[0.16em] whitespace-nowrap border-b ${BORDER_SUBTLE_CLASS} ${header.align ?? ''}`}>
-                              {header.label}
+                              {header.sortKey ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSortToggle(header.sortKey!)}
+                                  title={`按${header.sortLabel ?? header.label}排序`}
+                                  aria-label={`按${header.sortLabel ?? header.label}排序`}
+                                  className={`inline-flex items-center gap-1 uppercase tracking-[0.16em] transition-colors hover:text-[var(--text-primary)] ${header.align === 'text-right' ? 'w-full flex-row-reverse' : ''} ${orderSort?.key === header.sortKey ? 'text-[var(--text-primary)]' : ''}`}
+                                >
+                                  {header.label}
+                                  {orderSort?.key === header.sortKey ? (
+                                    orderSort.dir === 'asc'
+                                      ? <ArrowUp size={14} strokeWidth={1.5} />
+                                      : <ArrowDown size={14} strokeWidth={1.5} />
+                                  ) : (
+                                    <ArrowUpDown size={14} strokeWidth={1.5} className="opacity-40" />
+                                  )}
+                                </button>
+                              ) : (
+                                header.label
+                              )}
                             </th>
                           ))}
                         </tr>
@@ -1815,13 +1893,21 @@ const OrderManager: React.FC<OrderManagerProps> = ({ orders, dirtyIds, setOrders
                         </div>
                       )}
 
-                      {/* Overdue alert（BDS alert 族 danger 语义） */}
-                      {selectedOrder.status === 'Alert' && (
-                        <div className="bds-alert danger mt-4">
-                          <AlertCircle size={14} />
-                          <span className="text-xs font-light">此订单已超期，请尽快处理</span>
-                        </div>
-                      )}
+                      {/* 异常提示（BDS alert 族 danger 语义）：E5 显示真实异常原因——
+                          取状态时间线最近一次「→ Alert」流转的 note 留痕；无留痕时给兜底说明，不写死原因 */}
+                      {selectedOrder.status === 'Alert' && (() => {
+                        const alertReason = resolveOrderAlertReason(statusTimeline);
+                        return (
+                          <div className="bds-alert danger mt-4">
+                            <AlertCircle size={14} />
+                            <span className="text-xs font-light">
+                              {alertReason
+                                ? `异常原因：${alertReason}`
+                                : '订单处于异常状态（标记时未填写原因，可在状态推进时补充说明）'}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </CompiledSurfacePanel>
 
                     {/* 关联业务（产品化 Links）— 该客户的订单/开发/报价/出运等入口 */}

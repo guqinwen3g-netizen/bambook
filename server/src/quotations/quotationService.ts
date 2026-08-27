@@ -113,6 +113,20 @@ const TRANSITIONS: Record<string, QuotationStatus[]> = {
   Expired: [], // 终态
 };
 
+// ── C15 报价单自动过期（查询时检查方案，不做定时任务）──
+// 读取路径（listQuotations / getQuotation）发现 validUntil 已过的 Draft/Sent 报价单时，
+// 当场落库标记 Expired 并在本次返回中反映终态；状态过滤视角下被翻转的行从本次结果剔除。
+const AUTO_EXPIRABLE_STATUSES = new Set<string>(['Draft', 'Sent']);
+
+function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isPastValidUntil(validUntil: unknown, today: string): boolean {
+  // validUntil 为 YYYY-MM-DD 字符串；「有效期至」含当日，次日零点起视为过期
+  return typeof validUntil === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(validUntil) && validUntil < today;
+}
+
 // ────────────────────────────────────────────────────────────────
 // 辅助函数
 // ────────────────────────────────────────────────────────────────
@@ -681,7 +695,26 @@ export function createQuotationService(prisma: PrismaClient) {
       prisma.quotation.count({ where }),
     ]);
 
-    return { items, total };
+    // ── C15 查询时自动过期：本页命中 validUntil 已过的 Draft/Sent 单 → 落库翻转 Expired ──
+    const today = todayDateString();
+    const expiredIds = items
+      .filter((q) => AUTO_EXPIRABLE_STATUSES.has(q.status) && isPastValidUntil(q.validUntil, today))
+      .map((q) => q.id);
+    if (expiredIds.length > 0) {
+      await prisma.quotation.updateMany({
+        where: { id: { in: expiredIds } },
+        data: { status: 'Expired', updatedAt: Date.now() },
+      });
+      for (const q of items) {
+        if (expiredIds.includes(q.id)) (q as any).status = 'Expired';
+      }
+      logger.info('[QuotationService] auto-expired quotations on read', { ids: expiredIds });
+    }
+    // 状态过滤视角一致性：翻转后与过滤条件不符的行从本次结果剔除（下次查询天然不再命中）
+    const viewItems = params.status ? items.filter((q) => q.status === params.status) : items;
+    const removed = items.length - viewItems.length;
+
+    return { items: viewItems, total: Math.max(total - removed, 0) };
   }
 
   // ── 查询单个报价单（含行明细） ──
@@ -691,6 +724,17 @@ export function createQuotationService(prisma: PrismaClient) {
       include: { lines: { orderBy: { lineNumber: 'asc' } } },
     });
     if (!quotation || quotation.deletedAt) return null;
+
+    // ── C15 查询时自动过期：详情读取同样翻转（与列表同一口径） ──
+    if (AUTO_EXPIRABLE_STATUSES.has(quotation.status) && isPastValidUntil(quotation.validUntil, todayDateString())) {
+      await prisma.quotation.update({
+        where: { id },
+        data: { status: 'Expired', updatedAt: Date.now() },
+      });
+      (quotation as any).status = 'Expired';
+      logger.info('[QuotationService] auto-expired quotation on read', { id });
+    }
+
     return quotation as QuotationDetail;
   }
 

@@ -2974,6 +2974,39 @@ export const apiService = {
     return data.relation;
   },
 
+  /** 关系智库档案受控导出——GET /v2/relations/export.csv（REQ2-13 SEC-01：服务端 data:export:full 门禁 + 审计留痕） */
+  async exportRelationsCsv(params?: { category?: string; stage?: string; tier?: string; isOrganization?: boolean }, endpoint?: string): Promise<void> {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.stage) query.set('stage', params.stage);
+    if (params?.tier) query.set('tier', params.tier);
+    if (params?.isOrganization !== undefined) query.set('isOrganization', String(params.isOrganization));
+    const qs = query.toString();
+    const url = buildApiUrl(`/v2/relations/export.csv${qs ? `?${qs}` : ''}`, endpoint);
+    const res = await fetch(url, { headers: this.getAuthHeaders() });
+    if (!res.ok) {
+      // 受控导出常见失败为 403（无 data:export:full scope）——尽力解析服务端 JSON 错误文案
+      let message = `HTTP ${res.status}`;
+      try {
+        const data = await res.clone().json();
+        if (data?.message) message = String(data.message);
+      } catch { /* 保留 HTTP 状态码兜底 */ }
+      throw new Error(`关系档案导出失败：${message}`);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const filename = m && m[1] ? decodeURIComponent(m[1]) : `relations-${new Date().toISOString().slice(0, 10)}.csv`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
   async deleteRelation(id: string, endpoint?: string): Promise<Relation> {
     const data = await requestJson<{ ok: boolean; relation: Relation }>(`/v2/relations/${encodeURIComponent(id)}`, {
       endpoint,

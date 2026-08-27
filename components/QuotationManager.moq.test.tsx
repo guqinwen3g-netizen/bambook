@@ -23,14 +23,16 @@ describe('QuotationManager B4：建单/改单 MOQ 行级提醒', () => {
   it('低于起订量时表单保持打开并留存草稿 id，再次提交走 updateQuotation 复判（不重复建单）', () => {
     expect(source).toContain('setMoqDraftId(saved.id)');
     expect(source).toContain('setMoqWarnings(belowMoqLines)');
-    expect(source).toContain('await apiService.updateQuotation(moqDraftId, input)');
+    // C14 起 update 目标统一为 editingQuotationId || moqDraftId（MOQ 场景编辑态为空，等价于 moqDraftId）
+    expect(source).toContain('const updateTargetId = editingQuotationId || moqDraftId;');
+    expect(source).toContain('await apiService.updateQuotation(updateTargetId, input)');
     expect(source).toContain("await apiService.createQuotation(input)");
-    expect(source).toContain("{moqDraftId ? '保存修改' : '创建报价单'}");
+    expect(source).toContain("{editingQuotationId || moqDraftId ? '保存修改' : '创建报价单'}");
   });
 
   it('行内容编辑后清除过时提醒；表单关闭/保存成功后重置 MOQ 状态', () => {
     expect(source).toContain('const clearMoqWarnings = () => setMoqWarnings(prev => (prev ? null : prev));');
-    // 关闭表单（返回列表）时一并重置草稿跟踪
-    expect(source).toContain('setShowCreateForm(false); setMoqWarnings(null); setMoqDraftId(null);');
+    // 关闭表单（返回列表）时一并重置草稿跟踪（C14 起同时重置编辑态）
+    expect(source).toContain('setShowCreateForm(false); setMoqWarnings(null); setMoqDraftId(null); setEditingQuotationId(null);');
   });
 });

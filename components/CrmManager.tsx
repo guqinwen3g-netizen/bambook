@@ -585,15 +585,31 @@ function OpportunitiesTab({
   onTransition: (id: string, toStage: OpportunityStage) => void;
   onDelete: (id: string) => void;
 }) {
-  const pipelineSummary = useMemo(() => {
-    const summary: Record<string, { count: number; totalAmount: number }> = {};
-    for (const opp of opportunities) {
-      if (!summary[opp.stage]) summary[opp.stage] = { count: 0, totalAmount: 0 };
-      summary[opp.stage].count += 1;
-      summary[opp.stage].totalAmount += opp.amount;
+  // C5 列表检索：搜索（标题/来源/销售/描述）+ 阶段筛选 + 排序（列内排序；汇总卡片保持全量口径）
+  const [oppSearch, setOppSearch] = useState('');
+  const [oppStageFilter, setOppStageFilter] = useState('');
+  const [oppSort, setOppSort] = useState<'default' | 'amount-desc' | 'amount-asc' | 'closeDate-asc'>('default');
+
+  const visibleOpportunities = useMemo(() => {
+    let list = opportunities;
+    const kw = oppSearch.trim().toLowerCase();
+    if (kw) {
+      list = list.filter((o) =>
+        o.title.toLowerCase().includes(kw) ||
+        (o.source || '').toLowerCase().includes(kw) ||
+        (o.salesRepName || '').toLowerCase().includes(kw) ||
+        (o.description || '').toLowerCase().includes(kw)
+      );
     }
-    return summary;
-  }, [opportunities]);
+    if (oppStageFilter) list = list.filter((o) => o.stage === oppStageFilter);
+    const sorted = [...list];
+    if (oppSort === 'amount-desc') sorted.sort((a, b) => b.amount - a.amount);
+    else if (oppSort === 'amount-asc') sorted.sort((a, b) => a.amount - b.amount);
+    else if (oppSort === 'closeDate-asc') sorted.sort((a, b) => (a.expectedCloseDate || '9999').localeCompare(b.expectedCloseDate || '9999'));
+    return sorted;
+  }, [opportunities, oppSearch, oppStageFilter, oppSort]);
+
+  const visibleStages = oppStageFilter ? OPPORTUNITY_STAGES.filter((s) => s.id === oppStageFilter) : OPPORTUNITY_STAGES;
 
   const totalAmount = opportunities.reduce((sum, o) => sum + o.amount, 0);
   const wonAmount = opportunities.filter((o) => o.stage === 'ClosedWon').reduce((s, o) => s + o.amount, 0);
@@ -620,9 +636,46 @@ function OpportunitiesTab({
         </div>
       </div>
 
+      {/* C5 检索 bar：搜索 + 阶段筛选 + 排序（共行组合 bar，icon 内嵌输入框左侧） */}
+      <div className="bds-filterbar">
+        <Search className="w-4 h-4 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+        <input
+          type="text"
+          placeholder="搜索商机标题/来源/销售..."
+          value={oppSearch}
+          onChange={(e) => setOppSearch(e.target.value)}
+          className="bds-input sm flex-1"
+        />
+        <select
+          value={oppStageFilter}
+          onChange={(e) => setOppStageFilter(e.target.value)}
+          className="bds-select"
+          style={{ width: 'auto' }}
+        >
+          <option value="">全部阶段</option>
+          {OPPORTUNITY_STAGES.map((s) => (
+            <option key={s.id} value={s.id}>{s.label}</option>
+          ))}
+        </select>
+        <select
+          value={oppSort}
+          onChange={(e) => setOppSort(e.target.value as 'default' | 'amount-desc' | 'amount-asc' | 'closeDate-asc')}
+          className="bds-select"
+          style={{ width: 'auto' }}
+          title="排序"
+        >
+          <option value="default">默认排序</option>
+          <option value="amount-desc">金额 高→低</option>
+          <option value="amount-asc">金额 低→高</option>
+          <option value="closeDate-asc">预计成交 近→远</option>
+        </select>
+      </div>
+
       {/* 管线阶段卡片 */}
       <div className="flex items-center justify-between">
-        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>销售管线</h3>
+        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>
+          销售管线{oppSearch || oppStageFilter ? `（命中 ${visibleOpportunities.length}/${opportunities.length}）` : ''}
+        </h3>
         <button onClick={onCreate} className="bds-btn bds-btn-secondary">
           <Plus className="w-4 h-4" />
           新建商机
@@ -631,14 +684,13 @@ function OpportunitiesTab({
 
       {/* 阶段列 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {OPPORTUNITY_STAGES.map((stage) => {
-          const stageOpps = opportunities.filter((o) => o.stage === stage.id);
-          const summary = pipelineSummary[stage.id];
+        {visibleStages.map((stage) => {
+          const stageOpps = visibleOpportunities.filter((o) => o.stage === stage.id);
           return (
             <div key={stage.id} className="bds-card" style={{ padding: 'var(--space-3)', minHeight: 120 }}>
               <div className="flex items-center justify-between mb-2">
                 <span className={`bds-badge sm ${SEMANTIC_BADGE_VARIANT[stage.semantic]}`}>{stage.label}</span>
-                <span className="bds-tnum text-xs" style={{ color: 'var(--text-tertiary)' }}>{summary?.count ?? 0}</span>
+                <span className="bds-tnum text-xs" style={{ color: 'var(--text-tertiary)' }}>{stageOpps.length}</span>
               </div>
               <div className="space-y-2">
                 {stageOpps.map((opp) => (
@@ -712,6 +764,31 @@ function FollowUpsTab({
   onDelete: (id: string) => void;
 }) {
   const today = todayStr();
+  // C5 列表检索：搜索（内容/下次主题/联系人/销售）+ 类型筛选 + 排序
+  const [fuSearch, setFuSearch] = useState('');
+  const [fuTypeFilter, setFuTypeFilter] = useState('');
+  const [fuSort, setFuSort] = useState<'followUpAt-desc' | 'followUpAt-asc' | 'nextFollowUpAt-asc'>('followUpAt-desc');
+
+  const visibleFollowUps = useMemo(() => {
+    let list = followUps;
+    const kw = fuSearch.trim().toLowerCase();
+    if (kw) {
+      list = list.filter((fu) =>
+        fu.content.toLowerCase().includes(kw) ||
+        (fu.nextFollowUpTopic || '').toLowerCase().includes(kw) ||
+        (fu.contact?.name || '').toLowerCase().includes(kw) ||
+        (fu.salesRepName || '').toLowerCase().includes(kw)
+      );
+    }
+    if (fuTypeFilter) list = list.filter((fu) => fu.type === fuTypeFilter);
+    const sorted = [...list];
+    if (fuSort === 'followUpAt-asc') sorted.sort((a, b) => a.followUpAt.localeCompare(b.followUpAt));
+    else if (fuSort === 'nextFollowUpAt-asc') sorted.sort((a, b) => (a.nextFollowUpAt || '9999').localeCompare(b.nextFollowUpAt || '9999'));
+    else sorted.sort((a, b) => b.followUpAt.localeCompare(a.followUpAt));
+    return sorted;
+  }, [followUps, fuSearch, fuTypeFilter, fuSort]);
+
+  const fuFilterActive = !!(fuSearch.trim() || fuTypeFilter);
   return (
     <div className="space-y-4">
       {overdueFollowUps.length > 0 && (
@@ -733,11 +810,47 @@ function FollowUpsTab({
       )}
 
       <div className="flex items-center justify-between">
-        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>跟进记录 ({followUps.length})</h3>
+        <h3 className="bds-overline" style={{ color: 'var(--text-tertiary)' }}>
+          跟进记录 ({fuFilterActive ? `${visibleFollowUps.length}/${followUps.length}` : followUps.length})
+        </h3>
         <button onClick={onCreate} className="bds-btn bds-btn-secondary">
           <Plus className="w-4 h-4" />
           新建跟进
         </button>
+      </div>
+
+      {/* C5 检索 bar：搜索 + 类型筛选 + 排序（共行组合 bar，icon 内嵌输入框左侧） */}
+      <div className="bds-filterbar">
+        <Search className="w-4 h-4 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+        <input
+          type="text"
+          placeholder="搜索跟进内容/主题/联系人..."
+          value={fuSearch}
+          onChange={(e) => setFuSearch(e.target.value)}
+          className="bds-input sm flex-1"
+        />
+        <select
+          value={fuTypeFilter}
+          onChange={(e) => setFuTypeFilter(e.target.value)}
+          className="bds-select"
+          style={{ width: 'auto' }}
+        >
+          <option value="">全部类型</option>
+          {FOLLOWUP_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+        <select
+          value={fuSort}
+          onChange={(e) => setFuSort(e.target.value as 'followUpAt-desc' | 'followUpAt-asc' | 'nextFollowUpAt-asc')}
+          className="bds-select"
+          style={{ width: 'auto' }}
+          title="排序"
+        >
+          <option value="followUpAt-desc">跟进日期 新→旧</option>
+          <option value="followUpAt-asc">跟进日期 旧→新</option>
+          <option value="nextFollowUpAt-asc">下次跟进 近→远</option>
+        </select>
       </div>
 
       <div className="space-y-2">
@@ -747,7 +860,13 @@ function FollowUpsTab({
             <div className="title">暂无跟进记录</div>
           </div>
         )}
-        {followUps.map((fu) => {
+        {followUps.length > 0 && visibleFollowUps.length === 0 && (
+          <div className="bds-empty">
+            <div className="glyph"><Search size={24} /></div>
+            <div className="title">无匹配的跟进记录</div>
+          </div>
+        )}
+        {visibleFollowUps.map((fu) => {
           const isOverdue = fu.nextFollowUpAt && fu.nextFollowUpAt < today;
           const typeMeta = FOLLOWUP_TYPES.find((t) => t.id === fu.type);
           return (

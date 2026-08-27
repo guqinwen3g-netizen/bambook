@@ -60,3 +60,39 @@ describe('SupplierInquiryPanel B2 报价供应商档案下拉框', () => {
     expect(quoteFormSection).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 });
+
+describe('SupplierInquiryPanel C9 询价比价撤回（Compared → Open）', () => {
+  it('已比价状态操作区有「撤回比价」按钮（Undo2 图标 + loading 态）', () => {
+    expect(source).toContain('handleRevertComparison(inquiry.id)');
+    expect(source).toContain('<span>撤回比价</span>');
+    expect(source).toContain('revert_${inquiry.id}');
+  });
+
+  it('撤回走后端状态机：updateSupplierInquiry 携带 status=Open（Compared → Open 撤回分支）', () => {
+    expect(source).toContain("apiService.updateSupplierInquiry(inquiryId, { status: 'Open' } as any)");
+    // 撤回结果局部刷新列表
+    expect(source).toContain('updateInquiryInList(updated)');
+  });
+});
+
+describe('SupplierInquiryPanel C7 询价一键转采购单', () => {
+  it('面板声明 onConvertToPurchaseOrder 可选 prop（宿主 ProcurementManager 提供跳转）', () => {
+    expect(source).toContain('onConvertToPurchaseOrder?: (draft: SupplierInquiryConvertDraft) => void');
+    expect(source).toContain('export interface SupplierInquiryConvertDraft');
+  });
+
+  it('已比价状态操作区有「转采购单」按钮（仅宿主提供 prop 时展示）', () => {
+    expect(source).toContain('{onConvertToPurchaseOrder && (');
+    expect(source).toContain('handleConvert(inquiry)');
+    expect(source).toContain('<span>转采购单</span>');
+  });
+
+  it('预填草稿：中选报价供应商/条款 + 询价单币种/行明细（品名/物料编码/数量/单位）', () => {
+    expect(source).toContain('quotes.find(q => q.isSelected)');
+    expect(source).toContain('supplierRelationId: inquiry.selectedSupplierId ?? selectedQuote?.supplierId');
+    expect(source).toContain('deliveryTerms: selectedQuote?.deliveryTerms');
+    expect(source).toContain('paymentTerms: selectedQuote?.paymentTerms');
+    expect(source).toContain('description: inquiry.description');
+    expect(source).toContain('quantity: inquiry.quantity');
+  });
+});

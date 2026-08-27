@@ -11,8 +11,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CalendarClock, Loader2, RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, Ban, CalendarClock, Loader2, RefreshCw, Search } from 'lucide-react';
 import { productionService, ProductionBoardItem } from '../services/productionService';
+import { apiService } from '../services/apiService';
+import { bdsToast } from './ui/bdsToast';
 import { PageHeader } from './ui/PageHeader';
 import { BAMBOOK_OS } from './ui/bambookOsTokens';
 import { statusSemanticClass, statusSemanticText } from './rdlBusinessStatusTokens';
@@ -46,6 +48,39 @@ function daysUntil(dueDate: string | null | undefined): number | null {
   return Math.round((due.getTime() - today.getTime()) / 86400000);
 }
 
+/**
+ * C18 看板阻塞标记：由看板聚合数据推导当前可执行的阻塞动作（纯函数导出，供单测复用）。
+ * 作用于当前阶段（第一个非 done 阶段）：未阻塞 → 标记阻塞；已阻塞 → 解除阻塞。
+ * 全部阶段 done 或无阶段记录 → null（无入口）。
+ */
+export function resolveBlockAction(
+  stages: Array<{ stageKey: string; stageSeq: number; status: string }>,
+  currentStageKey: string | null,
+): { stageKey: string; blocked: boolean } | null {
+  if (!currentStageKey) return null;
+  const current = stages.find(s => s.stageKey === currentStageKey);
+  if (!current) return null;
+  return { stageKey: current.stageKey, blocked: current.status !== 'blocked' };
+}
+
+/** C18：调用阻塞标记端点（POST /v1/production/:orderId/block/:stageKey）；失败抛服务端错误消息 */
+export async function postStageBlocked(orderId: string, stageKey: string, blocked: boolean): Promise<void> {
+  const base = apiService.getStoredConfig().cloudEndpoint;
+  const url = apiService.buildApiUrl(
+    `/v1/production/${encodeURIComponent(orderId)}/block/${encodeURIComponent(stageKey)}`,
+    base,
+  );
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: apiService.getAuthHeaders(),
+    body: JSON.stringify({ blocked }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error?.message || `阻塞标记失败：HTTP ${res.status}`);
+  }
+}
+
 interface ProductionBoardProps {
   isDarkMode: boolean;
   /** 卡片点击 → 跳订单管理详情（App 层负责完整 Order lookup + 视图切换） */
@@ -59,6 +94,8 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
   const [search, setSearch] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [blockedOnly, setBlockedOnly] = useState(false);
+  // C18：阻塞标记提交中的订单 id（防双击）
+  const [blockPendingId, setBlockPendingId] = useState<string | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   const fetchBoard = useCallback(async () => {
@@ -74,6 +111,25 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
   }, []);
 
   useEffect(() => { fetchBoard(); }, [fetchBoard]);
+
+  // C18：卡片级「标记阻塞 / 解除阻塞」——作用于当前阶段（第一个非 done 阶段），成功后刷新看板
+  const handleToggleBlock = useCallback(async (item: ProductionBoardItem) => {
+    const action = resolveBlockAction(item.stages, item.currentStageKey);
+    if (!action) {
+      bdsToast.warning('该订单没有可标记的进行中阶段');
+      return;
+    }
+    setBlockPendingId(item.order.id);
+    try {
+      await postStageBlocked(item.order.id, action.stageKey, action.blocked);
+      bdsToast.success(action.blocked ? '已标记阻塞' : '已解除阻塞');
+      await fetchBoard();
+    } catch (e: any) {
+      bdsToast.danger(`${action.blocked ? '标记阻塞' : '解除阻塞'}失败：${e?.message || e}`);
+    } finally {
+      setBlockPendingId(null);
+    }
+  }, [fetchBoard]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -204,19 +260,44 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                     <div className="flex flex-col gap-2">
                       {columnItems.map(item => {
                         const o = item.order;
+                        // C18：当前阶段阻塞动作（全部完成/无阶段 → null 不渲染入口）
+                        const blockAction = resolveBlockAction(item.stages, item.currentStageKey);
                         return (
-                          <button
+                          <div
                             key={o.id}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => onOpenOrder?.(o.id)}
-                            className={`${cardClass} w-full text-left p-3 transition-colors hover:bg-[var(--hover-darken)]`}
+                            onKeyDown={(event) => {
+                              if (event.key !== 'Enter' && event.key !== ' ') return;
+                              event.preventDefault();
+                              onOpenOrder?.(o.id);
+                            }}
+                            className={`${cardClass} w-full text-left p-3 cursor-pointer transition-colors hover:bg-[var(--hover-darken)]`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-xs font-normal truncate">{o.poNumber || o.id}</span>
-                              {item.blockedCount > 0 && (
-                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-compact ${statusSemanticClass('danger', isDarkMode)} text-[10px] font-light shrink-0`}>
-                                  <AlertTriangle size={14} />阻塞
-                                </span>
-                              )}
+                              <span className="flex items-center gap-1 shrink-0">
+                                {item.blockedCount > 0 && (
+                                  <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-compact ${statusSemanticClass('danger', isDarkMode)} text-[10px] font-light shrink-0`}>
+                                    <AlertTriangle size={14} />阻塞
+                                  </span>
+                                )}
+                                {blockAction && (
+                                  <button
+                                    type="button"
+                                    disabled={blockPendingId === o.id}
+                                    onClick={(event) => { event.stopPropagation(); void handleToggleBlock(item); }}
+                                    title={blockAction.blocked
+                                      ? `标记「${BOARD_STAGES.find(s => s.key === blockAction.stageKey)?.label ?? blockAction.stageKey}」为阻塞`
+                                      : '解除当前阶段阻塞'}
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-compact text-[10px] font-light bg-[var(--recessed-bg)] text-[var(--text-tertiary)] hover:bg-[var(--recessed-bg-hover)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+                                  >
+                                    {blockPendingId === o.id ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                                    {blockAction.blocked ? '标记阻塞' : '解除阻塞'}
+                                  </button>
+                                )}
+                              </span>
                             </div>
                             <div className={`text-[11px] font-light mt-1 truncate text-[var(--text-tertiary)]`}>
                               {o.customer}
@@ -232,7 +313,7 @@ const ProductionBoard: React.FC<ProductionBoardProps> = ({ isDarkMode, onOpenOrd
                                 {renderDueChip(o.dueDate)}
                               </div>
                             )}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>

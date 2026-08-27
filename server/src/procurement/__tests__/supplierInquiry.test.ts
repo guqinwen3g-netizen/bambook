@@ -259,6 +259,71 @@ describe('供应商询价比价 service', () => {
     const audit = state.audits.find(x => x.action === 'close_supplier_inquiry');
     expect(audit?.afterValue).toBe('Closed');
   });
+
+  // ── C9：询价比价撤回（Compared → Open） ──
+  it('C9 撤回比价：Compared → Open，中选快照/决策备注清除、报价保留且 isSelected 清零、写审计', async () => {
+    const comparedSeed = {
+      id: 'SI_RV1', inquiryNumber: 'SI-2608-0021', status: 'Compared',
+      description: '撤回单', currency: 'USD',
+      supplierQuotes: [
+        { id: 'SQ_R1', supplierId: 'REL-NANTONG', supplierName: '南通厂', quoteAmount: 100, currency: 'USD', baseAmount: 100, quoteDate: '2026-08-01', isSelected: true },
+        { id: 'SQ_R2', supplierName: '苏州厂', quoteAmount: 120, currency: 'USD', baseAmount: 120, quoteDate: '2026-08-02', isSelected: false },
+      ],
+      selectedSupplierId: 'REL-NANTONG', selectedSupplierName: '南通厂', decisionNote: '价优',
+      deletedAt: null, createdAt: 1, updatedAt: 1,
+    };
+    const { prisma, state } = makePrisma({ inquiries: [comparedSeed] });
+    const svc = createProcurementService(prisma);
+
+    const updated = await svc.updateSupplierInquiry('SI_RV1', { status: 'Open' } as any, 'u9');
+    expect(updated.status).toBe('Open');
+    const row = state.inquiries[0];
+    expect(row.selectedSupplierId).toBeNull();
+    expect(row.selectedSupplierName).toBeNull();
+    expect(row.decisionNote).toBeNull();
+    // 报价行保留（可重新决策），isSelected 全清零
+    expect(row.supplierQuotes).toHaveLength(2);
+    expect(row.supplierQuotes.map((q: any) => q.isSelected)).toEqual([false, false]);
+
+    const audit = state.audits.find(x => x.action === 'reopen_supplier_inquiry');
+    expect(audit).toBeTruthy();
+    expect(audit.operationType).toBe('transition');
+    expect(audit.beforeValue).toBe('Compared');
+    expect(audit.afterValue).toBe('Open');
+    // 决策留痕转审计（before 快照保留原中选信息）
+    expect(audit.detail.before.selectedSupplierName).toBe('南通厂');
+
+    // 撤回后回到 Open：可重新比价决策
+    const reselected = await svc.selectSupplier('SI_RV1', 'SQ_R2', '改选苏州厂', 'u9');
+    expect(reselected.status).toBe('Compared');
+    expect(state.inquiries[0].selectedSupplierName).toBe('苏州厂');
+  });
+
+  it('C9 非 Compared 状态撤回拒绝：Open 单撤回（无决策可撤）与 Closed 终态撤回均报错', async () => {
+    const openSeed = {
+      id: 'SI_RV2', inquiryNumber: 'SI-2608-0022', status: 'Open',
+      description: '询价中', currency: 'USD', supplierQuotes: [],
+      deletedAt: null, createdAt: 1, updatedAt: 1,
+    };
+    // Open → Compared 走更新接口：越权绕开 selectSupplier，拒绝并指向专属入口
+    const a = makePrisma({ inquiries: [openSeed] });
+    await expect(
+      createProcurementService(a.prisma).updateSupplierInquiry('SI_RV2', { status: 'Compared' } as any, 'u9'),
+    ).rejects.toThrow(/专属操作/);
+
+    const closedSeed = { ...openSeed, id: 'SI_RV3', status: 'Closed' };
+    const b = makePrisma({ inquiries: [closedSeed] });
+    await expect(
+      createProcurementService(b.prisma).updateSupplierInquiry('SI_RV3', { status: 'Open' } as any, 'u9'),
+    ).rejects.toThrow(/询价单非法状态转换/);
+
+    // Compared → Closed 走更新接口：同样拒绝（须走 closeSupplierInquiry 专属入口）
+    const comparedSeed = { ...openSeed, id: 'SI_RV4', status: 'Compared' };
+    const c = makePrisma({ inquiries: [comparedSeed] });
+    await expect(
+      createProcurementService(c.prisma).updateSupplierInquiry('SI_RV4', { status: 'Closed' } as any, 'u9'),
+    ).rejects.toThrow(/专属操作/);
+  });
 });
 
 // ═══ B2：报价供应商档案门禁（黑名单/档案外/手打名称 一律拒绝） ═══
@@ -369,6 +434,35 @@ describe('供应商询价比价 route — 入参过滤', () => {
     expect(persisted.status).toBe('Open'); // body 里伪造的 status 未透传
     expect(persisted.description).toBe(CREATE_INPUT.description);
     expect(persisted.currency).toBe(CREATE_INPUT.currency);
+  });
+
+  it('C9 路由：PUT /inquiries/:id 携带 status=Open → 已比价单撤回 200；Closed 单撤回 409', async () => {
+    const comparedSeed = {
+      id: 'SI_RV9', inquiryNumber: 'SI-2608-0029', status: 'Compared',
+      description: '路由撤回单', currency: 'USD',
+      supplierQuotes: [
+        { id: 'SQ_R9', supplierId: 'REL-GOOD', supplierName: '正规厂', quoteAmount: 100, currency: 'USD', baseAmount: 100, quoteDate: '2026-08-01', isSelected: true },
+      ],
+      selectedSupplierId: 'REL-GOOD', selectedSupplierName: '正规厂', decisionNote: '价优',
+      deletedAt: null, createdAt: 1, updatedAt: 1,
+    };
+    const { prisma, state } = makePrisma({ inquiries: [comparedSeed] });
+    const app = makeApp(prisma);
+
+    const ok = await request(app)
+      .put('/api/v1/procurement/inquiries/SI_RV9')
+      .send({ status: 'Open' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.inquiry.status).toBe('Open');
+    expect(state.inquiries[0].selectedSupplierName).toBeNull();
+    expect(state.inquiries[0].supplierQuotes[0].isSelected).toBe(false);
+
+    const closedSeed = { ...comparedSeed, id: 'SI_RV10', status: 'Closed' };
+    const b = makePrisma({ inquiries: [closedSeed] });
+    const denied = await request(makeApp(b.prisma))
+      .put('/api/v1/procurement/inquiries/SI_RV10')
+      .send({ status: 'Open' });
+    expect(denied.status).toBe(409);
   });
 
   it('POST /inquiries/:id/quotes 缺必填字段返回 400 且不落数据', async () => {

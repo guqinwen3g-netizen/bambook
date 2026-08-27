@@ -4,6 +4,7 @@
  * GET    /board                      → 在手订单 × 10 阶段泳道看板聚合（PRD 19.8）
  * GET    /:orderId                    → get full pipeline (stages + checklist + inspection)
  * POST   /:orderId/advance/:stageKey  → advance a stage (with gate checks)
+ * POST   /:orderId/block/:stageKey    → C18 看板阻塞标记（blocked ⇄ pending）
  * PUT    /:orderId/checklist           → save PreCutChecklist
  * PUT    /:orderId/inspection          → save InspectionReport
  */
@@ -12,7 +13,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
 import { requirePermission } from '../auth/permissionGuard';
-import { advanceStage, getProductionBoard, getProductionPipeline, savePreCutChecklist, saveInspectionReport, signStage, parseStageKey } from './stageService';
+import { advanceStage, getProductionBoard, getProductionPipeline, savePreCutChecklist, saveInspectionReport, signStage, parseStageKey, setStageBlocked } from './stageService';
 
 export interface ProductionRouterOptions {
   prisma: PrismaClient;
@@ -227,6 +228,35 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
       const errResult = result as any; return res.status(statusCodeMap[errResult.error.code] || 500).json({ ok: false, error: errResult.error });
     }
     opts.onDataChange?.({ entity: 'production', action: 'advance', ids: [req.params.orderId] });
+    res.json({ ok: true, stage: result.data.stage });
+  });
+
+  // POST /:orderId/block/:stageKey — C18 看板阻塞标记（blocked ⇄ pending；body.blocked 缺省 true）
+  router.post('/:orderId/block/:stageKey', requireWrite, requireProductionWrite, async (req: Request, res: Response) => {
+    const stageKey = parseStageKey(req.params.stageKey);
+    if (!stageKey) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_STAGE', message: `Invalid stage: ${req.params.stageKey}` } });
+    }
+    const { note } = req.body || {};
+    const blocked = req.body?.blocked !== false; // 缺省标记阻塞；显式 false = 解除阻塞
+    const result = await setStageBlocked({
+      prisma: opts.prisma,
+      orderId: req.params.orderId,
+      stageKey,
+      blocked,
+      operator: actorIdFromRequest(req),
+      note,
+    });
+    if (!result.ok) {
+      const statusCodeMap: Record<string, number> = {
+        ORDER_NOT_FOUND: 404,
+        INVALID_STAGE: 400,
+        STAGE_NOT_BLOCKABLE: 400,
+        STAGE_UPDATE_FAILED: 500,
+      };
+      const errResult = result as any; return res.status(statusCodeMap[errResult.error.code] || 500).json({ ok: false, error: errResult.error });
+    }
+    opts.onDataChange?.({ entity: 'production', action: 'block', ids: [req.params.orderId] });
     res.json({ ok: true, stage: result.data.stage });
   });
 
