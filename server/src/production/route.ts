@@ -10,6 +10,8 @@
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { advanceStage, getProductionBoard, getProductionPipeline, savePreCutChecklist, saveInspectionReport, signStage, parseStageKey } from './stageService';
 
 export interface ProductionRouterOptions {
@@ -26,33 +28,18 @@ function actorIdFromRequest(req: Request): string {
 export function createProductionRouter(opts: ProductionRouterOptions): Router {
   const router = Router();
 
-  // API-key guard
-  router.use((req: Request, res: Response, next) => {
-    if (!opts.requireAuth) return next();
-    const key = req.headers['x-bambook-api-key'] as string | undefined;
-    if (!key) return res.status(401).json({ error: 'UNAUTHORIZED' });
-    if (!opts.apiKeys.has(key)) return res.status(403).json({ error: 'FORBIDDEN' });
-    next();
-  });
-
-  // 角色检查：生产管线写操作需 production_manager/factory/manager/admin/owner
-  const PRODUCTION_WRITE_ROLES = new Set(['production_manager', 'factory', 'manager', 'admin', 'owner']);
-  const requireProductionRole = (req: Request, res: Response, next: () => void) => {
-    // 开发模式（requireAuth=false）跳过角色检查
-    if (!opts.requireAuth) return next();
-    const roles: string[] = (req as any).user?.roles || (req as any).roles || [];
-    // 无角色默认拒绝（fail-closed）——防止角色解析失败的请求绕过 RBAC
-    if (roles.length === 0) {
-      return res.status(403).json({ ok: false, error: { code: 'FORBIDDEN', message: 'No roles resolved — authentication required' } });
-    }
-    if (!roles.some(r => PRODUCTION_WRITE_ROLES.has(r))) {
-      return res.status(403).json({ ok: false, error: { code: 'FORBIDDEN', message: 'Requires production_manager, factory, manager, admin, or owner role' } });
-    }
-    return next();
-  };
+  // W-C 批三-E 族B 收口：API-Key-only 私有守卫 + legacy requireProductionRole 双退役，
+  // 统一 createModuleAuthGuard（JWT 或 API-Key）。读面挂 production:read scope 门；
+  // 写面 requireJwtForWrite（JWT-only）＋ production:write scope 门
+  // （持有 = SALES/SALES_MANAGER/QC＋SuperAdmin 特判，_shared/rolePermissionMatrix 真源——
+  //  修复生产态 fail-closed 死锁：旧守卫 API-Key 无 roles 恒 403，矩阵授权角色无法写）。
+  router.use(createModuleAuthGuard({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys }));
+  const requireWrite = requireJwtForWrite({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys });
+  const requireProductionRead = requirePermission('production:read');
+  const requireProductionWrite = requirePermission('production:write');
 
   // GET /stats/dashboard — 生产看板统计
-  router.get('/stats/dashboard', async (req: Request, res: Response) => {
+  router.get('/stats/dashboard', requireProductionRead, async (req: Request, res: Response) => {
     try {
       const today = new Date().toISOString().slice(0, 10);
 
@@ -137,7 +124,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
 
   // GET /alerts/scan — 全局延期预警扫描
   // 扫描所有未完成订单的 productionPlanDeadline（下单后7天）和 delayNoticeDeadline（交期前15天）
-  router.get('/alerts/scan', async (req: Request, res: Response) => {
+  router.get('/alerts/scan', requireProductionRead, async (req: Request, res: Response) => {
     try {
       const today = new Date().toISOString().slice(0, 10);
       const orders = await opts.prisma.order.findMany({
@@ -193,7 +180,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
   });
 
   // GET /board — 生产跟单泳道看板聚合（PRD 19.8；必须在 /:orderId 之前注册）
-  router.get('/board', async (req: Request, res: Response) => {
+  router.get('/board', requireProductionRead, async (req: Request, res: Response) => {
     try {
       const board = await getProductionBoard(opts.prisma);
       res.json({ ok: true, ...board });
@@ -203,7 +190,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
   });
 
   // GET /:orderId — full pipeline
-  router.get('/:orderId', async (req: Request, res: Response) => {
+  router.get('/:orderId', requireProductionRead, async (req: Request, res: Response) => {
     try {
       const pipeline = await getProductionPipeline(opts.prisma, req.params.orderId);
       res.json({ ok: true, ...pipeline });
@@ -213,7 +200,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
   });
 
   // POST /:orderId/advance/:stageKey — advance stage
-  router.post('/:orderId/advance/:stageKey', requireProductionRole, async (req: Request, res: Response) => {
+  router.post('/:orderId/advance/:stageKey', requireWrite, requireProductionWrite, async (req: Request, res: Response) => {
     const { note } = req.body || {};
     const stageKey = parseStageKey(req.params.stageKey);
     if (!stageKey) {
@@ -244,7 +231,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
   });
 
   // POST /:orderId/sign/:stageKey — dual-sign (production/business)
-  router.post('/:orderId/sign/:stageKey', requireProductionRole, async (req: Request, res: Response) => {
+  router.post('/:orderId/sign/:stageKey', requireWrite, requireProductionWrite, async (req: Request, res: Response) => {
     const { signType, signerId } = req.body || {};
     if (!['production', 'business'].includes(signType)) {
       return res.status(400).json({ ok: false, error: { code: 'INVALID_SIGN_TYPE', message: 'signType must be production or business' } });
@@ -265,7 +252,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
   });
 
   // PUT /:orderId/checklist — save PreCutChecklist
-  router.put('/:orderId/checklist', requireProductionRole, async (req: Request, res: Response) => {
+  router.put('/:orderId/checklist', requireWrite, requireProductionWrite, async (req: Request, res: Response) => {
     try {
       const checklist = await savePreCutChecklist(opts.prisma, req.params.orderId, req.body || {});
       opts.onDataChange?.({ entity: 'production', action: 'checklist', ids: [req.params.orderId] });
@@ -276,7 +263,7 @@ export function createProductionRouter(opts: ProductionRouterOptions): Router {
   });
 
   // PUT /:orderId/inspection — save InspectionReport
-  router.put('/:orderId/inspection', requireProductionRole, async (req: Request, res: Response) => {
+  router.put('/:orderId/inspection', requireWrite, requireProductionWrite, async (req: Request, res: Response) => {
     try {
       const report = await saveInspectionReport(opts.prisma, req.params.orderId, req.body || {});
       opts.onDataChange?.({ entity: 'production', action: 'inspection', ids: [req.params.orderId] });

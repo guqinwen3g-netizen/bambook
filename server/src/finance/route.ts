@@ -15,6 +15,7 @@ import path from 'path';
 import fs from 'fs';
 import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -174,6 +175,14 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
 
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager', 'finance'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  // W-C 批三-E：GET 读端点按资源挂 scope 门（_shared/rolePermissionMatrix 真源）。
+  // QC 仅持 finance:read（不持 vouchers/invoices/vat/remit:read）→ 单据族读面被拒属预期收紧；
+  // GET /（发票列表）保持认证门——API-Key 读兼容契约由 __tests__/routeAuthGuardRealModule 锁定。
+  const requireVouchersRead = requirePermission('vouchers:read');
+  const requireInvoicesRead = requirePermission('invoices:read');
+  const requireVatRead = requirePermission('vat:read');
+  const requireRemitRead = requirePermission('remit:read');
+  const requireFinanceRead = requirePermission('finance:read');
   const dunningService = createDunningService(prisma);
   // P0-2：催款分级状态机（提醒→催款→严催→法务准备；auto 定级 + manual 钉住合成）
   const dunningStageService = createDunningStageService(prisma);
@@ -233,7 +242,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   // ────────────────────────────────────────────────────────────────
 
   // GET /api/v1/finance/vouchers — list / search
-  router.get('/vouchers', async (req: Request, res: Response) => {
+  router.get('/vouchers', requireVouchersRead, async (req: Request, res: Response) => {
     try {
       const limit = Math.min(Number(req.query.limit) || 50, 200);
       const offset = Number(req.query.offset) || 0;
@@ -261,7 +270,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/vouchers/:id
-  router.get('/vouchers/:id', async (req: Request, res: Response) => {
+  router.get('/vouchers/:id', requireVouchersRead, async (req: Request, res: Response) => {
     try {
       const item = await (prisma as any).paymentVoucher.findUnique({ where: { id: req.params.id } });
       if (!item || item.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '收付款凭证不存在' } });
@@ -355,7 +364,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/allocations — list/query
-  router.get('/allocations', async (req: Request, res: Response) => {
+  router.get('/allocations', requireInvoicesRead, async (req: Request, res: Response) => {
     try {
       const { items, total } = await listInvoiceAllocations(prisma, {
         invoiceId: req.query.invoiceId ? String(req.query.invoiceId) : undefined,
@@ -412,7 +421,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   // ────────────────────────────────────────────────────────────────
 
   // GET /api/v1/finance/fx-settlements/ledger — 外汇台账（只读聚合）
-  router.get('/fx-settlements/ledger', async (req: Request, res: Response) => {
+  router.get('/fx-settlements/ledger', requireRemitRead, async (req: Request, res: Response) => {
     try {
       const ledger = await getFxLedger(prisma, {
         from: req.query.from ? String(req.query.from) : undefined,
@@ -426,7 +435,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/fx-settlements — list / search
-  router.get('/fx-settlements', async (req: Request, res: Response) => {
+  router.get('/fx-settlements', requireRemitRead, async (req: Request, res: Response) => {
     try {
       const limit = Math.min(Number(req.query.limit) || 50, 200);
       const offset = Number(req.query.offset) || 0;
@@ -448,7 +457,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/fx-settlements/:id
-  router.get('/fx-settlements/:id', async (req: Request, res: Response) => {
+  router.get('/fx-settlements/:id', requireRemitRead, async (req: Request, res: Response) => {
     try {
       const item = await (prisma as any).fxSettlement.findUnique({ where: { id: req.params.id } });
       if (!item || item.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '结汇水单不存在' } });
@@ -498,7 +507,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/vouchers/:id/settlements — 凭证核销摘要（已结汇/余额/明细）
-  router.get('/vouchers/:id/settlements', async (req: Request, res: Response) => {
+  router.get('/vouchers/:id/settlements', requireVouchersRead, async (req: Request, res: Response) => {
     const result = await getVoucherSettlementSummary(prisma, req.params.id);
     if (!result.ok) {
       res.status(result.error!.code === 'VOUCHER_NOT_FOUND' ? 404 : 500).json({ error: result.error });
@@ -514,7 +523,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   // ────────────────────────────────────────────────────────────────
 
   // GET /api/v1/finance/outward-remittances — list / search
-  router.get('/outward-remittances', async (req: Request, res: Response) => {
+  router.get('/outward-remittances', requireRemitRead, async (req: Request, res: Response) => {
     try {
       const result = await listOutwardRemittances(prisma, {
         voucherId: req.query.voucherId ? String(req.query.voucherId) : undefined,
@@ -567,7 +576,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/vouchers/:id/remittances — 凭证付汇摘要（已付汇/余额/明细）
-  router.get('/vouchers/:id/remittances', async (req: Request, res: Response) => {
+  router.get('/vouchers/:id/remittances', requireVouchersRead, async (req: Request, res: Response) => {
     const result = await getVoucherRemittanceSummary(prisma, req.params.id);
     if (!result.ok) {
       res.status(result.error!.code === 'VOUCHER_NOT_FOUND' ? 404 : 500).json({ error: result.error });
@@ -582,7 +591,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   // ────────────────────────────────────────────────────────────────
 
   // GET /api/v1/finance/vat-invoices — list / search
-  router.get('/vat-invoices', async (req: Request, res: Response) => {
+  router.get('/vat-invoices', requireVatRead, async (req: Request, res: Response) => {
     try {
       const result = await listVatInvoices(prisma, {
         status: req.query.status ? String(req.query.status) : undefined,
@@ -623,7 +632,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/vat-invoices/:id
-  router.get('/vat-invoices/:id', async (req: Request, res: Response) => {
+  router.get('/vat-invoices/:id', requireVatRead, async (req: Request, res: Response) => {
     const result = await getVatInvoice(prisma, req.params.id);
     if (!result.ok) {
       res.status(result.error!.code === 'NOT_FOUND' ? 404 : 500).json({ error: result.error });
@@ -755,7 +764,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/dunning?customerRelationId=|customerName= — 催款历史
-  router.get('/dunning', async (req: Request, res: Response) => {
+  router.get('/dunning', requireFinanceRead, async (req: Request, res: Response) => {
     const result = await dunningService.listDunning({
       customerRelationId: req.query.customerRelationId ? String(req.query.customerRelationId) : undefined,
       customerName: req.query.customerName ? String(req.query.customerName) : undefined,
@@ -773,7 +782,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   // ────────────────────────────────────────────────────────────────
 
   // GET /api/v1/finance/dunning/stages — 分级看板（账龄行×P0-1尾款喂入×生效分级，只读零副作用）
-  router.get('/dunning/stages', async (req: Request, res: Response) => {
+  router.get('/dunning/stages', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const result = await dunningStageService.listBoard({
         asOf: req.query.asOf ? String(req.query.asOf) : undefined,
@@ -823,7 +832,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
     res.send(buffer);
   };
 
-  router.get('/reports/aging', async (req: Request, res: Response) => {
+  router.get('/reports/aging', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const type = String(req.query.type ?? 'Receivable');
       if (type !== 'Receivable' && type !== 'Payable') {
@@ -842,7 +851,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
 
   // GET /api/v1/finance/reports/statement?customerRelationId=xx&from=YYYY-MM-DD&to=YYYY-MM-DD
   // B9：format=xlsx → Excel 下载（与供应商对账单同款多币种分节 sheet）
-  router.get('/reports/statement', async (req: Request, res: Response) => {
+  router.get('/reports/statement', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const customerRelationId = String(req.query.customerRelationId ?? '');
       if (!customerRelationId) {
@@ -865,7 +874,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
 
   // GET /api/v1/finance/reports/statement/preview.html — 客户对账单 A4 预览（B9：
   // STMT 服务端模板与 xlsx 同数据形状；与发票 preview.html 同模式，不登记 TradeDocument）
-  router.get('/reports/statement/preview.html', async (req: Request, res: Response) => {
+  router.get('/reports/statement/preview.html', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const customerRelationId = String(req.query.customerRelationId ?? '');
       if (!customerRelationId) {
@@ -887,7 +896,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/reports/supplier-statement?supplierRelationId=xx&from=YYYY-MM-DD&to=YYYY-MM-DD
-  router.get('/reports/supplier-statement', async (req: Request, res: Response) => {
+  router.get('/reports/supplier-statement', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const supplierRelationId = String(req.query.supplierRelationId ?? '');
       if (!supplierRelationId) {
@@ -909,7 +918,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/reports/fx-gain-loss?from=YYYY-MM-DD&to=YYYY-MM-DD
-  router.get('/reports/fx-gain-loss', async (req: Request, res: Response) => {
+  router.get('/reports/fx-gain-loss', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const report = await getFxGainLoss(prisma, {
         from: req.query.from ? String(req.query.from) : undefined,
@@ -923,7 +932,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/reports/cash-calendar?asOf=YYYY-MM-DD&days=30 — REQ2-02 资金日历
-  router.get('/reports/cash-calendar', async (req: Request, res: Response) => {
+  router.get('/reports/cash-calendar', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const report = await getCashCalendar(prisma, {
         asOf: req.query.asOf ? String(req.query.asOf) : undefined,
@@ -938,7 +947,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
 
   // GET /api/v1/finance/reports/consolidated-profit — DR-005/DR-033 公司合并视图（抵销内部交易）
   // 支持 ?from=&to= 按订单日期（Order.poDate）过滤报表范围，响应回显 from/to 元数据
-  router.get('/reports/consolidated-profit', async (req: Request, res: Response) => {
+  router.get('/reports/consolidated-profit', requireFinanceRead, async (req: Request, res: Response) => {
     try {
       const from = typeof req.query.from === 'string' && req.query.from.trim() ? req.query.from.trim() : undefined;
       const to = typeof req.query.to === 'string' && req.query.to.trim() ? req.query.to.trim() : undefined;
@@ -954,7 +963,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/:id — 必须放在 /vouchers 字面路由之后
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', requireInvoicesRead, async (req: Request, res: Response) => {
     try {
       const item = await prisma.invoice.findUnique({ where: { id: req.params.id } });
       if (!item || item.deletedAt) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '发票不存在' } });
@@ -976,7 +985,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/:id/render.pdf — 导出发票 PDF（CI 级模板：买卖双方/货品明细/金额大写/收款银行）
-  router.get('/:id/render.pdf', async (req: Request, res: Response) => {
+  router.get('/:id/render.pdf', requireInvoicesRead, async (req: Request, res: Response) => {
     try {
       const doc = await loadInvoiceDoc(prisma, req.params.id);
       if (!doc) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '发票不存在' } });
@@ -991,7 +1000,7 @@ export function createFinanceRouter(options: FinanceRouterOptions): Router {
   });
 
   // GET /api/v1/finance/:id/preview.html — 发票预览（与 render.pdf 同源 HTML + screen 页边距，所见即所得）
-  router.get('/:id/preview.html', async (req: Request, res: Response) => {
+  router.get('/:id/preview.html', requireInvoicesRead, async (req: Request, res: Response) => {
     try {
       const doc = await loadInvoiceDoc(prisma, req.params.id);
       if (!doc) return res.status(404).json({ error: { code: 'NOT_FOUND', message: '发票不存在' } });

@@ -28,7 +28,9 @@ vi.mock('../../shared/businessNumberService', () => ({
   nextBusinessNumber: vi.fn(async (_tx: unknown, prefix: string) => `${prefix}-2608-0001`),
 }));
 vi.mock('../../auth/middleware', () => ({
-  extractActorFromRequest: vi.fn(() => ({ userId: 'u9' })),
+  // W-C 批三-E：路由写面挂 procurement:write scope 门（requirePermission 消费 actor.roles）——
+  // mock actor 补 owner 角色（SuperAdmin 全放行）；userId 'u9' 语义不变（审计断言沿用）。
+  extractActorFromRequest: vi.fn(() => ({ userId: 'u9', roles: ['owner'] })),
 }));
 
 import { createProcurementService } from '../procurementService';

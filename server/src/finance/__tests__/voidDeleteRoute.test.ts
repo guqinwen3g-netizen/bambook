@@ -171,13 +171,15 @@ describe('task ERP-P1 finance void-delete: GET 过滤 deletedAt', () => {
 
   it('GET /:id 判空 deletedAt → 404', async () => {
     const { app } = makeVoidDeleteApp({ invoice: { id: 'INV__1', status: 'Issued', deletedAt: BigInt(Date.now()) } });
-    const res = await request(app).get('/api/v1/finance/INV__1');
+    // W-C 批三-E：GET /:id 已挂 invoices:read scope 门，owner JWT（SuperAdmin 全放行）放行后走 404 判空
+    const res = await request(app).get('/api/v1/finance/INV__1').set(authHeader());
     expect(res.status).toBe(404);
   });
 
   it('GET /vouchers 过滤 deletedAt（paymentVoucher.findMany where 含 deletedAt: null）', async () => {
     const { app, prisma } = makeVoidDeleteApp();
-    await request(app).get('/api/v1/finance/vouchers');
+    // W-C 批三-E：GET /vouchers 已挂 vouchers:read scope 门
+    await request(app).get('/api/v1/finance/vouchers').set(authHeader());
     expect((prisma as any).paymentVoucher.findMany).toHaveBeenCalled();
     const callArgs = ((prisma as any).paymentVoucher.findMany as any).mock.calls[0][0];
     expect(callArgs.where).toEqual(expect.objectContaining({ deletedAt: null }));
@@ -185,7 +187,8 @@ describe('task ERP-P1 finance void-delete: GET 过滤 deletedAt', () => {
 
   it('GET /vouchers/:id 判空 deletedAt → 404', async () => {
     const { app } = makeVoidDeleteApp({ voucher: { id: 'PAY__1', deletedAt: BigInt(Date.now()) } });
-    const res = await request(app).get('/api/v1/finance/vouchers/PAY__1');
+    // W-C 批三-E：GET /vouchers/:id 已挂 vouchers:read scope 门
+    const res = await request(app).get('/api/v1/finance/vouchers/PAY__1').set(authHeader());
     expect(res.status).toBe(404);
   });
 });

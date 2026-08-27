@@ -31,16 +31,17 @@
  *   - GET  /quality/defect-trends          — 疵点趋势（?groupBy=factory|quarter，默认 factory）
  *   - POST /quality/repeat-scan            — 重复疵点扫描（近 90 天同工厂同疵点 ≥2 张报告 → 预警）
  *
- * 守卫口径与 suppliers/seasons 模块一致：读走 JWT 或 API-Key，写必须 JWT（requireJwtForWrite）；
- * 信用风险扫描会批量冻结客户信用额度，属高风险操作，叠加 owner/admin/manager 角色守卫。
+ * 守卫口径（W-C 批三-E 族B 收口）：读面挂 risk:read scope 门；写面 requireJwtForWrite
+ * ＋ risk:write scope 门（持有 = FINANCE/SALES_MANAGER＋SuperAdmin 特判，JWT-only，API-Key 不足）；
+ * 信用风险扫描（批量冻结，高危）挂 ['risk:write','risk:admin']（risk:admin = 总监级，
+ * ADMIN 经此保留文档授权的信用额度管理面；其余 risk 写端点 ADMIN 无 risk:write → 403 属 §6.6 预期收紧）。
  */
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
-import { requireRole } from '../auth/middleware';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
-import type { AgentRole } from '../agent/types';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
 import {
@@ -57,9 +58,6 @@ export interface RiskRouterOptions {
   onDataChange?: (event: { entity: string; action: string; ids?: string[] }) => void;
 }
 
-/** 信用扫描属批量冻结级高风险操作，与 H1 黑名单同级别 */
-const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
-
 export function createRiskRouter(options: RiskRouterOptions): Router {
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const router = Router();
@@ -67,6 +65,11 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
 
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  // W-C 批三-E：risk 域 scope 门（_shared/rolePermissionMatrix 真源）
+  const requireRiskRead = requirePermission('risk:read');
+  const requireRiskWrite = requirePermission('risk:write');
+  /** 信用扫描属批量冻结级高危操作：risk:write 操作面 或 risk:admin 总监面（OR） */
+  const requireRiskScan = requirePermission(['risk:write', 'risk:admin']);
   const notify = (action: string, ids?: string[]) => onDataChange?.({ entity: 'risk', action, ids });
 
   const handleError = (res: Response, e: any, code: string) => {
@@ -84,7 +87,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
   // 统一预警
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/overview', async (_req: Request, res: Response) => {
+  router.get('/overview', requireRiskRead, async (_req: Request, res: Response) => {
     try {
       res.json(serializeValue(await service.getRiskOverview()));
     } catch (e: any) {
@@ -92,7 +95,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.get('/alerts', async (req: Request, res: Response) => {
+  router.get('/alerts', requireRiskRead, async (req: Request, res: Response) => {
     try {
       const result = await service.listAlerts({
         type: req.query.type ? String(req.query.type) : undefined,
@@ -107,7 +110,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.patch('/alerts/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/alerts/:id', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       const alert = await service.updateAlertStatus(req.params.id, String(req.body?.status || ''), actorIdFromRequest(req));
       notify('update_alert', [alert.id]);
@@ -121,7 +124,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
   // 汇率
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/fx-rates', async (req: Request, res: Response) => {
+  router.get('/fx-rates', requireRiskRead, async (req: Request, res: Response) => {
     try {
       const result = await service.listExchangeRates({
         currency: req.query.currency ? String(req.query.currency) : undefined,
@@ -134,7 +137,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
   });
 
   // 字面路由须在 /fx-rates 参数化变体前（本路由无 /fx-rates/:id，仍保持字面前置约定）
-  router.get('/fx-rates-latest', async (_req: Request, res: Response) => {
+  router.get('/fx-rates-latest', requireRiskRead, async (_req: Request, res: Response) => {
     try {
       const items = await service.getLatestRates();
       res.json(serializeValue({ items, total: items.length }));
@@ -143,7 +146,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.post('/fx-rates', requireWrite, async (req: Request, res: Response) => {
+  router.post('/fx-rates', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       const rate = await service.addExchangeRate(req.body as ExchangeRateInput, actorIdFromRequest(req));
       notify('add_fx_rate', [rate.id]);
@@ -153,7 +156,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.get('/fx-locks', async (req: Request, res: Response) => {
+  router.get('/fx-locks', requireRiskRead, async (req: Request, res: Response) => {
     try {
       const result = await service.listFxLocks({
         orderId: req.query.orderId ? String(req.query.orderId) : undefined,
@@ -164,7 +167,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.post('/fx-locks', requireWrite, async (req: Request, res: Response) => {
+  router.post('/fx-locks', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       const lock = await service.lockFxRate(req.body as FxLockInput, actorIdFromRequest(req));
       notify('lock_fx_rate', [lock.id]);
@@ -174,7 +177,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.delete('/fx-locks/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/fx-locks/:id', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       await service.deleteFxLock(req.params.id, actorIdFromRequest(req));
       notify('delete_fx_lock', [req.params.id]);
@@ -188,7 +191,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
   // 信用
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/credit-ratings', async (req: Request, res: Response) => {
+  router.get('/credit-ratings', requireRiskRead, async (req: Request, res: Response) => {
     try {
       const result = await service.listCreditRatings({
         relationId: req.query.relationId ? String(req.query.relationId) : undefined,
@@ -201,7 +204,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.post('/credit-ratings/evaluate', requireWrite, async (req: Request, res: Response) => {
+  router.post('/credit-ratings/evaluate', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       const rating = await service.evaluateCreditRating(String(req.body?.relationId || ''), actorIdFromRequest(req));
       notify('evaluate_credit', [rating.id]);
@@ -211,8 +214,8 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  // 信用风险扫描：批量冻结客户信用额度，高风险操作叠加角色守卫
-  router.post('/credit-risk-scan', requireWrite, requireRole(...HIGH_RISK_ROLES), async (_req: Request, res: Response) => {
+  // 信用风险扫描：批量冻结客户信用额度，高危操作挂 risk:write/risk:admin 双通道 scope 门
+  router.post('/credit-risk-scan', requireWrite, requireRiskScan, async (_req: Request, res: Response) => {
     try {
       const result = await service.runCreditRiskScan();
       if (result.frozenCount > 0 || result.badDebtCount > 0) notify('credit_risk_scan');
@@ -226,7 +229,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
   // 合规
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/compliance-checks', async (req: Request, res: Response) => {
+  router.get('/compliance-checks', requireRiskRead, async (req: Request, res: Response) => {
     try {
       const result = await service.listComplianceChecks({
         type: req.query.type ? String(req.query.type) : undefined,
@@ -241,7 +244,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.post('/compliance-checks/hs-code', requireWrite, async (req: Request, res: Response) => {
+  router.post('/compliance-checks/hs-code', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       const check = await service.runHsCodeCheck(String(req.body?.declarationId || ''), actorIdFromRequest(req));
       notify('hs_code_check', [check.id]);
@@ -251,7 +254,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.post('/compliance-checks/export-control', requireWrite, async (req: Request, res: Response) => {
+  router.post('/compliance-checks/export-control', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       const check = await service.runExportControlCheck(String(req.body?.declarationId || ''), actorIdFromRequest(req));
       notify('export_control_check', [check.id]);
@@ -262,7 +265,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
   });
 
   // 人工录入（origin_rule 等无自动通道的检查类型）
-  router.post('/compliance-checks', requireWrite, async (req: Request, res: Response) => {
+  router.post('/compliance-checks', requireWrite, requireRiskWrite, async (req: Request, res: Response) => {
     try {
       const check = await service.addManualComplianceCheck(req.body as ManualComplianceCheckInput, actorIdFromRequest(req));
       notify('manual_compliance_check', [check.id]);
@@ -276,7 +279,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
   // 质量
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/quality/defect-trends', async (req: Request, res: Response) => {
+  router.get('/quality/defect-trends', requireRiskRead, async (req: Request, res: Response) => {
     try {
       const groupBy = req.query.groupBy === 'quarter' ? 'quarter' : 'factory';
       res.json(serializeValue(await service.getDefectTrends({ groupBy })));
@@ -285,7 +288,7 @@ export function createRiskRouter(options: RiskRouterOptions): Router {
     }
   });
 
-  router.post('/quality/repeat-scan', requireWrite, async (_req: Request, res: Response) => {
+  router.post('/quality/repeat-scan', requireWrite, requireRiskWrite, async (_req: Request, res: Response) => {
     try {
       const result = await service.runQualityRepeatScan();
       if (result.alerted > 0) notify('quality_repeat_scan');

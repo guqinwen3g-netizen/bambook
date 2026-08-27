@@ -12,6 +12,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import type { AgentRole } from '../agent/types';
 import { PrismaClient } from '@prisma/client';
 import { actorIdFromRequest } from '../audit/routeAudit';
@@ -161,6 +162,13 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   // P0-1：订单分批出运与尾款结算（财务侧批次主档）
   const batchService = createOrderShipmentBatchService(prisma);
 
+  // W-C 批三-F（族 C）：发货域日常写端点（运单创建/更新/装箱/批次/合票分配）已从 legacy requireRole
+  // 切换到 requirePermission('shipments:write')——矩阵真源授权 SALES/SALES_MANAGER/LOGISTICS
+  // （业务员本部门发货登记 + 后勤全公司物流执行），§6.6 ADMIN 业务域只读属预期收紧，
+  // SuperAdmin(owner) 经 hasPermission 特判照常全通；→Shipped 放行业务门禁在 service 层
+  // （GATE_BLOCKED + DR-013 例外链），角色门按矩阵 write 档对齐。
+  // HIGH_RISK_ROLES 仅保留给毁灭性删除端点（DELETE 运单 / DELETE 合票分配）：
+  // 矩阵 shipments 域无 delete scope 锚点，且删除释放已配额度影响对账。
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
 
@@ -201,7 +209,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // POST /order-batches — 批次登记（计划期；batchNo 自动递增；单批自动末批）
-  router.post('/order-batches', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/order-batches', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     try {
       const { orderId, shipmentId, plannedRatio, plannedQty, unit, amount, currency, isFinalBatch, finalPaymentDueDays, notes } = req.body || {};
       if (!orderId) {
@@ -224,7 +232,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // PUT /order-batches/:batchId — 批次更新（计划字段仅计划期可改；status 仅允许 planned→cancelled）
-  router.put('/order-batches/:batchId', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.put('/order-batches/:batchId', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     try {
       const result = await batchService.updateBatch(req.params.batchId, req.body || {}, actorIdFromRequest(req));
       if (!result.ok) {
@@ -240,7 +248,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // POST /order-batches/:batchId/mark-shipped — 批次发运确认（排船回填 + 尾款到期日计算 + 末批收款门禁）
-  router.post('/order-batches/:batchId/mark-shipped', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/order-batches/:batchId/mark-shipped', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     try {
       const result = await batchService.markShipped(req.params.batchId, req.body || {}, actorIdFromRequest(req));
       if (!result.ok) {
@@ -256,7 +264,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // POST /order-batches/:batchId/recalc — 结算进度重算（发票分配/核销变动后手动触发；自动触发点二期接入）
-  router.post('/order-batches/:batchId/recalc', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/order-batches/:batchId/recalc', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     try {
       const result = await batchService.recalcSettlement(req.params.batchId);
       if (!result.ok) {
@@ -408,7 +416,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // PUT /api/v1/shipping/:id/lines — C4 装运行整组替换（幂等）
-  router.put('/:id/lines', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.put('/:id/lines', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     const lines = Array.isArray(req.body?.lines) ? req.body.lines : null;
     if (!lines) return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'body.lines must be an array' } });
     const result = await replaceShipmentLines(prisma, req.params.id, lines, actorIdFromRequest(req), req.ip || null);
@@ -422,7 +430,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // POST /api/v1/shipping/:id/lines/pull-from-order — C4 从订单重新带出装运行
-  router.post('/:id/lines/pull-from-order', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/:id/lines/pull-from-order', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     const result = await pullLinesFromOrder(prisma, req.params.id, actorIdFromRequest(req), req.ip || null);
     if (!result.ok) {
       const statusCodeMap: Record<string, number> = { NOT_FOUND: 404, ORDER_NOT_FOUND: 404, INVALID_CURRENT_STATUS: 409, VALIDATION_FAILED: 400, EXCLUSIVE_FABRIC_BLOCKED: 409 };
@@ -446,7 +454,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // PUT /api/v1/shipping/:id/cartons — C4 逐箱整组替换（幂等，箱内分配随行校验）
-  router.put('/:id/cartons', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.put('/:id/cartons', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     const cartons = Array.isArray(req.body?.cartons) ? req.body.cartons : null;
     if (!cartons) return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'body.cartons must be an array' } });
     const result = await replaceShipmentCartons(prisma, req.params.id, cartons, actorIdFromRequest(req), req.ip || null);
@@ -476,7 +484,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
 
   // POST /api/v1/shipping — create (high risk, approval upstream)
   // task ERP-P1-shipping-mutation-shared-service-foundation: route 只调 service
-  router.post('/', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     const input = pickFields(req.body as ShipmentCreateInput, [
       'type', 'shippingMethod', 'status', 'bookingDate',
       'etd', 'atd', 'eta', 'ata',
@@ -517,7 +525,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
 
   // PATCH /api/v1/shipping/:id
   // task ERP-P1-shipping-mutation-shared-service-foundation: route 只调 service
-  router.patch('/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/:id', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     const hasStatus = Object.prototype.hasOwnProperty.call(req.body || {}, 'status');
     const patch = pickFields(req.body, SHIPMENT_PATCH_FIELDS);
     const result = await updateShipment({
@@ -583,7 +591,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // POST /api/v1/shipping/:id/allocations — 新增分配（合票/拆票）
-  router.post('/:id/allocations', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/:id/allocations', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     const { orderId, orderLineId, plannedQty, actualQty, unit, status, batchOrCartonNote, exception } = req.body || {};
     if (!orderId) {
       return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'body.orderId 必填' } });
@@ -609,7 +617,7 @@ export function createShippingRouter(options: ShippingRouterOptions): Router {
   });
 
   // PATCH /api/v1/shipping/:id/allocations/:allocId — 更新分配
-  router.patch('/:id/allocations/:allocId', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/:id/allocations/:allocId', requirePermission('shipments:write'), async (req: Request, res: Response) => {
     const result = await allocationService.updateAllocation(req.params.id, req.params.allocId, req.body || {},
       actorIdFromRequest(req), req.ip || null);
     if (!result.ok) {

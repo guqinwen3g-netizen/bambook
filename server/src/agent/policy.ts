@@ -9,7 +9,11 @@ export function createPolicyService() {
   }
 
   function canUseTool(actor: ActorContext, target: ToolAccessTarget): PolicyDecision {
-    if (!actor.toolScopes.includes(target.scope)) {
+    // W-C 批三-F：owner（SUPER_ADMIN 的 legacy 映射）与 hasPermission 的 SUPER_ADMIN 特判同哲学——
+    // 全工具域放行。修复 identity.ROLE_SCOPES 手写清单滞后工具注册表扩张（qc/samples 等域）
+    // 导致的 owner 全通破裂；对 legacy-only owner actor 同样生效。
+    const isOwner = actor.roles.includes('owner');
+    if (!isOwner && !actor.toolScopes.includes(target.scope)) {
       return { allowed: false, requiresApproval: false, reason: 'ROLE_NOT_ALLOWED' };
     }
 

@@ -26,6 +26,8 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { logger } from '../lib/logger';
 import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import {
@@ -53,22 +55,19 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createInventoryService(prisma);
 
-  const authenticate = (req: Request, res: Response): boolean => {
-    if (!requireAuth) return true;
-    const apiKey = (req.query.apiKey as string) || (req.headers['x-bambook-api-key'] as string) || (req.headers['x-api-key'] as string);
-    if (apiKey && apiKeys.has(apiKey)) return true;
-    const actor = extractActorFromRequest(req);
-    if (actor?.userId) return true;
-    res.status(401).json({ error: 'authentication required' });
-    return false;
-  };
+  // W-C 批三-E 族B 收口：inline authenticate 闭包退役，统一 createModuleAuthGuard（JWT 或 API-Key）。
+  // 读面保持认证门（API-Key 兼容契约，auth/__tests__/moduleApiKeyHeader.test.ts 锁定）；
+  // 写面 requireJwtForWrite（JWT-only，API-Key 裸写旧契约关闭）＋ inventory:write scope 门
+  // （持有 = LOGISTICS 专属＋SuperAdmin 特判，GAP-R5 仓储归后勤，_shared/rolePermissionMatrix 真源）。
+  router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
+  const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  const requireInventoryWrite = requirePermission('inventory:write');
 
   // ════════════════════════════════════════
   // 仓库
   // ════════════════════════════════════════
 
   router.get('/warehouses', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const includeInactive = req.query.includeInactive === 'true';
       const warehouses = await service.listWarehouses(includeInactive);
@@ -79,8 +78,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     }
   });
 
-  router.post('/warehouses', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/warehouses', requireWrite, requireInventoryWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as WarehouseInput;
@@ -97,8 +95,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     }
   });
 
-  router.put('/warehouses/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.put('/warehouses/:id', requireWrite, requireInventoryWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as Partial<WarehouseInput>;
@@ -112,8 +109,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     }
   });
 
-  router.delete('/warehouses/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.delete('/warehouses/:id', requireWrite, requireInventoryWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       await service.deleteWarehouse(req.params.id, actor?.userId || 'system');
@@ -131,7 +127,6 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
   // ════════════════════════════════════════
 
   router.get('/items', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const { warehouseId, category, materialCode, search, lowStockOnly, limit, offset } = req.query;
       const exportAll = req.query.format === 'xlsx';
@@ -182,7 +177,6 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
   });
 
   router.get('/items/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const item = await service.getInventoryItem(req.params.id);
       if (!item) return res.status(404).json({ error: '库存项不存在' });
@@ -193,8 +187,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     }
   });
 
-  router.post('/items', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/items', requireWrite, requireInventoryWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as InventoryItemInput;
@@ -212,8 +205,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     }
   });
 
-  router.put('/items/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.put('/items/:id', requireWrite, requireInventoryWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as Partial<InventoryItemInput>;
@@ -227,8 +219,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     }
   });
 
-  router.delete('/items/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.delete('/items/:id', requireWrite, requireInventoryWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       await service.deleteInventoryItem(req.params.id, actor?.userId || 'system');
@@ -246,7 +237,6 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
   // ════════════════════════════════════════
 
   router.get('/movements', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const { itemId, warehouseId, type, dateFrom, dateTo, limit, offset } = req.query;
       const result = await service.listStockMovements({
@@ -265,8 +255,7 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
     }
   });
 
-  router.post('/movements', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/movements', requireWrite, requireInventoryWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as StockMovementInput;
@@ -303,7 +292,6 @@ export function createInventoryRouter(options: InventoryRouterOptions): Router {
   // ════════════════════════════════════════
 
   router.get('/alerts/low-stock', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const items = await service.getLowStockItems();
       res.json({ items, total: items.length });

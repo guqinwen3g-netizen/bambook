@@ -15,6 +15,8 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { logger } from '../lib/logger';
 import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { createBOMService, CreateBOMInput, UpdateBOMInput } from './bomService';
@@ -44,19 +46,17 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createBOMService(prisma);
 
-  const authenticate = (req: Request, res: Response): boolean => {
-    if (!requireAuth) return true;
-    const apiKey = (req.query.apiKey as string) || (req.headers['x-bambook-api-key'] as string) || (req.headers['x-api-key'] as string);
-    if (apiKey && apiKeys.has(apiKey)) return true;
-    const actor = extractActorFromRequest(req);
-    if (actor?.userId) return true;
-    res.status(401).json({ error: 'authentication required' });
-    return false;
-  };
+  // W-C 批三-E 族B 收口：inline authenticate 闭包退役，统一 createModuleAuthGuard（JWT 或 API-Key）。
+  // 读面保持认证门（API-Key 兼容契约，auth/__tests__/moduleApiKeyHeader.test.ts 锁定）；
+  // 写面 requireJwtForWrite（JWT-only，API-Key 裸写旧契约关闭）＋ bom:write scope 门
+  // （_shared/rolePermissionMatrix 真源：bom:write 当前持有 = QC＋SuperAdmin 特判——
+  //  SALES/SALES_MANAGER 未持 bom:write 属矩阵口径，收紧影响已上报七角色走查）。
+  router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
+  const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  const requireBomWrite = requirePermission('bom:write');
 
   // ── GET / — 列表（format=xlsx → 全量台账 Excel 导出） ──
   router.get('/', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const { status, productAssetId, orderId, quotationId, search, limit, offset } = req.query;
       const exportAll = req.query.format === 'xlsx';
@@ -103,7 +103,6 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
 
   // ── GET /:id — 详情 ──
   router.get('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const bom = await service.getBOM(req.params.id);
       if (!bom) {
@@ -117,8 +116,7 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
   });
 
   // ── POST / — 创建 ──
-  router.post('/', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/', requireWrite, requireBomWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as CreateBOMInput;
@@ -141,8 +139,7 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
   });
 
   // ── PUT /:id — 更新（仅 Draft） ──
-  router.put('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.put('/:id', requireWrite, requireBomWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as UpdateBOMInput;
@@ -160,8 +157,7 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
   });
 
   // ── DELETE /:id — 软删除（仅 Draft） ──
-  router.delete('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.delete('/:id', requireWrite, requireBomWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       await service.deleteBOM(req.params.id, actor?.userId || 'system');
@@ -178,8 +174,7 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
   });
 
   // ── POST /:id/confirm — 确认（Draft → Confirmed） ──
-  router.post('/:id/confirm', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/confirm', requireWrite, requireBomWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const bom = await service.confirmBOM(req.params.id, actor?.userId || 'system');
@@ -196,8 +191,7 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
   });
 
   // ── POST /:id/archive — 归档 ──
-  router.post('/:id/archive', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/archive', requireWrite, requireBomWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const bom = await service.archiveBOM(req.params.id, actor?.userId || 'system');
@@ -214,8 +208,7 @@ export function createBOMRouter(options: BOMRouterOptions): Router {
   });
 
   // ── POST /:id/recalculate — 重新计算成本（仅 Draft） ──
-  router.post('/:id/recalculate', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/recalculate', requireWrite, requireBomWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const bom = await service.recalculateCost(req.params.id, actor?.userId || 'system');

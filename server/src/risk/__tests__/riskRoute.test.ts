@@ -334,9 +334,10 @@ describe('H3 · 汇率档案与波动预警', () => {
       .set('x-bambook-api-key', validApiKey)
       .send({ currency: 'USD', rate: 7.1 });
     expect(res.status).toBe(401);
-    // 读可走 API-Key
+    // W-C 批三-E：读面已挂 risk:read scope 门（requirePermission 需 JWT actor），
+    // API-Key 无身份 → 401（旧「读可走 API-Key」契约随 scope 门收口关闭）
     const read = await request(app).get('/api/v1/risk/fx-rates').set('x-bambook-api-key', validApiKey);
-    expect(read.status).toBe(200);
+    expect(read.status).toBe(401);
   });
 });
 

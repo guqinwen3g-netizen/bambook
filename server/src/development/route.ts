@@ -4,9 +4,8 @@
  * CRUD + stage progression + convert-to-order for DevelopmentCase.
  */
 import { Router, Request, Response, NextFunction } from 'express';
-import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
-import type { AgentRole } from '../agent/types';
+import { requirePermission } from '../auth/permissionGuard';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { syncOrderEntityReferences } from '../entities/sync';
 import { createDevelopmentCase, updateDevelopmentCase, updateDevelopmentStage, deleteDevelopmentCase } from './developmentCaseMutationService';
@@ -89,12 +88,16 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   const guard = createModuleAuthGuard({ requireAuth, apiKeys });
   router.use(guard);
 
-  const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
+  // W-C 批三-E 族B 收口：Development 属 products 域（VIEW_TO_MAIN_SCOPES 真源）——
+  // 原无授权门的写面挂 products:write scope 门（持有 = SALES/SALES_MANAGER＋SuperAdmin 特判），
+  // 读面挂 products:read；convert/delete 已随族 C 一并收编 products:write（legacy requireRole 退役）。
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  const requireDevWrite = requirePermission('products:write');
+  const requireDevRead = requirePermission('products:read');
 
 
   // ─── GET / ─── List development cases ───
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', requireDevRead, async (req: Request, res: Response) => {
     try {
       const { type, stage, customer, supplier, owner, search, sampleInvoiceId, productAssetId, limit = '50', offset = '0' } = req.query;
 
@@ -148,7 +151,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── GET /:id ─── Get single development case ───
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', requireDevRead, async (req: Request, res: Response) => {
     try {
       const doc = await prisma.developmentCase.findFirst({
         where: { id: req.params.id, deletedAt: null },
@@ -173,7 +176,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── POST / ─── Create development case ───
-  router.post('/', requireWrite, async (req: Request, res: Response) => {
+  router.post('/', requireWrite, requireDevWrite, async (req: Request, res: Response) => {
     // task ERP-P1-development-mutation-route-foundation: route 只调 service（$transaction + sync + audit fail closed）
     const result = await createDevelopmentCase({
       prisma,
@@ -202,7 +205,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── PUT /:id ─── Update development case ───
-  router.put('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.put('/:id', requireWrite, requireDevWrite, async (req: Request, res: Response) => {
     // task ERP-P1-development-mutation-route-foundation: route 只调 service
     const result = await updateDevelopmentCase({
       prisma,
@@ -232,7 +235,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── PATCH /:id/stage ─── Update stage (with validation) ───
-  router.patch('/:id/stage', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/:id/stage', requireWrite, requireDevWrite, async (req: Request, res: Response) => {
     // task ERP-P1-development-mutation-route-foundation: route 只调 service
     const { stage, nextAction } = req.body || {};
     const result = await updateDevelopmentStage({
@@ -264,7 +267,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── POST /:id/review — 5A 样衣评审 ───
-  router.post('/:id/review', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/review', requireWrite, requireDevWrite, async (req: Request, res: Response) => {
     try {
       const { reviewStatus, reviewNote } = req.body || {};
       if (!['passed', 'failed'].includes(reviewStatus)) {
@@ -315,7 +318,9 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   // In both modes the case is marked approved + completedDate, linked to the
   // resulting order, and the cross-module EntityLink graph is updated.
   // task ERP-P1: route 调用 convertDevCaseToOrder service（route + Agent flow 共用契约）
-  router.post('/:id/convert', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  // W-C 族 C：convert 从 legacy HIGH_RISK 收编为矩阵 scope 门（SALES/SM 持 products:write；
+  // 开发转订单是 S1 主链日常，订单创建本身的信用/状态门禁由 orderService 链各自兜底）
+  router.post('/:id/convert', requireDevWrite, async (req: Request, res: Response) => {
     try {
       const { orderId, orderPo, autoCreate, customer, millName, dueDate, productName, quantity } = req.body || {};
       const wantAutoCreate = Boolean(autoCreate) || (!orderId && !orderPo);
@@ -362,7 +367,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── GET /:id/sample-nodes — 三级样衣节点列表（Phase B4） ───
-  router.get('/:id/sample-nodes', async (req: Request, res: Response) => {
+  router.get('/:id/sample-nodes', requireDevRead, async (req: Request, res: Response) => {
     try {
       const doc = await prisma.developmentCase.findFirst({ where: { id: req.params.id, deletedAt: null }, select: { id: true } });
       if (!doc) {
@@ -378,7 +383,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── POST /:id/sample-nodes/ensure — 幂等创建三级节点（Phase B4） ───
-  router.post('/:id/sample-nodes/ensure', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/sample-nodes/ensure', requireWrite, requireDevWrite, async (req: Request, res: Response) => {
     const result = await ensureSampleNodes(prisma, req.params.id);
     if (!result.ok) {
       res.status(result.error!.code === 'NOT_FOUND' ? 404 : 500).json({ ok: false, error: result.error });
@@ -388,7 +393,7 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── PATCH /:id/sample-nodes/:level — 推进样衣节点状态机（Phase B4） ───
-  router.patch('/:id/sample-nodes/:level', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/:id/sample-nodes/:level', requireWrite, requireDevWrite, async (req: Request, res: Response) => {
     const result = await advanceSampleNode({
       prisma,
       caseId: req.params.id,
@@ -411,7 +416,9 @@ export function createDevelopmentRouter(options: DevelopmentRouterOptions): Rout
   });
 
   // ─── DELETE /:id ─── Soft delete ───
-  router.delete('/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  // W-C 族 C：软删开发单（草稿期业务操作，无财务勾稽牵连）收编矩阵 scope 门；
+  // 服务层状态机兜底（已转订单/已结案不可删）
+  router.delete('/:id', requireDevWrite, async (req: Request, res: Response) => {
     // task ERP-P1-development-mutation-route-foundation: route 只调 service
     const result = await deleteDevelopmentCase({
       prisma,

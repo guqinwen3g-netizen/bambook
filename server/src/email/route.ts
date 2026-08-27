@@ -20,6 +20,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireRole, extractActorFromRequest } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import type { AgentRole } from '../agent/types';
 import { PrismaClient } from '@prisma/client';
 import imaps from 'imap-simple';
@@ -121,6 +122,11 @@ export function createEmailRouter(options: EmailRouterOptions) {
   const guard = createModuleAuthGuard({ requireAuth, apiKeys });
   router.use(guard);
 
+  // W-C 批三-F（族 C）：S1 日常写端点（sync/outbox send）已从 legacy requireRole 切换到
+  // requirePermission('emails:write')——矩阵真源授权 SALES/SALES_MANAGER（业务员发邮件是 S1 主链日常），
+  // §6.6 ADMIN 业务域只读属预期收紧，SuperAdmin(owner) 经 hasPermission 特判照常全通。
+  // HIGH_RISK_ROLES 仅保留给批量维护面端点（backfill-links / classify-backfill）：
+  // 批量回填非日常写且 emails:admin 未授予任何业务角色，挂矩阵会只剩 SuperAdmin 可用（预期外收紧）。
   const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
 
@@ -221,8 +227,9 @@ export function createEmailRouter(options: EmailRouterOptions) {
 
   /**
    * POST /api/v1/email/sync — 触发 IMAP→DB 同步
+   * W-C 批三-F：业务员同步本人邮箱是 S1 主链日常 → requirePermission('emails:write')
    */
-  router.post('/sync', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/sync', requirePermission('emails:write'), async (req: Request, res: Response) => {
     const { email, password, host, port, box, limit } = req.body || {};
     const result = await syncEmailsFromImap({
       prisma,
@@ -389,8 +396,9 @@ export function createEmailRouter(options: EmailRouterOptions) {
    * POST /api/v1/email/outbox/:id/send — Outbox Email 显式 SMTP 发送
    * 只能发送已存在的 Email(direction=outbound, mailbox=Outbox)。
    * SMTP 成功后更新 Sent + sentAt + messageId；失败保持 Outbox。
+   * W-C 批三-F：业务员发邮件是 S1 主链日常 → requirePermission('emails:write')
    */
-  router.post('/outbox/:id/send', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/outbox/:id/send', requirePermission('emails:write'), async (req: Request, res: Response) => {
     try {
       const emailId = req.params.id;
       const { email, password, host, port } = req.body || {};

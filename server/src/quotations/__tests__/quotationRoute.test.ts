@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import jwt from 'jsonwebtoken';
 import { createQuotationRouter } from '../quotationRoute';
 import { businessEventBus } from '../../events/businessEventBus';
+import { ownerToken } from '../../__tests__/authTestHelper';
 
 // JWT mock for auth-guard 契约测试（与 auth/service.ts 默认 secret 对齐）
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
@@ -124,6 +125,17 @@ function makeApp(opts: {
   const onDataChange = opts.onDataChange || vi.fn();
   const app = express();
   app.use(express.json());
+  // W-C 批三-E：写端点已挂 quotations:write scope 门（requirePermission 需 JWT actor）。
+  // 业务契约用例（requireAuth=false）统一注入 owner JWT（SuperAdmin 全放行），保持
+  // 「测业务、不测门禁」语义；门禁契约用例（requireAuth=true）不注入，自行控制凭证。
+  if (!opts.requireAuth) {
+    app.use((req, _res, next) => {
+      if (!req.headers.authorization && !req.headers.cookie) {
+        req.headers.authorization = `Bearer ${ownerToken}`;
+      }
+      next();
+    });
+  }
   app.use('/api/v1/quotations', createQuotationRouter({
     prisma,
     requireAuth: opts.requireAuth ?? false,

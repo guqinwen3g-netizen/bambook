@@ -15,14 +15,15 @@
  *   GET    /runs/:id                    运行详情
  *   GET    /runs/:id/export.csv         导出 CSV（重放快照）
  *
- * 权限：读/预览/导出走模块守卫（JWT 或 API key）；定义变更走 HIGH_RISK_ROLES；
- * 手动运行要求 JWT（与财务写入口径一致，API key 不足）。
+ * 权限（W-C 批三-E 族B 收口）：读面挂 reports:read scope 门；写/执行面
+ * （definitions 增删改 / preview / drill / run / monthly-close）requireJwtForWrite
+ * ＋ requirePermission('reports:write')（持有 = SALES/SALES_MANAGER/FINANCE/ADMIN
+ * ＋SuperAdmin 特判；legacy requireRole(HIGH_RISK) 退役，矩阵授权 SALES 曾被其误拒）。
  */
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireRole } from '../auth/middleware';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
-import type { AgentRole } from '../agent/types';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { listDatasets } from './datasets';
@@ -85,8 +86,10 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
 
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
 
-  const HIGH_RISK_ROLES: AgentRole[] = ['owner', 'admin', 'manager', 'finance'];
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  // W-C 批三-E：reporting 域 scope 门（_shared/rolePermissionMatrix 真源）
+  const requireReportsRead = requirePermission('reports:read');
+  const requireReportsWrite = requirePermission('reports:write');
   const monthlyCloseService = createMonthlyCloseService(prisma);
 
   const sendError = (res: Response, error: { code: string; message: string }) => {
@@ -94,12 +97,12 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   };
 
   // ── 数据集注册表 ──
-  router.get('/datasets', (_req: Request, res: Response) => {
+  router.get('/datasets', requireReportsRead, (_req: Request, res: Response) => {
     res.json({ datasets: listDatasets() });
   });
 
   // ── 定义列表 ──
-  router.get('/definitions', async (_req: Request, res: Response) => {
+  router.get('/definitions', requireReportsRead, async (_req: Request, res: Response) => {
     try {
       const definitions = await (prisma as any).reportDefinition.findMany({
         where: { deletedAt: null },
@@ -112,7 +115,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 定义详情 ──
-  router.get('/definitions/:id', async (req: Request, res: Response) => {
+  router.get('/definitions/:id', requireReportsRead, async (req: Request, res: Response) => {
     try {
       const definition = await (prisma as any).reportDefinition.findUnique({ where: { id: req.params.id } });
       if (!definition || definition.deletedAt) {
@@ -126,7 +129,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 创建定义 ──
-  router.post('/definitions', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.post('/definitions', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await createReportDefinition({
       prisma,
       input: req.body,
@@ -141,7 +144,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 更新定义 ──
-  router.patch('/definitions/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.patch('/definitions/:id', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await updateReportDefinition({
       prisma,
       definitionId: req.params.id,
@@ -157,7 +160,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 软删定义 ──
-  router.delete('/definitions/:id', requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.delete('/definitions/:id', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await deleteReportDefinition({
       prisma,
       definitionId: req.params.id,
@@ -171,8 +174,8 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
     res.json({ ok: true });
   });
 
-  // ── 预览（不落库） ──
-  router.post('/preview', requireWrite, async (req: Request, res: Response) => {
+  // ── 预览（不落库；执行类端点与写面同级 reports:write 门，W-C 批三-E） ──
+  router.post('/preview', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await previewReportQuery({ prisma, input: req.body });
     if (!result.ok) {
       sendError(res, result.error!);
@@ -182,7 +185,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 下钻（不落库；返回业务明细行，与预览同级权限） ──
-  router.post('/drill', requireWrite, async (req: Request, res: Response) => {
+  router.post('/drill', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await drillReportQuery({ prisma, input: req.body });
     if (!result.ok) {
       sendError(res, result.error!);
@@ -192,7 +195,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 手动运行（落快照） ──
-  router.post('/definitions/:id/run', requireWrite, async (req: Request, res: Response) => {
+  router.post('/definitions/:id/run', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await runReportDefinition({
       prisma,
       definitionId: req.params.id,
@@ -207,8 +210,8 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── REQ2-17 月末批量结转（DR-058）：mc: 幂等键月末时点快照 + 相邻期对比 ──
-  // 守卫与定义变更同级（结转是财务批量快照动作，高风险角色 + JWT）。
-  router.post('/monthly-close', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  // 守卫与定义变更同级（结转是财务批量快照动作，reports:write scope + JWT）。
+  router.post('/monthly-close', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await monthlyCloseService.runMonthlyClose({
       periodKey: typeof req.body?.periodKey === 'string' ? req.body.periodKey : undefined,
       actorId: actorIdFromRequest(req),
@@ -221,7 +224,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
     res.json(serialize(result.data));
   });
 
-  router.get('/monthly-close/compare', requireWrite, requireRole(...HIGH_RISK_ROLES), async (req: Request, res: Response) => {
+  router.get('/monthly-close/compare', requireWrite, requireReportsWrite, async (req: Request, res: Response) => {
     const result = await monthlyCloseService.compareMonthlyClose({
       periodKey: typeof req.query.periodKey === 'string' ? req.query.periodKey : undefined,
     });
@@ -233,7 +236,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 运行历史 ──
-  router.get('/runs', async (req: Request, res: Response) => {
+  router.get('/runs', requireReportsRead, async (req: Request, res: Response) => {
     try {
       const definitionId = typeof req.query.definitionId === 'string' ? req.query.definitionId : undefined;
       const limitRaw = Number(req.query.limit);
@@ -256,7 +259,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 运行详情（含快照行） ──
-  router.get('/runs/:id', async (req: Request, res: Response) => {
+  router.get('/runs/:id', requireReportsRead, async (req: Request, res: Response) => {
     try {
       const run = await (prisma as any).reportRun.findUnique({ where: { id: req.params.id } });
       if (!run) {
@@ -270,7 +273,7 @@ export function createReportingRouter(options: ReportingRouterOptions): Router {
   });
 
   // ── 导出 CSV（重放快照） ──
-  router.get('/runs/:id/export.csv', async (req: Request, res: Response) => {
+  router.get('/runs/:id/export.csv', requireReportsRead, async (req: Request, res: Response) => {
     try {
       const run = await (prisma as any).reportRun.findUnique({ where: { id: req.params.id } });
       if (!run) {

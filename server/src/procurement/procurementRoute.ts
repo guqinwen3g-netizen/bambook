@@ -20,6 +20,8 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
+import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { logger } from '../lib/logger';
 import { createProcurementService, CreatePurchaseOrderInput, UpdatePurchaseOrderInput, MaterialReceiptInput, CreateSupplierInquiryInput, UpdateSupplierInquiryInput, AddSupplierQuoteInput, SUPPLIER_INQUIRY_CREATE_FIELDS } from './procurementService';
 import { createMaterialReturnService } from './materialReturnService';
@@ -46,19 +48,16 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createProcurementService(prisma);
 
-  const authenticate = (req: Request, res: Response): boolean => {
-    if (!requireAuth) return true;
-    const apiKey = (req.query.apiKey as string) || (req.headers['x-bambook-api-key'] as string) || (req.headers['x-api-key'] as string);
-    if (apiKey && apiKeys.has(apiKey)) return true;
-    const actor = extractActorFromRequest(req);
-    if (actor?.userId) return true;
-    res.status(401).json({ error: 'authentication required' });
-    return false;
-  };
+  // W-C 批三-E 族B 收口：inline authenticate 闭包退役，统一 createModuleAuthGuard（JWT 或 API-Key）。
+  // 读面保持认证门（API-Key 兼容契约，auth/__tests__/moduleApiKeyHeader.test.ts 锁定）；
+  // 写面 requireJwtForWrite（JWT-only，API-Key 裸写旧契约关闭）＋ procurement:write scope 门
+  // （持有 = SALES/SALES_MANAGER/LOGISTICS＋SuperAdmin 特判，_shared/rolePermissionMatrix 真源）。
+  router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
+  const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  const requireProcurementWrite = requirePermission('procurement:write');
 
   // ── GET / — 列表（format=xlsx → 全量台账 Excel 导出） ──
   router.get('/', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const { status, supplierRelationId, dateFrom, dateTo, search, limit, offset } = req.query;
       const result = await service.listPurchaseOrders({
@@ -119,7 +118,6 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
 
   // ── GET /inquiries — 询价单列表 ──
   router.get('/inquiries', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const { status, dateFrom, dateTo, search, limit, offset } = req.query;
       const result = await service.listSupplierInquiries({
@@ -138,8 +136,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /inquiries — 创建询价单 ──
-  router.post('/inquiries', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/inquiries', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const raw = req.body as CreateSupplierInquiryInput;
@@ -170,7 +167,6 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
 
   // ── GET /inquiries/:id — 询价单详情 ──
   router.get('/inquiries/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const inquiry = await service.getSupplierInquiry(req.params.id);
       if (!inquiry) return res.status(404).json({ error: '询价单不存在' });
@@ -182,8 +178,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── PUT /inquiries/:id — 更新询价单（仅 Open） ──
-  router.put('/inquiries/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.put('/inquiries/:id', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as UpdateSupplierInquiryInput;
@@ -198,8 +193,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── DELETE /inquiries/:id — 软删除询价单（仅 Open） ──
-  router.delete('/inquiries/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.delete('/inquiries/:id', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       await service.deleteSupplierInquiry(req.params.id, actor?.userId || 'system');
@@ -213,8 +207,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /inquiries/:id/quotes — 添加供应商报价（验收点②） ──
-  router.post('/inquiries/:id/quotes', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/inquiries/:id/quotes', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as AddSupplierQuoteInput;
@@ -232,8 +225,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── PUT /inquiries/:id/quotes/:quoteId — 更新供应商报价 ──
-  router.put('/inquiries/:id/quotes/:quoteId', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.put('/inquiries/:id/quotes/:quoteId', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as Partial<AddSupplierQuoteInput>;
@@ -248,8 +240,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── DELETE /inquiries/:id/quotes/:quoteId — 删除供应商报价 ──
-  router.delete('/inquiries/:id/quotes/:quoteId', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.delete('/inquiries/:id/quotes/:quoteId', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const inquiry = await service.removeSupplierQuote(req.params.id, req.params.quoteId, actor?.userId || 'system');
@@ -263,8 +254,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /inquiries/:id/select — 比价决策（验收点③） ──
-  router.post('/inquiries/:id/select', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/inquiries/:id/select', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const { quoteId, decisionNote } = req.body as { quoteId: string; decisionNote: string };
@@ -282,8 +272,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /inquiries/:id/close — 关闭询价单 ──
-  router.post('/inquiries/:id/close', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/inquiries/:id/close', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const inquiry = await service.closeSupplierInquiry(req.params.id, actor?.userId || 'system');
@@ -316,7 +305,6 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
 
   // GET /material-returns — 退换货列表（采购单/检验单/供应商/状态过滤）
   router.get('/material-returns', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     const result = await materialReturnService.listReturns({
       purchaseOrderId: req.query.purchaseOrderId ? String(req.query.purchaseOrderId) : undefined,
       receiptId: req.query.receiptId ? String(req.query.receiptId) : undefined,
@@ -328,8 +316,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // POST /material-returns — 登记退换货/索赔（pending）
-  router.post('/material-returns', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/material-returns', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     const actor = extractActorFromRequest(req);
     const result = await materialReturnService.createReturn((req.body ?? {}) as any, actor?.userId);
     if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'create', ids: [result.data.materialReturn.id] });
@@ -337,8 +324,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // POST /material-returns/:id/mark-shipped — 发运确认（库存 Outbound 冲减）
-  router.post('/material-returns/:id/mark-shipped', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/material-returns/:id/mark-shipped', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     const actor = extractActorFromRequest(req);
     const result = await materialReturnService.markShipped(req.params.id, actor?.userId);
     if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'update', ids: [req.params.id] });
@@ -346,8 +332,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // POST /material-returns/:id/confirm — 供应商确认（exchange 回冲 / claim 负向应付发票 / 绩效评分）
-  router.post('/material-returns/:id/confirm', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/material-returns/:id/confirm', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     const actor = extractActorFromRequest(req);
     const result = await materialReturnService.confirmReturn(req.params.id, actor?.userId);
     if (result.ok) {
@@ -358,8 +343,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // POST /material-returns/:id/settle — 结算完成（confirmed → settled）
-  router.post('/material-returns/:id/settle', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/material-returns/:id/settle', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     const actor = extractActorFromRequest(req);
     const result = await materialReturnService.settleReturn(req.params.id, actor?.userId);
     if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'update', ids: [req.params.id] });
@@ -367,8 +351,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // POST /material-returns/:id/cancel — 取消（仅 pending）
-  router.post('/material-returns/:id/cancel', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/material-returns/:id/cancel', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     const actor = extractActorFromRequest(req);
     const result = await materialReturnService.cancelReturn(req.params.id, actor?.userId);
     if (result.ok) onDataChange?.({ entity: 'MaterialReturn', action: 'update', ids: [req.params.id] });
@@ -377,7 +360,6 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
 
   // ── GET /:id — 详情 ──
   router.get('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const purchaseOrder = await service.getPurchaseOrder(req.params.id);
       if (!purchaseOrder) {
@@ -393,7 +375,6 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   // ── GET /:id/preview.html — PO 服务端模板预览（B2 运营域单据：实时装配渲染，
   //    与生成 PDF 同源排版——所见即所得，无需先登记文档） ──
   router.get('/:id/preview.html', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const data = await loadPurchaseOrderDocData(prisma, req.params.id);
       if (!data) return res.status(404).json({ error: '采购单不存在' });
@@ -409,8 +390,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
 
   // ── POST /:id/generate-document — 登记域单据 + 服务端渲染 PDF 落盘归档
   //    幂等：domain+type+sourceRef 唯一定位；重复生成刷新头字段并覆盖 PDF（真源实时渲染） ──
-  router.post('/:id/generate-document', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/generate-document', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const po = await prisma.purchaseOrder.findFirst({ where: { id: req.params.id, deletedAt: null } });
@@ -439,8 +419,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST / — 创建 ──
-  router.post('/', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as CreatePurchaseOrderInput;
@@ -473,8 +452,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── PUT /:id — 更新（仅 Draft） ──
-  router.put('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.put('/:id', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as UpdatePurchaseOrderInput;
@@ -489,8 +467,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── DELETE /:id — 软删除（仅 Draft） ──
-  router.delete('/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.delete('/:id', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       await service.deletePurchaseOrder(req.params.id, actor?.userId || 'system');
@@ -504,8 +481,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /:id/send — 发送采购单 ──
-  router.post('/:id/send', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/send', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const purchaseOrder = await service.sendPurchaseOrder(req.params.id, actor?.userId || 'system');
@@ -519,8 +495,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /:id/confirm — 确认采购单 ──
-  router.post('/:id/confirm', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/confirm', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const purchaseOrder = await service.confirmPurchaseOrder(req.params.id, actor?.userId || 'system');
@@ -534,8 +509,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /:id/cancel — 取消采购单 ──
-  router.post('/:id/cancel', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/cancel', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const { reason } = req.body || {};
@@ -550,8 +524,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /:id/close — 关闭采购单 ──
-  router.post('/:id/close', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/close', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const purchaseOrder = await service.closePurchaseOrder(req.params.id, actor?.userId || 'system');
@@ -566,7 +539,6 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
 
   // ── GET /:id/receipts — 来料记录列表 ──
   router.get('/:id/receipts', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
     try {
       const receipts = await prisma.materialReceipt.findMany({
         where: { purchaseOrderId: req.params.id },
@@ -580,8 +552,7 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
   });
 
   // ── POST /:id/receipts — 创建来料检验记录 ──
-  router.post('/:id/receipts', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+  router.post('/:id/receipts', requireWrite, requireProcurementWrite, async (req: Request, res: Response) => {
     try {
       const actor = extractActorFromRequest(req);
       const input = req.body as MaterialReceiptInput;

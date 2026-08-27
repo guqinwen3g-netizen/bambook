@@ -283,7 +283,7 @@ describe('task allocation-foundation: GET /allocations list/query', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/v1/finance', createFinanceRouter({ prisma, requireAuth: false, apiKeys: new Set() }));
-    const res = await request(app).get('/api/v1/finance/allocations?invoiceId=I1');
+    const res = await request(app).get('/api/v1/finance/allocations?invoiceId=I1').set(authHeader());
     expect(res.status).toBe(200);
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { invoiceId: 'I1' } }));
   });

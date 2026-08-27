@@ -13,6 +13,8 @@
  *   POST   /:id/expire    — 标记过期（Draft/Sent → Expired）
  *
  * 鉴权：统一 createModuleAuthGuard（JWT 或 API-Key）；写操作必须 JWT（requireJwtForWrite，API-Key 不足）
+ *       ＋ requirePermission('quotations:write') scope 授权门（W-C 批三-E 族B 收口；
+ *       持有面 = SALES/SALES_MANAGER＋SuperAdmin 特判，见 _shared/rolePermissionMatrix）
  * 审计：所有 mutation 写入 AuditLog（字段级审计）
  */
 
@@ -22,6 +24,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest, writeRouteAuditLog } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { createQuotationService, CreateQuotationInput, UpdateQuotationInput } from './quotationService';
@@ -51,9 +54,10 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   const service = createQuotationService(prisma);
   const importService = createQuotationImportService(prisma);
 
-  // ── 统一模块鉴权（JWT 或 API-Key；写操作另行要求 JWT） ──
+  // ── 统一模块鉴权（JWT 或 API-Key；写操作另行要求 JWT + quotations:write scope） ──
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
   const requireWrite = requireJwtForWrite({ requireAuth, apiKeys });
+  const requireQuotationWrite = requirePermission('quotations:write');
 
   // ── REQ2-12 报价行图片上传（DR-053：multer 落盘 quotations/，URL 由前端随行 imageUrl 提交） ──
   const lineImageUpload = multer({
@@ -76,7 +80,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // POST /line-image — 上传面料照片/色卡图 → { url }（行级 imageUrl 提交时携带）
-  router.post('/line-image', requireWrite, lineImageUpload.single('file'), (req: Request, res: Response) => {
+  router.post('/line-image', requireWrite, requireQuotationWrite, lineImageUpload.single('file'), (req: Request, res: Response) => {
     const f = req.file;
     if (!f) return res.status(400).json({ error: { code: 'NO_FILE', message: '未提供图片文件' } });
     const url = `/api/uploads/quotations/${f.filename}`;
@@ -175,7 +179,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
 
   // ── POST /:id/generate-document — 登记域单据 + 服务端渲染 PDF 落盘归档（B7）
   //    幂等：domain+type+sourceRef 唯一定位；重复生成刷新头字段并覆盖 PDF（真源实时渲染） ──
-  router.post('/:id/generate-document', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/generate-document', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actorId = actorIdFromRequest(req);
       const qt = await prisma.quotation.findFirst({ where: { id: req.params.id, deletedAt: null } });
@@ -202,7 +206,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST / — 创建 ──
-  router.post('/', requireWrite, async (req: Request, res: Response) => {
+  router.post('/', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const input = req.body as CreateQuotationInput;
@@ -242,7 +246,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
 
   // ── POST /import — 历史报价导入（阶段 P3c，PRD 16.1；mode=preview 只校验，mode=commit 导入合法行）──
   // 注意：须注册在 /:id 之前，避免 'import' 被 :id 捕获
-  router.post('/import', requireWrite, async (req: Request, res: Response) => {
+  router.post('/import', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const rows = req.body?.rows as HistoricalQuotationRow[];
@@ -264,7 +268,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── PUT /:id — 更新（仅 Draft） ──
-  router.put('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.put('/:id', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const input = req.body as UpdateQuotationInput;
@@ -282,7 +286,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── DELETE /:id — 软删除（仅 Draft） ──
-  router.delete('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/:id', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       await service.deleteQuotation(req.params.id, actor?.userId || 'system');
@@ -298,7 +302,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/send — 发送报价单（Draft → Sent） ──
-  router.post('/:id/send', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/send', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const quotation = await service.sendQuotation(req.params.id, actor?.userId || 'system');
@@ -320,7 +324,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/accept — 接受报价单（Sent → Accepted） ──
-  router.post('/:id/accept', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/accept', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const { note } = req.body;
@@ -337,7 +341,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/reject — 拒绝报价单（Sent → Rejected） ──
-  router.post('/:id/reject', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/reject', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const { note } = req.body;
@@ -354,7 +358,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/expire — 标记过期 ──
-  router.post('/:id/expire', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/expire', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const quotation = await service.expireQuotation(req.params.id, actor?.userId || 'system');
@@ -370,7 +374,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── REQ2-19（DR-060-①）：POST /:id/revise — 显式修订（砍价重报：快照当前版 + version+1 + 回 Draft） ──
-  router.post('/:id/revise', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/revise', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const { changeReason } = req.body || {};
@@ -396,7 +400,7 @@ export function createQuotationRouter(options: QuotationRouterOptions): Router {
   });
 
   // ── POST /:id/convert-to-order — 转为正式订单（Accepted → Order） ──
-  router.post('/:id/convert-to-order', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/convert-to-order', requireWrite, requireQuotationWrite, async (req: Request, res: Response) => {
     try {
       const actor = (req as any).actor;
       const { poNumber, millName, type, dueDate } = req.body || {};

@@ -51,6 +51,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
+import { createPermissionService } from '../auth/permissionService';
 import { logger } from '../lib/logger';
 import {
   createMesService,
@@ -108,6 +109,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   const { prisma, requireAuth, apiKeys, onDataChange } = options;
   const service = createMesService(prisma);
   const chainService = createProcessChainService(prisma);
+  const permissionService = createPermissionService({ prisma });
 
   const authenticate = (req: Request, res: Response): boolean => {
     if (!requireAuth) return true;
@@ -118,6 +120,25 @@ export function createMesRouter(options: MesRouterOptions): Router {
     res.status(401).json({ error: 'authentication required' });
     return false;
   };
+
+  // W-C 批三：写面 scope 门禁（production:write；读面与 procurement/inventory/bom 同族保留 API-Key 兼容认证门）
+  // 裸 API-Key 无 actor 身份 → scope 判定失败 401（与批二-B/批三-E 新契约一致）；
+  // requireAuth=false（dev）时放行，保持本地开发无鉴权体验。
+  const scopeGate = (req: Request, res: Response, scope: 'production:write'): boolean => {
+    if (!requireAuth) return true;
+    const actor = extractActorFromRequest(req);
+    if (!actor?.userId) {
+      res.status(401).json({ error: 'authentication required' });
+      return false;
+    }
+    if (!permissionService.hasScope(actor, scope)) {
+      res.status(403).json({ error: 'FORBIDDEN', message: `缺少权限 ${scope}` });
+      return false;
+    }
+    return true;
+  };
+  const requireProductionWrite = (req: Request, res: Response): boolean =>
+    authenticate(req, res) && scopeGate(req, res, 'production:write');
 
   const actorOf = (req: Request): string => extractActorFromRequest(req)?.userId || 'system';
 
@@ -172,7 +193,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/work-stations', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as WorkStationInput;
       if (!input.code || !input.name || !input.type) {
@@ -188,7 +209,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.put('/work-stations/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as Partial<WorkStationInput>;
       const item = await service.updateWorkStation(req.params.id, input, actorOf(req));
@@ -201,7 +222,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.delete('/work-stations/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       await service.deleteWorkStation(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'WorkStation', action: 'delete', ids: [req.params.id] });
@@ -276,7 +297,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/plans', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as ProductionPlanInput;
       if (!input.planNumber || !input.workStationId || !input.processType || input.plannedQuantity == null || !input.unit || !input.plannedStartDate || !input.plannedEndDate) {
@@ -292,7 +313,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.put('/plans/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as Partial<ProductionPlanInput>;
       const item = await service.updateProductionPlan(req.params.id, input, actorOf(req));
@@ -305,7 +326,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.delete('/plans/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       await service.deleteProductionPlan(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'ProductionPlan', action: 'delete', ids: [req.params.id] });
@@ -317,7 +338,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/plans/:id/transition', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const { toStatus } = req.body as { toStatus: ProductionPlanStatus };
       if (!toStatus || !VALID_PLAN_STATUSES.includes(toStatus)) {
@@ -333,7 +354,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/plans/:id/progress', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const { actualQuantity } = req.body as { actualQuantity: number };
       if (actualQuantity == null || actualQuantity < 0) {
@@ -386,7 +407,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/work-hours', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as WorkHourInput;
       if (!input.productionPlanId || !input.workDate || input.hours == null) {
@@ -402,7 +423,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.delete('/work-hours/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       await service.deleteWorkHour(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'WorkHour', action: 'delete', ids: [req.params.id] });
@@ -434,7 +455,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/piece-rate-rules', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as PieceRateRuleInput;
       if (!input.code || !input.name || !input.processType || !input.unit || input.ratePerUnit == null || !input.effectiveFrom) {
@@ -450,7 +471,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.put('/piece-rate-rules/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as Partial<PieceRateRuleInput>;
       const item = await service.updatePieceRateRule(req.params.id, input, actorOf(req));
@@ -463,7 +484,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.delete('/piece-rate-rules/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       await service.deletePieceRateRule(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'PieceRateRule', action: 'delete', ids: [req.params.id] });
@@ -515,7 +536,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/piece-rate-records', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as PieceRateRecordInput;
       if (!input.pieceRateRuleId || !input.workDate || input.quantity == null || !input.unit) {
@@ -531,7 +552,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/piece-rate-records/:id/transition', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const { toStatus } = req.body as { toStatus: PieceRateStatus };
       if (!toStatus || !VALID_PIECE_RATE_STATUSES.includes(toStatus)) {
@@ -547,7 +568,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.delete('/piece-rate-records/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       await service.deletePieceRateRecord(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'PieceRateRecord', action: 'delete', ids: [req.params.id] });
@@ -592,7 +613,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/outsourcing', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as OutsourcingOrderInput;
       if (!input.orderNumber || !input.processType || input.quantity == null || !input.unit || input.unitPrice == null) {
@@ -608,7 +629,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.put('/outsourcing/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const input = req.body as Partial<OutsourcingOrderInput>;
       const item = await service.updateOutsourcingOrder(req.params.id, input, actorOf(req));
@@ -621,7 +642,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.delete('/outsourcing/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       await service.deleteOutsourcingOrder(req.params.id, actorOf(req));
       onDataChange?.({ entity: 'OutsourcingOrder', action: 'delete', ids: [req.params.id] });
@@ -633,7 +654,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/outsourcing/:id/transition', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const { toStatus } = req.body as { toStatus: OutsourcingStatus };
       if (!toStatus || !VALID_OUTSOURCING_STATUSES.includes(toStatus)) {
@@ -649,7 +670,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
   });
 
   router.post('/outsourcing/:id/receive', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     try {
       const { qualityAcceptedQty, qualityRejectedQty } = req.body as {
         qualityAcceptedQty: number;
@@ -690,7 +711,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
 
   // 创建工序节点
   router.post('/order-processes', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     const result = await chainService.createNode((req.body ?? {}) as any);
     if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'create', ids: [result.data.node.id] });
     handleChainResult(res, result, 201, (d) => ({ ok: true, node: d.node }));
@@ -705,7 +726,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
 
   // 修正计划字段（planned/in_progress 限定；done 仅备注）
   router.patch('/order-processes/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     const result = await chainService.updateNode(req.params.id, (req.body ?? {}) as any);
     if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'update', ids: [req.params.id] });
     handleChainResult(res, result, 200, (d) => ({ ok: true, node: d.node }));
@@ -713,7 +734,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
 
   // planned → in_progress
   router.post('/order-processes/:id/start', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     const result = await chainService.startNode(req.params.id);
     if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'start', ids: [req.params.id] });
     handleChainResult(res, result, 200, (d) => ({ ok: true, node: d.node }));
@@ -721,7 +742,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
 
   // 完工登记：产出量 → 损耗率 + 金额重算（按产出计费 DR-047-③）
   router.post('/order-processes/:id/complete', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     const result = await chainService.completeNode(req.params.id, (req.body ?? {}) as any);
     if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'complete', ids: [req.params.id] });
     handleChainResult(res, result, 200, (d) => ({ ok: true, node: d.node, lossPct: d.lossPct }));
@@ -729,7 +750,7 @@ export function createMesRouter(options: MesRouterOptions): Router {
 
   // 软删（仅 planned；开工/完工节点核算留痕不可删）
   router.delete('/order-processes/:id', async (req: Request, res: Response) => {
-    if (!authenticate(req, res)) return;
+    if (!requireProductionWrite(req, res)) return;
     const result = await chainService.deleteNode(req.params.id);
     if (result.ok) onDataChange?.({ entity: 'OrderProcessNode', action: 'delete', ids: [req.params.id] });
     handleChainResult(res, result, 200, (d) => ({ ok: true, id: d.id }));
