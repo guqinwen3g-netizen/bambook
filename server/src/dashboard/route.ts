@@ -2,9 +2,12 @@
  * Phase C1 — 经营驾驶舱 API — /api/v1/dashboard
  *
  * 只读聚合端点，无 mutation；鉴权与其他 ERP 模块一致（JWT 或 API key）。
+ * W-C 权限收口：/cockpit 内容即经营驾驶舱（含财务敏感 KPI），
+ * 叠加 requirePermission('cockpit:read') scope 门（与 VIEW_TO_MAIN_SCOPES[View.Cockpit] 对齐）。
  */
 import { Router, Request, Response } from 'express';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessCockpit } from './dashboardService';
 
@@ -23,7 +26,7 @@ export function createDashboardRouter(options: DashboardRouterOptions): Router {
   router.use(createModuleAuthGuard({ requireAuth, apiKeys }));
 
   // GET /api/v1/dashboard/cockpit?from=YYYY-MM-DD&to=YYYY-MM-DD&marginRowLimit=N
-  router.get('/cockpit', async (req: Request, res: Response) => {
+  router.get('/cockpit', requirePermission('cockpit:read'), async (req: Request, res: Response) => {
     try {
       const from = req.query.from ? String(req.query.from) : undefined;
       const to = req.query.to ? String(req.query.to) : undefined;

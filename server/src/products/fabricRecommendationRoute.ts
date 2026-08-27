@@ -7,12 +7,15 @@
  *   - GET    /:id        — 详情（criteria + results 快照）
  *   - DELETE /:id        — 软删
  *
- * 守卫口径与 pricing 模块一致：读走 JWT 或 API-Key，写必须 JWT。
+ * 服务端门禁（W-C 权限收口）：认证门之上叠加 scope 门——
+ *   读端点 → requirePermission('products:read')（推荐结果是产品档案衍生数据，复用产品域 scope）；
+ *   写端点（recommend 落库 / 软删）→ requireJwtForWrite + requirePermission('products:write')（JWT-only，API-Key 拒）。
  */
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
@@ -42,7 +45,7 @@ export function createFabricRecommendationRouter(options: FabricRecommendationRo
     res.status(isNotFound ? 404 : isClient ? 400 : 500).json({ error: { code, message: msg } });
   };
 
-  router.post('/recommend', requireWrite, async (req: Request, res: Response) => {
+  router.post('/recommend', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       const row = await service.recommend(req.body as RecommendCriteria, actorIdFromRequest(req));
       notify('create_fabric_recommendation', [row.id]);
@@ -52,7 +55,7 @@ export function createFabricRecommendationRouter(options: FabricRecommendationRo
     }
   });
 
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', requirePermission('products:read'), async (req: Request, res: Response) => {
     try {
       const result = await service.listRecommendations({
         limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -64,7 +67,7 @@ export function createFabricRecommendationRouter(options: FabricRecommendationRo
     }
   });
 
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', requirePermission('products:read'), async (req: Request, res: Response) => {
     try {
       const row = await service.getRecommendation(req.params.id);
       res.json(serializeValue({ item: row }));
@@ -73,7 +76,7 @@ export function createFabricRecommendationRouter(options: FabricRecommendationRo
     }
   });
 
-  router.delete('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/:id', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       await service.deleteRecommendation(req.params.id, actorIdFromRequest(req));
       notify('delete_fabric_recommendation', [req.params.id]);

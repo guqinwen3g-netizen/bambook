@@ -2,7 +2,13 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { Prisma } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 import { createProductsRouter } from '../route';
+
+// W-C 权限收口：路由已叠加 products:read/write scope 门（requirePermission 需 req.actor）。
+// 本文件不测权限（requireAuth=false dev 模式），统一注入有效 owner JWT 通过 scope 门。
+const SECRET = process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
+const ownerToken = jwt.sign({ userId: 'u1', roles: ['owner'] }, SECRET);
 
 function makeApp(opts: { auditFail?: boolean; onDataChange?: any } = {}) {
   const auditCreate = opts.auditFail ? vi.fn().mockRejectedValue(new Error('AUDIT_REJECT')) : vi.fn().mockResolvedValue({});
@@ -26,6 +32,10 @@ function makeApp(opts: { auditFail?: boolean; onDataChange?: any } = {}) {
   } as any;
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.headers.authorization = req.headers.authorization || `Bearer ${ownerToken}`;
+    next();
+  });
   app.use('/api/v1/products', createProductsRouter({ prisma, requireAuth: false, apiKeys: new Set<string>(), uploadDir: '/tmp', onDataChange }));
   return { app, prisma, auditCreate, onDataChange, fabricPriceHistoryCreateMany, productAssetCreate };
 }

@@ -35,14 +35,17 @@
  *   - PATCH  /commission-rules/:id          — 更新
  *   - DELETE /commission-rules/:id          — 软删
  *
- * 守卫口径与 businessLines/qc 模块一致：读走 JWT 或 API-Key，写必须 JWT。
+ * 服务端门禁（W-C 权限收口）：认证门 createModuleAuthGuard 之上叠加 scope 门——
+ *   读类端点（GET + track-a/track-b 纯试算）→ requirePermission('pricing:read')；
+ *   写端点 → requireJwtForWrite + requirePermission('pricing:write')（JWT-only，API-Key 拒）。
  * 佣金字段（commissionRate/commissionAmount）涉管理层+财务可见域（PRD 9.6），
- * 本路由不做字段级过滤——模块整体由 finance:read 权限门控（前端 modulePermissions）。
+ * 本路由不做字段级过滤——由服务端 pricing:read/pricing:write scope 门禁（不再依赖前端 modulePermissions）。
  */
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
@@ -86,7 +89,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   // 退税率表
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/tax-refund-rates', async (req: Request, res: Response) => {
+  router.get('/tax-refund-rates', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await pricing.listTaxRefundRates({ includeInactive: req.query.includeInactive === 'true' });
       res.json(serializeValue(result));
@@ -95,7 +98,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.post('/tax-refund-rates', requireWrite, async (req: Request, res: Response) => {
+  router.post('/tax-refund-rates', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await pricing.createTaxRefundRate(req.body as TaxRefundRateInput, actorIdFromRequest(req));
       notify('create_tax_refund_rate', [row.id]);
@@ -106,7 +109,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   });
 
   // 字面路由 lookup 须在 /:id 前
-  router.get('/tax-refund-rates/lookup', async (req: Request, res: Response) => {
+  router.get('/tax-refund-rates/lookup', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const hsCode = String(req.query.hsCode ?? '');
       if (!hsCode.trim()) {
@@ -120,7 +123,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.patch('/tax-refund-rates/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/tax-refund-rates/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await pricing.updateTaxRefundRate(req.params.id, req.body ?? {}, actorIdFromRequest(req));
       notify('update_tax_refund_rate', [row.id]);
@@ -130,7 +133,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.delete('/tax-refund-rates/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/tax-refund-rates/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       await pricing.deleteTaxRefundRate(req.params.id, actorIdFromRequest(req));
       notify('delete_tax_refund_rate', [req.params.id]);
@@ -144,7 +147,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   // 轨道 A 估算（纯试算，不落库；守卫口径同 track-b-preview）
   // ══════════════════════════════════════════════════════════════
 
-  router.post('/track-a-preview', async (req: Request, res: Response) => {
+  router.post('/track-a-preview', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await pricing.estimateTrackA(req.body as TrackAPreviewInput);
       res.json(serializeValue(result));
@@ -157,7 +160,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   // 轨道 B 定价
   // ══════════════════════════════════════════════════════════════
 
-  router.post('/track-b-preview', async (req: Request, res: Response) => {
+  router.post('/track-b-preview', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = pricing.calculateTrackB(req.body as TrackBInput);
       res.json(serializeValue(result));
@@ -166,7 +169,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.get('/calculations', async (req: Request, res: Response) => {
+  router.get('/calculations', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await pricing.listCalculations({
         orderId: req.query.orderId as string | undefined,
@@ -181,7 +184,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.post('/calculations', requireWrite, async (req: Request, res: Response) => {
+  router.post('/calculations', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await pricing.createCalculation(req.body as PricingCalculationInput, actorIdFromRequest(req));
       notify('create_pricing_calculation', [row.id]);
@@ -191,7 +194,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.patch('/calculations/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/calculations/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await pricing.updateCalculation(req.params.id, req.body ?? {}, actorIdFromRequest(req));
       notify('update_pricing_calculation', [row.id]);
@@ -201,7 +204,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.delete('/calculations/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/calculations/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       await pricing.deleteCalculation(req.params.id, actorIdFromRequest(req));
       notify('delete_pricing_calculation', [req.params.id]);
@@ -215,7 +218,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   // 订单利润表
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/profit-sheets', async (req: Request, res: Response) => {
+  router.get('/profit-sheets', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await profitSheets.listProfitSheets({
         limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -227,7 +230,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.post('/profit-sheets/generate/:orderId', requireWrite, async (req: Request, res: Response) => {
+  router.post('/profit-sheets/generate/:orderId', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const sheet = await profitSheets.generateOrderProfitSheet(req.params.orderId, actorIdFromRequest(req));
       notify('generate_profit_sheet', [req.params.orderId]);
@@ -237,7 +240,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.get('/profit-sheets/order/:orderId', async (req: Request, res: Response) => {
+  router.get('/profit-sheets/order/:orderId', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const sheet = await profitSheets.getProfitSheetByOrder(req.params.orderId);
       if (!sheet) {
@@ -250,7 +253,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.delete('/profit-sheets/order/:orderId', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/profit-sheets/order/:orderId', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       await profitSheets.deleteProfitSheet(req.params.orderId, actorIdFromRequest(req));
       notify('delete_profit_sheet', [req.params.orderId]);
@@ -264,7 +267,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   // REQ2-14 海运费变动利润重估（DR-054：只读预览不落库，X-04 一屏可见）
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/freight-impact', async (req: Request, res: Response) => {
+  router.get('/freight-impact', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await profitSheets.reestimateFreightImpact({
         multiplier: req.query.multiplier,
@@ -280,7 +283,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   // 原材料价格
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/material-prices', async (req: Request, res: Response) => {
+  router.get('/material-prices', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await materialPrices.listMaterialPrices({
         materialType: req.query.materialType as string | undefined,
@@ -297,7 +300,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.post('/material-prices', requireWrite, async (req: Request, res: Response) => {
+  router.post('/material-prices', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await materialPrices.createMaterialPrice(req.body as MaterialPriceInput, actorIdFromRequest(req));
       notify('create_material_price', [row.id]);
@@ -308,7 +311,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   });
 
   // 字面路由 trend / latest 须在 /:id 前
-  router.get('/material-prices/trend', async (req: Request, res: Response) => {
+  router.get('/material-prices/trend', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const items = await materialPrices.getPriceTrend({
         materialType: String(req.query.materialType ?? ''),
@@ -322,7 +325,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.get('/material-prices/latest', async (req: Request, res: Response) => {
+  router.get('/material-prices/latest', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const materialType = String(req.query.materialType ?? '');
       const materialCode = String(req.query.materialCode ?? '');
@@ -337,7 +340,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.patch('/material-prices/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/material-prices/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await materialPrices.updateMaterialPrice(req.params.id, req.body ?? {}, actorIdFromRequest(req));
       notify('update_material_price', [row.id]);
@@ -347,7 +350,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.delete('/material-prices/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/material-prices/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       await materialPrices.deleteMaterialPrice(req.params.id, actorIdFromRequest(req));
       notify('delete_material_price', [req.params.id]);
@@ -361,7 +364,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   // 佣金规则（P2：E5/E10，中间人精确命中优先，默认规则兜底）
   // ══════════════════════════════════════════════════════════════
 
-  router.get('/commission-rules', async (req: Request, res: Response) => {
+  router.get('/commission-rules', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const result = await commissions.listCommissionRules({ includeInactive: req.query.includeInactive === 'true' });
       res.json(serializeValue(result));
@@ -370,7 +373,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.post('/commission-rules', requireWrite, async (req: Request, res: Response) => {
+  router.post('/commission-rules', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await commissions.createCommissionRule(req.body as CommissionRuleInput, actorIdFromRequest(req));
       notify('create_commission_rule', [row.id]);
@@ -381,7 +384,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
   });
 
   // 字面路由 lookup 须在 /:id 前；无命中返回 { hit: null }（= 无佣金）
-  router.get('/commission-rules/lookup', async (req: Request, res: Response) => {
+  router.get('/commission-rules/lookup', requirePermission('pricing:read'), async (req: Request, res: Response) => {
     try {
       const hit = await commissions.lookupCommissionRate(req.query.intermediaryRelationId as string | undefined);
       res.json(serializeValue({ hit }));
@@ -390,7 +393,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.patch('/commission-rules/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/commission-rules/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       const row = await commissions.updateCommissionRule(req.params.id, req.body ?? {}, actorIdFromRequest(req));
       notify('update_commission_rule', [row.id]);
@@ -400,7 +403,7 @@ export function createPricingRouter(options: PricingRouterOptions): Router {
     }
   });
 
-  router.delete('/commission-rules/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/commission-rules/:id', requireWrite, requirePermission('pricing:write'), async (req: Request, res: Response) => {
     try {
       await commissions.deleteCommissionRule(req.params.id, actorIdFromRequest(req));
       notify('delete_commission_rule', [req.params.id]);

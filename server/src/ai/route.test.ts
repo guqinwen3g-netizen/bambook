@@ -263,7 +263,8 @@ describe('AI route', () => {
         userId: 'service-sdk',
         displayName: 'SDK Service',
         roles: ['agent_operator'],
-        permissions: ['automation:run'],
+        // W-C 权限收口：/chat 挂 ai:chat scope 门——受控 SDK 主体显式授予 ai:chat
+        permissions: ['automation:run', 'ai:chat'],
         departmentIds: ['company'],
       }]]),
       prisma: makeRuntimePrisma([]),

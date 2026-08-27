@@ -3,6 +3,12 @@ import { ingestKnowledgeDocument, splitChunks, computeChecksum } from '../knowle
 import express from 'express';
 import request from 'supertest';
 import { createKnowledgeDocumentsRouter } from '../knowledgeDocumentsRoute';
+import jwt from 'jsonwebtoken';
+
+// W-C 权限收口：knowledge-documents 路由已叠加 knowledge:read/write scope 门
+// （requirePermission 需 req.actor）。路由契约用例统一注入有效 owner JWT 通过 scope 门。
+const SECRET = process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
+const ownerToken = jwt.sign({ userId: 'u1', roles: ['owner'] }, SECRET);
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -153,6 +159,10 @@ describe('knowledgeDocumentsRoute · /ingest-text route→service contract', () 
     const prisma = makeMockPrisma();
     const app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.headers.authorization = req.headers.authorization || `Bearer ${ownerToken}`;
+      next();
+    });
     app.use('/api/v1/knowledge-documents', createKnowledgeDocumentsRouter({
       uploadDir: tmpDir, requireAuth: false, apiKeys: new Set(), prisma,
     }));
@@ -170,6 +180,10 @@ describe('knowledgeDocumentsRoute · /ingest-text route→service contract', () 
     const prisma = makeMockPrisma();
     const app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.headers.authorization = req.headers.authorization || `Bearer ${ownerToken}`;
+      next();
+    });
     app.use('/api/v1/knowledge-documents', createKnowledgeDocumentsRouter({
       uploadDir: tmpDir, requireAuth: false, apiKeys: new Set(), prisma,
     }));
@@ -186,6 +200,10 @@ describe('knowledgeDocumentsRoute · /ingest-text route→service contract', () 
     const prisma = makeMockPrisma();
     const app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.headers.authorization = req.headers.authorization || `Bearer ${ownerToken}`;
+      next();
+    });
     app.use('/api/v1/knowledge-documents', createKnowledgeDocumentsRouter({
       uploadDir: tmpDir, requireAuth: false, apiKeys: new Set(), prisma,
     }));

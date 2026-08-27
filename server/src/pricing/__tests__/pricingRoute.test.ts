@@ -137,13 +137,12 @@ describe('P1 · pricing 守卫', () => {
     expect(res.status).toBe(401);
   });
 
-  it('GET /tax-refund-rates API-Key → 通过守卫（非 401/403）', async () => {
+  it('GET /tax-refund-rates API-Key → 401（W-C 权限收口：读端点挂 pricing:read scope 门，无 actor 的 API-Key 通道拒）', async () => {
     const app = makeApp(makeMockPrisma());
     const res = await request(app)
       .get('/api/v1/pricing/tax-refund-rates')
       .set('x-bambook-api-key', validApiKey);
-    expect(res.status).not.toBe(401);
-    expect(res.status).not.toBe(403);
+    expect(res.status).toBe(401);
   });
 });
 

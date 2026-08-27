@@ -10,12 +10,16 @@
  *   - admin 全局端点保持不变。
  *
  * 认证：JWT 或 API-Key（复用 createModuleAuthGuard，与 /api/v1/* 一致）；
- * 授权：canReadEntityAudit 角色映射（fail closed）。
+ * 授权（W-C 权限收口，双层 fail closed）：
+ *   第一层 requirePermission('audit:read') —— 审计域读 scope（默认矩阵 Finance/Admin/SuperAdmin；
+ *     其他角色需经 DB RolePermission 显式授予后随 JWT permissions 携带）；
+ *   第二层 canReadEntityAudit 角色映射 —— 按 targetType 对齐模块读权限（既存 D6 语义，保留）。
  */
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { buildAuditLogQuery, canReadEntityAudit } from './entityQuery';
 
 type AuditRouterOptions = {
@@ -31,7 +35,7 @@ export function createAuditRouter(options: AuditRouterOptions) {
   const router = Router();
   const guard = createModuleAuthGuard({ requireAuth: options.requireAuth, apiKeys: options.apiKeys });
 
-  router.get('/entity', guard, async (req: Request, res: Response) => {
+  router.get('/entity', guard, requirePermission('audit:read'), async (req: Request, res: Response) => {
     const { targetType, targetId } = req.query as any;
 
     // 强制两参（防全表扫描；实体审计语义要求精确定位）

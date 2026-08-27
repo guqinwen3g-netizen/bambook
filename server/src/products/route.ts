@@ -5,6 +5,7 @@ import { createProductAsset, updateProductAsset, deleteProductAsset } from './pr
 import { resolveProductAssets, checkExclusivityForAssets, validateExclusiveCodes } from './fabricExclusivityService';
 import { syncProductAssetReferences } from '../entities/sync';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { logger } from '../lib/logger';
 
 // task ERP-P1: Decimal 输入校验（非法 cost/amount fail closed，不进 $transaction）
@@ -216,7 +217,9 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   // 写操作必须 JWT（API-Key 不可写）—— 修复原 requireWrite 仅检查 token 是否存在、不验签的漏洞
   const requireWrite = requireJwtForWrite({ requireAuth: opts.requireAuth, apiKeys: opts.apiKeys });
 
-  router.get('/assets', async (req, res) => {
+  // W-C 权限收口：scope 门叠加——读类端点 products:read（含 POST 语义的只读查询/预检），
+  // 写端点 requireWrite + products:write（JWT-only）。
+  router.get('/assets', requirePermission('products:read'), async (req, res) => {
     try {
       const mainCategory = typeof req.query.mainCategory === 'string' ? req.query.mainCategory : undefined;
       const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
@@ -274,7 +277,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   });
 
   // ── P1-3 客户专属面料预检（只读；前端行级警示用，写路径校验走 fabricExclusivityService） ──
-  router.post('/fabric-exclusivity/check', async (req, res) => {
+  router.post('/fabric-exclusivity/check', requirePermission('products:read'), async (req, res) => {
     try {
       const body = req.body || {};
       const fabricCode = String(body.fabricCode ?? '').trim();
@@ -300,7 +303,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
     }
   });
 
-  router.post('/assets/query', async (req, res) => {
+  router.post('/assets/query', requirePermission('products:read'), async (req, res) => {
     try {
       const normalized = normalizeProductAssetQuery(req.body || {});
       const where = buildProductAssetQueryWhere(normalized);
@@ -351,7 +354,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
     }
   });
 
-  router.get('/assets/:id', async (req, res) => {
+  router.get('/assets/:id', requirePermission('products:read'), async (req, res) => {
     try {
       const asset = await (opts.prisma as any).productAsset.findFirst({
         where: { id: req.params.id, deletedAt: null },
@@ -394,7 +397,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
     }
   });
 
-  router.post('/assets', requireWrite, async (req, res) => {
+  router.post('/assets', requireWrite, requirePermission('products:write'), async (req, res) => {
     try {
       const now = Date.now();
       const body = req.body || {};
@@ -456,7 +459,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   });
 
   // ── PATCH /assets/:id — 部分更新产品及其面料档案 ──────────────
-  router.patch('/assets/:id', requireWrite, async (req, res) => {
+  router.patch('/assets/:id', requireWrite, requirePermission('products:write'), async (req, res) => {
     try {
       const now = Date.now();
       const existing = await (opts.prisma as any).productAsset.findFirst({
@@ -595,7 +598,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   });
 
   // ── DELETE /assets/:id — 软删除产品 ─────────────────────────
-  router.delete('/assets/:id', requireWrite, async (req, res) => {
+  router.delete('/assets/:id', requireWrite, requirePermission('products:write'), async (req, res) => {
     try {
       const now = BigInt(Date.now());
       const existing = await (opts.prisma as any).productAsset.findFirst({
@@ -666,7 +669,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   });
 
   // POST /assets/:id/images — upload one or more images
-  router.post('/assets/:id/images', requireWrite, imageUpload.array('files', 10), async (req, res) => {
+  router.post('/assets/:id/images', requireWrite, requirePermission('products:write'), imageUpload.array('files', 10), async (req, res) => {
     try {
       const productId = req.params.id;
       const files = req.files as Express.Multer.File[] | undefined;
@@ -751,7 +754,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   });
 
   // DELETE /assets/:id/images/:imageId — soft-delete an image
-  router.delete('/assets/:id/images/:imageId', requireWrite, async (req, res) => {
+  router.delete('/assets/:id/images/:imageId', requireWrite, requirePermission('products:write'), async (req, res) => {
     try {
       const { id: productId, imageId } = req.params;
       const img = await (opts.prisma as any).productImage.findFirst({
@@ -817,7 +820,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   });
 
   // PATCH /assets/:id/images/:imageId/primary — set as primary image
-  router.patch('/assets/:id/images/:imageId/primary', requireWrite, async (req, res) => {
+  router.patch('/assets/:id/images/:imageId/primary', requireWrite, requirePermission('products:write'), async (req, res) => {
     try {
       const { id: productId, imageId } = req.params;
       const img = await (opts.prisma as any).productImage.findFirst({
@@ -866,7 +869,7 @@ export function createProductsRouter(opts: ProductsRouterOptions): Router {
   });
 
   // PATCH /assets/:id/images/reorder — batch update sortOrder
-  router.patch('/assets/:id/images/reorder', requireWrite, async (req, res) => {
+  router.patch('/assets/:id/images/reorder', requireWrite, requirePermission('products:write'), async (req, res) => {
     try {
       const productId = req.params.id;
       const { orders }: { orders: Array<{ id: string; sortOrder: number }> } = req.body;

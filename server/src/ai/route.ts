@@ -4,6 +4,7 @@ import { AiChatRequest, AiEmit, AiEventType, createAiRuntime } from './runtime';
 import { normalizeTtsRequest, streamTtsSpeech, synthesizeTtsSpeech, TtsSpeechRequest, validateTtsRequest, MELO_CIRCUIT_OPEN_ERROR } from './tts';
 import { extractActorFromRequest } from '../auth/middleware';
 import { createModuleAuthGuard, ModuleAuthGuardOptions } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { TokenPayload } from '../auth/service';
 import { createAgentRuntimeService } from '../agent/runtime';
 import { normalizeTextForTts } from './ttsTextNormalizer';
@@ -42,7 +43,9 @@ export function createAiRouter(options: AiRouterOptions) {
     res.json({ ok: true, metrics: options.runtime.getMetrics() });
   });
 
-  router.post('/chat', auth(options), async (req, res) => {
+  // W-C 权限收口：对话/查询面挂 ai:chat scope（ai:chat 为读类 scope，API-key 映射主体
+  // 若 JWT permissions / legacy 角色解析出 ai:chat 亦可通行；无 scope 身份 → 403）。
+  router.post('/chat', auth(options), requirePermission('ai:chat'), async (req, res) => {
     const message = String(req.body?.message || '').trim();
     if (!message) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'message is required' });
@@ -145,7 +148,8 @@ export function createAiRouter(options: AiRouterOptions) {
     }
   });
 
-  router.post('/tts/speech', auth(options), async (req, res) => {
+  // TTS 合成是 AI 助手（View.Assistant → ai:chat）的消费面，与 /chat 同 scope 门。
+  router.post('/tts/speech', auth(options), requirePermission('ai:chat'), async (req, res) => {
     const input = normalizeTtsRequest(req.body);
     const error = validateTtsRequest(input);
     if (error) {

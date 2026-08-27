@@ -12,12 +12,15 @@
  *   - POST   /:id/archive       — 归档（幂等）
  *   - DELETE /:id               — 软删
  *
- * 守卫口径与 pricing 模块一致：读走 JWT 或 API-Key，写必须 JWT。
+ * 服务端门禁（W-C 权限收口）：认证门之上叠加 scope 门——
+ *   读端点 → requirePermission('products:read')（画册是产品档案衍生视图，复用产品域 scope）；
+ *   写端点 → requireJwtForWrite + requirePermission('products:write')（JWT-only，API-Key 拒）。
  */
 
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
@@ -49,7 +52,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     res.status(isNotFound ? 404 : isClient ? 400 : 500).json({ error: { code, message: msg } });
   };
 
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', requirePermission('products:read'), async (req: Request, res: Response) => {
     try {
       const result = await lookbooks.listLookbooks({
         status: req.query.status as string | undefined,
@@ -62,7 +65,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.post('/', requireWrite, async (req: Request, res: Response) => {
+  router.post('/', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       const row = await lookbooks.createLookbook(req.body as LookbookInput, actorIdFromRequest(req));
       notify('create_lookbook', [row.id]);
@@ -72,7 +75,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', requirePermission('products:read'), async (req: Request, res: Response) => {
     try {
       const row = await lookbooks.getLookbook(req.params.id);
       res.json(serializeValue({ item: row }));
@@ -81,7 +84,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.patch('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.patch('/:id', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       const row = await lookbooks.updateLookbook(req.params.id, req.body ?? {}, actorIdFromRequest(req));
       notify('update_lookbook', [row.id]);
@@ -91,7 +94,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.put('/:id/items', requireWrite, async (req: Request, res: Response) => {
+  router.put('/:id/items', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       const items = (req.body?.items ?? req.body) as LookbookItemInput[];
       const row = await lookbooks.setLookbookItems(req.params.id, items, actorIdFromRequest(req));
@@ -102,7 +105,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.post('/:id/publish', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/publish', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       const row = await lookbooks.publishLookbook(req.params.id, actorIdFromRequest(req));
       notify('publish_lookbook', [row.id]);
@@ -112,7 +115,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.post('/:id/unpublish', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/unpublish', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       const row = await lookbooks.unpublishLookbook(req.params.id, actorIdFromRequest(req));
       notify('unpublish_lookbook', [row.id]);
@@ -122,7 +125,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.post('/:id/archive', requireWrite, async (req: Request, res: Response) => {
+  router.post('/:id/archive', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       const row = await lookbooks.archiveLookbook(req.params.id, actorIdFromRequest(req));
       notify('archive_lookbook', [row.id]);
@@ -132,7 +135,7 @@ export function createLookbookRouter(options: LookbookRouterOptions): Router {
     }
   });
 
-  router.delete('/:id', requireWrite, async (req: Request, res: Response) => {
+  router.delete('/:id', requireWrite, requirePermission('products:write'), async (req: Request, res: Response) => {
     try {
       await lookbooks.deleteLookbook(req.params.id, actorIdFromRequest(req));
       notify('delete_lookbook', [req.params.id]);

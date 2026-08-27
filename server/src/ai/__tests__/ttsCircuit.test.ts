@@ -16,6 +16,12 @@ import {
 } from '../tts';
 import { createAiRouter } from '../route';
 import { createAiRuntime } from '../runtime';
+import jwt from 'jsonwebtoken';
+
+// W-C 权限收口：/tts/speech 挂 ai:chat scope 门（requirePermission 需 req.actor）——
+// B 段路由用例统一以有效 owner JWT 通过 scope 门。
+const SECRET = process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
+const ownerToken = jwt.sign({ userId: 'u1', roles: ['owner'] }, SECRET);
 
 const ENV_KEYS = ['BAMBOOK_MELO_URL', 'BAMBOOK_MELO_CIRCUIT_COOLDOWN_MS', 'BAMBOOK_TTS_PROVIDER'];
 const savedEnv: Record<string, string | undefined> = {};
@@ -112,7 +118,7 @@ describe('B. /tts/speech 路由错误语义化', () => {
     app.use('/api/ai', createAiRouter({
       runtime,
       prisma: {} as any,
-      requireAuth: false,
+      requireAuth: true,
       apiKeys: new Set<string>(),
     } as any));
     return app;
@@ -126,6 +132,7 @@ describe('B. /tts/speech 路由错误语义化', () => {
 
     const res = await request(makeTtsApp())
       .post('/api/ai/tts/speech')
+      .set('Authorization', `Bearer ${ownerToken}`)
       .send({ input: '测试' });
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('TTS_UNAVAILABLE');
@@ -135,6 +142,7 @@ describe('B. /tts/speech 路由错误语义化', () => {
     delete process.env.BAMBOOK_MELO_URL;
     const res = await request(makeTtsApp())
       .post('/api/ai/tts/speech')
+      .set('Authorization', `Bearer ${ownerToken}`)
       .send({ input: '测试' });
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('TTS_NOT_CONFIGURED');

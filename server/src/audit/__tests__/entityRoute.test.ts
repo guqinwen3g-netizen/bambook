@@ -11,6 +11,12 @@
  *   7. owner/admin 恒可读（全局审计权）
  *   8. 未映射 targetType fail closed：manager 可读、merchandiser 拒绝
  *   9. 返回结构：固定 limit 20、createdAt desc、含 actor 摘要
+ *
+ * W-C 权限收口：端点新增第一层 scope 门 requirePermission('audit:read')，
+ * 第二层 canReadEntityAudit 模块映射保留。本文件期望 200 的非 owner 身份
+ * 一律在 JWT permissions 显式携带 audit:read（模拟 DB RolePermission 授予）；
+ * viewer（permissions: []）403 用例即落在第一层 scope 门，
+ * finance/Relation 403 用例落在第二层模块映射门（双门各有一处拒绝覆盖）。
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -20,12 +26,12 @@ import { createAuthService } from '../../auth/service';
 import { createAuditRouter } from '../route';
 import type { AgentRole } from '../../agent/types';
 
-function tokenFor(roles: AgentRole[], userId = 'u-1') {
+function tokenFor(roles: AgentRole[], userId = 'u-1', permissions: string[] = ['audit:read']) {
   return createAuthService().signToken({
     userId,
     displayName: 'Test User',
     roles,
-    permissions: [],
+    permissions,
     departmentIds: [],
   });
 }
@@ -101,11 +107,11 @@ describe('D6 audit entity query: GET /api/v1/audit/entity', () => {
     expect(findMany.mock.calls[0][0].orderBy).toEqual({ createdAt: 'desc' });
   });
 
-  it('viewer 不可读 Order 审计 → 403', async () => {
+  it('viewer 不可读 Order 审计 → 403（W-C：permissions 无 audit:read，第一层 scope 门拒）', async () => {
     const { app, findMany } = makeApp();
     const res = await request(app)
       .get('/api/v1/audit/entity?targetType=Order&targetId=ORD_1')
-      .set('Authorization', `Bearer ${tokenFor(['viewer'])}`);
+      .set('Authorization', `Bearer ${tokenFor(['viewer'], 'u-1', [])}`);
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('FORBIDDEN');
     expect(findMany).not.toHaveBeenCalled();

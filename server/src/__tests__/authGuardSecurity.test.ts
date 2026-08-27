@@ -8,7 +8,10 @@
  *   4. API-Key 越权写（API-Key 不可写，仅 JWT 可写）→ 401
  *   5. IMAP 端点未认证 / API-Key 访问 → 401（IMAP 涉及邮箱凭证，必须 JWT）
  *
- * 正向回归：有效 JWT 通过写守卫，有效 API-Key 通过读守卫（确保守卫未误伤）。
+ * 正向回归：有效 JWT 通过写守卫（确保守卫未误伤）。
+ * W-C 契约变更：挂 scope 门的读端点对裸 API-Key 一律 401（scope 判定需 actor 身份，
+ * 与 qcRoute/finance routeV2 既有行为一致）；API-Key 须显式绑定主体（apiKeyActors）
+ * 且主体持有对应 scope 方可读。
  *
  * 测试使用真实模块 router（非模拟），mock prisma 避免连 DB。
  * 守卫机制：createModuleAuthGuard（JWT 走 jwt.verify 验签）+ requireJwtForWrite（写操作强制 JWT）。
@@ -330,13 +333,12 @@ describe('Security · email IMAP 端点未认证 → 401', () => {
 // 正向回归：有效凭证通过守卫（确保守卫未误伤合法访问）
 // ══════════════════════════════════════════════════════════════
 describe('Security · 正向回归（有效凭证通过守卫）', () => {
-  it('products GET /assets 有效 API-Key → 通过守卫（非 401/403）', async () => {
+  it('products GET /assets 裸 API-Key → 401（W-C 起读端点挂 products:read，scope 门需 actor，裸 Key 无身份）', async () => {
     const app = mountRouter(createProductsRouter, { ...baseOpts, uploadDir: '/tmp/test-sec' });
     const res = await request(app)
       .get('/test/assets')
       .set('x-bambook-api-key', validApiKey);
-    expect(res.status).not.toBe(401);
-    expect(res.status).not.toBe(403);
+    expect(res.status).toBe(401);
   });
 
   it('products GET /assets 有效 JWT → 通过守卫（非 401/403）', async () => {
@@ -438,8 +440,18 @@ describe('Security · ai 模块严格主体映射（Phase 1 守卫统一）', ()
     expect(res.body).toMatchObject({ error: 'AGENT_PRINCIPAL_REQUIRED' });
   });
 
-  it('有效 API-Key + 主体映射 POST /chat → 通过守卫（非 401/403）', async () => {
+  it('有效 API-Key + 主体映射但无 ai:chat scope POST /chat → 403（W-C scope 门：主体身份之外还须授权）', async () => {
     const actor = { userId: 'agent-svc', displayName: 'Agent Service', roles: ['agent_operator'], permissions: [], departmentIds: ['company'] };
+    const app = mountAi({ requireAuth: true, apiKeys, apiKeyActors: new Map([[validApiKey, actor]]) });
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('x-bambook-api-key', validApiKey)
+      .send({ message: 'hi' });
+    expect(res.status).toBe(403);
+  });
+
+  it('有效 API-Key + 主体映射且持 ai:chat scope POST /chat → 通过守卫（非 401/403）', async () => {
+    const actor = { userId: 'agent-svc', displayName: 'Agent Service', roles: ['agent_operator'], permissions: ['ai:chat'], departmentIds: ['company'] };
     const app = mountAi({ requireAuth: true, apiKeys, apiKeyActors: new Map([[validApiKey, actor]]) });
     const res = await request(app)
       .post('/api/ai/chat')

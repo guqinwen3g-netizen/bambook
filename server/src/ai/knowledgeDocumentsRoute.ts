@@ -8,6 +8,7 @@ import { PrismaClient } from '@prisma/client';
 import { ingestKnowledgeDocument, listKnowledgeDocuments, updateKnowledgeDocument, deleteKnowledgeDocument } from './knowledgeIngestService';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 
 type KnowledgeDocumentsRouterOptions = {
   uploadDir: string;
@@ -47,6 +48,10 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
   const guard = createModuleAuthGuard({ requireAuth: options.requireAuth, apiKeys: options.apiKeys });
   router.use(guard);
 
+  // W-C 权限收口：本路由虽物理位于 ai/ 目录，业务上是知识库文档域（挂载 /api/v1/knowledge-documents，
+  // 前端 DataCenter 视图 ↔ knowledge scopes）——读端点挂 knowledge:read，
+  // 写端点（上传/ingest/编辑/软删）挂 knowledge:write（:write 后缀由 permissionGuard 强制 JWT，API-Key 拒）。
+
   const upload = multer({
     storage: multer.diskStorage({
       destination: (_req, _file, cb) => cb(null, storageDir),
@@ -58,7 +63,7 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
     limits: { fileSize: Number(process.env.BAMBOOK_KNOWLEDGE_UPLOAD_MAX_BYTES || 50 * 1024 * 1024) },
   });
 
-  router.get('/:docId/download', (req, res) => {
+  router.get('/:docId/download', requirePermission('knowledge:read'), (req, res) => {
     const index = readIndex(storageDir);
     const record = index[req.params.docId];
     if (!record) {
@@ -70,7 +75,7 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
     res.download(record.filePath, record.originalName);
   });
 
-  router.post('/', upload.single('file'), async (req: Request, res: Response) => {
+  router.post('/', requirePermission('knowledge:write'), upload.single('file'), async (req: Request, res: Response) => {
     const file = req.file;
     if (!file) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_FAILED', message: 'file is required' });
@@ -153,7 +158,7 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
   });
 
   // ─── ERP manual ingest: text → KnowledgeDocument + KnowledgeChunk (Prisma, audit) ───
-  router.post('/ingest-text', async (req: Request, res: Response) => {
+  router.post('/ingest-text', requirePermission('knowledge:write'), async (req: Request, res: Response) => {
     const outcome = await ingestKnowledgeDocument({
       prisma: options.prisma,
       input: {
@@ -186,7 +191,7 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
 
   // 列表 = 文件索引（upload 通道）+ Prisma（ERP ingest 通道）双源合并，origin 字段区分来源。
   // Prisma 查询失败时降级为仅 upload 列表并显式标记，不静默吞错。
-  router.get('/', async (_req, res) => {
+  router.get('/', requirePermission('knowledge:read'), async (_req, res) => {
     const uploadRecords = Object.values(readIndex(storageDir)).map(({ token: _token, filePath: _filePath, ...record }) => ({
       ...record,
       origin: 'upload' as const,
@@ -203,7 +208,7 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
   });
 
   // 编辑 ERP 知识文档（标题/正文/分类）。正文变更 = 软删旧 chunk + 重建 + 版本递增 + 审计。
-  router.patch('/:docId', async (req: Request, res: Response) => {
+  router.patch('/:docId', requirePermission('knowledge:write'), async (req: Request, res: Response) => {
     const category = req.body?.category != null ? String(req.body.category) : undefined;
     const outcome = await updateKnowledgeDocument({
       prisma: options.prisma,
@@ -227,7 +232,7 @@ export function createKnowledgeDocumentsRouter(options: KnowledgeDocumentsRouter
   });
 
   // 软删除 ERP 知识文档（doc + chunks 打 deletedAt，审计留痕）。
-  router.delete('/:docId', async (req: Request, res: Response) => {
+  router.delete('/:docId', requirePermission('knowledge:write'), async (req: Request, res: Response) => {
     const outcome = await deleteKnowledgeDocument({
       prisma: options.prisma,
       documentId: String(req.params.docId || ''),

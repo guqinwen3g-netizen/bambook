@@ -10,13 +10,17 @@
  *   GET  /batches         — 批次列表（倒序 100）
  *   POST /batches/:id/rollback — 整批软删回滚
  *
- * 守卫：createModuleAuthGuard（读）；requireJwtForWrite（写——迁移是高风险操作必须 JWT）。
+ * 守卫：createModuleAuthGuard（认证门）+ requirePermission('data:import')（W-C 权限收口：
+ * 全端点统一挂数据导入 scope——REQ2-07 导入通道整体按高危写操作对待；
+ * data:import 属写类 scope，permissionGuard 强制 JWT user-session，API-Key 拒）；
+ * requireJwtForWrite 继续保留在写端点上（与 scope 门冗余一致，双保险）。
  * 上传：multer memoryStorage（.xlsx/.csv，≤10MB）。
  */
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import { createModuleAuthGuard, requireJwtForWrite } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { logger } from '../lib/logger';
 import { serializeValue } from '../lib/serializeValue';
 import { createDataMigrationService, MigrationResult } from './dataMigrationService';
@@ -58,7 +62,7 @@ export function createDataMigrationRouter(options: DataMigrationRouterOptions): 
   };
 
   // 模板下载（attachment CSV）
-  router.get('/templates/:type', (req: Request, res: Response) => {
+  router.get('/templates/:type', requirePermission('data:import'), (req: Request, res: Response) => {
     const result = service.getTemplateCsv(req.params.type);
     if (!result.ok) {
       return res.status(result.error.status).json({ error: { code: result.error.code, message: result.error.message } });
@@ -69,7 +73,7 @@ export function createDataMigrationRouter(options: DataMigrationRouterOptions): 
   });
 
   // 逐行校验（零落库）
-  router.post('/validate', requireWrite, upload.single('file'), (req: Request, res: Response) => {
+  router.post('/validate', requireWrite, requirePermission('data:import'), upload.single('file'), (req: Request, res: Response) => {
     (async () => {
       const file = req.file;
       if (!file) return res.status(400).json({ error: { code: 'NO_FILE', message: '未收到文件' } });
@@ -83,7 +87,7 @@ export function createDataMigrationRouter(options: DataMigrationRouterOptions): 
   });
 
   // 确认导入（二次校验 + 落库 + 批次留痕）
-  router.post('/commit', requireWrite, upload.single('file'), (req: Request, res: Response) => {
+  router.post('/commit', requireWrite, requirePermission('data:import'), upload.single('file'), (req: Request, res: Response) => {
     (async () => {
       const file = req.file;
       if (!file) return res.status(400).json({ error: { code: 'NO_FILE', message: '未收到文件' } });
@@ -100,13 +104,13 @@ export function createDataMigrationRouter(options: DataMigrationRouterOptions): 
   });
 
   // 批次列表
-  router.get('/batches', async (_req: Request, res: Response) => {
+  router.get('/batches', requirePermission('data:import'), async (_req: Request, res: Response) => {
     const result = await service.listBatches();
     handle(res, result, 200, (d) => ({ ok: true, ...d }));
   });
 
   // 整批回滚（软删）
-  router.post('/batches/:id/rollback', requireWrite, (req: Request, res: Response) => {
+  router.post('/batches/:id/rollback', requireWrite, requirePermission('data:import'), (req: Request, res: Response) => {
     (async () => {
       const result = await service.rollbackBatch(req.params.id);
       if (result.ok) {

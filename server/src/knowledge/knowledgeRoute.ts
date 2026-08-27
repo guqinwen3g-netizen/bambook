@@ -1,10 +1,16 @@
 /**
  * C7 知识库深化：知识域统一路由（SOP 模板 CRUD + 实例化；知识关联只读）。
  * 挂载点：/api/v1/knowledge（见 index.ts）。
+ *
+ * 服务端门禁（W-C 权限收口）：认证门之上叠加 scope 门——
+ *   读端点 → requirePermission('knowledge:read')；
+ *   写端点（模板创建/更新/删除/实例化）→ requirePermission('knowledge:write')
+ *   （:write 后缀 scope 由 permissionGuard 强制 JWT user-session，API-Key 拒）。
  */
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createModuleAuthGuard } from '../auth/moduleGuard';
+import { requirePermission } from '../auth/permissionGuard';
 import { actorIdFromRequest } from '../audit/routeAudit';
 import {
   listSopTemplates,
@@ -43,7 +49,7 @@ export function createKnowledgeRouter(options: KnowledgeRouterOptions) {
 
   // ─── SOP 模板 ───
 
-  router.get('/sop-templates', async (req: Request, res: Response) => {
+  router.get('/sop-templates', requirePermission('knowledge:read'), async (req: Request, res: Response) => {
     const items = await listSopTemplates(options.prisma, {
       category: req.query.category ? String(req.query.category) : undefined,
       status: req.query.status ? String(req.query.status) : undefined,
@@ -51,7 +57,7 @@ export function createKnowledgeRouter(options: KnowledgeRouterOptions) {
     res.json({ ok: true, items });
   });
 
-  router.post('/sop-templates', async (req: Request, res: Response) => {
+  router.post('/sop-templates', requirePermission('knowledge:write'), async (req: Request, res: Response) => {
     const outcome = await createSopTemplate({
       prisma: options.prisma,
       input: {
@@ -72,7 +78,7 @@ export function createKnowledgeRouter(options: KnowledgeRouterOptions) {
     res.status(201).json({ ok: true, item: outcome.result });
   });
 
-  router.patch('/sop-templates/:id', async (req: Request, res: Response) => {
+  router.patch('/sop-templates/:id', requirePermission('knowledge:write'), async (req: Request, res: Response) => {
     const outcome = await updateSopTemplate({
       prisma: options.prisma,
       id: String(req.params.id || ''),
@@ -94,7 +100,7 @@ export function createKnowledgeRouter(options: KnowledgeRouterOptions) {
     res.json({ ok: true, item: outcome.result });
   });
 
-  router.delete('/sop-templates/:id', async (req: Request, res: Response) => {
+  router.delete('/sop-templates/:id', requirePermission('knowledge:write'), async (req: Request, res: Response) => {
     const outcome = await deleteSopTemplate({
       prisma: options.prisma,
       id: String(req.params.id || ''),
@@ -109,7 +115,7 @@ export function createKnowledgeRouter(options: KnowledgeRouterOptions) {
   });
 
   // 实例化：模板 → 知识文档（复用 ingest 管线，sourceType='sop'）
-  router.post('/sop-templates/:id/instantiate', async (req: Request, res: Response) => {
+  router.post('/sop-templates/:id/instantiate', requirePermission('knowledge:write'), async (req: Request, res: Response) => {
     const outcome = await instantiateSopTemplate({
       prisma: options.prisma,
       id: String(req.params.id || ''),
@@ -125,12 +131,12 @@ export function createKnowledgeRouter(options: KnowledgeRouterOptions) {
 
   // ─── 知识关联（只读） ───
 
-  router.get('/graph/document/:docId/relations', async (req: Request, res: Response) => {
+  router.get('/graph/document/:docId/relations', requirePermission('knowledge:read'), async (req: Request, res: Response) => {
     const items = await listDocumentRelations(options.prisma, String(req.params.docId || ''));
     res.json({ ok: true, items });
   });
 
-  router.get('/graph/entity/:targetType/:targetId/relations', async (req: Request, res: Response) => {
+  router.get('/graph/entity/:targetType/:targetId/relations', requirePermission('knowledge:read'), async (req: Request, res: Response) => {
     const targetType = String(req.params.targetType || '');
     const targetId = String(req.params.targetId || '');
     const [knowledge, entityLinks] = await Promise.all([

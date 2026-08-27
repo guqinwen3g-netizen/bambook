@@ -99,7 +99,7 @@ function makeApp(prisma: any) {
 const auth = () => ({ Cookie: `bambook_token=${ownerToken}` });
 
 describe('P2a · 佣金规则守卫', () => {
-  it('POST /commission-rules API-Key → 401（写必须 JWT）；GET API-Key → 通过守卫', async () => {
+  it('POST /commission-rules API-Key → 401（写必须 JWT）；GET API-Key → 401（W-C：读端点挂 pricing:read scope 门，无 actor 拒）', async () => {
     const app = makeApp(makeMockPrisma());
     const write = await request(app)
       .post('/api/v1/pricing/commission-rules')
@@ -110,8 +110,7 @@ describe('P2a · 佣金规则守卫', () => {
     const read = await request(app)
       .get('/api/v1/pricing/commission-rules')
       .set('x-bambook-api-key', validApiKey);
-    expect(read.status).not.toBe(401);
-    expect(read.status).not.toBe(403);
+    expect(read.status).toBe(401);
   });
 });
 

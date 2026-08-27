@@ -3,7 +3,19 @@ import express from 'express';
 import request from 'supertest';
 import fs from 'fs';
 import path from 'path';
+import jwt from 'jsonwebtoken';
 import { createProductsRouter } from '../route';
+
+// W-C 权限收口：路由已叠加 products:read/write scope 门（requirePermission 需 req.actor）。
+// 本文件不测权限（requireAuth=false dev 模式），统一注入有效 owner JWT 通过 scope 门。
+const SECRET = process.env.JWT_SECRET || 'change-me-in-production-at-least-32-chars';
+const ownerToken = jwt.sign({ userId: 'u1', roles: ['owner'] }, SECRET);
+const injectOwnerJwt = (app: express.Express) => {
+  app.use((req, _res, next) => {
+    req.headers.authorization = req.headers.authorization || `Bearer ${ownerToken}`;
+    next();
+  });
+};
 
 function makeApp(opts: { auditFail?: boolean; onDataChange?: any; uploadDir?: string } = {}) {
   const uploadDir = opts.uploadDir || '/tmp/test-uploads';
@@ -25,6 +37,7 @@ function makeApp(opts: { auditFail?: boolean; onDataChange?: any; uploadDir?: st
   } as any;
   const app = express();
   app.use(express.json());
+  injectOwnerJwt(app);
   app.use('/api/v1/products', createProductsRouter({ prisma, requireAuth: false, apiKeys: new Set<string>(), uploadDir, onDataChange }));
   return { app, prisma, auditCreate, onDataChange, productImageCreate, productImageUpdate, productImageUpdateMany, productAssetUpdate, productImageFindFirst };
 }
@@ -140,6 +153,7 @@ describe('task ERP-P1 product-image-audit: upload rollback cleanup（真实文�
     } as any;
     const app = express();
     app.use(express.json());
+    injectOwnerJwt(app);
     app.use('/api/v1/products', createProductsRouter({ prisma, requireAuth: false, apiKeys: new Set<string>(), uploadDir }));
     const res = await request(app).post('/api/v1/products/assets/MISSING/images').attach('files', Buffer.from('fakeimg'), 'notfound-test.jpg');
     expect(res.status).toBe(404);
