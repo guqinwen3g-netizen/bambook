@@ -47,7 +47,7 @@
 1. `InvoiceOrderAllocation.batchId` 无任何写入入口——分批开票未启用，批次 invoiced/paid 恒为 0（#12/#14）
 2. `Order.currency`（L3）vs `salesCurrency ?? purchaseCurrency`（批次服务）两个币种来源可能不一致——P2-7 必须先定唯一真源（#2）
 3. `Order.actualPaymentAmount` 是手工 PATCH 字段，财务核销不回写——与 `InvoiceAllocation` 真源必然漂移，P2-6 应明令废弃其一（补充）
-4. `Shipment↔Batch` 双状态机脱钩——Shipment→Shipped 不会自动推 batch planned→shipped，需人工 `mark-shipped`（#4）
+4. ~~`Shipment↔Batch` 双状态机脱钩~~ → **已拍板 DR-047（`5e46d93`）**：Shipment→Shipped 自动推进显式挂接批次，服务层内联 4 挂接点，物理事实优先+留痕
 
 ## 三、写作纪律（关水龙头）
 
