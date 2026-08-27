@@ -270,25 +270,26 @@ describe('Security · API-Key 越权写 → 401', () => {
 // IMAP 端点涉及邮箱凭证查询，必须 JWT（API-Key 不足）
 // ══════════════════════════════════════════════════════════════
 describe('Security · email IMAP 端点未认证 → 401', () => {
-  it('GET /attachment 无认证 → 401', async () => {
+  // 批次二 L7：附件下载 GET → POST（凭据移出 URL），安全断言契约不变
+  it('POST /attachment 无认证 → 401', async () => {
     const app = mountRouter(createEmailRouter, baseOpts);
-    const res = await request(app).get('/test/attachment');
+    const res = await request(app).post('/test/attachment');
     expect(res.status).toBe(401);
   });
 
-  it('GET /attachment API-Key → 401（IMAP 必须 JWT）', async () => {
+  it('POST /attachment API-Key → 401（IMAP 必须 JWT）', async () => {
     const app = mountRouter(createEmailRouter, baseOpts);
     const res = await request(app)
-      .get('/test/attachment')
+      .post('/test/attachment')
       .set('x-bambook-api-key', validApiKey);
     expect(res.status).toBe(401);
     expect(res.body.message).toMatch(/JWT|IMAP/);
   });
 
-  it('GET /attachment 伪造 token → 401', async () => {
+  it('POST /attachment 伪造 token → 401', async () => {
     const app = mountRouter(createEmailRouter, baseOpts);
     const res = await request(app)
-      .get('/test/attachment')
+      .post('/test/attachment')
       .set('Authorization', `Bearer ${FORGED_TOKEN}`);
     expect(res.status).toBe(401);
   });
