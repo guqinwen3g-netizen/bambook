@@ -177,6 +177,7 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
     if (!result.ok) {
       const statusMap: Record<string, number> = {
         UNAUTHORIZED: 401, FORBIDDEN: 403, VALIDATION_FAILED: 400, SEQUENCE_FAILED: 500, INTERNAL_ERROR: 500,
+        CREDIT_FROZEN_60_DAYS: 403, CREDIT_REVOKED: 403, OVERDUE_60_DAYS: 403, CREDIT_CHECK_FAILED: 500,
       };
       return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
     }
@@ -204,10 +205,18 @@ export function createOrdersV2Router(opts: OrdersV2RouterOptions): Router {
     if (!newStatus) return res.status(400).json({ error: 'VALIDATION_FAILED', message: 'body.status 必填' });
     const result = await svc.transitionStatus(actor, req.params.id, newStatus, reason);
     if (!result.ok) {
+      // W-A 走查 DE-6 修复：MOQ_VIOLATION 此前缺映射回落 500 且丢 approvalRequestId，
+      // 前端无法跳转豁免审批单；信用门禁码族（403）一并补齐
       const statusMap: Record<string, number> = {
-        UNAUTHORIZED: 401, VALIDATION_FAILED: 400, NOT_FOUND: 404, INVALID_TRANSITION: 409, INTERNAL_ERROR: 500,
+        UNAUTHORIZED: 401, FORBIDDEN: 403, VALIDATION_FAILED: 400, NOT_FOUND: 404, INVALID_TRANSITION: 409, INTERNAL_ERROR: 500,
+        MOQ_VIOLATION: 409,
+        CREDIT_FROZEN_60_DAYS: 403, CREDIT_REVOKED: 403, OVERDUE_60_DAYS: 403, CREDIT_CHECK_FAILED: 500,
       };
-      return res.status(statusMap[result.error!.code] || 500).json({ error: result.error!.code, message: result.error!.message });
+      return res.status(statusMap[result.error!.code] || 500).json({
+        error: result.error!.code,
+        message: result.error!.message,
+        ...(result.error!.approvalRequestId ? { approvalRequestId: result.error!.approvalRequestId } : {}),
+      });
     }
     return res.json({ ok: true, order: result.data });
   });

@@ -441,7 +441,7 @@ export function createOrdersRouter(opts: OrdersRouterOptions): Router {
         actorId: (req as any).actor?.userId || (req as any).actor?.id || 'api',
       });
       if (!result.ok) {
-        const statusCodeMap: Record<string, number> = { ORDER_NOT_FOUND: 404, ORDER_ALREADY_DELETED: 409, INVALID_STATUS: 400, INVALID_TRANSITION: 400, NO_CHANGE: 400, DELETE_FAILED: 500, TRANSITION_FAILED: 500 };
+        const statusCodeMap: Record<string, number> = { ORDER_NOT_FOUND: 404, ORDER_ALREADY_DELETED: 409, INVALID_STATUS: 400, INVALID_TRANSITION: 400, NO_CHANGE: 400, DELETE_FAILED: 500, TRANSITION_FAILED: 500, MOQ_VIOLATION: 409, CREDIT_FROZEN_60_DAYS: 403, CREDIT_REVOKED: 403, OVERDUE_60_DAYS: 403, CREDIT_CHECK_FAILED: 500 };
         return res.status(statusCodeMap[result.error!.code] || 500).json({ ok: false, error: result.error });
       }
       opts.onDataChange?.({ entity: 'orders', action: 'status-transition', ids: [id] });

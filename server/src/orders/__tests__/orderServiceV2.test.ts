@@ -77,21 +77,38 @@ function makePrisma(overrides: {
 } = {}) {
   const txUpdate = overrides.txUpdate ?? vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data }));
   const txCreate = overrides.txCreate ?? vi.fn().mockResolvedValue({});
+  // transitionStatus 已委托 V1 transitionOrderStatus 单引擎（DE-2/DE-4 修复）：
+  // 门禁预查 + 事务内 findUnique/sync/audit 均在下方 mock 覆盖
+  const defaultOrder = makeOrder();
+  const tx = {
+    order: {
+      findUnique: vi.fn().mockResolvedValue(defaultOrder),
+      update: txUpdate,
+    },
+    orderStatusTransition: { create: txCreate },
+    auditLog: { create: vi.fn().mockResolvedValue({}) },
+    entityLink: { upsert: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]), update: vi.fn().mockResolvedValue({}) },
+    entityReference: { upsert: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]), update: vi.fn().mockResolvedValue({}) },
+  };
   return {
     order: {
       findMany: overrides.findMany ?? vi.fn().mockResolvedValue([makeOrder()]),
       count: overrides.count ?? vi.fn().mockResolvedValue(1),
-      findFirst: overrides.findFirst ?? vi.fn().mockResolvedValue(makeOrder()),
+      findFirst: overrides.findFirst ?? vi.fn().mockResolvedValue(defaultOrder),
+      findUnique: vi.fn().mockResolvedValue(defaultOrder),
       create: overrides.create ?? vi.fn().mockImplementation(async ({ data }: any) => ({ ...data, id: data.id || 'ORD__NEW', lines: [] })),
       update: overrides.update ?? vi.fn().mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data })),
     },
     orderStatusTransition: {
       create: txCreate,
     },
-    $transaction: vi.fn(async (fn: any) => fn({
-      order: { update: txUpdate },
-      orderStatusTransition: { create: txCreate },
-    })),
+    auditLog: { create: vi.fn().mockResolvedValue({}) },
+    creditLimit: { findFirst: vi.fn().mockResolvedValue(null) },
+    invoice: { findMany: vi.fn().mockResolvedValue([]) },
+    approvalRequest: { findFirst: vi.fn().mockResolvedValue(null) },
+    entityLink: tx.entityLink,
+    entityReference: tx.entityReference,
+    $transaction: vi.fn(async (fn: any) => fn(tx)),
   } as any;
 }
 

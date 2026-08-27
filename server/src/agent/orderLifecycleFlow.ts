@@ -62,6 +62,11 @@ export function buildOrderLifecycleError(code: OrderLifecycleFlowErrorCode, mess
     NO_CHANGE: '订单已在目标状态，无需流转',
     DELETE_FAILED: '删除事务失败已回滚，请重试',
     TRANSITION_FAILED: '状态流转事务失败已回滚，请重试',
+    MOQ_VIOLATION: '订单数量低于 MOQ，须先完成 MOQ 豁免审批后重试',
+    CREDIT_FROZEN_60_DAYS: '客户信用额度已冻结（≥60 天逾期或人工冻结），请财务解冻后再确认订单',
+    CREDIT_REVOKED: '客户信用额度已吊销（坏账），禁止确认订单',
+    OVERDUE_60_DAYS: '客户存在 ≥60 天逾期未结清应收，请财务处理后再确认订单',
+    CREDIT_CHECK_FAILED: '信用门禁校验失败（fail-closed），请重试或联系管理员',
     UNKNOWN_ERROR: '未知错误，请联系管理员',
   };
   return { code, message, userAction: userActionMap[code] };

@@ -10,6 +10,13 @@ import { PrismaClient } from '@prisma/client';
 import { writeRouteAuditLog } from '../audit/routeAudit';
 import { syncOrderEntityReferences, deactivateEntityLinks } from '../entities/sync';
 import { publishBusinessEvent } from '../events/businessEventBus';
+import { logger } from '../lib/logger';
+import { createCreditService } from '../credit/creditService';
+import { createMoqConfigService } from '../moq/moqConfigService';
+import { createMoqResolutionService } from '../moq/moqResolutionService';
+import { createMoqValidationService } from '../moq/moqValidationService';
+import { createApprovalRoutingService } from '../approvals/approvalRoutingService';
+import { createApprovalCreateService } from '../approvals/approvalCreateService';
 
 export const VALID_ORDER_STATUSES = ['Pending', 'Confirmed', 'Production', 'Shipping', 'Delivered', 'Alert'] as const;
 const VALID_STATUS_SET = new Set<string>(VALID_ORDER_STATUSES);
@@ -31,7 +38,16 @@ export type OrderLifecycleErrorCode =
   | 'INVALID_TRANSITION'
   | 'NO_CHANGE'
   | 'DELETE_FAILED'
-  | 'TRANSITION_FAILED';
+  | 'TRANSITION_FAILED'
+  // ── 确认门禁错误码（W-A 走查 DE-1/DE-6 修复；fail-closed） ──
+  // MOQ_VIOLATION：Confirmed 门禁命中（低于 MOQ 且无 approved 豁免审批单），HTTP 409
+  // CREDIT_FROZEN_60_DAYS / CREDIT_REVOKED / OVERDUE_60_DAYS：信用门禁阻断，HTTP 403
+  // CREDIT_CHECK_FAILED：信用门禁自身故障（fail-closed 阻断），HTTP 500
+  | 'MOQ_VIOLATION'
+  | 'CREDIT_FROZEN_60_DAYS'
+  | 'CREDIT_REVOKED'
+  | 'OVERDUE_60_DAYS'
+  | 'CREDIT_CHECK_FAILED';
 
 // 注：DR-010 守卫运行时使用 'ORDER_LIFECYCLE_GUARDED' / 'ORDER_ALREADY_CLOSED' 错误码
 // （见 ORDER_LIFECYCLE_EXTENSION_ERRORS 常量与 transitionOrderStatus 守卫 throw）。
@@ -75,6 +91,8 @@ export function isOrderClosed(status: string | null | undefined): boolean {
 export interface OrderLifecycleError {
   code: OrderLifecycleErrorCode;
   message: string;
+  /** MOQ_VIOLATION 时透传自动发起的豁免审批单 id（DR-007），供前端跳转审批 */
+  approvalRequestId?: string;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -172,6 +190,106 @@ export async function transitionOrderStatus(params: TransitionOrderStatusParams)
   // 枚举校验（6 状态，不新增 Cancelled）
   if (!VALID_STATUS_SET.has(toStatus)) {
     return { ok: false, error: { code: 'INVALID_STATUS', message: `Invalid target status: ${toStatus}. Allowed: ${VALID_ORDER_STATUSES.join(', ')}` } };
+  }
+
+  // ── 确认门禁（fail-closed，W-A 走查 DE-1/DE-2/DE-6 修复）──
+  // 进入 Confirmed 的所有路径（V1 route / V2 route / batch-status / Agent flow）统一经本服务，
+  // 门禁只在此处实现一次：
+  //   ① 信用门禁（信用控制规则 §6 #6）：Frozen/Revoked/Net61+ 逾期客户禁止确认执行
+  //   ② MOQ Confirmed 门禁（MOQ最小起订量.md §4.3）：低于 MOQ 且无 approved 豁免审批单 → 阻断，
+  //      阻断同时自动发起 MOQ 豁免审批单（DR-007 单人单次，approvalCreateService 幂等防重）
+  if (toStatus === 'Confirmed') {
+    const gateOrder = await (prisma as any).order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true, status: true, deletedAt: true, type: true, businessLine: true,
+        quantity: true, capsuleExemption: true, moqSnapshot: true, customerRelationId: true, quoteAmount: true,
+      },
+    });
+    if (!gateOrder || gateOrder.deletedAt) {
+      return { ok: false, error: { code: 'ORDER_NOT_FOUND', message: `Order ${orderId} not found` } };
+    }
+    if (gateOrder.status !== 'Confirmed') {
+      // ① 信用门禁（DE-1：checkCreditAvailable 此前生产零调用方，Frozen 客户可正常建单/确认）
+      if (gateOrder.customerRelationId) {
+        try {
+          const creditSvc = createCreditService({ prisma });
+          const credit = await creditSvc.checkCreditAvailable({
+            relationId: gateOrder.customerRelationId,
+            amount: Number(gateOrder.quoteAmount ?? 0) || undefined,
+          });
+          if (!credit.ok) {
+            logger.error('[OrderLifecycle] 信用门禁校验失败（fail-closed 阻断 Confirmed）', { orderId, error: credit.error.message });
+            return { ok: false, error: { code: 'CREDIT_CHECK_FAILED', message: `信用门禁校验失败：${credit.error.message}` } };
+          }
+          const creditData = credit.data as { blocked: boolean; blockCode: string | null; blockReason: string | null };
+          if (creditData.blocked) {
+            logger.warn('[OrderLifecycle] 信用门禁阻断订单确认', { orderId, relationId: gateOrder.customerRelationId, blockCode: creditData.blockCode });
+            return {
+              ok: false,
+              error: {
+                code: (creditData.blockCode ?? 'CREDIT_FROZEN_60_DAYS') as OrderLifecycleErrorCode,
+                message: creditData.blockReason ?? '客户信用门禁阻断，禁止确认订单',
+              },
+            };
+          }
+        } catch (e: any) {
+          logger.error('[OrderLifecycle] 信用门禁校验异常（fail-closed 阻断 Confirmed）', { orderId, error: e?.message });
+          return { ok: false, error: { code: 'CREDIT_CHECK_FAILED', message: `信用门禁校验失败，请重试或联系管理员：${e?.message}` } };
+        }
+      }
+      // ② MOQ Confirmed 门禁（DE-2/DE-4：V1 此前无 MOQ 门禁，V2 有门禁但不发事件——统一收敛到本服务）
+      try {
+        const moqConfigSvc = createMoqConfigService({ prisma });
+        const moqValidationSvc = createMoqValidationService({
+          prisma,
+          configService: moqConfigSvc,
+          resolutionService: createMoqResolutionService({ prisma, configService: moqConfigSvc }),
+          approvalCreateService: createApprovalCreateService({
+            prisma,
+            routingService: createApprovalRoutingService({ prisma }),
+          }),
+        });
+        const moqCheck = await moqValidationSvc.validateCreate({
+          type: gateOrder.type,
+          businessLine: gateOrder.businessLine,
+          capsuleExemption: gateOrder.capsuleExemption === true,
+          customerRelationId: gateOrder.customerRelationId ?? null,
+          snapshot: gateOrder.moqSnapshot ?? null,
+          lines: [{ quantity: Number(gateOrder.quantity) }],
+        }, {
+          actor: { userId: actorId || operator || 'api' },
+          autoCreateApproval: true, targetType: 'Order', targetId: orderId,
+        });
+        if (!moqCheck.ok) {
+          const approved = await (prisma as any).approvalRequest?.findFirst?.({
+            where: {
+              targetType: 'Order', targetId: orderId,
+              actionType: 'order:moq-exemption', status: 'approved',
+            },
+            select: { id: true },
+          });
+          if (!approved) {
+            const worst = moqCheck.lines[0];
+            const approvalHint = moqCheck.approvalRequestId
+              ? `（豁免审批单 ${moqCheck.approvalRequestId} 已自动发起，审批通过后重试）`
+              : '（豁免审批单发起失败，请联系管理员）';
+            return {
+              ok: false,
+              error: {
+                code: 'MOQ_VIOLATION',
+                message: `订单数量 ${Number(gateOrder.quantity)} 低于 MOQ ${worst?.effectiveMoq}（缺口 ${worst?.gapPct}%，快照口径），须先完成 MOQ 豁免审批（DR-007 单人单次）${approvalHint}`,
+                approvalRequestId: moqCheck.approvalRequestId,
+              },
+            };
+          }
+        }
+      } catch (e: any) {
+        // fail-closed：门禁校验异常 → 阻断 Confirmed 推进
+        logger.error('[OrderLifecycle] Confirmed 门禁 MOQ 校验异常（fail-closed 阻断）', { orderId, error: e?.message });
+        return { ok: false, error: { code: 'MOQ_VIOLATION', message: `MOQ 校验失败，请重试或联系管理员：${e?.message}` } };
+      }
+    }
   }
 
   try {

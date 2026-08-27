@@ -22,8 +22,10 @@ import { getSystemConfigService } from '../config/systemConfigService';
 import {
   VALID_ORDER_STATUSES,
   ORDER_TRANSITIONS,
+  transitionOrderStatus,
 } from './orderLifecycleService';
 import { logger } from '../lib/logger';
+import { createCreditService } from '../credit/creditService';
 import { createMoqConfigService } from '../moq/moqConfigService';
 import { createMoqResolutionService } from '../moq/moqResolutionService';
 import { createMoqValidationService, isCapsuleEligible } from '../moq/moqValidationService';
@@ -118,6 +120,10 @@ export type OrderV2Error =
   | 'INVALID_TRANSITION'
   | 'SEQUENCE_FAILED'
   | 'MOQ_VIOLATION'
+  | 'CREDIT_FROZEN_60_DAYS'
+  | 'CREDIT_REVOKED'
+  | 'OVERDUE_60_DAYS'
+  | 'CREDIT_CHECK_FAILED'
   | 'INTERNAL_ERROR';
 
 export interface OrderV2Result<T = any> {
@@ -148,6 +154,8 @@ export function createOrderServiceV2(prisma: PrismaClient) {
       routingService: createApprovalRoutingService({ prisma }),
     }),
   });
+  // 信用域统一服务（Track F）：建单门禁 fail-closed 接线（W-A 走查 DE-1 修复）
+  const creditSvc = createCreditService({ prisma });
 
   // ── 行级权限 where 构造（v2.2 DR-042 §5.1 L2 换锚）──
   // 订单可见性锚 = 宿主客户的跟进人（followedBy）∪ 团队共享客户 ∪ 真全权角色；
@@ -371,6 +379,33 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         if (!canCreateForCustomer) {
           return { ok: false, error: { code: 'FORBIDDEN', message: '仅跟进人可对该客户创建订单（DR-042 §6.2 T-21）' } };
         }
+
+        // ── 信用门禁（信用控制规则 §6 #6，fail-closed；W-A 走查 DE-1 修复）──
+        // Frozen/Revoked/Net61+ 逾期未结清客户禁止建新单；门禁自身故障同样阻断（不放行）
+        try {
+          const credit = await creditSvc.checkCreditAvailable({
+            relationId: withDefaults.customerRelationId,
+            amount: Number(withDefaults.quoteAmount ?? 0) || undefined,
+          });
+          if (!credit.ok) {
+            logger.error('[OrderV2] 信用门禁校验失败（fail-closed 阻断建单）', { relationId: withDefaults.customerRelationId, error: credit.error.message });
+            return { ok: false, error: { code: 'CREDIT_CHECK_FAILED', message: `信用门禁校验失败：${credit.error.message}` } };
+          }
+          const creditData = credit.data as { blocked: boolean; blockCode: string | null; blockReason: string | null };
+          if (creditData.blocked) {
+            logger.warn('[OrderV2] 信用门禁阻断建单', { relationId: withDefaults.customerRelationId, blockCode: creditData.blockCode, actorId: actor.userId });
+            return {
+              ok: false,
+              error: {
+                code: (creditData.blockCode ?? 'CREDIT_FROZEN_60_DAYS') as OrderV2Error,
+                message: creditData.blockReason ?? '客户信用门禁阻断，禁止新建订单',
+              },
+            };
+          }
+        } catch (e: any) {
+          logger.error('[OrderV2] 信用门禁校验异常（fail-closed 阻断建单）', { relationId: withDefaults.customerRelationId, error: e?.message });
+          return { ok: false, error: { code: 'CREDIT_CHECK_FAILED', message: `信用门禁校验失败，请重试或联系管理员：${e?.message}` } };
+        }
       }
 
       // 编号生成
@@ -577,74 +612,44 @@ export function createOrderServiceV2(prisma: PrismaClient) {
         return { ok: false, error: { code: 'INVALID_TRANSITION', message: `不允许从 ${currentStatus} → ${newStatus}（合法目标: ${allowedTargets ? [...allowedTargets].join(', ') : '无'}）` } };
       }
 
-      // ── MOQ Confirmed 门禁（§4.3 fail-closed）：低于 MOQ 且无 approved 豁免审批单 → 阻断 ──
-      // 缺口修复：阻断同时自动发起 MOQ 豁免审批单（DR-007 单人单次，
-      // approvalCreateService 幂等防重），业务员无需另行找入口发起豁免
-      if (newStatus === 'Confirmed') {
-        try {
-          const moqCheck = await moqValidationSvc.validateCreate({
-            type: existing.type,
-            businessLine: existing.businessLine,
-            capsuleExemption: existing.capsuleExemption === true,
-            customerRelationId: existing.customerRelationId ?? null,
-            snapshot: existing.moqSnapshot ?? null,
-            lines: [{ quantity: Number(existing.quantity) }],
-          }, {
-            actor: { userId: actor.userId, roles: actor.roles, roleIds: actor.roleIds, permissions: actor.permissions },
-            autoCreateApproval: true, targetType: 'Order', targetId: id,
-          });
-          if (!moqCheck.ok) {
-            const approved = await (prisma as any).approvalRequest?.findFirst?.({
-              where: {
-                targetType: 'Order', targetId: id,
-                actionType: 'order:moq-exemption', status: 'approved',
-              },
-              select: { id: true },
-            });
-            if (!approved) {
-              const worst = moqCheck.lines[0];
-              const approvalHint = (moqCheck as any).approvalRequestId
-                ? `（豁免审批单 ${(moqCheck as any).approvalRequestId} 已自动发起，审批通过后重试）`
-                : '（豁免审批单发起失败，请联系管理员）';
-              return {
-                ok: false,
-                error: {
-                  code: 'MOQ_VIOLATION',
-                  message: `订单数量 ${Number(existing.quantity)} 低于 MOQ ${worst?.effectiveMoq}（缺口 ${worst?.gapPct}%，快照口径），须先完成 MOQ 豁免审批（DR-007 单人单次）${approvalHint}`,
-                  approvalRequestId: (moqCheck as any).approvalRequestId,
-                },
-              };
-            }
-          }
-        } catch (e: any) {
-          // fail-closed：门禁校验异常 → 阻断 Confirmed 推进
-          logger.error('[OrderV2] Confirmed 门禁 MOQ 校验异常（fail-closed 阻断）', { id, error: e?.message });
-          return { ok: false, error: { code: 'MOQ_VIOLATION', message: `MOQ 校验失败，请重试或联系管理员：${e?.message}` } };
-        }
+      // ── 统一确认引擎（W-A 走查 DE-2/DE-4 修复，方案 a：消除 V1/V2 双轨）──
+      // 状态机校验 / DR-010 守卫 / 信用+MOQ 确认门禁 / OrderStatusTransition 留痕 /
+      // EntityLink 同步 / 审计 / OrderStatusChanged+OrderConfirmed 事件发布（L1 生产管线、L6 BOM 联动）
+      // 全部收敛到 V1 orderLifecycleService.transitionOrderStatus 单引擎，V2 仅保留行级 scope 前置校验。
+      const transition = await transitionOrderStatus({
+        prisma,
+        orderId: id,
+        toStatus: newStatus,
+        note: reason,
+        operator: actor.userId,
+        actorId: actor.userId,
+      });
+      if (!transition.ok) {
+        const codeMap: Record<string, OrderV2Error> = {
+          ORDER_NOT_FOUND: 'NOT_FOUND',
+          INVALID_STATUS: 'VALIDATION_FAILED',
+          INVALID_TRANSITION: 'INVALID_TRANSITION',
+          NO_CHANGE: 'INVALID_TRANSITION',
+          ORDER_LIFECYCLE_GUARDED: 'INVALID_TRANSITION',
+          ORDER_ALREADY_CLOSED: 'INVALID_TRANSITION',
+          MOQ_VIOLATION: 'MOQ_VIOLATION',
+          CREDIT_FROZEN_60_DAYS: 'CREDIT_FROZEN_60_DAYS',
+          CREDIT_REVOKED: 'CREDIT_REVOKED',
+          OVERDUE_60_DAYS: 'OVERDUE_60_DAYS',
+          CREDIT_CHECK_FAILED: 'CREDIT_CHECK_FAILED',
+        };
+        return {
+          ok: false,
+          error: {
+            code: codeMap[transition.error!.code] ?? 'INTERNAL_ERROR',
+            message: transition.error!.message,
+            approvalRequestId: transition.error!.approvalRequestId,
+          },
+        };
       }
 
-      const updated = await (prisma as any).$transaction(async (tx: any) => {
-        const order = await tx.order.update({
-          where: { id },
-          data: { status: newStatus, updatedAt: BigInt(Date.now()) },
-        });
-        // 写状态流转记录（schema 字段为 note/operator——此前误用 reason/actorId 导致 100% 500）
-        await tx.orderStatusTransition.create({
-          data: {
-            id: `OST-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            orderId: id,
-            fromStatus: currentStatus,
-            toStatus: newStatus,
-            note: reason || null,
-            operator: actor.userId,
-            createdAt: BigInt(Date.now()),
-          },
-        });
-        return order;
-      });
-
-      logger.info('[OrderV2] status transition', { id, from: currentStatus, to: newStatus, reason });
-      return { ok: true, data: serializeOrder(updated) };
+      logger.info('[OrderV2] status transition', { id, from: transition.data!.fromStatus, to: newStatus, reason });
+      return { ok: true, data: serializeOrder(transition.data!.order) };
     } catch (e: any) {
       logger.error('[OrderV2] transition failed', { id, error: e?.message });
       return { ok: false, error: { code: 'INTERNAL_ERROR', message: '订单服务内部错误' } };
