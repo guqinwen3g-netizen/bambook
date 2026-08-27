@@ -15,7 +15,7 @@
  *   - 事件发布失败不阻断业务（fire-and-forget）
  */
 
-import { PrismaClient, PurchaseOrder, PurchaseLine, MaterialReceipt } from '@prisma/client';
+import { PrismaClient, PurchaseOrder, PurchaseLine, MaterialReceipt, SupplierInquiry } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { businessEventBus } from '../events/businessEventBus';
 import { deactivateEntityLinks, syncPurchaseOrderReferences } from '../entities/sync';
@@ -97,6 +97,59 @@ export interface MaterialReceiptInput {
   notes?: string;
 }
 
+// ─── 卡点 3：供应商询价比价（剧本 2.10） ───
+
+export interface SupplierQuoteRecord {
+  id: string;
+  supplierId?: string;
+  supplierName: string;
+  quoteAmount: number;
+  currency: string;
+  exchangeRate?: number;
+  baseAmount?: number;
+  quoteDate: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  expectedDeliveryDate?: string;
+  notes?: string;
+  isSelected?: boolean;
+}
+
+export interface CreateSupplierInquiryInput {
+  description: string;
+  materialCode?: string;
+  quantity?: number;
+  unit?: string;
+  currency: string;
+  expectedDeliveryDate?: string;
+  orderId?: string;
+  bomId?: string;
+  buyer?: string;
+  notes?: string;
+}
+
+export interface UpdateSupplierInquiryInput extends Partial<CreateSupplierInquiryInput> {
+  status?: string;
+}
+
+export interface AddSupplierQuoteInput {
+  supplierId?: string;
+  supplierName: string;
+  quoteAmount: number;
+  currency: string;
+  exchangeRate?: number;
+  quoteDate: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  expectedDeliveryDate?: string;
+  notes?: string;
+}
+
+export const SUPPLIER_INQUIRY_CREATE_FIELDS: readonly string[] = [
+  'description', 'materialCode', 'quantity', 'unit', 'currency',
+  'expectedDeliveryDate', 'orderId', 'bomId', 'buyer', 'notes',
+];
+
 // ────────────────────────────────────────────────────────────────
 // 常量
 // ────────────────────────────────────────────────────────────────
@@ -128,6 +181,14 @@ function generateReceiptId(): string {
   return `MR_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function generateInquiryId(): string {
+  return `SI_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function generateQuoteId(): string {
+  return `SQ_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function calcLineAmount(quantity: number, unitPrice: number): number {
   return Math.round(quantity * unitPrice * 10000) / 10000;
 }
@@ -141,6 +202,26 @@ function validateStatusTransition(from: string, to: PurchaseOrderStatus): void {
   if (!allowed || !allowed.includes(to)) {
     throw new Error(`非法状态转换：${from} → ${to}（允许的目标：${allowed?.join(', ') || '无（终态）'}）`);
   }
+}
+
+// ─── 供应商询价状态转换（Open → Compared → Closed） ───
+const INQUIRY_TRANSITIONS: Record<string, string[]> = {
+  Open: ['Compared', 'Closed'],
+  Compared: ['Closed'],
+  Closed: [], // 终态
+};
+
+function validateInquiryStatusTransition(from: string, to: string): void {
+  const allowed = INQUIRY_TRANSITIONS[from];
+  if (!allowed || !allowed.includes(to)) {
+    throw new Error(`询价单非法状态转换：${from} → ${to}（允许的目标：${allowed?.join(', ') || '无（终态）'}）`);
+  }
+}
+
+/** 计算报价的基准币种金额（用于横向比价） */
+function calcBaseAmount(quoteAmount: number, exchangeRate?: number): number {
+  const rate = exchangeRate && exchangeRate > 0 ? exchangeRate : 1;
+  return Math.round(quoteAmount * rate * 10000) / 10000;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -788,6 +869,423 @@ export function createProcurementService(prisma: PrismaClient) {
     return result.receipt;
   }
 
+  // ─── 卡点 3：供应商询价比价（剧本 2.10 验收点） ───
+
+  // ── 创建询价单（Open 状态） ──
+  async function createSupplierInquiry(input: CreateSupplierInquiryInput, actorId: string): Promise<SupplierInquiry> {
+    const now = Date.now();
+    const inquiryId = generateInquiryId();
+
+    const created = await prisma.$transaction(async (tx) => {
+      const inquiryNumber = await nextBusinessNumber(tx, 'SI');
+      const inquiry = await tx.supplierInquiry.create({
+        data: {
+          id: inquiryId,
+          inquiryNumber,
+          status: 'Open',
+          description: input.description,
+          materialCode: input.materialCode ?? null,
+          quantity: input.quantity ?? null,
+          unit: input.unit ?? null,
+          currency: input.currency,
+          expectedDeliveryDate: input.expectedDeliveryDate ?? null,
+          orderId: input.orderId ?? null,
+          bomId: input.bomId ?? null,
+          buyer: input.buyer ?? null,
+          supplierQuotes: [],
+          notes: input.notes ?? null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'create_supplier_inquiry',
+          targetType: 'SupplierInquiry',
+          targetId: inquiryId,
+          detail: { source: 'api:procurement', after: { inquiryNumber, description: input.description } } as any,
+          ip: null,
+          operationType: 'create',
+          fieldPath: null,
+          beforeValue: null as any,
+          afterValue: null as any,
+          transactionId: null,
+        },
+      });
+
+      return inquiry;
+    });
+
+    logger.info('[ProcurementService] supplier inquiry created', { id: inquiryId });
+    return created;
+  }
+
+  // ── 更新询价单（仅 Open 状态可编辑） ──
+  async function updateSupplierInquiry(id: string, input: UpdateSupplierInquiryInput, actorId: string): Promise<SupplierInquiry> {
+    const existing = await prisma.supplierInquiry.findUnique({ where: { id } });
+    if (!existing || existing.deletedAt) throw new Error(`询价单 ${id} 不存在`);
+    if (existing.status !== 'Open') {
+      throw new Error(`询价单 ${id} 状态为 ${existing.status}，仅 Open 状态可编辑`);
+    }
+
+    const now = Date.now();
+    const updated = await prisma.$transaction(async (tx) => {
+      const inquiry = await tx.supplierInquiry.update({
+        where: { id },
+        data: {
+          description: input.description ?? undefined,
+          materialCode: input.materialCode ?? undefined,
+          quantity: input.quantity ?? undefined,
+          unit: input.unit ?? undefined,
+          currency: input.currency ?? undefined,
+          expectedDeliveryDate: input.expectedDeliveryDate ?? undefined,
+          orderId: input.orderId ?? undefined,
+          bomId: input.bomId ?? undefined,
+          buyer: input.buyer ?? undefined,
+          notes: input.notes ?? undefined,
+          updatedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'update_supplier_inquiry',
+          targetType: 'SupplierInquiry',
+          targetId: id,
+          detail: { source: 'api:procurement' } as any,
+          ip: null,
+          operationType: 'update',
+          fieldPath: null,
+          beforeValue: null as any,
+          afterValue: null as any,
+          transactionId: null,
+        },
+      });
+
+      return inquiry;
+    });
+
+    logger.info('[ProcurementService] supplier inquiry updated', { id });
+    return updated;
+  }
+
+  // ── 软删除询价单（仅 Open 状态） ──
+  async function deleteSupplierInquiry(id: string, actorId: string): Promise<void> {
+    const existing = await prisma.supplierInquiry.findUnique({ where: { id } });
+    if (!existing || existing.deletedAt) throw new Error(`询价单 ${id} 不存在`);
+    if (existing.status !== 'Open') {
+      throw new Error(`询价单 ${id} 状态为 ${existing.status}，仅 Open 状态可删除`);
+    }
+
+    const now = Date.now();
+    await prisma.$transaction(async (tx) => {
+      await tx.supplierInquiry.update({ where: { id }, data: { deletedAt: now, updatedAt: now } });
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'delete_supplier_inquiry',
+          targetType: 'SupplierInquiry',
+          targetId: id,
+          detail: { source: 'api:procurement', before: { inquiryNumber: existing.inquiryNumber, status: existing.status } } as any,
+          ip: null,
+          operationType: 'delete',
+          fieldPath: null,
+          beforeValue: null as any,
+          afterValue: null as any,
+          transactionId: null,
+        },
+      });
+    });
+
+    logger.info('[ProcurementService] supplier inquiry deleted', { id });
+  }
+
+  // ── 查询询价单列表 ──
+  async function listSupplierInquiries(params: {
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: SupplierInquiry[]; total: number }> {
+    const where: any = { deletedAt: null };
+    if (params.status) where.status = params.status;
+    if (params.search) {
+      where.OR = [
+        { inquiryNumber: { contains: params.search } },
+        { description: { contains: params.search } },
+        { materialCode: { contains: params.search } },
+        { buyer: { contains: params.search } },
+      ];
+    }
+    const limit = Math.min(params.limit ?? 50, 200);
+    const offset = params.offset ?? 0;
+    const [items, total] = await Promise.all([
+      prisma.supplierInquiry.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.supplierInquiry.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  // ── 查询单个询价单 ──
+  async function getSupplierInquiry(id: string): Promise<SupplierInquiry | null> {
+    const inquiry = await prisma.supplierInquiry.findUnique({ where: { id } });
+    if (!inquiry || inquiry.deletedAt) return null;
+    return inquiry;
+  }
+
+  // ── 添加供应商报价（验收点②：多供应商报价记录） ──
+  async function addSupplierQuote(inquiryId: string, input: AddSupplierQuoteInput, actorId: string): Promise<SupplierInquiry> {
+    const existing = await prisma.supplierInquiry.findUnique({ where: { id: inquiryId } });
+    if (!existing || existing.deletedAt) throw new Error(`询价单 ${inquiryId} 不存在`);
+    if (existing.status !== 'Open') {
+      throw new Error(`询价单 ${inquiryId} 状态为 ${existing.status}，仅 Open 状态可添加报价`);
+    }
+
+    const quotes: SupplierQuoteRecord[] = Array.isArray(existing.supplierQuotes) ? (existing.supplierQuotes as unknown as SupplierQuoteRecord[]) : [];
+    const newQuote: SupplierQuoteRecord = {
+      id: generateQuoteId(),
+      supplierId: input.supplierId ?? undefined,
+      supplierName: input.supplierName,
+      quoteAmount: input.quoteAmount,
+      currency: input.currency,
+      exchangeRate: input.exchangeRate,
+      baseAmount: calcBaseAmount(input.quoteAmount, input.exchangeRate),
+      quoteDate: input.quoteDate,
+      deliveryTerms: input.deliveryTerms ?? undefined,
+      paymentTerms: input.paymentTerms ?? undefined,
+      expectedDeliveryDate: input.expectedDeliveryDate ?? undefined,
+      notes: input.notes ?? undefined,
+      isSelected: false,
+    };
+    quotes.push(newQuote);
+
+    const now = Date.now();
+    const updated = await prisma.$transaction(async (tx) => {
+      const inquiry = await tx.supplierInquiry.update({
+        where: { id: inquiryId },
+        data: { supplierQuotes: quotes as any, updatedAt: now },
+      });
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'add_supplier_quote',
+          targetType: 'SupplierInquiry',
+          targetId: inquiryId,
+          detail: { source: 'api:procurement', after: { supplierName: input.supplierName, quoteAmount: input.quoteAmount, currency: input.currency } } as any,
+          ip: null,
+          operationType: 'update',
+          fieldPath: 'supplierQuotes',
+          beforeValue: null as any,
+          afterValue: null as any,
+          transactionId: null,
+        },
+      });
+      return inquiry;
+    });
+
+    logger.info('[ProcurementService] supplier quote added', { inquiryId, supplierName: input.supplierName });
+    return updated;
+  }
+
+  // ── 更新供应商报价 ──
+  async function updateSupplierQuote(inquiryId: string, quoteId: string, input: Partial<AddSupplierQuoteInput>, actorId: string): Promise<SupplierInquiry> {
+    const existing = await prisma.supplierInquiry.findUnique({ where: { id: inquiryId } });
+    if (!existing || existing.deletedAt) throw new Error(`询价单 ${inquiryId} 不存在`);
+    if (existing.status !== 'Open') {
+      throw new Error(`询价单 ${inquiryId} 状态为 ${existing.status}，仅 Open 状态可编辑报价`);
+    }
+
+    const quotes: SupplierQuoteRecord[] = Array.isArray(existing.supplierQuotes) ? (existing.supplierQuotes as unknown as SupplierQuoteRecord[]) : [];
+    const idx = quotes.findIndex(q => q.id === quoteId);
+    if (idx < 0) throw new Error(`报价 ${quoteId} 不存在于询价单 ${inquiryId}`);
+    const prev = quotes[idx];
+    const next: SupplierQuoteRecord = {
+      ...prev,
+      supplierId: input.supplierId ?? prev.supplierId,
+      supplierName: input.supplierName ?? prev.supplierName,
+      quoteAmount: input.quoteAmount ?? prev.quoteAmount,
+      currency: input.currency ?? prev.currency,
+      exchangeRate: input.exchangeRate ?? prev.exchangeRate,
+      quoteDate: input.quoteDate ?? prev.quoteDate,
+      deliveryTerms: input.deliveryTerms ?? prev.deliveryTerms,
+      paymentTerms: input.paymentTerms ?? prev.paymentTerms,
+      expectedDeliveryDate: input.expectedDeliveryDate ?? prev.expectedDeliveryDate,
+      notes: input.notes ?? prev.notes,
+    };
+    // 金额/汇率变化时重算 baseAmount（用于横向比价）
+    if (input.quoteAmount != null || input.exchangeRate != null) {
+      next.baseAmount = calcBaseAmount(next.quoteAmount, next.exchangeRate);
+    }
+    quotes[idx] = next;
+
+    const now = Date.now();
+    const updated = await prisma.$transaction(async (tx) => {
+      const inquiry = await tx.supplierInquiry.update({
+        where: { id: inquiryId },
+        data: { supplierQuotes: quotes as any, updatedAt: now },
+      });
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'update_supplier_quote',
+          targetType: 'SupplierInquiry',
+          targetId: inquiryId,
+          detail: { source: 'api:procurement', quoteId } as any,
+          ip: null,
+          operationType: 'update',
+          fieldPath: 'supplierQuotes',
+          beforeValue: null as any,
+          afterValue: null as any,
+          transactionId: null,
+        },
+      });
+      return inquiry;
+    });
+
+    logger.info('[ProcurementService] supplier quote updated', { inquiryId, quoteId });
+    return updated;
+  }
+
+  // ── 删除供应商报价 ──
+  async function removeSupplierQuote(inquiryId: string, quoteId: string, actorId: string): Promise<SupplierInquiry> {
+    const existing = await prisma.supplierInquiry.findUnique({ where: { id: inquiryId } });
+    if (!existing || existing.deletedAt) throw new Error(`询价单 ${inquiryId} 不存在`);
+    if (existing.status !== 'Open') {
+      throw new Error(`询价单 ${inquiryId} 状态为 ${existing.status}，仅 Open 状态可删除报价`);
+    }
+
+    const quotes: SupplierQuoteRecord[] = Array.isArray(existing.supplierQuotes) ? (existing.supplierQuotes as unknown as SupplierQuoteRecord[]) : [];
+    const filtered = quotes.filter(q => q.id !== quoteId);
+    if (filtered.length === quotes.length) throw new Error(`报价 ${quoteId} 不存在于询价单 ${inquiryId}`);
+
+    const now = Date.now();
+    const updated = await prisma.$transaction(async (tx) => {
+      const inquiry = await tx.supplierInquiry.update({
+        where: { id: inquiryId },
+        data: { supplierQuotes: filtered as any, updatedAt: now },
+      });
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'remove_supplier_quote',
+          targetType: 'SupplierInquiry',
+          targetId: inquiryId,
+          detail: { source: 'api:procurement', quoteId } as any,
+          ip: null,
+          operationType: 'update',
+          fieldPath: 'supplierQuotes',
+          beforeValue: null as any,
+          afterValue: null as any,
+          transactionId: null,
+        },
+      });
+      return inquiry;
+    });
+
+    logger.info('[ProcurementService] supplier quote removed', { inquiryId, quoteId });
+    return updated;
+  }
+
+  // ── 比价决策：选定中选供应商（Open → Compared）（验收点③：比价决策可记录） ──
+  async function selectSupplier(inquiryId: string, quoteId: string, decisionNote: string, actorId: string): Promise<SupplierInquiry> {
+    const existing = await prisma.supplierInquiry.findUnique({ where: { id: inquiryId } });
+    if (!existing || existing.deletedAt) throw new Error(`询价单 ${inquiryId} 不存在`);
+    validateInquiryStatusTransition(existing.status, 'Compared');
+
+    const quotes: SupplierQuoteRecord[] = Array.isArray(existing.supplierQuotes) ? (existing.supplierQuotes as unknown as SupplierQuoteRecord[]) : [];
+    const selected = quotes.find(q => q.id === quoteId);
+    if (!selected) throw new Error(`报价 ${quoteId} 不存在于询价单 ${inquiryId}，无法比价决策`);
+
+    // 标记中选/落选
+    const marked = quotes.map(q => ({ ...q, isSelected: q.id === quoteId }));
+
+    const now = Date.now();
+    const updated = await prisma.$transaction(async (tx) => {
+      const inquiry = await tx.supplierInquiry.update({
+        where: { id: inquiryId },
+        data: {
+          status: 'Compared',
+          supplierQuotes: marked as any,
+          selectedSupplierId: selected.supplierId ?? null,
+          selectedSupplierName: selected.supplierName,
+          decisionNote: decisionNote || null,
+          updatedAt: now,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'select_supplier',
+          targetType: 'SupplierInquiry',
+          targetId: inquiryId,
+          detail: { source: 'api:procurement', before: { status: existing.status }, after: { status: 'Compared', selectedSupplierName: selected.supplierName, decisionNote } } as any,
+          ip: null,
+          operationType: 'transition',
+          fieldPath: 'status',
+          beforeValue: existing.status,
+          afterValue: 'Compared',
+          transactionId: null,
+        },
+      });
+      return inquiry;
+    });
+
+    logger.info('[ProcurementService] supplier selected', { inquiryId, quoteId, supplierName: selected.supplierName });
+    return updated;
+  }
+
+  // ── 关闭询价单（Compared → Closed） ──
+  async function closeSupplierInquiry(inquiryId: string, actorId: string): Promise<SupplierInquiry> {
+    const existing = await prisma.supplierInquiry.findUnique({ where: { id: inquiryId } });
+    if (!existing || existing.deletedAt) throw new Error(`询价单 ${inquiryId} 不存在`);
+    validateInquiryStatusTransition(existing.status, 'Closed');
+
+    const now = Date.now();
+    const updated = await prisma.$transaction(async (tx) => {
+      const inquiry = await tx.supplierInquiry.update({
+        where: { id: inquiryId },
+        data: { status: 'Closed', updatedAt: now },
+      });
+      await tx.auditLog.create({
+        data: {
+          id: `alog_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          actorId: actorId || 'system',
+          action: 'close_supplier_inquiry',
+          targetType: 'SupplierInquiry',
+          targetId: inquiryId,
+          detail: { source: 'api:procurement', before: { status: existing.status }, after: { status: 'Closed' } } as any,
+          ip: null,
+          operationType: 'transition',
+          fieldPath: 'status',
+          beforeValue: existing.status,
+          afterValue: 'Closed',
+          transactionId: null,
+        },
+      });
+      return inquiry;
+    });
+
+    logger.info('[ProcurementService] supplier inquiry closed', { inquiryId });
+    return updated;
+  }
+
   return {
     createPurchaseOrder,
     updatePurchaseOrder,
@@ -800,6 +1298,16 @@ export function createProcurementService(prisma: PrismaClient) {
     closePurchaseOrder,
     transitionPurchaseOrderStatus,
     createMaterialReceipt,
+    createSupplierInquiry,
+    updateSupplierInquiry,
+    deleteSupplierInquiry,
+    listSupplierInquiries,
+    getSupplierInquiry,
+    addSupplierQuote,
+    updateSupplierQuote,
+    removeSupplierQuote,
+    selectSupplier,
+    closeSupplierInquiry,
   };
 }
 

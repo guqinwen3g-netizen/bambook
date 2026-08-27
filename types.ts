@@ -1007,8 +1007,14 @@ export interface DevelopmentCase {
   sampleSentDate?: string;
   sampleTrackingNumber?: string;
   sampleCourier?: string;
+  sampleShippingFee?: number;
+  sampleRecipientName?: string;
+  sampleRecipientCompany?: string;
+  sampleRecipientAddress?: string;
+  sampleRecipientPhone?: string;
   sampleFeedback?: string;
   sampleFeedbackDate?: string;
+  sampleInvoiceId?: string;
   linkedOrderId?: string;
   linkedOrderPo?: string;
   convertedAt?: number;
@@ -1042,6 +1048,10 @@ export interface DevelopmentCaseCreateInput {
   sampleUnit?: string;
   notes?: string;
   tags?: string[];
+  styleSpec?: string;
+  sizeSpec?: string;
+  fabricSpec?: string;
+  processSpec?: string;
 }
 
 export interface DevelopmentCaseUpdateInput extends Partial<DevelopmentCaseCreateInput> {
@@ -1049,8 +1059,14 @@ export interface DevelopmentCaseUpdateInput extends Partial<DevelopmentCaseCreat
   sampleSentDate?: string;
   sampleTrackingNumber?: string;
   sampleCourier?: string;
+  sampleShippingFee?: number;
+  sampleRecipientName?: string;
+  sampleRecipientCompany?: string;
+  sampleRecipientAddress?: string;
+  sampleRecipientPhone?: string;
   sampleFeedback?: string;
   sampleFeedbackDate?: string;
+  sampleInvoiceId?: string;
   linkedOrderId?: string;
   linkedOrderPo?: string;
   convertedAt?: number;
@@ -2133,6 +2149,76 @@ export interface MaterialReceiptInput {
   totalRejected: number;
   rejectionReason?: string;
   qualityNotes?: string;
+  notes?: string;
+}
+
+// ─── 卡点 3：供应商询价比价（剧本 2.10 验收点） ───
+export type SupplierInquiryStatus = 'Open' | 'Compared' | 'Closed';
+
+/** 单条供应商报价（存于 SupplierInquiry.supplierQuotes Json 数组中） */
+export interface SupplierQuoteItem {
+  id: string;
+  supplierId?: string;
+  supplierName: string;
+  quoteAmount: number;
+  currency: string;
+  exchangeRate?: number;
+  baseAmount?: number; // = quoteAmount × exchangeRate（换算到基准币种，用于横向比价）
+  quoteDate: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  expectedDeliveryDate?: string;
+  notes?: string;
+  isSelected?: boolean;
+}
+
+export interface SupplierInquiry {
+  id: string;
+  inquiryNumber: string;
+  status: SupplierInquiryStatus;
+  description: string;
+  materialCode?: string;
+  quantity?: number;
+  unit?: string;
+  currency: string;
+  expectedDeliveryDate?: string;
+  orderId?: string;
+  bomId?: string;
+  buyer?: string;
+  supplierQuotes?: SupplierQuoteItem[];
+  selectedSupplierId?: string;
+  selectedSupplierName?: string;
+  decisionNote?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface SupplierInquiryInput {
+  description: string;
+  materialCode?: string;
+  quantity?: number;
+  unit?: string;
+  currency: string;
+  expectedDeliveryDate?: string;
+  orderId?: string;
+  bomId?: string;
+  buyer?: string;
+  notes?: string;
+}
+
+/** 新增/更新单条供应商报价的入参 */
+export interface SupplierQuoteInput {
+  supplierId?: string;
+  supplierName: string;
+  quoteAmount: number;
+  currency: string;
+  exchangeRate?: number;
+  quoteDate: string;
+  deliveryTerms?: string;
+  paymentTerms?: string;
+  expectedDeliveryDate?: string;
   notes?: string;
 }
 

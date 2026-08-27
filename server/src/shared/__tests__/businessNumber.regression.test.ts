@@ -75,7 +75,7 @@ function makePrismaWithSequences() {
 
 const ALL_PREFIXES: BusinessPrefix[] = [
   'QT', 'ORD', 'PO', 'INV', 'SH', 'CD', 'PV', 'IR', 'SM', 'BOM',
-  'LC', 'TR', 'CI', 'PL', 'CO', 'BL', 'AWB', 'INS', 'IC', 'PC', 'DOC',
+  'LC', 'TR', 'CI', 'PL', 'CO', 'BL', 'AWB', 'INS', 'IC', 'PC', 'SI', 'DOC',
 ];
 
 beforeEach(() => {
@@ -268,9 +268,9 @@ describe('businessNumberService 回归', () => {
       });
     });
 
-    it('isBusinessPrefix 恰好接受 21 个 PRD 前缀（全集快照防漂移）', () => {
+    it('isBusinessPrefix 恰好接受 22 个 PRD 前缀（全集快照防漂移）', () => {
       const accepted = ALL_PREFIXES.filter((p) => isBusinessPrefix(p));
-      expect(accepted).toHaveLength(21);
+      expect(accepted).toHaveLength(22);
       expect(accepted.sort()).toEqual([...ALL_PREFIXES].sort());
     });
   });

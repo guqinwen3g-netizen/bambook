@@ -56,6 +56,7 @@ import { RelatedWorkspacesSection } from './ui/RelatedWorkspacesSection';
 import { consumeCrossModuleNav } from '../services/crossModuleNav';
 import { NavRelationFilterChip } from './ui/NavRelationFilterChip';
 import A4DocumentPreviewModal from './ui/A4DocumentPreviewModal';
+import SupplierInquiryPanel from './SupplierInquiryPanel';
 import { bdsConfirm } from './ui/BdsDialog';
 import { bdsToast } from './ui/bdsToast';
 
@@ -212,6 +213,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [viewMode, setViewMode] = useState<'orders' | 'inquiries'>('orders');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
   const [receiptsByPo, setReceiptsByPo] = useState<Record<string, MaterialReceipt[]>>({});
@@ -636,7 +638,7 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
         title="采购管理"
         subtitle="Procurement"
         isDarkMode={isDarkMode}
-        actions={!showCreateForm ? (
+        actions={viewMode === 'orders' && !showCreateForm ? (
           <button onClick={() => setShowCreateForm(true)} className="bds-btn bds-btn-primary">
             <Plus size={14} /><span>新建采购单</span>
           </button>
@@ -644,10 +646,18 @@ const ProcurementManager: React.FC<ProcurementManagerProps> = ({ isDarkMode, onN
       />
 
       <div className="flex-1 min-h-0 flex flex-col relative px-7 pb-6 pt-2">
+        <div className="bds-segment mb-3">
+          <button className={`seg ${viewMode === 'orders' ? 'active' : ''}`} onClick={() => setViewMode('orders')}>采购单</button>
+          <button className={`seg ${viewMode === 'inquiries' ? 'active' : ''}`} onClick={() => setViewMode('inquiries')}>供应商询价</button>
+        </div>
         <ScrollEdgeFades scrollRef={{ current: null }} isDarkMode={isDarkMode} variant="subtle" zIndex={12} topHeight={12} bottomHeight={12} />
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
           <AnimatePresence mode="wait">
-            {showCreateForm ? (
+            {viewMode === 'inquiries' ? (
+              <motion.div key="inquiries-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                <SupplierInquiryPanel isDarkMode={isDarkMode} />
+              </motion.div>
+            ) : showCreateForm ? (
               <motion.div key="create-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 {/* 创建表单 */}
                 <div className="flex items-center justify-between mb-4">

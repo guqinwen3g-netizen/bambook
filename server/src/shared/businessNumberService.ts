@@ -56,14 +56,14 @@ export type BusinessPrefix =
   | 'INS'  // 保险单 InsuranceCert
   | 'IC'   // 检验证书 InspectionCert
   | 'PC'   // 植检证 PhytosanitaryCert
+  | 'SI'   // 供应商询价 SupplierInquiry
   | 'RT'   // 物料退换货单 MaterialReturn（P1-4）
   | 'CLM'  // 索赔贷项发票 Claim CreditNote（P1-4，负向 Payable）
   | 'DOC'; // 其他单据 Other
 
 const VALID_PREFIXES: BusinessPrefix[] = [
   'QT', 'ORD', 'PO', 'INV', 'SH', 'CD', 'PV', 'IR', 'SM', 'BOM',
-  'LC', 'TR', 'CI', 'PL', 'CO', 'BL', 'AWB', 'INS', 'IC', 'PC', 'DOC',
-  'RT', 'CLM',
+  'LC', 'TR', 'CI', 'PL', 'CO', 'BL', 'AWB', 'INS', 'IC', 'PC', 'SI', 'RT', 'CLM', 'DOC',
 ];
 
 export function isBusinessPrefix(prefix: string): prefix is BusinessPrefix {

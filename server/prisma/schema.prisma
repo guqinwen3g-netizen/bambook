@@ -2022,8 +2022,16 @@ model DevelopmentCase {
   sampleSentDate       String?
   sampleTrackingNumber String?
   sampleCourier        String?
+  sampleShippingFee    Float? // 寄样邮寄费（快递费用留痕，费用币种随客户合同）
+  // 寄样收件信息（DR-057 v2.1：开发单寄样收件方全量留痕）
+  sampleRecipientName    String? // 收件人
+  sampleRecipientCompany String? // 收件公司
+  sampleRecipientAddress String? // 收件地址（城市/国家或完整地址）
+  sampleRecipientPhone   String? // 联系电话
   sampleFeedback       String?
   sampleFeedbackDate   String?
+  // 样品发票关联（跳财务·发票管理直达该发票详情）
+  sampleInvoiceId String?
 
   // Conversion to bulk order
   linkedOrderId String?
@@ -2034,6 +2042,12 @@ model DevelopmentCase {
   notes       String?
   tags        String[]
   attachments Json?
+
+  // Garment-specific specs (成衣专用，type=garment 时填写)
+  styleSpec   String?
+  sizeSpec    String?
+  fabricSpec  String?
+  processSpec String?
 
   // Timestamps & soft delete
   createdAt BigInt
@@ -3689,6 +3703,55 @@ model MaterialReturn {
   @@index([supplierRelationId])
   @@index([status])
   @@index([type])
+}
+
+// ============ 卡点 3 修复：供应商询价比价 Supplier Inquiry（剧本 2.10 验收点补齐） ============
+/// 采购询价单（向供应商询价，区别于面向客户的销售报价 Quotation）
+/// 生命周期：Open（询价中，收集多供应商报价）→ Compared（已比价决策）→ Closed（已关闭/转采购单）
+/// 验收点：① 询价创建可用 ② 多供应商报价记录 ③ 比价决策可记录
+model SupplierInquiry {
+  id            String @id // 格式：SI_${shortId}
+  inquiryNumber String @unique // 业务询价号（如 SI-20260824-001，nextBusinessNumber 生成）
+
+  // ─── 询价内容 ───
+  status        String // Open(询价中) | Compared(已比价) | Closed(已关闭)
+  description   String // 询价品名描述（面料/辅料/品名规格）
+  materialCode  String? // 物料编码（可选，关联面料/辅料档案）
+  quantity      Decimal? @db.Decimal(18, 4) // 询价数量
+  unit          String? // YD | M | KG | PC | SET
+  currency      String // USD | CNY | EUR（基准币种，用于比价换算）
+  expectedDeliveryDate String? // 期望交货日期
+
+  // ─── 关联 ───
+  orderId       String? // 关联销售订单（可选，从订单触发采购询价）
+  bomId         String? // 关联 BOM（可选）
+  buyer         String? // 采购员
+
+  // ─── 多供应商报价（Json 数组，变长，不固定供应商数量） ───
+  /// supplierQuotes JSONB 结构：[{
+  ///   id, supplierId, supplierName, quoteAmount, currency, exchangeRate, baseAmount,
+  ///   quoteDate, deliveryTerms, paymentTerms, expectedDeliveryDate, notes, isSelected
+  /// }]
+  /// baseAmount = quoteAmount × exchangeRate（换算到基准币种，用于横向比价）
+  supplierQuotes Json?
+
+  // ─── 比价决策 ───
+  selectedSupplierId   String? // 中选供应商 Relation ID
+  selectedSupplierName String? // 中选供应商名称（冗余快照）
+  decisionNote         String? // 比价决策备注（选型理由/议价结果）
+
+  notes       String?
+  attachments Json?
+
+  createdAt BigInt
+  updatedAt BigInt
+  deletedAt BigInt?
+
+  @@index([status])
+  @@index([inquiryNumber])
+  @@index([materialCode])
+  @@index([orderId])
+  @@index([selectedSupplierId])
 }
 
 // ============ 阶段 H H1: 供应商管理 Supplier Management（PRD 13 / 19.18） ============
@@ -5821,6 +5884,7 @@ model FabricShipmentSample {
   trackingNumber       String?   // 快递单号
   recipientName        String?   // 收件人
   recipientContact     String?
+  shippingFee          Float?    // 寄样邮寄费（DR-057 v2.1：费用留痕，币种随客户合同）
 
   // ─── 客户确认（3 并行条件 2/3：S/S 确认；Shipment.releaseReady 校验此条件之一） ───
   /// pending | approved | rejected | needs_revision
@@ -6261,15 +6325,32 @@ model SampleCardItem {
   name          String // 样卡名称（面料名/色卡名/成衣款名）
   cardType      String   @default("fabric") // fabric | garment | colorcard | trim | other
   colorCardCode String? // 关联逻辑色卡 ColorCard.code（可选）
-  location      String? // 样品间架位（自由文本）
+  location      String? // 样品间架位（仓库内架位文本，与 warehouseId 配合）
   status        String   @default("in_stock") // in_stock | borrowed | retired
   notes         String?
   createdAt     BigInt
   updatedAt     BigInt
   deletedAt     BigInt?
 
+  // ─── 库存管理字段（与 InventoryManager 联动；DR-057 v2 升级） ───
+  quantity     Int     @default(1) // 总数量
+  availableQty Int     @default(1) // 可用数量（quantity - 在借未归还）
+  minStock     Int? // 低库存预警阈值
+  maxStock     Int? // 高库存上限
+  unit         String? @default("张") // 单位
+
+  // ─── 软关联（与 DevelopmentCase.linkedOrderId 一致风格，无 FK 约束） ───
+  warehouseId    String? // 关联 Warehouse.id（仓库体系联动）
+  devCaseId      String? // 关联 DevelopmentCase.id（开发管理联动）
+  orderId        String? // 关联 Order.id（大货订单联动）
+  productAssetId String? // 关联 ProductAsset.id（数字档案联动：面料档案/服装档案）
+
   @@index([status])
   @@index([cardType])
+  @@index([warehouseId])
+  @@index([devCaseId])
+  @@index([orderId])
+  @@index([productAssetId])
 }
 
 /// 借还/看样流水（append-only：归还只补 returnedAt/conditionNote，不删不改历史）。
@@ -6278,6 +6359,7 @@ model SampleCardLoan {
   id             String  @id // 格式：SCL__${shortId}
   itemId         String
   loanType       String // borrow | viewing
+  loanQuantity   Int     @default(1) // 借出数量（DR-057 v2：支持一次借多张）
   borrowerName   String // 借用人/看样联系人
   borrowerUserId String? // borrow 时关联用户
   relationId     String? // viewing 时关联客户 Relation

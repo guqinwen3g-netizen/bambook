@@ -21,7 +21,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { extractActorFromRequest } from '../auth/middleware';
 import { logger } from '../lib/logger';
-import { createProcurementService, CreatePurchaseOrderInput, UpdatePurchaseOrderInput, MaterialReceiptInput } from './procurementService';
+import { createProcurementService, CreatePurchaseOrderInput, UpdatePurchaseOrderInput, MaterialReceiptInput, CreateSupplierInquiryInput, UpdateSupplierInquiryInput, AddSupplierQuoteInput, SUPPLIER_INQUIRY_CREATE_FIELDS } from './procurementService';
 import { createMaterialReturnService } from './materialReturnService';
 import { buildXlsx, xlsxDownloadHeaders, type XlsxSheet } from '../templates/xlsxExport';
 import { renderServerDocument } from '../templates/docTemplates/registry';
@@ -99,6 +99,200 @@ export function createProcurementRouter(options: ProcurementRouterOptions): Rout
     } catch (e: any) {
       logger.error('[ProcurementRoute] GET list failed', { error: e?.message });
       res.status(500).json({ error: e?.message || 'failed to list purchase orders' });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // 卡点 3：供应商询价比价 /inquiries（剧本 2.10 验收点）
+  // 端点：
+  //   GET    /inquiries               — 询价单列表
+  //   POST   /inquiries                — 创建询价单（Open）
+  //   GET    /inquiries/:id            — 询价单详情
+  //   PUT    /inquiries/:id            — 更新询价单（仅 Open）
+  //   DELETE /inquiries/:id            — 软删除询价单（仅 Open）
+  //   POST   /inquiries/:id/quotes     — 添加供应商报价
+  //   PUT    /inquiries/:id/quotes/:quoteId  — 更新供应商报价
+  //   DELETE /inquiries/:id/quotes/:quoteId — 删除供应商报价
+  //   POST   /inquiries/:id/select     — 比价决策（选定中选供应商，Open → Compared）
+  //   POST   /inquiries/:id/close      — 关闭询价单（Compared → Closed）
+  // ══════════════════════════════════════════════════════════════
+
+  // ── GET /inquiries — 询价单列表 ──
+  router.get('/inquiries', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const { status, dateFrom, dateTo, search, limit, offset } = req.query;
+      const result = await service.listSupplierInquiries({
+        status: status as string | undefined,
+        dateFrom: dateFrom as string | undefined,
+        dateTo: dateTo as string | undefined,
+        search: search as string | undefined,
+        limit: limit ? parseInt(limit as string, 10) : undefined,
+        offset: offset ? parseInt(offset as string, 10) : undefined,
+      });
+      res.json(result);
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] GET inquiries list failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to list supplier inquiries' });
+    }
+  });
+
+  // ── POST /inquiries — 创建询价单 ──
+  router.post('/inquiries', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const raw = req.body as CreateSupplierInquiryInput;
+      if (!raw.description || !raw.currency) {
+        return res.status(400).json({ error: '缺少必填字段：description / currency' });
+      }
+      // 白名单过滤（防止客户端写入非法字段）
+      const input: CreateSupplierInquiryInput = {
+        description: raw.description,
+        materialCode: raw.materialCode,
+        quantity: raw.quantity,
+        unit: raw.unit,
+        currency: raw.currency,
+        expectedDeliveryDate: raw.expectedDeliveryDate,
+        orderId: raw.orderId,
+        bomId: raw.bomId,
+        buyer: raw.buyer,
+        notes: raw.notes,
+      };
+      const inquiry = await service.createSupplierInquiry(input, actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'create', ids: [inquiry.id] });
+      res.status(201).json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] POST inquiry create failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to create supplier inquiry' });
+    }
+  });
+
+  // ── GET /inquiries/:id — 询价单详情 ──
+  router.get('/inquiries/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const inquiry = await service.getSupplierInquiry(req.params.id);
+      if (!inquiry) return res.status(404).json({ error: '询价单不存在' });
+      res.json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] GET inquiry detail failed', { error: e?.message });
+      res.status(500).json({ error: e?.message || 'failed to get supplier inquiry' });
+    }
+  });
+
+  // ── PUT /inquiries/:id — 更新询价单（仅 Open） ──
+  router.put('/inquiries/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const input = req.body as UpdateSupplierInquiryInput;
+      const inquiry = await service.updateSupplierInquiry(req.params.id, input, actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'update', ids: [inquiry.id] });
+      res.json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] PUT inquiry update failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      res.status(status).json({ error: e?.message || 'failed to update supplier inquiry' });
+    }
+  });
+
+  // ── DELETE /inquiries/:id — 软删除询价单（仅 Open） ──
+  router.delete('/inquiries/:id', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      await service.deleteSupplierInquiry(req.params.id, actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'delete', ids: [req.params.id] });
+      res.json({ ok: true });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] DELETE inquiry failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      res.status(status).json({ error: e?.message || 'failed to delete supplier inquiry' });
+    }
+  });
+
+  // ── POST /inquiries/:id/quotes — 添加供应商报价（验收点②） ──
+  router.post('/inquiries/:id/quotes', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const input = req.body as AddSupplierQuoteInput;
+      if (!input.supplierName || input.quoteAmount == null || !input.currency || !input.quoteDate) {
+        return res.status(400).json({ error: '缺少必填字段：supplierName / quoteAmount / currency / quoteDate' });
+      }
+      const inquiry = await service.addSupplierQuote(req.params.id, input, actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'update', ids: [inquiry.id] });
+      res.status(201).json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] POST quote add failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      res.status(status).json({ error: e?.message || 'failed to add supplier quote' });
+    }
+  });
+
+  // ── PUT /inquiries/:id/quotes/:quoteId — 更新供应商报价 ──
+  router.put('/inquiries/:id/quotes/:quoteId', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const input = req.body as Partial<AddSupplierQuoteInput>;
+      const inquiry = await service.updateSupplierQuote(req.params.id, req.params.quoteId, input, actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'update', ids: [inquiry.id] });
+      res.json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] PUT quote update failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      res.status(status).json({ error: e?.message || 'failed to update supplier quote' });
+    }
+  });
+
+  // ── DELETE /inquiries/:id/quotes/:quoteId — 删除供应商报价 ──
+  router.delete('/inquiries/:id/quotes/:quoteId', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const inquiry = await service.removeSupplierQuote(req.params.id, req.params.quoteId, actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'update', ids: [inquiry.id] });
+      res.json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] DELETE quote failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      res.status(status).json({ error: e?.message || 'failed to remove supplier quote' });
+    }
+  });
+
+  // ── POST /inquiries/:id/select — 比价决策（验收点③） ──
+  router.post('/inquiries/:id/select', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const { quoteId, decisionNote } = req.body as { quoteId: string; decisionNote: string };
+      if (!quoteId) {
+        return res.status(400).json({ error: '缺少必填字段：quoteId' });
+      }
+      const inquiry = await service.selectSupplier(req.params.id, quoteId, decisionNote || '', actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'update', ids: [inquiry.id] });
+      res.json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] POST select supplier failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      res.status(status).json({ error: e?.message || 'failed to select supplier' });
+    }
+  });
+
+  // ── POST /inquiries/:id/close — 关闭询价单 ──
+  router.post('/inquiries/:id/close', async (req: Request, res: Response) => {
+    if (!authenticate(req, res)) return;
+    try {
+      const actor = extractActorFromRequest(req);
+      const inquiry = await service.closeSupplierInquiry(req.params.id, actor?.userId || 'system');
+      onDataChange?.({ entity: 'SupplierInquiry', action: 'update', ids: [inquiry.id] });
+      res.json({ inquiry });
+    } catch (e: any) {
+      logger.error('[ProcurementRoute] POST inquiry close failed', { error: e?.message });
+      const status = e?.message?.includes('不存在') ? 404 : e?.message?.includes('状态') ? 409 : 500;
+      res.status(status).json({ error: e?.message || 'failed to close supplier inquiry' });
     }
   });
 

@@ -38,6 +38,9 @@ import {
   MaterialReceiptInput,
   MaterialReturn,
   MaterialReturnType,
+  SupplierInquiry,
+  SupplierInquiryInput,
+  SupplierQuoteInput,
   Warehouse,
   WarehouseInput,
   InventoryItem,
@@ -1556,6 +1559,61 @@ export const apiService = {
       { endpoint, method: 'POST', body: JSON.stringify({}) },
     );
     return data.materialReturn;
+  },
+
+  // ── 卡点 3：供应商询价比价 API（剧本 2.10 验收点） ──
+  async listSupplierInquiries(params?: { status?: string; search?: string; limit?: number; offset?: number }, endpoint?: string): Promise<{ items: SupplierInquiry[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.limit != null) qs.set('limit', String(params.limit));
+    if (params?.offset != null) qs.set('offset', String(params.offset));
+    const path = `/v1/procurement/inquiries${qs.toString() ? '?' + qs.toString() : ''}`;
+    return requestJson<{ items: SupplierInquiry[]; total: number }>(path, { endpoint, method: 'GET' });
+  },
+
+  async getSupplierInquiry(id: string, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>(`/v1/procurement/inquiries/${encodeURIComponent(id)}`, { endpoint, method: 'GET' });
+    return data.inquiry;
+  },
+
+  async createSupplierInquiry(input: SupplierInquiryInput, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>('/v1/procurement/inquiries', { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.inquiry;
+  },
+
+  async updateSupplierInquiry(id: string, input: Partial<SupplierInquiryInput>, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>(`/v1/procurement/inquiries/${encodeURIComponent(id)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.inquiry;
+  },
+
+  async deleteSupplierInquiry(id: string, endpoint?: string): Promise<void> {
+    await requestJson<{ ok: boolean }>(`/v1/procurement/inquiries/${encodeURIComponent(id)}`, { endpoint, method: 'DELETE' });
+  },
+
+  async addSupplierQuote(inquiryId: string, input: SupplierQuoteInput, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>(`/v1/procurement/inquiries/${encodeURIComponent(inquiryId)}/quotes`, { endpoint, method: 'POST', body: JSON.stringify(input) });
+    return data.inquiry;
+  },
+
+  async updateSupplierQuote(inquiryId: string, quoteId: string, input: Partial<SupplierQuoteInput>, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>(`/v1/procurement/inquiries/${encodeURIComponent(inquiryId)}/quotes/${encodeURIComponent(quoteId)}`, { endpoint, method: 'PUT', body: JSON.stringify(input) });
+    return data.inquiry;
+  },
+
+  async removeSupplierQuote(inquiryId: string, quoteId: string, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>(`/v1/procurement/inquiries/${encodeURIComponent(inquiryId)}/quotes/${encodeURIComponent(quoteId)}`, { endpoint, method: 'DELETE' });
+    return data.inquiry;
+  },
+
+  async selectSupplier(inquiryId: string, quoteId: string, decisionNote: string, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>(`/v1/procurement/inquiries/${encodeURIComponent(inquiryId)}/select`, { endpoint, method: 'POST', body: JSON.stringify({ quoteId, decisionNote }) });
+    return data.inquiry;
+  },
+
+  async closeSupplierInquiry(inquiryId: string, endpoint?: string): Promise<SupplierInquiry> {
+    const data = await requestJson<{ inquiry: SupplierInquiry }>(`/v1/procurement/inquiries/${encodeURIComponent(inquiryId)}/close`, { endpoint, method: 'POST' });
+    return data.inquiry;
   },
 
   // ── Phase 2 B2: 库存管理 API ──
